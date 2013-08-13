@@ -1,0 +1,45 @@
+    "Config": {
+        "Hostname": "3943a503809a",
+        "User": "",
+        "Memory": 0,
+        "MemorySwap": 0,
+        "CpuShares": 0,
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "PortSpecs": null,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": [
+            "/bin/sh",
+            "-c",
+            "while true; do echo hello world; sleep 1; done"
+        ],
+        "Dns": null,
+        "Image": "base",
+        "Volumes": {},
+        "VolumesFrom": "",
+        "Entrypoint": null
+    },
+    "State": {
+        "Running": true,
+        "Pid": 2949,
+        "ExitCode": 0,
+        "StartedAt": "2013-07-12T09:41:42.191429838-05:00",
+        "Ghost": false
+    },
+    "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+    "NetworkSettings": {
+        "IPAddress": "172.16.42.139",
+        "IPPrefixLen": 24,
+        "Gateway": "172.16.42.1",
+        "Bridge": "docker0",
+        "PortMapping": {}
+    },
+    "SysInitPath": "/usr/bin/docker",
+    "ResolvConfPath": "/etc/resolv.conf",
+    "Volumes": {},
+    "VolumesRW": {}
+}
