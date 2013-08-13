@@ -50,7 +50,7 @@ func cleanTestDB(t *testing.T) {
 	cmd := exec.Command("mysql", "-u", "root", database_name, "-e", "source database.sql")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatal("Problem souring schema", err)
+		log.Fatal("Problem sourcing schema", err)
 	}
 	log.Print(string(output))
 }
