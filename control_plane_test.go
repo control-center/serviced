@@ -17,6 +17,7 @@ import (
 	"net/rpc"
 	"os/exec"
 	"testing"
+	"strings"
 )
 
 var (
@@ -27,17 +28,25 @@ var (
 )
 
 var (
+	database_host     = "zends"
+	database_port     = "13306"
 	database_name     = "cp_test"
 	database_user     = "root"
-	database_password = ""
+	database_password = "zends"
 )
 
+func connectionString2() string {
+	return "tcp:" + database_host + ":" + database_port + "*" +
+		"/" + database_user + "/" + database_password
+}
 func connectionString() string {
-	return database_name + "/" + database_user + "/" + database_password
+	return "tcp:" + database_host + ":" + database_port + "*" +
+		database_name + "/" + database_user + "/" + database_password
 }
 
 func cleanTestDB(t *testing.T) {
-	conn, err := sql.Open("mymysql", "/"+database_user+"/")
+	//conn, err := sql.Open("mymysql", "/"+database_user+"/")
+	conn, err := sql.Open("mymysql", connectionString2())
 	defer conn.Close()
 	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + database_name + "`")
 	if err != nil {
@@ -47,10 +56,19 @@ func cleanTestDB(t *testing.T) {
 	if err != nil {
 		log.Fatal("Could not create test database: ", err)
 	}
-	cmd := exec.Command("mysql", "-u", "root", database_name, "-e", "source database.sql")
+	cmd := exec.Command(
+		"mysql",
+		"-h", database_host,
+		"-P", database_port,
+		"-u", database_user,
+		"--password=" + database_password,
+		database_name,
+		"-e", "source database.sql",
+	)
+	log.Println(cmd.Path + "; " + strings.Join(cmd.Args, " "))
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatal("Problem sourcing schema", err)
+		log.Fatal("Problem sourcing schema: ", err, "; ", string(output))
 	}
 	log.Print(string(output))
 }
