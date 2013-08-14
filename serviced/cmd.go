@@ -13,7 +13,8 @@ package main
 
 import (
 	"flag"
-	"github.com/zenoss/serviced"
+	agent "github.com/zenoss/serviced/agent"
+	svc "github.com/zenoss/serviced/svc"
 	"log"
 	"net"
 	"net/http"
@@ -51,7 +52,7 @@ func init() {
 // Start the agent or master services on this host.
 func startServer() {
 	if options.master {
-		master, err := serviced.NewControlSvc(options.connection_string)
+		master, err := svc.NewControlSvc(options.connection_string)
 		if err != nil {
 			log.Fatalf("Could not start ControlPlane service: %v", err)
 		}
@@ -61,7 +62,7 @@ func startServer() {
 		rpc.RegisterName("ControlPlane", master)
 	}
 	if options.agent {
-		agent, err := serviced.NewHostAgent(options.port)
+		agent, err := agent.NewHostAgent(options.port)
 		if err != nil {
 			log.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

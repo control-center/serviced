@@ -200,6 +200,23 @@ type DatabaseConnectionInfo struct {
 	Options  map[string]string
 }
 
+func (connInfo *DatabaseConnectionInfo) UrlString() string {
+	url := connInfo.Dialect + "://"
+	if len(connInfo.User) > 0 {
+		url += connInfo.User
+		if len(connInfo.Password) > 0 {
+			url += ":" + connInfo.Password
+		}
+		url += "@"
+	}
+	url += connInfo.Host
+	if connInfo.Port > 0 {
+		url += fmt.Sprintf(":%d", connInfo.Port)
+	}
+	url += "/" + connInfo.Database
+	return url
+}
+
 // Parse a URI and create a database connection info object. Eg
 // mysql://user:password@127.0.0.1:3306/test
 func ParseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) {
@@ -221,7 +238,9 @@ func ParseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) 
 		connInfo.User = u.User.Username()
 		connInfo.Password = password
 	}
-	connInfo.Database = u.Path[1:]
+	if len(u.Path) > 1 {
+		connInfo.Database = u.Path[1:]
+	}
 	return connInfo, nil
 }
 

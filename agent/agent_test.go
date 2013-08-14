@@ -3,6 +3,7 @@ package serviced
 import (
 	"encoding/json"
 	"fmt"
+	serviced "github.com/zenoss/serviced"
 	"testing"
 )
 
@@ -70,7 +71,7 @@ const example_state = `
 `
 
 func TestParseContainerState(t *testing.T) {
-	var testState []ContainerState
+	var testState []serviced.ContainerState
 
 	err := json.Unmarshal([]byte(example_state), &testState)
 	if err != nil {

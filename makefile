@@ -12,7 +12,11 @@ default:
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
 	go build && go test
-	cd serviced && go build && go test
+	cd svc && make 
+	cd client && make
+	cd agent && make
+	cd serviced && make
+
 
 clean:
 	go clean

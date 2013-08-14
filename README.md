@@ -5,7 +5,8 @@ Serviced is a PaaS runtime. It allows users to create, manage and scale services
 in a uniform way.
 
 
-
+Dev Environment
+---------------
 Serviced is written in go. To install go, download go v1.1 from http://golang.org.
 Untar the distribution to /usr/local/go. Ensure the following is in your environment
 

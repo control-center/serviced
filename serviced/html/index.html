@@ -1,0 +1,37 @@
+<!doctype html>
+<html ng-app="servicedUI">
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.0.5/angular.js"></script>
+    <script src="http://angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.5.0.js"></script>
+    <script>
+        angular.module('servicedUI', ['ui.bootstrap']);
+        var NavCtrl = function ($scope) {
+            $scope.tabs = [
+                { title:"Pools", content:"Dynamic content 1" },
+                { title:"Services", content:"Dynamic content 1" },
+                { title:"Templates", content:"Dynamic content 2", disabled: true }
+            ];
+
+            $scope.alertMe = function() {
+                setTimeout(function() {
+                    alert("You've selected the alert tab!");
+                });
+            };
+            $scope.navType = 'pills';
+        };
+    </script>
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet">
+</head>
+<body>
+
+<h1>Control Plane</h1>
+<div ng-controller="NavCtrl">
+    <hr />
+    <tabset>
+        <tab ng-repeat="tab in tabs" heading="{{tab.title}}" active="tab.active" disabled="tab.disabled">
+            {{tab.content}}
+        </tab>
+    </tabset>
+</div>
+</body>
+</html>

@@ -11,6 +11,8 @@ package serviced
 import (
 	"encoding/json"
 	"fmt"
+	serviced "github.com/zenoss/serviced"
+	client "github.com/zenoss/serviced/client"
 	"log"
 	"os/exec"
 	"strings"
@@ -25,13 +27,13 @@ type HostAgent struct {
 }
 
 // assert that this implemenents the Agent interface
-var _ Agent = &HostAgent{}
+var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 func NewHostAgent(master string) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
-	hostId, err := HostId()
+	hostId, err := serviced.HostId()
 	if err != nil {
 		panic("Could not get hostid")
 	}
@@ -44,7 +46,7 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 // Update the current state of a service. client is the ControlPlane client,
 // service is the reference to the service being updated, and serviceState is
 // the actual service instance being updated.
-func (a *HostAgent) updateCurrentState(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
+func (a *HostAgent) updateCurrentState(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", serviceState.DockerId)
@@ -53,7 +55,7 @@ func (a *HostAgent) updateCurrentState(client *ControlClient, service *Service, 
 		log.Printf("problem getting docker state")
 		return err
 	}
-	containerStates := make([]*ContainerState, 0)
+	containerStates := make([]*serviced.ContainerState, 0)
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
 		log.Printf("updateCurrentState: there was a problem unmarshalling docker output: %v", err)
@@ -73,7 +75,7 @@ func (a *HostAgent) updateCurrentState(client *ControlClient, service *Service, 
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
+func (a *HostAgent) terminateInstance(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "kill", serviceState.DockerId)
@@ -92,7 +94,7 @@ func (a *HostAgent) terminateInstance(client *ControlClient, service *Service, s
 }
 
 // Get the state of the docker container.
-func getDockerState(dockerId string) (containerState ContainerState, err error) {
+func getDockerState(dockerId string) (containerState serviced.ContainerState, err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", dockerId)
@@ -101,17 +103,17 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 		log.Printf("problem getting docker state")
 		return containerState, err
 	}
-	containerStates := make([]*ContainerState, 0)
+	containerStates := make([]*serviced.ContainerState, 0)
 	err = json.Unmarshal(output, &containerStates)
 	if len(containerStates) < 1 {
 		log.Printf("bad state  happened: %v,   \n\n\n%s", err, string(output))
-		return containerState, ControlPlaneError{"no state"}
+		return containerState, serviced.ControlPlaneError{"no state"}
 	}
 	return *containerStates[0], err
 }
 
 // Start a service instance and update the CP with the state.
-func (a *HostAgent) startService(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
+func (a *HostAgent) startService(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
 	cmdString := fmt.Sprintf("docker run -d %s %s", service.ImageId, service.Startup)
 	log.Printf("Starting: %s", cmdString)
@@ -145,7 +147,7 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
-			client, err := NewControlClient(a.master)
+			client, err := client.NewControlClient(a.master)
 			if err != nil {
 				log.Printf("Could not start ControlPlane client %v", err)
 				return
@@ -153,14 +155,14 @@ func (a *HostAgent) start() {
 			defer client.Close()
 			for {
 				time.Sleep(time.Second * 10)
-				var services []*Service
+				var services []*serviced.Service
 				err = client.GetServicesForHost(a.hostId, &services)
 				if err != nil {
 					log.Printf("Could not get services for this host")
 					break
 				}
 				for _, service := range services {
-					var serviceStates []*ServiceState
+					var serviceStates []*serviced.ServiceState
 					err = client.GetServiceStates(service.Id, &serviceStates)
 					if err != nil {
 						if strings.Contains(err.Error(), "Not found") {
@@ -189,8 +191,8 @@ func (a *HostAgent) start() {
 }
 
 // Create a Host object from the host this function is running on.
-func (a *HostAgent) GetInfo(unused int, host *Host) error {
-	hostInfo, err := CurrentContextAsHost()
+func (a *HostAgent) GetInfo(unused int, host *serviced.Host) error {
+	hostInfo, err := serviced.CurrentContextAsHost()
 	if err != nil {
 		return err
 	}

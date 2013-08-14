@@ -10,7 +10,8 @@ package serviced
 
 import (
 	"database/sql"
-	"fmt"
+	serviced "github.com/zenoss/serviced"
+	client "github.com/zenoss/serviced/client"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"net"
@@ -24,13 +25,13 @@ import (
 )
 
 var (
-	server  ControlPlane
-	client  *ControlClient
+	server  serviced.ControlPlane
+	lclient *client.ControlClient
 	unused  int
 	tempdir string
 )
 
-var connInfo *DatabaseConnectionInfo
+var connInfo *serviced.DatabaseConnectionInfo
 
 func init() {
 	var err error
@@ -38,20 +39,19 @@ func init() {
 	if len(conStr) == 0 {
 		conStr = "mysql://root@127.0.0.1:3306/cp_test"
 	}
-	connInfo, err = parseDatabaseUri(conStr)
+	connInfo, err = serviced.ParseDatabaseUri(conStr)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func cleanTestDB(t *testing.T) {
-	db, := connInfo.Database
+	db := connInfo.Database
 	connInfo.Database = ""
 	defer func() {
 		connInfo.Database = db
 	}()
-	log.Printf("mmysql connection string: %s", toMymysqlConnectionString(connInfo))
-	conn, err := sql.Open("mymysql", toMymysqlConnectionString())
+	conn, err := sql.Open("mymysql", serviced.ToMymysqlConnectionString(connInfo))
 	defer conn.Close()
 	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + db + "`")
 	if err != nil {
@@ -82,7 +82,8 @@ func cleanTestDB(t *testing.T) {
 func setup(t *testing.T) {
 
 	cleanTestDB(t)
-	server, err := NewControlSvc(toMymysqlConnectionString())
+	log.Printf("Starting server with: %s", serviced.ToMymysqlConnectionString(connInfo))
+	server, err := NewControlSvc("mysql://root@127.0.0.1:3306/cp_test")
 
 	// register the server API
 	rpc.RegisterName("ControlPlane", server)
@@ -96,41 +97,41 @@ func setup(t *testing.T) {
 	log.Printf("Test Server started on %s", l.Addr().String())
 
 	// setup the client
-	client, err = NewControlClient(l.Addr().String())
+	lclient, err = client.NewControlClient(l.Addr().String())
 	if err != nil {
 		log.Fatalf("Coult not start client %v", err)
 	}
-	log.Printf("Client started: %v", client)
+	log.Printf("Client started: %v", lclient)
 }
 
 func TestControlAPI(t *testing.T) {
 	setup(t)
 
-	request := EntityRequest{}
-	var hosts map[string]*Host = nil
+	request := serviced.EntityRequest{}
+	var hosts map[string]*serviced.Host = nil
 
-	err := client.GetHosts(request, &hosts)
+	err := lclient.GetHosts(request, &hosts)
 	if err != nil {
-		log.Fatalf("Could not get hosts", err)
+		log.Fatalf("Could not get hosts, %s", err)
 	}
-	host, err := CurrentContextAsHost()
+	host, err := serviced.CurrentContextAsHost()
 	log.Printf("Got a currentContextAsHost()\n")
 	if err != nil {
 		t.Fatal("Could not get currentContextAsHost", err)
 	}
-	err = client.AddHost(*host, &unused)
+	err = lclient.AddHost(*host, &unused)
 	if err != nil {
 		t.Fatal("Could not add host", err)
 	}
 
 	host.Name = "foo"
-	err = client.UpdateHost(*host, &unused)
+	err = lclient.UpdateHost(*host, &unused)
 	if err != nil {
 		t.Fatal("Could not update host", err)
 	} else {
 		log.Print("update of host is OK")
 	}
-	err = client.GetHosts(request, &hosts)
+	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
 		t.Fatal("Error getting updated hosts.", err)
 	}
@@ -138,12 +139,12 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Expected host to be named foo.", err)
 	}
 
-	err = client.RemoveHost(host.Id, &unused)
+	err = lclient.RemoveHost(host.Id, &unused)
 	if err != nil {
 		t.Fatal("Could not remove host.", err)
 	}
 	hosts = nil
-	err = client.GetHosts(request, &hosts)
+	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
 		t.Fatal("Error getting updated hosts.", err)
 	}
@@ -152,8 +153,8 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Host was not removed.", err)
 	}
 
-	var services []*Service
-	err = client.GetServices(request, &services)
+	var services []*serviced.Service
+	err = lclient.GetServices(request, &services)
 	if err != nil {
 		t.Fatal("Error getting services.", err)
 	}
@@ -214,32 +215,32 @@ func TestControlAPI(t *testing.T) {
 	*/
 
 	services = nil
-	err = client.GetServicesForHost("dasdfasdf", &services)
+	err = lclient.GetServicesForHost("dasdfasdf", &services)
 	log.Printf("Got %d services", len(services))
 	if err == nil {
 		t.Fatal("Expected error looking for non-existent service.")
 	}
 
-	var pools map[string]*ResourcePool = nil
-	err = client.GetResourcePools(request, &pools)
+	var pools map[string]*serviced.ResourcePool = nil
+	err = lclient.GetResourcePools(request, &pools)
 	if err != nil {
 		t.Fatal("Problem getting empty resource pool list.", err)
 	}
 
-	pool, _ := NewResourcePool()
+	pool, _ := serviced.NewResourcePool()
 	pool.Name = "unit_test_pool"
-	err = client.AddResourcePool(*pool, &unused)
+	err = lclient.AddResourcePool(*pool, &unused)
 	if err != nil {
 		t.Fatal("Problem adding resource pool", err)
 	}
 
-	err = client.RemoveResourcePool(pool.Id, &unused)
+	err = lclient.RemoveResourcePool(pool.Id, &unused)
 	if err != nil {
 		t.Fatal("Problem removing resource pool", err)
 	}
 
 	pools = nil
-	err = client.GetResourcePools(request, &pools)
+	err = lclient.GetResourcePools(request, &pools)
 	if err != nil {
 		t.Fatal("Problem getting empty resource pool list.")
 	}
@@ -251,47 +252,47 @@ func TestControlAPI(t *testing.T) {
 func TestServiceStart(t *testing.T) {
 
 	cleanTestDB(t)
-	host, err := CurrentContextAsHost()
+	host, err := serviced.CurrentContextAsHost()
 	log.Printf("Got a currentContextAsHost()\n")
 	if err != nil {
 		t.Fatal("Could not get currentContextAsHost", err)
 	}
-	err = client.AddHost(*host, &unused)
+	err = lclient.AddHost(*host, &unused)
 	if err != nil {
 		t.Fatal("Could not add host", err)
 	}
 
-	pool, _ := NewResourcePool()
+	pool, _ := serviced.NewResourcePool()
 	pool.Name = "default"
-	err = client.AddResourcePool(*pool, &unused)
+	err = lclient.AddResourcePool(*pool, &unused)
 	if err != nil {
 		t.Fatal("Problem adding resource pool", err)
 	}
-	err = client.AddHostToResourcePool(PoolHost{HostId: host.Id, PoolId: pool.Id}, &unused)
+	err = lclient.AddHostToResourcePool(serviced.PoolHost{HostId: host.Id, PoolId: pool.Id}, &unused)
 	if err != nil {
 		t.Fatal("Problem adding host to resource pool", err)
 	}
 
 	// add a new service
-	service, _ := NewService()
+	service, _ := serviced.NewService()
 	service.Name = "My test service!"
 	service.PoolId = pool.Id
 	service.Startup = "/bin/sh -c \"while true; do echo hello world; sleep 1; done\""
-	err = client.AddService(*service, &unused)
+	err = lclient.AddService(*service, &unused)
 	if err != nil {
 		t.Fatal("Could not add service: ", err)
 	}
 
 	// start the service
 	var hostId string
-	err = client.StartService(service.Id, &hostId)
+	err = lclient.StartService(service.Id, &hostId)
 	if err != nil {
 		t.Fatal("Got error starting service: ", err)
 	}
 
-	var services []*Service
+	var services []*serviced.Service
 	// get the services for a host
-	err = client.GetServicesForHost(host.Id, &services)
+	err = lclient.GetServicesForHost(host.Id, &services)
 	if err != nil {
 		t.Fatal("Could not get services for host: ", err)
 	}
