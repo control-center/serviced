@@ -34,7 +34,6 @@ func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 		return s, err
 	}
 	s.connectionString = toMymysqlConnectionString(connInfo)
-	log.Println("mymysql connection string: %s", s.connectionString)
 	s.connectionDriver = "mymysql"
 	go s.scheduler()
 	return s, err

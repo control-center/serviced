@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 )
 
 // Store the command line options
@@ -35,7 +36,13 @@ func init() {
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
-	flag.StringVar(&options.connection_string, "connection-string", "mysql://root@127.0.0.1:3306/cp", "Database connection uri")
+	conStr := os.Getenv("CP_PROD_DB")
+	if len(conStr) == 0 {
+		conStr = "mysql://root@127.0.0.1:3306/cp"
+	} else {
+		log.Printf("Using connection string from env var CP_PROD_DB")
+	}
+	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
