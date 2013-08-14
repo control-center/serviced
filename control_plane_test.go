@@ -12,12 +12,14 @@ import (
 	"database/sql"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
+	"fmt"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
 	"os/exec"
 	"strings"
+	"strconv"
 	"testing"
 )
 
@@ -28,49 +30,54 @@ var (
 	tempdir string
 )
 
-var (
-	database_host     = "localhost"
-	database_port     = "3306"
-	database_name     = "cp_test"
-	database_user     = "root"
-	database_password = ""
-)
+var connInfo *DatabaseConnectionInfo
 
-func toMymysqlConnectionString(db_name string) string {
+func init() {
+	var err error
 	conStr := os.Getenv("CP_TEST_DB")
 	if len(conStr) == 0 {
 		conStr = "mysql://root@localhost:3306/cp_test"
 	}
-        connInfo, _ := parseDatabaseUri(conStr)
-	connInfo.Database = db_name
-        return fmt.Sprintf("tcp:%s:%d*/%s/%s/%s", connInfo.Host, connInfo.Port,
-		connInfo.User, connInfo.Password, connInfo.Database)
+	connInfo, err = parseDatabaseUri(conStr)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func toMymysqlConnectionString() string {
+        return fmt.Sprintf("tcp:%s:%d*%s/%s/%s", connInfo.Host, connInfo.Port,
+		connInfo.Database, connInfo.User, connInfo.Password)
 }
 
 func cleanTestDB(t *testing.T) {
-	conn, err := sql.Open("mymysql", connectionString(""))
+	db := connInfo.Database
+	log.Printf("mmysql connection string: %s %v", toMymysqlConnectionString(), connInfo)
+	conn, err := sql.Open("mymysql", toMymysqlConnectionString())
 	defer conn.Close()
-	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + database_name + "`")
+	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + connInfo.Database + "`")
 	if err != nil {
 		log.Fatal("Could not drop test database:", err)
 	}
-	_, err = conn.Exec("CREATE DATABASE `" + database_name + "`")
+	_, err = conn.Exec("CREATE DATABASE `" + connInfo.Database + "`")
 	if err != nil {
 		log.Fatal("Could not create test database: ", err)
 	}
-	cmd := exec.Command(
-		"mysql",
-		"-h", database_host,
-		"-P", database_port,
-		"-u", database_user,
-		"--password="+database_password,
-		database_name,
-		"-e", "source database.sql",
-	)
-	log.Println(cmd.Path + "; " + strings.Join(cmd.Args, " "))
+	cmdParts := make([]string,0)
+	cmdParts = append(cmdParts, []string{"-h", connInfo.Host}...)
+	cmdParts = append(cmdParts, []string{"-P", strconv.Itoa(connInfo.Port)}...)
+	cmdParts = append(cmdParts, []string{"-u", connInfo.User}...)
+	if len(connInfo.Password) > 0 {
+		cmdParts = append(cmdParts, []string{"--password", connInfo.Password}...)
+	}
+	// restore database name
+	connInfo.Database = db
+	cmdParts = append(cmdParts, db)
+	cmdParts = append(cmdParts, []string{"-e", "source database.sql"}...)
+	cmd := exec.Command("mysql", cmdParts...)
+	log.Println(strings.Join(cmd.Args, " "))
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatal("Problem sourcing schema: ", err, "; ", string(output))
+		log.Fatal("Problem sourcing schema:", err, string(output))
 	}
 	log.Print(string(output))
 }
@@ -78,7 +85,7 @@ func cleanTestDB(t *testing.T) {
 func setup(t *testing.T) {
 
 	cleanTestDB(t)
-	server, err := NewControlSvc(connectionString())
+	server, err := NewControlSvc(toMymysqlConnectionString())
 
 	// register the server API
 	rpc.RegisterName("ControlPlane", server)

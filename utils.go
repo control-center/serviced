@@ -216,12 +216,11 @@ func parseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) 
 			connInfo.Port, _ = strconv.Atoi(parts[1])
 		}
 	}
-	connInfo.Host = u.Host
 	if u.User != nil {
 		password, _ := u.User.Password()
 		connInfo.User = u.User.Username()
 		connInfo.Password = password
 	}
-	connInfo.Database = u.Path
+	connInfo.Database = u.Path[1:]
 	return connInfo, nil
 }
