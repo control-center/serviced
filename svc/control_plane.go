@@ -15,7 +15,6 @@ import (
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"math/rand"
-	"os"
 	"time"
 )
 
