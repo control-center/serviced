@@ -17,16 +17,17 @@ import (
 	"time"
 )
 
+// An instance of the control plane Agent.
 type HostAgent struct {
-	master          string
-	hostId          string
-	currentServices map[string]*exec.Cmd
+	master          string               // the connection string to the master agent
+	hostId          string               // the hostID of the current host
+	currentServices map[string]*exec.Cmd // the current running services
 }
 
 // assert that this implemenents the Agent interface
 var _ Agent = &HostAgent{}
 
-// Create a new HostAgent.
+// Create a new HostAgent given the connection string to the
 func NewHostAgent(master string) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
@@ -40,6 +41,9 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 	return agent, err
 }
 
+// Update the current state of a service. client is the ControlPlane client,
+// service is the reference to the service being updated, and serviceState is
+// the actual service instance being updated.
 func (a *HostAgent) updateCurrentState(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
 	// get docker status
 
@@ -68,6 +72,7 @@ func (a *HostAgent) updateCurrentState(client *ControlClient, service *Service, 
 	return
 }
 
+// Terminate a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) terminateInstance(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
 	// get docker status
 
@@ -86,6 +91,7 @@ func (a *HostAgent) terminateInstance(client *ControlClient, service *Service, s
 	return
 }
 
+// Get the state of the docker container.
 func getDockerState(dockerId string) (containerState ContainerState, err error) {
 	// get docker status
 
@@ -104,6 +110,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	return *containerStates[0], err
 }
 
+// Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(client *ControlClient, service *Service, serviceState *ServiceState) (err error) {
 
 	cmdString := fmt.Sprintf("docker run -d %s %s", service.ImageId, service.Startup)
@@ -179,15 +186,6 @@ func (a *HostAgent) start() {
 			}
 		}()
 	}
-}
-
-func addRoute(network, netmask, gateway string) (err error) {
-
-	log.Printf("executing: route add -net %s netmask %s gw %s", network, netmask, gateway)
-	out, err := exec.Command("route", "add", "-net", network,
-		"netmask", netmask, "gw", gateway).CombinedOutput()
-	log.Printf("output from route: %s", string(out))
-	return err
 }
 
 func (a *HostAgent) GetInfo(unused int, host *Host) error {

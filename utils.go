@@ -11,6 +11,7 @@ package serviced
 import (
 	"bufio"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -187,4 +188,40 @@ func CurrentContextAsHost() (host *Host, err error) {
 	}
 
 	return host, err
+}
+
+type DatabaseConnectionInfo struct {
+	Dialect  string
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+	Options  map[string]string
+}
+
+// Parse a URI and create a database connection info object. Eg
+// mysql://user:password@localhost:3306/test
+func parseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) {
+	connInfo = &DatabaseConnectionInfo{}
+	u, err := url.Parse(str)
+	if err != nil {
+		return connInfo, err
+	}
+	connInfo.Dialect = u.Scheme
+	if strings.Contains(u.Host, ":") {
+		parts := strings.SplitN(u.Host, ":", 2)
+		connInfo.Host = parts[0]
+		if len(parts) > 1 {
+			connInfo.Port, _ = strconv.Atoi(parts[1])
+		}
+	}
+	connInfo.Host = u.Host
+	if u.User != nil {
+		password, _ := u.User.Password()
+		connInfo.User = u.User.Username()
+		connInfo.Password = password
+	}
+	connInfo.Database = u.Path
+	return connInfo, nil
 }

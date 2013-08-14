@@ -15,9 +15,10 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"os/exec"
-	"testing"
 	"strings"
+	"testing"
 )
 
 var (
@@ -28,25 +29,26 @@ var (
 )
 
 var (
-	database_host     = "zends"
-	database_port     = "13306"
+	database_host     = "localhost"
+	database_port     = "3306"
 	database_name     = "cp_test"
 	database_user     = "root"
-	database_password = "zends"
+	database_password = ""
 )
 
-func connectionString2() string {
-	return "tcp:" + database_host + ":" + database_port + "*" +
-		"/" + database_user + "/" + database_password
-}
-func connectionString() string {
-	return "tcp:" + database_host + ":" + database_port + "*" +
-		database_name + "/" + database_user + "/" + database_password
+func toMymysqlConnectionString(db_name string) string {
+	conStr := os.Getenv("CP_TEST_DB")
+	if len(conStr) == 0 {
+		conStr = "mysql://root@localhost:3306/cp_test"
+	}
+        connInfo, _ := parseDatabaseUri(conStr)
+	connInfo.Database = db_name
+        return fmt.Sprintf("tcp:%s:%d*/%s/%s/%s", connInfo.Host, connInfo.Port,
+		connInfo.User, connInfo.Password, connInfo.Database)
 }
 
 func cleanTestDB(t *testing.T) {
-	//conn, err := sql.Open("mymysql", "/"+database_user+"/")
-	conn, err := sql.Open("mymysql", connectionString2())
+	conn, err := sql.Open("mymysql", connectionString(""))
 	defer conn.Close()
 	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + database_name + "`")
 	if err != nil {
@@ -61,7 +63,7 @@ func cleanTestDB(t *testing.T) {
 		"-h", database_host,
 		"-P", database_port,
 		"-u", database_user,
-		"--password=" + database_password,
+		"--password="+database_password,
 		database_name,
 		"-e", "source database.sql",
 	)
