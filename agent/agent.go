@@ -6,13 +6,16 @@
 *
 *******************************************************************************/
 
-package serviced
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
+package agent
 
 import (
 	"encoding/json"
 	"fmt"
 	serviced "github.com/zenoss/serviced"
-	client "github.com/zenoss/serviced/client"
 	"log"
 	"os/exec"
 	"strings"
@@ -46,7 +49,7 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 // Update the current state of a service. client is the ControlPlane client,
 // service is the reference to the service being updated, and serviceState is
 // the actual service instance being updated.
-func (a *HostAgent) updateCurrentState(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) updateCurrentState(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", serviceState.DockerId)
@@ -75,7 +78,7 @@ func (a *HostAgent) updateCurrentState(client *client.ControlClient, service *se
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) terminateInstance(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "kill", serviceState.DockerId)
@@ -113,7 +116,7 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 }
 
 // Start a service instance and update the CP with the state.
-func (a *HostAgent) startService(client *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) startService(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
 	cmdString := fmt.Sprintf("docker run -d %s %s", service.ImageId, service.Startup)
 	log.Printf("Starting: %s", cmdString)
@@ -147,7 +150,7 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
-			client, err := client.NewControlClient(a.master)
+			client, err := serviced.NewControlClient(a.master)
 			if err != nil {
 				log.Printf("Could not start ControlPlane client %v", err)
 				return

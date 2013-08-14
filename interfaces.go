@@ -6,6 +6,8 @@
 *
 *******************************************************************************/
 
+// Serviced is a PaaS runtime based on docker. The serviced package exposes the
+// interfaces for the key parts of this runtime.
 package serviced
 
 import (
@@ -43,7 +45,7 @@ type ServiceEndpoint struct {
 	Application ApplicationType
 }
 
-// A Service
+// A Service that can run in serviced.
 type Service struct {
 	Id           string
 	Name         string
@@ -205,7 +207,7 @@ type LoadBalancer interface {
 	GetServiceEndpoints(serviceEndpointRequest ServiceEndpointRequest, endpoints *[]ApplicationEndpoint) error
 }
 
-// The API for a Control Plane implementation.
+// The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 	GetHosts(request EntityRequest, replyHosts *map[string]*Host) error
 	AddHost(host Host, unused *int) error
@@ -233,7 +235,7 @@ type ControlPlane interface {
 	RemoveHostFromResourcePool(poolHost PoolHost, unused *int) error
 }
 
-// A public interface for a service agent.
+// The Agent interface is the API for a serviced agent.
 type Agent interface {
 	GetInfo(unused int, host *Host) error
 }

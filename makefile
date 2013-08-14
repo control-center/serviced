@@ -13,7 +13,6 @@ default:
 	go get github.com/ziutek/mymysql/godrv
 	go build && go test
 	cd svc && make 
-	cd client && make
 	cd agent && make
 	cd serviced && make
 
@@ -21,7 +20,6 @@ default:
 clean:
 	go clean
 	cd serviced && make clean
-	cd client && make clean
 	cd agent && make clean
 	cd svc && make clean
 

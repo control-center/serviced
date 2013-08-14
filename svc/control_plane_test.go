@@ -11,7 +11,6 @@ package serviced
 import (
 	"database/sql"
 	serviced "github.com/zenoss/serviced"
-	client "github.com/zenoss/serviced/client"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"net"
@@ -26,7 +25,7 @@ import (
 
 var (
 	server  serviced.ControlPlane
-	lclient *client.ControlClient
+	lclient *serviced.ControlClient
 	unused  int
 	tempdir string
 )
@@ -97,7 +96,7 @@ func setup(t *testing.T) {
 	log.Printf("Test Server started on %s", l.Addr().String())
 
 	// setup the client
-	lclient, err = client.NewControlClient(l.Addr().String())
+	lclient, err = serviced.NewControlClient(l.Addr().String())
 	if err != nil {
 		log.Fatalf("Coult not start client %v", err)
 	}

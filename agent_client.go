@@ -9,17 +9,18 @@
 package serviced
 
 import (
-	serviced "github.com/zenoss/serviced"
 	"net/rpc"
 )
 
+// AgentClient is an interface that the serviced agent implements to provide
+// information about the host it is running on.
 type AgentClient struct {
 	addr      string
 	rpcClient *rpc.Client
 }
 
 // assert that this implemenents the Agent interface
-var _ serviced.Agent = &AgentClient{}
+var _ Agent = &AgentClient{}
 
 // Create a new AgentClient.
 func NewAgentClient(addr string) (s *AgentClient, err error) {
@@ -30,6 +31,7 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 	return s, err
 }
 
-func (a *AgentClient) GetInfo(unused int, host *serviced.Host) error {
+// Return the standard host information from the referenced agent.
+func (a *AgentClient) GetInfo(unused int, host *Host) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", unused, host)
 }
