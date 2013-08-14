@@ -10,16 +10,16 @@ package serviced
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
-	"fmt"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
 	"os/exec"
-	"strings"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -36,7 +36,7 @@ func init() {
 	var err error
 	conStr := os.Getenv("CP_TEST_DB")
 	if len(conStr) == 0 {
-		conStr = "mysql://root@localhost:3306/cp_test"
+		conStr = "mysql://root@127.0.0.1:3306/cp_test"
 	}
 	connInfo, err = parseDatabaseUri(conStr)
 	if err != nil {
@@ -44,33 +44,30 @@ func init() {
 	}
 }
 
-func toMymysqlConnectionString() string {
-        return fmt.Sprintf("tcp:%s:%d*%s/%s/%s", connInfo.Host, connInfo.Port,
-		connInfo.Database, connInfo.User, connInfo.Password)
-}
-
 func cleanTestDB(t *testing.T) {
-	db := connInfo.Database
-	log.Printf("mmysql connection string: %s %v", toMymysqlConnectionString(), connInfo)
+	db, := connInfo.Database
+	connInfo.Database = ""
+	defer func() {
+		connInfo.Database = db
+	}()
+	log.Printf("mmysql connection string: %s", toMymysqlConnectionString(connInfo))
 	conn, err := sql.Open("mymysql", toMymysqlConnectionString())
 	defer conn.Close()
-	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + connInfo.Database + "`")
+	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + db + "`")
 	if err != nil {
 		log.Fatal("Could not drop test database:", err)
 	}
-	_, err = conn.Exec("CREATE DATABASE `" + connInfo.Database + "`")
+	_, err = conn.Exec("CREATE DATABASE `" + db + "`")
 	if err != nil {
 		log.Fatal("Could not create test database: ", err)
 	}
-	cmdParts := make([]string,0)
+	cmdParts := make([]string, 0)
 	cmdParts = append(cmdParts, []string{"-h", connInfo.Host}...)
 	cmdParts = append(cmdParts, []string{"-P", strconv.Itoa(connInfo.Port)}...)
 	cmdParts = append(cmdParts, []string{"-u", connInfo.User}...)
 	if len(connInfo.Password) > 0 {
 		cmdParts = append(cmdParts, []string{"--password", connInfo.Password}...)
 	}
-	// restore database name
-	connInfo.Database = db
 	cmdParts = append(cmdParts, db)
 	cmdParts = append(cmdParts, []string{"-e", "source database.sql"}...)
 	cmd := exec.Command("mysql", cmdParts...)

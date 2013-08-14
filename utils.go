@@ -201,7 +201,7 @@ type DatabaseConnectionInfo struct {
 }
 
 // Parse a URI and create a database connection info object. Eg
-// mysql://user:password@localhost:3306/test
+// mysql://user:password@127.0.0.1:3306/test
 func parseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) {
 	connInfo = &DatabaseConnectionInfo{}
 	u, err := url.Parse(str)
@@ -223,4 +223,9 @@ func parseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) 
 	}
 	connInfo.Database = u.Path[1:]
 	return connInfo, nil
+}
+
+func toMymysqlConnectionString(cInfo *DatabaseConnectionInfo) string {
+	return fmt.Sprintf("tcp:%s:%d*%s/%s/%s", cInfo.Host, cInfo.Port,
+		cInfo.Database, cInfo.User, cInfo.Password)
 }

@@ -188,6 +188,7 @@ func (a *HostAgent) start() {
 	}
 }
 
+// Create a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *Host) error {
 	hostInfo, err := CurrentContextAsHost()
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"time"
 )
 
+// A control plane implementation.
 type ControlSvc struct {
 	connectionString string
 	connectionDriver string
@@ -26,9 +27,14 @@ type ControlSvc struct {
 var _ ControlPlane = &ControlSvc{}
 
 // Create a new ControlSvc or load an existing one.
-func NewControlSvc(connectionString string) (s *ControlSvc, err error) {
+func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 	s = new(ControlSvc)
-	s.connectionString = connectionString
+	connInfo, err := parseDatabaseUri(connectionUri)
+	if err != nil {
+		return s, err
+	}
+	s.connectionString = toMymysqlConnectionString(connInfo)
+	log.Println("mymysql connection string: %s", s.connectionString)
 	s.connectionDriver = "mymysql"
 	go s.scheduler()
 	return s, err
@@ -82,7 +88,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	servicesate.ColMap("DockerId").Rename("docker_id")
 	servicesate.ColMap("PrivateIp").Rename("private_ip")
 
-	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+	// dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
 

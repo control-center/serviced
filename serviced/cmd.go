@@ -8,6 +8,9 @@
 
 package main
 
+// This is the main entry point for the application. Here we parse command line
+// flags and either start a service or execute command line functions.
+
 import (
 	"flag"
 	"github.com/zenoss/serviced"
@@ -17,6 +20,7 @@ import (
 	"net/rpc"
 )
 
+// Store the command line options
 var options struct {
 	port              string
 	listen            string
@@ -25,21 +29,19 @@ var options struct {
 	connection_string string
 }
 
+// Setup flag options (static block)
 func init() {
 	flag.StringVar(&options.port, "port", "127.0.0.1:4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
-	flag.StringVar(&options.connection_string, "connection-string", "cp/root/", "Database connection string (eg \"dbname/user/password\")")
+	flag.StringVar(&options.connection_string, "connection-string", "mysql://root@127.0.0.1:3306/cp", "Database connection uri")
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
 }
 
-func handleCmd() {
-
-}
-
+// Start the agent or master services on this host.
 func startServer() {
 	if options.master {
 		master, err := serviced.NewControlSvc(options.connection_string)
@@ -71,17 +73,24 @@ func startServer() {
 	http.Serve(l, nil) // start the server
 }
 
+// main entry point of the product
 func main() {
+
+	// parse the command line flags
 	flag.Parse()
 
+	// are we in server mode
 	if (options.master || options.agent) && len(flag.Args()) == 0 {
 		startServer()
-	}
-	if len(flag.Args()) == 0 {
-		cli := ServicedCli{}
-		cli.CmdHelp(flag.Args()...)
-		flag.Usage()
 	} else {
-		ParseCommands(flag.Args()...)
+		// we are in command line mode
+		if len(flag.Args()) == 0 {
+			// no arguments were give, show help
+			cli := ServicedCli{}
+			cli.CmdHelp(flag.Args()...)
+			flag.Usage()
+		} else {
+			ParseCommands(flag.Args()...)
+		}
 	}
 }

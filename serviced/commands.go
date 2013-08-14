@@ -8,6 +8,8 @@
 
 package main
 
+// This is here the command line arguments are parsed and executed.
+
 import (
 	"flag"
 	"fmt"
@@ -18,8 +20,11 @@ import (
 	"strings"
 )
 
+// A type to represent the CLI. All the command will have the same signature.
+// This makes it easy to call them arbitrarily.
 type ServicedCli struct{}
 
+// A helper function that creates a subcommand
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {
@@ -29,8 +34,12 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
+// Use reflection to aquire the give method by name. For example to get method
+// CmdFoo, pass 'foo'. A method is returned. The second return argument
+// indicates if the argument was found.
 func (cli *ServicedCli) getMethod(name string) (reflect.Method, bool) {
 
+	// Contruct the method name to be CmdFoo, where foo was passed
 	methodName := "Cmd"
 	for _, part := range strings.Split(name, "-") {
 		methodName = methodName + strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
@@ -38,10 +47,12 @@ func (cli *ServicedCli) getMethod(name string) (reflect.Method, bool) {
 	return reflect.TypeOf(cli).MethodByName(methodName)
 }
 
+// Construct a new command line parsing object.
 func NewServicedCli() (s *ServicedCli) {
 	return &ServicedCli{}
 }
 
+// Show usage of serviced command line options.
 func (cli *ServicedCli) CmdHelp(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
@@ -77,6 +88,8 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	return nil
 }
 
+// Attemp to find the command give on the CLI by looking up the method on the
+// CLI interface. If found, execute it. Otherwise show usage.
 func ParseCommands(args ...string) error {
 	cli := NewServicedCli()
 
@@ -98,15 +111,17 @@ func ParseCommands(args ...string) error {
 	return cli.CmdHelp(args...)
 }
 
+// Create a client to the control plane.
 func getClient() (client *serviced.ControlClient) {
 	// setup the client
 	client, err := serviced.NewControlClient(options.port)
 	if err != nil {
-		log.Fatalf("Could not control plane client %v", err)
+		log.Fatalf("Could not create acontrol plane client %v", err)
 	}
 	return client
 }
 
+// List the hosts associated with the control plane.
 func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 	cmd := Subcmd("hosts", "[OPTIONS]", "List hosts")
@@ -133,6 +148,7 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 	return nil
 }
 
+// Add a host to the control plane given the host:port.
 func (cli *ServicedCli) CmdAddHost(args ...string) error {
 
 	cmd := Subcmd("add-host", "HOST:PORT", "Add host")
@@ -168,6 +184,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	return err
 }
 
+// Update the host information. This method contacts the agent running on
+// HOST:PORT to update the information assoicated with the host.
 func (cli *ServicedCli) CmdUpdateHost(args ...string) error {
 
 	cmd := Subcmd("update-host", "HOST:PORT", "Update the host information.")
@@ -202,6 +220,7 @@ func (cli *ServicedCli) CmdUpdateHost(args ...string) error {
 	return err
 }
 
+// This method removes the given host (by HOSTID) from the system.
 func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 	cmd := Subcmd("remove-host", "HOSTID", "Remove the host.")
 	if err := cmd.Parse(args); err != nil {
@@ -222,6 +241,9 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 	return err
 }
 
+// This method adds a host (by HOSTID) to a given pool (by POOLID).
+// If the pool or host are not found an error is returned. If the relation
+// already exists, an error is returned.
 func (cli *ServicedCli) CmdAddHostToPool(args ...string) error {
 	cmd := Subcmd("add-host-to-pool", "HOSTID POOLID", "Add host to pool")
 	if err := cmd.Parse(args); err != nil {
@@ -241,6 +263,9 @@ func (cli *ServicedCli) CmdAddHostToPool(args ...string) error {
 	return err
 }
 
+// This method removes an association of a host to a pool. Both the host and the
+// pool need to exist or an error is returned. An error is also returned if the
+// association already exists.
 func (cli *ServicedCli) CmdRemoveHostFromPool(args ...string) error {
 	cmd := Subcmd("remove-host-from-pool", "HOSTID POOLID", "Remove host from pool")
 	if err := cmd.Parse(args); err != nil {
@@ -260,6 +285,7 @@ func (cli *ServicedCli) CmdRemoveHostFromPool(args ...string) error {
 	return err
 }
 
+// Print a list of pools. Args are ignored.
 func (cli *ServicedCli) CmdPools(args ...string) error {
 	cmd := Subcmd("pools", "[OPTIONS]", "Display pools")
 	if err := cmd.Parse(args); err != nil {
@@ -304,6 +330,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	return err
 }
 
+// Add a new pool given some parameters.
 func (cli *ServicedCli) CmdAddPool(args ...string) error {
 	cmd := Subcmd("add-pool", "[options] NAME CORE_LIMIT MEMORY_LIMIT PRIORITY", "Add resource pool")
 	if err := cmd.Parse(args); err != nil {
@@ -335,6 +362,7 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 	return err
 }
 
+// Update a pool interactively give the POOLID.
 func (cli *ServicedCli) CmdUpdatePool(args ...string) error {
 	cmd := Subcmd("update-pool", "POOLID", "Update resource pool")
 	if err := cmd.Parse(args); err != nil {
@@ -375,6 +403,7 @@ func (cli *ServicedCli) CmdUpdatePool(args ...string) error {
 	return err
 }
 
+// Print the list of available services.
 func (cli *ServicedCli) CmdServices(args ...string) error {
 	cmd := Subcmd("services", "[CMD]", "Show services")
 	if err := cmd.Parse(args); err != nil {
@@ -403,6 +432,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	return err
 }
 
+// Add a service given a set of paramters.
 func (cli *ServicedCli) CmdAddService(args ...string) error {
 	cmd := Subcmd("add-service", "NAME POOLID IMAGEID COMMAND", "Add service.")
 	if err := cmd.Parse(args); err != nil {
@@ -437,6 +467,7 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 	return err
 }
 
+// Remove a service given the SERVICEID.
 func (cli *ServicedCli) CmdRemoveService(args ...string) error {
 	cmd := Subcmd("remove-service", "SERVICEID", "Remove a service.")
 	if err := cmd.Parse(args); err != nil {
@@ -456,6 +487,7 @@ func (cli *ServicedCli) CmdRemoveService(args ...string) error {
 	return err
 }
 
+// Schedule a service to start given a service id.
 func (cli *ServicedCli) CmdStartService(args ...string) error {
 	cmd := Subcmd("start-service", "SERVICEID", "Start a service.")
 	if err := cmd.Parse(args); err != nil {
