@@ -14,12 +14,12 @@ import (
 
 // A generic ControlPlane error
 type ControlPlaneError struct {
-	msg string
+	Msg string
 }
 
 // Implement the Error() interface for ControlPlaneError
 func (s ControlPlaneError) Error() string {
-	return s.msg
+	return s.Msg
 }
 
 // An request for a control plane object.

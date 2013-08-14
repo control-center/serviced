@@ -17,5 +17,7 @@ default:
 clean:
 	go clean
 	cd serviced && make clean
-
+	cd client && make clean
+	cd agent && make clean
+	cd svc && make clean
 
