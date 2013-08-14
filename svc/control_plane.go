@@ -94,7 +94,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	servicesate.ColMap("DockerId").Rename("docker_id")
 	servicesate.ColMap("PrivateIp").Rename("private_ip")
 
-	dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
 
