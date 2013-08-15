@@ -77,7 +77,6 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-host-from-pool", "Remove host to pool"},
 		{"pools", "Show pools"},
 		{"add-pool", "Add pool"},
-		{"update-pool", "Update pool"},
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
 		{"remove-service", "Remote a service"},
@@ -302,7 +301,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	if len(pools) > 0 {
 		for _, pool := range pools {
 			fmt.Printf("*********************** Id: %s ****************\n", pool.Id)
-			fmt.Printf("Name:         %s\n", pool.Name)
+			fmt.Printf("Parent Pool:         %s\n", pool.ParentId)
 			fmt.Printf("Core Limit:   %d\n", pool.CoreLimit)
 			fmt.Printf("Memory Limit: %d\n", pool.MemoryLimit)
 			fmt.Printf("Priority:     %d\n", pool.Priority)
@@ -333,7 +332,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 
 // Add a new pool given some parameters.
 func (cli *ServicedCli) CmdAddPool(args ...string) error {
-	cmd := Subcmd("add-pool", "[options] NAME CORE_LIMIT MEMORY_LIMIT PRIORITY", "Add resource pool")
+	cmd := Subcmd("add-pool", "[options] POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY", "Add resource pool")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -341,8 +340,7 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	pool, _ := serviced.NewResourcePool()
-	pool.Name = cmd.Arg(0)
+	pool, _ := serviced.NewResourcePool(cmd.Arg(0))
 	coreLimit, err := strconv.Atoi(cmd.Arg(1))
 	if err != nil {
 		log.Fatal("Bad core limit %s: %v", cmd.Arg(1), err)
@@ -360,47 +358,6 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		log.Fatalf("Could not add resource pool: %v", err)
 	}
 	fmt.Printf("%s\n", pool.Id)
-	return err
-}
-
-// Update a pool interactively give the POOLID.
-func (cli *ServicedCli) CmdUpdatePool(args ...string) error {
-	cmd := Subcmd("update-pool", "POOLID", "Update resource pool")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if len(cmd.Args()) != 1 {
-		cmd.Usage()
-		return nil
-	}
-	controlPlane := getClient()
-	request := serviced.EntityRequest{}
-	var pools map[string]*serviced.ResourcePool
-	err := controlPlane.GetResourcePools(request, &pools)
-	if err != nil {
-		log.Fatalf("Could not get resource pools: %v", err)
-	}
-	pool, found := pools[cmd.Arg(0)]
-	if !found {
-		log.Fatal("Pool %s not found!", cmd.Arg(0))
-	}
-
-	updatedPool, _ := serviced.NewResourcePool()
-	updatedPool.Id = pool.Id
-	fmt.Printf("Pool Name? (%s) ", pool.Name)
-	fmt.Scanf("%s\n", &updatedPool.Name)
-	if updatedPool.Name == "" {
-		updatedPool.Name = pool.Name
-	}
-	updatedPool.CoreLimit = pool.CoreLimit
-	updatedPool.MemoryLimit = pool.MemoryLimit
-	updatedPool.Priority = pool.Priority
-	var unused int
-	err = controlPlane.UpdateResourcePool(*updatedPool, &unused)
-	if err != nil {
-		log.Fatalf("Could not update resource pool: %v", err)
-	}
-	fmt.Printf("Updated resource pool %s\n", pool.Id)
 	return err
 }
 

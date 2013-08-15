@@ -196,7 +196,7 @@ func (a *HostAgent) start() {
 
 // Create a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *serviced.Host) error {
-	hostInfo, err := serviced.CurrentContextAsHost()
+	hostInfo, err := serviced.CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
 	}
