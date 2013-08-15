@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/zenoss/serviced"
+	clientlib "github.com/zenoss/serviced/client"
 	"log"
 	"reflect"
 	"strconv"
@@ -112,9 +113,9 @@ func ParseCommands(args ...string) error {
 }
 
 // Create a client to the control plane.
-func getClient() (c *serviced.ControlClient) {
+func getClient() (c serviced.ControlPlane) {
 	// setup the client
-	c, err := serviced.NewControlClient(options.port)
+	c, err := clientlib.NewControlClient(options.port)
 	if err != nil {
 		log.Fatalf("Could not create acontrol plane client %v", err)
 	}
@@ -161,7 +162,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := serviced.NewAgentClient(cmd.Arg(0))
+	client, err := clientlib.NewAgentClient(cmd.Arg(0))
 	if err != nil {
 		log.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
@@ -198,7 +199,7 @@ func (cli *ServicedCli) CmdUpdateHost(args ...string) error {
 		return nil
 	}
 
-	client, err := serviced.NewAgentClient(cmd.Arg(0))
+	client, err := clientlib.NewAgentClient(cmd.Arg(0))
 	if err != nil {
 		log.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}

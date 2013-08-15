@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.5.31, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.5.32, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: cp
 -- ------------------------------------------------------
--- Server version	5.5.31-0ubuntu0.13.04.1-log
+-- Server version	5.5.32-0ubuntu0.12.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -54,13 +54,17 @@ DROP TABLE IF EXISTS `host`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host` (
   `id` char(36) NOT NULL,
+  `resource_pool_id` char(45) NOT NULL,
   `name` varchar(45) NOT NULL,
   `ip_addr` varchar(30) NOT NULL,
   `private_network` varchar(45) NOT NULL,
   `cores` int(11) NOT NULL,
   `memory` bigint(20) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `hostname_UNIQUE` (`name`)
+  UNIQUE KEY `hostname_UNIQUE` (`name`),
+  KEY `resource_pool` (`resource_pool_id`),
+  KEY `fk_resource_pool` (`resource_pool_id`),
+  CONSTRAINT `fk_resource_pool` FOREIGN KEY (`resource_pool_id`) REFERENCES `resource_pool` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -107,13 +111,13 @@ DROP TABLE IF EXISTS `resource_pool`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `resource_pool` (
-  `id` char(36) NOT NULL,
-  `name` varchar(45) NOT NULL,
+  `id` char(45) NOT NULL,
   `cores` int(11) DEFAULT '0',
   `memory` int(11) DEFAULT '0',
   `priority` int(11) DEFAULT '0',
+  `parent_id` char(45) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name_UNIQUE` (`name`)
+  KEY `parent_id` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -124,29 +128,6 @@ CREATE TABLE `resource_pool` (
 LOCK TABLES `resource_pool` WRITE;
 /*!40000 ALTER TABLE `resource_pool` DISABLE KEYS */;
 /*!40000 ALTER TABLE `resource_pool` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `resource_pool_host`
---
-
-DROP TABLE IF EXISTS `resource_pool_host`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `resource_pool_host` (
-  `resource_pool_id` varchar(36) NOT NULL DEFAULT '',
-  `host_id` varchar(45) NOT NULL DEFAULT '',
-  PRIMARY KEY (`resource_pool_id`,`host_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `resource_pool_host`
---
-
-LOCK TABLES `resource_pool_host` WRITE;
-/*!40000 ALTER TABLE `resource_pool_host` DISABLE KEYS */;
-/*!40000 ALTER TABLE `resource_pool_host` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -258,10 +239,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-
---
--- Dumping routines for database 'cp'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -272,4 +249,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-07-12 17:06:43
+-- Dump completed on 2013-08-15 14:44:31

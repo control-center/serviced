@@ -44,6 +44,24 @@ After all the agents are registered, serviced should be working properly. It's t
 to define some services.
 
 
+Usage
+-----
+Serviced is a platform for running services. Serviced is composed of a master
+serviced process and agent processes running on each host. Each host must be registered
+with the master process. To register a agent process:
+
+```bash
+serviced add-host [HOSTNAME:PORT]
+```
+
+After the hosts are registered they must be placed in to a resource pool. This is done
+by first creating a pool:
+
+```bash
+serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
+```
+
+
 
 Dev Environment
 ---------------

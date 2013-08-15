@@ -6,7 +6,7 @@
 *
 *******************************************************************************/
 
-package serviced
+package svc
 
 import (
 	"database/sql"
@@ -41,6 +41,13 @@ func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 	}
 	s.connectionString = serviced.ToMymysqlConnectionString(connInfo)
 	s.connectionDriver = "mymysql"
+
+	// ensure that a default pool exists
+	_, err = s.getDefaultResourcePool()
+	if err != nil {
+		return s, err
+	}
+
 	go s.scheduler()
 	return s, err
 }
@@ -56,6 +63,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 
 	host := dbmap.AddTableWithName(serviced.Host{}, "host").SetKeys(false, "Id")
 	host.ColMap("Id").Rename("id")
+	host.ColMap("PoolId").Rename("resource_pool_id")
 	host.ColMap("Name").Rename("name")
 	host.ColMap("IpAddr").Rename("ip_addr")
 	host.ColMap("Cores").Rename("cores")
@@ -64,14 +72,10 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 
 	pool := dbmap.AddTableWithName(serviced.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
 	pool.ColMap("Id").Rename("id")
-	pool.ColMap("Name").Rename("name")
+	pool.ColMap("ParentId").Rename("parent_id")
 	pool.ColMap("CoreLimit").Rename("cores")
 	pool.ColMap("MemoryLimit").Rename("memory")
 	pool.ColMap("Priority").Rename("priority")
-
-	poolhosts := dbmap.AddTableWithName(serviced.PoolHost{}, "resource_pool_host")
-	poolhosts.ColMap("PoolId").Rename("resource_pool_id")
-	poolhosts.ColMap("HostId").Rename("host_id")
 
 	service := dbmap.AddTableWithName(serviced.Service{}, "service").SetKeys(false, "Id")
 	service.ColMap("Id").Rename("id")
@@ -273,9 +277,8 @@ func (s *ControlSvc) scheduler() {
 			defer db.Close()
 			var services []*serviced.Service
 			// get all service that are supposed to be running
-			_, err = dbmap.Select(&services, "SELECT * FROM service WHERE desired_state = 1")
+			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
 			if err != nil {
-				log.Printf("trying to get services: %s", err)
 				return err
 			}
 			for _, service := range services {
@@ -400,6 +403,27 @@ func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*service
 		*response = poolHosts
 	}
 	return err
+}
+
+// Get the default resource pool. If it doesn't exist, create it. Return any
+// errors in retrieving or creating the default resource pool.
+func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return pool, err
+	}
+	defer db.Close()
+
+	obj, err := dbmap.Get(serviced.ResourcePool{}, "default")
+	if obj == nil {
+		log.Printf("'default' resource pool not found; creating...")
+		default_pool := serviced.ResourcePool{}
+		default_pool.Id = "default"
+		err = dbmap.Insert(&default_pool)
+		return &default_pool, err
+	}
+	*pool = *obj.(*serviced.ResourcePool)
+	return pool, err
 }
 
 // Get the resource pools.

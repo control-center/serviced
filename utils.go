@@ -149,8 +149,9 @@ func getIpAddr() (ip string, err error) {
 	return strings.TrimSpace(string(output)), err
 }
 
-// Create a new Host struct from the running host's values
-func CurrentContextAsHost() (host *Host, err error) {
+// Create a new Host struct from the running host's values. The resource pool id
+// is set to the passed value.
+func CurrentContextAsHost(poolId string) (host *Host, err error) {
 	cpus := runtime.NumCPU()
 	memory, err := getMemorySize()
 	if err != nil {
@@ -186,7 +187,7 @@ func CurrentContextAsHost() (host *Host, err error) {
 			break
 		}
 	}
-
+	host.PoolId = poolId
 	return host, err
 }
 

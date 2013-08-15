@@ -6,11 +6,12 @@
 *
 *******************************************************************************/
 
-package serviced
+package svc
 
 import (
 	"database/sql"
 	serviced "github.com/zenoss/serviced"
+	client "github.com/zenoss/serviced/client"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"net"
@@ -25,7 +26,7 @@ import (
 
 var (
 	server  serviced.ControlPlane
-	lclient *serviced.ControlClient
+	lclient *client.ControlClient
 	unused  int
 	tempdir string
 )
@@ -96,7 +97,7 @@ func setup(t *testing.T) {
 	log.Printf("Test Server started on %s", l.Addr().String())
 
 	// setup the client
-	lclient, err = serviced.NewControlClient(l.Addr().String())
+	lclient, err = client.NewControlClient(l.Addr().String())
 	if err != nil {
 		log.Fatalf("Coult not start client %v", err)
 	}
@@ -106,15 +107,43 @@ func setup(t *testing.T) {
 func TestControlAPI(t *testing.T) {
 	setup(t)
 
-	request := serviced.EntityRequest{}
+	var err error
+	var request serviced.EntityRequest
+
+	var pools map[string]*serviced.ResourcePool = nil
+	err = lclient.GetResourcePools(request, &pools)
+	if err != nil {
+		t.Fatal("Problem getting empty resource pool list.", err)
+	}
+
+	pool, _ := serviced.NewResourcePool("unit_test_pool")
+	err = lclient.AddResourcePool(*pool, &unused)
+	if err != nil {
+		t.Fatal("Problem adding resource pool", err)
+	}
+
+	err = lclient.RemoveResourcePool(pool.Id, &unused)
+	if err != nil {
+		t.Fatal("Problem removing resource pool", err)
+	}
+
+	pools = nil
+	err = lclient.GetResourcePools(request, &pools)
+	if err != nil {
+		t.Fatal("Problem getting empty resource pool list.")
+	}
+	if len(pools) != 1 {
+		t.Fatal("Expected 1 pools, got ", len(pools))
+	}
+
 	var hosts map[string]*serviced.Host = nil
 
-	err := lclient.GetHosts(request, &hosts)
+	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
 		log.Fatalf("Could not get hosts, %s", err)
 	}
-	host, err := serviced.CurrentContextAsHost()
-	log.Printf("Got a currentContextAsHost()\n")
+
+	host, err := serviced.CurrentContextAsHost("default")
 	if err != nil {
 		t.Fatal("Could not get currentContextAsHost", err)
 	}
@@ -161,97 +190,25 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Expecting 0 services")
 	}
 
-	/*
-		service, err := NewService()
-		if err != nil {
-			t.Fatal("Error creating new service.")
-		}
-		service.Name = "helloworld"
-		err = client.AddService(*service, &unused)
-		if err != nil {
-			t.Fatal("Could not add service.")
-		}
-		services = nil
-		err = client.GetServices(request, &services)
-		if err != nil {
-			t.Fatal("Error getting services.")
-		}
-		if len(services) != 1 {
-			t.Fatal("Expecting 1 service, got ", len(services))
-		}
-		if services[0].Id != service.Id {
-			t.Fatalf("Created service %s but got back %s", services[0].Id, service.Id)
-		}
-
-		service.Name = "Roger"
-		err = client.UpdateService(*service, &unused)
-		if err != nil {
-			t.Fatalf("Could not save service.")
-		}
-		err = client.GetServices(request, &services)
-		if err != nil {
-			t.Fatal("Error getting services.")
-		}
-		if len(services) != 1 {
-			t.Fatal("Expecting 1 service, got ", len(services))
-		}
-		if services[0].Id != service.Id {
-			t.Fatalf("Created service %s but got back %s", services[0].Id, service.Id)
-		}
-
-		err = client.RemoveService(service.Id, &unused)
-		if err != nil {
-			t.Fatal("error removing service.")
-		}
-		services = nil
-		err = client.GetServices(request, &services)
-		if err != nil {
-			t.Fatal("Error getting services.")
-		}
-		if len(services) != 0 {
-			t.Fatal("Expecting 0 service, got ", len(services))
-		}
-	*/
-
-	services = nil
 	err = lclient.GetServicesForHost("dasdfasdf", &services)
-	log.Printf("Got %d services", len(services))
 	if err == nil {
 		t.Fatal("Expected error looking for non-existent service.")
 	}
 
-	var pools map[string]*serviced.ResourcePool = nil
-	err = lclient.GetResourcePools(request, &pools)
-	if err != nil {
-		t.Fatal("Problem getting empty resource pool list.", err)
-	}
-
-	pool, _ := serviced.NewResourcePool()
-	pool.Name = "unit_test_pool"
-	err = lclient.AddResourcePool(*pool, &unused)
-	if err != nil {
-		t.Fatal("Problem adding resource pool", err)
-	}
-
-	err = lclient.RemoveResourcePool(pool.Id, &unused)
-	if err != nil {
-		t.Fatal("Problem removing resource pool", err)
-	}
-
-	pools = nil
-	err = lclient.GetResourcePools(request, &pools)
-	if err != nil {
-		t.Fatal("Problem getting empty resource pool list.")
-	}
-	if len(pools) != 0 {
-		t.Fatal("Expected 0 pools: ", len(pools))
-	}
 }
 
 func TestServiceStart(t *testing.T) {
 
 	cleanTestDB(t)
-	host, err := serviced.CurrentContextAsHost()
+
+	var err error
+	pool, _ := serviced.NewResourcePool("default")
+	err = lclient.AddResourcePool(*pool, &unused)
+	if err != nil {
+		t.Fatal("Problem adding resource pool", err)
+	}
+
+	host, err := serviced.CurrentContextAsHost("default")
 	log.Printf("Got a currentContextAsHost()\n")
 	if err != nil {
 		t.Fatal("Could not get currentContextAsHost", err)
@@ -259,17 +216,6 @@ func TestServiceStart(t *testing.T) {
 	err = lclient.AddHost(*host, &unused)
 	if err != nil {
 		t.Fatal("Could not add host", err)
-	}
-
-	pool, _ := serviced.NewResourcePool()
-	pool.Name = "default"
-	err = lclient.AddResourcePool(*pool, &unused)
-	if err != nil {
-		t.Fatal("Problem adding resource pool", err)
-	}
-	err = lclient.AddHostToResourcePool(serviced.PoolHost{HostId: host.Id, PoolId: pool.Id}, &unused)
-	if err != nil {
-		t.Fatal("Problem adding host to resource pool", err)
 	}
 
 	// add a new service

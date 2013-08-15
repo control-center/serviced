@@ -15,7 +15,8 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	serviced "github.com/zenoss/serviced"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/client"
 	"log"
 	"os/exec"
 	"strings"
@@ -49,7 +50,7 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 // Update the current state of a service. client is the ControlPlane client,
 // service is the reference to the service being updated, and serviceState is
 // the actual service instance being updated.
-func (a *HostAgent) updateCurrentState(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", serviceState.DockerId)
@@ -72,13 +73,13 @@ func (a *HostAgent) updateCurrentState(client *serviced.ControlClient, service *
 	if !containerState.State.Running {
 		serviceState.Terminated = time.Now()
 		var unused int
-		err = client.UpdateServiceState(*serviceState, &unused)
+		err = controlClient.UpdateServiceState(*serviceState, &unused)
 	}
 	return
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) terminateInstance(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "kill", serviceState.DockerId)
@@ -89,7 +90,7 @@ func (a *HostAgent) terminateInstance(client *serviced.ControlClient, service *s
 	}
 	serviceState.Terminated = time.Now()
 	var unused int
-	err = client.UpdateServiceState(*serviceState, &unused)
+	err = controlClient.UpdateServiceState(*serviceState, &unused)
 	if err != nil {
 		log.Printf("Problem updating service state: %v", err)
 	}
@@ -116,7 +117,7 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 }
 
 // Start a service instance and update the CP with the state.
-func (a *HostAgent) startService(client *serviced.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
 	cmdString := fmt.Sprintf("docker run -d %s %s", service.ImageId, service.Startup)
 	log.Printf("Starting: %s", cmdString)
@@ -137,7 +138,7 @@ func (a *HostAgent) startService(client *serviced.ControlClient, service *servic
 	serviceState.Started = time.Now()
 	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
 	var unused int
-	err = client.UpdateServiceState(*serviceState, &unused)
+	err = controlClient.UpdateServiceState(*serviceState, &unused)
 	if err != nil {
 		log.Printf("Problem updating service state: %v", err)
 	}
@@ -150,23 +151,23 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
-			client, err := serviced.NewControlClient(a.master)
+			controlClient, err := client.NewControlClient(a.master)
 			if err != nil {
 				log.Printf("Could not start ControlPlane client %v", err)
 				return
 			}
-			defer client.Close()
+			defer controlClient.Close()
 			for {
 				time.Sleep(time.Second * 10)
 				var services []*serviced.Service
-				err = client.GetServicesForHost(a.hostId, &services)
+				err = controlClient.GetServicesForHost(a.hostId, &services)
 				if err != nil {
 					log.Printf("Could not get services for this host")
 					break
 				}
 				for _, service := range services {
 					var serviceStates []*serviced.ServiceState
-					err = client.GetServiceStates(service.Id, &serviceStates)
+					err = controlClient.GetServiceStates(service.Id, &serviceStates)
 					if err != nil {
 						if strings.Contains(err.Error(), "Not found") {
 							continue
@@ -177,11 +178,11 @@ func (a *HostAgent) start() {
 					for _, serviceInstance := range serviceStates {
 						switch {
 						case serviceInstance.Started.Year() <= 1:
-							err = a.startService(client, service, serviceInstance)
+							err = a.startService(controlClient, service, serviceInstance)
 						case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() <= 1:
-							err = a.updateCurrentState(client, service, serviceInstance)
+							err = a.updateCurrentState(controlClient, service, serviceInstance)
 						case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() == 2:
-							err = a.terminateInstance(client, service, serviceInstance)
+							err = a.terminateInstance(controlClient, service, serviceInstance)
 						}
 						if err != nil {
 							log.Printf("Problem servicing state %s,  %v", service.Name, err)
