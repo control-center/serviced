@@ -73,8 +73,6 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"update-host", "Update a host"},
 		{"add-host", "Add a host"},
 		{"remove-host", "Remove a host"},
-		{"add-host-to-pool", "Add host to pool"},
-		{"remove-host-from-pool", "Remove host to pool"},
 		{"pools", "Show pools"},
 		{"add-pool", "Add pool"},
 		{"services", "Show services"},
@@ -238,50 +236,6 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 		log.Fatalf("Could not remove host: %v", err)
 	}
 	log.Printf("Host %s removed.", cmd.Arg(0))
-	return err
-}
-
-// This method adds a host (by HOSTID) to a given pool (by POOLID).
-// If the pool or host are not found an error is returned. If the relation
-// already exists, an error is returned.
-func (cli *ServicedCli) CmdAddHostToPool(args ...string) error {
-	cmd := Subcmd("add-host-to-pool", "HOSTID POOLID", "Add host to pool")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if len(cmd.Args()) != 2 {
-		cmd.Usage()
-		return nil
-	}
-	controlPlane := getClient()
-	poolHost := serviced.PoolHost{cmd.Arg(0), cmd.Arg(1)}
-	var unused int
-	err := controlPlane.AddHostToResourcePool(poolHost, &unused)
-	if err != nil {
-		log.Fatalf("Could not add host to pool: %v", err)
-	}
-	return err
-}
-
-// This method removes an association of a host to a pool. Both the host and the
-// pool need to exist or an error is returned. An error is also returned if the
-// association already exists.
-func (cli *ServicedCli) CmdRemoveHostFromPool(args ...string) error {
-	cmd := Subcmd("remove-host-from-pool", "HOSTID POOLID", "Remove host from pool")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if len(cmd.Args()) != 2 {
-		cmd.Usage()
-		return nil
-	}
-	controlPlane := getClient()
-	poolHost := serviced.PoolHost{cmd.Arg(0), cmd.Arg(1)}
-	var unused int
-	err := controlPlane.RemoveHostFromResourcePool(poolHost, &unused)
-	if err != nil {
-		log.Fatalf("Could not remove host from pool: %v", err)
-	}
 	return err
 }
 
