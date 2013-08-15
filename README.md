@@ -5,6 +5,46 @@ Serviced is a PaaS runtime. It allows users to create, manage and scale services
 in a uniform way.
 
 
+Installation
+------------
+Serviced can run on a single host or across multiple hosts. First, serviced
+depends on docker. 
+
+1. Follow the instruction at http://www.docker.io/ , to install 
+   it on every host that serviced will run on. Ensure docker is running.
+
+2. Next, follow the instructions in the dev section to create the serviced 
+   binary at $GOPATH/github.com/zenoss/serviced/serviced. 
+
+3. Copy serviced binary to a location in your path.
+
+4. One instance of serviced will be the "master". On this host, install the
+   MySQL server and client.
+
+5. Create the database "cp" on the master and source 
+   $GOPATH/github.com/zenoss/serviced/serviced/database.sql in to it. For example:
+
+```bash
+mysql -u root cp "source $GOPATH/github.com/zenoss/serviced/serviced/database.sql"
+```
+
+6. Start the master serviced. It can also act as an agent. 
+
+```bash
+serviced -agent -master
+```
+
+7. Register the agent to the control plane. For example, to register host foo that
+   is running serviced on port 4979:
+```bash
+serviced add-host foo:4979
+```
+
+After all the agents are registered, serviced should be working properly. It's time
+to define some services.
+
+
+
 Dev Environment
 ---------------
 Serviced is written in go. To install go, download go v1.1 from http://golang.org.
