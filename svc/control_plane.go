@@ -422,7 +422,10 @@ func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err 
 		err = dbmap.Insert(&default_pool)
 		return &default_pool, err
 	}
-	*pool = *obj.(*serviced.ResourcePool)
+	pool, ok := obj.(*serviced.ResourcePool)
+	if !ok {
+		log.Printf("Could not cast obj.")
+	}
 	return pool, err
 }
 
