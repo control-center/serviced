@@ -97,7 +97,7 @@ func (a *HostAgent) terminateInstance(controlClient *client.ControlClient, servi
 	return
 }
 
-// Get the state of the docker container.
+// Get the state of the docker container given the dockerId
 func getDockerState(dockerId string) (containerState serviced.ContainerState, err error) {
 	// get docker status
 
@@ -160,12 +160,17 @@ func (a *HostAgent) start() {
 			for {
 				time.Sleep(time.Second * 10)
 				var services []*serviced.Service
+				// Get the services that should be running on this host
 				err = controlClient.GetServicesForHost(a.hostId, &services)
 				if err != nil {
 					log.Printf("Could not get services for this host")
 					break
 				}
+
+				// iterate over this host's services
 				for _, service := range services {
+
+					// find out if the master thinks there are
 					var serviceStates []*serviced.ServiceState
 					err = controlClient.GetServiceStates(service.Id, &serviceStates)
 					if err != nil {

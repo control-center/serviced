@@ -218,30 +218,63 @@ type LoadBalancer interface {
 
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
+
+	// Get a list of registered hosts
 	GetHosts(request EntityRequest, replyHosts *map[string]*Host) error
+
+	// Register a host with serviced
 	AddHost(host Host, unused *int) error
+
+	// Update Host information for a registered host
 	UpdateHost(host Host, ununsed *int) error
+
+	// Remove a Host from serviced
 	RemoveHost(hostId string, unused *int) error
 
+	// Get a list of services from serviced
 	GetServices(request EntityRequest, replyServices *[]*Service) error
+
+	// Add a new service
 	AddService(service Service, unused *int) error
+
+	// Update an existing service
 	UpdateService(service Service, unused *int) error
+
+	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error
+
+	// Get all the services that need to be running on the given host
 	GetServicesForHost(hostId string, services *[]*Service) error
 
+	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error
+
+	// Schedule the given service to start
 	StartService(serviceId string, hostId *string) error
+
+	// Schedule the given service to restart
 	RestartService(serviceId string, unused *int) error
+
+	// Schedule the given service to stop
 	StopService(serviceId string, unused *int) error
+
+	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
 
+	// Get a list of all the resource pools
 	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
+
+	// Add a new service pool to serviced
 	AddResourcePool(pool ResourcePool, unused *int) error
+
+	// Update a service pool definition
 	UpdateResourcePool(pool ResourcePool, unused *int) error
+
+	// Remove a service pool
 	RemoveResourcePool(poolId string, unused *int) error
+
+	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
-	AddHostToResourcePool(poolHost PoolHost, unused *int) error
-	RemoveHostFromResourcePool(poolHost PoolHost, unused *int) error
 }
 
 // The Agent interface is the API for a serviced agent.

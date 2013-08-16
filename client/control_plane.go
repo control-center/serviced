@@ -9,10 +9,11 @@
 package client
 
 import (
-	"net/rpc"
 	"github.com/zenoss/serviced"
+	"net/rpc"
 )
 
+// A serviced client.
 type ControlClient struct {
 	addr      string
 	rpcClient *rpc.Client

@@ -141,6 +141,7 @@ func routeCmd() (routes []RouteEntry, err error) {
 	return routes, err
 }
 
+// Get the IP bound to the hostname of the current host
 func getIpAddr() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()
 	if err != nil {

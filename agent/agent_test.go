@@ -70,6 +70,7 @@ const example_state = `
 }]
 `
 
+// Test parsing container state from docker.
 func TestParseContainerState(t *testing.T) {
 	var testState []serviced.ContainerState
 

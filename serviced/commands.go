@@ -86,7 +86,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	return nil
 }
 
-// Attemp to find the command give on the CLI by looking up the method on the
+// Attempt to find the command give on the CLI by looking up the method on the
 // CLI interface. If found, execute it. Otherwise show usage.
 func ParseCommands(args ...string) error {
 	cli := NewServicedCli()
