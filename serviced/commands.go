@@ -79,6 +79,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"add-service", "Add a service"},
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
+		{"stop-service", "Stop a service"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -417,5 +418,25 @@ func (cli *ServicedCli) CmdStartService(args ...string) error {
 		log.Fatalf("Could not start service: %v", err)
 	}
 	log.Printf("Sevice scheduled to start on host %s\n", hostId)
+	return err
+}
+
+// Schedule a service to stop given a service id.
+func (cli *ServicedCli) CmdStopService(args ...string) error {
+	cmd := Subcmd("stop-service", "SERVICEID", "Stop a service.")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+	var unused int
+	err := controlPlane.StopService(cmd.Arg(0), &unused)
+	if err != nil {
+		log.Fatalf("Could not stop service: %v", err)
+	}
+	log.Printf("Sevice scheduled to stop.")
 	return err
 }

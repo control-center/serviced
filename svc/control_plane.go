@@ -15,6 +15,7 @@ import (
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -389,19 +390,63 @@ func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int
 	return err
 }
 
+func (s *ControlSvc) getSubResourcePools(poolId string) (poolIds []string, err error) {
+
+	poolIds = make([]string, 0)
+	if len(poolId) == 0 {
+		return poolIds, nil
+	}
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return poolIds, err
+	}
+	defer db.Close()
+
+	var pools []*serviced.ResourcePool
+	_, err = dbmap.Select(&pools, "SELECT * FROM resource_pool WHERE parent_id = ?", poolId)
+	if err != nil {
+		return poolIds, err
+	}
+	for _, pool := range pools {
+		poolIds = append(poolIds, pool.Id)
+		subPoolIds, err := s.getSubResourcePools(pool.Id)
+		if err != nil {
+			return poolIds, err
+		}
+		for _, subPoolId := range subPoolIds {
+			poolIds = append(poolIds, subPoolId)
+		}
+	}
+	return poolIds, nil
+}
+
 // Get all the hosts assigned to the given pool.
 func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*serviced.PoolHost) (err error) {
+
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var poolHosts []*serviced.PoolHost
-	_, err = dbmap.Select(&poolHosts, "SELECT * FROM resource_pool_host")
-	if err == nil {
-		*response = poolHosts
+	poolIds, err := s.getSubResourcePools(poolId)
+	if err != nil {
+		return err
 	}
+	poolIds = append(poolIds, poolId)
+
+	var hosts []*serviced.Host
+	stmt := "SELECT * FROM host WHERE resource_pool_id in ('" + strings.Join(poolIds, "','") + "')"
+	log.Printf("SQL: %s", stmt)
+	_, err = dbmap.Select(&hosts, stmt)
+	if err != nil {
+		return err
+	}
+	responseList := make([]*serviced.PoolHost, len(hosts))
+	for i, host := range hosts {
+		responseList[i] = &serviced.PoolHost{host.Id, host.PoolId}
+	}
+	*response = responseList
 	return err
 }
 
