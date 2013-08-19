@@ -157,7 +157,7 @@ func (a *HostAgent) start() {
 				// iterate over this host's services
 				for _, service := range services {
 
-					// find out if the master thinks there are
+					// find current service states defined on the master
 					var serviceStates []*serviced.ServiceState
 					err = controlClient.GetServiceStates(service.Id, &serviceStates)
 					if err != nil {
