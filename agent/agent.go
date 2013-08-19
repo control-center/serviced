@@ -53,23 +53,10 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 	// get docker status
 
-	cmd := exec.Command("docker", "inspect", serviceState.DockerId)
-	output, err := cmd.Output()
+	containerState, err := getDockerState(serviceState.DockerId)
 	if err != nil {
-		log.Printf("problem getting docker state")
 		return err
 	}
-	containerStates := make([]*serviced.ContainerState, 0)
-	err = json.Unmarshal(output, &containerStates)
-	if err != nil {
-		log.Printf("updateCurrentState: there was a problem unmarshalling docker output: %v", err)
-		return err
-	}
-	if len(containerStates) < 1 {
-		log.Printf("Problem getting docker state")
-		return err
-	}
-	containerState := containerStates[0]
 	if !containerState.State.Running {
 		serviceState.Terminated = time.Now()
 		var unused int
