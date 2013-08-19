@@ -311,7 +311,7 @@ func (s *ControlSvc) scheduler() {
 						// randomly select host
 						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
 
-						serviceState, err := serviced.NewServiceState(service.Id, service_host.HostId)
+						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
 							log.Printf("Error creating ServiceState instance: %v", err)
 							break

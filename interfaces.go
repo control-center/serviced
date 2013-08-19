@@ -179,13 +179,13 @@ type ContainerState struct {
 }
 
 // A new service instance (ServiceState)
-func NewServiceState(serviceId string, hostId string) (serviceState *ServiceState, err error) {
+func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
 	serviceState.Id, err = newUuid()
 	if err != nil {
 		return serviceState, err
 	}
-	serviceState.ServiceId = serviceId
+	serviceState.ServiceId = s.Id
 	serviceState.HostId = hostId
 	serviceState.Scheduled = time.Now()
 	return serviceState, err
