@@ -132,6 +132,33 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	return err
 }
 
+func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, controlClient *client.ControlClient) (err error) {
+	// find current service states defined on the master
+	var serviceStates []*serviced.ServiceState
+	err = controlClient.GetServiceStates(service.Id, &serviceStates)
+	if err != nil {
+		if strings.Contains(err.Error(), "Not found") {
+			return nil
+		}
+		log.Printf("Got an error getting service states: %v", err)
+		return err
+	}
+	for _, serviceInstance := range serviceStates {
+		switch {
+		case serviceInstance.Started.Year() <= 1:
+			err = a.startService(controlClient, service, serviceInstance)
+		case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() <= 1:
+			err = a.updateCurrentState(controlClient, service, serviceInstance)
+		case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() == 2:
+			err = a.terminateInstance(controlClient, service, serviceInstance)
+		}
+		if err != nil {
+			log.Printf("Problem servicing state %s,  %v", service.Name, err)
+		}
+	}
+	return nil
+}
+
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	log.Printf("Starting HostAgent\n")
@@ -143,7 +170,8 @@ func (a *HostAgent) start() {
 				log.Printf("Could not start ControlPlane client %v", err)
 				return
 			}
-			defer controlClient.Close()
+			defer controlClient.Close() /* this connection gets cleaned up when
+			   the surrounding lamda is exited */
 			for {
 				time.Sleep(time.Second * 10)
 				var services []*serviced.Service
@@ -156,30 +184,7 @@ func (a *HostAgent) start() {
 
 				// iterate over this host's services
 				for _, service := range services {
-
-					// find current service states defined on the master
-					var serviceStates []*serviced.ServiceState
-					err = controlClient.GetServiceStates(service.Id, &serviceStates)
-					if err != nil {
-						if strings.Contains(err.Error(), "Not found") {
-							continue
-						}
-						log.Printf("Got an error getting service states: %v", err)
-						break
-					}
-					for _, serviceInstance := range serviceStates {
-						switch {
-						case serviceInstance.Started.Year() <= 1:
-							err = a.startService(controlClient, service, serviceInstance)
-						case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() <= 1:
-							err = a.updateCurrentState(controlClient, service, serviceInstance)
-						case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() == 2:
-							err = a.terminateInstance(controlClient, service, serviceInstance)
-						}
-						if err != nil {
-							log.Printf("Problem servicing state %s,  %v", service.Name, err)
-						}
-					}
+					a.handleServiceStatesForService(service, controlClient)
 				}
 			}
 		}()
