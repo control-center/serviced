@@ -149,12 +149,12 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 // Add a host to the control plane given the host:port.
 func (cli *ServicedCli) CmdAddHost(args ...string) error {
 
-	cmd := Subcmd("add-host", "HOST:PORT", "Add host")
+	cmd := Subcmd("add-host", "HOST:PORT RESOURCE_POOL", "Add host")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	if len(cmd.Args()) != 1 {
+	if len(cmd.Args()) != 2 {
 		cmd.Usage()
 		return nil
 	}
@@ -169,6 +169,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	if err != nil {
 		log.Fatalf("Could not get remote host info: %v", err)
 	}
+	remoteHost.PoolId = cmd.Arg(1)
 	log.Printf("Got host info: %v", remoteHost)
 
 	controlPlane := getClient()
