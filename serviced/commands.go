@@ -75,6 +75,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-host", "Remove a host"},
 		{"pools", "Show pools"},
 		{"add-pool", "Add pool"},
+		{"remove-pool", "Remove pool"},
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
 		{"remove-service", "Remote a service"},
@@ -270,6 +271,26 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		log.Fatalf("Could not add resource pool: %v", err)
 	}
 	fmt.Printf("%s\n", pool.Id)
+	return err
+}
+
+// Revmove the given resource pool
+func (cli *ServicedCli) CmdRemovePool(args ...string) error {
+	cmd := Subcmd("remove-pool", "[options] POOLID ", "Remove resource pool")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+	var unused int
+	err := controlPlane.RemoveResourcePool(cmd.Arg(0), &unused)
+	if err != nil {
+		log.Fatalf("Could not remove resource pool: %v", err)
+	}
+	log.Printf("Pool %s removed.\n", cmd.Arg(0))
 	return err
 }
 
