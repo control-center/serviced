@@ -71,7 +71,6 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	help := fmt.Sprintf("Usage: serviced [OPTIONS] COMMAND [arg...]\n\nA container based service management system.\n\nCommands:\n")
 	for _, command := range [][2]string{
 		{"hosts", "Display hosts"},
-		{"update-host", "Update a host"},
 		{"add-host", "Add a host"},
 		{"remove-host", "Remove a host"},
 		{"pools", "Show pools"},
@@ -178,42 +177,6 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		log.Fatalf("Could not add host: %v", err)
 	}
 	fmt.Println(remoteHost.Id)
-	return err
-}
-
-// Update the host information. This method contacts the agent running on
-// HOST:PORT to update the information assoicated with the host.
-func (cli *ServicedCli) CmdUpdateHost(args ...string) error {
-
-	cmd := Subcmd("update-host", "HOST:PORT", "Update the host information.")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-
-	if len(cmd.Args()) != 1 {
-		cmd.Usage()
-		return nil
-	}
-
-	client, err := clientlib.NewAgentClient(cmd.Arg(0))
-	if err != nil {
-		log.Fatalf("Could not create connection to host %s: %v", args[0], err)
-	}
-
-	var remoteHost serviced.Host
-	err = client.GetInfo(0, &remoteHost)
-	if err != nil {
-		log.Fatalf("Could not get remote host info: %v", err)
-	}
-	log.Printf("Got host info: %v", remoteHost)
-
-	controlPlane := getClient()
-	var unused int
-
-	err = controlPlane.UpdateHost(remoteHost, &unused)
-	if err != nil {
-		log.Fatalf("Could not update host: %v", err)
-	}
 	return err
 }
 
