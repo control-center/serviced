@@ -195,6 +195,28 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Expected error looking for non-existent service.")
 	}
 
+	service, err := serviced.NewService()
+	if err != nil {
+		t.Fatal("Could not create a new service object")
+	}
+	service.Name = "HelloWorld"
+	service.Startup = "/bin/sh -c \"while true; do echo hello world; sleep 1; done\""
+	service.Description = "a simple daemon"
+	service.Instances = 1
+	service.ImageId = "base"
+	service.PoolId = "default"
+	service.DesiredState = 0
+
+	err = lclient.AddService(*service, &unused)
+	if err != nil {
+		t.Fatal("Could not add a service to the control plane")
+	}
+
+	err = lclient.RemoveService(service.Id, &unused)
+	if err != nil {
+		t.Fatal("Could not delete the helloWorld service")
+	}
+
 }
 
 func TestServiceStart(t *testing.T) {

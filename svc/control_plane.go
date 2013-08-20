@@ -215,7 +215,7 @@ func (s *ControlSvc) RemoveService(serviceId string, unused *int) (err error) {
 		return err
 	}
 	defer db.Close()
-	_, err = dbmap.Delete(serviced.Service{Id: serviceId})
+	_, err = dbmap.Delete(&serviced.Service{Id: serviceId})
 	return err
 }
 
