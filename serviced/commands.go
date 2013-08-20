@@ -11,6 +11,7 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/zenoss/serviced"
@@ -136,15 +137,11 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 	if err != nil {
 		log.Fatalf("Could not get hosts %v", err)
 	}
-	if len(hosts) > 0 {
-		fmt.Printf("%10s  %20s  %15s  %3s  %12s\n", "Id", "Hostname", "IP Addr", "CPU", "Memory (GB)")
-		for _, host := range hosts {
-			fmt.Printf("%10s  %20s  %15s  %3d  %12.3f\n", host.Id, host.Name, host.IpAddr, host.Cores, float64(host.Memory)/1024.0/1024.0/1024.0)
-		}
-	} else {
-		fmt.Printf("No hosts.\n")
+	hostsJson, err := json.MarshalIndent(hosts, " ", "  ")
+	if err == nil {
+		fmt.Printf("%s\n", hostsJson)
 	}
-	return nil
+	return err
 }
 
 // Add a host to the control plane given the host:port.
@@ -241,6 +238,12 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 	return err
 }
 
+// A convinience struct for printing to command line
+type poolWithHost struct {
+	serviced.ResourcePool
+	Hosts []string
+}
+
 // Print a list of pools. Args are ignored.
 func (cli *ServicedCli) CmdPools(args ...string) error {
 	cmd := Subcmd("pools", "[OPTIONS]", "Display pools")
@@ -254,34 +257,24 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	if err != nil {
 		log.Fatalf("Could not get resource pools: %v", err)
 	}
-	if len(pools) > 0 {
-		for _, pool := range pools {
-			fmt.Printf("*********************** Id: %s ****************\n", pool.Id)
-			fmt.Printf("Parent Pool:         %s\n", pool.ParentId)
-			fmt.Printf("Core Limit:   %d\n", pool.CoreLimit)
-			fmt.Printf("Memory Limit: %d\n", pool.MemoryLimit)
-			fmt.Printf("Priority:     %d\n", pool.Priority)
+	poolsWithHost := make(map[string]poolWithHost)
+	for _, pool := range pools {
 
-			// get pool hosts
-			var poolHosts []*serviced.PoolHost
-			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
-			if err != nil {
-				log.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
-			}
-			fmt.Printf("Hosts:        %d\n", len(poolHosts))
-			if len(poolHosts) > 0 {
-				fmt.Printf("    ")
-				for i, poolHost := range poolHosts {
-					if i > 1 {
-						fmt.Printf(",")
-					}
-					fmt.Printf("  %s", poolHost.HostId)
-				}
-				fmt.Printf("\n")
-			}
+		// get pool hosts
+		var poolHosts []*serviced.PoolHost
+		err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
+		if err != nil {
+			log.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
 		}
-	} else {
-		fmt.Printf("No resource pools found.\n")
+		hosts := make([]string, len(poolHosts))
+		for i, hostPool := range poolHosts {
+			hosts[i] = hostPool.HostId
+		}
+		poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
+	}
+	poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
+	if err == nil {
+		fmt.Printf("%s\n", poolsWithHostJson)
 	}
 	return err
 }
@@ -330,19 +323,11 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	if err != nil {
 		log.Fatalf("Could not get services: %v", err)
 	}
-	if len(services) == 0 {
-		fmt.Printf("No services.\n")
-	} else {
-
-		for _, service := range services {
-			fmt.Printf("*************** %s **************\n", service.Id)
-			fmt.Printf("Name:      %36s\n", service.Name)
-			fmt.Printf("Pool:      %36s\n", service.PoolId)
-			fmt.Printf("ImageId:   %36s\n", service.ImageId)
-			fmt.Printf("Instances: %36d\n", service.Instances)
-			fmt.Printf("Startup:\n  %s\n\n", service.Startup)
-		}
+	servicesJson, err := json.MarshalIndent(services, " ", " ")
+	if err != nil {
+		log.Fatalf("Problem marshaling services object: %s", err)
 	}
+	fmt.Printf("%s\n", servicesJson)
 	return err
 }
 
