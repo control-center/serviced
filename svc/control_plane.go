@@ -299,8 +299,7 @@ func (s *ControlSvc) scheduler() {
 					for i := 0; i < instancesToStart; i++ {
 						// get hosts
 						var pool_hosts []*serviced.PoolHost
-						_, err = dbmap.Select(&pool_hosts, "SELECT * FROM resource_pool_host "+
-							"WHERE resource_pool_id = ?", service.PoolId)
+						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
 						if err != nil {
 							return err
 						}

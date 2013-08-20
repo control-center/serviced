@@ -178,8 +178,12 @@ func (a *HostAgent) start() {
 				// Get the services that should be running on this host
 				err = controlClient.GetServicesForHost(a.hostId, &services)
 				if err != nil {
-					log.Printf("Could not get services for this host")
+					log.Printf("Could not get services for host %s", a.hostId)
 					break
+				}
+
+				if len(services) == 0 {
+					log.Printf("No services are schedule to run on this host.")
 				}
 
 				// iterate over this host's services
