@@ -170,7 +170,7 @@ DROP TABLE IF EXISTS `service_state`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `service_state` (
-  `id` varchar(36) NOT NULL,
+  `id` char(36) NOT NULL,
   `service_id` varchar(36) NOT NULL,
   `terminated_at` datetime NOT NULL,
   `started_at` datetime NOT NULL,
@@ -217,6 +217,33 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `service_state_endpoint`
+--
+
+DROP TABLE IF EXISTS `service_state_endpoint`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_state_endpoint` (
+  `service_state_id` char(36) NOT NULL,
+  `port` int(11) NOT NULL,
+  `protocol` enum('tcp','udp') NOT NULL,
+  `external_port` int(11) DEFAULT NULL,
+  PRIMARY KEY (`service_state_id`,`port`,`protocol`),
+  KEY `fk_service_state_endpoint_1` (`service_state_id`),
+  CONSTRAINT `fk_service_state_endpoint_1` FOREIGN KEY (`service_state_id`) REFERENCES `service_state` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_state_endpoint`
+--
+
+LOCK TABLES `service_state_endpoint` WRITE;
+/*!40000 ALTER TABLE `service_state_endpoint` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_state_endpoint` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -227,4 +254,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-28 11:32:41
+-- Dump completed on 2013-08-28 16:54:27
