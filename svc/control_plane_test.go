@@ -206,10 +206,22 @@ func TestControlAPI(t *testing.T) {
 	service.ImageId = "base"
 	service.PoolId = "default"
 	service.DesiredState = 0
-
+	service.Endpoints = &[]serviced.ServiceEndpoint{
+		serviced.ServiceEndpoint{serviced.TCP, 3306, serviced.ApplicationType("mysql")}}
 	err = lclient.AddService(*service, &unused)
 	if err != nil {
 		t.Fatal("Could not add a service to the control plane")
+	}
+
+	lclient.GetServices(request, &services)
+	if err != nil {
+		t.Fatal("Could not get services after adding a service")
+	}
+	if len(services) != 1 {
+		t.Fatal("Expected 1 service, got %d", len(services))
+	}
+	if services[0].Endpoints == nil || len(*services[0].Endpoints) == 0 {
+		t.Fatal("Expected 1 endpoint, got nil or 0")
 	}
 
 	err = lclient.RemoveService(service.Id, &unused)
