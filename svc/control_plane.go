@@ -87,6 +87,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("ImageId").Rename("image_id")
 	service.ColMap("PoolId").Rename("resource_pool_id")
 	service.ColMap("DesiredState").Rename("desired_state")
+	service.ColMap("Endpoints").SetTransient(true)
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")

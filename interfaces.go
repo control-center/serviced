@@ -55,6 +55,7 @@ type Service struct {
 	ImageId      string
 	PoolId       string
 	DesiredState int
+	Endpoints    *[]ServiceEndpoint
 }
 
 // Desired states of services.

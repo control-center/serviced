@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced"
 	clientlib "github.com/zenoss/serviced/client"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"strconv"
@@ -315,17 +316,67 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	return err
 }
 
-// Add a service given a set of paramters.
-func (cli *ServicedCli) CmdAddService(args ...string) error {
-	cmd := Subcmd("add-service", "NAME POOLID IMAGEID COMMAND", "Add service.")
+// PortOpts type
+type PortOpts map[string]serviced.ServiceEndpoint
+
+func NewPortOpts() PortOpts {
+	return make(PortOpts)
+}
+func (opts *PortOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+// ListOpts type
+type ListOpts []string
+
+func (opts *ListOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *ListOpts) Set(value string) error {
+	*opts = append(*opts, value)
+	return nil
+}
+
+func (opts *PortOpts) Set(value string) error {
+	parts := strings.Split(value, ":")
+	if len(parts) != 3 {
+		return fmt.Errorf("Malformed port specification: %v", value)
+	}
+	protocol := parts[0]
+	if protocol != "tcp" && protocol != "udp" {
+		return fmt.Errorf("Unsuppored protocol for port specification: %s", protocol)
+	}
+	portNum, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf("Invalid port number: %s", parts[1])
+	}
+	portName := serviced.ApplicationType(parts[2])
+	if len(portName) <= 0 {
+		return fmt.Errorf("Endpoint name can not be empty")
+	}
+	port := fmt.Sprintf("%s:%d", protocol, portNum)
+	(*opts)[port] = serviced.ServiceEndpoint{Protocol: serviced.ProtocolType(protocol), PortNumber: uint16(portNum), Application: portName}
+	return nil
+}
+
+func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
+	cmd := Subcmd("add-service", "[OPTIONS] NAME POOLID IMAGEID COMMAND", "Add service.")
+
+	if len(args) > 0 && args[0] != "--help" {
+		cmd.SetOutput(ioutil.Discard)
+		cmd.Usage = nil
+	}
+
+	flPortOpts := NewPortOpts()
+	cmd.Var(&flPortOpts, "p", "Expose a port for this service (e.g. -p tcp:3306:mysql )")
+
 	if err := cmd.Parse(args); err != nil {
-		return nil
+		return nil, cmd, err
 	}
 	if len(cmd.Args()) < 4 {
-		cmd.Usage()
-		return nil
+		return nil, cmd, fmt.Errorf("Not enough arguments")
 	}
-	controlPlane := getClient()
 
 	service, err := serviced.NewService()
 	if err != nil {
@@ -338,7 +389,25 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 	for i := 4; i < len(cmd.Args()); i++ {
 		startup = startup + " " + cmd.Arg(i)
 	}
+	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts))
+	for _, endpoint := range flPortOpts {
+		endPoints = append(endPoints, endpoint)
+	}
 	service.Startup = startup
+	return service, cmd, nil
+}
+
+// Add a service given a set of paramters.
+func (cli *ServicedCli) CmdAddService(args ...string) error {
+	service, cmd, err := ParseAddService(args)
+	if err != nil {
+		if len(cmd.Args()) < 4 {
+			cmd.Usage()
+		}
+		log.Println(err.Error())
+		return nil
+	}
+	controlPlane := getClient()
 
 	log.Printf("Calling AddService.\n")
 	var unused int
