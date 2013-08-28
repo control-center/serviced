@@ -202,6 +202,24 @@ func endpointToPort(service serviced.Service) (servicePorts []service_endpoint) 
 	return service_ports
 }
 
+func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	// Get the related ports for each service
+	var servicePorts []service_endpoint
+	for _, service := range servicesList {
+		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WERE service_id = ?", service.Id)
+		if err != nil {
+			return err
+		}
+		service.Endpoints = portToEndpoint(servicePorts)
+	}
+	return nil
+}
+
 // Get list of services.
 func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *[]*serviced.Service) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -216,13 +234,9 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 		return err
 	}
 	// Get the related ports for each service
-	var servicePorts []service_endpoint
-	for _, service := range servicesList {
-		_, err = dbmap.Select(&servicePorts, "SELECT * FROM port WERE service_id = ?", service.Id)
-		if err != nil {
-			return err
-		}
-		service.Endpoints = portToEndpoint(servicePorts)
+	err = s.addEndpointsToServices(servicesList)
+	if err != nil {
+		return err
 	}
 	*replyServices = servicesList
 	return err
@@ -296,6 +310,10 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 		"FROM service_state AS state "+
 		"INNER JOIN service ON service.id = state.service_id "+
 		"WHERE state.host_id = ?", hostId)
+	if err != nil {
+		return err
+	}
+	err = s.addEndpointsToServices(services)
 	if err != nil {
 		return err
 	}
