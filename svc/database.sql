@@ -149,7 +149,7 @@ CREATE TABLE `service_endpoint` (
   `application` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`service_id`,`port`,`protocol`),
   KEY `fk_port_1` (`service_id`),
-  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -227,4 +227,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-28 10:55:19
+-- Dump completed on 2013-08-28 11:32:41
