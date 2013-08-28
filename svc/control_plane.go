@@ -180,7 +180,7 @@ func (s *ControlSvc) RemoveHost(hostId string, unused *int) (err error) {
 	return err
 }
 
-func portToEndpoint(servicePorts []service_endpoint) *[]serviced.ServiceEndpoint {
+func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoint {
 	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
 		endpoints[i] = serviced.ServiceEndpoint{
@@ -209,9 +209,9 @@ func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) er
 	}
 	defer db.Close()
 	// Get the related ports for each service
-	var servicePorts []service_endpoint
+	var servicePorts []*service_endpoint
 	for _, service := range servicesList {
-		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WERE service_id = ?", service.Id)
+		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WHERE service_id = ?", service.Id)
 		if err != nil {
 			return err
 		}

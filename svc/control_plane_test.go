@@ -213,15 +213,15 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Could not add a service to the control plane")
 	}
 
-	lclient.GetServices(request, &services)
+	err = lclient.GetServices(request, &services)
 	if err != nil {
-		t.Fatal("Could not get services after adding a service")
+		t.Fatalf("Could not get services after adding a service: %s", err)
 	}
 	if len(services) != 1 {
-		t.Fatal("Expected 1 service, got %d", len(services))
+		t.Fatalf("Expected 1 service, got %d", len(services))
 	}
 	if services[0].Endpoints == nil || len(*services[0].Endpoints) == 0 {
-		t.Fatal("Expected 1 endpoint, got nil or 0")
+		t.Fatalf("Expected 1 endpoint, got nil or 0")
 	}
 
 	err = lclient.RemoveService(service.Id, &unused)
