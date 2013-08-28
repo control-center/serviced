@@ -78,33 +78,6 @@ LOCK TABLES `host` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `port`
---
-
-DROP TABLE IF EXISTS `port`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `port` (
-  `service_id` char(36) NOT NULL,
-  `port` int(11) NOT NULL,
-  `protocol` enum('tcp','udp') NOT NULL,
-  `application` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`service_id`,`port`,`protocol`),
-  KEY `fk_port_1` (`service_id`),
-  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `port`
---
-
-LOCK TABLES `port` WRITE;
-/*!40000 ALTER TABLE `port` DISABLE KEYS */;
-/*!40000 ALTER TABLE `port` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `resource_pool`
 --
 
@@ -163,26 +136,30 @@ LOCK TABLES `service` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `service_port`
+-- Table structure for table `service_endpoint`
 --
 
-DROP TABLE IF EXISTS `service_port`;
+DROP TABLE IF EXISTS `service_endpoint`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `service_port` (
-  `service_id` varchar(36) NOT NULL,
-  `port_id` varchar(45) NOT NULL,
-  PRIMARY KEY (`service_id`,`port_id`)
+CREATE TABLE `service_endpoint` (
+  `service_id` char(36) NOT NULL,
+  `port` int(11) NOT NULL,
+  `protocol` enum('tcp','udp') NOT NULL,
+  `application` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`service_id`,`port`,`protocol`),
+  KEY `fk_port_1` (`service_id`),
+  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `service_port`
+-- Dumping data for table `service_endpoint`
 --
 
-LOCK TABLES `service_port` WRITE;
-/*!40000 ALTER TABLE `service_port` DISABLE KEYS */;
-/*!40000 ALTER TABLE `service_port` ENABLE KEYS */;
+LOCK TABLES `service_endpoint` WRITE;
+/*!40000 ALTER TABLE `service_endpoint` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_endpoint` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -250,4 +227,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-27 17:25:25
+-- Dump completed on 2013-08-28 10:55:19

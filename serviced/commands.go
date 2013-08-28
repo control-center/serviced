@@ -365,7 +365,6 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
-		cmd.Usage = nil
 	}
 
 	flPortOpts := NewPortOpts()
@@ -375,7 +374,7 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		return nil, cmd, err
 	}
 	if len(cmd.Args()) < 4 {
-		return nil, cmd, fmt.Errorf("Not enough arguments")
+		return nil, cmd, nil
 	}
 
 	service, err := serviced.NewService()
@@ -389,10 +388,14 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 	for i := 4; i < len(cmd.Args()); i++ {
 		startup = startup + " " + cmd.Arg(i)
 	}
+	log.Printf("endpoints discovered: %v", flPortOpts)
 	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts))
+	i := 0
 	for _, endpoint := range flPortOpts {
-		endPoints = append(endPoints, endpoint)
+		endPoints[i] = endpoint
+		i++
 	}
+	service.Endpoints = &endPoints
 	service.Startup = startup
 	return service, cmd, nil
 }
@@ -401,10 +404,11 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 func (cli *ServicedCli) CmdAddService(args ...string) error {
 	service, cmd, err := ParseAddService(args)
 	if err != nil {
-		if len(cmd.Args()) < 4 {
-			cmd.Usage()
-		}
 		log.Println(err.Error())
+		return nil
+	}
+	if service == nil {
+		cmd.Usage()
 		return nil
 	}
 	controlPlane := getClient()
