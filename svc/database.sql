@@ -1,8 +1,8 @@
 -- MySQL dump 10.13  Distrib 5.5.32, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: cp
+-- Host: localhost    Database: x
 -- ------------------------------------------------------
--- Server version	5.5.32-0ubuntu0.12.04.1
+-- Server version	5.5.32-0ubuntu0.13.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -85,12 +85,13 @@ DROP TABLE IF EXISTS `port`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `port` (
-  `id` varchar(36) NOT NULL,
-  `port` int(11) DEFAULT NULL,
-  `protocol` enum('tcp','udp') DEFAULT NULL,
+  `service_id` char(36) NOT NULL,
+  `port` int(11) NOT NULL,
+  `protocol` enum('tcp','udp') NOT NULL,
   `application` varchar(45) DEFAULT NULL,
-  `service_group_id` varchar(36) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`service_id`,`port`,`protocol`),
+  KEY `fk_port_1` (`service_id`),
+  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -249,4 +250,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-15 14:44:31
+-- Dump completed on 2013-08-27 17:25:25
