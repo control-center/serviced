@@ -55,6 +55,7 @@ type Service struct {
 	ImageId      string
 	PoolId       string
 	DesiredState int
+	Endpoints    *[]ServiceEndpoint
 }
 
 // Desired states of services.
@@ -117,14 +118,18 @@ func (pool *ResourcePool) MakeSubpool(id string) *ResourcePool {
 
 // An instantiation of a Service.
 type ServiceState struct {
-	Id         string
-	ServiceId  string
-	HostId     string
-	Scheduled  time.Time
-	Terminated time.Time
-	Started    time.Time
-	DockerId   string
-	PrivateIp  string
+	Id          string
+	ServiceId   string
+	HostId      string
+	Scheduled   time.Time
+	Terminated  time.Time
+	Started     time.Time
+	DockerId    string
+	PrivateIp   string
+	PortMapping struct {
+		Tcp map[string]string
+		Udp map[string]string
+	}
 }
 
 // The state of a container as reported by Docker.
@@ -142,7 +147,7 @@ type ContainerState struct {
 		AttachStdin  bool
 		AttachStdout bool
 		AttachStderr bool
-		PortSpecs    *string
+		PortSpecs    *[]string
 		Tty          bool
 		OpenStdin    bool
 		StdinOnce    bool
