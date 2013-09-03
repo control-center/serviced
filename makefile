@@ -16,6 +16,7 @@ default:
 	cd svc && make 
 	cd agent && make
 	cd serviced && make
+	cd proxy && make
 
 
 clean:
@@ -24,4 +25,5 @@ clean:
 	cd serviced && make clean
 	cd agent && make clean
 	cd svc && make clean
+	cd proxy && make clean
 
