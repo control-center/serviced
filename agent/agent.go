@@ -106,7 +106,14 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
-	cmdString := fmt.Sprintf("docker run -d %s %s", service.ImageId, service.Startup)
+	portOps := ""
+	if service.Endpoints != nil {
+		for _, endpoint := range *service.Endpoints {
+			portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
+		}
+	}
+	cmdString := fmt.Sprintf("docker run %s -d %s %s", portOps, service.ImageId, service.Startup)
+
 	log.Printf("Starting: %s", cmdString)
 
 	cmd := exec.Command("bash", "-c", cmdString)
@@ -124,6 +131,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	}
 	serviceState.Started = time.Now()
 	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
+	serviceState.PortMapping = containerState.NetworkSettings.PortMapping
 	var unused int
 	err = controlClient.UpdateServiceState(*serviceState, &unused)
 	if err != nil {

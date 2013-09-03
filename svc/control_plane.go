@@ -10,11 +10,14 @@ package svc
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/zenoss/serviced"
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -53,6 +56,21 @@ func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 	return s, err
 }
 
+type service_endpoint struct {
+	ServiceId       string
+	Port            uint16
+	ProtocolType    string
+	ApplicationType string
+}
+
+type service_state_endpoint struct {
+	ServiceStateId string
+	Port           uint16
+	ProtocolType   string
+	ExternalPort   uint16
+	IpAddr         string
+}
+
 // Get a database connection and map db entities to structs.
 func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err error) {
 	con, err = sql.Open(s.connectionDriver, s.connectionString)
@@ -87,6 +105,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("ImageId").Rename("image_id")
 	service.ColMap("PoolId").Rename("resource_pool_id")
 	service.ColMap("DesiredState").Rename("desired_state")
+	service.ColMap("Endpoints").SetTransient(true)
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
@@ -97,17 +116,49 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	servicesate.ColMap("Started").Rename("started_at")
 	servicesate.ColMap("DockerId").Rename("docker_id")
 	servicesate.ColMap("PrivateIp").Rename("private_ip")
+	servicesate.ColMap("PortMapping").SetTransient(true)
 
-	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+	svc_endpoint := dbmap.AddTableWithName(service_endpoint{}, "service_endpoint")
+	svc_endpoint.ColMap("ServiceId").Rename("service_id")
+	svc_endpoint.ColMap("Port").Rename("port")
+	svc_endpoint.ColMap("ProtocolType").Rename("protocol")
+	svc_endpoint.ColMap("ApplicationType").Rename("application")
+
+	svc_state_endpoint := dbmap.AddTableWithName(service_state_endpoint{}, "service_state_endpoint")
+	svc_state_endpoint.ColMap("ServiceStateId").Rename("service_state_id")
+	svc_state_endpoint.ColMap("Port").Rename("port")
+	svc_state_endpoint.ColMap("ProtocolType").Rename("protocol")
+	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
+	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
+
+	dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
 
 // Get a service endpoint.
 func (s *ControlSvc) GetServiceEndpoints(service serviced.ServiceEndpointRequest, response *[]serviced.ApplicationEndpoint) (err error) {
-	// TODO: Is this really useful?
-	endpoints := make([]serviced.ApplicationEndpoint, 2)
-	endpoints[0] = serviced.ApplicationEndpoint{"serviceFoo", "192.168.1.5", 8080, serviced.TCP}
-	endpoints[1] = serviced.ApplicationEndpoint{"serviceFoo", "192.168.1.7", 8080, serviced.TCP}
+
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var endpointList []*service_state_endpoint
+	_, err = dbmap.Select(&endpointList, "select e.*, h.ip_addr from service_state_endpoint as e natural join service_state ss inner join host as h on h.id = ss.host_id where service_id = ? and started_at > '0002-01-01' and terminated_at = '0001-01-01 00:00:00'", service.ServiceId)
+
+	if err != nil {
+		return err
+	}
+
+	endpoints := make([]serviced.ApplicationEndpoint, len(endpointList))
+	for i, endpoint := range endpointList {
+		endpoints[i] = serviced.ApplicationEndpoint{
+			service.ServiceId,
+			endpoint.IpAddr,
+			endpoint.ExternalPort,
+			serviced.TCP}
+	}
 	*response = endpoints
 	return nil
 }
@@ -165,6 +216,46 @@ func (s *ControlSvc) RemoveHost(hostId string, unused *int) (err error) {
 	return err
 }
 
+func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoint {
+	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
+	for i, servicePort := range servicePorts {
+		endpoints[i] = serviced.ServiceEndpoint{
+			serviced.ProtocolType(servicePort.ProtocolType),
+			uint16(servicePort.Port),
+			serviced.ApplicationType(servicePort.ApplicationType)}
+	}
+	return &endpoints
+}
+
+func endpointToPort(service serviced.Service) (servicePorts []service_endpoint) {
+	if service.Endpoints == nil {
+		return make([]service_endpoint, 0)
+	}
+	service_ports := make([]service_endpoint, len(*service.Endpoints))
+	for i, endpoint := range *service.Endpoints {
+		service_ports[i] = service_endpoint{service.Id, endpoint.PortNumber, string(endpoint.Protocol), string(endpoint.Application)}
+	}
+	return service_ports
+}
+
+func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	// Get the related ports for each service
+	var servicePorts []*service_endpoint
+	for _, service := range servicesList {
+		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WHERE service_id = ?", service.Id)
+		if err != nil {
+			return err
+		}
+		service.Endpoints = portToEndpoint(servicePorts)
+	}
+	return nil
+}
+
 // Get list of services.
 func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *[]*serviced.Service) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -175,6 +266,11 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 
 	var servicesList []*serviced.Service
 	_, err = dbmap.Select(&servicesList, "SELECT * from service")
+	if err != nil {
+		return err
+	}
+	// Get the related ports for each service
+	err = s.addEndpointsToServices(servicesList)
 	if err != nil {
 		return err
 	}
@@ -189,11 +285,23 @@ func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err erro
 		return err
 	}
 	defer db.Close()
-
+	tx, err := dbmap.Begin()
 	if err != nil {
 		return err
 	}
-	return dbmap.Insert(&service)
+	err = tx.Insert(&service)
+	if err != nil {
+		return err
+	}
+	log.Printf("Got a service with endpoints: %v", service.Endpoints)
+	for _, serviceEndpoint := range endpointToPort(service) {
+		err = tx.Insert(&serviceEndpoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 // Update a service.
@@ -238,6 +346,10 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 		"FROM service_state AS state "+
 		"INNER JOIN service ON service.id = state.service_id "+
 		"WHERE state.host_id = ?", hostId)
+	if err != nil {
+		return err
+	}
+	err = s.addEndpointsToServices(services)
 	if err != nil {
 		return err
 	}
@@ -378,15 +490,63 @@ func (s *ControlSvc) StopService(serviceId string, unused *int) (err error) {
 	return serviced.ControlPlaneError{"Unimplemented"}
 }
 
+func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints map[string]service_state_endpoint, err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return endpoints, err
+	}
+	defer db.Close()
+	var endpointList []*service_state_endpoint
+	_, err = dbmap.Select(&endpointList, "SELECT * FROM service_state_endpoint WHERE service_state_id = ? ORDER BY port", serviceStateId)
+
+	if err != nil {
+		return endpoints, err
+	}
+	for _, endpoint := range endpointList {
+		endpoints[fmt.Sprintf("%d", endpoint.Port)] = *endpoint
+	}
+	return endpoints, nil
+}
+
 // Update the current state of a service instance.
 func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int) (err error) {
+	log.Printf("Entering UpdateServiceState()")
+	defer log.Printf("Leaving UpdateServiceState()")
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	_, err = dbmap.Update(&state)
-	return err
+	log.Printf("Got back a service state with portmappings: %v", state.PortMapping)
+	tx, err := dbmap.Begin()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Update(&state)
+	if err != nil {
+		return err
+	}
+	// Get all the existing service_state_endpoints
+	endpoints, err := s.getServiceStateEndpoints(state.Id)
+	if err != nil {
+		log.Fatal("Problem getting service state endpoints: %v", err)
+		return err
+	}
+	for internalStr, externalStr := range state.PortMapping.Tcp {
+		if _, ok := endpoints[internalStr]; !ok {
+			external, err := strconv.Atoi(externalStr)
+			if err != nil {
+				return err
+			}
+			internal, err := strconv.Atoi(internalStr)
+			if err != nil {
+				return err
+			}
+			tx.Insert(&service_state_endpoint{state.Id, uint16(internal), "tcp", uint16(external), ""})
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *ControlSvc) getSubResourcePools(poolId string) (poolIds []string, err error) {

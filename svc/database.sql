@@ -1,8 +1,8 @@
 -- MySQL dump 10.13  Distrib 5.5.32, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: cp
+-- Host: localhost    Database: x
 -- ------------------------------------------------------
--- Server version	5.5.32-0ubuntu0.12.04.1
+-- Server version	5.5.32-0ubuntu0.13.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -78,32 +78,6 @@ LOCK TABLES `host` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `port`
---
-
-DROP TABLE IF EXISTS `port`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `port` (
-  `id` varchar(36) NOT NULL,
-  `port` int(11) DEFAULT NULL,
-  `protocol` enum('tcp','udp') DEFAULT NULL,
-  `application` varchar(45) DEFAULT NULL,
-  `service_group_id` varchar(36) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `port`
---
-
-LOCK TABLES `port` WRITE;
-/*!40000 ALTER TABLE `port` DISABLE KEYS */;
-/*!40000 ALTER TABLE `port` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `resource_pool`
 --
 
@@ -162,26 +136,30 @@ LOCK TABLES `service` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `service_port`
+-- Table structure for table `service_endpoint`
 --
 
-DROP TABLE IF EXISTS `service_port`;
+DROP TABLE IF EXISTS `service_endpoint`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `service_port` (
-  `service_id` varchar(36) NOT NULL,
-  `port_id` varchar(45) NOT NULL,
-  PRIMARY KEY (`service_id`,`port_id`)
+CREATE TABLE `service_endpoint` (
+  `service_id` char(36) NOT NULL,
+  `port` int(11) NOT NULL,
+  `protocol` enum('tcp','udp') NOT NULL,
+  `application` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`service_id`,`port`,`protocol`),
+  KEY `fk_port_1` (`service_id`),
+  CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `service_port`
+-- Dumping data for table `service_endpoint`
 --
 
-LOCK TABLES `service_port` WRITE;
-/*!40000 ALTER TABLE `service_port` DISABLE KEYS */;
-/*!40000 ALTER TABLE `service_port` ENABLE KEYS */;
+LOCK TABLES `service_endpoint` WRITE;
+/*!40000 ALTER TABLE `service_endpoint` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_endpoint` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -192,7 +170,7 @@ DROP TABLE IF EXISTS `service_state`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `service_state` (
-  `id` varchar(36) NOT NULL,
+  `id` char(36) NOT NULL,
   `service_id` varchar(36) NOT NULL,
   `terminated_at` datetime NOT NULL,
   `started_at` datetime NOT NULL,
@@ -239,6 +217,33 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `service_state_endpoint`
+--
+
+DROP TABLE IF EXISTS `service_state_endpoint`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_state_endpoint` (
+  `service_state_id` char(36) NOT NULL,
+  `port` int(11) NOT NULL,
+  `protocol` enum('tcp','udp') NOT NULL,
+  `external_port` int(11) DEFAULT NULL,
+  PRIMARY KEY (`service_state_id`,`port`,`protocol`),
+  KEY `fk_service_state_endpoint_1` (`service_state_id`),
+  CONSTRAINT `fk_service_state_endpoint_1` FOREIGN KEY (`service_state_id`) REFERENCES `service_state` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_state_endpoint`
+--
+
+LOCK TABLES `service_state_endpoint` WRITE;
+/*!40000 ALTER TABLE `service_state_endpoint` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_state_endpoint` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -249,4 +254,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-15 14:44:31
+-- Dump completed on 2013-08-28 16:54:27
