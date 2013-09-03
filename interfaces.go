@@ -155,7 +155,7 @@ type ContainerState struct {
 		Cmd          []string
 		Dns          []string
 		Image        string
-		Volumes      map[string]string
+		Volumes      map[string]map[string]string
 		VolumesFrom  string
 		Entrypoint   []string
 	}
@@ -180,7 +180,7 @@ type ContainerState struct {
 	SysInitPath    string
 	ResolvConfPath string
 	Volumes        map[string]string
-	VolumesRW      map[string]string
+	VolumesRW      map[string]bool
 }
 
 // A new service instance (ServiceState)
