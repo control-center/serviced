@@ -42,10 +42,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/proxy"
 	"log"
 	"net"
 	"os"
-	"github.com/zenoss/serviced/proxy"
 )
 
 // Store the command line options
@@ -62,7 +62,7 @@ var options struct {
 // Setup flag options (static block)
 func init() {
 	flag.IntVar(&options.muxport, "muxport", 22250, "multiplexing port to use")
-	flag.BoolVar(&options.mux, "mux", true, "enable port multiplexing")
+	flag.BoolVar(&options.mux, "mux", false, "enable port multiplexing")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
@@ -72,7 +72,6 @@ func init() {
 		flag.PrintDefaults()
 	}
 }
-
 
 func main() {
 	flag.Parse()
@@ -112,6 +111,7 @@ func main() {
 			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
 			proxy.TCPMux = config.TCPMux.Enabled
 			proxy.UseTLS = config.TCPMux.UseTLS
+			proxy.Port = endpoint.ServicePort
 			go proxy.ListenAndProxy()
 		}
 	}()

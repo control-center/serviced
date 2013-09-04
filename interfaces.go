@@ -204,10 +204,11 @@ type PoolHost struct {
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId string
-	HostIp    string
-	Port      uint16
-	Protocol  ProtocolType
+	ServiceId   string
+	ServicePort uint16
+	HostIp      string
+	Port        uint16
+	Protocol    ProtocolType
 }
 
 // The API for a service proxy.
