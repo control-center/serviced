@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/proxy"
 	"log"
 	"os"
 	"os/exec"
@@ -36,7 +37,7 @@ type HostAgent struct {
 var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string) (agent *HostAgent, err error) {
+func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
 	hostId, err := serviced.HostId()
@@ -46,6 +47,7 @@ func NewHostAgent(master string) (agent *HostAgent, err error) {
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
 	go agent.start()
+
 	return agent, err
 }
 
