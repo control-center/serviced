@@ -26,16 +26,16 @@ Start the service from the command line by typing
 
 Where the config file is a JSON file with the structure
 
-    {
-        "TCPMux": {
-            "Enabled": <true | false>,
-            "UseTLS" : <true | false>,
-        }
-        "Proxies": [
-            { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn },
-            { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn },
-        ],
-    }
+{
+    "TCPMux": {
+        "Enabled": <true | false>,
+        "UseTLS" : <true | false>
+    },
+    "Proxies": [
+        { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn },
+        { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn }
+    ]
+}
 
 TCPMux determines whether or not the proxy service will multiplex listening for incoming
 service requests on the 'standard' TCPMux port: 22250 and whether or not those requests
@@ -60,6 +60,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/zenoss/serviced"
 	"io"
 	"log"
 	"net"
@@ -69,44 +70,30 @@ import (
 	"strings"
 )
 
-const muxport = 22250
+// Store the command line options
+var options struct {
+	muxport          int
+	mux              bool
+	servicedId       string
+	tls              bool
+	keyPEMFile       string
+	certPEMFile      string
+	servicedEndpoint string
+}
 
-var (
-	configFileName = flag.String("config", "/dev/null", "proxy configuration file")
-
-	proxyCertPEM = `-----BEGIN CERTIFICATE-----
-MIICaDCCAdGgAwIBAgIJAMsgJclpgZqTMA0GCSqGSIb3DQEBBQUAME0xCzAJBgNV
-BAYTAlVTMQ4wDAYDVQQIDAVUZXhhczEPMA0GA1UEBwwGQXVzdGluMQ8wDQYDVQQK
-DAZaZW5vc3MxDDAKBgNVBAsMA0RldjAeFw0xMzA4MzAyMTE0MTBaFw0yMzA4Mjgy
-MTE0MTBaME0xCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczEPMA0GA1UEBwwG
-QXVzdGluMQ8wDQYDVQQKDAZaZW5vc3MxDDAKBgNVBAsMA0RldjCBnzANBgkqhkiG
-9w0BAQEFAAOBjQAwgYkCgYEAyY8M1eXgU+QJYyg/X3zKOfZf2NKOC1PEFzCJ9EUz
-0tMkArHKCm3yid7Y2Jci2BMGlPKSgbp3wTGc32ONtSYxBOx7musmqgmD1LIADToL
-UGaXPiolmMpv+GstaMFqpkWYfNCtlnzcTquMN+1jfKOd8+Ultodu4bZL4CJygfai
-KRUCAwEAAaNQME4wHQYDVR0OBBYEFEes0lhAiq/5hAh01VxmE/eqqo2QMB8GA1Ud
-IwQYMBaAFEes0lhAiq/5hAh01VxmE/eqqo2QMAwGA1UdEwQFMAMBAf8wDQYJKoZI
-hvcNAQEFBQADgYEASJhY7kmME5Xv3k58C5IJXuVDCTJ1O/liHTCqzk3/GTvdvfKg
-NiSsD6AUC/PVunaTs6ivwEFXcz7HFd94jsLfnEbfQ+tsTzct72vLknORxsuwAxpL
-hXBOYfF12lYGYNlRN1HKFLSXysyHwCcWtGz886EUwzUWeCKOm7YGHYHUBaY=
------END CERTIFICATE-----`
-
-	proxyKeyPEM = `-----BEGIN PRIVATE KEY-----
-MIICeAIBADANBgkqhkiG9w0BAQEFAASCAmIwggJeAgEAAoGBAMmPDNXl4FPkCWMo
-P198yjn2X9jSjgtTxBcwifRFM9LTJAKxygpt8one2NiXItgTBpTykoG6d8ExnN9j
-jbUmMQTse5rrJqoJg9SyAA06C1Bmlz4qJZjKb/hrLWjBaqZFmHzQrZZ83E6rjDft
-Y3yjnfPlJbaHbuG2S+AicoH2oikVAgMBAAECgYEAoQVK98aBhAN1DGYm2p3S4KNW
-xtzO5XWx/eSlESQH1rEe35gxFEvpqwMAsWdsSrpIU83GBSV2bjy4Wi4qE0HDfgJ2
-m3/IKGISTRyUZrnXprj1eIpwHbR5lhcKebohvtZeALKFH/8xdun0YzMkfJ4B2kxQ
-7j28BBjKaowrBGOUeoECQQD83VkkJRCIVxxuSp+pvCJE2P9g6+j9NXlVcz3C0W0d
-jJMIeVBQnqjy6bqpWqYwPCcroZ34Krc/o7OZAri2l+HdAkEAzA7YWIrDDih6x0BL
-y4A/3kkGPj119u40woXicw1HMuW4X/zzXGfxHynO7KYqrTREKEJtBPUuGPC4JtXH
-z0gcmQJAVyITEIBxJPoXgu3V/NAmYuD/hy9jlrUxfT97vcEav37sP5RGF7HEeAgQ
-WUEyWRaxTLihTZ2yjYxkW8pzSgAmRQJBAJz5QoaCYGCQ1TpYBLaMdxVZWZshjpCh
-WCbX9YaKDV5jBz2YCeHo970AXXUAss3A6jmKN/FbZtW6v/7n76hOEekCQQCV3ZhU
-lhu+Iu4HUZGgpDg6tgnlB5Tv7zuyUlzPXgbNAsIsTvQfnmWa1/WpOvNOy2Ix5aJB
-sl9SYPJBOM7G8o1p
------END PRIVATE KEY-----`
-)
+// Setup flag options (static block)
+func init() {
+	flag.IntVar(&options.muxport, "muxport", 22250, "multiplexing port to use")
+	flag.BoolVar(&options.mux, "mux", true, "enable port multiplexing")
+	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
+	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
+	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
+	flag.StringVar(&options.servicedEndpoint, "endpoint", "127.0.0.1:4979", "serviced endpoint address")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "\nUsage: proxy [OPTIONS] SERVICE_ID\n\n")
+		flag.PrintDefaults()
+	}
+}
 
 type Proxy struct {
 	Name    string
@@ -122,8 +109,9 @@ type TCPMux struct {
 }
 
 type Config struct {
-	Proxies []Proxy
-	TCPMux  TCPMux
+	Proxies   []Proxy
+	TCPMux    TCPMux
+	ServiceId string
 }
 
 // listenAndProxy listens, locally, on the proxy's specified Port. For each
@@ -152,7 +140,7 @@ func (p *Proxy) listenAndProxy() error {
 func (p *Proxy) proxy(local net.Conn) {
 	remoteAddr := p.Address
 	if p.TCPMux {
-		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], muxport)
+		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], options.muxport)
 	}
 
 	var remote net.Conn
@@ -230,7 +218,7 @@ func (mux *TCPMux) listenAndMux() {
 	var err error
 
 	if mux.UseTLS == false {
-		l, err = net.Listen("tcp", fmt.Sprintf(":%d", muxport))
+		l, err = net.Listen("tcp", fmt.Sprintf(":%d", options.muxport))
 	} else {
 		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 		if cerr != nil {
@@ -239,7 +227,7 @@ func (mux *TCPMux) listenAndMux() {
 		}
 
 		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
-		l, err = tls.Listen("tcp", fmt.Sprintf(":%d", muxport), &tlsConfig)
+		l, err = tls.Listen("tcp", fmt.Sprintf(":%d", options.muxport), &tlsConfig)
 	}
 	if err != nil {
 		log.Printf("listenAndMux Error (net.Listen): ", err)
@@ -274,29 +262,44 @@ func parseConfig(rdr io.ReadCloser) (*Config, error) {
 func main() {
 	flag.Parse()
 
-	if *configFileName == "/dev/null" {
-		fmt.Fprintf(os.Stderr, "usage: %s [flags]\n", os.Args[0])
-		flag.PrintDefaults()
+	if len(flag.Args()) <= 0 {
+		flag.Usage()
 		os.Exit(2)
 	}
 
-	configFile, err := os.Open(*configFileName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	config, err := parseConfig(configFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for i, _ := range config.Proxies {
-		go config.Proxies[i].listenAndProxy()
-	}
+	config := Config{}
+	config.TCPMux.Enabled = options.mux
+	config.TCPMux.UseTLS = options.tls
+	config.ServiceId = flag.Args()[0]
 
 	if config.TCPMux.Enabled {
 		go config.TCPMux.listenAndMux()
 	}
+
+	func() {
+		client, err := NewLBClient(options.servicedEndpoint)
+		if err != nil {
+			log.Printf("Could not create a client to endpoint %s: %s", options.servicedEndpoint, err)
+			return
+		}
+		defer client.Close()
+
+		var endpoints []serviced.ApplicationEndpoint
+		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
+		if err != nil {
+			log.Printf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
+			return
+		}
+
+		for _, endpoint := range endpoints {
+			proxy := Proxy{}
+			proxy.Name = fmt.Sprintf("%v", endpoint)
+			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
+			proxy.TCPMux = config.TCPMux.Enabled
+			proxy.UseTLS = config.TCPMux.UseTLS
+			go proxy.listenAndProxy()
+		}
+	}()
 
 	if l, err := net.Listen("tcp", ":4321"); err == nil {
 		l.Accept()

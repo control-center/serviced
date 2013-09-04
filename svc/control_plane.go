@@ -136,7 +136,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 }
 
 // Get a service endpoint.
-func (s *ControlSvc) GetServiceEndpoints(service serviced.ServiceEndpointRequest, response *[]serviced.ApplicationEndpoint) (err error) {
+func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *[]serviced.ApplicationEndpoint) (err error) {
 
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *ControlSvc) GetServiceEndpoints(service serviced.ServiceEndpointRequest
 	defer db.Close()
 
 	var endpointList []*service_state_endpoint
-	_, err = dbmap.Select(&endpointList, "select e.*, h.ip_addr from service_state_endpoint as e natural join service_state ss inner join host as h on h.id = ss.host_id where service_id = ? and started_at > '0002-01-01' and terminated_at = '0001-01-01 00:00:00'", service.ServiceId)
+	_, err = dbmap.Select(&endpointList, "select e.*, h.ip_addr from service_state_endpoint as e natural join service_state ss inner join host as h on h.id = ss.host_id where service_id = ? and started_at > '0002-01-01' and terminated_at = '0001-01-01 00:00:00'", serviceId)
 
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func (s *ControlSvc) GetServiceEndpoints(service serviced.ServiceEndpointRequest
 	endpoints := make([]serviced.ApplicationEndpoint, len(endpointList))
 	for i, endpoint := range endpointList {
 		endpoints[i] = serviced.ApplicationEndpoint{
-			service.ServiceId,
+			serviceId,
 			endpoint.IpAddr,
 			endpoint.ExternalPort,
 			serviced.TCP}
