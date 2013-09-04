@@ -18,7 +18,9 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/client"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -103,6 +105,15 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	return *containerStates[0], err
 }
 
+// Get the path to the currently running executable.
+func execPath() (string, string, error) {
+	path, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Dir(path), filepath.Base(path), nil
+}
+
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
@@ -113,10 +124,15 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 		}
 	}
 
-    volumeBinding := "/opt/serviced:/serviced"
-    proxyCmd := "/serviced/bin/proxy -config /serviced/conf/proxy.conf"
+	dir, binary, err := execPath()
+	if err != nil {
+		log.Printf("Error getting exec path: %v", err)
+		return err
+	}
+	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
+	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s", binary, service.Id)
 
-    cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
 
 	log.Printf("Starting: %s", cmdString)
 
