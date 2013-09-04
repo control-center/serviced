@@ -202,12 +202,6 @@ type PoolHost struct {
 	PoolId string
 }
 
-// A request for a given application type exposed by the given service.
-type ServiceEndpointRequest struct {
-	ServiceId   string
-	Application ApplicationType
-}
-
 // An exposed service endpoint
 type ApplicationEndpoint struct {
 	ServiceId string
@@ -218,7 +212,7 @@ type ApplicationEndpoint struct {
 
 // The API for a service proxy.
 type LoadBalancer interface {
-	GetServiceEndpoints(serviceEndpointRequest ServiceEndpointRequest, endpoints *[]ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, endpoints *[]ApplicationEndpoint) error
 }
 
 // The ControlPlane interface is the API for a serviced master.
