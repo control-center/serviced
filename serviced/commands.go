@@ -16,8 +16,11 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced"
 	clientlib "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/proxy"
 	"io/ioutil"
 	"log"
+	"net"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -82,6 +85,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
+		{"proxy", "start a proxy in the foreground"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -120,6 +124,85 @@ func getClient() (c serviced.ControlPlane) {
 		log.Fatalf("Could not create acontrol plane client %v", err)
 	}
 	return c
+}
+
+var proxyOptions struct {
+	muxport          int
+	mux              bool
+	servicedId       string
+	tls              bool
+	keyPEMFile       string
+	certPEMFile      string
+	servicedEndpoint string
+}
+
+var proxyCmd *flag.FlagSet
+
+func init() {
+	proxyCmd = Subcmd("proxy", "[OPTIONS]", " SERVICE_ID ")
+	proxyCmd.IntVar(&proxyOptions.muxport, "muxport", 22250, "multiplexing port to use")
+	proxyCmd.BoolVar(&proxyOptions.mux, "mux", true, "enable port multiplexing")
+	proxyCmd.BoolVar(&proxyOptions.tls, "tls", true, "enable TLS")
+	proxyCmd.StringVar(&proxyOptions.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
+	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
+	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", "127.0.0.1:4979", "serviced endpoint address")
+	proxyCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "\nUsage: proxy [OPTIONS] SERVICE_ID\n\n")
+		proxyCmd.PrintDefaults()
+	}
+
+}
+
+// Start a service proxy.
+func (cli *ServicedCli) CmdProxy(args ...string) error {
+
+	if err := proxyCmd.Parse(args); err != nil {
+		return err
+	}
+	if len(proxyCmd.Args()) != 1 {
+		proxyCmd.Usage()
+		os.Exit(2)
+	}
+	config := proxy.Config{}
+	config.TCPMux.Enabled = proxyOptions.mux
+	config.TCPMux.UseTLS = proxyOptions.tls
+	config.ServiceId = flag.Args()[0]
+
+	if config.TCPMux.Enabled {
+		go config.TCPMux.ListenAndMux()
+	}
+
+	func() {
+		client, err := proxy.NewLBClient(proxyOptions.servicedEndpoint)
+		if err != nil {
+			log.Printf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+			return
+		}
+		defer client.Close()
+
+		var endpoints []serviced.ApplicationEndpoint
+		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
+		if err != nil {
+			log.Printf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
+			return
+		}
+
+		for _, endpoint := range endpoints {
+			proxy := proxy.Proxy{}
+			proxy.Name = fmt.Sprintf("%v", endpoint)
+			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
+			proxy.TCPMux = config.TCPMux.Enabled
+			proxy.UseTLS = config.TCPMux.UseTLS
+			go proxy.ListenAndProxy()
+		}
+	}()
+
+	if l, err := net.Listen("tcp", ":4321"); err == nil {
+		l.Accept()
+	}
+
+	os.Exit(0)
+	return nil
 }
 
 // List the hosts associated with the control plane.
