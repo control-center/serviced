@@ -112,7 +112,11 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 			portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
 		}
 	}
-	cmdString := fmt.Sprintf("docker run %s -d %s %s", portOps, service.ImageId, service.Startup)
+
+    volumeBinding := "/opt/serviced:/serviced"
+    proxyCmd := "/serviced/bin/proxy -config /serviced/conf/proxy.conf"
+
+    cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
 
 	log.Printf("Starting: %s", cmdString)
 
