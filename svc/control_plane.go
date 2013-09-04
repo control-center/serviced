@@ -155,6 +155,7 @@ func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *[]serviced.
 	for i, endpoint := range endpointList {
 		endpoints[i] = serviced.ApplicationEndpoint{
 			serviceId,
+			endpoint.Port,
 			endpoint.IpAddr,
 			endpoint.ExternalPort,
 			serviced.TCP}

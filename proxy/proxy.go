@@ -51,20 +51,20 @@ import (
 )
 
 type Proxy struct {
-	Name    string
-	Address string
-	TCPMux  bool
+	Name       string
+	Address    string
+	TCPMux     bool
 	TCPMuxPort int
-	UseTLS  bool
-	Port    int
+	UseTLS     bool
+	Port       uint16
 }
 
 type TCPMux struct {
-	Enabled bool
-	UseTLS  bool
+	Enabled     bool
+	UseTLS      bool
 	CertPEMFile string
-	KeyPEMFile string
-	Port int
+	KeyPEMFile  string
+	Port        int
 }
 
 type Config struct {
@@ -204,4 +204,3 @@ func (mux *TCPMux) ListenAndMux() {
 		go mux.MuxConnection(conn)
 	}
 }
-

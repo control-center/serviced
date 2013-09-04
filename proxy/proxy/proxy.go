@@ -42,10 +42,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/proxy"
 	"log"
 	"net"
 	"os"
-	"github.com/zenoss/serviced/proxy"
 )
 
 // Store the command line options
@@ -72,7 +72,6 @@ func init() {
 		flag.PrintDefaults()
 	}
 }
-
 
 func main() {
 	flag.Parse()
@@ -112,6 +111,7 @@ func main() {
 			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
 			proxy.TCPMux = config.TCPMux.Enabled
 			proxy.UseTLS = config.TCPMux.UseTLS
+			proxy.Port = endpoint.ServicePort
 			go proxy.ListenAndProxy()
 		}
 	}()
