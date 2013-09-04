@@ -98,12 +98,21 @@ func (p *Proxy) ListenAndProxy() error {
 // of endpoints.
 func (p *Proxy) Proxy(local net.Conn) {
 	remoteAddr := p.Address
+	// NOTE: here we are relying on the initial remoteAddr to have the
+	//       publicly exposed port for the target service. If TCPMux is
+	//       in play that port will be replaced with the TCPMux port, so
+	//       we grab it here in order to be able to create a proper Zen-Service
+	//       header later.
+	remotePort, err := strconv.Atoi(strings.Split(remoteAddr, ":")[1])
+	if err != nil {
+		log.Println("Error (strconv.Atoi): ", err)
+	}
+
 	if p.TCPMux {
 		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.TCPMuxPort)
 	}
 
 	var remote net.Conn
-	var err error
 
 	if p.UseTLS && p.TCPMux { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
@@ -114,6 +123,10 @@ func (p *Proxy) Proxy(local net.Conn) {
 	if err != nil {
 		log.Println("Error (net.Dial): ", err)
 		return
+	}
+
+	if p.TCPMux {
+		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\r\n", p.Name, remotePort))
 	}
 
 	go io.Copy(local, remote)

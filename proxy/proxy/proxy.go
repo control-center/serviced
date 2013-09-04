@@ -62,7 +62,7 @@ var options struct {
 // Setup flag options (static block)
 func init() {
 	flag.IntVar(&options.muxport, "muxport", 22250, "multiplexing port to use")
-	flag.BoolVar(&options.mux, "mux", true, "enable port multiplexing")
+	flag.BoolVar(&options.mux, "mux", false, "enable port multiplexing")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
