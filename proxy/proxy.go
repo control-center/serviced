@@ -71,6 +71,7 @@ type Config struct {
 	Proxies   []Proxy
 	TCPMux    TCPMux
 	ServiceId string
+	Command   string
 }
 
 // listenAndProxy listens, locally, on the proxy's specified Port. For each
@@ -217,3 +218,4 @@ func (mux *TCPMux) ListenAndMux() {
 		go mux.MuxConnection(conn)
 	}
 }
+

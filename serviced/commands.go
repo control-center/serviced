@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
@@ -139,7 +140,7 @@ var proxyOptions struct {
 var proxyCmd *flag.FlagSet
 
 func init() {
-	proxyCmd = Subcmd("proxy", "[OPTIONS]", " SERVICE_ID ")
+	proxyCmd = Subcmd("proxy", "[OPTIONS]", " SERVICE_ID COMMAND")
 	proxyCmd.IntVar(&proxyOptions.muxport, "muxport", 22250, "multiplexing port to use")
 	proxyCmd.BoolVar(&proxyOptions.mux, "mux", true, "enable port multiplexing")
 	proxyCmd.BoolVar(&proxyOptions.tls, "tls", true, "enable TLS")
@@ -147,7 +148,13 @@ func init() {
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", "127.0.0.1:4979", "serviced endpoint address")
 	proxyCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\nUsage: proxy [OPTIONS] SERVICE_ID\n\n")
+		fmt.Fprintf(os.Stderr, `
+Usage: proxy [OPTIONS] SERVICE_ID COMMAND
+
+SERVICE_ID   is the GUID of the service to run
+COMMAND      is a quoted string that is the actual command to run
+
+`)
 		proxyCmd.PrintDefaults()
 	}
 
@@ -159,7 +166,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	if err := proxyCmd.Parse(args); err != nil {
 		return err
 	}
-	if len(proxyCmd.Args()) != 1 {
+	if len(proxyCmd.Args()) != 2 {
 		proxyCmd.Usage()
 		os.Exit(2)
 	}
@@ -167,10 +174,21 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
 	config.ServiceId = flag.Args()[0]
+	config.Command = proxyCmd.Arg(1)
 
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
 	}
+
+	go func(cmdString string) {
+		cmd := exec.Command("bash", "-c", cmdString)
+	        err := cmd.Run()
+		if err != nil {
+			log.Printf("Problem running service: %v", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}(config.Command)
 
 	func() {
 		client, err := proxy.NewLBClient(proxyOptions.servicedEndpoint)
