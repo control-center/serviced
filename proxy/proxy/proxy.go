@@ -22,30 +22,14 @@ Proxy B.
 
 Start the service from the command line by typing
 
-    proxy -config <config filename>
+proxy [OPTIONS] SERVICE_ID
 
-Where the config file is a JSON file with the structure
-
-{
-    "TCPMux": {
-        "Enabled": <true | false>,
-        "UseTLS" : <true | false>
-    },
-    "Proxies": [
-        { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn },
-        { "Name": <service name>, "Address": "n.n.n.n:nnnn", "TCPMux": <true | false>, "UseTLS": <true | false>, "Port": nnnn }
-    ]
-}
-
-TCPMux determines whether or not the proxy service will multiplex listening for incoming
-service requests on the 'standard' TCPMux port: 22250 and whether or not those requests
-are secured via TLS.
-
-Proxies is an array of proxied service definitions. The Address field specifies
-the remote IP address and port for the named service. The Port field specifies
-the local port on which the proxies will accept service requests for the named
-service. The TCPMux field indicates whether or not connections should be proxied
-to the TCPMux port at the remote IP address.
+  -certfile="": path to public certificate file (defaults to compiled in public cert)
+  -endpoint="127.0.0.1:4979": serviced endpoint address
+  -keyfile="": path to private key file (defaults to compiled in private key)
+  -mux=true: enable port multiplexing
+  -muxport=22250: multiplexing port to use
+  -tls=true: enable TLS
 
 To terminate the proxy service connect to it via port 4321 and it will exit.
 The netcat (nc) command is particularly useful for this:
