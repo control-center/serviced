@@ -184,9 +184,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go func(cmdString string) {
 		cmd := exec.Command("bash", "-c", cmdString)
-		err := cmd.Run()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Printf("Problem running service: %v", err)
+			log.Printf("output: %s", string(output))
 			os.Exit(1)
 		}
 		os.Exit(0)
