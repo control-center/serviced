@@ -16,7 +16,6 @@ import (
 	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"math/rand"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -131,7 +130,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
-	dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
 
@@ -492,6 +491,9 @@ func (s *ControlSvc) StopService(serviceId string, unused *int) (err error) {
 }
 
 func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints map[string]service_state_endpoint, err error) {
+
+	endpoints = make(map[string]service_state_endpoint)
+
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return endpoints, err
@@ -533,17 +535,20 @@ func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int
 		log.Fatal("Problem getting service state endpoints: %v", err)
 		return err
 	}
-	for internalStr, externalStr := range state.PortMapping.Tcp {
-		if _, ok := endpoints[internalStr]; !ok {
-			external, err := strconv.Atoi(externalStr)
-			if err != nil {
-				return err
+	log.Printf("About to iterate state port mappings: %v", state)
+	if tcpMap, ok := state.PortMapping["Tcp"]; ok {
+		for internalStr, externalStr := range tcpMap {
+			if _, ok := endpoints[internalStr]; !ok {
+				external, err := strconv.Atoi(externalStr)
+				if err != nil {
+					return err
+				}
+				internal, err := strconv.Atoi(internalStr)
+				if err != nil {
+					return err
+				}
+				tx.Insert(&service_state_endpoint{state.Id, uint16(internal), "tcp", uint16(external), ""})
 			}
-			internal, err := strconv.Atoi(internalStr)
-			if err != nil {
-				return err
-			}
-			tx.Insert(&service_state_endpoint{state.Id, uint16(internal), "tcp", uint16(external), ""})
 		}
 	}
 

@@ -126,10 +126,7 @@ type ServiceState struct {
 	Started     time.Time
 	DockerId    string
 	PrivateIp   string
-	PortMapping struct {
-		Tcp map[string]string
-		Udp map[string]string
-	}
+	PortMapping map[string]map[string]string
 }
 
 // The state of a container as reported by Docker.
@@ -139,25 +136,28 @@ type ContainerState struct {
 	Path    string
 	Args    []string
 	Config  struct {
-		Hostname     string
-		User         string
-		Memory       uint64
-		MemorySwap   uint64
-		CpuShares    int
-		AttachStdin  bool
-		AttachStdout bool
-		AttachStderr bool
-		PortSpecs    *[]string
-		Tty          bool
-		OpenStdin    bool
-		StdinOnce    bool
-		Env          *string
-		Cmd          []string
-		Dns          []string
-		Image        string
-		Volumes      map[string]map[string]string
-		VolumesFrom  string
-		Entrypoint   []string
+		Hostname        string
+		User            string
+		Memory          uint64
+		MemorySwap      uint64
+		CpuShares       int
+		AttachStdin     bool
+		AttachStdout    bool
+		AttachStderr    bool
+		PortSpecs       []string
+		Tty             bool
+		OpenStdin       bool
+		StdinOnce       bool
+		Env             []string
+		Cmd             []string
+		Dns             []string
+		Image           string
+		Volumes         map[string]struct{}
+		VolumesFrom     string
+		WorkingDir      string
+		Entrypoint      []string
+		NetworkDisabled bool
+		Privileged      bool
 	}
 	State struct {
 		Running   bool
@@ -172,10 +172,7 @@ type ContainerState struct {
 		IPPrefixLen int
 		Gateway     string
 		Bridge      string
-		PortMapping struct {
-			Tcp map[string]string
-			Udp map[string]string
-		}
+		PortMapping map[string]map[string]string
 	}
 	SysInitPath    string
 	ResolvConfPath string

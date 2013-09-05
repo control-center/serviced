@@ -92,6 +92,7 @@ func (p *Proxy) ListenAndProxy() error {
 
 		go p.Proxy(conn)
 	}
+	return nil
 }
 
 // proxy takes an established local connection, Dials the remote address specified
