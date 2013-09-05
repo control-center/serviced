@@ -128,6 +128,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	portOps := ""
 	if service.Endpoints != nil {
 		for _, endpoint := range *service.Endpoints {
+			if endpoint.Purpose == "remote"  // only expose remote endpoints
 			portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
 		}
 	}
