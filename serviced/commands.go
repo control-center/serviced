@@ -140,13 +140,15 @@ var proxyOptions struct {
 var proxyCmd *flag.FlagSet
 
 func init() {
+	gw := getDefaultGateway()
+
 	proxyCmd = Subcmd("proxy", "[OPTIONS]", " SERVICE_ID COMMAND")
 	proxyCmd.IntVar(&proxyOptions.muxport, "muxport", 22250, "multiplexing port to use")
 	proxyCmd.BoolVar(&proxyOptions.mux, "mux", true, "enable port multiplexing")
 	proxyCmd.BoolVar(&proxyOptions.tls, "tls", true, "enable TLS")
 	proxyCmd.StringVar(&proxyOptions.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
-	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", "127.0.0.1:4979", "serviced endpoint address")
+	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", gw+":4979", "serviced endpoint address")
 	proxyCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, `
 Usage: proxy [OPTIONS] SERVICE_ID COMMAND
@@ -182,7 +184,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go func(cmdString string) {
 		cmd := exec.Command("bash", "-c", cmdString)
-	        err := cmd.Run()
+		err := cmd.Run()
 		if err != nil {
 			log.Printf("Problem running service: %v", err)
 			os.Exit(1)
@@ -461,6 +463,22 @@ func (opts *PortOpts) Set(value string) error {
 	return nil
 }
 
+func getDefaultGateway() string {
+	cmd := exec.Command("route")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Could not get default gateway")
+		return "127.0.0.1"
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 2 && fields[0] == "default" {
+			return fields[1]
+		}
+	}
+	return "127.0.0.1"
+}
+
 func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 	cmd := Subcmd("add-service", "[OPTIONS] NAME POOLID IMAGEID COMMAND", "Add service.")
 
@@ -470,6 +488,9 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 
 	flPortOpts := NewPortOpts()
 	cmd.Var(&flPortOpts, "p", "Expose a port for this service (e.g. -p tcp:3306:mysql )")
+
+	flServicePortOpts := NewPortOpts()
+	cmd.Var(&flServicePortOpts, "q", "Map a remote service port (e.g. -q tcp:3306:mysql )")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, cmd, err
@@ -490,9 +511,15 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		startup = startup + " " + cmd.Arg(i)
 	}
 	log.Printf("endpoints discovered: %v", flPortOpts)
-	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts))
+	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
 	i := 0
 	for _, endpoint := range flPortOpts {
+		endpoint.Purpose = "remote"
+		endPoints[i] = endpoint
+		i++
+	}
+	for _, endpoint := range flServicePortOpts {
+		endpoint.Purpose = "local"
 		endPoints[i] = endpoint
 		i++
 	}

@@ -43,6 +43,7 @@ type ServiceEndpoint struct {
 	Protocol    ProtocolType
 	PortNumber  uint16
 	Application ApplicationType
+	Purpose     string
 }
 
 // A Service that can run in serviced.

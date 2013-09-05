@@ -56,10 +56,11 @@ func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 }
 
 type service_endpoint struct {
-	ServiceId       string
-	Port            uint16
-	ProtocolType    string
+	ServiceId       string // service id
+	Port            uint16 // port number
+	ProtocolType    string // tcp or udp
 	ApplicationType string
+	Purpose         string // remote or local
 }
 
 type service_state_endpoint struct {
@@ -122,6 +123,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_endpoint.ColMap("Port").Rename("port")
 	svc_endpoint.ColMap("ProtocolType").Rename("protocol")
 	svc_endpoint.ColMap("ApplicationType").Rename("application")
+	svc_endpoint.ColMap("Purpose").Rename("purpose")
 
 	svc_state_endpoint := dbmap.AddTableWithName(service_state_endpoint{}, "service_state_endpoint")
 	svc_state_endpoint.ColMap("ServiceStateId").Rename("service_state_id")
@@ -222,7 +224,8 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 		endpoints[i] = serviced.ServiceEndpoint{
 			serviced.ProtocolType(servicePort.ProtocolType),
 			uint16(servicePort.Port),
-			serviced.ApplicationType(servicePort.ApplicationType)}
+			serviced.ApplicationType(servicePort.ApplicationType),
+			servicePort.Purpose}
 	}
 	return &endpoints
 }
@@ -233,7 +236,12 @@ func endpointToPort(service serviced.Service) (servicePorts []service_endpoint) 
 	}
 	service_ports := make([]service_endpoint, len(*service.Endpoints))
 	for i, endpoint := range *service.Endpoints {
-		service_ports[i] = service_endpoint{service.Id, endpoint.PortNumber, string(endpoint.Protocol), string(endpoint.Application)}
+		service_ports[i] = service_endpoint{
+			service.Id,
+			endpoint.PortNumber,
+			string(endpoint.Protocol),
+			string(endpoint.Application),
+			endpoint.Purpose}
 	}
 	return service_ports
 }
