@@ -568,6 +568,7 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 	}
 	controlPlane := getClient()
 
+	service.Instances = 1
 	log.Printf("Calling AddService.\n")
 	var unused int
 	err = controlPlane.AddService(*service, &unused)
