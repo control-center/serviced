@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // A type to represent the CLI. All the command will have the same signature.
@@ -188,6 +189,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		if err != nil {
 			log.Printf("Problem running service: %v", err)
 			log.Printf("output: %s", string(output))
+			time.Sleep(time.Minute)
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -201,17 +203,23 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 		defer client.Close()
 
-		var endpoints []serviced.ApplicationEndpoint
+		var endpoints map[string][]*serviced.ApplicationEndpoint
 		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
 		if err != nil {
 			log.Printf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
 			return
 		}
 
-		for _, endpoint := range endpoints {
+		log.Printf("serviced:proxy: got endpoints %v", endpoints)
+
+		for _, endpointList := range endpoints {
+			if len(endpointList) <= 0 {
+				continue
+			}
 			proxy := proxy.Proxy{}
+			endpoint := endpointList[0]
 			proxy.Name = fmt.Sprintf("%v", endpoint)
-			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
+			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
 			proxy.TCPMux = config.TCPMux.Enabled
 			proxy.UseTLS = config.TCPMux.UseTLS
 			go proxy.ListenAndProxy()

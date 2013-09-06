@@ -202,16 +202,17 @@ type PoolHost struct {
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId   string
-	ServicePort uint16
-	HostIp      string
-	Port        uint16
-	Protocol    ProtocolType
+	ServiceId     string
+	ContainerPort uint16
+	HostPort      uint16
+	HostIp        string
+	ContailerIp   string
+	Protocol      ProtocolType
 }
 
 // The API for a service proxy.
 type LoadBalancer interface {
-	GetServiceEndpoints(serviceId string, endpoints *[]ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, endpoints *map[string][]*ApplicationEndpoint) error
 }
 
 // The ControlPlane interface is the API for a serviced master.
