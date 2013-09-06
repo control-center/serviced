@@ -473,7 +473,7 @@ func (opts *PortOpts) Set(value string) error {
 }
 
 func getDefaultGateway() string {
-	cmd := exec.Command("route")
+	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("Could not get default gateway")
@@ -482,7 +482,7 @@ func getDefaultGateway() string {
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 2 && fields[0] == "default" {
-			return fields[1]
+			return fields[2]
 		}
 	}
 	return "127.0.0.1"
