@@ -17,6 +17,7 @@ import (
 	"github.com/zenoss/serviced"
 	clientlib "github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/proxy"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -174,9 +175,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		os.Exit(2)
 	}
 	config := proxy.Config{}
+	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
-	config.ServiceId = flag.Args()[0]
+	config.ServiceId = proxyCmd.Arg(0)
 	config.Command = proxyCmd.Arg(1)
 
 	if config.TCPMux.Enabled {
@@ -185,10 +187,20 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go func(cmdString string) {
 		cmd := exec.Command("bash", "-c", cmdString)
-		output, err := cmd.CombinedOutput()
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			log.Fatal("Problem opening a stderr pipe to service: %s", err)
+		}
+		go io.Copy(os.Stderr, stderr)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			log.Fatal("Problem opening a stdout pipe to service: %s", err)
+		}
+		go io.Copy(os.Stdout, stdout)
+		log.Printf("About to execute: %s", cmdString)
+		err = cmd.Run()
 		if err != nil {
 			log.Printf("Problem running service: %v", err)
-			log.Printf("output: %s", string(output))
 			time.Sleep(time.Minute)
 			os.Exit(1)
 		}
@@ -210,18 +222,22 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			return
 		}
 
-		log.Printf("serviced:proxy: got endpoints %v", endpoints)
 
-		for _, endpointList := range endpoints {
+		for key, endpointList := range endpoints {
+
+			log.Printf("For %s, got %s", key, endpointList)
 			if len(endpointList) <= 0 {
 				continue
 			}
 			proxy := proxy.Proxy{}
 			endpoint := endpointList[0]
 			proxy.Name = fmt.Sprintf("%v", endpoint)
+			proxy.Port = endpoint.ContainerPort
 			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
 			proxy.TCPMux = config.TCPMux.Enabled
+			proxy.TCPMuxPort = config.TCPMux.Port
 			proxy.UseTLS = config.TCPMux.UseTLS
+			log.Printf("Proxying %s", proxy)
 			go proxy.ListenAndProxy()
 		}
 	}()
@@ -280,6 +296,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	if err != nil {
 		log.Fatalf("Could not get remote host info: %v", err)
 	}
+	parts := strings.Split(cmd.Arg(0), ":")
+	remoteHost.IpAddr = parts[0]
 	remoteHost.PoolId = cmd.Arg(1)
 	log.Printf("Got host info: %v", remoteHost)
 
@@ -468,7 +486,7 @@ func (opts *PortOpts) Set(value string) error {
 		return fmt.Errorf("Endpoint name can not be empty")
 	}
 	port := fmt.Sprintf("%s:%d", protocol, portNum)
-	(*opts)[port] = serviced.ServiceEndpoint{Protocol: serviced.ProtocolType(protocol), PortNumber: uint16(portNum), Application: portName}
+	(*opts)[port] = serviced.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portNum), Application: string(portName)}
 	return nil
 }
 

@@ -153,7 +153,7 @@ const SQL_APPLICATION_ENDPOINTS = `
 		    and ss.service_id in (
 		        select service_id 
 		        from service_endpoint se
-		        where se.protocol = ? and se.application = ? and se.purpose = 'remote''
+		        where se.protocol = ? and se.application = ? and se.purpose = 'remote'
 		    )
 		) as live_services on live_services.id = sse.service_state_id
 		inner join host h on h.id = live_services.host_id
@@ -180,6 +180,7 @@ and purpose = 'local'`, serviceId)
 
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
+		log.Printf("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
@@ -258,9 +259,9 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
 		endpoints[i] = serviced.ServiceEndpoint{
-			serviced.ProtocolType(servicePort.ProtocolType),
+			servicePort.ProtocolType,
 			uint16(servicePort.Port),
-			serviced.ApplicationType(servicePort.ApplicationType),
+			servicePort.ApplicationType,
 			servicePort.Purpose}
 	}
 	return &endpoints

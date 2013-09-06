@@ -31,8 +31,8 @@ type EntityRequest struct{}
 type ProtocolType string
 
 const (
-	TCP ProtocolType = "tcp"
-	UDP ProtocolType = "udp"
+	TCP string = "tcp"
+	UDP string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.
@@ -40,9 +40,9 @@ type ApplicationType string
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
-	Protocol    ProtocolType
+	Protocol    string
 	PortNumber  uint16
-	Application ApplicationType
+	Application string
 	Purpose     string
 }
 
@@ -206,8 +206,8 @@ type ApplicationEndpoint struct {
 	ContainerPort uint16
 	HostPort      uint16
 	HostIp        string
-	ContailerIp   string
-	Protocol      ProtocolType
+	ContainerIp   string
+	Protocol      string
 }
 
 // The API for a service proxy.
