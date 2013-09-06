@@ -290,8 +290,8 @@ func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) er
 	}
 	defer db.Close()
 	// Get the related ports for each service
-	var servicePorts []*service_endpoint
 	for _, service := range servicesList {
+		var servicePorts []*service_endpoint
 		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WHERE service_id = ?", service.Id)
 		if err != nil {
 			return err
