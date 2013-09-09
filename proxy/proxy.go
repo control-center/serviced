@@ -154,28 +154,28 @@ func (mux TCPMux) MuxConnection(conn net.Conn) {
 	rdr := textproto.NewReader(bufio.NewReader(conn))
 	hdr, err := rdr.ReadMIMEHeader()
 	if err != nil {
-		sendMuxError(conn, "listenAndMux", "textproto.ReadMIMEHeader", "bad request (no headers)", err)
+		sendMuxError(conn, "MuxConnection", "textproto.ReadMIMEHeader", "bad request (no headers)", err)
 		conn.Close()
 		return
 	}
 
 	zs, ok := hdr["Zen-Service"]
 	if ok == false {
-		sendMuxError(conn, "listenAndMux", "MIMEHeader", "bad request (no Zen-Service header)", err)
+		sendMuxError(conn, "MuxConnection", "MIMEHeader", "bad request (no Zen-Service header)", err)
 		conn.Close()
 		return
 	}
 
 	port, err := strconv.Atoi(strings.Split(zs[0], "/")[1])
 	if err != nil {
-		sendMuxError(conn, "listenAndMux", "Zen-Service Header", "bad Zen-Service spec", err)
+		sendMuxError(conn, "MuxConnection", "Zen-Service Header", "bad Zen-Service spec", err)
 		conn.Close()
 		return
 	}
 
 	svc, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		sendMuxError(conn, "listenAndMux", "net.Dial", "cannot connect to service", err)
+		sendMuxError(conn, "MuxConnection", "net.Dial", "cannot connect to service", err)
 		conn.Close()
 		return
 	}
@@ -196,7 +196,7 @@ func (mux *TCPMux) ListenAndMux() {
 	} else {
 		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 		if cerr != nil {
-			log.Println("listenAndMux Error (tls.X509KeyPair): ", cerr)
+			log.Println("ListenAndMux Error (tls.X509KeyPair): ", cerr)
 			return
 		}
 
@@ -204,7 +204,7 @@ func (mux *TCPMux) ListenAndMux() {
 		l, err = tls.Listen("tcp", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
 	}
 	if err != nil {
-		log.Printf("listenAndMux Error (net.Listen): ", err)
+		log.Printf("ListenAndMux Error (net.Listen): ", err)
 		return
 	}
 	defer l.Close()
@@ -212,11 +212,10 @@ func (mux *TCPMux) ListenAndMux() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Println("listenAndMux Error (net.Accept): ", err)
+			log.Println("ListenAndMux Error (net.Accept): ", err)
 			return
 		}
 
 		go mux.MuxConnection(conn)
 	}
 }
-
