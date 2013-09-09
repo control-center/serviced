@@ -36,3 +36,4 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 func (a *AgentClient) GetInfo(unused int, host *serviced.Host) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", unused, host)
 }
+
