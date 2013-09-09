@@ -17,8 +17,11 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/proxy"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -28,21 +31,27 @@ type HostAgent struct {
 	master          string               // the connection string to the master agent
 	hostId          string               // the hostID of the current host
 	currentServices map[string]*exec.Cmd // the current running services
+	mux             proxy.TCPMux
 }
 
 // assert that this implemenents the Agent interface
 var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string) (agent *HostAgent, err error) {
+func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
+	agent.mux = mux
 	hostId, err := serviced.HostId()
 	if err != nil {
 		panic("Could not get hostid")
 	}
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
+	if agent.mux.Enabled {
+		go agent.mux.ListenAndMux()
+	}
+
 	go agent.start()
 	return agent, err
 }
@@ -55,6 +64,7 @@ func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, serv
 
 	containerState, err := getDockerState(serviceState.DockerId)
 	if err != nil {
+		log.Printf("updateCurrentState: Could not get dockerstate")
 		return err
 	}
 	if !containerState.State.Running {
@@ -94,13 +104,22 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 		log.Printf("problem getting docker state")
 		return containerState, err
 	}
-	containerStates := make([]*serviced.ContainerState, 0)
+	var containerStates []serviced.ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if len(containerStates) < 1 {
 		log.Printf("bad state  happened: %v,   \n\n\n%s", err, string(output))
 		return containerState, serviced.ControlPlaneError{"no state"}
 	}
-	return *containerStates[0], err
+	return containerStates[0], err
+}
+
+// Get the path to the currently running executable.
+func execPath() (string, string, error) {
+	path, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Dir(path), filepath.Base(path), nil
 }
 
 // Start a service instance and update the CP with the state.
@@ -109,14 +128,21 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	portOps := ""
 	if service.Endpoints != nil {
 		for _, endpoint := range *service.Endpoints {
-			portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
+			if endpoint.Purpose == "remote" { // only expose remote endpoints
+				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
+			}
 		}
 	}
 
-    volumeBinding := "/opt/serviced:/serviced"
-    proxyCmd := "/serviced/bin/proxy -config /serviced/conf/proxy.conf"
+	dir, binary, err := execPath()
+	if err != nil {
+		log.Printf("Error getting exec path: %v", err)
+		return err
+	}
+	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
+	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 
-    cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
 
 	log.Printf("Starting: %s", cmdString)
 
