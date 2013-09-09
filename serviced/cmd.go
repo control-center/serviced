@@ -120,4 +120,5 @@ func main() {
 			ParseCommands(flag.Args()...)
 		}
 	}
+	glog.Flush()
 }

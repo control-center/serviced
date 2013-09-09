@@ -173,6 +173,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}
 	if len(proxyCmd.Args()) != 2 {
 		proxyCmd.Usage()
+		glog.Flush()
 		os.Exit(2)
 	}
 	config := proxy.Config{}
@@ -203,8 +204,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		if err != nil {
 			glog.Errorf("Problem running service: %v", err)
 			time.Sleep(time.Minute)
+			glog.Flush()
 			os.Exit(1)
 		}
+		glog.Flush()
 		os.Exit(0)
 	}(config.Command)
 
@@ -246,6 +249,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		l.Accept()
 	}
 
+	glog.Flush()
 	os.Exit(0)
 	return nil
 }
