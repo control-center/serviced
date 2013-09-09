@@ -207,7 +207,7 @@ func TestControlAPI(t *testing.T) {
 	service.PoolId = "default"
 	service.DesiredState = 0
 	service.Endpoints = &[]serviced.ServiceEndpoint{
-		serviced.ServiceEndpoint{serviced.TCP, 3306, serviced.ApplicationType("mysql")}}
+		serviced.ServiceEndpoint{serviced.TCP, 3306, "mysql", "remote"}}
 	err = lclient.AddService(*service, &unused)
 	if err != nil {
 		t.Fatal("Could not add a service to the control plane")

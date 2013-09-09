@@ -14,6 +14,7 @@ package main
 import (
 	"flag"
 	agent "github.com/zenoss/serviced/agent"
+	"github.com/zenoss/serviced/proxy"
 	svc "github.com/zenoss/serviced/svc"
 	"log"
 	"net"
@@ -29,6 +30,10 @@ var options struct {
 	master            bool
 	agent             bool
 	connection_string string
+	muxPort           int
+	tls               bool
+	keyPEMFile        string
+	certPEMFile       string
 }
 
 // Setup flag options (static block)
@@ -37,6 +42,11 @@ func init() {
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
+	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
+	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
+	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
+	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
+
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
 		conStr = "mysql://root@127.0.0.1:3306/cp"
@@ -62,7 +72,15 @@ func startServer() {
 		rpc.RegisterName("ControlPlane", master)
 	}
 	if options.agent {
-		agent, err := agent.NewHostAgent(options.port)
+		mux := proxy.TCPMux{}
+
+		mux.CertPEMFile = options.certPEMFile
+		mux.KeyPEMFile = options.keyPEMFile
+		mux.Enabled = true
+		mux.Port = options.muxPort
+		mux.UseTLS = options.tls
+
+		agent, err := agent.NewHostAgent(options.port, mux)
 		if err != nil {
 			log.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

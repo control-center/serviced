@@ -9,15 +9,16 @@ import (
 
 const example_state = `
 [{
-    "ID": "2165c020b13cff5d7e675bedc8124fe6c561d384e1eb4896bfbbddb491ef1ccf",
-    "Created": "2013-08-09T02:47:49.74930212-05:00",
-    "Path": "/bin/sh",
+    "ID": "af5163d96bdc1532875f0f0601ae32a7eafadfdd287d9df6cf2b2020ddfb930d",
+    "Created": "2013-09-04T22:35:32.473288901-05:00",
+    "Path": "/serviced/serviced",
     "Args": [
-        "-c",
-        "while true; do echo hello world; sleep 1; done"
+        "proxy",
+        "dda3d6af-61ef-35ff-4632-086af9b78c90",
+        "/bin/nc -l 3306"
     ],
     "Config": {
-        "Hostname": "2165c020b13c",
+        "Hostname": "af5163d96bdc",
         "User": "",
         "Memory": 0,
         "MemorySwap": 0,
@@ -25,48 +26,61 @@ const example_state = `
         "AttachStdin": false,
         "AttachStdout": false,
         "AttachStderr": false,
-        "PortSpecs": null,
+        "PortSpecs": [
+            "3306"
+        ],
         "Tty": false,
         "OpenStdin": false,
         "StdinOnce": false,
         "Env": null,
         "Cmd": [
-            "/bin/sh",
-            "-c",
-            "while true; do echo hello world; sleep 1; done"
+            "/serviced/serviced",
+            "proxy",
+            "dda3d6af-61ef-35ff-4632-086af9b78c90",
+            "/bin/nc -l 3306"
         ],
         "Dns": [
             "8.8.8.8",
             "8.8.4.4"
         ],
         "Image": "base",
-        "Volumes": {},
+        "Volumes": {
+            "/serviced": {}
+        },
         "VolumesFrom": "",
+        "WorkingDir": "",
         "Entrypoint": [],
-        "NetworkDisabled": false
+        "NetworkDisabled": false,
+        "Privileged": false
     },
     "State": {
         "Running": true,
-        "Pid": 4726,
+        "Pid": 5232,
         "ExitCode": 0,
-        "StartedAt": "2013-08-09T02:47:49.75287917-05:00",
+        "StartedAt": "2013-09-04T22:35:32.485677934-05:00",
         "Ghost": false
     },
     "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
     "NetworkSettings": {
-        "IPAddress": "172.16.0.31",
+        "IPAddress": "172.17.0.4",
         "IPPrefixLen": 16,
-        "Gateway": "172.16.42.1",
+        "Gateway": "172.17.42.1",
         "Bridge": "docker0",
         "PortMapping": {
-            "Tcp": {},
+            "Tcp": {
+                "3306": "49156"
+            },
             "Udp": {}
         }
     },
     "SysInitPath": "/usr/bin/docker",
-    "ResolvConfPath": "/var/lib/docker/containers/2165c020b13cff5d7e675bedc8124fe6c561d384e1eb4896bfbbddb491ef1ccf/resolv.conf",
-    "Volumes": {},
-    "VolumesRW": {}
+    "ResolvConfPath": "/var/lib/docker/containers/af5163d96bdc1532875f0f0601ae32a7eafadfdd287d9df6cf2b2020ddfb930d/resolv.conf",
+    "Volumes": {
+        "/serviced": "/home/daniel/mygo/src/github.com/zenoss/serviced/serviced"
+    },
+    "VolumesRW": {
+        "/serviced": true
+    }
 }]
 `
 
