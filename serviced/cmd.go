@@ -12,11 +12,12 @@ package main
 // flags and either start a service or execute command line functions.
 
 import (
-	"flag"
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/proxy"
 	svc "github.com/zenoss/serviced/svc"
-	"log"
+
+	"flag"
+	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -51,7 +52,7 @@ func init() {
 	if len(conStr) == 0 {
 		conStr = "mysql://root@127.0.0.1:3306/cp"
 	} else {
-		log.Printf("Using connection string from env var CP_PROD_DB")
+		glog.Infoln("Using connection string from env var CP_PROD_DB")
 	}
 	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
@@ -64,10 +65,10 @@ func startServer() {
 	if options.master {
 		master, err := svc.NewControlSvc(options.connection_string)
 		if err != nil {
-			log.Fatalf("Could not start ControlPlane service: %v", err)
+			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
 		// register the API
-		log.Printf("registering ControlPlane service")
+		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
 	}
@@ -82,20 +83,20 @@ func startServer() {
 
 		agent, err := agent.NewHostAgent(options.port, mux)
 		if err != nil {
-			log.Fatalf("Could not start ControlPlane agent: %v", err)
+			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
 		// register the API
-		log.Printf("registering ControlPlaneAgent service")
+		glog.Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
 	}
 	rpc.HandleHTTP()
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
-		log.Fatalf("Could not bind to port %v", err)
+		glog.Fatalf("Could not bind to port %v", err)
 	}
 
-	log.Printf("Listening on %s", l.Addr().String())
+	glog.Infof("Listening on %s", l.Addr().String())
 	http.Serve(l, nil) // start the server
 }
 

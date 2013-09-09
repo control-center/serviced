@@ -14,7 +14,7 @@ import (
 	"github.com/coopernurse/gorp"
 	"github.com/zenoss/serviced"
 	_ "github.com/ziutek/mymysql/godrv"
-	"log"
+	"github.com/zenoss/glog"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -180,7 +180,7 @@ and purpose = 'local'`, serviceId)
 
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
-		log.Printf("No service endpoints found for %s", serviceId)
+		glog.Errorf("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
@@ -338,7 +338,7 @@ func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err erro
 	if err != nil {
 		return err
 	}
-	log.Printf("Got a service with endpoints: %v", service.Endpoints)
+	glog.Infof("Got a service with endpoints: %v", service.Endpoints)
 	for _, serviceEndpoint := range endpointToPort(service) {
 		err = tx.Insert(&serviceEndpoint)
 		if err != nil {
@@ -429,7 +429,7 @@ func (s *ControlSvc) scheduler() {
 		func() error {
 			db, dbmap, err := s.getDbConnection()
 			if err != nil {
-				log.Printf("trying to connection: %s", err)
+				glog.Infof("trying to connection: %s", err)
 				return err
 			}
 			defer db.Close()
@@ -444,7 +444,7 @@ func (s *ControlSvc) scheduler() {
 				var serviceStates []*serviced.ServiceState
 				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
 				if err != nil {
-					log.Printf("Got error checking service state of %s, %s", service.Id, err.Error())
+					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
 					return err
 				}
 				if len(serviceStates) == service.Instances {
@@ -461,7 +461,7 @@ func (s *ControlSvc) scheduler() {
 							return err
 						}
 						if len(pool_hosts) == 0 {
-							log.Printf("Pool %s has no hosts", service.PoolId)
+							glog.Infof("Pool %s has no hosts", service.PoolId)
 							break
 						}
 
@@ -470,17 +470,17 @@ func (s *ControlSvc) scheduler() {
 
 						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
-							log.Printf("Error creating ServiceState instance: %v", err)
+							glog.Errorf("Error creating ServiceState instance: %v", err)
 							break
 						}
-						log.Printf("cp: serviceState %s", serviceState.Started)
+						glog.Infof("cp: serviceState %s", serviceState.Started)
 						err = dbmap.Insert(serviceState)
 					}
 				} else {
 					// pick service instances to kill!
 					instancesToKill := len(serviceStates) - service.Instances
 					for i := 0; i < instancesToKill; i++ {
-						log.Printf("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
+						glog.Infof("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
 						serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
 						_, err = dbmap.Update(serviceStates[i])
 					}
@@ -558,14 +558,14 @@ func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints 
 
 // Update the current state of a service instance.
 func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int) (err error) {
-	log.Printf("Entering UpdateServiceState()")
-	defer log.Printf("Leaving UpdateServiceState()")
+	glog.Infoln("Entering UpdateServiceState()")
+	defer glog.Infoln("Leaving UpdateServiceState()")
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	log.Printf("Got back a service state with portmappings: %v", state.PortMapping)
+	glog.Infof("Got back a service state with portmappings: %v", state.PortMapping)
 	tx, err := dbmap.Begin()
 	if err != nil {
 		return err
@@ -577,10 +577,10 @@ func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int
 	// Get all the existing service_state_endpoints
 	endpoints, err := s.getServiceStateEndpoints(state.Id)
 	if err != nil {
-		log.Fatal("Problem getting service state endpoints: %v", err)
+		glog.Fatalf("Problem getting service state endpoints: %v", err)
 		return err
 	}
-	log.Printf("About to iterate state port mappings: %v", state)
+	glog.Infof("About to iterate state port mappings: %v", state)
 	if tcpMap, ok := state.PortMapping["Tcp"]; ok {
 		for internalStr, externalStr := range tcpMap {
 			if _, ok := endpoints[internalStr]; !ok {
@@ -647,7 +647,7 @@ func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*service
 
 	var hosts []*serviced.Host
 	stmt := "SELECT * FROM host WHERE resource_pool_id in ('" + strings.Join(poolIds, "','") + "')"
-	log.Printf("SQL: %s", stmt)
+	glog.Infof("SQL: %s", stmt)
 	_, err = dbmap.Select(&hosts, stmt)
 	if err != nil {
 		return err
@@ -671,7 +671,7 @@ func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err 
 
 	obj, err := dbmap.Get(serviced.ResourcePool{}, "default")
 	if obj == nil {
-		log.Printf("'default' resource pool not found; creating...")
+		glog.Infof("'default' resource pool not found; creating...")
 		default_pool := serviced.ResourcePool{}
 		default_pool.Id = "default"
 		err = dbmap.Insert(&default_pool)
@@ -679,7 +679,7 @@ func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err 
 	}
 	pool, ok := obj.(*serviced.ResourcePool)
 	if !ok {
-		log.Printf("Could not cast obj.")
+		glog.Errorln("Could not cast obj.")
 	}
 	return pool, err
 }

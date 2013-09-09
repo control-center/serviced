@@ -42,8 +42,8 @@ import (
 	"bufio"
 	"crypto/tls"
 	"fmt"
+	"github.com/zenoss/glog"
 	"io"
-	"log"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -79,7 +79,7 @@ type Config struct {
 func (p *Proxy) ListenAndProxy() error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", p.Port))
 	if err != nil {
-		log.Println("Error (net.Listen): ", err)
+		glog.Errorf("Error (net.Listen): ", err)
 		return err
 	}
 	defer l.Close()
@@ -87,7 +87,7 @@ func (p *Proxy) ListenAndProxy() error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Println("Error (net.Accept): ", err)
+			glog.Errorf("Error (net.Accept): ", err)
 		}
 
 		go p.Proxy(conn)
@@ -107,7 +107,7 @@ func (p *Proxy) Proxy(local net.Conn) {
 	//       header later.
 	remotePort, err := strconv.Atoi(strings.Split(remoteAddr, ":")[1])
 	if err != nil {
-		log.Println("Error (strconv.Atoi): ", err)
+		glog.Errorf("Error (strconv.Atoi): ", err)
 	}
 
 	if p.TCPMux {
@@ -123,7 +123,7 @@ func (p *Proxy) Proxy(local net.Conn) {
 		remote, err = net.Dial("tcp", remoteAddr)
 	}
 	if err != nil {
-		log.Println("Error (net.Dial): ", err)
+		glog.Errorf("Error (net.Dial): ", err)
 		return
 	}
 
@@ -138,9 +138,9 @@ func (p *Proxy) Proxy(local net.Conn) {
 // sendMuxError logs an error message and attempts to write it to the connected
 // endpoint
 func sendMuxError(conn net.Conn, source, facility, msg string, err error) {
-	log.Printf("%s Error (%s): %v\n", source, facility, err)
+	glog.Errorf("%s Error (%s): %v\n", source, facility, err)
 	if _, e := conn.Write([]byte(msg)); e != nil {
-		log.Println(e)
+		glog.Errorf("%s", e)
 	}
 }
 
@@ -196,7 +196,7 @@ func (mux *TCPMux) ListenAndMux() {
 	} else {
 		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 		if cerr != nil {
-			log.Println("ListenAndMux Error (tls.X509KeyPair): ", cerr)
+			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", cerr)
 			return
 		}
 
@@ -204,7 +204,7 @@ func (mux *TCPMux) ListenAndMux() {
 		l, err = tls.Listen("tcp", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
 	}
 	if err != nil {
-		log.Printf("ListenAndMux Error (net.Listen): ", err)
+		glog.Error("ListenAndMux Error (net.Listen): ", err)
 		return
 	}
 	defer l.Close()
@@ -212,10 +212,11 @@ func (mux *TCPMux) ListenAndMux() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Println("ListenAndMux Error (net.Accept): ", err)
+			glog.Error("ListenAndMux Error (net.Accept): ", err)
 			return
 		}
 
 		go mux.MuxConnection(conn)
 	}
 }
+
