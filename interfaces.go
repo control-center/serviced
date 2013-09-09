@@ -31,8 +31,8 @@ type EntityRequest struct{}
 type ProtocolType string
 
 const (
-	TCP ProtocolType = "tcp"
-	UDP ProtocolType = "udp"
+	TCP string = "tcp"
+	UDP string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.
@@ -40,9 +40,9 @@ type ApplicationType string
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
-	Protocol    ProtocolType
+	Protocol    string
 	PortNumber  uint16
-	Application ApplicationType
+	Application string
 	Purpose     string
 }
 
@@ -202,16 +202,17 @@ type PoolHost struct {
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId   string
-	ServicePort uint16
-	HostIp      string
-	Port        uint16
-	Protocol    ProtocolType
+	ServiceId     string
+	ContainerPort uint16
+	HostPort      uint16
+	HostIp        string
+	ContainerIp   string
+	Protocol      string
 }
 
 // The API for a service proxy.
 type LoadBalancer interface {
-	GetServiceEndpoints(serviceId string, endpoints *[]ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, endpoints *map[string][]*ApplicationEndpoint) error
 }
 
 // The ControlPlane interface is the API for a serviced master.

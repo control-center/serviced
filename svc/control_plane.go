@@ -136,8 +136,31 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	return con, dbmap, err
 }
 
+const SQL_APPLICATION_ENDPOINTS = `
+		select 
+		    live_services.service_id as ServiceId, 
+		    port as ContainerPort, 
+		    external_port as HostPort, 
+		    h.ip_addr as HostIp, 
+		    live_services.private_ip as ContainerIp, 
+		    protocol as Protocol
+		from service_state_endpoint sse
+		inner join 
+		(
+		    select ss.id, private_ip, host_id , ss.service_id
+		    from service_state ss
+		    where ss.terminated_at < '2000-01-01 00:00:00' and ss.started_at > '2000-01-01 00:00:00'
+		    and ss.service_id in (
+		        select service_id 
+		        from service_endpoint se
+		        where se.protocol = ? and se.application = ? and se.purpose = 'remote'
+		    )
+		) as live_services on live_services.id = sse.service_state_id
+		inner join host h on h.id = live_services.host_id
+`
+
 // Get a service endpoint.
-func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *[]serviced.ApplicationEndpoint) (err error) {
+func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
 
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
@@ -145,23 +168,37 @@ func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *[]serviced.
 	}
 	defer db.Close()
 
-	var endpointList []*service_state_endpoint
-	_, err = dbmap.Select(&endpointList, "select e.*, h.ip_addr from service_state_endpoint as e natural join service_state ss inner join host as h on h.id = ss.host_id where service_id = ? and started_at > '0002-01-01' and terminated_at = '0001-01-01 00:00:00'", serviceId)
-
+	// first, get the list of ports that need proxying
+	var service_endpoints []*service_endpoint
+	_, err = dbmap.Select(&service_endpoints, `
+	select *
+from service_endpoint where service_id = ?
+and purpose = 'local'`, serviceId)
 	if err != nil {
 		return err
 	}
 
-	endpoints := make([]serviced.ApplicationEndpoint, len(endpointList))
-	for i, endpoint := range endpointList {
-		endpoints[i] = serviced.ApplicationEndpoint{
-			serviceId,
-			endpoint.Port,
-			endpoint.IpAddr,
-			endpoint.ExternalPort,
-			serviced.TCP}
+	// no services need to be proxied
+	if len(service_endpoints) == 0 {
+		log.Printf("No service endpoints found for %s", serviceId)
+		return nil
 	}
-	*response = endpoints
+
+	remoteEndpoints := make(map[string][]*serviced.ApplicationEndpoint)
+
+	// for each proxied port, find list of potential remote endpoints
+	for _, localport := range service_endpoints {
+		var applicationEndpoints []*serviced.ApplicationEndpoint
+		_, err := dbmap.Select(&applicationEndpoints, SQL_APPLICATION_ENDPOINTS,
+			string(localport.ProtocolType), string(localport.ApplicationType))
+		if err != nil {
+			return err
+		}
+		key := fmt.Sprintf("%s:%d", localport.ProtocolType, localport.Port)
+		remoteEndpoints[key] = applicationEndpoints
+	}
+
+	*response = remoteEndpoints
 	return nil
 }
 
@@ -222,9 +259,9 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
 		endpoints[i] = serviced.ServiceEndpoint{
-			serviced.ProtocolType(servicePort.ProtocolType),
+			servicePort.ProtocolType,
 			uint16(servicePort.Port),
-			serviced.ApplicationType(servicePort.ApplicationType),
+			servicePort.ApplicationType,
 			servicePort.Purpose}
 	}
 	return &endpoints
@@ -253,8 +290,8 @@ func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) er
 	}
 	defer db.Close()
 	// Get the related ports for each service
-	var servicePorts []*service_endpoint
 	for _, service := range servicesList {
+		var servicePorts []*service_endpoint
 		_, err = dbmap.Select(&servicePorts, "SELECT * FROM service_endpoint WHERE service_id = ?", service.Id)
 		if err != nil {
 			return err

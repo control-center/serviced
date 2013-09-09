@@ -128,7 +128,7 @@ func (p *Proxy) Proxy(local net.Conn) {
 	}
 
 	if p.TCPMux {
-		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\r\n", p.Name, remotePort))
+		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.Name, remotePort))
 	}
 
 	go io.Copy(local, remote)
