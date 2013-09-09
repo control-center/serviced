@@ -43,7 +43,7 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/proxy"
-	"log"
+	"github.com/zenoss/glog"
 	"net"
 	"os"
 )
@@ -93,7 +93,7 @@ func main() {
 	func() {
 		client, err := proxy.NewLBClient(options.servicedEndpoint)
 		if err != nil {
-			log.Printf("Could not create a client to endpoint %s: %s", options.servicedEndpoint, err)
+			glog.Errorf("Could not create a client to endpoint %s: %s", options.servicedEndpoint, err)
 			return
 		}
 		defer client.Close()
@@ -101,7 +101,7 @@ func main() {
 		var endpoints []serviced.ApplicationEndpoint
 		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
 		if err != nil {
-			log.Printf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
+			glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
 			return
 		}
 
