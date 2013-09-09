@@ -65,7 +65,7 @@ func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, serv
 
 	containerState, err := getDockerState(serviceState.DockerId)
 	if err != nil {
-		glog.Errorf("updateCurrentState: Could not get dockerstate")
+		glog.Errorln("updateCurrentState: Could not get dockerstate")
 		return err
 	}
 	if !containerState.State.Running {
@@ -102,7 +102,7 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	cmd := exec.Command("docker", "inspect", dockerId)
 	output, err := cmd.Output()
 	if err != nil {
-		glog.Errorf("problem getting docker state")
+		glog.Errorln("problem getting docker state")
 		return containerState, err
 	}
 	var containerStates []serviced.ContainerState
@@ -200,7 +200,7 @@ func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, con
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
-	glog.Infof("Starting HostAgent\n")
+	glog.Infoln("Starting HostAgent")
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
@@ -222,7 +222,7 @@ func (a *HostAgent) start() {
 				}
 
 				if len(services) == 0 {
-					glog.Infof("No services are schedule to run on this host.")
+					glog.Infoln("No services are schedule to run on this host.")
 				}
 
 				// iterate over this host's services

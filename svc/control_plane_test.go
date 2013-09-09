@@ -94,7 +94,7 @@ func setup(t *testing.T) {
 		glog.Fatalf("net.Listen tcp :0 %v", err)
 	}
 	go http.Serve(l, nil) // start the server
-	glog.Info("Test Server started on %s", l.Addr().String())
+	glog.Infof("Test Server started on %s", l.Addr().String())
 
 	// setup the client
 	lclient, err = client.NewControlClient(l.Addr().String())

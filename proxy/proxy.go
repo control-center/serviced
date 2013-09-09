@@ -79,7 +79,7 @@ type Config struct {
 func (p *Proxy) ListenAndProxy() error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", p.Port))
 	if err != nil {
-		glog.Errorf("Error (net.Listen): ", err)
+		glog.Error("Error (net.Listen): ", err)
 		return err
 	}
 	defer l.Close()
@@ -87,7 +87,7 @@ func (p *Proxy) ListenAndProxy() error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			glog.Errorf("Error (net.Accept): ", err)
+			glog.Error("Error (net.Accept): ", err)
 		}
 
 		go p.Proxy(conn)
@@ -107,7 +107,7 @@ func (p *Proxy) Proxy(local net.Conn) {
 	//       header later.
 	remotePort, err := strconv.Atoi(strings.Split(remoteAddr, ":")[1])
 	if err != nil {
-		glog.Errorf("Error (strconv.Atoi): ", err)
+		glog.Error("Error (strconv.Atoi): ", err)
 	}
 
 	if p.TCPMux {
@@ -123,7 +123,7 @@ func (p *Proxy) Proxy(local net.Conn) {
 		remote, err = net.Dial("tcp", remoteAddr)
 	}
 	if err != nil {
-		glog.Errorf("Error (net.Dial): ", err)
+		glog.Error("Error (net.Dial): ", err)
 		return
 	}
 

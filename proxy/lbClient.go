@@ -30,6 +30,6 @@ func (a *LBClient) Close() error {
 
 // Retrieve a list of endpoints for the given service endpoint request.
 func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*serviced.ApplicationEndpoint) error {
-	glog.Infof("Client.GetServiceEndpoints()\n")
+	glog.Infoln("Client.GetServiceEndpoints()")
 	return a.rpcClient.Call("LoadBalancer.GetServiceEndpoints", serviceId, endpoints)
 }
