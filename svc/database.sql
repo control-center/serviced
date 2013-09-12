@@ -147,6 +147,7 @@ CREATE TABLE `service_endpoint` (
   `port` int(11) NOT NULL,
   `protocol` enum('tcp','udp') NOT NULL,
   `application` varchar(45) DEFAULT NULL,
+  `purpose` enum('local','remote') NOT NULL,
   PRIMARY KEY (`service_id`,`port`,`protocol`),
   KEY `fk_port_1` (`service_id`),
   CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
@@ -254,4 +255,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-28 16:54:27
+-- Dump completed on 2013-09-05 13:03:07

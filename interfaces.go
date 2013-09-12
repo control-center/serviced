@@ -31,8 +31,8 @@ type EntityRequest struct{}
 type ProtocolType string
 
 const (
-	TCP ProtocolType = "tcp"
-	UDP ProtocolType = "udp"
+	TCP string = "tcp"
+	UDP string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.
@@ -40,9 +40,10 @@ type ApplicationType string
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
-	Protocol    ProtocolType
+	Protocol    string
 	PortNumber  uint16
-	Application ApplicationType
+	Application string
+	Purpose     string
 }
 
 // A Service that can run in serviced.
@@ -126,10 +127,7 @@ type ServiceState struct {
 	Started     time.Time
 	DockerId    string
 	PrivateIp   string
-	PortMapping struct {
-		Tcp map[string]string
-		Udp map[string]string
-	}
+	PortMapping map[string]map[string]string
 }
 
 // The state of a container as reported by Docker.
@@ -139,25 +137,28 @@ type ContainerState struct {
 	Path    string
 	Args    []string
 	Config  struct {
-		Hostname     string
-		User         string
-		Memory       uint64
-		MemorySwap   uint64
-		CpuShares    int
-		AttachStdin  bool
-		AttachStdout bool
-		AttachStderr bool
-		PortSpecs    *[]string
-		Tty          bool
-		OpenStdin    bool
-		StdinOnce    bool
-		Env          *string
-		Cmd          []string
-		Dns          []string
-		Image        string
-		Volumes      map[string]string
-		VolumesFrom  string
-		Entrypoint   []string
+		Hostname        string
+		User            string
+		Memory          uint64
+		MemorySwap      uint64
+		CpuShares       int
+		AttachStdin     bool
+		AttachStdout    bool
+		AttachStderr    bool
+		PortSpecs       []string
+		Tty             bool
+		OpenStdin       bool
+		StdinOnce       bool
+		Env             []string
+		Cmd             []string
+		Dns             []string
+		Image           string
+		Volumes         map[string]struct{}
+		VolumesFrom     string
+		WorkingDir      string
+		Entrypoint      []string
+		NetworkDisabled bool
+		Privileged      bool
 	}
 	State struct {
 		Running   bool
@@ -172,15 +173,12 @@ type ContainerState struct {
 		IPPrefixLen int
 		Gateway     string
 		Bridge      string
-		PortMapping struct {
-			Tcp map[string]string
-			Udp map[string]string
-		}
+		PortMapping map[string]map[string]string
 	}
 	SysInitPath    string
 	ResolvConfPath string
 	Volumes        map[string]string
-	VolumesRW      map[string]string
+	VolumesRW      map[string]bool
 }
 
 // A new service instance (ServiceState)
@@ -202,23 +200,19 @@ type PoolHost struct {
 	PoolId string
 }
 
-// A request for a given application type exposed by the given service.
-type ServiceEndpointRequest struct {
-	ServiceId   string
-	Application ApplicationType
-}
-
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId string
-	HostIp    string
-	Port      uint16
-	Protocol  ProtocolType
+	ServiceId     string
+	ContainerPort uint16
+	HostPort      uint16
+	HostIp        string
+	ContainerIp   string
+	Protocol      string
 }
 
 // The API for a service proxy.
 type LoadBalancer interface {
-	GetServiceEndpoints(serviceEndpointRequest ServiceEndpointRequest, endpoints *[]ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, endpoints *map[string][]*ApplicationEndpoint) error
 }
 
 // The ControlPlane interface is the API for a serviced master.
