@@ -1,0 +1,195 @@
+[
+    {
+        "name": "zenoss",
+        "ports": [
+            {
+                "protocol": "tcp",
+                "number": 8080,
+                "application": "zproxy",
+                "use": "expose"
+            }
+        ],
+        "command": null,
+        "instances": 0,
+        "singleton": true,
+        "sub_services": [
+            {
+                "name": "zproxy",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 8080,
+                        "application": "zproxy",
+                        "use": "export"
+                    }
+                ],
+                "command": "zproxy run",
+                "instances": 1,
+                "singleton": true
+            },
+            {
+                "name": "zope",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 8080,
+                        "application": "zope",
+                        "use": "export"
+                    },
+                    {
+                        "protocol": "tcp",
+                        "number": 5672,
+                        "application": "amqp",
+                        "use": "import"
+                    },
+                    {
+                        "protocol": "tcp",
+                        "number": 3306,
+                        "application": "mysql",
+                        "use": "import"
+                    }
+                ],
+                "command": "zopectl fg",
+                "instances": 2,
+                "singleton": false
+            },
+            {
+                "name": "mysql",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 3306,
+                        "application": "mysql",
+                        "use": "export"
+                    }
+                ],
+                "command": "/usr/sbin/mysqld",
+                "instances": 1,
+                "singleton": true
+            },
+            {
+                "name": "zep",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 8084,
+                        "application": "zep",
+                        "use": "export"
+                    },
+                    {
+                        "protocol": "tcp",
+                        "number": 5672,
+                        "application": "amqp",
+                        "use": "import"
+                    }
+                ],
+                "command": "zep run",
+                "instances": 1,
+                "singleton": true
+            },
+            {
+                "name": "zenhub",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 8084,
+                        "application": "zenhub",
+                        "use": "export"
+                    },
+                    {
+                        "protocol": "tcp",
+                        "number": 3306,
+                        "application": "mysql",
+                        "use": "import"
+                    },
+                    {
+                        "protocol": "tcp",
+                        "number": 5672,
+                        "application": "amqp",
+                        "use": "import"
+                    }
+                ],
+                "command": "zenhub run",
+                "instances": 1,
+                "singleton": true,
+                "sub_services": [
+                    {
+                        "name": "localhost - collector",
+                        "ports": [
+                            {
+                                "protocol": "tcp",
+                                "number": 8091,
+                                "application": "zenhub",
+                                "use": "inherit"
+                            }
+                        ],
+                        "command": null,
+                        "instances": 0,
+                        "singleton": true,
+                        "context": {
+                            "monitor": "localhost"
+                        },
+                        "sub_services": [
+                            {
+                                "name": "zenping",
+                                "ports": [
+                                    {
+                                        "protocol": "tcp",
+                                        "number": 8091,
+                                        "application": "zenhub",
+                                        "use": "import"
+                                    }
+                                ],
+                                "command": "zenping run --monitor {{ monitor }}",
+                                "instances": 1,
+                                "singleton": false
+                            },
+                            {
+                                "name": "zenperfsnmp",
+                                "ports": [
+                                    {
+                                        "protocol": "tcp",
+                                        "number": 8091,
+                                        "application": "zenhub",
+                                        "use": "import"
+                                    }
+                                ],
+                                "command": "zenperfsnmp run --monitor {{ monitor }}",
+                                "instances": 1,
+                                "singleton": false
+                            },
+                            {
+                                "name": "zencommand",
+                                "ports": [
+                                    {
+                                        "protocol": "tcp",
+                                        "number": 8091,
+                                        "application": "zenhub",
+                                        "use": "import"
+                                    }
+                                ],
+                                "command": "zenperfsnmp run --monitor {{ monitor }}",
+                                "instances": 1,
+                                "singleton": false
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "amqp",
+                "ports": [
+                    {
+                        "protocol": "tcp",
+                        "number": 5672,
+                        "application": "amqp",
+                        "use": "export"
+                    }
+                ],
+                "command": "/usr/sbin/rabbitmq-server",
+                "instances": 1,
+                "singleton": true
+            }
+        ]
+    }
+]
