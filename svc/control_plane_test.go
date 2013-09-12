@@ -13,7 +13,7 @@ import (
 	serviced "github.com/zenoss/serviced"
 	client "github.com/zenoss/serviced/client"
 	_ "github.com/ziutek/mymysql/godrv"
-	"log"
+	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -55,11 +55,11 @@ func cleanTestDB(t *testing.T) {
 	defer conn.Close()
 	_, err = conn.Exec("DROP DATABASE IF EXISTS `" + db + "`")
 	if err != nil {
-		log.Fatal("Could not drop test database:", err)
+		glog.Fatalf("Could not drop test database: %s", err)
 	}
 	_, err = conn.Exec("CREATE DATABASE `" + db + "`")
 	if err != nil {
-		log.Fatal("Could not create test database: ", err)
+		glog.Fatalf("Could not create test database: %s", err)
 	}
 	cmdParts := make([]string, 0)
 	cmdParts = append(cmdParts, []string{"-h", connInfo.Host}...)
@@ -71,18 +71,18 @@ func cleanTestDB(t *testing.T) {
 	cmdParts = append(cmdParts, db)
 	cmdParts = append(cmdParts, []string{"-e", "source database.sql"}...)
 	cmd := exec.Command("mysql", cmdParts...)
-	log.Println(strings.Join(cmd.Args, " "))
+	glog.Infoln(strings.Join(cmd.Args, " "))
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatal("Problem sourcing schema:", err, string(output))
+		glog.Fatalf("Problem sourcing schema: %s", err, string(output))
 	}
-	log.Print(string(output))
+	glog.Infoln(string(output))
 }
 
 func setup(t *testing.T) {
 
 	cleanTestDB(t)
-	log.Printf("Starting server with: %s", serviced.ToMymysqlConnectionString(connInfo))
+	glog.Infof("Starting server with: %s", serviced.ToMymysqlConnectionString(connInfo))
 	server, err := NewControlSvc("mysql://root@127.0.0.1:3306/cp_test")
 
 	// register the server API
@@ -91,17 +91,17 @@ func setup(t *testing.T) {
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		log.Fatalf("net.Listen tcp :0 %v", err)
+		glog.Fatalf("net.Listen tcp :0 %v", err)
 	}
 	go http.Serve(l, nil) // start the server
-	log.Printf("Test Server started on %s", l.Addr().String())
+	glog.Infof("Test Server started on %s", l.Addr().String())
 
 	// setup the client
 	lclient, err = client.NewControlClient(l.Addr().String())
 	if err != nil {
-		log.Fatalf("Coult not start client %v", err)
+		glog.Fatalf("Coult not start client %v", err)
 	}
-	log.Printf("Client started: %v", lclient)
+	glog.Infof("Client started: %v", lclient)
 }
 
 func TestControlAPI(t *testing.T) {
@@ -140,7 +140,7 @@ func TestControlAPI(t *testing.T) {
 
 	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
-		log.Fatalf("Could not get hosts, %s", err)
+		glog.Fatalf("Could not get hosts, %s", err)
 	}
 
 	host, err := serviced.CurrentContextAsHost("default")
@@ -157,7 +157,7 @@ func TestControlAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal("Could not update host", err)
 	} else {
-		log.Print("update of host is OK")
+		glog.Infoln("update of host is OK")
 	}
 	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
@@ -207,7 +207,7 @@ func TestControlAPI(t *testing.T) {
 	service.PoolId = "default"
 	service.DesiredState = 0
 	service.Endpoints = &[]serviced.ServiceEndpoint{
-		serviced.ServiceEndpoint{serviced.TCP, 3306, serviced.ApplicationType("mysql")}}
+		serviced.ServiceEndpoint{serviced.TCP, 3306, "mysql", "remote"}}
 	err = lclient.AddService(*service, &unused)
 	if err != nil {
 		t.Fatal("Could not add a service to the control plane")
@@ -243,7 +243,7 @@ func TestServiceStart(t *testing.T) {
 	}
 
 	host, err := serviced.CurrentContextAsHost("default")
-	log.Printf("Got a currentContextAsHost()\n")
+	glog.Infoln("Got a currentContextAsHost()")
 	if err != nil {
 		t.Fatal("Could not get currentContextAsHost", err)
 	}
@@ -275,5 +275,5 @@ func TestServiceStart(t *testing.T) {
 	if err != nil {
 		t.Fatal("Could not get services for host: ", err)
 	}
-	log.Printf("Got %d services for %s", len(services), host.Id)
+	glog.Infof("Got %d services for %s", len(services), host.Id)
 }
