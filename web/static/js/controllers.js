@@ -91,6 +91,7 @@ angular.module('controlplane', ['ngCookies']).
              * @param {function} callback Add result passed to callback on success.
              */
             add_pool: function(pool, callback) {
+                console.log('Adding detail: %s', JSON.stringify(pool));
                 $http.post('/pools/add', pool).
                     success(function(data, status) {
                         console.log('Added new pool');

@@ -11,9 +11,11 @@
         <label for="new_pool_parent">Parent ID:</label>
         <input class="form-control" name="new_pool_parent" id="new_pool_parent" type="text" placeholder="default" ng-model="newPool.ParentId" />
         <label for="new_pool_core_limit">Core Limit:</label>
-        <input class="form-control" name="new_pool_core_limit" id="new_pool_core_limit" type="text" placeholder="4" ng-model="newPool.CoreLimit" />
+        <input class="form-control" name="new_pool_core_limit" id="new_pool_core_limit" type="number" min="0" placeholder="4" ng-model="newPool.CoreLimit" />
         <label for="new_pool_memory_limit">Memory Limit:</label>
-        <input class="form-control" name="new_pool_memory_limit" id="new_pool_memory_limit" type="text" placeholder="e.g. localhost" ng-model="newPool.CoreLimit" />
+        <input class="form-control" name="new_pool_memory_limit" id="new_pool_memory_limit" type="number" min="0" placeholder="2048" ng-model="newPool.MemoryLimit" />
+        <label for="new_pool_priority">Priority:</label>
+        <input class="form-control" name="new_pool_priority" id="new_pool_priority" type="number" min="0" placeholder="1" ng-model="newPool.Priority" />
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
