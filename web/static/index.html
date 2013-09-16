@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="controlplane">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href="/static/ico/zenoss-o.png" type="image/png">
+
+    <title>Control Plane</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/static/bootstrap/dist/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link href="/static/css/navbar.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="/static/bootstrap/assets/js/html5shiv.js"></script>
+      <script src="/static/bootstrap/assets/js/respond.min.js"></script>
+    <![endif]-->
+    <script src="/static/jquery/jquery.js"></script>
+    <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="/static/angular/angular.js"></script>
+    <script src="/static/angular/angular-cookies.js"></script>
+    <script src="/static/js/controllers.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+
+      <!-- Static navbar -->
+      <div class="navbar navbar-default" ng-controller="NavbarControl">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#/entry">{{brand}}</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="#/management">{{management}}</a></li>
+            <li><a href="#/configuration">{{configuration}}</a></li>
+            <li><a href="#/resources">{{resources}}</a></li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li><span class="item">{{username}}</span></li>
+            <li><a href="#logout" ng-click="logout()">Logout</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+      <div>
+        <div ng-view></div>
+
+        <!--
+        <pre>$location.path() = {{$location.path()}}</pre>
+        <pre>$route.current.templateUrl = {{$route.current.templateUrl}}</pre>
+        <pre>$route.current.params = {{$route.current.params}}</pre>
+        <pre>$route.current.scope.name = {{$route.current.scope.name}}</pre>
+        <pre>$routeParams = {{$routeParams}}</pre>
+        -->
+
+      </div>
+    </div> <!-- /container -->
+  </body>
+</html>

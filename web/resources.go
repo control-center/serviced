@@ -1,0 +1,316 @@
+package web
+
+import (
+	"github.com/ant0ine/go-json-rest"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/svc"
+	"github.com/zenoss/serviced"
+	agent "github.com/zenoss/serviced/agent"
+	clientlib "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/proxy"
+	"os"
+	"net"
+	"net/http"
+	"net/rpc"
+	"net/url"
+)
+
+type ServiceConfig struct {
+	AgentPort   string
+	MasterPort  string
+	DbString    string
+	MuxPort     int
+	Tls         bool
+	KeyPEMFile  string
+	CertPEMFile string
+}
+
+type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
+type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane)
+
+var started bool
+var masterService serviced.ControlPlane
+var configuration ServiceConfig
+
+func AuthorizedOnly(realfunc HandlerFunc) HandlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !LoginOk(r) {
+			RestUnauthorized(w)
+			return 
+		}
+		realfunc(w,r)
+	}
+}
+
+func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !LoginOk(r) {
+			RestUnauthorized(w)
+			return 
+		}
+		client, err := getClient()
+		if err != nil {
+			RestServerError(w)
+			return
+		}
+		realfunc(w, r, client)
+	}
+}
+
+
+// Start the agent or master services on this host.
+func RestStartServer(w *rest.ResponseWriter, r *rest.Request) {
+	if started {
+		WriteJson(w, &SimpleResponse{"Already started", homeLink()}, http.StatusConflict)
+		return
+	}
+	options := ServiceConfig{}
+	err := r.DecodeJsonPayload(&options)
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	configDefaults(&options)
+	configuration = options
+	go startServer(&options)
+	w.WriteJson(&SimpleResponse{"Started", resourcesLink()})
+	glog.Flush()
+}
+
+func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	request := serviced.EntityRequest{}
+	var poolsMap map[string]*serviced.ResourcePool
+	err := client.GetResourcePools(request, &poolsMap)
+	if err != nil {
+		glog.Errorf("Could not get resource pools: %v", err)
+	}
+	w.WriteJson(&poolsMap)
+}
+
+func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var payload serviced.ResourcePool
+	var unused int
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode pool payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.AddResourcePool(payload, &unused)
+	if err != nil {
+		glog.Errorf("Unable to add pool: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Added resource pool", poolsLink()})
+}
+
+func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	glog.Infof("Received update request for %s", poolId)
+	var payload serviced.ResourcePool
+	var unused int
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode pool payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.UpdateResourcePool(payload, &unused)
+	if err != nil {
+		glog.Errorf("Unable to update pool: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Updated resource pool", poolsLink()})
+}
+
+func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var unused int
+	err = client.RemoveResourcePool(poolId, &unused)
+	if err != nil {
+		glog.Errorf("Could not remove resource pool: %v", err)
+		RestServerError(w)
+		return
+	}
+	glog.Infof("Removed pool %s", poolId)
+	w.WriteJson(&SimpleResponse{"Removed resource pool", resourcesLink()})
+}
+
+func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var hosts map[string]*serviced.Host
+	request := serviced.EntityRequest{}
+	err := client.GetHosts(request, &hosts)
+	if err != nil {
+		glog.Errorf("Could not get hosts: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&hosts)
+}
+
+func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var poolHosts []*serviced.PoolHost
+	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		glog.Infof("Unable to acquire pool ID: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.GetHostsForResourcePool(poolId, &poolHosts)
+	if err != nil {
+		glog.Errorf("Could not get hosts: %v", err)
+		RestServerError(w)
+		return
+	}
+	if poolHosts == nil {
+		poolHosts = []*serviced.PoolHost{}
+	}
+	w.WriteJson(&poolHosts)
+}
+
+func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var payload serviced.Host
+	var unused int
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode host payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	// TODO: Acquire proper host info
+	err = client.AddHost(payload, &unused)
+	if err != nil {
+		glog.Errorf("Unable to add host: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Added host", hostsLink()})
+}
+
+func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	glog.Infof("Received update request for %s", hostId)
+	var payload serviced.Host
+	var unused int
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode pool payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.UpdateHost(payload, &unused)
+	if err != nil {
+		glog.Errorf("Unable to update pool: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Updated host", hostsLink()})
+}
+
+func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var unused int
+	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	err = client.RemoveHost(hostId, &unused)
+	if err != nil {
+		glog.Errorf("Could not remove host: %v", err)
+		RestServerError(w)
+		return
+	}
+	glog.Infof("Removed host %s", hostId)
+	w.WriteJson(&SimpleResponse{"Removed host", hostsLink()})
+}
+
+
+func startServer(options *ServiceConfig) {
+	master, err := svc.NewControlSvc(options.DbString)
+	if err != nil {
+		glog.Fatalf("Could not start ControlPlane service: %v", err)
+	}
+	// register the API
+	glog.Infoln("registering ControlPlane service")
+	rpc.RegisterName("LoadBalancer", master)
+	rpc.RegisterName("ControlPlane", master)
+	rpc.HandleHTTP()
+	l, err := net.Listen("tcp", options.MasterPort)
+	if err != nil {
+		glog.Fatalf("Could not bind to port %v", err)
+	}
+	glog.Infof("Listening on %s", l.Addr().String())
+	started = true
+	masterService = master
+	glog.Flush()
+	go startAgent(options)
+	http.Serve(l, nil) // start the server
+}
+
+func startAgent(options *ServiceConfig) {
+	mux := proxy.TCPMux{}
+	mux.CertPEMFile = options.CertPEMFile
+	mux.KeyPEMFile = options.KeyPEMFile
+	mux.Enabled = true
+	mux.Port = options.MuxPort
+	mux.UseTLS = options.Tls
+	agent, err := agent.NewHostAgent(options.AgentPort, mux)
+	if err != nil {
+		glog.Fatalf("Could not start ControlPlane agent: %v", err)
+	}
+	// register the API
+	glog.Infoln("registering ControlPlaneAgent service")
+	rpc.RegisterName("ControlPlaneAgent", agent)
+}
+
+func init() {
+	configuration = ServiceConfig{}
+	configDefaults(&configuration)
+	go startServer(&configuration)
+}
+
+func configDefaults(cfg *ServiceConfig) {
+	if len(cfg.AgentPort) == 0 {
+		cfg.AgentPort = "127.0.0.1:4979"
+	}
+	if len(cfg.MasterPort) == 0 {
+		cfg.MasterPort = ":4979"
+	}
+	if cfg.MuxPort == 0 {
+		cfg.MuxPort = 22250
+	}
+	conStr := os.Getenv("CP_PROD_DB")
+	if len(conStr) == 0 {
+		conStr = "mysql://root@127.0.0.1:3306/cp"
+	} else {
+		glog.Infoln("Using connection string from env var CP_PROD_DB")
+	}
+	if len(cfg.DbString) == 0 {
+		cfg.DbString = conStr
+	}
+}
+
+func getClient() (c serviced.ControlPlane, err error) {
+	// setup the client
+	c, err = clientlib.NewControlClient(configuration.AgentPort)
+	if err != nil {
+		glog.Fatalf("Could not create a control plane client: %v", err)
+	}
+	return c, err
+}
+
+

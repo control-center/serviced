@@ -1,0 +1,15 @@
+    <div class="well sidebar-nav" ng-controller="PoolNavControl">
+      <h4>Resource Pools</h4>
+      <ul class="nav">
+        <li ng-repeat="pool in pools.data">
+          <a href="#/pools/{{pool.Id}}">{{pool.Id}}</a></li>
+      </ul>
+      <div ng-include="'/static/partials/add-host.html'"></div>
+      <div ng-include="'/static/partials/add-pool.html'"></div>
+      <div ng-include="'/static/partials/edit-pool.html'"></div>
+      <div ng-include="'/static/partials/edit-host.html'"></div>
+      <div ng-include="'/static/partials/remove-pool.html'"></div>
+      <div ng-include="'/static/partials/remove-host.html'"></div>
+
+    </div><!--/.well -->
+

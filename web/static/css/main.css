@@ -1,0 +1,18 @@
+.btn-primary {
+    background-color: #6b6b6b;
+    border-color: #555;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.open .dropdown-toggle.btn-primary {
+    background-color: #8b8b8b;
+    border-color: #555;
+}
+
+.highlighted {
+    background-color: #ddd;
+    font-weight: bold
+}

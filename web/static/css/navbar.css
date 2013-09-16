@@ -1,0 +1,33 @@
+body {
+    padding: 30px;
+}
+
+.nav > li > .item {
+    position: relative;
+    display: block;
+    padding: 10px 15px;
+}
+
+.navbar-nav > li.active > .item {
+    color: #555555;
+    background-color: #e7e7e7;
+}
+S
+.navbar {
+    margin-bottom: 30px;
+}
+
+.navbar-nav > li > .item {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    line-height: 20px;
+}
+
+@media (min-width: 768px) {
+    .navbar-nav > li > .item {
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+}
+
+
