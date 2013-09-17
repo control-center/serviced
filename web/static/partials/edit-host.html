@@ -6,10 +6,10 @@
         <h4 class="modal-title">Edit host</h4>
       </div>
       <div class="modal-body">
-        <label for="edit_host_name">Hostname:</label>
-        <input class="form-control" name="edit_host_name" id="edit_host_name" type="text" placeholder="e.g. localhost" ng-model="editHost.Name" />
-        <label for="edit_host_parent">Parent ID:</label>
-        <input class="form-control" name="edit_host_parent" id="edit_host_parent" type="text" placeholder="default" ng-model="editHost.ParentId" />
+        <label for="edit_host_name">Host:</label>
+        <input class="form-control" name="edit_host_name" id="edit_host_name" type="text" placeholder="localhost" ng-model="hosts.current.IpAddr" />
+        <label for="edit_host_parent">Pool ID:</label>
+        <input class="form-control" name="edit_host_parent" id="edit_host_parent" type="text" placeholder="default" ng-model="hosts.current.PoolId" />
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>

@@ -22,6 +22,9 @@ angular.module('controlplane', ['ngCookies']).
             when('/pools/:poolId', {
                 templateUrl: '/static/partials/pool-details.html',
                 controller: PoolControl}).
+            when('/pools/:poolId/hosts/:hostId', {
+                templateUrl: '/static/partials/host-details.html',
+                controller: HostControl}).
             otherwise({redirectTo: '/entry'});
     }]).
     /*
@@ -49,7 +52,7 @@ angular.module('controlplane', ['ngCookies']).
         var _get_hosts_for_pool = function(poolId, callback) {
             $http.get('/pools/' + poolId + '/hosts').
                 success(function(data, status) {
-                    console.log('Retrieved hosts for pool %s: %s', poolId, JSON.stringify(data));
+                    console.log('Retrieved hosts for pool %s', poolId);
                     cached_hosts_for_pool[poolId] = data;
                     callback(data);
                 }).
@@ -213,8 +216,8 @@ angular.module('controlplane', ['ngCookies']).
              * @param {function} callback List of hosts pass to callback on success.
              */
             get_hosts_for_pool: function(cacheOk, poolId, callback) {
-                if (cacheOk && cached_hosts_for_pool) {
-                    callback(cached_hosts_for_pool);
+                if (cacheOk && cached_hosts_for_pool[poolId]) {
+                    callback(cached_hosts_for_pool[poolId]);
                 } else {
                     _get_hosts_for_pool(poolId, callback);
                 }
@@ -268,27 +271,26 @@ function ConfigurationControl($scope, $routeParams) {
 function PoolNavControl($scope, $routeParams, cpdata) {
     $scope.name = "pool-nav";
     $scope.params = $routeParams;
-    $scope.newHost = {};
+
+    $scope.newHost = {
+        PoolId: $scope.params.pooId
+    };
+
     $scope.newPool = {
         ParentId: $scope.params.poolId
     };
 
-    $scope.editPool = $scope.pools.current;
-
     $scope.add_host = function() {
-        console.log('Adding host %s as child of pool %s', $scope.newHost.Name, $scope.params.poolId);
-        cpdata.add_host({
-            Id: $scope.newHost.Name,
-            Name: $scope.newHost.Name,
-            IpAddr: $scope.newHost.Name,
-            PoolId: $scope.params.poolId,
-            Cores: 1,
-            Memory: 12345
-        }, function(data) {
+        console.log('Adding host %s as child of pool %s', 
+                    $scope.newHost.Name, $scope.newHost.PoolId);
+
+        cpdata.add_host($scope.newHost, function(data) {
             refreshHosts($scope, cpdata);
         });
         // Reset for another add
-        $scope.newHost = {};
+        $scope.newHost = {
+            PoolId: $scope.params.poolId
+        };
     };
 
     $scope.add_pool = function() {
@@ -305,28 +307,38 @@ function PoolNavControl($scope, $routeParams, cpdata) {
     $scope.remove_pool = function() {
         console.log('Removing pool %s', $scope.params.poolId);
         cpdata.remove_pool($scope.params.poolId, function(data) {
-            var redirect = next_url(data);
-            console.log('Next URL = %s', redirect);
-            $(location).attr('href', redirect);
+            var redirect = '#/resources';
+            $('#removePool').on('hidden.bs.modal', function() {
+                console.log('Redirecting to %s', redirect);
+                $(location).attr('href', redirect);
+            });
+
         });
     };
 
     $scope.remove_host = function() {
         console.log('Removing host %s', $scope.params.hostId);
         cpdata.remove_host($scope.params.hostId, function(data) {
-            refreshHosts($scope, cpdata);
+            var redirect = '#/pools/' + $scope.params.poolId;
+            $('#removeHost').on('hidden.bs.modal', function() {
+                console.log('Redirecting to %s', redirect);
+                $(location).attr('href', redirect);
+            });
         });
     };
 
     $scope.edit_pool = function() {
         console.log('Updating pool %s', $scope.params.poolId);
-        cpdata.update_pool($scope.params.poolId, $scope.editPool, function(data) {
+        cpdata.update_pool($scope.params.poolId, $scope.pools.current, function(data) {
             refreshPools($scope, cpdata);
         });
     };
 
     $scope.edit_host = function() {
-        console.log('TODO: Updating host %s', $scope.params.hostId);
+        console.log('Updating host %s', $scope.params.hostId);
+        cpdata.update_host($scope.params.hostId, $scope.hosts.current, function(data) {
+            refreshHosts($scope, cpdata);
+        });
     };
 }
 
@@ -337,7 +349,22 @@ function ResourcesControl($scope, $routeParams, cpdata) {
     $scope.name = "resources";
     $scope.params = $routeParams;
 
-    $scope.pools = {};
+    $scope.pools = {
+        sort: 'Id',
+        sort_icons: {
+            'Id': 'glyphicon-chevron-up',
+            'ParentId': 'glyphicon-chevron-down',
+            'CoreLimit': 'glyphicon-chevron-down',
+            'MemoryLimit': 'glyphicon-chevron-down',
+            'Priority': 'glyphicon-chevron-down'
+        }
+    };
+    $scope.set_order = set_order;
+    $scope.click_pool = function(poolId) {
+        var redirect = '#/pools/' + poolId;
+        console.log('Redirecting to %s', redirect);
+        $(location).attr('href', redirect);
+    }
     $scope.hosts = {};
 
     refreshPools($scope, cpdata, false);
@@ -348,12 +375,17 @@ function ResourcesControl($scope, $routeParams, cpdata) {
  * Controller for resources -> pool details
  */
 function PoolControl($scope, $routeParams, $http, cpdata) {
-    $scope.name = "resources";
+    $scope.name = "pool-details";
     $scope.params = $routeParams;
 
     $scope.pools = {};
     refreshPools($scope, cpdata, true);
-
+    $scope.click_host = function(host) {
+        var redirect = '#/pools/' + $scope.params.poolId + "/hosts/" + host;
+        console.log('Redirecting to %s', redirect);
+        $(location).attr('href', redirect);
+    };
+    $scope.set_order = set_order;
     $scope.hosts = {
         sort: 'Name',
         sort_icons: {
@@ -363,24 +395,19 @@ function PoolControl($scope, $routeParams, $http, cpdata) {
             'Memory': 'glyphicon-chevron-down',
             'IpAddr': 'glyphicon-chevron-down',
             'PrivateNetwork': 'glyphicon-chevron-down'
-        },
-        set_order: function(order) {
-            // Reset the icon for the last order
-            console.log('Resetting ' + $scope.resourceOrder + ' to down.');
-            $scope.hosts.sort_icons[$scope.hosts.sort] = 'glyphicon-chevron-down';
-
-            if ($scope.hosts.sort === order) {
-                $scope.hosts.sort = "-" + order;
-                $scope.hosts.sort_icons[$scope.hosts.sort] = 'glyphicon-chevron-down';
-                console.log('Sorting by -' + order);
-            } else {
-                $scope.hosts.sort = order;
-                $scope.hosts.sort_icons[$scope.hosts.sort] = 'glyphicon-chevron-up';
-                console.log('Sorting by ' + order);
-            }
         }
     };
     refreshHosts($scope, cpdata, true, false);
+}
+
+function HostControl($scope, $routeParams, $http, cpdata) {
+    $scope.name = "host-details"
+    $scope.params = $routeParams;
+    $scope.pools = {};
+    refreshPools($scope, cpdata, true);
+    $scope.hosts = {};
+    console.log('In scope for host ' + $scope.params.hostId);
+    refreshHosts($scope, cpdata, true, true);
 }
 
 /*
@@ -414,7 +441,6 @@ function NavbarControl($scope, $http, $cookies) {
 function LoginControl($scope, $http) {
     $scope.brand_label = "SERVICE DYNAMICS";
     $scope.login_button_text = "Log In";
-    $scope.next_url = $.url().param('next');
     $scope.login_alert = $('#login_alert')
     $scope.login_alert.hide();
     $scope.login_alert.rollmsg = function() {
@@ -431,9 +457,7 @@ function LoginControl($scope, $http) {
                 $scope.extra_class = 'has-success';
                 $scope.login_status = 'alert-success';
                 $scope.login_message = data.Detail;
-                if ($scope.next_url === undefined) {
-                    $scope.next_url = next_url(data);
-                }
+                $scope.next_url = '/' + $(location).attr('hash')
                 console.log('Next URL = %s', $scope.next_url);
                 $scope.login_alert.rollmsg();
                 $(location).attr('href', $scope.next_url);
@@ -453,6 +477,7 @@ function refreshPools($scope, cpdata, cachePools) {
         $scope.pools.data = map_to_array(allPools);
         if ($scope.params.poolId !== undefined) {
             $scope.pools.current = allPools[$scope.params.poolId];
+            console.log('Current pool: %s', JSON.stringify($scope.pools.current));
         }
     });
 }
@@ -464,11 +489,19 @@ function refreshHosts($scope, cpdata, cacheHosts, cacheHostsPool) {
         $scope.hosts.rawdata = allHosts;
         // Build array of Hosts relevant to the current pool
         $scope.hosts.data = [];
+        console.log('Refresh for pool ' + $scope.params.poolId + 
+                    ' and host ' + $scope.params.hostId);
+
         if ($scope.params.poolId !== undefined) {
             cpdata.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
                 // hostsForPool is Array(PoolHost)
-                for (key in hostsForPool) {
-                    $scope.hosts.data.push(allHosts[hostsForPool[key].HostId]);
+                for (var i=0; i < hostsForPool.length; i++) {
+                    var currentHost = allHosts[hostsForPool[i].HostId];
+                    $scope.hosts.data.push(currentHost);
+                    if ($scope.params.hostId === currentHost.Id) {
+                        $scope.hosts.current = currentHost;
+                        console.log('Current host: %s', JSON.stringify($scope.hosts.current));
+                    }
                 }
             });
         }
@@ -500,3 +533,20 @@ function next_url(data) {
         return e.Name == 'Next'; 
     })[0].Url;
 }
+
+function set_order(order, table) {
+    // Reset the icon for the last order
+    console.log('Resetting ' + table.sort + ' to down.');
+    table.sort_icons[table.sort] = 'glyphicon-chevron-down';
+
+    if (table.sort === order) {
+        table.sort = "-" + order;
+        table.sort_icons[table.sort] = 'glyphicon-chevron-down';
+        console.log('Sorting by -' + order);
+    } else {
+        table.sort = order;
+        table.sort_icons[table.sort] = 'glyphicon-chevron-up';
+        console.log('Sorting by ' + order);
+    }
+}
+

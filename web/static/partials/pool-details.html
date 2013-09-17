@@ -3,79 +3,76 @@
   </div>
 
   <div class="col-xs-12 col-sm-9">
-    <div class="jumbotron">
-      <p>
-        <a data-toggle="modal" href="#addHost" class="btn btn-primary">Add host</a>
-        <a data-toggle="modal" href="#addPool" class="btn btn-default">Add resource pool</a>
-        <a data-toggle="modal" href="#editPool" class="btn btn-default">Edit resource pool</a>
-        <a data-toggle="modal" href="#removePool" class="btn btn-default">Remove resource pool</a>
-      </p>
-      <div>
-        <span>Selected:</span>
-        <span>{{pools.current.Id}}</span>
-      </div>
-      <div>
-        <span>Parent:</span>
-        <span>{{pools.current.ParentId}}</span>
-      </div>
-      <div>
-        <span>Core Limit:</span>
-        <span>{{pools.current.CoreLimit}}</span>
-      </div>
-      <div>
-        <span>Memory Limit:</span>
-        <span>{{pools.current.MemoryLimit}}</span>
-      </div>
-      <div>
-        <span>Priority:</span>
-        <span>{{pools.current.Priority}}</span>
-      </div>
+    <p>
+      <a href="#/resources">Resources</a> &gt;
+      <a href="#/pools/{{params.poolId}}">{{params.poolId}}</a>
+    </p>
+    <p>
+      <a data-toggle="modal" href="#addHost" class="btn btn-primary">Add host</a>
+      <a data-toggle="modal" href="#addPool" class="btn btn-default">Add resource pool</a>
+      <a data-toggle="modal" href="#editPool" class="btn btn-default">Edit resource pool</a>
+      <a data-toggle="modal" href="#removePool" class="btn btn-default">Remove resource pool</a>
+    </p>
+    <h4>Pool Details</h4>
+    <dl class="dl-horizontal">
+      <dt>ID</dt>
+      <dd>{{pools.current.Id}}</dd>
 
-      <!--
-     "Id": "007f0100",
-     "PoolId": "default",
-     "Name": "chadzen",
-     "IpAddr": "::1 127.0.0.1",
-     "Cores": 24,
-     "Memory": 33661190144,
-     "PrivateNetwork": ""
-      -->
+      <dt>Parent ID</dt>
+      <dd>{{pools.current.ParentId}}</dd>
 
-      <table class="table table-striped table-bordered table-hover">
-        <thead>
-          <tr>
-            <th>Id
-              <i ng-click="hosts.set_order('Id')" class="glyphicon {{hosts.sort_icons['Id']}}"></i>
-            </th>
-            <th>Name
-              <i ng-click="hosts.set_order('Name')" class="glyphicon {{hosts.sort_icons['Name']}}"></i>
-            </th>
-            <th>Cores
-              <i ng-click="hosts.set_order('Cores')" class="glyphicon {{hosts.sort_icons['Cores']}}"></i>
-            </th>
-            <th>Memory
-              <i ng-click="hosts.set_order('Memory')" class="glyphicon {{hosts.sort_icons['Memory']}}"></i>
-            </th>
-            <th>IP Address
-              <i ng-click="hosts.set_order('IpAddr')" class="glyphicon {{hosts.sort_icons['IpAddr']}}"></i>
-            </th>
-            <th>Private Network
-              <i ng-click="hosts.set_order('PrivateNetwork')" class="glyphicon {{hosts.sort_icons['PrivateNetwork']}}"></i>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr ng-repeat="host in hosts.data | orderBy:hosts.sort">
-            <td>{{host.Id}}</td>
-            <td>{{host.Name}}</td>
-            <td>{{host.Cores}}</td>
-            <td>{{host.Memory}}</td>
-            <td>{{host.IpAddr}}</td>
-            <td>{{host.PrivateNetwork}}</td>
-          </tr>
-        </tbody>
-      </table>
+      <dt>Core Limit</dt>
+      <dd>{{pools.current.CoreLimit}}</dd>
 
-    </div>
+      <dt>Memory Limit</dt>
+      <dd>{{pools.current.MemoryLimit}}</dd>
+
+      <dt>Priority</dt>
+      <dd>{{pools.current.Priority}}</dd>
+    </dl>
+
+    <p>Select a host or add a new one.</p>
+    <label for="hosts_data">Hosts</label>
+    <table class="table table-striped table-bordered table-hover" id="hosts_data" >
+      <thead>
+        <tr>
+          <th>Id
+            <i ng-click="set_order('Id', hosts)" 
+               class="glyphicon {{hosts.sort_icons['Id']}}"></i>
+          </th>
+          <th>Name
+            <i ng-click="set_order('Name', hosts)" 
+               class="glyphicon {{hosts.sort_icons['Name']}}"></i>
+          </th>
+          <th>Cores
+            <i ng-click="set_order('Cores', hosts)" 
+               class="glyphicon {{hosts.sort_icons['Cores']}}"></i>
+          </th>
+          <th>Memory
+            <i ng-click="set_order('Memory', hosts)" 
+               class="glyphicon {{hosts.sort_icons['Memory']}}"></i>
+          </th>
+          <th>IP Address
+            <i ng-click="set_order('IpAddr', hosts)" 
+               class="glyphicon {{hosts.sort_icons['IpAddr']}}"></i>
+          </th>
+          <th>Private Network
+            <i ng-click="set_order('PrivateNetwork', hosts)" 
+               class="glyphicon {{hosts.sort_icons['PrivateNetwork']}}"></i>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="host in hosts.data | orderBy:hosts.sort" ng-click="click_host(host.Id)" class="link">
+          <td>{{host.Id}}</td>
+          <td>{{host.Name}}</td>
+          <td>{{host.Cores}}</td>
+          <td>{{host.Memory}}</td>
+          <td>{{host.IpAddr}}</td>
+          <td>{{host.PrivateNetwork}}</td>
+        </tr>
+      </tbody>
+    </table>
+
   </div>
 </div>

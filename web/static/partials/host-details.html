@@ -1,0 +1,37 @@
+<div class="row row-offcanvas row-offcanvas-left">
+  <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'">
+  </div>
+
+  <div class="col-xs-12 col-sm-9">
+    <p>
+      <a href="#/resources">Resources</a> &gt;
+      <a href="#/pools/{{params.poolId}}">{{params.poolId}}</a> &gt;
+      <a href="#/pools/{{params.poolId}}/hosts/{{params.hostId}}">{{params.hostId}}</a>
+    </p>
+    <p>
+      <a data-toggle="modal" href="#editHost" class="btn btn-primary">Edit host</a>
+      <a data-toggle="modal" href="#removeHost" class="btn btn-default">Remove host</a>
+    </p>
+    <h4>Host Details</h4>
+    <dl class="dl-horizontal">
+      <dt>Id</dt>
+      <dd>{{hosts.current.Id}}</dd>
+
+      <dt>Name</dt>
+      <dd>{{hosts.current.Name}}</dd>
+
+      <dt>Cores</dt>
+      <dd>{{hosts.current.Cores}}</dd>
+
+      <dt>Memory</dt>
+      <dd>{{hosts.current.Memory}}</dd>
+
+      <dt>IP Address</dt>
+      <dd>{{hosts.current.IpAddr}}</dd>
+
+      <dt>Private Network</dt>
+      <dd>{{hosts.current.PrivateNetwork}}</dd>
+    </dl>
+    <p>You may edit or remove the selected host.</p>
+  </div>
+</div>
