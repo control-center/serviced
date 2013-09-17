@@ -11,7 +11,7 @@ default:
 	@echo "Executing make style build. You can also use the 'go' tool."
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
-	go build && go test
+	go build
 	cd client && make
 	cd svc && make 
 	cd agent && make
