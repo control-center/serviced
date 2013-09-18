@@ -4,6 +4,7 @@ import (
 	"github.com/ant0ine/go-json-rest"
 	"net/http"
 	"path"
+	"runtime"
 )
 
 /*******************************************************************************
@@ -194,7 +195,8 @@ func noCache(w *rest.ResponseWriter) {
 
 
 func staticRoot() string {
-	return "../web/static"
+	_, filename, _, _ := runtime.Caller(1)
+	return path.Join(path.Dir(filename), "static")
 }
 
 
