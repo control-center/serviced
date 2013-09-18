@@ -36,29 +36,7 @@
     <table class="table table-striped table-bordered table-hover" id="hosts_data" >
       <thead>
         <tr>
-          <th>Id
-            <i ng-click="set_order('Id', hosts)" 
-               class="glyphicon {{hosts.sort_icons['Id']}}"></i>
-          </th>
-          <th>Name
-            <i ng-click="set_order('Name', hosts)" 
-               class="glyphicon {{hosts.sort_icons['Name']}}"></i>
-          </th>
-          <th>Cores
-            <i ng-click="set_order('Cores', hosts)" 
-               class="glyphicon {{hosts.sort_icons['Cores']}}"></i>
-          </th>
-          <th>Memory
-            <i ng-click="set_order('Memory', hosts)" 
-               class="glyphicon {{hosts.sort_icons['Memory']}}"></i>
-          </th>
-          <th>IP Address
-            <i ng-click="set_order('IpAddr', hosts)" 
-               class="glyphicon {{hosts.sort_icons['IpAddr']}}"></i>
-          </th>
-          <th>Private Network
-            <i ng-click="set_order('PrivateNetwork', hosts)" 
-               class="glyphicon {{hosts.sort_icons['PrivateNetwork']}}"></i>
+          <th ng-repeat="header in hosts.headers">{{header.name}}<i ng-click="hosts.set_order(header.id, hosts)" ng-class="hosts.get_order_class(header.id, hosts)"></i>
           </th>
         </tr>
       </thead>

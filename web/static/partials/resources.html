@@ -15,25 +15,7 @@
     <table class="table table-striped table-bordered table-hover" id="pools_data" >
       <thead>
         <tr>
-          <th>Id
-            <i ng-click="set_order('Id', pools)" 
-               class="glyphicon {{pools.sort_icons['Id']}}"></i>
-          </th>
-          <th>Parent Id
-            <i ng-click="set_order('ParentId', pools)" 
-               class="glyphicon {{pools.sort_icons['ParentId']}}"></i>
-          </th>
-          <th>Core Limit
-            <i ng-click="set_order('CoreLimit', pools)" 
-               class="glyphicon {{pools.sort_icons['CoreLimit']}}"></i>
-          </th>
-          <th>Memory Limit
-            <i ng-click="set_order('MemoryLimit', pools)" 
-               class="glyphicon {{pools.sort_icons['MemoryLimit']}}"></i>
-          </th>
-          <th>Priority
-            <i ng-click="set_order('Priority', pools)" 
-               class="glyphicon {{pools.sort_icons['Priority']}}"></i>
+          <th ng-repeat="header in pools.headers">{{header.name}}<i ng-click="pools.set_order(header.id, pools)" ng-class="pools.get_order_class(header.id, pools)"></i>
           </th>
         </tr>
       </thead>

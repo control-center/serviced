@@ -24,10 +24,9 @@ func main() {
 		rest.Route{"POST", "/pools/:poolId", web.AuthorizedClient(web.RestUpdatePool)},
 		rest.Route{"POST", "/hosts/:hostId", web.AuthorizedClient(web.RestUpdateHost)},
 		rest.Route{"GET", "/pools", web.AuthorizedClient(web.RestGetPools)},
-		//rest.Route{"POST", "/start", web.AuthorizedOnly(web.RestStartServer)},
+		rest.Route{"GET", "/services", web.AuthorizedClient(web.RestGetServices)},
 		rest.Route{"POST", "/login", web.RestLogin},
 		rest.Route{"DELETE", "/login", web.RestLogout},
-		//rest.Route{"GET", "/user", web.AuthorizedOnly(web.RestUser)},
 		rest.Route{"GET", "/favicon.ico", web.FavIcon},
 		rest.Route{"GET", "/static*resource", web.StaticData},
 	)

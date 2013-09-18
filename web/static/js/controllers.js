@@ -10,8 +10,42 @@
  */
 
 /*******************************************************************************
- * Login module & controllers
+ * Main module & controllers
  ******************************************************************************/
+angular.module('controlplane', ['ngCookies']).
+    config(['$routeProvider', function($routeProvider) {
+        $routeProvider.
+            when('/entry', { templateUrl: '/static/partials/main.html' }).
+            when('/configuration', {
+                templateUrl: '/static/partials/configuration.html',
+                controller: ConfigurationControl}).
+            when('/resources', {
+                templateUrl: '/static/partials/resources.html',
+                controller: ResourcesControl}).
+            when('/pools/:poolId', {
+                templateUrl: '/static/partials/pool-details.html',
+                controller: PoolControl}).
+            when('/pools/:poolId/hosts/:hostId', {
+                templateUrl: '/static/partials/host-details.html',
+                controller: HostControl}).
+            when('/wizard/start', {
+                templateUrl: '/static/partials/wizard_splash.html', 
+                controller: WizardControl}).
+            when('/wizard/page1', {
+                templateUrl: '/static/partials/wizard1.html', 
+                controller: WizardControl}).
+            when('/wizard/page2', {
+                templateUrl: '/static/partials/wizard2.html', 
+                controller: WizardControl}).
+            when('/wizard/finish', {
+                templateUrl: '/static/partials/wizard_finish.html', 
+                controller: WizardControl}).
+            otherwise({redirectTo: '/entry'});
+    }]).
+    factory('resourcesService', ResourcesService).
+    factory('wizardService', WizardService).
+    factory('servicesService', ServicesService);
+
 function LoginControl($scope, $http, $location) {
     $scope.brand_label = "SERVICE DYNAMICS";
     $scope.login_button_text = "Log In";
@@ -45,75 +79,15 @@ function LoginControl($scope, $http, $location) {
     };
 }
 
-
-/*******************************************************************************
- * Main module & controllers
- ******************************************************************************/
-angular.module('controlplane', ['ngCookies']).
-    config(['$routeProvider', function($routeProvider) {
-        $routeProvider.
-            when('/entry', {
-                templateUrl: '/static/partials/main.html', 
-                controller: EntryControl}).
-            when('/configuration', {
-                templateUrl: '/static/partials/configuration.html',
-                controller: ConfigurationControl}).
-            when('/resources', {
-                templateUrl: '/static/partials/resources.html',
-                controller: ResourcesControl}).
-            when('/pools/:poolId', {
-                templateUrl: '/static/partials/pool-details.html',
-                controller: PoolControl}).
-            when('/pools/:poolId/hosts/:hostId', {
-                templateUrl: '/static/partials/host-details.html',
-                controller: HostControl}).
-            when('/wizard/start', {
-                templateUrl: '/static/partials/wizard_splash.html', 
-                controller: WizardControl}).
-            when('/wizard/page1', {
-                templateUrl: '/static/partials/wizard1.html', 
-                controller: WizardControl}).
-            when('/wizard/page2', {
-                templateUrl: '/static/partials/wizard2.html', 
-                controller: WizardControl}).
-            when('/wizard/finish', {
-                templateUrl: '/static/partials/wizard_finish.html', 
-                controller: WizardControl}).
-
-            otherwise({redirectTo: '/entry'});
-    }]).
-    factory('cpData', ControlPlaneData).
-    factory('wizardData', WizardData);
-
-// Controller for main splash
-function EntryControl($scope, $http) {
-    $scope.startServer = function() {
-        $http.post('/start', {}).
-            success(function(data, status) {
-                if (status === 200) {
-                    console.log('Started service: %s', JSON.stringify(data));
-                } else {
-                    console.log('Got unexpected status %d', status);
-                }
-            }).
-            error(function(data, status) {
-                console.log('Failed with message %s and  status %d', JSON.stringify(data), status);
-                var redirect = next_url(data);
-                console.log('Next URL = %s', redirect);
-                $(location).attr('href', redirect);
-            });
-    };
-}
-
-function WizardControl($scope, $cookies, $location, wizardData, cpData) {
+function WizardControl($scope, $cookies, $location, wizardService, resourcesService) {
     console.log('Initialized control for %s', $location.path());
     $scope.params = {}; // No path params for wizard pages
     $scope.pools = {}; // We start with no pools
-    $scope.context = wizardData.get_context();
+    $scope.context = wizardService.get_context();
     $scope.nextClicked = false;
 
     // Ensure our scope has a list of pools
-    refreshPools($scope, cpData, true);
+    refreshPools($scope, resourcesService, true);
 
     $scope.add_host = function() {
         console.log('User added %s', $scope.context.newHost);
@@ -124,7 +98,7 @@ function WizardControl($scope, $cookies, $location, wizardData, cpData) {
         $scope.nextClicked = true;
         if (wizardForm == null || wizardForm.$valid) {
             console.log('Next called from %s', $location.path());
-            var nextPath = wizardData.next_page($location.path());
+            var nextPath = wizardService.next_page($location.path());
             $location.path(nextPath);
         } else {
             console.log('Validation failed');
@@ -132,7 +106,7 @@ function WizardControl($scope, $cookies, $location, wizardData, cpData) {
     };
     $scope.cancel = function() {
         console.log('Cancel called from %s', $location.path());
-        var nextPath = wizardData.cancel_page($location.path());
+        var nextPath = wizardService.cancel_page($location.path());
         $location.path(nextPath);
     };
     if ($cookies['ZCPToken'] === undefined) {
@@ -140,17 +114,28 @@ function WizardControl($scope, $cookies, $location, wizardData, cpData) {
     }
     $scope.form_class = 'form-group has-error';
 
-    wizardData.fix_location($location);
+    wizardService.fix_location($location);
 }
 
 
 // Controller for configuration
-function ConfigurationControl($scope, $routeParams) {
+function ConfigurationControl($scope, $routeParams, servicesService) {
     $scope.name = "configuration";
     $scope.params = $routeParams;
+    $scope.services = buildTable('Name', [
+        { id: 'Id', name: 'Id'}, 
+        { id: 'Name', name: 'Name'},
+        { id: 'Description', name: 'Description'},
+        { id: 'Startup', name: 'Startup'},
+        { id: 'Instances', name: 'Instances'},
+        { id: 'ImageId', name: 'Image Id'},
+        { id: 'PoolId', name: 'Pool Id'},
+        { id: 'DesiredState', name: 'Desired State'}
+    ]);
+    refreshServices($scope, servicesService, false);
 }
 
-function ActionControl($scope, $routeParams, cpData) {
+function ActionControl($scope, $routeParams, resourcesService) {
     $scope.name = 'actions';
     $scope.params = $routeParams;
     $scope.newHost = {
@@ -164,8 +149,8 @@ function ActionControl($scope, $routeParams, cpData) {
         console.log('Adding host %s as child of pool %s', 
                     $scope.newHost.Name, $scope.newHost.PoolId);
 
-        cpData.add_host($scope.newHost, function(data) {
-            refreshHosts($scope, cpData);
+        resourcesService.add_host($scope.newHost, function(data) {
+            refreshHosts($scope, resourcesService);
         });
         // Reset for another add
         $scope.newHost = {
@@ -175,8 +160,8 @@ function ActionControl($scope, $routeParams, cpData) {
 
     $scope.add_pool = function() {
         console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
-        cpData.add_pool($scope.newPool, function(data) {
-            refreshPools($scope, cpData, false);
+        resourcesService.add_pool($scope.newPool, function(data) {
+            refreshPools($scope, resourcesService, false);
         });
         // Reset for another add
         $scope.newPool = {
@@ -186,7 +171,7 @@ function ActionControl($scope, $routeParams, cpData) {
 
     $scope.remove_pool = function() {
         console.log('Removing pool %s', $scope.params.poolId);
-        cpData.remove_pool($scope.params.poolId, function(data) {
+        resourcesService.remove_pool($scope.params.poolId, function(data) {
             var redirect = '#/resources';
             $('#removePool').on('hidden.bs.modal', function() {
                 console.log('Redirecting to %s', redirect);
@@ -198,7 +183,7 @@ function ActionControl($scope, $routeParams, cpData) {
 
     $scope.remove_host = function() {
         console.log('Removing host %s', $scope.params.hostId);
-        cpData.remove_host($scope.params.hostId, function(data) {
+        resourcesService.remove_host($scope.params.hostId, function(data) {
             var redirect = '#/pools/' + $scope.params.poolId;
             $('#removeHost').on('hidden.bs.modal', function() {
                 console.log('Redirecting to %s', redirect);
@@ -209,35 +194,33 @@ function ActionControl($scope, $routeParams, cpData) {
 
     $scope.edit_pool = function() {
         console.log('Updating pool %s', $scope.params.poolId);
-        cpData.update_pool($scope.params.poolId, $scope.pools.current, function(data) {
-            refreshPools($scope, cpData, false);
+        resourcesService.update_pool($scope.params.poolId, $scope.pools.current, function(data) {
+            refreshPools($scope, resourcesService, false);
         });
     };
 
     $scope.edit_host = function() {
         console.log('Updating host %s', $scope.params.hostId);
-        cpData.update_host($scope.params.hostId, $scope.hosts.current, function(data) {
-            refreshHosts($scope, cpData, false, false);
+        resourcesService.update_host($scope.params.hostId, $scope.hosts.current, function(data) {
+            refreshHosts($scope, resourcesService, false, false);
         });
     };
 }
 
 // Controller for resources
-function ResourcesControl($scope, $routeParams, cpData) {
+function ResourcesControl($scope, $routeParams, resourcesService) {
     $scope.name = "resources";
     $scope.params = $routeParams;
 
-    $scope.pools = {
-        sort: 'Id',
-        sort_icons: {
-            'Id': 'glyphicon-chevron-up',
-            'ParentId': 'glyphicon-chevron-down',
-            'CoreLimit': 'glyphicon-chevron-down',
-            'MemoryLimit': 'glyphicon-chevron-down',
-            'Priority': 'glyphicon-chevron-down'
-        }
-    };
+    $scope.pools = buildTable('Id', [
+        { id: 'Id', name: 'Id'}, 
+        { id: 'ParentId', name: 'Parent Id'},
+        { id: 'CoreLimit', name: 'Core Limit'},
+        { id: 'MemoryLimit', name: 'Memory Limit'},
+        { id: 'Priority', name: 'Priority'}
+    ]);
     $scope.set_order = set_order;
+    $scope.get_order_class = get_order_class;
     $scope.click_pool = function(poolId) {
         var redirect = '#/pools/' + poolId;
         console.log('Redirecting to %s', redirect);
@@ -245,46 +228,44 @@ function ResourcesControl($scope, $routeParams, cpData) {
     }
     $scope.hosts = {};
 
-    refreshPools($scope, cpData, false);
-    refreshHosts($scope, cpData, false, false);
+    refreshPools($scope, resourcesService, false);
+    refreshHosts($scope, resourcesService, false, false);
 }
 
 // Controller for resources -> pool details
-function PoolControl($scope, $routeParams, $http, cpData) {
+function PoolControl($scope, $routeParams, $http, resourcesService) {
     $scope.name = "pool-details";
     $scope.params = $routeParams;
 
     $scope.pools = {};
-    refreshPools($scope, cpData, true);
+    refreshPools($scope, resourcesService, true);
     $scope.click_host = function(host) {
         var redirect = '#/pools/' + $scope.params.poolId + "/hosts/" + host;
         console.log('Redirecting to %s', redirect);
         $(location).attr('href', redirect);
     };
     $scope.set_order = set_order;
-    $scope.hosts = {
-        sort: 'Name',
-        sort_icons: {
-            'Id': 'glyphicon-chevron-down',
-            'Name': 'glyphicon-chevron-up',
-            'Cores': 'glyphicon-chevron-down',
-            'Memory': 'glyphicon-chevron-down',
-            'IpAddr': 'glyphicon-chevron-down',
-            'PrivateNetwork': 'glyphicon-chevron-down'
-        }
-    };
-    refreshHosts($scope, cpData, true, false);
+    $scope.get_order_class = get_order_class;
+    $scope.hosts = buildTable('Name', [
+        { id: 'Id', name: 'Id'}, 
+        { id: 'Name', name: 'Name'},
+        { id: 'Cores', name: 'Cores'},
+        { id: 'Memory', name: 'Memory'},
+        { id: 'IpAddr', name: 'IP Address'},
+        { id: 'PrivateNetwork', name: 'Private Network'}
+    ]);
+    refreshHosts($scope, resourcesService, true, false);
 }
 
 // Controller for resources -> pool details -> host details
-function HostControl($scope, $routeParams, $http, cpData) {
+function HostControl($scope, $routeParams, $http, resourcesService) {
     $scope.name = "host-details"
     $scope.params = $routeParams;
     $scope.pools = {};
-    refreshPools($scope, cpData, true);
+    refreshPools($scope, resourcesService, true);
     $scope.hosts = {};
     console.log('In scope for host ' + $scope.params.hostId);
-    refreshHosts($scope, cpData, true, true);
+    refreshHosts($scope, resourcesService, true, true);
 }
 
 // Controller for top nav
@@ -314,7 +295,7 @@ function NavbarControl($scope, $http, $cookies) {
  * Helper functions
  ******************************************************************************/
 
-function WizardData() {
+function WizardService() {
     var wizard_data;
     var _get_wizard_data = function() {
         if (wizard_data === undefined) {
@@ -398,7 +379,33 @@ function WizardData() {
     };
 }
 
-function ControlPlaneData($http) {
+function ServicesService($http) {
+    var cached_services;
+    var _get_services = function(callback) {
+        $http.get('/services').
+            success(function(data, status) {
+                console.log('Retrieved list of services');
+                cached_services = data;
+                callback(data);
+            }).
+            error(function(data, status) {
+                console.log('Unable to retrieve services');
+            });
+    };
+
+    return {
+        get_services: function(cacheOk, callback) {
+            if (cacheOk && cached_services) {
+                console.log('Using cached services');
+                callback(cached_services);
+            } else {
+                _get_services(callback);
+            }
+        }
+    }
+}
+
+function ResourcesService($http) {
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -594,8 +601,14 @@ function ControlPlaneData($http) {
     };
 }
 
-function refreshPools($scope, cpData, cachePools) {
-    cpData.get_pools(cachePools, function(allPools) {
+function refreshServices($scope, servicesService, cacheOk) {
+    servicesService.get_services(cacheOk, function(allServices) {
+        $scope.services.data = map_to_array(allServices);
+    });
+}
+
+function refreshPools($scope, resourcesService, cachePools) {
+    resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.data = map_to_array(allPools);
         if ($scope.params.poolId !== undefined) {
             $scope.pools.current = allPools[$scope.params.poolId];
@@ -604,9 +617,9 @@ function refreshPools($scope, cpData, cachePools) {
     });
 }
 
-function refreshHosts($scope, cpData, cacheHosts, cacheHostsPool) {
+function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
     console.log('Reacquiring list of hosts');
-    cpData.get_hosts(cacheHosts, function(allHosts) {
+    resourcesService.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.rawdata = allHosts;
         // Build array of Hosts relevant to the current pool
@@ -615,7 +628,7 @@ function refreshHosts($scope, cpData, cacheHosts, cacheHostsPool) {
                     ' and host ' + $scope.params.hostId);
 
         if ($scope.params.poolId !== undefined) {
-            cpData.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
+            resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
                 // hostsForPool is Array(PoolHost)
                 for (var i=0; i < hostsForPool.length; i++) {
                     var currentHost = allHosts[hostsForPool[i].HostId];
@@ -670,5 +683,26 @@ function set_order(order, table) {
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
         console.log('Sorting by ' + order);
     }
+}
+
+function get_order_class(order, table) {
+    return 'glyphicon pull-right ' + table.sort_icons[order] + 
+        ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
+}
+
+function buildTable(sort, headers) {
+    var sort_icons = {};
+    for(var i=0; i < headers.length; i++) {
+        sort_icons[headers[i].id] = (sort === headers[i].id? 
+            'glyphicon-chevron-up' : 'glyphicon-chevron-down');
+    }
+
+    return {
+        sort: sort,
+        headers: headers,
+        sort_icons: sort_icons,
+        set_order: set_order,
+        get_order_class: get_order_class
+    };
 }
 

@@ -159,6 +159,18 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client serviced.Contr
 	w.WriteJson(&hosts)
 }
 
+func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var services []*serviced.Service
+	request := serviced.EntityRequest{}
+	err := client.GetServices(request, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&services)
+}
+
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
 	var poolHosts []*serviced.PoolHost
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))

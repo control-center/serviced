@@ -35,3 +35,11 @@ body {
     padding-top: 40px;
 }
 
+table .glyphicon {
+    cursor: pointer;
+}
+
+i.active {
+    color: #b0b0b0;
+}
+
