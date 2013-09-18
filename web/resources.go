@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/proxy"
 	"os"
 	"net"
+	"strings"
 	"net/http"
 	"net/rpc"
 	"net/url"
@@ -32,10 +33,10 @@ var started bool
 var masterService serviced.ControlPlane
 var configuration ServiceConfig
 
-func AuthorizedOnly(realfunc HandlerFunc) HandlerFunc {
+func AuthorizedHtml(realfunc HandlerFunc) HandlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !LoginOk(r) {
-			RestUnauthorized(w)
+			RedirectLogin(w, r)
 			return 
 		}
 		realfunc(w,r)
@@ -187,7 +188,25 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client serviced.Contro
 		RestBadRequest(w)
 		return
 	}
-	// TODO: Acquire proper host info
+	// Save the pool ID and IP address for later. GetInfo wipes these
+	pool := payload.PoolId 
+	ipAddr := payload.IpAddr
+	remoteClient, err := clientlib.NewAgentClient(payload.IpAddr)
+	if err != nil {
+		glog.Errorf("Could not create connection to host %s: %v", payload.IpAddr, err)
+	}
+
+	err = remoteClient.GetInfo(0, &payload)
+	if err != nil {
+		glog.Errorf("Unable to get remote host info: %v", err)
+		RestBadRequest(w);
+		return
+	}
+	// Reset the pool ID and IP address
+	payload.PoolId = pool
+	parts := strings.Split(ipAddr, ":")
+	payload.IpAddr = parts[0]
+	
 	err = client.AddHost(payload, &unused)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)

@@ -1,6 +1,3 @@
-body {
-    padding: 30px;
-}
 
 .nav > li > .item {
     position: relative;
@@ -8,11 +5,10 @@ body {
     padding: 10px 15px;
 }
 
-.navbar-nav > li.active > .item {
-    color: #555555;
-    background-color: #e7e7e7;
+.navbar-inverse li .item {
+    color: #999999;
 }
-S
+
 .navbar {
     margin-bottom: 30px;
 }

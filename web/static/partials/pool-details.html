@@ -3,10 +3,10 @@
   </div>
 
   <div class="col-xs-12 col-sm-9">
-    <p>
-      <a href="#/resources">Resources</a> &gt;
-      <a href="#/pools/{{params.poolId}}">{{params.poolId}}</a>
-    </p>
+    <ol class="breadcrumb">
+      <li><a href="#/resources">Resources</a></li>
+      <li class="active">{{params.poolId}}</li>
+    </ol>
     <p>
       <a data-toggle="modal" href="#addHost" class="btn btn-primary">Add host</a>
       <a data-toggle="modal" href="#addPool" class="btn btn-default">Add resource pool</a>
@@ -73,6 +73,7 @@
         </tr>
       </tbody>
     </table>
-
   </div>
+  <div ng-include="'/static/partials/resource-actions.html'" ng-controller="ActionControl"></div>
+  
 </div>

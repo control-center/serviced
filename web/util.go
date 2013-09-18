@@ -75,16 +75,23 @@ func WriteJson(w *rest.ResponseWriter, v interface{}, code int) {
 /*
  * Provides content for root /
  */
-func MainIndex(w *rest.ResponseWriter, r *rest.Request) {
+func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 	noCache(w)
-	if LoginOk(r) {
-		http.ServeFile(
-			w.ResponseWriter,
-			r.Request,
-			staticRoot() + "/index.html")
-	} else {
-		RedirectLogin(w, r)
-	}
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		staticRoot() + "/index.html")
+}
+
+/*
+ * Provides content for root /
+ */
+func WizardPage(w *rest.ResponseWriter, r *rest.Request) {
+	noCache(w)
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		staticRoot() + "/wizard.html")
 }
 
 

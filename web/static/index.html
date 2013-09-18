@@ -18,9 +18,9 @@
 
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
-      <script src="/static/bootstrap/assets/js/html5shiv.js"></script>
-      <script src="/static/bootstrap/assets/js/respond.min.js"></script>
-    <![endif]-->
+        <script src="/static/bootstrap/assets/js/html5shiv.js"></script>
+        <script src="/static/bootstrap/assets/js/respond.min.js"></script>
+        <![endif]-->
     <script src="/static/jquery/jquery.js"></script>
     <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
     <script src="/static/angular/angular.js"></script>
@@ -33,13 +33,12 @@
     <div class="container">
 
       <!-- Static navbar -->
-      <div class="navbar navbar-default" ng-controller="NavbarControl">
+      <div class="navbar navbar-inverse" ng-controller="NavbarControl">
         <div class="navbar-header">
           <a class="navbar-brand" href="#/entry">{{brand}}</a>
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <li><a href="#/management">{{management}}</a></li>
             <li><a href="#/configuration">{{configuration}}</a></li>
             <li><a href="#/resources">{{resources}}</a></li>
           </ul>
@@ -49,18 +48,7 @@
           </ul>
         </div><!--/.nav-collapse -->
       </div>
-      <div>
-        <div ng-view></div>
-
-        <!--
-        <pre>$location.path() = {{$location.path()}}</pre>
-        <pre>$route.current.templateUrl = {{$route.current.templateUrl}}</pre>
-        <pre>$route.current.params = {{$route.current.params}}</pre>
-        <pre>$route.current.scope.name = {{$route.current.scope.name}}</pre>
-        <pre>$routeParams = {{$routeParams}}</pre>
-        -->
-
-      </div>
-    </div> <!-- /container -->
+      <div ng-view></div>
+     </div> <!-- /container -->
   </body>
 </html>

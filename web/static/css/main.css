@@ -1,3 +1,7 @@
+body {
+    padding: 20px;
+}
+
 .btn-primary {
     background-color: #6b6b6b;
     border-color: #555;
@@ -19,5 +23,15 @@
 
 .link {
     cursor:pointer;
+}
+
+.box {
+    padding: 40px 50px;
+    background-color: #eeeeee;
+    border-radius: 6px;
+}
+
+.page-nav {
+    padding-top: 40px;
 }
 
