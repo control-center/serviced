@@ -1,38 +1,15 @@
-<!--
-<div class="row row-offcanvas row-offcanvas-left">
-  <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'">
-  </div>
-
-  <div class="col-xs-12 col-sm-9">
--->
-    <ol class="breadcrumb">
-      <li><a href="#/resources">Resources</a></li>
-      <li><a href="#/pools/{{params.poolId}}">{{params.poolId}}</a></li>
-      <li class="active">{{params.hostId}}</li>
+    <ol class="breadcrumb inline">
+      <li ng-repeat="crumb in breadcrumbs" ng-class="crumb.itemClass" ng-switch on="crumb.url">
+        <span ng-switch-when="undefined">{{crumb.label}}</span>
+        <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label}}</a>
+      </li>
     </ol>
     <p>
       <a data-toggle="modal" href="#editHost" class="btn btn-primary">Edit host</a>
       <a data-toggle="modal" href="#removeHost" class="btn btn-default">Remove host</a>
     </p>
     <h4>Host Details</h4>
-    <dl class="dl-horizontal">
-      <dt>Id</dt>
-      <dd>{{hosts.current.Id}}</dd>
-
-      <dt>Name</dt>
-      <dd>{{hosts.current.Name}}</dd>
-
-      <dt>Cores</dt>
-      <dd>{{hosts.current.Cores}}</dd>
-
-      <dt>Memory</dt>
-      <dd>{{hosts.current.Memory}}</dd>
-
-      <dt>IP Address</dt>
-      <dd>{{hosts.current.IpAddr}}</dd>
-
-      <dt>Private Network</dt>
-      <dd>{{hosts.current.PrivateNetwork}}</dd>
+    <dl class="dl-horizontal" z-def to-define="hosts.current" define-headers="hosts.headers">
     </dl>
     <p>You may edit or remove the selected host.</p>
     <div ng-include="'/static/partials/resource-actions.html'" ng-controller="ActionControl"></div>

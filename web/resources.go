@@ -171,6 +171,75 @@ func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client serviced.Co
 	w.WriteJson(&services)
 }
 
+func RestAddService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var payload serviced.Service
+	var unused int
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode service payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	service, err := serviced.NewService()
+	if err != nil {
+		glog.Errorf("Could not create service: %v", err)
+	}
+	service.Name = payload.Name
+	service.PoolId = payload.PoolId
+	service.ImageId = payload.ImageId
+	service.Startup = payload.Startup
+
+	err = client.AddService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unable to add service: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Added service", servicesLink()})
+}
+
+func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	glog.Infof("Received update request for %s", serviceId)
+	var payload serviced.Service
+	var unused int
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode service payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.UpdateService(payload, &unused)
+	if err != nil {
+		glog.Errorf("Unable to update service: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Updated service", servicesLink()})
+}
+
+
+func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+	var unused int
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	err = client.RemoveService(serviceId, &unused)
+	if err != nil {
+		glog.Errorf("Could not remove service: %v", err)
+		RestServerError(w)
+		return
+	}
+	glog.Infof("Removed service %s", serviceId)
+	w.WriteJson(&SimpleResponse{"Removed service", servicesLink()})
+}
+
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
 	var poolHosts []*serviced.PoolHost
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
@@ -239,13 +308,13 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
-		glog.Infof("Could not decode pool payload: %v", err)
+		glog.Infof("Could not decode host payload: %v", err)
 		RestBadRequest(w)
 		return
 	}
 	err = client.UpdateHost(payload, &unused)
 	if err != nil {
-		glog.Errorf("Unable to update pool: %v", err)
+		glog.Errorf("Unable to update host: %v", err)
 		RestServerError(w)
 		return
 	}

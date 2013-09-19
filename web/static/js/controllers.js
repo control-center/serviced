@@ -21,6 +21,9 @@ angular.module('controlplane', ['ngCookies']).
             when('/services', {
                 templateUrl: '/static/partials/services.html',
                 controller: ConfigurationControl}).
+            when('/services/:serviceId', {
+                templateUrl: '/static/partials/service-details.html',
+                controller: ServiceControl}).
             when('/resources', {
                 templateUrl: '/static/partials/resources.html',
                 controller: ResourcesControl}).
@@ -46,7 +49,33 @@ angular.module('controlplane', ['ngCookies']).
     }]).
     factory('resourcesService', ResourcesService).
     factory('wizardService', WizardService).
-    factory('servicesService', ServicesService);
+    factory('servicesService', ServicesService).
+    directive('zDef', function ($compile) {
+        // This directive builds a definition list for the object named by 
+        // 'to-define' using the fields enumerated in 'define-headers'
+        return {
+            // This directive appears as an attribute
+            restrict: 'A', 
+            compile: function(tElem, tAttr) {
+                return function($scope, $elem, $attrs) {
+                    // called whenever the object named in 'define-headers' changes
+                    $scope.$watch($attrs.defineHeaders, function(newVal, oldVal) {
+                        var defineHeaders = newVal;
+                        if (defineHeaders) {
+                            var sb = '';
+                            for(var i=0; i < defineHeaders.length; i++) {
+                                sb += '<dt>' + defineHeaders[i].name +'</dt>';
+                                sb += '<dd>{{' + $attrs.toDefine + '.' + defineHeaders[i].id + '}}</dd>';
+                            }
+                            tElem.html(sb);
+                            $compile(tElem.contents())($scope);
+                        }
+                    });
+                };
+            }
+        };
+    });
+
 
 function EntryControl($scope) {
     $scope.mainlinks = [
@@ -129,23 +158,50 @@ function WizardControl($scope, $cookies, $location, wizardService, resourcesServ
 
 
 // Controller for configuration
-function ConfigurationControl($scope, $routeParams, servicesService) {
+function ConfigurationControl($scope, $routeParams, $location, servicesService) {
     $scope.name = "configuration";
     $scope.params = $routeParams;
+    $scope.breadcrumbs = [
+        { label: 'Configuration', itemClass: 'active' }
+    ];
+
     $scope.services = buildTable('Name', [
-        { id: 'Id', name: 'Id'}, 
         { id: 'Name', name: 'Name'},
         { id: 'Description', name: 'Description'},
-        { id: 'Startup', name: 'Startup'},
-        { id: 'Instances', name: 'Instances'},
-        { id: 'ImageId', name: 'Image Id'},
         { id: 'PoolId', name: 'Pool Id'},
-        { id: 'DesiredState', name: 'Desired State'}
+        { id: 'Instances', name: 'Instances'}
     ]);
+    $scope.click_service = function(serviceId) {
+        var redirect = '/services/' + serviceId;
+        $location.path(redirect);
+    };
     refreshServices($scope, servicesService, false);
 }
 
-function ActionControl($scope, $routeParams, resourcesService) {
+// Controller for configuration
+function ServiceControl($scope, $routeParams, servicesService) {
+    $scope.name = "configuration";
+    $scope.params = $routeParams;
+    $scope.breadcrumbs = [
+        { label: 'Configuration', url: '#/services', itemClass: '' },
+        { label: $scope.params.serviceId, itemClass: 'active' }
+    ];
+    $scope.services = {
+        headers: [
+            { name: 'Id', id: 'Id' },
+            { name: 'Name', id: 'Name' },
+            { name: 'Description', id: 'Description' },
+            { name: 'Pool Id', id: 'PoolId' },
+            { name: 'Startup Command', id: 'Startup' },
+            { name: 'Instances', id: 'Instances' },
+            { name: 'Desired State', id: 'DesiredState' }
+        ]
+    };
+    refreshServices($scope, servicesService, true);
+}
+
+// Common controller for resource action buttons
+function ActionControl($scope, $routeParams, $location, resourcesService, servicesService) {
     $scope.name = 'actions';
     $scope.params = $routeParams;
     $scope.newHost = {
@@ -154,13 +210,14 @@ function ActionControl($scope, $routeParams, resourcesService) {
     $scope.newPool = {
         ParentId: $scope.params.poolId
     };
+    $scope.newService = {};
 
     $scope.add_host = function() {
         console.log('Adding host %s as child of pool %s', 
                     $scope.newHost.Name, $scope.newHost.PoolId);
 
         resourcesService.add_host($scope.newHost, function(data) {
-            refreshHosts($scope, resourcesService);
+            refreshHosts($scope, resourcesService, false);
         });
         // Reset for another add
         $scope.newHost = {
@@ -182,10 +239,11 @@ function ActionControl($scope, $routeParams, resourcesService) {
     $scope.remove_pool = function() {
         console.log('Removing pool %s', $scope.params.poolId);
         resourcesService.remove_pool($scope.params.poolId, function(data) {
-            var redirect = '#/resources';
+            var redirect = '/resources';
             $('#removePool').on('hidden.bs.modal', function() {
                 console.log('Redirecting to %s', redirect);
-                $(location).attr('href', redirect);
+                $location.path(redirect);
+                $scope.$apply();
             });
 
         });
@@ -194,10 +252,11 @@ function ActionControl($scope, $routeParams, resourcesService) {
     $scope.remove_host = function() {
         console.log('Removing host %s', $scope.params.hostId);
         resourcesService.remove_host($scope.params.hostId, function(data) {
-            var redirect = '#/pools/' + $scope.params.poolId;
+            var redirect = '/pools/' + $scope.params.poolId;
             $('#removeHost').on('hidden.bs.modal', function() {
                 console.log('Redirecting to %s', redirect);
-                $(location).attr('href', redirect);
+                $location.path(redirect);
+                $scope.$apply();
             });
         });
     };
@@ -215,26 +274,53 @@ function ActionControl($scope, $routeParams, resourcesService) {
             refreshHosts($scope, resourcesService, false, false);
         });
     };
+
+    $scope.add_service = function() {
+        console.log('Adding service %s', $scope.newService.Name);
+
+        servicesService.add_service($scope.newService, function(data) {
+            refreshServices($scope, servicesService, false);
+        });
+        // Reset for another add
+        $scope.newService = {};
+    };
+
+    $scope.edit_service = function() {
+        console.log('Editing service %s', $scope.services.current.Name);
+        servicesService.update_service($scope.params.serviceId, $scope.services.current, function(data) {
+            refreshServices($scope, servicesService, false);
+        });
+    };
+
+    $scope.remove_service = function() {
+        console.log('Removing service %s', $scope.params.serviceId);
+        servicesService.remove_service($scope.params.serviceId, function(data) {
+            $('#removeService').on('hidden.bs.modal', function() {
+                console.log('redirecting to /services');
+                $location.path('/services');
+                $scope.$apply();
+            });
+        });
+
+    }
 }
 
 // Controller for resources
-function ResourcesControl($scope, $routeParams, resourcesService) {
+function ResourcesControl($scope, $routeParams, $location, resourcesService) {
     $scope.name = "resources";
     $scope.params = $routeParams;
-
+    $scope.breadcrumbs = [
+        { label: 'Resources', itemClass: 'active' }
+    ];
     $scope.pools = buildTable('Id', [
         { id: 'Id', name: 'Id'}, 
         { id: 'ParentId', name: 'Parent Id'},
-        { id: 'CoreLimit', name: 'Core Limit'},
-        { id: 'MemoryLimit', name: 'Memory Limit'},
         { id: 'Priority', name: 'Priority'}
     ]);
-    $scope.set_order = set_order;
-    $scope.get_order_class = get_order_class;
+    console.log('pools.sort = %s', $scope.pools.sort);
     $scope.click_pool = function(poolId) {
-        var redirect = '#/pools/' + poolId;
-        console.log('Redirecting to %s', redirect);
-        $(location).attr('href', redirect);
+        var redirect = '/pools/' + poolId;
+        $location.path(redirect);
     }
     $scope.hosts = {};
 
@@ -243,24 +329,31 @@ function ResourcesControl($scope, $routeParams, resourcesService) {
 }
 
 // Controller for resources -> pool details
-function PoolControl($scope, $routeParams, $http, resourcesService) {
+function PoolControl($scope, $routeParams, $http, $location, resourcesService) {
     $scope.name = "pool-details";
     $scope.params = $routeParams;
+    $scope.breadcrumbs = [
+        { label: 'Resources', url: '#/resources' },
+        { label: $scope.params.poolId, itemClass: 'active' }
+    ];
 
-    $scope.pools = {};
-    refreshPools($scope, resourcesService, true);
-    $scope.click_host = function(host) {
-        var redirect = '#/pools/' + $scope.params.poolId + "/hosts/" + host;
-        console.log('Redirecting to %s', redirect);
-        $(location).attr('href', redirect);
+    $scope.pools = {
+        headers: [
+            { id: 'Id', name: 'Id'}, 
+            { id: 'ParentId', name: 'Parent Id'},
+            { id: 'CoreLimit', name: 'Core Limit'},
+            { id: 'MemoryLimit', name: 'Memory Limit'},
+            { id: 'Priority', name: 'Priority'}
+        ]
     };
-    $scope.set_order = set_order;
-    $scope.get_order_class = get_order_class;
+    refreshPools($scope, resourcesService, true);
+    $scope.click_host = function(pool, host) {
+        var redirect = '/pools/' + pool + "/hosts/" + host;
+        console.log('Redirecting to %s', redirect);
+        $location.path(redirect);
+    };
     $scope.hosts = buildTable('Name', [
-        { id: 'Id', name: 'Id'}, 
         { id: 'Name', name: 'Name'},
-        { id: 'Cores', name: 'Cores'},
-        { id: 'Memory', name: 'Memory'},
         { id: 'IpAddr', name: 'IP Address'},
         { id: 'PrivateNetwork', name: 'Private Network'}
     ]);
@@ -271,9 +364,24 @@ function PoolControl($scope, $routeParams, $http, resourcesService) {
 function HostControl($scope, $routeParams, $http, resourcesService) {
     $scope.name = "host-details"
     $scope.params = $routeParams;
+    $scope.breadcrumbs = [
+        { label: 'Resources', url: '#/resources' },
+        { label: $scope.params.poolId, url: '#/pools/' + $scope.params.poolId },
+        { label: $scope.params.hostId, itemClass: 'active' }
+    ];
+
     $scope.pools = {};
     refreshPools($scope, resourcesService, true);
-    $scope.hosts = {};
+    $scope.hosts = {
+        headers: [
+            { id: 'Id', name: 'Id'}, 
+            { id: 'Name', name: 'Name'},
+            { id: 'Cores', name: 'Cores'},
+            { id: 'Memory', name: 'Memory'},
+            { id: 'IpAddr', name: 'IP Address'},
+            { id: 'PrivateNetwork', name: 'Private Network'}
+        ]
+    };
     console.log('In scope for host ' + $scope.params.hostId);
     refreshHosts($scope, resourcesService, true, true);
 }
@@ -415,7 +523,42 @@ function ServicesService($http) {
             } else {
                 _get_services(callback);
             }
+        },
+
+        add_service: function(service, callback) {
+            console.log('Adding detail: %s', JSON.stringify(service));
+            $http.post('/services/add', service).
+                success(function(data, status) {
+                    console.log('Added new service');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Adding service failed: ' + JSON.stringify(data));
+                });
+        },
+
+        update_service: function(serviceId, editedService, callback) {
+            $http.post('/services/' + serviceId, editedService).
+                success(function(data, status) {
+                    console.log('Updated service ' + serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Updating service failed: ' + JSON.stringify(data));
+                });
+        },
+
+        remove_service: function(serviceId, callback) {
+            $http.delete('/services/' + serviceId).
+                success(function(data, status) {
+                    console.log('Removed service ' + serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Removing service failed: ' + JSON.stringify(data));
+                });
         }
+
     }
 }
 
@@ -623,15 +766,17 @@ function refreshServices($scope, servicesService, cacheOk) {
         allServices.map(function(elem) {
             $scope.services.mapped[elem.Id] = elem;
         });
+        if ($scope.params.serviceId !== undefined) {
+            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
+        }
     });
 }
 
 function refreshPools($scope, resourcesService, cachePools) {
     resourcesService.get_pools(cachePools, function(allPools) {
-        $scope.pools.data = allPools;//map_to_array(allPools);
+        $scope.pools.data = map_to_array(allPools);
         if ($scope.params.poolId !== undefined) {
             $scope.pools.current = allPools[$scope.params.poolId];
-            console.log('Current pool: %s', JSON.stringify($scope.pools.current));
         }
     });
 }
@@ -654,7 +799,6 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
                     $scope.hosts.data.push(currentHost);
                     if ($scope.params.hostId === currentHost.Id) {
                         $scope.hosts.current = currentHost;
-                        console.log('Current host: %s', JSON.stringify($scope.hosts.current));
                     }
                 }
             });
