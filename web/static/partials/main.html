@@ -3,8 +3,8 @@
         <h2>Service Dynamics</h2>
         <p>Welcome to the Control Plane.</p>
         <ul class="list-unstyled">
-          <li><a href="#/wizard/start">Install</a></li>
-          <li><a href="#/configuration">Configure services</a></li>
-          <li><a href="#/resources">Manage resources</a></li>
+          <li ng-repeat="link in mainlinks">
+            <a href="{{link.url}}">{{link.label}}</a>
+          </li>
         </ul>
       </div>

@@ -15,9 +15,11 @@
 angular.module('controlplane', ['ngCookies']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
-            when('/entry', { templateUrl: '/static/partials/main.html' }).
-            when('/configuration', {
-                templateUrl: '/static/partials/configuration.html',
+            when('/entry', { 
+                templateUrl: '/static/partials/main.html',
+                controller: EntryControl}).
+            when('/services', {
+                templateUrl: '/static/partials/services.html',
                 controller: ConfigurationControl}).
             when('/resources', {
                 templateUrl: '/static/partials/resources.html',
@@ -45,6 +47,14 @@ angular.module('controlplane', ['ngCookies']).
     factory('resourcesService', ResourcesService).
     factory('wizardService', WizardService).
     factory('servicesService', ServicesService);
+
+function EntryControl($scope) {
+    $scope.mainlinks = [
+        { url: '#/wizard/start', label: 'Install' },
+        { url: '#/services', label: 'Configure services' },
+        { url: '#/resources', label: 'Manage resources' }
+    ];
+}
 
 function LoginControl($scope, $http, $location) {
     $scope.brand_label = "SERVICE DYNAMICS";
@@ -273,11 +283,15 @@ function NavbarControl($scope, $http, $cookies) {
     if ($cookies['ZCPToken'] === undefined) {
         $(location).attr('href', '/login');
     }
-    $scope.brand = 'Control Plane';
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
     $scope.username = $cookies['ZUsername'];
+    $scope.brand = { url: '#/entry', label: 'Control Plane' };
+    $scope.navlinks = [
+        { url: '#/services', label: 'Configuration' },
+        { url: '#/resources', label: 'Resources' }
+    ];
     $scope.logout = function() {
         $http.delete('/login').
             success(function(data, status) {
@@ -603,13 +617,18 @@ function ResourcesService($http) {
 
 function refreshServices($scope, servicesService, cacheOk) {
     servicesService.get_services(cacheOk, function(allServices) {
-        $scope.services.data = map_to_array(allServices);
+        $scope.services.data = allServices;
+        $scope.services.mapped = {};
+        // Create a Map(Id -> Service)
+        allServices.map(function(elem) {
+            $scope.services.mapped[elem.Id] = elem;
+        });
     });
 }
 
 function refreshPools($scope, resourcesService, cachePools) {
     resourcesService.get_pools(cachePools, function(allPools) {
-        $scope.pools.data = map_to_array(allPools);
+        $scope.pools.data = allPools;//map_to_array(allPools);
         if ($scope.params.poolId !== undefined) {
             $scope.pools.current = allPools[$scope.params.poolId];
             console.log('Current pool: %s', JSON.stringify($scope.pools.current));

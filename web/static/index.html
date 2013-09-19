@@ -35,12 +35,11 @@
       <!-- Static navbar -->
       <div class="navbar navbar-inverse" ng-controller="NavbarControl">
         <div class="navbar-header">
-          <a class="navbar-brand" href="#/entry">{{brand}}</a>
+          <a class="navbar-brand" href="{{brand.url}}">{{brand.label}}</a>
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <li><a href="#/configuration">{{configuration}}</a></li>
-            <li><a href="#/resources">{{resources}}</a></li>
+            <li ng-repeat="navlink in navlinks"><a href="{{navlink.url}}">{{navlink.label}}</a></li>
           </ul>
           <ul class="nav navbar-nav navbar-right">
             <li><span class="item">{{username}}</span></li>

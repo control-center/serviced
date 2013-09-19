@@ -1,8 +1,10 @@
+<!-- 
 <div class="row row-offcanvas row-offcanvas-left">
   <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'">
   </div>
 
   <div class="col-xs-12 col-sm-9">
+-->
     <ol class="breadcrumb">
       <li><a href="#/resources">Resources</a></li>
       <li class="active">{{params.poolId}}</li>
@@ -51,7 +53,5 @@
         </tr>
       </tbody>
     </table>
-  </div>
-  <div ng-include="'/static/partials/resource-actions.html'" ng-controller="ActionControl"></div>
-  
-</div>
+    <div ng-include="'/static/partials/resource-actions.html'" ng-controller="ActionControl"></div>
+
