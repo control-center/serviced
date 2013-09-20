@@ -18,6 +18,9 @@ angular.module('controlplane', ['ngCookies']).
             when('/entry', { 
                 templateUrl: '/static/partials/main.html',
                 controller: EntryControl}).
+            when('/login', {
+                templateUrl: '/static/partials/login.html',
+                controller: LoginControl}).
             when('/services', {
                 templateUrl: '/static/partials/services.html',
                 controller: ConfigurationControl}).
@@ -50,6 +53,7 @@ angular.module('controlplane', ['ngCookies']).
     factory('resourcesService', ResourcesService).
     factory('wizardService', WizardService).
     factory('servicesService', ServicesService).
+    factory('authService', AuthService).
     directive('zDef', function ($compile) {
         // This directive builds a definition list for the object named by 
         // 'to-define' using the fields enumerated in 'define-headers'
@@ -77,7 +81,9 @@ angular.module('controlplane', ['ngCookies']).
     });
 
 
-function EntryControl($scope) {
+function EntryControl($scope, authService) {
+    console.log('Loading entry');
+    authService.checkLogin($scope);
     $scope.mainlinks = [
         { url: '#/wizard/start', label: 'Install' },
         { url: '#/services', label: 'Configure services' },
@@ -85,7 +91,7 @@ function EntryControl($scope) {
     ];
 }
 
-function LoginControl($scope, $http, $location) {
+function LoginControl($scope, $http, $location, authService) {
     $scope.brand_label = "SERVICE DYNAMICS";
     $scope.login_button_text = "Log In";
     $scope.login_alert = $('#login_alert')
@@ -101,15 +107,12 @@ function LoginControl($scope, $http, $location) {
         var creds = { "Username": $scope.username, "Password": $scope.password };
         $http.post('/login', creds).
             success(function(data, status) {
-                $scope.extra_class = 'has-success';
-                $scope.login_status = 'alert-success';
-                $scope.login_message = data.Detail;
-                $scope.next_url = '/#' + $location.path();
-                console.log('Next URL = %s', $scope.next_url);
-                $scope.login_alert.rollmsg();
-                $(location).attr('href', $scope.next_url);
+                authService.login(true);
+                console.log('Redirecting to /entry');
+                $location.path('/entry');
             }).
             error(function(data, status) {
+                authService.login(false);
                 $scope.extra_class = 'has-error';
                 $scope.login_status = 'alert-danger';
                 $scope.login_message = data.Detail;
@@ -118,7 +121,9 @@ function LoginControl($scope, $http, $location) {
     };
 }
 
-function WizardControl($scope, $cookies, $location, wizardService, resourcesService) {
+function WizardControl($scope, $location, wizardService, resourcesService, authService) {
+    authService.checkLogin($scope);
+
     console.log('Initialized control for %s', $location.path());
     $scope.params = {}; // No path params for wizard pages
     $scope.pools = {}; // We start with no pools
@@ -148,9 +153,6 @@ function WizardControl($scope, $cookies, $location, wizardService, resourcesServ
         var nextPath = wizardService.cancel_page($location.path());
         $location.path(nextPath);
     };
-    if ($cookies['ZCPToken'] === undefined) {
-        $(location).attr('href', '/login');
-    }
     $scope.form_class = 'form-group has-error';
 
     wizardService.fix_location($location);
@@ -158,7 +160,9 @@ function WizardControl($scope, $cookies, $location, wizardService, resourcesServ
 
 
 // Controller for configuration
-function ConfigurationControl($scope, $routeParams, $location, servicesService) {
+function ConfigurationControl($scope, $routeParams, $location, servicesService, authService) {
+    authService.checkLogin($scope);
+
     $scope.name = "configuration";
     $scope.params = $routeParams;
     $scope.breadcrumbs = [
@@ -179,7 +183,9 @@ function ConfigurationControl($scope, $routeParams, $location, servicesService) 
 }
 
 // Controller for configuration
-function ServiceControl($scope, $routeParams, servicesService) {
+function ServiceControl($scope, $routeParams, servicesService, authService) {
+    authService.checkLogin($scope);
+
     $scope.name = "configuration";
     $scope.params = $routeParams;
     $scope.breadcrumbs = [
@@ -306,7 +312,9 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
 }
 
 // Controller for resources
-function ResourcesControl($scope, $routeParams, $location, resourcesService) {
+function ResourcesControl($scope, $routeParams, $location, resourcesService, authService) {
+    authService.checkLogin($scope);
+
     $scope.name = "resources";
     $scope.params = $routeParams;
     $scope.breadcrumbs = [
@@ -329,7 +337,9 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService) {
 }
 
 // Controller for resources -> pool details
-function PoolControl($scope, $routeParams, $http, $location, resourcesService) {
+function PoolControl($scope, $routeParams, $http, $location, resourcesService, authService) {
+    authService.checkLogin($scope);
+
     $scope.name = "pool-details";
     $scope.params = $routeParams;
     $scope.breadcrumbs = [
@@ -361,7 +371,9 @@ function PoolControl($scope, $routeParams, $http, $location, resourcesService) {
 }
 
 // Controller for resources -> pool details -> host details
-function HostControl($scope, $routeParams, $http, resourcesService) {
+function HostControl($scope, $routeParams, $http, resourcesService, authService) {
+    authService.checkLogin($scope);
+
     $scope.name = "host-details"
     $scope.params = $routeParams;
     $scope.breadcrumbs = [
@@ -386,11 +398,9 @@ function HostControl($scope, $routeParams, $http, resourcesService) {
     refreshHosts($scope, resourcesService, true, true);
 }
 
+
 // Controller for top nav
-function NavbarControl($scope, $http, $cookies) {
-    if ($cookies['ZCPToken'] === undefined) {
-        $(location).attr('href', '/login');
-    }
+function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
@@ -401,11 +411,10 @@ function NavbarControl($scope, $http, $cookies) {
         { url: '#/resources', label: 'Resources' }
     ];
     $scope.logout = function() {
+        authService.login(false);
         $http.delete('/login').
             success(function(data, status) {
-                var redirect = next_url(data);
-                console.log('Next URL = %s', redirect);
-                $(location).attr('href', redirect);
+                $location.path('/login');
             }).
             error(function(data, status) {
                 console.log('Unable to log out. Were you logged in to begin with?');
@@ -501,7 +510,7 @@ function WizardService() {
     };
 }
 
-function ServicesService($http) {
+function ServicesService($http, $location) {
     var cached_services;
     var _get_services = function(callback) {
         $http.get('/services').
@@ -512,6 +521,10 @@ function ServicesService($http) {
             }).
             error(function(data, status) {
                 console.log('Unable to retrieve services');
+                if (status === 401) {
+                    unauthorized($location);
+                }
+
             });
     };
 
@@ -534,6 +547,9 @@ function ServicesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Adding service failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -545,6 +561,9 @@ function ServicesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Updating service failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -556,13 +575,16 @@ function ServicesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Removing service failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         }
 
     }
 }
 
-function ResourcesService($http) {
+function ResourcesService($http, $location) {
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -577,6 +599,9 @@ function ResourcesService($http) {
             }).
             error(function(data, status) {
                 console.log('Unable to retrieve list of pools');
+                if (status === 401) {
+                    unauthorized($location);
+                }
             });
     };
     var _get_hosts_for_pool = function(poolId, callback) {
@@ -588,6 +613,9 @@ function ResourcesService($http) {
             }).
             error(function(data, status) {
                 console.log('Unable to retrieve hosts for pool %s', poolId);
+                if (status === 401) {
+                    unauthorized($location);
+                }
             });
     };
     var _get_hosts = function(callback) {
@@ -599,8 +627,12 @@ function ResourcesService($http) {
             }).
             error(function(data, status) {
                 console.log('Unable to retrieve host details');
+                if (status === 401) {
+                    unauthorized($location);
+                }
             });
     };
+
     return {
         /*
          * Get the most recently retrieved map of resource pools.
@@ -634,6 +666,9 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Adding pool failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -652,6 +687,9 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Updating pool failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -669,6 +707,9 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Removing pool failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -703,6 +744,9 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Adding host failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -721,6 +765,10 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Updating host failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+
                 });
         },
 
@@ -738,6 +786,9 @@ function ResourcesService($http) {
                 }).
                 error(function(data, status) {
                     console.log('Removing host failed: ' + JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
                 });
         },
 
@@ -806,6 +857,27 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
     });
 }
 
+function AuthService($cookies, $location) {
+    var loggedIn = false;
+    return { 
+        login: function(truth) {
+            loggedIn = truth;
+        },
+        checkLogin: function($scope) {
+            if (loggedIn) {
+                $scope.loggedIn = true;
+                return;
+            }
+            if ($cookies['ZCPToken'] !== undefined) {
+                loggedIn = true;
+                $scope.loggedIn = true;
+            } else {
+                unauthorized($location);
+            }
+        }
+    };
+}
+
 /*
  * Helper function transforms Map(K -> V) into Array(V)
  */
@@ -815,6 +887,11 @@ function map_to_array(data) {
         arr[arr.length] = data[key];
     }
     return arr;
+}
+
+function unauthorized($location) {
+    console.log('You don\'t appear to be logged in.');
+    $location.path('/login');
 }
 
 /*

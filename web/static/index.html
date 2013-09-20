@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="">
-    <meta name="author" content="">
+    <meta name="description" content="Zenoss Control Plane">
+    <meta name="author" content="Zenoss">
     <link rel="shortcut icon" href="/static/ico/zenoss-o.png" type="image/png">
 
     <title>Control Plane</title>
@@ -30,23 +30,7 @@
 
   <body>
 
-    <div class="container">
-
-      <!-- Static navbar -->
-      <div class="navbar navbar-inverse" ng-controller="NavbarControl">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="{{brand.url}}">{{brand.label}}</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-            <li ng-repeat="navlink in navlinks"><a href="{{navlink.url}}">{{navlink.label}}</a></li>
-          </ul>
-          <ul class="nav navbar-nav navbar-right">
-            <li><span class="item">{{username}}</span></li>
-            <li><a href="#logout" ng-click="logout()">Logout</a></li>
-          </ul>
-        </div><!--/.nav-collapse -->
-      </div>
+    <div class="container" ng-view>
       <div ng-view></div>
     </div> <!-- /container -->
   </body>

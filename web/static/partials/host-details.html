@@ -1,3 +1,4 @@
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
     <ol class="breadcrumb inline">
       <li ng-repeat="crumb in breadcrumbs" ng-class="crumb.itemClass" ng-switch on="crumb.url">
         <span ng-switch-when="undefined">{{crumb.label}}</span>

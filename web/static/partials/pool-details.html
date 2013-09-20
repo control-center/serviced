@@ -1,10 +1,4 @@
-<!-- 
-<div class="row row-offcanvas row-offcanvas-left">
-  <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'">
-  </div>
-
-  <div class="col-xs-12 col-sm-9">
--->
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
     <ol class="breadcrumb inline">
       <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
         <span ng-switch-when="undefined">{{crumb.label}}</span>

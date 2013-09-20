@@ -12,9 +12,7 @@ func main() {
 		EnableRelaxedContentType: true,
         }
 	handler.SetRoutes(
-		rest.Route{"GET", "/", web.AuthorizedHtml(web.MainPage)},
-		rest.Route{"GET", "/wizard", web.AuthorizedHtml(web.WizardPage)},
-		rest.Route{"GET", "/login", web.ContentLoginPage},
+		rest.Route{"GET", "/", web.MainPage},
 		rest.Route{"GET", "/hosts", web.AuthorizedClient(web.RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", web.AuthorizedClient(web.RestAddHost)},
 		rest.Route{"POST", "/pools/add", web.AuthorizedClient(web.RestAddPool)},

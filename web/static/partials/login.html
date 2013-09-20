@@ -1,0 +1,9 @@
+    <div class="container login-container">
+      <form id="login" class="form-signin {{extra_class}}" ng-submit="login()">
+        <h3>{{brand_label}}</h3>
+        <input type="text" ng-model="username" class="form-control" placeholder="Username" autofocus>
+        <input type="password" ng-model="password" class="form-control" placeholder="Password">
+        <button class="btn btn-lg btn-primary btn-block" type="submit">{{login_button_text}}</button>
+        <div id="login_alert" class="alert {{login_status}}">{{login_message}}</div>
+      </form>
+    </div>
