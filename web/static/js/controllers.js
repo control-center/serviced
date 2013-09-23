@@ -133,11 +133,6 @@ function WizardControl($scope, $location, wizardService, resourcesService, authS
     // Ensure our scope has a list of pools
     refreshPools($scope, resourcesService, true);
 
-    $scope.add_host = function() {
-        console.log('User added %s', $scope.context.newHost);
-        $scope.context.hosts.push($scope.context.newHost);
-        $scope.context.newHost = null;
-    };
     $scope.next = function(wizardForm) {
         $scope.nextClicked = true;
         if (wizardForm == null || wizardForm.$valid) {
@@ -153,7 +148,6 @@ function WizardControl($scope, $location, wizardService, resourcesService, authS
         var nextPath = wizardService.cancel_page($location.path());
         $location.path(nextPath);
     };
-    $scope.form_class = 'form-group has-error';
 
     wizardService.fix_location($location);
 }
@@ -325,7 +319,6 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
         { id: 'ParentId', name: 'Parent Id'},
         { id: 'Priority', name: 'Priority'}
     ]);
-    console.log('pools.sort = %s', $scope.pools.sort);
     $scope.click_pool = function(poolId) {
         var redirect = '/pools/' + poolId;
         $location.path(redirect);
@@ -451,8 +444,13 @@ function WizardService() {
         }
         return wizard_data;
     };
+    /*
+     * The basic premise here is that we want to check to see if there is an 
+     * entry for the previous page of the flow in our wizard_data.done object.
+     * If yes then the current page is fine and we do nothing; otherwise repeat
+     * repeat until we find a page with an appropriate wizard_data.done entry.
+     */
     var _fix_location = function($location) {
-        
         var d = _get_wizard_data();
         var pageIndex = 0;
         for (var i=0; i < d.flow.length; i++) {
@@ -464,7 +462,9 @@ function WizardService() {
         }
         
         var needToRedirect = false;
-        while (d.done[d.flow[pageIndex -1]] !== true && pageIndex > 0) {
+        // We only redirect if this page is in the flow and the requirements are
+        // not met.
+        while (pageIndex > 0 && d.done[d.flow[pageIndex -1]] !== true) {
             pageIndex -= 1;
             needToRedirect = true;
         }
@@ -495,11 +495,11 @@ function WizardService() {
         for (var i=0; i < d.flow.length; i++) {
             if (d.flow[i] === currentPath) {
                 // Found current element.
-                pageIndex = i;
+                pageIndex = (i + 1);
                 break;
             }
         }
-        return d.flow[pageIndex + 1];
+        return d.flow[pageIndex];
     };
 
     return {
