@@ -9,11 +9,11 @@ describe('EntryControl', function() {
         ctrl = $controller('EntryControl', { $scope: $scope });
     }));
 
-    it('Should set 3 main links', function() {
+    it('Sets 3 main links', function() {
         expect($scope.mainlinks.length).toEqual(3);
     });
 
-    it('Should create links that contain url and label', function() {
+    it('Creates links that contain url and label', function() {
         for(var i=0; i < $scope.mainlinks.length; i++) {
             expect($scope.mainlinks[i].url).toMatch(/^#\/.+/);
             expect($scope.mainlinks[i].label).not.toBeUndefined();
@@ -43,19 +43,19 @@ describe('LoginControl', function() {
         $httpBackend.verifyNoOutstandingRequest();
     });
  
-    it('Should set some labels', function() {
+    it('Sets some labels', function() {
         expect($scope.brand_label).not.toBeUndefined();
         expect($scope.login_button_text).not.toBeUndefined();
     });
 
-    it('Should set path on successful login', function() {
+    it('Sets path on successful login', function() {
         $httpBackend.when('POST', '/login').respond({Detail: 'SuccessfulPost'});
         $scope.login();
         $httpBackend.flush();
         expect($location.path()).toBe('/entry');
     });
 
-    it('Should stay put on failed login', function() {
+    it('Does not change path on failed login', function() {
         $httpBackend.when('POST', '/login').respond(401, {Detail: 'Bad Login'});
         $scope.login();
         $httpBackend.flush();
@@ -82,7 +82,7 @@ describe('WizardControl', function() {
         });
     }));
 
-    it('Should provide a \'next\' function that checks form validity', function() {
+    it('Provides a \'next\' function that checks form validity', function() {
         // Form provided with validity = true
         $location.path('/before');
         $scope.next({ $valid: true });
@@ -99,7 +99,7 @@ describe('WizardControl', function() {
         expect($location.path()).toBe('/fake_next');
     });
 
-    it('Should provide a \'cancel\' function that delegates to wizardService', function() {
+    it('Provides a \'cancel\' function that delegates to wizardService', function() {
         $location.path('/before');
         $scope.cancel();
         expect($location.path()).toBe('/canceled');
@@ -124,18 +124,18 @@ describe('ConfigurationControl', function() {
         });
     }));
 
-    it('Should provide a breadcrumb', function() {
+    it('Provides a breadcrumb', function() {
         // Has a breadcrumb
         expect($scope.breadcrumbs).not.toBeUndefined();
         // Is an array of size 1 (top level)
         expect($scope.breadcrumbs.length).toBe(1);
     });
 
-    it('Should create a services table', function() {
+    it('Creates a services table', function() {
         expect_table($scope.services);
     });
 
-    it('Should provide a \'click_service\' function', function() {
+    it('Provides a \'click_service\' function', function() {
         expect($scope.click_service).not.toBeUndefined();
         $location.path('/before');
         // Pass a fake serviceId to click_service function
@@ -164,20 +164,20 @@ describe('ServiceControl', function() {
         });
     }));
 
-    it('Should provide a breadcrumb', function() {
+    it('Provides a breadcrumb', function() {
         // Has a breadcrumb
         expect($scope.breadcrumbs).not.toBeUndefined();
         // Is an array of size 2
         expect($scope.breadcrumbs.length).toBe(2);
     });
 
-    it('Should provide service detail headers', function() {
+    it('Provides service detail headers', function() {
         expect($scope.services).not.toBeUndefined();
         expect($scope.services.headers).not.toBeUndefined();
         expect($scope.services.headers.length).not.toBeUndefined();
     });
 
-    it('Should provide current service', function() {
+    it('Sets the current service based on scope.params', function() {
         // This depends on 'serviceId' being set in $routeParams
         // and matching an id from $scope.services.data
         expect($scope.services).not.toBeUndefined();
@@ -211,21 +211,21 @@ describe('ActionControl', function() {
         $scope.services = {};
     }));
     
-    it('Should create a stub for new pools', function() {
+    it('Creates a stub for new pools', function() {
         expect($scope.newPool).not.toBeUndefined();
         expect($scope.newPool.ParentId).toBe('pool123');
     });
 
-    it('Should create a stub for new hosts', function() {
+    it('Crates a stub for new hosts', function() {
         expect($scope.newHost).not.toBeUndefined();
         expect($scope.newHost.PoolId).toBe('pool123');
     });
 
-    it('Should create a stub for new services', function() {
+    it('Creates a stub for new services', function() {
         expect($scope.newService).not.toBeUndefined();
     });
 
-    it('Should provide an \'add_pool\' function', function() {
+    it('Provides an \'add_pool\' function', function() {
         // add_pool method must not be called unless $scope.pools exists
         expect($scope.add_pool).not.toBeUndefined();
         $scope.newPool.Id = 'aoeu';
@@ -240,7 +240,7 @@ describe('ActionControl', function() {
         expect($scope.newPool).toEqual({ParentId: 'pool123'});
     });
 
-    it('Should provide an \'add_host\' function', function() {
+    it('Provides an \'add_host\' function', function() {
         // add_host method must not be called unless $scope.hosts exists
         expect($scope.add_host).not.toBeUndefined();
         $scope.newHost.Id = 'aoeu';
@@ -255,7 +255,7 @@ describe('ActionControl', function() {
         expect($scope.newHost).toEqual({PoolId: 'pool123'});
     });
 
-    it('Should provide an \'add_service\' function', function() {
+    it('Provides an \'add_service\' function', function() {
         // add_service method must not be called unless $scope.pools exists
         expect($scope.add_service).not.toBeUndefined();
         $scope.newService.Id = 'aoeu';
@@ -270,7 +270,7 @@ describe('ActionControl', function() {
         expect($scope.newService).toEqual({});
     });
 
-    it('Should provide a \'remove_pool\' function', function() {
+    it('Provides a \'remove_pool\' function', function() {
         spyOn(resourcesService, 'remove_pool');
         $scope.remove_pool();
         expect(resourcesService.remove_pool).toHaveBeenCalled();
@@ -281,7 +281,7 @@ describe('ActionControl', function() {
         //expect($location.path()).toBe('/resources');
     });
 
-    it('Should provide a \'remove_host\' function', function() {
+    it('Provides a \'remove_host\' function', function() {
         spyOn(resourcesService, 'remove_host');
         $scope.remove_host();
         expect(resourcesService.remove_host).toHaveBeenCalled();
@@ -292,7 +292,7 @@ describe('ActionControl', function() {
         //expect($location.path()).toBe('/pools/pool123');
     });
 
-    it('Should provide a \'remove_service\' function', function() {
+    it('Provides a \'remove_service\' function', function() {
         spyOn(servicesService, 'remove_service');
         $scope.remove_service();
         expect(servicesService.remove_service).toHaveBeenCalled();
@@ -301,7 +301,7 @@ describe('ActionControl', function() {
         // expect($location.path()).toBe('/services');7
     });
 
-    it('Should provide an \'edit_pool\' function', function() {
+    it('Provides an \'edit_pool\' function', function() {
         // Populate $scope.pools.current. Normally this is done by the main view controller
         refreshPools($scope, resourcesService, true);
         // edit_pool method must not be called unless $scope.pools.current exists
@@ -315,7 +315,7 @@ describe('ActionControl', function() {
         expect(resourcesService.update_pool.mostRecentCall.args[1]).toEqual($scope.pools.current);
     });
 
-    it('Should provide an \'edit_host\' function', function() {
+    it('Provides an \'edit_host\' function', function() {
         // Populate $scope.hosts.current. Normally this is done by the main view controller
         refreshHosts($scope, resourcesService, true, true);
         // edit_host method must not be called unless $scope.hosts.current exists
@@ -329,7 +329,7 @@ describe('ActionControl', function() {
         expect(resourcesService.update_host.mostRecentCall.args[1]).toEqual($scope.hosts.current);
     });
 
-    it('Should provide an \'edit_service\' function', function() {
+    it('Provides an \'edit_service\' function', function() {
         // Populate $scope.hosts.current. Normally this is done by the main view controller
         refreshServices($scope, servicesService, true);
         // edit_service method must not be called unless $scope.services.current exists
@@ -362,22 +362,22 @@ describe('ResourcesControl', function() {
         });
     }));
 
-    it('Should provide a breadcrumb', function() {
+    it('Provides a breadcrumb', function() {
         // Has a breadcrumb
         expect($scope.breadcrumbs).not.toBeUndefined();
         // Is an array of size 1 (top level)
         expect($scope.breadcrumbs.length).toBe(1);
     });
 
-    it('Should create a pools table', function() {
+    it('Creates a pools table', function() {
         expect_table($scope.pools);
     });
 
-    it('Should populate hosts data', function() {
+    it('Populates hosts data', function() {
         expect($scope.hosts.data).not.toBeUndefined();
     });
 
-    it('Should provide a \'click_pool\' function', function() {
+    it('Provides a \'click_pool\' function', function() {
         $location.path('/before');
         $scope.click_pool('1234');
         expect($location.path()).toBe('/pools/1234');
@@ -403,25 +403,25 @@ describe('PoolControl', function() {
         });
     }));
 
-    it('Should provide a breadcrumb', function() {
+    it('Provides a breadcrumb', function() {
         // Has a breadcrumb
         expect($scope.breadcrumbs).not.toBeUndefined();
         // Is an array of size 2
         expect($scope.breadcrumbs.length).toBe(2);
     });
 
-    it('Should provide a hosts table', function() {
+    it('Provides a hosts table', function() {
         expect_table($scope.hosts);
     });
 
-    it('Should provide pool detail headers', function() {
+    it('Provides pool detail headers', function() {
         expect($scope.pools).not.toBeUndefined();
         expect($scope.pools.headers).not.toBeUndefined();
         expect($scope.pools.headers.length).not.toBeUndefined();
         expect($scope.pools.current).not.toBeUndefined();
     });
     
-    it('Should provide a \'click_host\' function', function() {
+    it('Provides a \'click_host\' function', function() {
         $location.path('/before');
         $scope.click_host('def1234', 'abc321');
         expect($location.path()).toBe('/pools/def1234/hosts/abc321');
@@ -448,14 +448,14 @@ describe('HostControl', function() {
         });
     }));
 
-    it('Should provide a breadcrumb', function() {
+    it('Provides a breadcrumb', function() {
         // Has a breadcrumb
         expect($scope.breadcrumbs).not.toBeUndefined();
         // Is an array of size 3
         expect($scope.breadcrumbs.length).toBe(3);
     });
 
-    it('Should provide host details headers', function() {
+    it('Provides host details headers', function() {
         expect($scope.hosts).not.toBeUndefined();
         expect($scope.hosts.headers).not.toBeUndefined();
         expect($scope.hosts.headers.length).not.toBeUndefined();
@@ -490,19 +490,19 @@ describe('NavbarControl', function() {
         $httpBackend.verifyNoOutstandingRequest();
     });
 
-    it('Should provides some navlinks', function() {
+    it('Provides some navlinks', function() {
         expect($scope.navlinks).not.toBeUndefined();
         // 2 or more navlinks please.
         expect($scope.navlinks.length).toBeGreaterThan(1); 
     });
 
-    it('Should provide brand details', function() {
+    it('Provides brand details', function() {
         expect($scope.brand).not.toBeUndefined();
         expect($scope.brand.url).not.toBeUndefined();
         expect($scope.brand.label).not.toBeUndefined();
     });
 
-    it('Should provide a \'logout\' function', function() {
+    it('Provides a \'logout\' function', function() {
         // Default for testing is to assume logged in.
         expect(authService.isLoggedIn()).toBe(true);
         $httpBackend.when('DELETE', '/login').respond({Detail: 'Logged Out'});
@@ -517,7 +517,6 @@ describe('WizardService', function() {
     var $location = null;
     var wizardService = null;
 
-
     beforeEach(module('controlplane'));
 
     beforeEach(inject(function($injector) {
@@ -526,7 +525,7 @@ describe('WizardService', function() {
         $location = $injector.get('$location');
     }));
 
-    it('Should provide a context that persists across controllers', function() {
+    it('Provides a context that persists across controllers', function() {
         // Across multiple injections, we get the same service and same context
         var firstContext = wizardService.get_context();
         firstContext.some_data = 'foo';
@@ -535,7 +534,7 @@ describe('WizardService', function() {
         expect(secondService.get_context()).toBe(firstContext);
     });
 
-    it('Should provide a \'next_page\' function', function() {
+    it('Provides a \'next_page\' function', function() {
         // Next from nowhere always goes to the start
         expect('/wizard/start').toEqual(wizardService.next_page('/before'));
         // start -> page1
@@ -546,7 +545,7 @@ describe('WizardService', function() {
         expect('/wizard/finish').toEqual(wizardService.next_page('/wizard/page2'));
     });
 
-    it('Should provide a \'fix_location\' function', function() {
+    it('Provides a \'fix_location\' function', function() {
         // Set the location to the end of the flow and call fix_location.
         // We should wind up at the start.
         wizardService.get_context().done = {};
@@ -573,7 +572,7 @@ describe('WizardService', function() {
         expect($location.path()).toBe('/something/completely/different');
     });
 
-    it('Should provide a \'cancel_page\' function', function() {
+    it('Provides a \'cancel_page\' function', function() {
         // Returns index path: /
         expect(wizardService.cancel_page()).toBe('/');
     });
@@ -727,11 +726,276 @@ describe('ResourcesService', function() {
         $httpBackend.flush();
         expect(resp.Detail).toEqual('Deleted');
     });
+
+    it('Can retrieve and cache hosts', function() {
+        // The first time GET is called, we have nothing cached so the first
+        // parameter is ignored.
+        $httpBackend.expect('GET', '/hosts').respond(fake_hosts());
+        var hosts = null;
+        resourcesService.get_hosts(false, function(data) {
+            hosts = data;
+        });
+        $httpBackend.flush();
+        expect(hosts).not.toBeNull();
+
+        // We should have some cached data this time, so do not expect any
+        // HTTP traffic.
+        hosts = null;
+        resourcesService.get_hosts(true, function(data) {
+            hosts = data;
+        });
+        expect(hosts).not.toBeNull();
+    });
+
+    it('Can add new hosts', function() {
+        var host = { Id: 'test' };
+        var resp = null;
+        $httpBackend.expect('POST', '/hosts/add', host).respond({ Detail: 'Added' });
+        resourcesService.add_host(host, function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Added');
+    });
+
+    it('Can update existing hosts', function() {
+        var host = { Id: 'test', Name: 'Test2' };
+        var resp = null;
+        $httpBackend.expect('POST', '/hosts/test', host).respond({ Detail: 'Edited' });
+        resourcesService.update_host(host.Id, host, function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Edited');
+    });
+
+    it('Can remove existing hosts', function() {
+        var resp = null;
+        $httpBackend.expect('DELETE', '/hosts/test').respond({ Detail: 'Deleted' });
+        resourcesService.remove_host('test', function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Deleted');
+    });
+});
+
+describe('AuthService', function() {
+    var $inj = null;
+    var $location = null;
+    var $cookies = null;
+    var authService = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $inj = $injector;
+        authService = $injector.get('authService');
+        $location = $injector.get('$location');
+        $cookies = $injector.get('$cookies');
+    }));
+
+    it('Keeps logged in flag that persists across controllers', function() {
+        var scope = {};
+        $cookies = {};
+        // Check the base case - defaults to false
+        $location.path('/before');
+        authService.checkLogin(scope);
+        expect($location.path()).toBe('/login');
+        expect(scope.loggedIn).toBeUndefined();
+
+        // Check basic internal state
+        $location.path('/before');
+        authService.login(true);
+        authService.checkLogin(scope);
+        expect($location.path()).toBe('/before');
+        expect(scope.loggedIn).toBe(true);
+
+        // Check across injections
+        var secondAuth = $inj.get('authService');
+        expect(authService).toBe(secondAuth);
+        scope = {};
+        secondAuth.checkLogin(scope);
+        expect($location.path()).toBe('/before');
+        expect(scope.loggedIn).toBe(true);
+    });
+
+    it('Checks for a cookie', function() {
+        var scope = {};
+        $cookies['ZCPToken'] = 'something';
+        $location.path('/before');
+        authService.checkLogin(scope);
+        expect(scope.loggedIn).toBe(true);
+        expect($location.path()).toBe('/before');
+    });
+});
+
+
+describe('refreshServices', function() {
+    it('Puts services data in scope', function() {
+        var scope = {};
+        refreshServices(scope, fake_services_service(), false);
+        expect(scope.services.data).toEqual(fake_services());
+    });
+
+    it('Sets the current service based on scope.params', function() {
+        var dummy_data = fake_services();
+        var scope = { params: { serviceId: dummy_data[0].Id }};
+        refreshServices(scope, fake_services_service(), false);
+        expect(scope.services.current).not.toBeUndefined();
+        expect(scope.services.current.Name).toBe(dummy_data[0].Name);
+    });
+
+    it('Maps services by ID', function() {
+        var dummy_data = fake_services();
+        var scope = {};
+        refreshServices(scope, fake_services_service(), false);
+        expect(scope.services.mapped[dummy_data[0].Id].Name).toBe(dummy_data[0].Name);
+        expect(scope.services.mapped[dummy_data[1].Id].Startup).toBe(dummy_data[1].Startup);
+    });
+});
+
+describe('refreshPools', function() {
+    it('Transforms mapped pools into array in scope', function() {
+        var dummy_data = fake_pools();
+        var dummy_data_array = map_to_array(dummy_data);
+        var scope = {};
+        refreshPools(scope, fake_resources_service(), false);
+        expect(scope.pools.data).toEqual(map_to_array(dummy_data_array));
+    });
+
+    it('Puts pool data in scope', function() {
+        var dummy_data = fake_pools();
+        var scope = {};
+        refreshPools(scope, fake_resources_service(), false);
+        expect(scope.pools.mapped).toEqual(dummy_data);
+    });
+
+    it('Sets the current pool based on scope.params', function() {
+        var dummy_data = fake_pools();
+        var dummy_data_array = map_to_array(dummy_data);
+        var scope = { params: { poolId: dummy_data_array[0].Id }};
+        refreshPools(scope, fake_resources_service(), false);
+        expect(scope.pools.current).not.toBeUndefined();
+        expect(scope.pools.current.Name).toBe(dummy_data_array[0].Name);
+    });
+});
+
+describe('refreshHosts', function() {
+    it('Puts hosts filtered for current pool into scope', function() {
+        var scope = { params: { poolId: "default" }};
+        var dummy_hosts = fake_hosts_for_pool("default");
+        refreshHosts(scope, fake_resources_service(), false, false);
+        expect(scope.hosts.data).not.toBeUndefined();
+        // Do a little transformation for easier testing
+        var actual_hosts = {};
+        scope.hosts.data.map(function(elem) {
+            actual_hosts[elem.Id] = elem;
+        });
+        // Actual data should have expected number of hosts
+        expect(scope.hosts.data.length).toBe(dummy_hosts.length);
+        // Actual data should have expected hosts only
+        for (var i=0; i < dummy_hosts.length; i++) {
+            expect(actual_hosts[dummy_hosts[i].HostId]).not.toBeUndefined();
+        }
+    });
+
+    it('Sets the current host based on scope.params', function() {
+        var scope = { params: { poolId: "default", hostId: "def" }};
+        refreshHosts(scope, fake_resources_service(), false, false);
+        expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
+    });
+
+    it('Puts host data into scope', function() {
+        var scope = {};
+        refreshHosts(scope, fake_resources_service(), false, false);
+        expect(scope.hosts.mapped).toEqual(fake_hosts());
+    });
+});
+
+describe('map_to_array', function() {
+    it('Transforms map to a new array', function() {
+        var dummy_data = { test1: 'abc', test2: { foo: 'bar' }};
+        var dummy_data_array = map_to_array(dummy_data);
+        expect(dummy_data_array).toEqual(['abc', {foo: 'bar'}]);
+    });
+});
+
+describe('unauthorized', function() {
+    it('Sets the path to /login', function() {
+        var loc = { path: function(){} };
+        spyOn(loc, 'path');
+        unauthorized(loc);
+        expect(loc.path).toHaveBeenCalled();
+        expect(loc.path.mostRecentCall.args[0]).toBe('/login');
+    });
+});
+
+describe('next_url', function() {
+    it('Finds a link with name \'Next\'', function() {
+        var result = next_url({ foo: 'bar', Links: [ 
+            { Name: 'Baz', Url: '/something' }, 
+            { Name: 'Next', Url: '/expected' }, 
+            { Name: 'Other', Url: '/other' }
+        ]});
+        expect(result).toBe('/expected');
+    });
+});
+
+describe('set_order', function() {
+    it('Updates table.sort', function() {
+        var table = {
+            sort: 'foo',
+            sort_icons: { foo: 'bar', baz: 'wibble' }
+        };
+        set_order('foo', table);
+        expect(table.sort).toBe('-foo');
+        set_order('foo', table);
+        expect(table.sort).toBe('foo');
+        set_order('bar', table);
+        expect(table.sort).toBe('bar');
+    });
+
+    it('Updates table.sort_icons', function() {
+        var table = {
+            sort: 'foo',
+            sort_icons: { foo: 'bar', baz: 'wibble' }
+        };
+        set_order('bar', table);
+        expect(table.sort_icons['foo']).toBe('glyphicon-chevron-down');
+        expect(table.sort_icons['bar']).toBe('glyphicon-chevron-up');
+    });
+});
+
+describe('get_order_class', function() {
+    it('Includes \'active\' for value or -value of table.sort', function() {
+        var table = {
+            sort: 'foo',
+            sort_icons: { foo: 'bar', baz: 'wibble' }
+        };
+        expect(get_order_class('foo', table)).toMatch(/ active$/);
+        table.sort = '-foo';
+        expect(get_order_class('foo', table)).toMatch(/ active$/);
+        expect(get_order_class('baz', table)).toMatch(/ wibble$/);
+    });
+});
+
+describe('buildTable', function() {
+    it('Returns object with sort_icons', function() {
+        var headers = [ {id: 'foo'}, {id: 'bar'}, {id: 'baz'}];
+        var table = buildTable('foo', headers);
+        expect(table.sort).toBe('foo');
+        expect(table.sort_icons).not.toBeUndefined();
+        expect(table.set_order).not.toBeUndefined();
+        expect(table.get_order_class).not.toBeUndefined();
+    });
+
 });
 
 function fake_hosts_for_pool(poolId) {
     var mappedHosts = {
-        "pool123": [{ HostId: "host123", PoolId: "pool123" }]
+        "pool123": [{HostId: "host123", PoolId: "pool123"}],
+        "default": [{HostId: "abc", PoolId: "default"}, {HostId: "def", PoolId: "default"}]
     };
     return mappedHosts[poolId];
 }

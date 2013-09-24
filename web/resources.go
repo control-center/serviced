@@ -33,16 +33,6 @@ var started bool
 var masterService serviced.ControlPlane
 var configuration ServiceConfig
 
-func AuthorizedHtml(realfunc HandlerFunc) HandlerFunc {
-	return func(w *rest.ResponseWriter, r *rest.Request) {
-		if !LoginOk(r) {
-			RedirectLogin(w, r)
-			return 
-		}
-		realfunc(w,r)
-	}
-}
-
 func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !LoginOk(r) {
@@ -56,26 +46,6 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 		}
 		realfunc(w, r, client)
 	}
-}
-
-
-// Start the agent or master services on this host.
-func RestStartServer(w *rest.ResponseWriter, r *rest.Request) {
-	if started {
-		WriteJson(w, &SimpleResponse{"Already started", homeLink()}, http.StatusConflict)
-		return
-	}
-	options := ServiceConfig{}
-	err := r.DecodeJsonPayload(&options)
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	configDefaults(&options)
-	configuration = options
-	go startServer(&options)
-	w.WriteJson(&SimpleResponse{"Started", resourcesLink()})
-	glog.Flush()
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
@@ -144,7 +114,7 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 		return
 	}
 	glog.Infof("Removed pool %s", poolId)
-	w.WriteJson(&SimpleResponse{"Removed resource pool", resourcesLink()})
+	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLink()})
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {

@@ -69,19 +69,6 @@ func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
- * Get some data about the currently logged in user
- */
-func RestUser(w *rest.ResponseWriter, r *rest.Request) {
-	noCache(w)
-	if LoginOk(r) {
-		// TODO: Get real user data
-		w.WriteJson(&UserData{"admin","Administrator","support@zenoss.com"})
-	} else {
-		RedirectLogin(w, r)
-	}
-}
-
-/*
  * Perform login, return JSON
  */
 func RestLogin(w *rest.ResponseWriter, r *rest.Request) {

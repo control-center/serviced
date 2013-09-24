@@ -85,14 +85,14 @@ func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
- * Provides content for root /
+ * Provides content for /test
  */
-func WizardPage(w *rest.ResponseWriter, r *rest.Request) {
+func TestPage(w *rest.ResponseWriter, r *rest.Request) {
 	noCache(w)
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot() + "/wizard.html")
+		staticRoot() + "/test/index.html")
 }
 
 
@@ -117,27 +117,6 @@ func StaticData(w *rest.ResponseWriter, r *rest.Request) {
 		file_to_serve)
 }
 
-/*
- * Redirect the current request to /login
- */
-func RedirectLogin(w *rest.ResponseWriter, r *rest.Request) {
-	http.Redirect(
-		w.ResponseWriter,
-		r.Request,
-		"/login",
-		http.StatusFound)
-}
-
-/*
- * Render HTML login page
- */
-func ContentLoginPage(w *rest.ResponseWriter, r *rest.Request) {
-	http.ServeFile(
-		w.ResponseWriter,
-		r.Request,
-		staticRoot() + "/login.html")
-}
-
 /*******************************************************************************
  *
  * Private helper functions
@@ -148,7 +127,7 @@ func ContentLoginPage(w *rest.ResponseWriter, r *rest.Request) {
  * Return array of links containing single Next element for login
  */ 
 func loginLink() []Link {
-	return []Link{Link{NextLink, "/login"}}
+	return []Link{Link{NextLink, "#/login"}}
 }
 
 /*
@@ -156,14 +135,6 @@ func loginLink() []Link {
  */ 
 func homeLink() []Link {
 	return []Link{Link{NextLink, "/"}}
-}
-
-func managementLink() []Link {
-	return []Link{Link{NextLink, "#/management"}}
-}
-
-func resourcesLink() []Link {
-	return []Link{Link{NextLink, "#/resources"}}
 }
 
 func hostsLink() []Link {
@@ -188,10 +159,6 @@ func servicesLink() []Link {
 		Link{AddLink, "services/add"},
 		Link{RemoveLink, "/services/:serviceId"},
 	}
-}
-
-func configurationLink() []Link {
-	return []Link{Link{NextLink, "#/configuration"}}
 }
 
 func noCache(w *rest.ResponseWriter) {

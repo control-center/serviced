@@ -444,6 +444,7 @@ function WizardService() {
         }
         return wizard_data;
     };
+
     /*
      * The basic premise here is that we want to check to see if there is an 
      * entry for the previous page of the flow in our wizard_data.done object.
@@ -809,60 +810,25 @@ function ResourcesService($http, $location) {
     };
 }
 
-function refreshServices($scope, servicesService, cacheOk) {
-    servicesService.get_services(cacheOk, function(allServices) {
-        $scope.services.data = allServices;
-        $scope.services.mapped = {};
-        // Create a Map(Id -> Service)
-        allServices.map(function(elem) {
-            $scope.services.mapped[elem.Id] = elem;
-        });
-        if ($scope.params.serviceId !== undefined) {
-            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
-        }
-    });
-}
-
-function refreshPools($scope, resourcesService, cachePools) {
-    resourcesService.get_pools(cachePools, function(allPools) {
-        $scope.pools.data = map_to_array(allPools);
-        if ($scope.params.poolId !== undefined) {
-            $scope.pools.current = allPools[$scope.params.poolId];
-        }
-    });
-}
-
-function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
-    console.log('Reacquiring list of hosts');
-    resourcesService.get_hosts(cacheHosts, function(allHosts) {
-        // This is a Map(Id -> Host)
-        $scope.hosts.rawdata = allHosts;
-        // Build array of Hosts relevant to the current pool
-        $scope.hosts.data = [];
-        console.log('Refresh for pool ' + $scope.params.poolId + 
-                    ' and host ' + $scope.params.hostId);
-
-        if ($scope.params.poolId !== undefined) {
-            resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
-                // hostsForPool is Array(PoolHost)
-                for (var i=0; i < hostsForPool.length; i++) {
-                    var currentHost = allHosts[hostsForPool[i].HostId];
-                    $scope.hosts.data.push(currentHost);
-                    if ($scope.params.hostId === currentHost.Id) {
-                        $scope.hosts.current = currentHost;
-                    }
-                }
-            });
-        }
-    });
-}
-
 function AuthService($cookies, $location) {
     var loggedIn = false;
-    return { 
+    return {
+
+        /*
+         * Called when we have positively determined that a user is or is not
+         * logged in.
+         *
+         * @param {boolean} truth Whether the user is logged in.
+         */
         login: function(truth) {
             loggedIn = truth;
         },
+
+        /*
+         * Check whether the user appears to be logged in. Update path if not.
+         *
+         * @param {object} scope The 'loggedIn' property will be set if true
+         */
         checkLogin: function($scope) {
             if (loggedIn) {
                 $scope.loggedIn = true;
@@ -876,6 +842,64 @@ function AuthService($cookies, $location) {
             }
         }
     };
+}
+
+function refreshServices($scope, servicesService, cacheOk) {
+    // defend against empty scope
+    if ($scope.services === undefined) {
+        $scope.services = {};
+    }
+    servicesService.get_services(cacheOk, function(allServices) {
+        $scope.services.data = allServices;
+        $scope.services.mapped = {};
+        // Create a Map(Id -> Service)
+        allServices.map(function(elem) {
+            $scope.services.mapped[elem.Id] = elem;
+        });
+        if ($scope.params && $scope.params.serviceId) {
+            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
+        }
+    });
+}
+
+function refreshPools($scope, resourcesService, cachePools) {
+    // defend against empty scope
+    if ($scope.pools === undefined) {
+        $scope.pools = {};
+    }
+    resourcesService.get_pools(cachePools, function(allPools) {
+        $scope.pools.mapped = allPools;
+        $scope.pools.data = map_to_array(allPools);
+        if ($scope.params && $scope.params.poolId) {
+            $scope.pools.current = allPools[$scope.params.poolId];
+        }
+    });
+}
+
+function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
+    // defend against empty scope
+    if ($scope.hosts === undefined) {
+        $scope.hosts = {};
+    }
+    resourcesService.get_hosts(cacheHosts, function(allHosts) {
+        // This is a Map(Id -> Host)
+        $scope.hosts.mapped = allHosts;
+        // Build array of Hosts relevant to the current pool
+        $scope.hosts.data = [];
+
+        if ($scope.params && $scope.params.poolId) {
+            resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
+                // hostsForPool is Array(PoolHost)
+                for (var i=0; i < hostsForPool.length; i++) {
+                    var currentHost = allHosts[hostsForPool[i].HostId];
+                    $scope.hosts.data.push(currentHost);
+                    if ($scope.params.hostId === currentHost.Id) {
+                        $scope.hosts.current = currentHost;
+                    }
+                }
+            });
+        }
+    });
 }
 
 /*
@@ -899,7 +923,7 @@ function unauthorized($location) {
  *
    {
      ...,
-     'Links': [ { 'Next': '/some/url' }, ... ]
+     Links: [ { Name: 'Next', Url: '/some/url' }, ... ]
    }
  *
  */
