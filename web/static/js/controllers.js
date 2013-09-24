@@ -86,8 +86,8 @@ function EntryControl($scope, authService) {
     authService.checkLogin($scope);
     $scope.mainlinks = [
         { url: '#/wizard/start', label: 'Install' },
-        { url: '#/services', label: 'Configure services' }/*,  Intentionally breaking
-        { url: '#/resources', label: 'Manage resources' } */
+        { url: '#/services', label: 'Configure services' },
+        { url: '#/resources', label: 'Manage resources' }
     ];
 }
 
