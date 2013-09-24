@@ -56,10 +56,11 @@ describe('LoginControl', function() {
     });
 
     it('Does not change path on failed login', function() {
+        $locaption.path('/login');
         $httpBackend.when('POST', '/login').respond(401, {Detail: 'Bad Login'});
         $scope.login();
         $httpBackend.flush();
-        expect($location.path()).not.toBe('/entry');
+        expect($location.path()).toBe('/login');
     });
 
 });
