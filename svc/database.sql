@@ -120,6 +120,7 @@ CREATE TABLE `service` (
   `instances` int(11) NOT NULL,
   `description` varchar(255) NOT NULL,
   `desired_state` int(11) NOT NULL,
+  `parent_service_id` char(36) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `fk_pool` (`resource_pool_id`),
   CONSTRAINT `fk_pool` FOREIGN KEY (`resource_pool_id`) REFERENCES `resource_pool` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION

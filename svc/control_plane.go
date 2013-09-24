@@ -9,12 +9,13 @@
 package svc
 
 import (
-	"database/sql"
-	"fmt"
 	"github.com/coopernurse/gorp"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	_ "github.com/ziutek/mymysql/godrv"
-	"github.com/zenoss/glog"
+
+	"database/sql"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -106,6 +107,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("PoolId").Rename("resource_pool_id")
 	service.ColMap("DesiredState").Rename("desired_state")
 	service.ColMap("Endpoints").SetTransient(true)
+	service.ColMap("ParentServiceId").Rename("parent_service_id")
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
@@ -259,10 +261,11 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
 		endpoints[i] = serviced.ServiceEndpoint{
-			servicePort.ProtocolType,
+			string(servicePort.ProtocolType),
 			uint16(servicePort.Port),
-			servicePort.ApplicationType,
-			servicePort.Purpose}
+			string(servicePort.ApplicationType),
+			servicePort.Purpose,
+		}
 	}
 	return &endpoints
 }
@@ -314,6 +317,7 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 	if err != nil {
 		return err
 	}
+
 	// Get the related ports for each service
 	err = s.addEndpointsToServices(servicesList)
 	if err != nil {
@@ -491,15 +495,10 @@ func (s *ControlSvc) scheduler() {
 	}
 }
 
-// Schedule a service to run on a host.
-func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) {
-	db, dbmap, err := s.getDbConnection()
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
+// Start a service and its subservices
+func startService(dbmap *gorp.DbMap, serviceId string) error {
 	// check current state
+	var err error
 	var serviceStates []*serviced.ServiceState
 	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", serviceId)
 	if err != nil {
@@ -521,7 +520,32 @@ func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) 
 	if err != nil {
 		return serviced.ControlPlaneError{"Could not set desired state to start"}
 	}
+
+	// find sub services and start them
+	var subserviceIds []*string
+	_, err = dbmap.Select(&subserviceIds, "SELECT id from service WHERE parent_service_id = ? ", serviceId)
+	if err != nil {
+		return serviced.ControlPlaneError{"Could not get subservices"}
+	}
+	for _, subserviceId := range subserviceIds {
+		err = startService(dbmap, *subserviceId)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
+
+}
+
+// Schedule a service to run on a host.
+func (s *ControlSvc) StartService(serviceId string, unused *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return startService(dbmap, serviceId)
 }
 
 //Schedule a service to restart.
