@@ -48,15 +48,16 @@ type ServiceEndpoint struct {
 
 // A Service that can run in serviced.
 type Service struct {
-	Id           string
-	Name         string
-	Startup      string
-	Description  string
-	Instances    int
-	ImageId      string
-	PoolId       string
-	DesiredState int
-	Endpoints    *[]ServiceEndpoint
+	Id              string
+	Name            string
+	Startup         string
+	Description     string
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	Endpoints       *[]ServiceEndpoint
+	ParentServiceId string
 }
 
 // Desired states of services.
