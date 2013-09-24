@@ -1,3 +1,4 @@
+/* tests */
 describe('EntryControl', function() {
     var $scope = null;
     var ctrl = null;
