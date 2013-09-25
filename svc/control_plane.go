@@ -9,11 +9,12 @@
 package svc
 
 import (
-	"database/sql"
-	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/zenoss/serviced"
 	_ "github.com/ziutek/mymysql/godrv"
+
+	"database/sql"
+	"fmt"
 	"github.com/zenoss/glog"
 	"math/rand"
 	"strconv"
@@ -30,13 +31,14 @@ services, & service instances.
 type ControlSvc struct {
 	connectionString string
 	connectionDriver string
+	zookeepers       string
 }
 
 // Ensure that ControlSvc implements the ControlPlane interface.
 var _ serviced.ControlPlane = &ControlSvc{}
 
 // Create a new ControlSvc or load an existing one.
-func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
+func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, err error) {
 	s = new(ControlSvc)
 	connInfo, err := serviced.ParseDatabaseUri(connectionUri)
 	if err != nil {

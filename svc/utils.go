@@ -1,0 +1,87 @@
+package svc
+
+import (
+	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
+
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+)
+
+var urandomFilename = "/dev/urandom"
+
+// Generate a new UUID
+func NewUuid() (string, error) {
+	f, err := os.Open(urandomFilename)
+	if err != nil {
+		return "", err
+	}
+	b := make([]byte, 16)
+	defer f.Close()
+	f.Read(b)
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return uuid, err
+}
+
+func HostId() (string, error) {
+	cmd := exec.Command("hostid")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func TimeoutAfter(delay time.Duration) <-chan bool {
+	doneChan := make(chan bool)
+	go func(t time.Duration, done chan bool) {
+		time.Sleep(t)
+		done <- true
+	}(delay, doneChan)
+	return doneChan
+}
+
+func deleteNodebyData(path string, conn *zk.Conn, data []byte) error {
+
+	children, _, err := conn.Children(path)
+	if err != nil {
+		glog.Warning("Could not list children")
+		return err
+	}
+	for _, child := range children {
+		child_path := path + "/" + child
+		child_data, _, err := conn.Get(child_path)
+		if err != nil {
+			glog.Warning("Could not get data for %s", child_path)
+			continue
+		}
+		if bytes.Compare(data, child_data) == 0 {
+			for i := 0; i < 5; i++ {
+				_, stats, _ := conn.Get(child_path)
+				err = conn.Delete(child_path, stats.Version)
+				if err == nil || err == zk.ErrNoNode {
+					return nil
+				}
+			}
+			glog.Error("Could not delete matched node %s", child_path)
+		}
+	}
+	return nil
+}
+
+func createNode(path string, conn *zk.Conn) error {
+	var err error
+	for i := 0; i < 5; i++ {
+		_, err = conn.Create(path, []byte{}, 0, zk.WorldACL(zk.PermAll))
+		if err == zk.ErrNodeExists || err == nil {
+			return nil
+		}
+		glog.Warningf("Could not create node:%s, %v", path, err)
+	}
+	return err
+}
+
