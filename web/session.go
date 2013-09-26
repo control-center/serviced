@@ -2,10 +2,11 @@ package web
 
 import (
 	"github.com/ant0ine/go-json-rest"
+	"github.com/zenoss/glog"
+
 	"encoding/base64"
 	"net/http"
 	"crypto/rand"
-	"log"
 	"errors"
 	"time"
 )
@@ -36,10 +37,9 @@ func LoginOk(r *rest.Request) bool {
 	}
 	session, err := findSession(cookie.Value)
 	if err != nil {
-		log.Println("Unable to find session", cookie.Value)
+		glog.Infof("Unable to find session %s", cookie.Value)
 		return false
 	}
-	log.Println("Found session", session.Id)
 	session.access = time.Now()
 	return true
 }
@@ -50,10 +50,10 @@ func LoginOk(r *rest.Request) bool {
 func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 	cookie, err := r.Request.Cookie(SessionCookie)
 	if err != nil {
-		log.Println("Unable to read session cookie")
+		glog.Infoln("Unable to read session cookie")
 	} else {
 		delete(sessions, cookie.Value)
-		log.Println("Deleted session", cookie.Value)
+		glog.Infof("Deleted session %s", cookie.Value)
 	}
 	
 	http.SetCookie(
@@ -75,19 +75,19 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	creds := Login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		RestBadRequest(w)
 		return
 	}
 	
 	// TODO: Fix hardcoded credentials
 	if validateLogin(&creds) {
 		session, err := createSession(creds.Username)
-		sessions[session.Id] = session
 		if err != nil {
 			WriteJson(w, &SimpleResponse{"Session could not be created", loginLink()}, http.StatusInternalServerError)
 			return
 		}
-		log.Println("Session ID:", session.Id)
+		sessions[session.Id] = session
+		glog.Infof("Session ID: %s", session.Id)
 		http.SetCookie(
 			w.ResponseWriter,
 			&http.Cookie {
@@ -124,8 +124,8 @@ func createSession(user string) (*Session, error){
 }
 
 func findSession(sid string) (*Session, error) {
-	session := sessions[sid]
-	if session == nil {
+	session, ok := sessions[sid]
+	if !ok {
 		return nil, errors.New("Session not found")
 	}
 	return session, nil
@@ -145,10 +145,13 @@ func randomSessionId() (string, error) {
 func randomStr() (string, error) {
 	sid := make([]byte, 32)
 	n, err := rand.Read(sid)
-	if n != len(sid) || err != nil {
-		log.Println(err)
+	if n != len(sid) {
+		return "", errors.New("Not enough random bytes")
+	}
+	if err != nil {
 		return "", err
 	}
+
 	return base64.StdEncoding.EncodeToString(sid), nil
 }
 

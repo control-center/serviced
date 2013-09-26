@@ -8,6 +8,7 @@ import (
 	agent "github.com/zenoss/serviced/agent"
 	clientlib "github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/proxy"
+
 	"os"
 	"net"
 	"strings"
@@ -27,10 +28,10 @@ type ServiceConfig struct {
 }
 
 type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
-type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane)
+type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient)
 
 var started bool
-var masterService serviced.ControlPlane
+var masterService *svc.ControlSvc
 var configuration ServiceConfig
 
 func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
@@ -41,24 +42,28 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 		}
 		client, err := getClient()
 		if err != nil {
+			glog.Errorf("Unable to acquire client: %v", err)
 			RestServerError(w)
 			return
 		}
+		defer client.Close()
 		realfunc(w, r, client)
 	}
 }
 
-func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	request := serviced.EntityRequest{}
 	var poolsMap map[string]*serviced.ResourcePool
 	err := client.GetResourcePools(request, &poolsMap)
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %v", err)
+		RestServerError(w)
+		return
 	}
 	w.WriteJson(&poolsMap)
 }
 
-func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload serviced.ResourcePool
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
@@ -76,7 +81,7 @@ func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client serviced.Contro
 	w.WriteJson(&SimpleResponse{"Added resource pool", poolsLink()})
 }
 
-func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		RestBadRequest(w)
@@ -100,7 +105,7 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	w.WriteJson(&SimpleResponse{"Updated resource pool", poolsLink()})
 }
 
-func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		RestBadRequest(w)
@@ -117,7 +122,7 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLink()})
 }
 
-func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var hosts map[string]*serviced.Host
 	request := serviced.EntityRequest{}
 	err := client.GetHosts(request, &hosts)
@@ -129,7 +134,7 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client serviced.Contr
 	w.WriteJson(&hosts)
 }
 
-func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*serviced.Service
 	request := serviced.EntityRequest{}
 	err := client.GetServices(request, &services)
@@ -144,7 +149,7 @@ func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client serviced.Co
 	w.WriteJson(&services)
 }
 
-func RestAddService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload serviced.Service
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
@@ -156,8 +161,11 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	service, err := serviced.NewService()
 	if err != nil {
 		glog.Errorf("Could not create service: %v", err)
+		RestServerError(w)
+		return
 	}
 	service.Name = payload.Name
+	service.Description = payload.Description
 	service.PoolId = payload.PoolId
 	service.ImageId = payload.ImageId
 	service.Startup = payload.Startup
@@ -171,7 +179,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	w.WriteJson(&SimpleResponse{"Added service", servicesLink()})
 }
 
-func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		RestBadRequest(w)
@@ -196,7 +204,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client serviced.
 }
 
 
-func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var unused int
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
@@ -213,7 +221,7 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client serviced.
 	w.WriteJson(&SimpleResponse{"Removed service", servicesLink()})
 }
 
-func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var poolHosts []*serviced.PoolHost
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
@@ -233,7 +241,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client
 	w.WriteJson(&poolHosts)
 }
 
-func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload serviced.Host
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
@@ -248,6 +256,8 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client serviced.Contro
 	remoteClient, err := clientlib.NewAgentClient(payload.IpAddr)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IpAddr, err)
+		RestServerError(w)
+		return
 	}
 
 	err = remoteClient.GetInfo(0, &payload)
@@ -270,7 +280,7 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client serviced.Contro
 	w.WriteJson(&SimpleResponse{"Added host", hostsLink()})
 }
 
-func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		RestBadRequest(w)
@@ -294,7 +304,7 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client serviced.Con
 	w.WriteJson(&SimpleResponse{"Updated host", hostsLink()})
 }
 
-func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client serviced.ControlPlane) {
+func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var unused int
 	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
@@ -377,7 +387,7 @@ func configDefaults(cfg *ServiceConfig) {
 	}
 }
 
-func getClient() (c serviced.ControlPlane, err error) {
+func getClient() (c *clientlib.ControlClient, err error) {
 	// setup the client
 	c, err = clientlib.NewControlClient(configuration.AgentPort)
 	if err != nil {

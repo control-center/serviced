@@ -156,7 +156,7 @@ func poolsLink() []Link {
 func servicesLink() []Link {
 	return []Link{
 		Link{NextLink, "/services"},
-		Link{AddLink, "services/add"},
+		Link{AddLink, "/services/add"},
 		Link{RemoveLink, "/services/:serviceId"},
 	}
 }
