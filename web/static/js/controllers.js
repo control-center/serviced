@@ -308,7 +308,7 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
     // Function for editing the current pool
     $scope.edit_pool = function() {
         console.log('Updating pool %s', $scope.params.poolId);
-        resourcesService.update_pool($scope.params.poolId, $scope.pools.current, function(data) {
+        resourcesService.update_pool($scope.params.poolId, $scope.editPool, function(data) {
             // After the edit succeeds, refresh the list
             refreshPools($scope, resourcesService, false);
         });
@@ -317,7 +317,7 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
     // Function for editing the current host
     $scope.edit_host = function() {
         console.log('Updating host %s', $scope.params.hostId);
-        resourcesService.update_host($scope.params.hostId, $scope.hosts.current, function(data) {
+        resourcesService.update_host($scope.params.hostId, $scope.editHost, function(data) {
             // After the edit succeeds, refresh the list
             refreshHosts($scope, resourcesService, false, false);
         });
@@ -337,7 +337,7 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
     // Function for editing the current service
     $scope.edit_service = function() {
         console.log('Editing service %s', $scope.services.current.Name);
-        servicesService.update_service($scope.params.serviceId, $scope.services.current, function(data) {
+        servicesService.update_service($scope.params.serviceId, $scope.editService, function(data) {
             // After the edit succeeds, refresh the list
             refreshServices($scope, servicesService, false);
         });
@@ -970,6 +970,7 @@ function refreshServices($scope, servicesService, cacheOk) {
         });
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
+            $scope.editService = $.extend({}, $scope.services.current);
         }
     });
 }
@@ -984,6 +985,7 @@ function refreshPools($scope, resourcesService, cachePools) {
         $scope.pools.data = map_to_array(allPools);
         if ($scope.params && $scope.params.poolId) {
             $scope.pools.current = allPools[$scope.params.poolId];
+            $scope.editPool = $.extend({}, $scope.pools.current);
         }
     });
 }
@@ -1007,6 +1009,7 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
                     $scope.hosts.data.push(currentHost);
                     if ($scope.params.hostId === currentHost.Id) {
                         $scope.hosts.current = currentHost;
+                        $scope.editHost = $.extend({}, $scope.hosts.current);
                     }
                 }
             });
