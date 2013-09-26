@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="controlplane">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Zenoss Control Plane">
+    <meta name="author" content="Zenoss">
+    <link rel="shortcut icon" href="/static/ico/zenoss-o.png" type="image/png">
+
+    <title>Control Plane</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/static/bootstrap/dist/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link href="/static/css/navbar.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="/static/bootstrap/assets/js/html5shiv.js"></script>
+        <script src="/static/bootstrap/assets/js/respond.min.js"></script>
+        <![endif]-->
+    <script src="/static/jquery/jquery.js"></script>
+    <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="/static/angular/angular.js"></script>
+    <script src="/static/angular/angular-cookies.js"></script>
+    <script src="/static/js/controllers.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container" ng-view>
+      <div ng-view></div>
+    </div> <!-- /container -->
+  </body>
+</html>

@@ -1,0 +1,25 @@
+      <div class="box">
+        <h2>Zenoss Installation Wizard</h2>
+        <p class="success">Zenoss installed successfully!</p>
+        <dl class="dl-horizontal">
+          <dt>Admin account</dt>
+          <dd>{{context.username}}</dd>
+
+          <dt>Password</dt>
+          <dd>{{context.password}}</dd>
+
+          <dt>SSL Enabled</dt>
+          <dd>{{context.ssl}}</dd>
+          
+          <dt>URL</dt>
+          <dd><a href="{{context.url}}">{{context.url}}</a></dd>
+
+          <dt>Installed</dt>
+          <dd>{{context.localInstallType}}</dd>
+        </dl>
+        
+        <div class="page-nav" role="navigation">
+          <button class="btn btn-lg btn-primary" ng-click="done()">OK</button>
+          <button class="btn btn-lg btn-default" ng-click="view_log()">View log</button>
+        </div>
+      </div>

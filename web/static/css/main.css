@@ -1,0 +1,91 @@
+body {
+    padding: 20px;
+}
+
+.btn-primary {
+    background-color: #6b6b6b;
+    border-color: #555;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.open .dropdown-toggle.btn-primary {
+    background-color: #8b8b8b;
+    border-color: #555;
+}
+
+.breadcrumb.inline > li + li:before {
+  padding: 0 5px;
+  color: #cccccc;
+  content: "\00a0/"; /* reverse order of space and separator */
+}
+
+.highlighted {
+    background-color: #ddd;
+    font-weight: bold
+}
+
+.link {
+    cursor:pointer;
+}
+
+.box {
+    padding: 40px 50px;
+    background-color: #eeeeee;
+    border-radius: 6px;
+}
+
+.page-nav {
+    padding-top: 40px;
+}
+
+table .glyphicon {
+    cursor: pointer;
+}
+
+i.active {
+    color: #b0b0b0;
+}
+
+.form-signin {
+  max-width: 330px;
+  padding: 15px;
+  margin: 100px 0px 0px 300px;
+}
+.form-signin .form-signin-heading,
+.form-signin .checkbox {
+  margin-bottom: 10px;
+}
+.form-signin .checkbox {
+  font-weight: normal;
+}
+.form-signin .form-control {
+  position: relative;
+  font-size: 16px;
+  height: auto;
+  padding: 10px;
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type="text"] {
+  margin-bottom: -1px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.form-signin input[type="password"] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.login-container {
+    width: 671px;
+    height: 360px;
+    background: transparent url('/static/img/zenoss-login.png') no-repeat;
+}
