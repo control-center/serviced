@@ -48,6 +48,9 @@ angular.module('controlplane', ['ngCookies']).
             when('/wizard/finish', {
                 templateUrl: '/static/partials/wizard_finish.html', 
                 controller: WizardControl}).
+            when('/hosts', {
+                templateUrl: '/static/partials/view-hosts.html',
+                controller: ResourcesControl}).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
@@ -386,6 +389,22 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
         $location.path(redirect);
     }
     $scope.hosts = {};
+    $scope.toggleCollapsed = function(poolId) {
+        console.log('pool clicked %s', poolId);
+        var toggled = $scope.pools.mapped[poolId];
+        toggled.collapsed = !toggled.collapsed;
+        if (toggled.children === undefined) {
+            return;
+        }
+        if (toggled.collapsed) {
+            toggled.icon = 'glyphicon glyphicon-plus link';
+            toggled.childrenClass = 'hidden';
+        } else {
+            toggled.icon = 'glyphicon glyphicon-minus link';
+            toggled.childrenClass = 'nav-tree';
+        }
+
+    };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
@@ -983,6 +1002,28 @@ function refreshPools($scope, resourcesService, cachePools) {
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
+        $scope.pools.tree = [];
+
+        for (var key in allPools) {
+            var p = allPools[key];
+            p.collapsed = false;
+            p.childrenClass = "nav-tree";
+            if (p.icon === undefined) {
+                p.icon = 'glyphicon glyphicon-minus disabled';
+            }
+            var parent = allPools[p.ParentId];
+            if (parent) {
+                if (parent.children === undefined) {
+                    parent.children = [];
+                    parent.icon = 'glyphicon glyphicon-minus link';
+                }
+                console.log('Adding %s as child of %s', p.Id, p.ParentId);
+                parent.children.push(p);
+            } else {
+                $scope.pools.tree.push(p);
+            }
+        }
+
         if ($scope.params && $scope.params.poolId) {
             $scope.pools.current = allPools[$scope.params.poolId];
             $scope.editPool = $.extend({}, $scope.pools.current);

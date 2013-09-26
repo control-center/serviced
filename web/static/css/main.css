@@ -49,6 +49,10 @@ i.active {
     color: #b0b0b0;
 }
 
+i.disabled {
+    color: #b0b0b0;
+}
+
 .form-signin {
   max-width: 330px;
   padding: 15px;
@@ -88,4 +92,30 @@ i.active {
     width: 671px;
     height: 360px;
     background: transparent url('/static/img/zenoss-login.png') no-repeat;
+}
+
+.nav-tree {
+    list-style: none;
+    padding: 0px 0px 0px 20px;
+}
+
+.nav-tree > li {
+    display: block;
+    padding: 10px 0px 0px 0px;
+}
+
+.nav-tree > li > a {
+    position: relative;
+    display: inline-block;
+    padding: 0px 0px 0px 5px;
+}
+
+.nav-tree > li > a:hover,
+.nav-tree > li > a:focus {
+    text-decoration: none;
+    background-color: #eeeeee;
+}
+
+.glyphicon.spacer:before {
+    content: "\00a0";
 }
