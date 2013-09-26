@@ -138,6 +138,9 @@ func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client serviced.Co
 		RestServerError(w)
 		return
 	}
+	if services == nil {
+		services = []*serviced.Service{}
+	}
 	w.WriteJson(&services)
 }
 
