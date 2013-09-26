@@ -18,7 +18,9 @@
     <table class="table table-striped table-bordered table-hover" id="hosts_data" >
       <thead>
         <tr>
-          <th ng-repeat="header in hosts.headers">{{header.name}}<i ng-click="hosts.set_order(header.id, hosts)" ng-class="hosts.get_order_class(header.id, hosts)"></i>
+          <th ng-repeat="header in hosts.headers">{{header.name}}
+            <button ng-click="hosts.set_order(header.id, hosts)" 
+                    ng-class="hosts.get_order_class(header.id, hosts)"></button>
           </th>
         </tr>
       </thead>

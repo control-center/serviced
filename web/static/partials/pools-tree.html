@@ -1,5 +1,6 @@
-          <i ng-class="pool.icon" ng-click="toggleCollapsed(pool.Id)"></i>
+          <a ng-class="pool.icon" ng-click="toggleCollapsed(pool.Id)"></a>
           <a href="#/pools/{{pool.Id}}">{{pool.Id}}</a>
+          <a class="btn-link glyphicon glyphicon-plus-sign link" ng-click="addSubpool(pool.Id)"></a>
           <ul ng-class="pool.childrenClass">
             <li ng-repeat="pool in pool.children" ng-include="'/static/partials/pools-tree.html'"></li>
           </ul>

@@ -12,7 +12,9 @@
     <table class="table table-striped table-bordered table-hover" id="services_data" >
       <thead>
         <tr>
-          <th ng-repeat="header in services.headers">{{header.name}}<i ng-click="services.set_order(header.id, services)" ng-class="services.get_order_class(header.id, services)"></i>
+          <th ng-repeat="header in services.headers">{{header.name}}
+            <button ng-click="services.set_order(header.id, services)" 
+                    ng-class="services.get_order_class(header.id, services)"></button>
           </th>
         </tr>
       </thead>

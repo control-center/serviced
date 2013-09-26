@@ -307,42 +307,43 @@ describe('ActionControl', function() {
         // Populate $scope.pools.current. Normally this is done by the main view controller
         refreshPools($scope, resourcesService, true);
         // edit_pool method must not be called unless $scope.pools.current exists
-        expect($scope.pools.current).not.toBeUndefined();
+        expect($scope.editPool).not.toBeUndefined();
         spyOn(resourcesService, 'update_pool');
-        $scope.pools.current.Name = 'editedName';
+        $scope.editPool.Name = 'editedName';
         $scope.edit_pool();
 
         expect(resourcesService.update_pool).toHaveBeenCalled();
         expect(resourcesService.update_pool.mostRecentCall.args[0]).toBe('pool123');
-        expect(resourcesService.update_pool.mostRecentCall.args[1]).toEqual($scope.pools.current);
+        expect(resourcesService.update_pool.mostRecentCall.args[1]).toBe($scope.editPool);
     });
 
     it('Provides an \'edit_host\' function', function() {
         // Populate $scope.hosts.current. Normally this is done by the main view controller
         refreshHosts($scope, resourcesService, true, true);
         // edit_host method must not be called unless $scope.hosts.current exists
-        expect($scope.hosts.current).not.toBeUndefined();
+        expect($scope.editHost).not.toBeUndefined();
         spyOn(resourcesService, 'update_host');
-        $scope.hosts.current.Name = 'editedName';
+        $scope.editHost.Name = 'editedName';
         $scope.edit_host();
 
         expect(resourcesService.update_host).toHaveBeenCalled();
         expect(resourcesService.update_host.mostRecentCall.args[0]).toBe('host123');
-        expect(resourcesService.update_host.mostRecentCall.args[1]).toEqual($scope.hosts.current);
+        expect(resourcesService.update_host.mostRecentCall.args[1]).toBe($scope.editHost);
     });
 
     it('Provides an \'edit_service\' function', function() {
         // Populate $scope.hosts.current. Normally this is done by the main view controller
         refreshServices($scope, servicesService, true);
         // edit_service method must not be called unless $scope.services.current exists
-        expect($scope.services.current).not.toBeUndefined();
+        expect($scope.editService).not.toBeUndefined();
         spyOn(servicesService, 'update_service');
+        $scope.editService.Id = 'editedService';
         $scope.edit_service();
 
         expect(servicesService.update_service).toHaveBeenCalled();
         // service Id comes from routeParams
         expect(servicesService.update_service.mostRecentCall.args[0]).toBe('service234');
-        expect(servicesService.update_service.mostRecentCall.args[1]).toEqual($scope.services.current);
+        expect(servicesService.update_service.mostRecentCall.args[1]).toBe($scope.editService);
     });
 });
 
@@ -860,17 +861,33 @@ describe('refreshServices', function() {
 describe('refreshPools', function() {
     it('Transforms mapped pools into array in scope', function() {
         var dummy_data = fake_pools();
-        var dummy_data_array = map_to_array(dummy_data);
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
-        expect(scope.pools.data).toEqual(map_to_array(dummy_data_array));
+        // refreshPools now adds data above and beyond just transforming into an array
+        for (var i=0; i < scope.pools.length; i++) {
+            // Expect the basic fields to be consistent
+            var dummyPool = dummy_data[scope.pools[i].Id];
+            expect(dummyPool.Name).toEqual(scope.pools[i].Name);
+            expect(dummyPool.ParentId).toEqual(scope.pools[i].ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scope.pools[i].CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scope.pools[i].MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scope.pools[i].Priority);
+        }
     });
 
     it('Puts pool data in scope', function() {
         var dummy_data = fake_pools();
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
-        expect(scope.pools.mapped).toEqual(dummy_data);
+        for (key in dummy_data) {
+            var scopedPool = scope.pools.mapped[key];
+            var dummyPool = dummy_data[key];
+            expect(dummyPool.Name).toEqual(scopedPool.Name);
+            expect(dummyPool.ParentId).toEqual(scopedPool.ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scopedPool.CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scopedPool.MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scopedPool.Priority);
+        }
     });
 
     it('Sets the current pool based on scope.params', function() {

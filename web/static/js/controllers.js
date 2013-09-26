@@ -389,6 +389,11 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
         $location.path(redirect);
     }
     $scope.hosts = {};
+
+    $scope.addSubpool = function(poolId) {
+        console.log('Adding subpool of %s', poolId);
+    };
+
     $scope.toggleCollapsed = function(poolId) {
         console.log('pool clicked %s', poolId);
         var toggled = $scope.pools.mapped[poolId];
@@ -397,13 +402,12 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
             return;
         }
         if (toggled.collapsed) {
-            toggled.icon = 'glyphicon glyphicon-plus link';
+            toggled.icon = 'glyphicon glyphicon-collapse-down btn-link';
             toggled.childrenClass = 'hidden';
         } else {
-            toggled.icon = 'glyphicon glyphicon-minus link';
+            toggled.icon = 'glyphicon glyphicon-collapse-up btn-link';
             toggled.childrenClass = 'nav-tree';
         }
-
     };
 
     // Ensure we have a list of pools
@@ -1009,13 +1013,13 @@ function refreshPools($scope, resourcesService, cachePools) {
             p.collapsed = false;
             p.childrenClass = "nav-tree";
             if (p.icon === undefined) {
-                p.icon = 'glyphicon glyphicon-minus disabled';
+                p.icon = 'glyphicon glyphicon-collapse-up disabled';
             }
             var parent = allPools[p.ParentId];
             if (parent) {
                 if (parent.children === undefined) {
                     parent.children = [];
-                    parent.icon = 'glyphicon glyphicon-minus link';
+                    parent.icon = 'glyphicon glyphicon-collapse-up';
                 }
                 console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
@@ -1106,7 +1110,7 @@ function set_order(order, table) {
 }
 
 function get_order_class(order, table) {
-    return 'glyphicon pull-right ' + table.sort_icons[order] + 
+    return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] + 
         ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
 }
 
