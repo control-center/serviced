@@ -114,3 +114,17 @@ table .glyphicon {
     opacity: 0.65;
     color: #b0b0b0;
 }
+h3.form-label {
+    line-height: 1.2;
+}
+.search-control {
+    display: inline-block;
+    height: 28px;
+}
+.search.form-control {
+    display: inline-block;
+    width: auto;
+    line-height: 1.2;
+    height: 28px;
+    vertical-align: bottom;
+}

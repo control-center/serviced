@@ -1,0 +1,24 @@
+    <h3 class="form-label">Hosts 
+      <div class="search-control pull-right">
+        <label class="sr-only" for="all_hosts_search">Search</label>
+        <input placeholder="Search" id="all_hosts_search" type="text" ng-model="hosts.search" class="form-control search"></input>
+      </div>
+    </h3>
+    <table class="table table-striped table-bordered table-hover" id="hosts_data" >
+      <thead>
+        <tr>
+          <th ng-repeat="header in hosts.headers">{{header.name}}
+            <button ng-click="hosts.set_order(header.id, hosts)" 
+                    ng-class="hosts.get_order_class(header.id, hosts)"></button>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="host in hosts.all | orderBy:hosts.sort | filter:hosts.search" ng-click="click_host(host.PoolId, host.Id)" class="link">
+          <td>{{host.Name}}</td>
+          <td>{{host.IpAddr}}</td>
+          <td>{{host.PoolId}}</td>
+          <td>{{host.MemoryUtilization}}%</td>
+        </tr>
+      </tbody>
+    </table>

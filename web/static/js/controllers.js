@@ -50,7 +50,7 @@ angular.module('controlplane', ['ngCookies']).
                 controller: WizardControl}).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: ResourcesControl}).
+                controller: NewHostsControl}).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
@@ -390,9 +390,19 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
     }
     $scope.hosts = {};
 
-    $scope.addSubpool = function(poolId) {
-        console.log('Adding subpool of %s', poolId);
-    };
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, false);
+    // Also ensure we have a list of hosts
+    refreshHosts($scope, resourcesService, false, false);
+}
+
+function NewHostsControl($scope, $routeParams, $location, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "resources";
+    $scope.params = $routeParams;
 
     $scope.toggleCollapsed = function(poolId) {
         console.log('pool clicked %s', poolId);
@@ -410,10 +420,36 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
         }
     };
 
+    $scope.addSubpool = function(poolId) {
+        console.log('Adding subpool of %s', poolId);
+    };
+
+    // Build metadata for displaying a list of pools
+    $scope.pools = buildTable('Id', [
+        { id: 'Id', name: 'Id'}, 
+        { id: 'ParentId', name: 'Parent Id'},
+        { id: 'Priority', name: 'Priority'}
+    ]);
+
+    $scope.click_host = function(pool, host) {
+        var redirect = '/pools/' + pool + "/hosts/" + host;
+        console.log('Redirecting to %s', redirect);
+        $location.path(redirect);
+    };
+
+    // Build metadata for displaying a list of hosts
+    $scope.hosts = buildTable('Name', [
+        { id: 'Name', name: 'Name'},
+        { id: 'IpAddr', name: 'IP Address'},
+        { id: 'PoolId', name: 'Pool Id'},
+        { id: 'MemoryUtilization', name: 'Memory Util %'}
+    ]);
+
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, false);
+
 }
 
 // Controller for resources -> pool details
@@ -1043,6 +1079,14 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
     resourcesService.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.mapped = allHosts;
+
+        // Get array of all hosts
+        $scope.hosts.all = map_to_array(allHosts);
+//        console.log('All hosts length = %d', $scope.hosts.all.length);
+        for(var i=0; i < $scope.hosts.all.length; i++) {
+            $scope.hosts.all[i].MemoryUtilization = 25;
+        }
+        
         // Build array of Hosts relevant to the current pool
         $scope.hosts.data = [];
 

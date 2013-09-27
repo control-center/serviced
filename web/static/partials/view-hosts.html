@@ -1,2 +1,3 @@
-<div class="col-xs-6 col-sm-3" id="sidebar-pools" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'"></div>
-<div class="col-xs-12 col-sm-9">Some content</div>
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    <div class="col-xs-6 col-sm-3" id="sidebar-pools" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'"></div>
+    <div class="col-xs-12 col-sm-9" ng-include="'/static/partials/all-hosts.html'">Some content</div>
