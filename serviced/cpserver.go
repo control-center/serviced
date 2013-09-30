@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func main() {
+func websvc() {
 
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,

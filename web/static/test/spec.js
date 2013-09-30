@@ -861,17 +861,33 @@ describe('refreshServices', function() {
 describe('refreshPools', function() {
     it('Transforms mapped pools into array in scope', function() {
         var dummy_data = fake_pools();
-        var dummy_data_array = map_to_array(dummy_data);
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
-        expect(scope.pools.data).toEqual(map_to_array(dummy_data_array));
+        // refreshPools now adds data above and beyond just transforming into an array
+        for (var i=0; i < scope.pools.length; i++) {
+            // Expect the basic fields to be consistent
+            var dummyPool = dummy_data[scope.pools[i].Id];
+            expect(dummyPool.Name).toEqual(scope.pools[i].Name);
+            expect(dummyPool.ParentId).toEqual(scope.pools[i].ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scope.pools[i].CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scope.pools[i].MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scope.pools[i].Priority);
+        }
     });
 
     it('Puts pool data in scope', function() {
         var dummy_data = fake_pools();
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
-        expect(scope.pools.mapped).toEqual(dummy_data);
+        for (key in dummy_data) {
+            var scopedPool = scope.pools.mapped[key];
+            var dummyPool = dummy_data[key];
+            expect(dummyPool.Name).toEqual(scopedPool.Name);
+            expect(dummyPool.ParentId).toEqual(scopedPool.ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scopedPool.CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scopedPool.MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scopedPool.Priority);
+        }
     });
 
     it('Sets the current pool based on scope.params', function() {

@@ -7,13 +7,13 @@
       </div>
       <div class="modal-body">
         <label for="new_pool_name">Pool ID:</label>
-        <input class="form-control" name="new_pool_name" id="new_pool_name" type="text" placeholder="Unique name" ng-model="newPool.Id" />
+        <input class="form-control" name="new_pool_name" id="new_pool_name" type="text" placeholder="Enter unique name" ng-model="newPool.Id" />
         <label for="new_pool_parent">Parent ID:</label>
-        <input class="form-control" name="new_pool_parent" id="new_pool_parent" type="text" placeholder="default" ng-model="newPool.ParentId" />
+        <input class="form-control" name="new_pool_parent" id="new_pool_parent" type="text" placeholder="Parent pool ID (e.g. 'default')" ng-model="newPool.ParentId" />
         <label for="new_pool_core_limit">Core Limit:</label>
-        <input class="form-control" name="new_pool_core_limit" id="new_pool_core_limit" type="number" min="0" placeholder="4" ng-model="newPool.CoreLimit" />
+        <input class="form-control" name="new_pool_core_limit" id="new_pool_core_limit" type="number" min="0" placeholder="Max CPU cores to allocate" ng-model="newPool.CoreLimit" />
         <label for="new_pool_memory_limit">Memory Limit:</label>
-        <input class="form-control" name="new_pool_memory_limit" id="new_pool_memory_limit" type="number" min="0" placeholder="2048" ng-model="newPool.MemoryLimit" />
+        <input class="form-control" name="new_pool_memory_limit" id="new_pool_memory_limit" type="number" min="0" placeholder="Max RAM to allocate" ng-model="newPool.MemoryLimit" />
         <label for="new_pool_priority">Priority:</label>
         <input class="form-control" name="new_pool_priority" id="new_pool_priority" type="number" min="0" placeholder="1" ng-model="newPool.Priority" />
       </div>
