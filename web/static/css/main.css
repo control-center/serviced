@@ -6,7 +6,6 @@ body {
     background-color: #6b6b6b;
     border-color: #555;
 }
-
 .btn-primary:hover,
 .btn-primary:focus,
 .btn-primary:active,
@@ -15,77 +14,139 @@ body {
     background-color: #8b8b8b;
     border-color: #555;
 }
-
 .breadcrumb.inline > li + li:before {
-  padding: 0 5px;
-  color: #cccccc;
-  content: "\00a0/"; /* reverse order of space and separator */
+    padding: 0 5px;
+    color: #cccccc;
+    content: "\00a0/"; /* reverse order of space and separator */
 }
-
 .highlighted {
     background-color: #ddd;
     font-weight: bold
 }
-
 .link {
     cursor:pointer;
 }
-
 .box {
     padding: 40px 50px;
     background-color: #eeeeee;
     border-radius: 6px;
 }
-
 .page-nav {
     padding-top: 40px;
 }
-
 table .glyphicon {
     cursor: pointer;
 }
-
-i.active {
+.sort.active {
     color: #b0b0b0;
 }
-
+.sort:active, .sort:focus, .sort:hover {
+    color: #c0c0c0;
+}
+.sort {
+    color: #333333;
+}
 .form-signin {
-  max-width: 330px;
-  padding: 15px;
-  margin: 100px 0px 0px 300px;
+    max-width: 330px;
+    padding: 15px;
+    margin: 100px 0px 0px 300px;
 }
 .form-signin .form-signin-heading,
 .form-signin .checkbox {
-  margin-bottom: 10px;
-}
-.form-signin .checkbox {
-  font-weight: normal;
-}
-.form-signin .form-control {
-  position: relative;
-  font-size: 16px;
-  height: auto;
-  padding: 10px;
-  -webkit-box-sizing: border-box;
-     -moz-box-sizing: border-box;
-          box-sizing: border-box;
-}
-.form-signin .form-control:focus {
-  z-index: 2;
-}
-.form-signin input[type="text"] {
-  margin-bottom: -1px;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.form-signin input[type="password"] {
-  margin-bottom: 10px;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+    margin-bottom: 10px;
 }
 
+.form-signin .checkbox {
+    font-weight: normal;
+}
+.form-signin .form-control {
+    position: relative;
+    font-size: 16px;
+    height: auto;
+    padding: 10px;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+.form-signin .form-control:focus {
+    z-index: 2;
+}
+.form-signin input[type="text"] {
+    margin-bottom: -1px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.form-signin input[type="password"] {
+    margin-bottom: 10px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
 .login-container {
     width: 671px;
     height: 360px;
     background: transparent url('/static/img/zenoss-login.png') no-repeat;
+}
+.nav-tree {
+    list-style: none;
+    padding: 0px 0px 0px 20px;
+}
+.nav-tree > li {
+    display: block;
+    padding: 10px 0px 0px 0px;
+}
+.nav-tree.root {
+    padding: 0px;
+}
+.nav-tree > li > a {
+    position: relative;
+    display: inline-block;
+    padding: 0px 5px 0px 5px;
+}
+.nav-tree > li > a:hover,
+.nav-tree > li > a:focus {
+    text-decoration: none;
+    cursor: pointer;
+    background-color: #eeeeee;
+}
+.glyphicon.spacer:before {
+    content: "\00a0";
+}
+.disabled {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.65;
+    color: #b0b0b0;
+}
+.search-control {
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.search-control label {
+    margin: 0px;
+}
+
+h3.table-label {
+    line-height: 1.4;
+    margin: 0px;
+}
+
+.search-control .alert {
+    padding: 6px 12px;
+    margin: 0px 10px;
+    line-height: 1.4;
+    font-size: 14px;
+    text-align: left;
+}
+
+.search-control .close {
+    font-size: 16px;
+    line-height: 1.2;
+    margin-left: 10px;
+}
+
+.search.form-control {
+    display: inline-block;
+    width: auto;
+    vertical-align: bottom;
 }
