@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngCookies']).
+angular.module('controlplane', ['ngCookies','ngDragDrop']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', { 
@@ -48,7 +48,8 @@ angular.module('controlplane', ['ngCookies']).
             when('/wizard/finish', {
                 templateUrl: '/static/partials/wizard_finish.html', 
                 controller: WizardControl}).
-            when('/hosts', {
+            when('/hosts', {redirectTo: '/hosts/1'}).
+            when('/hosts/:page', {
                 templateUrl: '/static/partials/view-hosts.html',
                 controller: NewHostsControl}).
             otherwise({redirectTo: '/entry'});
@@ -57,6 +58,36 @@ angular.module('controlplane', ['ngCookies']).
     factory('wizardService', WizardService).
     factory('servicesService', ServicesService).
     factory('authService', AuthService).
+    filter('treeFilter', function() {
+        /*
+         * @param items The array from ng-repeat
+         * @param field Field on items to check for validity
+         * @param validData Object with allowed objects
+         */
+        return function(items, field, validData) {
+            if (!validData) {
+                return items;
+            }
+            return items.filter(function(elem) {
+                return validData[elem[field]] != null;
+            });
+        };
+    }).
+    filter('page', function() {
+        return function(items, hosts) {
+            if (!items) return;
+
+            var pageSize = hosts.pageSize? hosts.pageSize : 5;
+            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
+            if (!hosts.page || hosts.page >= hosts.pages) {
+                hosts.page = 0;
+            }
+            var page = hosts.page? hosts.page : 0;
+
+            var start = page * pageSize;
+            return items.splice(start, pageSize);
+        };
+    }).
     directive('zDef', function ($compile) {
         // This directive builds a definition list for the object named by 
         // 'to-define' using the fields enumerated in 'define-headers'
@@ -83,6 +114,12 @@ angular.module('controlplane', ['ngCookies']).
         };
     });
 
+/* begin constants */
+var POOL_ICON_CLOSED = 'glyphicon glyphicon-folder-close btn-link';
+var POOL_ICON_OPEN = 'glyphicon glyphicon-folder-open btn-link';
+var POOL_CHILDREN_CLOSED = 'hidden';
+var POOL_CHILDREN_OPEN = 'nav-tree';
+/* end constants */
 
 function EntryControl($scope, authService) {
     console.log('Loading entry');
@@ -390,36 +427,32 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
     }
     $scope.hosts = {};
 
-
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, false);
 }
 
-function NewHostsControl($scope, $routeParams, $location, resourcesService, authService) {
+
+function NewHostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "resources";
     $scope.params = $routeParams;
-
-    $scope.toggleCollapsed = function(poolId) {
-        console.log('pool clicked %s', poolId);
-        var toggled = $scope.pools.mapped[poolId];
+    $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
         if (toggled.children === undefined) {
             return;
         }
         if (toggled.collapsed) {
-            toggled.icon = 'glyphicon glyphicon-collapse-down btn-link';
-            toggled.childrenClass = 'hidden';
+            toggled.icon = POOL_ICON_CLOSED;
+            toggled.childrenClass = POOL_CHILDREN_CLOSED;
         } else {
-            toggled.icon = 'glyphicon glyphicon-collapse-up btn-link';
-            toggled.childrenClass = 'nav-tree';
+            toggled.icon = POOL_ICON_OPEN;
+            toggled.childrenClass = POOL_CHILDREN_OPEN;
         }
     };
-
     $scope.addSubpool = function(poolId) {
         console.log('Adding subpool of %s', poolId);
     };
@@ -429,28 +462,90 @@ function NewHostsControl($scope, $routeParams, $location, resourcesService, auth
         { id: 'Id', name: 'Id'}, 
         { id: 'ParentId', name: 'Parent Id'},
         { id: 'Priority', name: 'Priority'}
-    ]);
+    ])
 
     $scope.click_host = function(pool, host) {
         var redirect = '/pools/' + pool + "/hosts/" + host;
-        console.log('Redirecting to %s', redirect);
-        $location.path(redirect);
+        console.log('Clicked %s', redirect);
+        //$location.path(redirect);
+    };
+
+    $scope.clearSelectedPool = function() {
+        $scope.selectedPool = null;
+        $scope.subPools = null;
+    };
+
+    $scope.clickPool = function(poolId) {
+        var topPool = $scope.pools.mapped[poolId];
+        if (!topPool) {
+            $scope.clearSelectedPool();
+            return;
+        }
+        var allowed = {};
+        addChildren(allowed, topPool);
+        console.log('Filtering to: %s', JSON.stringify(allowed));
+        $scope.subPools = allowed;
+        $scope.selectedPool = poolId;
+        
+    };
+
+    $scope.dropped = [];
+    $scope.filteredHosts = function() {
+        var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
+        var filtered = $filter('filter')(ordered, $scope.hosts.search);
+        var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
+        return $filter('page')(treeFiltered, $scope.hosts);
+    };
+
+    $scope.dropIt = function(event, ui) {
+        var poolId = $(event.target).attr('pool-id');
+        var pool = $scope.pools.mapped[poolId];
+//        console.log(JSON.stringify($scope.dropped));
+        var host = $scope.dropped[0];
+
+        console.log('Reassigning %s to %s', host.Name, pool.Id);
+
+        var modifiedHost = $.extend({}, host);
+        modifiedHost.PoolId = pool.Id;
+        resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
+            refreshHosts($scope, resourcesService, false, false);
+        });
+
+        $scope.dropped = [];
     };
 
     // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('Name', [
+    $scope.hosts = buildTable('PoolId', [
         { id: 'Name', name: 'Name'},
-        { id: 'IpAddr', name: 'IP Address'},
-        { id: 'PoolId', name: 'Pool Id'},
-        { id: 'MemoryUtilization', name: 'Memory Util %'}
+        { id: 'PoolId', name: 'Assigned Resource Pool'},
     ]);
+    $scope.hosts.page = ($routeParams.page - 1);
+
+    $scope.previousPage = function() {
+        $scope.hosts.page = Math.max(0, ($scope.hosts.page - 1));
+    };
+    $scope.nextPage = function() {
+        $scope.hosts.page = Math.min(($scope.hosts.pages - 1), ($scope.hosts.page + 1));
+    };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, false);
-
 }
+
+/*
+ * Recurse through children building up allowed along the way.
+ */
+function addChildren(allowed, parent) {
+    allowed[parent.Id] = true;
+    if (parent.children) {
+        for (var i=0; i < parent.children.length; i++) {
+            addChildren(allowed, parent.children[i]);
+        }
+    }
+}
+
 
 // Controller for resources -> pool details
 function PoolControl($scope, $routeParams, $http, $location, resourcesService, authService) {
@@ -1042,24 +1137,38 @@ function refreshPools($scope, resourcesService, cachePools) {
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
+
+        /* Uncomment to use single rooted tree
+        $scope.pools.tree = [{
+            Id: 'Resource Pools',
+            icon: POOL_ICON_OPEN,
+            childrenClass: POOL_CHILDREN_OPEN,
+            collapsed: false,
+            children: []
+        }];
+        */
         $scope.pools.tree = [];
 
         for (var key in allPools) {
             var p = allPools[key];
             p.collapsed = false;
             p.childrenClass = "nav-tree";
+            p.dropped = [];
             if (p.icon === undefined) {
-                p.icon = 'glyphicon glyphicon-collapse-up disabled';
+                p.icon = 'glyphicon spacer disabled';
             }
             var parent = allPools[p.ParentId];
             if (parent) {
                 if (parent.children === undefined) {
                     parent.children = [];
-                    parent.icon = 'glyphicon glyphicon-collapse-up';
+                    parent.icon = POOL_ICON_OPEN;
                 }
                 console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
             } else {
+                /* Uncomment to use single rooted tree
+                $scope.pools.tree[0].children.push(p);
+                */
                 $scope.pools.tree.push(p);
             }
         }
@@ -1170,7 +1279,9 @@ function buildTable(sort, headers) {
         headers: headers,
         sort_icons: sort_icons,
         set_order: set_order,
-        get_order_class: get_order_class
+        get_order_class: get_order_class,
+        page: 0,
+        pageSize: 5
     };
 }
 

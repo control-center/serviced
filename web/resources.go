@@ -5,15 +5,10 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/svc"
 	"github.com/zenoss/serviced"
-	agent "github.com/zenoss/serviced/agent"
 	clientlib "github.com/zenoss/serviced/client"
-	"github.com/zenoss/serviced/proxy"
 
 	"os"
-	"net"
 	"strings"
-	"net/http"
-	"net/rpc"
 	"net/url"
 )
 
@@ -321,49 +316,9 @@ func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	w.WriteJson(&SimpleResponse{"Removed host", hostsLink()})
 }
 
-
-func startServer(options *ServiceConfig) {
-	master, err := svc.NewControlSvc(options.DbString)
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane service: %v", err)
-	}
-	// register the API
-	glog.Infoln("registering ControlPlane service")
-	rpc.RegisterName("LoadBalancer", master)
-	rpc.RegisterName("ControlPlane", master)
-	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", options.MasterPort)
-	if err != nil {
-		glog.Fatalf("Could not bind to port %v", err)
-	}
-	glog.Infof("Listening on %s", l.Addr().String())
-	started = true
-	masterService = master
-	glog.Flush()
-	go startAgent(options)
-	http.Serve(l, nil) // start the server
-}
-
-func startAgent(options *ServiceConfig) {
-	mux := proxy.TCPMux{}
-	mux.CertPEMFile = options.CertPEMFile
-	mux.KeyPEMFile = options.KeyPEMFile
-	mux.Enabled = true
-	mux.Port = options.MuxPort
-	mux.UseTLS = options.Tls
-	agent, err := agent.NewHostAgent(options.AgentPort, mux)
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
-	// register the API
-	glog.Infoln("registering ControlPlaneAgent service")
-	rpc.RegisterName("ControlPlaneAgent", agent)
-}
-
 func init() {
 	configuration = ServiceConfig{}
 	configDefaults(&configuration)
-	go startServer(&configuration)
 }
 
 func configDefaults(cfg *ServiceConfig) {
