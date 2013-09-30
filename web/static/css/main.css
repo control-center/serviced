@@ -90,24 +90,79 @@ table .glyphicon {
     list-style: none;
     padding: 0px 0px 0px 20px;
 }
+
 .nav-tree > li {
     display: block;
     padding: 10px 0px 0px 0px;
 }
+
+.nav-tree > li .extended {
+    visibility: hidden;
+
+}
+.pool-data {
+    padding: 0px;
+    margin: 0px;
+    display: inline-block;
+}
+
+.nav-tree > li > .pool-data:hover > .extended {
+    visibility: inherit;
+}
+
 .nav-tree.root {
     padding: 0px;
 }
-.nav-tree > li > a {
-    position: relative;
-    display: inline-block;
-    padding: 0px 5px 0px 5px;
+h1 > a, h2 > a, h3 > a, h4 > a {
+    display: block;
+    text-decoration: none;
+    padding: 5px;
 }
-.nav-tree > li > a:hover,
-.nav-tree > li > a:focus {
+
+h1 > a:hover, h2 > a:hover, h3 > a:hover, h4 > a:hover,
+h1 > a:focus, h2 > a:focus, h3 > a:focus, h4 > a:focus {
     text-decoration: none;
     cursor: pointer;
     background-color: #eeeeee;
 }
+
+a,
+.btn-link {
+    color: #707070;
+}
+
+.btn-link:hover, .btn-link:active, .btn-link:focus,
+a:hover, a:active, a:focus {
+    color: #303030;
+}
+
+.nav-tree > li  a {
+    position: relative;
+    display: inline-block;
+    padding: 0px 5px 0px 5px;
+}
+.nav-tree > li .pool-data:hover,
+.nav-tree > li .pool-data:focus {
+     background-color: #eeeeee;
+}
+
+.nav-tree > li a:hover,
+.nav-tree > li a:focus {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.nav-tree > li .dropdown a {
+    display: block;
+}
+
+.nav-tree > li .dropdown a:hover,
+.nav-tree > li .dropdown a:focus {
+    text-decoration: none;
+    cursor: pointer;
+    background-color: #c0c0c0;
+}
+
 .glyphicon.spacer:before {
     content: "\00a0";
 }

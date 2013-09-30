@@ -453,8 +453,17 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
             toggled.childrenClass = POOL_CHILDREN_OPEN;
         }
     };
+    $scope.newPool = {};
     $scope.addSubpool = function(poolId) {
-        console.log('Adding subpool of %s', poolId);
+        console.log('Adding subpool of %s; current newPool.ParentId = %s', poolId, $scope.newPool.ParentId);
+        $scope.newPool.ParentId = poolId;
+        $('#addPool').modal('show');
+    };
+    $scope.delSubpool = function(poolId) {
+        console.log('Removing pool %s', poolId);
+        resourcesService.remove_pool(poolId, function() {
+            refreshPools($scope, resourcesService, false);
+        });
     };
 
     // Build metadata for displaying a list of pools
@@ -467,7 +476,6 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
     $scope.click_host = function(pool, host) {
         var redirect = '/pools/' + pool + "/hosts/" + host;
         console.log('Clicked %s', redirect);
-        //$location.path(redirect);
     };
 
     $scope.clearSelectedPool = function() {
@@ -483,10 +491,8 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
         }
         var allowed = {};
         addChildren(allowed, topPool);
-        console.log('Filtering to: %s', JSON.stringify(allowed));
         $scope.subPools = allowed;
         $scope.selectedPool = poolId;
-        
     };
 
     $scope.dropped = [];
@@ -514,10 +520,30 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
         $scope.dropped = [];
     };
 
+    // Function for adding new pools
+    $scope.add_pool = function() {
+        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
+        resourcesService.add_pool($scope.newPool, function(data) {
+            // After adding, refresh our list
+            refreshPools($scope, resourcesService, false);
+        });
+        // Reset for another add
+        $scope.newPool = {};
+    };
+
+    // Function for removing the current pool
+    $scope.remove_pool = function() {
+        console.log('Removing pool %s', $scope.params.poolId);
+        resourcesService.remove_pool($scope.params.poolId, function(data) {
+            refreshPools($scope, resourcesService, false);
+        });
+    };
+
+
     // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('PoolId', [
+    $scope.hosts = buildTable('fullPath', [
         { id: 'Name', name: 'Name'},
-        { id: 'PoolId', name: 'Assigned Resource Pool'},
+        { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
     $scope.hosts.page = ($routeParams.page - 1);
 
@@ -1129,6 +1155,13 @@ function refreshServices($scope, servicesService, cacheOk) {
     });
 }
 
+function getFullPath(allPools, pool) {
+    if (!pool.ParentId || !allPools[pool.ParentId]) {
+        return pool.Id;
+    }
+    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
+}
+
 function refreshPools($scope, resourcesService, cachePools) {
     // defend against empty scope
     if ($scope.pools === undefined) {
@@ -1153,6 +1186,7 @@ function refreshPools($scope, resourcesService, cachePools) {
             var p = allPools[key];
             p.collapsed = false;
             p.childrenClass = "nav-tree";
+            p.safeId = encodeURIComponent(p.Id);
             p.dropped = [];
             if (p.icon === undefined) {
                 p.icon = 'glyphicon spacer disabled';
@@ -1165,11 +1199,14 @@ function refreshPools($scope, resourcesService, cachePools) {
                 }
                 console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
+                p.fullPath = getFullPath(allPools, p);
+
             } else {
                 /* Uncomment to use single rooted tree
                 $scope.pools.tree[0].children.push(p);
                 */
                 $scope.pools.tree.push(p);
+                p.fullPath = p.Id;
             }
         }
 
@@ -1185,6 +1222,7 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
     }
+
     resourcesService.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.mapped = allHosts;
@@ -1192,9 +1230,11 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
         // Get array of all hosts
         $scope.hosts.all = map_to_array(allHosts);
 //        console.log('All hosts length = %d', $scope.hosts.all.length);
+/*        
         for(var i=0; i < $scope.hosts.all.length; i++) {
             $scope.hosts.all[i].MemoryUtilization = 25;
         }
+*/
         
         // Build array of Hosts relevant to the current pool
         $scope.hosts.data = [];
@@ -1212,6 +1252,16 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
                 }
             });
         }
+
+        // Transfer path from pool to host
+        $scope.$watch('pools.mapped', function() {
+            if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
+                for(var i=0; i < $scope.hosts.all.length; i++) {
+                    var host = $scope.hosts.all[i];
+                    host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+                }
+            }
+        });
     });
 }
 

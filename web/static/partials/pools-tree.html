@@ -1,6 +1,18 @@
-          <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
-          <a ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
-          <!--<a class="btn-link glyphicon glyphicon-plus-sign link" ng-click="addSubpool(pool.Id)"></a> -->
+          <div class="pool-data">
+            <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
+            <a ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
+
+            <span class="dropdown extended">
+              <!-- Link or button to toggle dropdown -->
+              <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown"></button>
+              <ul class="dropdown-menu" role="menu">
+                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="addSubpool(pool.Id)">add a sub pool to {{pool.Id}}</a></li>
+                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="delSubpool(pool.Id)">delete {{pool.Id}}</a></li>
+              </ul>
+            </span>
+          </div>
+
+<!--          <a class="btn-link glyphicon glyphicon-plus-sign link" ></a> -->
           <ul ng-class="pool.childrenClass">
             <li ng-repeat="pool in pool.children" 
                 ng-include="'/static/partials/pools-tree.html'"
