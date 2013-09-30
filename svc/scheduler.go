@@ -3,7 +3,9 @@ package svc
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 
+	"math/rand"
 	"sort"
 	"time"
 )
@@ -110,12 +112,15 @@ func (s *scheduler) loop() {
 			if !exists {
 				continue
 			}
+			s.lead()
+			/*
 			select {
 			case <-TimeoutAfter(time.Second * 30):
 				glog.Info("I've lead long enough. Leaving lead.")
 			case evt := <-event:
 				glog.Error("Got event, %s during lead; leaving lead", evt)
 			}
+			*/
 			return
 		} else {
 			glog.Infof("I must wait for %s to die.", children[0])
@@ -145,5 +150,11 @@ func (s *scheduler) loop() {
 			}
 		}
 	}
+
+}
+
+
+// This is the main loop for the scheduler.
+func (s *scheduler) lead() {
 
 }

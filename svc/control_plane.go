@@ -16,10 +16,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/zenoss/glog"
-	"math/rand"
 	"strconv"
 	"strings"
-	"time"
 )
 
 /* A control plane implementation.
@@ -31,7 +29,8 @@ services, & service instances.
 type ControlSvc struct {
 	connectionString string
 	connectionDriver string
-	zookeepers       string
+	zookeepers       []string
+	scheduler        *scheduler
 }
 
 // Ensure that ControlSvc implements the ControlPlane interface.
@@ -53,7 +52,7 @@ func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, er
 		return s, err
 	}
 
-	go s.scheduler()
+	s.scheduler = 
 	return s, err
 }
 
@@ -423,75 +422,6 @@ func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.Serv
 	return nil
 }
 
-// This is the main loop for the scheduler.
-func (s *ControlSvc) scheduler() {
-
-	for {
-		time.Sleep(time.Second)
-		func() error {
-			db, dbmap, err := s.getDbConnection()
-			if err != nil {
-				glog.Infof("trying to connection: %s", err)
-				return err
-			}
-			defer db.Close()
-			var services []*serviced.Service
-			// get all service that are supposed to be running
-			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
-			if err != nil {
-				return err
-			}
-			for _, service := range services {
-				// check current state
-				var serviceStates []*serviced.ServiceState
-				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
-				if err != nil {
-					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
-					return err
-				}
-				if len(serviceStates) == service.Instances {
-					continue
-				}
-
-				instancesToStart := service.Instances - len(serviceStates)
-				if instancesToStart >= 0 {
-					for i := 0; i < instancesToStart; i++ {
-						// get hosts
-						var pool_hosts []*serviced.PoolHost
-						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
-						if err != nil {
-							return err
-						}
-						if len(pool_hosts) == 0 {
-							glog.Infof("Pool %s has no hosts", service.PoolId)
-							break
-						}
-
-						// randomly select host
-						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
-
-						serviceState, err := service.NewServiceState(service_host.HostId)
-						if err != nil {
-							glog.Errorf("Error creating ServiceState instance: %v", err)
-							break
-						}
-						glog.Infof("cp: serviceState %s", serviceState.Started)
-						err = dbmap.Insert(serviceState)
-					}
-				} else {
-					// pick service instances to kill!
-					instancesToKill := len(serviceStates) - service.Instances
-					for i := 0; i < instancesToKill; i++ {
-						glog.Infof("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
-						serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-						_, err = dbmap.Update(serviceStates[i])
-					}
-				}
-			}
-			return nil
-		}()
-	}
-}
 
 // Schedule a service to run on a host.
 func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) {
@@ -733,3 +663,87 @@ func (s *ControlSvc) RemoveResourcePool(poolId string, unused *int) (err error) 
 	_, err = dbmap.Delete(&serviced.ResourcePool{Id: poolId})
 	return err
 }
+
+
+func (s *ControlSvc) lead(shutdown chan chan err) {
+	shutdown_mode := false
+	for {
+		if shutdown_mode {
+			break
+		}
+		time.Sleep(time.Second)
+		func() error {
+			select {
+			case errchan := <-shutdown:
+				// shut this thing down
+				errchan <- nil
+				shutdown_mode = true
+				return
+			default:
+				// passthru
+			}
+			db, dbmap, err := s.getDbConnection()
+			if err != nil {
+				glog.Infof("trying to connection: %s", err)
+				return err
+			}
+			defer db.Close()
+			var services []*serviced.Service
+			// get all service that are supposed to be running
+			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
+			if err != nil {
+				return err
+			}
+			for _, service := range services {
+				// check current state
+				var serviceStates []*serviced.ServiceState
+				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
+				if err != nil {
+					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
+					return err
+				}
+				if len(serviceStates) == service.Instances {
+					continue
+				}
+
+				instancesToStart := service.Instances - len(serviceStates)
+				if instancesToStart >= 0 {
+					for i := 0; i < instancesToStart; i++ {
+						// get hosts
+						var pool_hosts []*serviced.PoolHost
+						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
+						if err != nil {
+							return err
+						}
+						if len(pool_hosts) == 0 {
+							glog.Infof("Pool %s has no hosts", service.PoolId)
+							break
+						}
+
+						// randomly select host
+						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+
+						serviceState, err := service.NewServiceState(service_host.HostId)
+						if err != nil {
+							glog.Errorf("Error creating ServiceState instance: %v", err)
+							break
+						}
+						glog.Infof("cp: serviceState %s", serviceState.Started)
+						err = dbmap.Insert(serviceState)
+					}
+				} else {
+					// pick service instances to kill!
+					instancesToKill := len(serviceStates) - service.Instances
+					for i := 0; i < instancesToKill; i++ {
+						glog.Infof("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
+						serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+						_, err = dbmap.Update(serviceStates[i])
+					}
+				}
+			}
+			return nil
+		}()
+	}
+
+}
+
