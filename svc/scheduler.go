@@ -3,9 +3,7 @@ package svc
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 
-	"math/rand"
 	"sort"
 	"time"
 )
@@ -19,7 +17,8 @@ type scheduler struct {
 	started      bool            // is the loop running
 }
 
-func newScheduler(cluster_path string, conn *zk.Conn, instance_id string) (s *scheduler, shutdown <-chan error) {
+
+func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func (<-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
 		conn:         conn,
 		cluster_path: cluster_path,
@@ -112,7 +111,7 @@ func (s *scheduler) loop() {
 			if !exists {
 				continue
 			}
-			s.lead()
+			lead(event)
 			/*
 			select {
 			case <-TimeoutAfter(time.Second * 30):
@@ -155,6 +154,10 @@ func (s *scheduler) loop() {
 
 
 // This is the main loop for the scheduler.
-func (s *scheduler) lead() {
-
+func lead(eventChan <-chan zk.Event) {
+	select{
+	case event := <-eventChan:
+		glog.Infof("Event recdeived: %v", event)
+	}
 }
+

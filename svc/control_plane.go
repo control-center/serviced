@@ -9,15 +9,18 @@
 package svc
 
 import (
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/coopernurse/gorp"
 	"github.com/zenoss/serviced"
 	_ "github.com/ziutek/mymysql/godrv"
 
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"github.com/zenoss/glog"
 	"strconv"
 	"strings"
+	"time"
 )
 
 /* A control plane implementation.
@@ -45,15 +48,32 @@ func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, er
 	}
 	s.connectionString = serviced.ToMymysqlConnectionString(connInfo)
 	s.connectionDriver = "mymysql"
+	s.zookeepers = zookeepers
 
 	// ensure that a default pool exists
 	_, err = s.getDefaultResourcePool()
 	if err != nil {
 		return s, err
 	}
-
-	s.scheduler = 
+	go s.handleScheduler()
 	return s, err
+}
+
+
+func (s *ControlSvc) handleScheduler() {
+
+	for {
+		conn, _, err := zk.Connect(s.zookeepers, time.Second*10)
+		if err != nil {
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		scheduler, shutdown := newScheduler("", conn, "foo", s.lead)
+		scheduler.Start()
+		select {
+		case <-shutdown:
+		}
+	}
 }
 
 type service_endpoint struct {
@@ -665,7 +685,7 @@ func (s *ControlSvc) RemoveResourcePool(poolId string, unused *int) (err error) 
 }
 
 
-func (s *ControlSvc) lead(shutdown chan chan err) {
+func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 	shutdown_mode := false
 	for {
 		if shutdown_mode {
@@ -674,11 +694,11 @@ func (s *ControlSvc) lead(shutdown chan chan err) {
 		time.Sleep(time.Second)
 		func() error {
 			select {
-			case errchan := <-shutdown:
+			case evt := <-zkEvent:
 				// shut this thing down
-				errchan <- nil
 				shutdown_mode = true
-				return
+				glog.Errorf("Got a zkevent, leaving lead: %v", evt)
+				return nil
 			default:
 				// passthru
 			}
