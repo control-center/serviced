@@ -1,6 +1,13 @@
-    <div class="well sidebar-nav">
+    <div class="well sidebar-nav show-menu">
       <h4>
         <a ng-click="clearSelectedPool()">Resource Pools</a>
+        <span class="dropdown extended-primary">
+          <!-- Link or button to toggle dropdown -->
+          <button class="btn-link glyphicon glyphicon-plus-sign" data-toggle="dropdown"></button>
+          <ul class="dropdown-menu" role="menu">
+            <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="addSubpool('')">add a resource pool</a></li>
+          </ul>
+        </span>
       </h4>
       <ul class="nav-tree root">
         <li ng-repeat="pool in pools.tree" 

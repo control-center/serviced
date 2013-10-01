@@ -454,6 +454,19 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
         }
     };
     $scope.newPool = {};
+    $scope.newHost = {};
+
+    $scope.add_host = function() {
+        resourcesService.add_host($scope.newHost, function(data) {
+            // After adding, refresh our list
+            refreshHosts($scope, resourcesService, false);
+        });
+        // Reset for another add
+        $scope.newHost = {
+            PoolId: $scope.params.poolId
+        };
+    };
+
     $scope.addSubpool = function(poolId) {
         console.log('Adding subpool of %s; current newPool.ParentId = %s', poolId, $scope.newPool.ParentId);
         $scope.newPool.ParentId = poolId;

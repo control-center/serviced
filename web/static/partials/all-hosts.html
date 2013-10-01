@@ -4,6 +4,10 @@
       <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}' and sub pools</label>
       <label class="sr-only" for="all_hosts_search">Search</label>
       <input placeholder="Search" id="all_hosts_search" type="text" ng-model="hosts.search" class="form-control search"></input>
+      <a class="add-control btn-link" data-toggle="modal" href="#addHost">
+        <span class="glyphicon glyphicon-plus-sign"></span>
+        Add a host
+      </a>
     </div>
     <h3 class="table-label">Hosts</h3>
     <table class="table table-striped table-bordered table-hover" id="hosts_data" >
