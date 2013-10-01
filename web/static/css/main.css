@@ -137,10 +137,31 @@ h1 > a:focus, h2 > a:focus, h3 > a:focus, h4 > a:focus {
     background-color: #eeeeee;
 }
 
+td.deploy-success {
+    color: #468847;
+}
+td.deploy-error {
+    color: #b94a48;
+}
+td.deploy-info {
+    color: #3a87ad;
+}
+td.deploy-warning {
+    color: #c09853;
+}
+
 .add-control {
     padding-left: 10px;
     font-size: 18px;
     line-height: 1.7;
+}
+
+.deployed.alert {
+    font-weight: bold;
+}
+
+.deployed.alert > a {
+    text-decoration: underline;
 }
 
 a,

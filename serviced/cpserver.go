@@ -27,6 +27,7 @@ func websvc() {
 		rest.Route{"POST", "/services/:serviceId", web.AuthorizedClient(web.RestUpdateService)},
 		rest.Route{"GET", "/pools", web.AuthorizedClient(web.RestGetPools)},
 		rest.Route{"GET", "/services", web.AuthorizedClient(web.RestGetServices)},
+		rest.Route{"GET", "/apps", web.AuthorizedClient(web.RestGetApps)},
 		rest.Route{"POST", "/login", web.RestLogin},
 		rest.Route{"DELETE", "/login", web.RestLogout},
 		rest.Route{"GET", "/favicon.ico", web.FavIcon},

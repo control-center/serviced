@@ -22,6 +22,15 @@ type ServiceConfig struct {
 	CertPEMFile string
 }
 
+/* TODO: delete App struct */
+type App struct {
+	Name string
+	Deployment string
+	PoolId string
+	Running string
+	Url string
+}
+
 type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient)
 
@@ -44,6 +53,16 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 		defer client.Close()
 		realfunc(w, r, client)
 	}
+}
+
+/* TODO: Replace with real data */
+func RestGetApps(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	apps := []*App{
+		&App{ "Resource Manager 5.0", "successful", "default", "started", "http://localhost:8080/" },
+		&App{ "Analytics 4.4.0", "failed", "default", "stopped", "http://localhost:8080/analytics" },
+		&App{ "Impact 4.3.2", "in-process", "default", "stopped", "http://localhost:8080/impact" },
+	}
+	w.WriteJson(&apps);
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {

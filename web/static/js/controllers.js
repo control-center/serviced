@@ -48,6 +48,10 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/wizard/finish', {
                 templateUrl: '/static/partials/wizard_finish.html', 
                 controller: WizardControl}).
+            when('/apps', {
+                templateUrl: '/static/partials/view-apps.html',
+                controller: DeployedAppsControl
+            }).
             when('/hosts', {redirectTo: '/hosts/1'}).
             when('/hosts/:page', {
                 templateUrl: '/static/partials/view-hosts.html',
@@ -124,10 +128,12 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 function EntryControl($scope, authService) {
     console.log('Loading entry');
     authService.checkLogin($scope);
+    $scope.brand_label = "Zenoss Control Plane";
+    $scope.page_content = "You can install Resource Manager, Analytics, and Impact here."; 
     $scope.mainlinks = [
-        { url: '#/wizard/start', label: 'Install' },
-        { url: '#/services', label: 'Configure services' },
-        { url: '#/resources', label: 'Manage resources' }
+        { url: '#/wizard/start', label: 'Deploy new application' },
+        { url: '#/apps', label: 'Applications' },
+        { url: '#/hosts', label: 'Hosts' }
     ];
 }
 
@@ -434,6 +440,35 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
 }
 
 
+function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+    $scope.name = "resources";
+    $scope.params = $routeParams;
+
+    $scope.apps = buildTable('-Running', [
+        { id: 'Name', name: 'Application'}, 
+        { id: 'Deployment', name: 'Deployment Status'},
+        { id: 'PoolId', name: 'Resource Pool'},
+        { id: 'Running', name: 'Status' }
+    ]);
+
+    $scope.deployed = {
+        name: "Zenoss Resource Manager 5.0",
+        class: "deployed alert alert-success",
+        show: true,
+        url: "http://localhost:8080/",
+        deployment: "ready"
+    };
+
+    $scope.clickRunning = function(app, status) {
+        app.Running = status;
+        updateRunning(app);
+    };
+
+    refreshApps($scope, servicesService, false);
+}
+
 function NewHostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -672,8 +707,8 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.username = $cookies['ZUsername'];
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
     $scope.navlinks = [
-        { url: '#/services', label: 'Configuration' },
-        { url: '#/resources', label: 'Resources' }
+        { url: '#/apps', label: 'Deployed Apps' },
+        { url: '#/hosts', label: 'Hosts' }
     ];
 
     // Create a logout function
@@ -817,7 +852,9 @@ function WizardService() {
 }
 
 function ServicesService($http, $location) {
+    var cached_apps;
     var cached_services;
+
     var _get_services = function(callback) {
         $http.get('/services').
             success(function(data, status) {
@@ -834,6 +871,21 @@ function ServicesService($http, $location) {
             });
     };
 
+    var _get_apps = function(callback) {
+        $http.get('/apps').
+            success(function(data, status) {
+                console.log('Retrieved list of apps');
+                cached_apps = data;
+                callback(data);
+            }).
+            error(function(data, status) {
+                console.log('Unable to retrieve apps');
+                if (status === 401) {
+                    unauthorized($location);
+                }
+            });
+    };
+
     return {
         get_services: function(cacheOk, callback) {
             if (cacheOk && cached_services) {
@@ -841,6 +893,15 @@ function ServicesService($http, $location) {
                 callback(cached_services);
             } else {
                 _get_services(callback);
+            }
+        },
+
+        get_apps: function(cacheOk, callback) {
+            if (cacheOk && cached_apps) {
+                console.log('Using cached apps');
+                callback(cached_apps);
+            } else {
+                _get_apps(callback);
             }
         },
 
@@ -1230,6 +1291,64 @@ function refreshPools($scope, resourcesService, cachePools) {
     });
 }
 
+function refreshApps($scope, servicesService, cacheApps) {
+    if ($scope.apps === undefined) {
+        $scope.apps = {};
+    }
+
+    servicesService.get_apps(cacheApps, function(allApps) {
+        $scope.apps.data = allApps;
+        for (var i=0; i < allApps.length; i++) {
+            var depClass = "";
+            var iconClass = "";
+            var runningClass = "";
+            var notRunningClass = "";
+
+            switch(allApps[i].Deployment) {
+            case "successful": 
+                depClass = "deploy-success";
+                iconClass = "glyphicon glyphicon-ok";
+                break;
+            case "failed":
+                depClass = "deploy-error";
+                iconClass = "glyphicon glyphicon-remove";
+                break;
+            case "in-process":
+                depClass = "deploy-info";
+                iconClass = "glyphicon glyphicon-refresh";
+                break;
+            default:
+                depClass = "deploy-warning";
+                iconClass = "glyphicon glyphicon-question-sign";
+                break;
+            }
+            updateRunning(allApps[i]);
+
+            allApps[i].deploymentClass = depClass;
+            allApps[i].deploymentIcon = iconClass;
+        }
+    });
+}
+
+function updateRunning(app) {
+    console.log("Updating for %s", app.Name);
+    if (app.Running === "started") {
+        app.runningText = "Started";
+        app.notRunningText = "Stop";
+        app.runningClass = "btn btn-success active";
+        app.notRunningClass = "btn btn-default";
+    } else {
+        app.runningText = "Start";
+        app.notRunningText = "Stopped";
+        app.runningClass = "btn btn-default";
+        app.notRunningClass = "btn btn-danger active";
+    }
+    if (app.Deployment !== "successful") {
+        app.runningClass += " disabled";
+        app.notRunningClass += " disabled";
+    }
+}
+
 function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
@@ -1266,15 +1385,20 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
             });
         }
 
-        // Transfer path from pool to host
-        $scope.$watch('pools.mapped', function() {
-            if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
-                for(var i=0; i < $scope.hosts.all.length; i++) {
-                    var host = $scope.hosts.all[i];
-                    host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+        // This method gets called more than once. We don't watch to keep
+        // setting watches if we've already got one.
+        if ($scope.watching_pools === undefined) {
+            $scope.watching_pools = true;
+            // Transfer path from pool to host
+            $scope.$watch('pools.mapped', function() {
+                if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
+                    for(var i=0; i < $scope.hosts.all.length; i++) {
+                        var host = $scope.hosts.all[i];
+                        host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 }
 
