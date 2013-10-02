@@ -9,15 +9,16 @@
 package svc
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/coopernurse/gorp"
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/ziutek/mymysql/godrv"
 
 	"database/sql"
 	"fmt"
-	"math/rand"
 	"github.com/zenoss/glog"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -48,17 +49,23 @@ func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, er
 	}
 	s.connectionString = serviced.ToMymysqlConnectionString(connInfo)
 	s.connectionDriver = "mymysql"
-	s.zookeepers = zookeepers
+
+	if len(zookeepers) == 0 {
+		isvcs.ZookeeperContainer.Run()
+		s.zookeepers = []string{"127.0.0.1:2181"}
+	} else {
+		s.zookeepers = zookeepers
+	}
 
 	// ensure that a default pool exists
 	_, err = s.getDefaultResourcePool()
 	if err != nil {
 		return s, err
 	}
+
 	go s.handleScheduler()
 	return s, err
 }
-
 
 func (s *ControlSvc) handleScheduler() {
 
@@ -442,7 +449,6 @@ func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.Serv
 	return nil
 }
 
-
 // Schedule a service to run on a host.
 func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -684,7 +690,6 @@ func (s *ControlSvc) RemoveResourcePool(poolId string, unused *int) (err error) 
 	return err
 }
 
-
 func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 	shutdown_mode := false
 	for {
@@ -766,4 +771,3 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 	}
 
 }
-
