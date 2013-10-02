@@ -31,9 +31,40 @@ func exists(pretty *bool, index string, _type string) func( string) (bool, error
 }
 
 // closure for indexing a model
-func index(pretty *bool, index string, _type string) func( string, interface{}) (api.BaseResponse, error)  {
+func create(pretty *bool, index string, _type string) func( string, interface{}) (api.BaseResponse, error)  {
+  var (
+    parentId string = ""
+    version int = 0
+    op_type string = "create"
+    routing string = ""
+    timestamp string = ""
+    ttl int = 0
+    percolate string = ""
+    timeout string = ""
+    refresh bool = true
+  )
   return func( id string, data interface{}) (api.BaseResponse, error) {
-    return core.Index( *pretty, index, _type, id, data);
+    return core.IndexWithParameters(
+      *pretty, index, _type, id, parentId, version, op_type, routing, timestamp, ttl, percolate, timeout, refresh, data);
+  }
+}
+
+// closure for indexing a model
+func index(pretty *bool, index string, _type string) func( string, interface{}) (api.BaseResponse, error)  {
+  var (
+    parentId string = ""
+    version int = 0
+    op_type string = ""
+    routing string = ""
+    timestamp string = ""
+    ttl int = 0
+    percolate string = ""
+    timeout string = ""
+    refresh bool = true
+  )
+  return func( id string, data interface{}) (api.BaseResponse, error) {
+    return core.IndexWithParameters(
+      *pretty, index, _type, id, parentId, version, op_type, routing, timestamp, ttl, percolate, timeout, refresh, data);
   }
 }
 
@@ -53,6 +84,11 @@ var (
   hostExists         func (string) (bool, error) = exists( &Pretty, "controlplane", "host")
   serviceExists      func (string) (bool, error) = exists( &Pretty, "controlplane", "service")
   resourcePoolExists func (string) (bool, error) = exists( &Pretty, "controlplane", "resourcepool")
+
+  //model index functions
+  newHost         func(string, interface{}) (api.BaseResponse, error) = create( &Pretty, "controlplane", "host")
+  newService      func(string, interface{}) (api.BaseResponse, error) = create( &Pretty, "controlplane", "service")
+  newResourcePool func(string, interface{}) (api.BaseResponse, error) = create( &Pretty, "controlplane", "resourcepool")
 
   //model index functions
   indexHost         func(string, interface{}) (api.BaseResponse, error) = index( &Pretty, "controlplane", "host")
@@ -89,15 +125,8 @@ func (this *ControlPlaneDao) NewResourcePool(resourcePool *dao.ResourcePool) err
     return errors.New( "empty ResourcePool.Id not allowed")
   }
 
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := resourcePoolExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "ResourcePool with Id=%s already exists", id)
-  //  return resourcePool, errors.New( message)
-  //}
-
   resourcePool.Id = id
-  response, err := indexResourcePool( id, resourcePool)
+  response, err := newResourcePool( id, resourcePool)
   glog.Infof( "ControlPlaneDao.NewResourcePool response: %+v", response)
   if response.Ok {
     return nil
@@ -115,15 +144,8 @@ func (this *ControlPlaneDao) NewHost(host *dao.Host) error {
     return errors.New( "empty Host.Id not allowed")
   }
 
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := hostExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "Host with Id=%s already exists", id)
-  //  return nil, errors.New( message)
-  //}
-
   host.Id = id
-  response, err := indexHost( id, host)
+  response, err := newHost( id, host)
   glog.Infof( "ControlPlaneDao.NewHost response: %+v", response)
   if response.Ok {
     return nil
@@ -140,15 +162,8 @@ func (this *ControlPlaneDao) NewService(service *dao.Service) error {
     return errors.New( "empty Service.Id not allowed")
   }
 
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := serviceExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "Service with Id=%s already exists", id)
-  //  return nil, errors.New( message)
-  //}
-
   service.Id = id
-  response, err := indexService( id, service)
+  response, err := newService( id, service)
   glog.Infof( "ControlPlaneDao.NewService response: %+v", response)
   if response.Ok {
     return nil
@@ -165,13 +180,6 @@ func (this *ControlPlaneDao) UpdateResourcePool(resourcePool *dao.ResourcePool) 
   if id == "" {
     return errors.New( "empty ResourcePool.Id not allowed")
   }
-
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := resourcePoolExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "ResourcePool with Id=%s already exists", id)
-  //  return resourcePool, errors.New( message)
-  //}
 
   resourcePool.Id = id
   response, err := indexResourcePool( id, resourcePool)
@@ -192,13 +200,6 @@ func (this *ControlPlaneDao) UpdateHost(host *dao.Host) error {
     return errors.New( "empty Host.Id not allowed")
   }
 
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := hostExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "Host with Id=%s already exists", id)
-  //  return nil, errors.New( message)
-  //}
-
   host.Id = id
   response, err := indexHost( id, host)
   glog.Infof( "ControlPlaneDao.UpdateHost response: %+v", response)
@@ -216,13 +217,6 @@ func (this *ControlPlaneDao) UpdateService(service *dao.Service) error {
   if id == "" {
     return errors.New( "empty Service.Id not allowed")
   }
-
-  //XXX elasticgo core.Exists function is broken
-  //exists, _ := serviceExists(id)
-  //if exists {
-  //  message := fmt.Sprintf( "Service with Id=%s already exists", id)
-  //  return nil, errors.New( message)
-  //}
 
   service.Id = id
   response, err := indexService( id, service)

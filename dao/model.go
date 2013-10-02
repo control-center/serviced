@@ -12,8 +12,8 @@ type ResourcePool struct {
 // A host that runs the control plane agent.
 type Host struct {
 	Id             string // Unique identifier, default to hostid
-	PoolId         string // Pool that the Host belongs to
 	Name           string // A label for the host, eg hostname, role
+	PoolId         string // Pool that the Host belongs to
 	IpAddr         string // The IP address the host can be reached at from a serviced master
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
