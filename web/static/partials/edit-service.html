@@ -1,0 +1,27 @@
+<div class="modal fade" id="editService" tabindex="-1" role="dialog" aria-labelledby="editServiceModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Edit service</h4>
+      </div>
+      <div class="modal-body">
+        <label for="edit_service_name">Name:</label>
+        <input class="form-control" name="edit_service_name" id="edit_service_name" type="text" placeholder="Enter service name" ng-model="editService.Name" />
+
+        <label for="edit_service_description">Description</label>
+        <textarea class="form-control" name="edit_service_description" id="edit_service_description" placeholder="Enter a description" rows="3" ng-model="editService.Description"></textarea>
+
+        <label for="edit_service_parent">Pool Id:</label>
+        <input class="form-control" name="edit_service_parent" id="edit_service_parent" type="text" placeholder="default" ng-model="editService.PoolId" />
+
+        <label for="edit_service_startup">Startup Command:</label>
+        <input class="form-control" name="edit_service_startup" id="edit_service_startup" type="text" placeholder="e.g. /opt/zenoss/bin/somecommand" ng-model="editService.Startup" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="edit_service()">Update</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->

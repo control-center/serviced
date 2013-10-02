@@ -1,0 +1,59 @@
+        <form class="form-horizontal" role="form" name="wizard">
+
+          <div ng-class="{true:'form-group', false:'form-group has-error'}[wizard.admin_account.$valid || !nextClicked]">
+            <label for="admin_account" class="col-lg-2 control-label">Zenoss Admin</label>
+            <div class="col-lg-10">
+              <input class="form-control" type="text" name="admin_account" id="admin_account" ng-model="context.username" placeholder="Enter Zenoss username" required/>
+            </div>
+          </div>
+
+          <div ng-class="{true:'form-group', false:'form-group has-error'}[wizard.admin_password.$valid || !nextClicked]">
+            <label for="admin_password" class="col-lg-2 control-label">Zenoss Password</label>
+            <div class="col-lg-10">
+              <input class="form-control" type="password" name="admin_password" id="admin_password" ng-model="context.password" placeholder="Enter Zenoss password" required/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="col-lg-offset-2 col-lg-10">
+              <div class="checkbox">
+                <label>
+                  <input type="checkbox" id="use_ssl" name="use_ssl" ng-model="context.ssl">SSL</input>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div ng-class="{true:'form-group', false:'form-group has-error'}[wizard.db_account.$valid || !nextClicked]">
+            <label for="db_account" class="col-lg-2 control-label">DB Account</label>
+            <div class="col-lg-10">
+              <input class="form-control" type="text" name="db_account" id="db_account" ng-model="context.dbUsername" placeholder="Enter database username" required/>
+            </div>
+          </div>
+
+          <div ng-class="{true:'form-group', false:'form-group has-error'}[wizard.db_password.$valid || !nextClicked]">
+            <label for="db_password" class="col-lg-2 control-label">DB Password</label>
+            <div class="col-lg-10">
+              <input class="form-control" type="password" name="db_password" id="db_password" ng-model="context.dbPassword" placeholder="Enter database password" required/>
+            </div>
+          </div>
+
+          <div ng-class="{true:'form-group', false:'form-group has-error'}[wizard.chosen_resource.$valid || !nextClicked]">
+            <div class="col-lg-2">
+              <label for="resources" class="control-label">Available Resources</label>
+            </div>
+            <div class="col-lg-10">
+              <select class="form-control" id="chosen_resource" name="chosen_resource" ng-model="context.destination" required>
+                <option ng-repeat="pool in pools.data">{{pool.Id}}</option>
+              </select>
+              <div class="text-right">
+                <a data-toggle="modal" href="#addPool">Add new pool</a>
+              </div>
+            </div>
+          </div>
+          <div class="page-nav" role="navigation">
+            <button class="btn btn-lg btn-primary" ng-click="next(wizard)">Next</button>
+            <button class="btn btn-lg btn-default" ng-click="cancel()">Cancel</button>
+          </div> <!-- /page-nav -->
+        </form>
+        <div ng-include="'/static/partials/resource-actions.html'" ng-controller="ActionControl"></div>

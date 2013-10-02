@@ -65,6 +65,7 @@ func init() {
 
 // Start the agent or master services on this host.
 func startServer() {
+
 	if options.master {
 		master, err := svc.NewControlSvc(options.connection_string, options.zookeepers)
 		if err != nil {
