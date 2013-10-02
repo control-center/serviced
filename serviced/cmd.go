@@ -35,6 +35,7 @@ var options struct {
 	tls               bool
 	keyPEMFile        string
 	certPEMFile       string
+	zookeepers        ListOpts
 }
 
 // Setup flag options (static block)
@@ -47,6 +48,8 @@ func init() {
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
+	options.zookeepers = make(ListOpts, 0)
+	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -64,7 +67,7 @@ func init() {
 func startServer() {
 
 	if options.master {
-		master, err := svc.NewControlSvc(options.connection_string)
+		master, err := svc.NewControlSvc(options.connection_string, options.zookeepers)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
