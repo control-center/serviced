@@ -18,7 +18,6 @@ import (
 
 	"database/sql"
 	"fmt"
-	"github.com/zenoss/glog"
 	"math/rand"
 	"strconv"
 	"strings"

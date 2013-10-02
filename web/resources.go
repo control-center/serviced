@@ -25,6 +25,7 @@ type ServiceConfig struct {
 	Tls         bool
 	KeyPEMFile  string
 	CertPEMFile string
+	Zookeepers  []string
 }
 
 type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
@@ -323,7 +324,7 @@ func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 
 func startServer(options *ServiceConfig) {
-	master, err := svc.NewControlSvc(options.DbString)
+	master, err := svc.NewControlSvc(options.DbString, options.Zookeepers)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane service: %v", err)
 	}

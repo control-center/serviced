@@ -75,6 +75,7 @@ func startServer() {
 		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
+		websvc()
 	}
 	if options.agent {
 		mux := proxy.TCPMux{}
