@@ -11,12 +11,14 @@ default:
 	@echo "Executing make style build. You can also use the 'go' tool."
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
+	go get github.com/zenoss/glog
 	go build && go test
 	cd client && make
 	cd svc && make 
 	cd agent && make
 	cd serviced && make
 	cd proxy && make
+	cd dao && make
 
 
 clean:
@@ -26,4 +28,4 @@ clean:
 	cd agent && make clean
 	cd svc && make clean
 	cd proxy && make clean
-
+	cd dao && make clean
