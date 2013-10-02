@@ -16,9 +16,9 @@
           <ul ng-class="pool.childrenClass">
             <li ng-repeat="pool in pool.children" 
                 ng-include="'/static/partials/pools-tree.html'"
-                pool-id="{{pool.Id}}"
+                data-pool-id="{{pool.Id}}"
                 data-drop="true" 
-                data-jqyoui-options="{greedy: true}"
+                data-jqyoui-options="{greedy: true, hoverClass: 'active'}"
                 jqyoui-droppable="{onDrop: 'dropIt'}"
                 ng-model="dropped"
                ></li>

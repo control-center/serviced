@@ -446,7 +446,7 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     $scope.name = "resources";
     $scope.params = $routeParams;
 
-    $scope.apps = buildTable('-Running', [
+    $scope.apps = buildTable('Deployment', [
         { id: 'Name', name: 'Application'}, 
         { id: 'Deployment', name: 'Deployment Status'},
         { id: 'PoolId', name: 'Resource Pool'},
@@ -552,7 +552,7 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
     };
 
     $scope.dropIt = function(event, ui) {
-        var poolId = $(event.target).attr('pool-id');
+        var poolId = $(event.target).attr('data-pool-id');
         var pool = $scope.pools.mapped[poolId];
 //        console.log(JSON.stringify($scope.dropped));
         var host = $scope.dropped[0];
@@ -1387,19 +1387,26 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
 
         // This method gets called more than once. We don't watch to keep
         // setting watches if we've already got one.
-        if ($scope.watching_pools === undefined) {
-            $scope.watching_pools = true;
+        if ($scope.pools === undefined || $scope.pools.mapped === undefined) {
             // Transfer path from pool to host
             $scope.$watch('pools.mapped', function() {
-                if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
-                    for(var i=0; i < $scope.hosts.all.length; i++) {
-                        var host = $scope.hosts.all[i];
-                        host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
-                    }
-                }
+                fix_pool_paths($scope);
             });
+        } else {
+            fix_pool_paths($scope);
         }
     });
+}
+
+function fix_pool_paths($scope) {
+    if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
+        for(var i=0; i < $scope.hosts.all.length; i++) {
+            var host = $scope.hosts.all[i];
+            host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+        }
+    } else {
+        console.log('Unable to update host pool paths');
+    }
 }
 
 /*

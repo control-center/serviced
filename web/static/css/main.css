@@ -154,6 +154,9 @@ td.deploy-warning {
     padding-left: 10px;
     font-size: 18px;
     line-height: 1.7;
+    display: inline-block;
+    vertical-align: text-top;
+    height: 33px;
 }
 
 .deployed.alert {
@@ -162,6 +165,10 @@ td.deploy-warning {
 
 .deployed.alert > a {
     text-decoration: underline;
+}
+
+li.active > .pool-data {
+    background-color: #eeeeee;
 }
 
 a,
@@ -214,6 +221,7 @@ a:hover, a:active, a:focus {
 .search-control {
     display: inline-block;
     margin-bottom: 6px;
+    vertical-align: bottom;
 }
 
 .search-control label {
@@ -225,15 +233,20 @@ h3.table-label {
     margin: 0px;
 }
 
+.deployed.alert {
+    margin-bottom: 0;
+}
+
 .search-control .alert {
     padding: 6px 12px;
     margin: 0px 10px;
     line-height: 1.4;
     font-size: 14px;
     text-align: left;
+    vertical-align: bottom;
 }
 
-.search-control .close {
+.close {
     font-size: 16px;
     line-height: 1.2;
     margin-left: 10px;

@@ -1,8 +1,15 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
-    <div ng-show="deployed.show" ng-class="deployed.class">
-      <button type="button" class="close" ng-click="deployed.show=false">x</button>
-      {{deployed.name}} is {{deployed.deployment}}: <a href="{{deployed.url}}">{{deployed.url}}</a>
+    <div class="search-control pull-right">
+      <label ng-show="deployed.show" ng-class="'alert alert-success'">
+        <button type="button" class="close" ng-click="deployed.show=false">x</button>
+        {{deployed.name}} is {{deployed.deployment}}: <a href="{{deployed.url}}">{{deployed.url}}</a>
+      </label>
+
+        <a class="add-control btn-link" data-toggle="modal" href="#addApp">
+          <span class="glyphicon glyphicon-plus-sign"></span>
+          Add an application
+        </a>
     </div>
 
     <table class="table table-striped table-hover" id="apps_data" >
@@ -25,14 +32,12 @@
           <td>
             <div class="btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'started')">
-                <!-- id="{{$index}}-running-started" -->
                 <input type="radio" name="running{{$index}}" id="running{{$index}}_start"
                        ng-model="app.Running" value="started">
                 {{app.runningText}}
               </label>
               
               <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stopped')">
-                <!--id="{{$index}}-running-stopped" -->
                 <input type="radio" name="running{{$index}}" id="running{{$index}}_stop"
                        ng-model="app.Running" value="stopped">
                 {{app.notRunningText}}
