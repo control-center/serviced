@@ -42,6 +42,8 @@ var _ serviced.ControlPlane = &ControlSvc{}
 
 // Create a new ControlSvc or load an existing one.
 func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, err error) {
+	glog.Info("calling NewControlSvc()")
+	defer glog.Info("leaving NewControlSvc()")
 	s = new(ControlSvc)
 	connInfo, err := serviced.ParseDatabaseUri(connectionUri)
 	if err != nil {
@@ -63,11 +65,16 @@ func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, er
 		return s, err
 	}
 
-	go s.handleScheduler()
+	hostId, err := serviced.HostId()
+	if err != nil {
+		return nil, err
+	}
+
+	go s.handleScheduler(hostId)
 	return s, err
 }
 
-func (s *ControlSvc) handleScheduler() {
+func (s *ControlSvc) handleScheduler(hostId string) {
 
 	for {
 		conn, _, err := zk.Connect(s.zookeepers, time.Second*10)
@@ -75,7 +82,7 @@ func (s *ControlSvc) handleScheduler() {
 			time.Sleep(time.Second * 3)
 			continue
 		}
-		scheduler, shutdown := newScheduler("", conn, "foo", s.lead)
+		scheduler, shutdown := newScheduler("", conn, hostId, s.lead)
 		scheduler.Start()
 		select {
 		case <-shutdown:

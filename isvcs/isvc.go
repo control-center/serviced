@@ -1,7 +1,9 @@
 package isvcs
 
 import (
-	"log"
+	"github.com/zenoss/glog"
+
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -39,7 +41,7 @@ func (s *ISvc) Run() error {
 	}
 
 	containerId, err := s.getContainerId()
-	if err != nil {
+	if err != nil && !IsSvcNotFoundErr(err) {
 		return err
 	}
 
@@ -47,9 +49,9 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		cmd = exec.Command("docker", "run", "-d", containerId)
+		cmd = exec.Command("docker", "run", "-d", s.Tag)
 	}
-	log.Printf("Running docker cmd: %v", cmd)
+	glog.Infof("Running docker cmd: %v", cmd)
 	return cmd.Run()
 }
 
@@ -71,6 +73,21 @@ func (s *ISvc) Kill() error {
 	return cmd.Run()
 }
 
+var SvcNotFoundErr error
+var IsSvcNotFoundErr func(error) bool
+
+const msgSvcNotFoundErr = "svc not found"
+
+func init() {
+	SvcNotFoundErr = fmt.Errorf(msgSvcNotFoundErr)
+	IsSvcNotFoundErr = func(err error) bool {
+		if err == nil {
+			return false
+		}
+		return err.Error() == msgSvcNotFoundErr
+	}
+}
+
 func (s *ISvc) getContainerId() (string, error) {
 	cmd := exec.Command("docker", "ps", "-a")
 	output, err := cmd.Output()
@@ -83,5 +100,5 @@ func (s *ISvc) getContainerId() (string, error) {
 			return fields[0], nil
 		}
 	}
-	return "", nil
+	return "", SvcNotFoundErr
 }

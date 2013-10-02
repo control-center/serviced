@@ -15,16 +15,17 @@ type scheduler struct {
 	closing      chan chan error // Sending a value on this channel notifies the schduler to shut down
 	shutdown     chan error      // A error is placed on this channel when the scheduler shuts down
 	started      bool            // is the loop running
+	zkleaderFunc func(<-chan zk.Event)
 }
 
-
-func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func (<-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
+func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func(<-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
 		conn:         conn,
 		cluster_path: cluster_path,
 		instance_id:  instance_id,
 		closing:      make(chan chan error),
 		shutdown:     make(chan error, 1),
+		zkleaderFunc: zkleaderFunc,
 	}
 	return s, s.shutdown
 }
@@ -111,15 +112,7 @@ func (s *scheduler) loop() {
 			if !exists {
 				continue
 			}
-			lead(event)
-			/*
-			select {
-			case <-TimeoutAfter(time.Second * 30):
-				glog.Info("I've lead long enough. Leaving lead.")
-			case evt := <-event:
-				glog.Error("Got event, %s during lead; leaving lead", evt)
-			}
-			*/
+			s.zkleaderFunc(event)
 			return
 		} else {
 			glog.Infof("I must wait for %s to die.", children[0])
@@ -151,13 +144,3 @@ func (s *scheduler) loop() {
 	}
 
 }
-
-
-// This is the main loop for the scheduler.
-func lead(eventChan <-chan zk.Event) {
-	select{
-	case event := <-eventChan:
-		glog.Infof("Event recdeived: %v", event)
-	}
-}
-
