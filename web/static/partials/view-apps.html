@@ -1,9 +1,9 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
     <div class="search-control pull-right">
-      <label ng-show="deployed.show" ng-class="'alert alert-success'">
-        <button type="button" class="close" ng-click="deployed.show=false">x</button>
-        {{deployed.name}} is {{deployed.deployment}}: <a href="{{deployed.url}}">{{deployed.url}}</a>
+      <label ng-show="apps.deployed.show" ng-class="'alert alert-success'">
+        <button type="button" class="close" ng-click="apps.deployed.show=false">x</button>
+        {{apps.deployed.name}} is {{apps.deployed.deployment}}: <a href="{{apps.deployed.url}}">{{apps.deployed.url}}</a>
       </label>
 
         <a class="add-control btn-link" data-toggle="modal" href="#addApp">
@@ -47,3 +47,5 @@
         </tr>
       </tbody>
     </table>
+
+    <div ng-include="'/static/partials/wizard-modal.html'" ng-controller="DeployWizard"></div>

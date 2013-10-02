@@ -30,36 +30,16 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/resources', {
                 templateUrl: '/static/partials/resources.html',
                 controller: ResourcesControl}).
-            when('/pools/:poolId', {
-                templateUrl: '/static/partials/pool-details.html',
-                controller: PoolControl}).
-            when('/pools/:poolId/hosts/:hostId', {
-                templateUrl: '/static/partials/host-details.html',
-                controller: HostControl}).
-            when('/wizard/start', {
-                templateUrl: '/static/partials/wizard_splash.html', 
-                controller: WizardControl}).
-            when('/wizard/page1', {
-                templateUrl: '/static/partials/wizard1.html', 
-                controller: WizardControl}).
-            when('/wizard/page2', {
-                templateUrl: '/static/partials/wizard2.html', 
-                controller: WizardControl}).
-            when('/wizard/finish', {
-                templateUrl: '/static/partials/wizard_finish.html', 
-                controller: WizardControl}).
             when('/apps', {
                 templateUrl: '/static/partials/view-apps.html',
                 controller: DeployedAppsControl
             }).
-            when('/hosts', {redirectTo: '/hosts/1'}).
-            when('/hosts/:page', {
+            when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: NewHostsControl}).
+                controller: HostsControl}).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
-    factory('wizardService', WizardService).
     factory('servicesService', ServicesService).
     factory('authService', AuthService).
     filter('treeFilter', function() {
@@ -131,7 +111,6 @@ function EntryControl($scope, authService) {
     $scope.brand_label = "Zenoss Control Plane";
     $scope.page_content = "You can install Resource Manager, Analytics, and Impact here."; 
     $scope.mainlinks = [
-        { url: '#/wizard/start', label: 'Deploy new application' },
         { url: '#/apps', label: 'Applications' },
         { url: '#/hosts', label: 'Hosts' }
     ];
@@ -171,42 +150,6 @@ function LoginControl($scope, $http, $location, authService) {
             });
     };
 }
-
-function WizardControl($scope, $location, wizardService, resourcesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    console.log('Initialized control for %s', $location.path());
-    $scope.params = {}; // No path params for wizard pages
-    $scope.pools = {}; // We start with no pools
-    $scope.context = wizardService.get_context();
-    $scope.nextClicked = false;
-
-    // Ensure our scope has a list of pools
-    refreshPools($scope, resourcesService, true);
-    
-    // The next function checks form validity then gets location from wizardService
-    $scope.next = function(wizardForm) {
-        $scope.nextClicked = true;
-        if (wizardForm == null || wizardForm.$valid) {
-            console.log('Next called from %s', $location.path());
-            var nextPath = wizardService.next_page($location.path());
-            $location.path(nextPath);
-        } else {
-            console.log('Validation failed');
-        }
-    };
-    // All wizard pages have some kind of cancel function. Delegate location.
-    $scope.cancel = function() {
-        console.log('Cancel called from %s', $location.path());
-        var nextPath = wizardService.cancel_page($location.path());
-        $location.path(nextPath);
-    };
-
-    // This call ensures that the previous page was processed.
-    wizardService.fix_location($location);
-}
-
 
 // Controller for configuration
 function ConfigurationControl($scope, $routeParams, $location, servicesService, authService) {
@@ -440,6 +383,121 @@ function ResourcesControl($scope, $routeParams, $location, resourcesService, aut
 }
 
 
+function DeployWizard($scope, resourcesService) {
+    console.log('Loading deployWizard');
+
+    $scope.steps = [
+        { content: '/static/partials/wizard-modal-1.html', label: 'Select Hosts' },
+        { content: '/static/partials/wizard-modal-2.html', label: 'Select Applications' },
+        { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
+        { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
+    ];
+
+    $scope.install = { 
+        selected: {
+            rm: false,
+            impact: false,
+            analytics: false,
+            pool: 'default'
+        },
+        templateData: [
+            { label: 'Resource Manager', id: 'rm', disabledBy: 'impact' },
+            { label: 'Service Impact', id: 'impact', depends: 'rm' },
+            { label: 'Analytics', id: 'analytics' }
+        ],
+        templateClass: function(template) {
+            var cls = "block-data";
+            if (template.depends) {
+                cls += " indented";
+            }
+            return cls;
+        },
+        templateSelected: function(template) {
+            console.log('Checked %s', template.id);
+            if (template.depends) {
+                console.log('Also marking %s', template.depends);
+                $scope.install.selected[template.depends] = true;
+            }
+        },
+        templateDisabled: function(template) {
+
+            if (template.disabledBy) {
+                return $scope.install.selected[template.disabledBy];
+            }
+            return false;
+        }
+    };
+
+    $scope.selectedTemplates = function() {
+        var templates = [];
+        for (var i=0; i < $scope.install.templateData.length; i++) {
+            var template = $scope.install.templateData[i];
+            if ($scope.install.selected[template.id]) {
+                templates[templates.length] = template;
+            }
+        }
+        return templates;
+    };
+
+    var step = 0;
+    var resetStepPage = function() {
+        step = 0;
+        $scope.step_page = $scope.steps[step].content;
+    };
+
+    $scope.hasPrevious = function() {
+        return step > 0;
+    };
+
+    $scope.hasNext = function() {
+        return (step + 1) < $scope.steps.length;
+    };
+
+    $scope.step_item = function(index) {
+        return index <= step ? 'active' : 'inactive';
+    };
+
+    $scope.step_label = function(index) {
+        return index < step ? 'done' : '';
+    };
+
+    $scope.wizard_next = function() {
+        step += 1;
+        $scope.step_page = $scope.steps[step].content;
+    };
+
+    $scope.wizard_previous = function() {
+        step -= 1;
+        $scope.step_page = $scope.steps[step].content;
+    };
+    
+    $scope.wizard_finish = function() {
+        console.log('Finish clicked');
+        $scope.apps.deployed = {
+            name: "Zenoss Resource Manager 5.0",
+            class: "deployed alert alert-success",
+            show: true,
+            url: "http://localhost:8080/",
+            deployment: "ready"
+        };
+        $('#addApp').modal('hide');
+        resetStepPage();
+    };
+
+    $scope.detected_hosts = [
+        { Name: 'Hostname A', IpAddr: '192.168.34.1', Id: 'A071BF1' },
+        { Name: 'Hostname B', IpAddr: '192.168.34.25', Id: 'B770DAD' },
+        { Name: 'Hostname C', IpAddr: '192.168.33.99', Id: 'CCD090B' },
+        { Name: 'Hostname D', IpAddr: '192.168.33.129', Id: 'DCDD3F0' },
+    ];
+    $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
+
+    resetStepPage();
+
+    // Get a list of pools (cached is OK)
+    refreshPools($scope, resourcesService, true);
+}
+
 function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -453,23 +511,16 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
         { id: 'Running', name: 'Status' }
     ]);
 
-    $scope.deployed = {
-        name: "Zenoss Resource Manager 5.0",
-        class: "deployed alert alert-success",
-        show: true,
-        url: "http://localhost:8080/",
-        deployment: "ready"
-    };
-
     $scope.clickRunning = function(app, status) {
         app.Running = status;
         updateRunning(app);
     };
 
+    // Get a list of deployed apps
     refreshApps($scope, servicesService, false);
 }
 
-function NewHostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
+function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -620,85 +671,6 @@ function addChildren(allowed, parent) {
     }
 }
 
-
-// Controller for resources -> pool details
-function PoolControl($scope, $routeParams, $http, $location, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "pool-details";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Resources', url: '#/resources' },
-        { label: $scope.params.poolId, itemClass: 'active' }
-    ];
-
-    // Build metadata for displaying pool details
-    $scope.pools = {
-        headers: [
-            { id: 'Id', name: 'Id'}, 
-            { id: 'ParentId', name: 'Parent Id'},
-            { id: 'CoreLimit', name: 'Core Limit'},
-            { id: 'MemoryLimit', name: 'Memory Limit'},
-            { id: 'Priority', name: 'Priority'}
-        ]
-    };
-    // Populate list of pools
-    refreshPools($scope, resourcesService, true);
-
-    // Create function for selecting a host
-    $scope.click_host = function(pool, host) {
-        var redirect = '/pools/' + pool + "/hosts/" + host;
-        console.log('Redirecting to %s', redirect);
-        $location.path(redirect);
-    };
-
-    // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('Name', [
-        { id: 'Name', name: 'Name'},
-        { id: 'IpAddr', name: 'IP Address'},
-        { id: 'PrivateNetwork', name: 'Private Network'}
-    ]);
-
-    // Populate list of hosts
-    refreshHosts($scope, resourcesService, true, false);
-}
-
-// Controller for resources -> pool details -> host details
-function HostControl($scope, $routeParams, $http, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "host-details"
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Resources', url: '#/resources' },
-        { label: $scope.params.poolId, url: '#/pools/' + $scope.params.poolId },
-        { label: $scope.params.hostId, itemClass: 'active' }
-    ];
-
-    $scope.pools = {};
-
-    // Build metadata for displaying host details
-    $scope.hosts = {
-        headers: [
-            { id: 'Id', name: 'Id'}, 
-            { id: 'Name', name: 'Name'},
-            { id: 'Cores', name: 'Cores'},
-            { id: 'Memory', name: 'Memory'},
-            { id: 'IpAddr', name: 'IP Address'},
-            { id: 'PrivateNetwork', name: 'Private Network'}
-        ]
-    };
-
-    // Populate list of pools
-    refreshPools($scope, resourcesService, true);
-
-    // Populate list of hosts
-    refreshHosts($scope, resourcesService, true, true);
-}
-
-
 // Controller for top nav
 function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
@@ -725,129 +697,6 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
                 // On failure to logout, note the error
                 console.log('Unable to log out. Were you logged in to begin with?');
             });
-    };
-}
-
-/*******************************************************************************
- * Helper functions
- ******************************************************************************/
-
-function WizardService() {
-    // Wizard data is a context object that persists across controllers, but not
-    // across full page loads. This is fine for what we want since we are 
-    // controlling the view without full page loads.
-    var wizard_data;
-
-    // This is a lazy-loading accessor function that defines a default context
-    // if one does not yet exist.
-    var _get_wizard_data = function() {
-        if (wizard_data === undefined) {
-            wizard_data = {
-                // Temporary: local or distributed
-                installType: 'local',
-
-                // Default install type
-                localInstallType: 'Resource Manager',
-
-                // List of products to install
-                installOptions: [
-                    'Resource Manager',
-                    'Impact',
-                    'Analytics'
-                ],
-
-                // Default pool
-                destination: 'default',
-
-                // The 'flow' field defines the order of the pages
-                flow: [
-                    '/wizard/start', 
-                    '/wizard/page1', 
-                    '/wizard/page2', 
-                    '/wizard/finish'
-                ],
-
-                // Where to go when a user cancels the flow
-                cancel: '/',
-
-                // The 'done' field defines which pages have successfully been
-                // completed.
-                done: {}
-            };
-        }
-        return wizard_data;
-    };
-
-    /*
-     * The basic premise here is that we want to check to see if there is an 
-     * entry for the previous page of the flow in our wizard_data.done object.
-     * If yes then the current page is fine and we do nothing; otherwise repeat
-     * repeat until we find a page with an appropriate wizard_data.done entry.
-     */
-    var _fix_location = function($location) {
-        var d = _get_wizard_data();
-        var pageIndex = 0;
-        for (var i=0; i < d.flow.length; i++) {
-            if (d.flow[i] === $location.path()) {
-                // Found current element.
-                pageIndex = i;
-                break;
-            }
-        }
-        
-        // Assume we don't need to redirect
-        var needToRedirect = false;
-
-        // We only redirect if this page is in the flow and the requirements are
-        // not met.
-        while (pageIndex > 0 && d.done[d.flow[pageIndex -1]] !== true) {
-            // The requirements are not met for the current page. Set the 
-            // current page to the previous page and check again.
-            pageIndex -= 1;
-            // We definitely need to redirect.
-            needToRedirect = true;
-        }
-
-        if (needToRedirect) {
-            var redirect = d.flow[pageIndex];
-            console.log('Requirements not met so redirecting to: %s', redirect);
-            $location.path(redirect);
-        }
-    };
-
-    // This function is used to mark the current page as complete.
-    var _current_done = function(currentPath) {
-        var d = _get_wizard_data();
-        d.done[currentPath] = true;
-    };
-
-    // This function is used to return the destination when a user cancels
-    var _cancel_page = function(currentPath) {
-        var d = _get_wizard_data();
-        return d.cancel;
-    };
-
-    // Mark the current page as complete then return the path for the next page
-    var _next_page = function(currentPath) {
-        _current_done(currentPath);
-        var d = _get_wizard_data();
-        var pageIndex = 0;
-        for (var i=0; i < d.flow.length; i++) {
-            if (d.flow[i] === currentPath) {
-                // Found current element.
-                pageIndex = (i + 1);
-                break;
-            }
-        }
-        return d.flow[pageIndex];
-    };
-
-    // This function is a factory. Return an object.
-    return {
-        get_context: _get_wizard_data,
-        fix_location: _fix_location,
-        next_page: _next_page,
-        cancel_page: _cancel_page
     };
 }
 

@@ -902,7 +902,7 @@ describe('refreshPools', function() {
 
 describe('refreshHosts', function() {
     it('Puts hosts filtered for current pool into scope', function() {
-        var scope = { params: { poolId: "default" }};
+        var scope = { params: { poolId: "default" }, $watch: function() {}};
         var dummy_hosts = fake_hosts_for_pool("default");
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.data).not.toBeUndefined();
@@ -920,13 +920,13 @@ describe('refreshHosts', function() {
     });
 
     it('Sets the current host based on scope.params', function() {
-        var scope = { params: { poolId: "default", hostId: "def" }};
+        var scope = { params: { poolId: "default", hostId: "def" }, $watch: function() {}};
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
     });
 
     it('Puts host data into scope', function() {
-        var scope = {};
+        var scope = {$watch: function() {}};
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.mapped).toEqual(fake_hosts());
     });

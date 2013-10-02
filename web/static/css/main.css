@@ -2,6 +2,12 @@ body {
     padding: 20px;
 }
 
+@media screen and (min-width: 1024px) {
+    .wizard.modal-dialog {
+        width: 1024px;
+    }
+}
+
 .btn-primary {
     background-color: #6b6b6b;
     border-color: #555;
@@ -257,3 +263,56 @@ h3.table-label {
     width: auto;
     vertical-align: bottom;
 }
+
+.wizard ol {
+    list-style: none;
+    padding: 0px;
+}
+
+.wizard li > label {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    position: relative;
+    left: -23px;
+}
+
+.wizard li > label:before {
+    position: relative;
+    top: 1px;
+    display: inline-block;
+    font-family: 'Glyphicons Halflings';
+    -webkit-font-smoothing: antialiased;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    padding-right: 5px;
+    content: "\00a0";
+}
+
+.wizard li.inactive {
+    color: #c0c0c0;
+}
+
+.wizard li > label.done:before {
+    color: #468847;
+    content: "\e013";
+}
+
+.wizard li {
+    padding: 20px;
+}
+
+.wizard .modal-footer {
+    text-align: left;
+}
+
+.wizard .block-data {
+    padding: 6px 0px;
+    display: block;
+}
+
+.indented {
+    margin-left: 20px;
+}
+

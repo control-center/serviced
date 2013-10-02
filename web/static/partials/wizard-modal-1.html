@@ -1,0 +1,13 @@
+<p ng-show="no_detected_hosts">
+  We did not detect any hosts. You can deploy to localhost or manually add a host.</p>
+</p>  
+<p ng-hide="no_detected_hosts">
+  We found the following hosts. Select the hosts to deploy to:
+</p>
+<div ng-repeat="host in detected_hosts" class="block-data">
+  <label>
+    <input type="checkbox" ng-model="host.selected"/>
+    {{host.Name}}
+  </label>
+  <p>{{host.IpAddr}}, {{host.Id}}</p>
+</div>
