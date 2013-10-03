@@ -102,8 +102,8 @@ deb: stage_deb
 		--description "$$DESCRIPTION" \
 		--deb-user root \
 		--deb-group root \
-#		-d "supervisor" \
 		.
+#		-d "supervisor" \
 
 # Make an RPM
 rpm: stage_rpm
@@ -118,5 +118,5 @@ rpm: stage_rpm
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
 		--rpm-group root \
-#		-d "supervisor" \
 		.
+#		-d "supervisor" \
