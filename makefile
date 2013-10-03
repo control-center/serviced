@@ -16,9 +16,10 @@ default:
 	cd client && make
 	cd svc && make 
 	cd agent && make
-	cd serviced && make
+	cd web && make
 	cd proxy && make
 	cd dao && make
+	cd serviced && make
 
 
 clean:
