@@ -473,8 +473,24 @@ function DeployWizard($scope, resourcesService) {
     
     $scope.wizard_finish = function() {
         console.log('Finish clicked');
+        var selected = $scope.selectedTemplates();
+        var f = true;
+        var dName = "";
+        for (var i=0; i < selected.length; i++) {
+            if (f) {
+                f = false;
+            } else {
+                dName += ", ";
+                if (i + 1 === selected.length) {
+                    dName += "and ";
+                }
+            }
+            dName += selected[i].label;
+        }
+        console.log('Selected: %s, dName: %s', JSON.stringify(selected), dName);
         $scope.apps.deployed = {
-            name: "Zenoss Resource Manager 5.0",
+            name: dName,
+            multi: (selected.length > 1),
             class: "deployed alert alert-success",
             show: true,
             url: "http://localhost:8080/",

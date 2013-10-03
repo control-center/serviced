@@ -3,7 +3,7 @@
     <div class="search-control pull-right">
       <label ng-show="apps.deployed.show" ng-class="'alert alert-success'">
         <button type="button" class="close" ng-click="apps.deployed.show=false">x</button>
-        {{apps.deployed.name}} is {{apps.deployed.deployment}}: <a href="{{apps.deployed.url}}">{{apps.deployed.url}}</a>
+        {{apps.deployed.name}} <span ng-hide="apps.deployed.multi">is</span><span ng-show="apps.deployed.multi">are</span> {{apps.deployed.deployment}}: <a href="{{apps.deployed.url}}">{{apps.deployed.url}}</a>
       </label>
 
         <a class="add-control btn-link" data-toggle="modal" href="#addApp">
