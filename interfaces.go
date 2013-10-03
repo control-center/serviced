@@ -58,6 +58,28 @@ type Service struct {
 	DesiredState    int
 	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type ServiceTemplateWrapper struct {
+	Name            string // Name of top level service
+	Description     string // Description
+	Data            string // JSON encoded template definition
+	ApiVersion      int    // Version of the ServiceTemplate API this expects
+	TemplateVersion int    // Version of the template
+}
+
+// A Service Template used for
+type ServiceTemplate struct {
+	Name             string            // Name of service
+	Startup          string            // Startup command
+	Description      string            // Meaningful description of service
+	MinInstances     int               // mininum number of instances to run
+	MaxInstances     int               // maximum number of instances to run
+	ImageId          string            // Docker image id
+	ServiceEndpoints []ServiceEndpoint // Ports that this service uses
+	SubServices      []ServiceTemplate // Child services
 }
 
 // Desired states of services.
@@ -86,6 +108,8 @@ type Host struct {
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Create a new host.
@@ -101,6 +125,8 @@ type ResourcePool struct {
 	CoreLimit   int    // Number of cores on the host available to serviced
 	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
 	Priority    int    // relative priority of resource pools, used for CPU priority
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // A new ResourcePool
@@ -275,6 +301,17 @@ type ControlPlane interface {
 
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
+
+	/*
+		// Get a list of ServiceTemplates
+		GetServiceTemplates(unused int, serviceTemplates *[]*ServiceTemplate) error
+
+		// Add a new service Template
+		AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+
+		// Update a new service Template
+		UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	*/
 }
 
 // The Agent interface is the API for a serviced agent.

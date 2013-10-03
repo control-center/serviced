@@ -123,6 +123,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	host.ColMap("Cores").Rename("cores")
 	host.ColMap("Memory").Rename("memory")
 	host.ColMap("PrivateNetwork").Rename("private_network")
+	host.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	host.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	pool := dbmap.AddTableWithName(serviced.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
 	pool.ColMap("Id").Rename("id")
@@ -130,6 +132,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	pool.ColMap("CoreLimit").Rename("cores")
 	pool.ColMap("MemoryLimit").Rename("memory")
 	pool.ColMap("Priority").Rename("priority")
+	pool.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	pool.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	service := dbmap.AddTableWithName(serviced.Service{}, "service").SetKeys(false, "Id")
 	service.ColMap("Id").Rename("id")
@@ -142,6 +146,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("DesiredState").Rename("desired_state")
 	service.ColMap("Endpoints").SetTransient(true)
 	service.ColMap("ParentServiceId").Rename("parent_service_id")
+	service.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	service.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
