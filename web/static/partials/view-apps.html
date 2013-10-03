@@ -1,28 +1,30 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
-
-    <div class="search-control pull-right">
-      <label ng-show="apps.deployed.show" ng-class="'alert alert-success'">
-        <button type="button" class="close" ng-click="apps.deployed.show=false">x</button>
-        {{apps.deployed.name}} <span ng-hide="apps.deployed.multi">is</span><span ng-show="apps.deployed.multi">are</span> {{apps.deployed.deployment}}: <a href="{{apps.deployed.url}}">{{apps.deployed.url}}</a>
-      </label>
-
-        <a class="add-control btn-link" data-toggle="modal" href="#addApp">
-          <span class="glyphicon glyphicon-plus-sign"></span>
-          Add an application
-        </a>
+    <div class="top-bar">
+      <div class="search-control pull-right">
+        <label ng-show="services.deployed.show" ng-class="'alert alert-success'">
+          <button type="button" class="close" ng-click="services.deployed.show=false">x</button>
+          {{services.deployed.name}} <span ng-hide="services.deployed.multi">is</span><span ng-show="services.deployed.multi">are</span> {{services.deployed.deployment}}: <a href="{{services.deployed.url}}">{{services.deployed.url}}</a>
+        </label>
+        <span class="add-control">
+          <a class="btn-link" data-toggle="modal" href="#addApp">
+            <span class="glyphicon glyphicon-plus-sign"></span>
+            Add an application
+          </a>
+        </span>
+      </div>
+      <label>Deployed Applications</label>
     </div>
-
-    <table class="table table-striped table-hover" id="apps_data" >
+    <table class="table table-striped table-bordered table-hover" id="apps_data" >
       <thead>
         <tr>
-          <th ng-repeat="header in apps.headers">{{header.name}}
-            <button ng-click="apps.set_order(header.id, apps)" 
-                    ng-class="apps.get_order_class(header.id, apps)"></button>
+          <th ng-repeat="header in services.headers">{{header.name}}
+            <button ng-click="services.set_order(header.id, services)" 
+                    ng-class="services.get_order_class(header.id, services)"></button>
           </th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in apps.data | orderBy:apps.sort" ng-click="click_app(app.Id)" class="link">
+        <tr ng-repeat="app in services.data | orderBy:services.sort" ng-click="click_app(app.Id)" class="link">
           <td>{{app.Name}}</td>
           <td ng-class="app.deploymentClass">
             <span ng-class="app.deploymentIcon"></span>
@@ -31,13 +33,13 @@
           <td>{{app.PoolId}}</td>
           <td>
             <div class="btn-group" data-toggle="buttons">
-              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'started')">
+              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start')">
                 <input type="radio" name="running{{$index}}" id="running{{$index}}_start"
-                       ng-model="app.Running" value="started">
+                       ng-model="app.Running" value="1">
                 {{app.runningText}}
               </label>
               
-              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stopped')">
+              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop')">
                 <input type="radio" name="running{{$index}}" id="running{{$index}}_stop"
                        ng-model="app.Running" value="stopped">
                 {{app.notRunningText}}

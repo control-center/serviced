@@ -14,6 +14,7 @@ package main
 import (
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/web"
 	svc "github.com/zenoss/serviced/svc"
 
 	"flag"
@@ -72,7 +73,7 @@ func startServer() {
 		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
-		go websvc()
+		go web.Serve()
 	}
 	if options.agent {
 		mux := proxy.TCPMux{}

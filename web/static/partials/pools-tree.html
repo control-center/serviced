@@ -1,6 +1,6 @@
-          <div class="pool-data">
+          <div ng-class="pool.itemClass">
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
-            <a ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
+            <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
 
             <span class="dropdown extended">
               <!-- Link or button to toggle dropdown -->

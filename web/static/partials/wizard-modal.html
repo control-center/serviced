@@ -2,26 +2,27 @@
   <div class="modal-dialog wizard">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
         <h4 class="modal-title">Deployment Wizard</h4>
       </div>
       <div class="modal-body">
         <div class="row">
-          <div class="col-md-4">
+          <div class="col-md-4 flow">
             <ol>
               <li ng-repeat="step in steps" ng-class="step_item($index)">
                 <label ng-class="step_label($index)">Step {{$index + 1}}</label>
                 {{step.label}}
               </li>
           </div>
-          <div ng-include="step_page" class="col-md-8">
+          <div class="col-md-8 content">
+            <div ng-include="step_page" class="scroll"></div>
+            <div class="navigation">
+              <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">Next</button>
+              <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-hide="hasNext()">Start Now</button>
+              <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()">Back</button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">Next</button>
-        <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-hide="hasNext()">Start Now</button>
-        <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()">Back</button>
       </div>
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->

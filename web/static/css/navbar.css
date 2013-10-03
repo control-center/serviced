@@ -2,7 +2,7 @@
 .nav > li > .item {
     position: relative;
     display: block;
-    padding: 10px 15px;
+    padding: 15px 15px;
 }
 
 .navbar-inverse li .item {
@@ -10,17 +10,24 @@
 }
 
 .navbar {
-    margin-bottom: 30px;
+    margin-bottom: 5px;
 }
 
-.navbar-nav > li > .item {
+.item > i {
+    margin: 0px 5px;
+    color: #4d4d4d;
+    text-shadow: -1px -1px 0px #414141;
+}
+
+.navbar-nav > li.item {
     padding-top: 10px;
     padding-bottom: 10px;
     line-height: 20px;
+    text-shadow: 1px 1px 2px #414141;
 }
 
 @media (min-width: 768px) {
-    .navbar-nav > li > .item {
+    .navbar-nav > li.item {
         padding-top: 15px;
         padding-bottom: 15px;
     }

@@ -56,7 +56,7 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 }
 
 /* TODO: Replace with real data */
-func RestGetApps(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	apps := []*App{
 		&App{ "Resource Manager 5.0", "successful", "default", "started", "http://localhost:8080/" },
 		&App{ "Analytics 4.4.0", "failed", "default", "stopped", "http://localhost:8080/analytics" },
@@ -148,7 +148,22 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 	w.WriteJson(&hosts)
 }
 
-func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var services []*serviced.Service
+	request := serviced.EntityRequest{}
+	err := client.GetServices(request, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*serviced.Service{}
+	}
+	w.WriteJson(&services)
+}
+
+func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*serviced.Service
 	request := serviced.EntityRequest{}
 	err := client.GetServices(request, &services)
@@ -195,11 +210,11 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	glog.Infof("Received update request for %s", serviceId)
 	if err != nil {
 		RestBadRequest(w)
 		return
 	}
-	glog.Infof("Received update request for %s", serviceId)
 	var payload serviced.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)

@@ -454,7 +454,11 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.step_item = function(index) {
-        return index <= step ? 'active' : 'inactive';
+        var cls = index <= step ? 'active' : 'inactive';
+        if (index === step) { 
+            cls += ' current';
+        }
+        return cls;
     };
 
     $scope.step_label = function(index) {
@@ -488,7 +492,7 @@ function DeployWizard($scope, resourcesService) {
             dName += selected[i].label;
         }
         console.log('Selected: %s, dName: %s', JSON.stringify(selected), dName);
-        $scope.apps.deployed = {
+        $scope.services.deployed = {
             name: dName,
             multi: (selected.length > 1),
             class: "deployed alert alert-success",
@@ -514,26 +518,41 @@ function DeployWizard($scope, resourcesService) {
     refreshPools($scope, resourcesService, true);
 }
 
-function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, servicesService, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "resources";
     $scope.params = $routeParams;
 
-    $scope.apps = buildTable('Deployment', [
+    $scope.services = buildTable('Deployment', [
         { id: 'Name', name: 'Application'}, 
         { id: 'Deployment', name: 'Deployment Status'},
         { id: 'PoolId', name: 'Resource Pool'},
-        { id: 'Running', name: 'Status' }
+        { id: 'DesiredState', name: 'Status' }
     ]);
 
     $scope.clickRunning = function(app, status) {
-        app.Running = status;
-        updateRunning(app);
+        var newState = -1;
+        switch(status) {
+            case 'start': newState = 1; break;
+            case 'stop': newState = 0; break;
+            case 'restart': newState = -1; break;
+        }
+        console.log('App.DesiredState: %s, newState: %d', app.DesiredState, newState);
+        if (newState === app.DesiredState) {
+            console.log('Same status. Ignoring click');
+            return;
+        }
+        app.DesiredState = newState;
+        
+        updateWorking(app);
+        servicesService.update_service(app.Id, app, function() {
+            updateRunning(app);
+        });
     };
 
     // Get a list of deployed apps
-    refreshApps($scope, servicesService, false);
+    refreshServices($scope, servicesService, false);
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
@@ -593,7 +612,15 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         console.log('Clicked %s', redirect);
     };
 
+    var clearLastStyle = function() {
+        var lastPool = $scope.pools.mapped[$scope.selectedPool];
+        if (lastPool) {
+            lastPool.itemClass = 'pool-data';
+        }
+    };
+
     $scope.clearSelectedPool = function() {
+        clearLastStyle();
         $scope.selectedPool = null;
         $scope.subPools = null;
     };
@@ -604,6 +631,9 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
             $scope.clearSelectedPool();
             return;
         }
+        clearLastStyle();
+        topPool.itemClass = 'pool-data current';
+
         var allowed = {};
         addChildren(allowed, topPool);
         $scope.subPools = allowed;
@@ -694,10 +724,16 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.resources = 'Resources';
     $scope.username = $cookies['ZUsername'];
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
+    
     $scope.navlinks = [
         { url: '#/apps', label: 'Deployed Apps' },
         { url: '#/hosts', label: 'Hosts' }
     ];
+
+    for (var i=0; i < $scope.navlinks.length; i++) {
+        $scope.navlinks[i].itemClass = ($scope.navlinks[i].url === '#' + $location.path())? 
+            "active" : "";
+    }
 
     // Create a logout function
     $scope.logout = function() {
@@ -717,11 +753,11 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
 }
 
 function ServicesService($http, $location) {
-    var cached_apps;
+    var cached_app_templates;
     var cached_services;
 
     var _get_services = function(callback) {
-        $http.get('/services').
+        $http.get('/services/top').
             success(function(data, status) {
                 console.log('Retrieved list of services');
                 cached_services = data;
@@ -736,15 +772,15 @@ function ServicesService($http, $location) {
             });
     };
 
-    var _get_apps = function(callback) {
-        $http.get('/apps').
+    var _get_app_templates = function(callback) {
+        $http.get('/templates').
             success(function(data, status) {
-                console.log('Retrieved list of apps');
+                console.log('Retrieved list of app templates');
                 cached_apps = data;
                 callback(data);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve apps');
+                console.log('Unable to retrieve app templates');
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -761,12 +797,12 @@ function ServicesService($http, $location) {
             }
         },
 
-        get_apps: function(cacheOk, callback) {
+        get_app_templates: function(cacheOk, callback) {
             if (cacheOk && cached_apps) {
-                console.log('Using cached apps');
+                console.log('Using cached app templates');
                 callback(cached_apps);
             } else {
-                _get_apps(callback);
+                _get_app_templates(callback);
             }
         },
 
@@ -786,7 +822,7 @@ function ServicesService($http, $location) {
         },
 
         update_service: function(serviceId, editedService, callback) {
-            $http.post('/services/' + serviceId, editedService).
+            $http.post('/service/' + serviceId, editedService).
                 success(function(data, status) {
                     console.log('Updated service ' + serviceId);
                     callback(data);
@@ -800,7 +836,7 @@ function ServicesService($http, $location) {
         },
 
         remove_service: function(serviceId, callback) {
-            $http.delete('/services/' + serviceId).
+            $http.delete('/service/' + serviceId).
                 success(function(data, status) {
                     console.log('Removed service ' + serviceId);
                     callback(data);
@@ -1083,14 +1119,48 @@ function refreshServices($scope, servicesService, cacheOk) {
     servicesService.get_services(cacheOk, function(allServices) {
         $scope.services.data = allServices;
         $scope.services.mapped = {};
+
         // Create a Map(Id -> Service)
         allServices.map(function(elem) {
             $scope.services.mapped[elem.Id] = elem;
         });
+
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
         }
+
+        for (var i=0; i < allServices.length; i++) {
+            var depClass = "";
+            var iconClass = "";
+            var runningClass = "";
+            var notRunningClass = "";
+            allServices[i].Deployment = 'successful'; // TODO: replace with real data
+
+            switch(allServices[i].Deployment) {
+            case "successful": 
+                depClass = "deploy-success";
+                iconClass = "glyphicon glyphicon-ok";
+                break;
+            case "failed":
+                depClass = "deploy-error";
+                iconClass = "glyphicon glyphicon-remove";
+                break;
+            case "in-process":
+                depClass = "deploy-info";
+                iconClass = "glyphicon glyphicon-refresh";
+                break;
+            default:
+                depClass = "deploy-warning";
+                iconClass = "glyphicon glyphicon-question-sign";
+                break;
+            }
+            updateRunning(allServices[i]);
+
+            allServices[i].deploymentClass = depClass;
+            allServices[i].deploymentIcon = iconClass;
+        }
+
     });
 }
 
@@ -1124,9 +1194,10 @@ function refreshPools($scope, resourcesService, cachePools) {
         for (var key in allPools) {
             var p = allPools[key];
             p.collapsed = false;
-            p.childrenClass = "nav-tree";
+            p.childrenClass = 'nav-tree';
             p.safeId = encodeURIComponent(p.Id);
             p.dropped = [];
+            p.itemClass = 'pool-data';
             if (p.icon === undefined) {
                 p.icon = 'glyphicon spacer disabled';
             }
@@ -1156,51 +1227,23 @@ function refreshPools($scope, resourcesService, cachePools) {
     });
 }
 
-function refreshApps($scope, servicesService, cacheApps) {
-    if ($scope.apps === undefined) {
-        $scope.apps = {};
-    }
-
-    servicesService.get_apps(cacheApps, function(allApps) {
-        $scope.apps.data = allApps;
-        for (var i=0; i < allApps.length; i++) {
-            var depClass = "";
-            var iconClass = "";
-            var runningClass = "";
-            var notRunningClass = "";
-
-            switch(allApps[i].Deployment) {
-            case "successful": 
-                depClass = "deploy-success";
-                iconClass = "glyphicon glyphicon-ok";
-                break;
-            case "failed":
-                depClass = "deploy-error";
-                iconClass = "glyphicon glyphicon-remove";
-                break;
-            case "in-process":
-                depClass = "deploy-info";
-                iconClass = "glyphicon glyphicon-refresh";
-                break;
-            default:
-                depClass = "deploy-warning";
-                iconClass = "glyphicon glyphicon-question-sign";
-                break;
-            }
-            updateRunning(allApps[i]);
-
-            allApps[i].deploymentClass = depClass;
-            allApps[i].deploymentIcon = iconClass;
-        }
-    });
+function updateWorking(app) {
+    app.runningText = "Updating";
+    app.notRunningText = "...";
+    app.runningClass = "btn btn-info active disabled";
+    app.notRunningClass = "btn btn-default disabled";
 }
 
 function updateRunning(app) {
-    console.log("Updating for %s", app.Name);
-    if (app.Running === "started") {
+    if (app.DesiredState === 1) {
         app.runningText = "Started";
         app.notRunningText = "Stop";
         app.runningClass = "btn btn-success active";
+        app.notRunningClass = "btn btn-default";
+    } else if (app.DesiredState === -1) {
+        app.runningText = "Restarting";
+        app.notRunningText = "Stop";
+        app.runningClass = "btn btn-info active";
         app.notRunningClass = "btn btn-default";
     } else {
         app.runningText = "Start";
