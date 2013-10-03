@@ -486,13 +486,15 @@ func startService(dbmap *gorp.DbMap, serviceId string) error {
 	}
 
 	// find sub services and start them
-	var subserviceIds []*string
-	_, err = dbmap.Select(&subserviceIds, "SELECT id from service WHERE parent_service_id = ? ", serviceId)
+	var subserviceIds []*struct{ Id string }
+	_, err = dbmap.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? ", serviceId)
 	if err != nil {
-		return serviced.ControlPlaneError{"Could not get subservices"}
+		return serviced.ControlPlaneError{
+			fmt.Sprintf("Could not get subservices: %s", err.Error()),
+		}
 	}
-	for _, subserviceId := range subserviceIds {
-		err = startService(dbmap, *subserviceId)
+	for _, obj := range subserviceIds {
+		err = startService(dbmap, obj.Id)
 		if err != nil {
 			return err
 		}
