@@ -4,6 +4,8 @@ import (
 	"github.com/zenoss/glog"
 
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -14,7 +16,7 @@ type ISvc struct {
 	Tag        string
 }
 
-func (s *ISvc) Exists() (bool, error) {
+func (s *ISvc) exists() (bool, error) {
 
 	cmd := exec.Command("docker", "images", s.Tag)
 	output, err := cmd.Output()
@@ -22,6 +24,31 @@ func (s *ISvc) Exists() (bool, error) {
 		return false, err
 	}
 	return strings.Contains(string(output), s.Tag), nil
+}
+
+func (s *ISvc) create() error {
+	exists, err := s.exists()
+	if err != nil || exists {
+		return err
+	}
+	glog.Infof("Creating temp directory for building image: %s", s.Tag)
+	tdir, err := ioutil.TempDir("", "isvc_")
+	if err != nil {
+		return err
+	}
+	dockerfile := tdir + "/Dockerfile"
+	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
+	glog.Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
+	cmd := exec.Command("docker", "build", "-t", s.Tag, tdir)
+	output, returnErr := cmd.CombinedOutput()
+	if returnErr != nil {
+		glog.Errorf("Problem running docker build: %s", string(output))
+	}
+	err = os.RemoveAll(tdir)
+	if err != nil {
+		glog.Warningf("Failed to cleanup directory :%s ", err)
+	}
+	return returnErr
 }
 
 func (s *ISvc) Running() (bool, error) {
@@ -34,6 +61,11 @@ func (s *ISvc) Running() (bool, error) {
 }
 
 func (s *ISvc) Run() error {
+
+	err := s.create()
+	if err != nil {
+		return err
+	}
 
 	running, err := s.Running()
 	if err != nil || running {
