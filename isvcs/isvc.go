@@ -39,7 +39,7 @@ func (s *ISvc) create() error {
 	dockerfile := tdir + "/Dockerfile"
 	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
 	glog.Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
-	cmd := exec.Command("docker", "build", tdir)
+	cmd := exec.Command("docker", "build", "-t", s.Tag, tdir)
 	output, returnErr := cmd.CombinedOutput()
 	if returnErr != nil {
 		glog.Errorf("Problem running docker build: %s", string(output))
