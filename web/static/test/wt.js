@@ -1,5 +1,4 @@
 script('../jquery/jquery.js');
-script('../jquery-ui/ui/jquery-ui.js');
 script('../bootstrap/dist/js/bootstrap.js');
 script('../angular/angular.js');
 script('../angular/angular-cookies.js');
