@@ -1136,7 +1136,7 @@ function refreshServices($scope, servicesService, cacheOk) {
 }
 
 function getFullPath(allPools, pool) {
-    if (!pool.ParentId || !allPools[pool.ParentId]) {
+    if (!allPools || !pool.ParentId || !allPools[pool.ParentId]) {
         return pool.Id;
     }
     return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
@@ -1205,9 +1205,6 @@ function toggleRunning(app, status, servicesService) {
     case 'stop': newState = 0; break;
     case 'restart': newState = -1; break;
     }
-
-    console.log('App.DesiredState: %s, newState: %d', app.DesiredState, newState);
-
     if (newState === app.DesiredState) {
         console.log('Same status. Ignoring click');
         return;

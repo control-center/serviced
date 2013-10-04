@@ -66,6 +66,39 @@ describe('LoginControl', function() {
 
 });
 
+describe('DeployedAppsControl', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var servicesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        servicesService = fake_services_service();
+        ctrl = $controller('DeployedAppsControl', { 
+            $scope: $scope, 
+            resourcesService: resourcesService,
+            servicesService: servicesService
+        });
+    }));
+
+    it('Builds a services table', function() {
+        expect_table($scope.services);
+    });
+
+    it('Provides a \'click_app\' function', function() {
+        expect($scope.click_app).not.toBeUndefined();
+        $scope.click_app('test');
+        expect($location.path()).toBe('/service/test');
+    });
+});
+
 describe('DeployWizard', function() {
     var $scope = null;
     var resourcesService = null;
@@ -352,21 +385,46 @@ describe('ServicesService', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
         $httpBackend.expect('GET', '/services/all').respond(fake_services());
-        var serv = null;
-        servicesService.get_services(false, function(data) {
-            serv = data;
+        var ser_top, ser_by_id = null;
+        servicesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
         });
         $httpBackend.flush();
-        expect(serv).not.toBeNull();
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
 
         // We should have some cached data this time, so do not expect any
         // HTTP traffic.
-        serv = null;
-        servicesService.get_services(true, function(data) {
-            serv = data;
+        ser_top, ser_by_id = null;
+        servicesService.get_services(true, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
         });
-        expect(serv).not.toBeNull();
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
     });
+
+    it('Separates top level services from sub services', function() {
+        // The first time GET is called, we have nothing cached so the first
+        // parameter is ignored.
+        $httpBackend.expect('GET', '/services/all').respond(fake_services());
+        var ser_top, ser_by_id = null;
+        servicesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
+        });
+        $httpBackend.flush();
+        ser_top.map(function(ser) {
+            expect(ser.ParentServiceId).toBe('');
+            if (ser.children) {
+                ser.children.map(function(child) {
+                    expect(child.ParentServiceId).toBe(ser.Id);
+                });
+            }
+        });
+    });
+
 
     it('Can add new services', function() {
         var serv = { Id: 'test' };
@@ -758,7 +816,119 @@ describe('buildTable', function() {
         expect(table.set_order).not.toBeUndefined();
         expect(table.get_order_class).not.toBeUndefined();
     });
+});
 
+describe('updateRunning', function() {
+    it('Sets text on service when state is 1', function() {
+        var svc = { DesiredState: 1 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('Started'); // started is current state
+        expect(svc.notRunningText).toBe('Stop'); // stop is action
+    });
+
+    it('Sets text on service when state is -1', function() {
+        var svc = { DesiredState: -1 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('Restarting'); // restarting is current state
+        expect(svc.notRunningText).toBe('Stop'); // stop is action
+    });
+
+    it('Sets text on service when state is 0 or other', function() {
+        var svc = { DesiredState: 0 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('Start'); // start is action
+        expect(svc.notRunningText).toBe('Stopped'); // stopped is current state
+
+        svc = { DesiredState: -99 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('Start'); // start is action
+        expect(svc.notRunningText).toBe('Stopped'); // stopped is current state
+
+    });
+});
+
+describe('toggleRunning', function() {
+
+    it('Sets DesiredState and updates service', function() {
+        var servicesService = fake_services_service();
+        var svc = {};
+        spyOn(servicesService, 'update_service');
+
+        toggleRunning(svc, 'start', servicesService);
+        expect(svc.DesiredState).toBe(1);
+        expect(servicesService.update_service).toHaveBeenCalled();
+
+        toggleRunning(svc, 'stop', servicesService);
+        expect(svc.DesiredState).toBe(0);
+        expect(servicesService.update_service).toHaveBeenCalled();
+
+        toggleRunning(svc, 'restart', servicesService);
+        expect(svc.DesiredState).toBe(-1);
+        expect(servicesService.update_service).toHaveBeenCalled();
+    });
+});
+
+describe('updateWorking', function() {
+    it('Sets temporary text on service', function() {
+        var svc = {};
+        updateWorking(svc);
+        expect(svc.runningText).not.toBeUndefined();
+        expect(svc.notRunningText).not.toBeUndefined();
+    });
+});
+
+describe('getFullPath', function() {
+    it('Returns pool.Id when there is no parent', function() {
+        var pool = { Id: 'Test' };
+        expect(getFullPath({}, pool)).toBe(pool.Id);
+
+        pool = { Id: 'Test', ParentId: 'Nonexistent' };
+        expect(getFullPath({}, pool)).toBe(pool.Id);
+
+        // Should handle null
+        expect(getFullPath(null, pool)).toBe(pool.Id);
+    });
+
+    it('Returns hierarchical path', function() {
+        var allPools = {
+            'Test3': { Id: 'Test3', ParentId: 'Test2' },
+            'Test2': { Id: 'Test2', ParentId: 'Test1' },
+            'Test1': { Id: 'Test1', ParentId: '' }
+        }
+        var pool = allPools['Test3'];
+        expect(getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
+    });
+});
+
+describe('fix_pool_paths', function() {
+    it('Defends against empty scope', function() {
+        // just make sure you can call with an empty object
+        fix_pool_paths({});
+        expect(true).toBe(true);
+    });
+
+    it('Sets fullPath on hosts', function() {
+        var scope = {
+            pools: {
+                mapped: {
+                    a1: { fullPath: 'a1' },
+                    a2: { fullPath: 'a1 > a2' },
+                    a3: { fullPath: 'a1 > a2 > a3' }
+                }
+            },
+            hosts: {
+                all: [
+                    { PoolId: 'a3' },
+                    { PoolId: 'a1' },
+                    { PoolId: 'a2' }
+                ]
+            }
+        };
+        fix_pool_paths(scope);
+        scope.hosts.all.map(function(host) {
+            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolId].fullPath);
+        });
+    });
 });
 
 function fake_hosts_for_pool(poolId) {
@@ -853,6 +1023,13 @@ function fake_wizard_service() {
 function expect_table(table) {
     expect(table).not.toBeUndefined();
     expect(table.data).not.toBeUndefined();
+    expect(table.sort).not.toBeUndefined()
+    expect(table.sort_icons).not.toBeUndefined();
+    expect(table.get_order_class).not.toBeUndefined();
+}
+
+function expect_table_no_data(table) {
+    expect(table).not.toBeUndefined();
     expect(table.sort).not.toBeUndefined()
     expect(table.sort_icons).not.toBeUndefined();
     expect(table.get_order_class).not.toBeUndefined();
