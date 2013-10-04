@@ -1,0 +1,29 @@
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+    <table class="table table-striped table-bordered table-hover" id="sub_services_data" >
+      <thead>
+        <tr>
+          <th ng-repeat="header in services.headers">{{header.name}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="app in services.current.children | orderBy:services.sort" ng-click="click_app(app.Id)" class="link">
+          <td>{{app.Name}}</td>
+          <td>
+            <div class="btn-group" data-toggle="buttons">
+              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
+                <input type="radio" name="running{{$index}}" id="running{{$index}}_start"
+                       ng-model="app.Running" value="1">
+                {{app.runningText}}
+              </label>
+              
+              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
+                <input type="radio" name="running{{$index}}" id="running{{$index}}_stop"
+                       ng-model="app.Running" value="stopped">
+                {{app.notRunningText}}
+              </label>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>

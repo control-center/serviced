@@ -21,15 +21,9 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
-            when('/services', {
-                templateUrl: '/static/partials/services.html',
-                controller: ConfigurationControl}).
-            when('/services/:serviceId', {
-                templateUrl: '/static/partials/service-details.html',
-                controller: ServiceControl}).
-            when('/resources', {
-                templateUrl: '/static/partials/resources.html',
-                controller: ResourcesControl}).
+            when('/service/:serviceId', {
+                templateUrl: '/static/partials/view-subservices.html',
+                controller: SubServiceControl}).
             when('/apps', {
                 templateUrl: '/static/partials/view-apps.html',
                 controller: DeployedAppsControl
@@ -149,64 +143,6 @@ function LoginControl($scope, $http, $location, authService) {
                 $scope.login_alert.rollmsg();
             });
     };
-}
-
-// Controller for configuration
-function ConfigurationControl($scope, $routeParams, $location, servicesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    $scope.name = "configuration";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Configuration', itemClass: 'active' }
-    ];
-
-    // Build metadata necessary to display a table of services
-    $scope.services = buildTable('Name', [
-        { id: 'Name', name: 'Name'},
-        { id: 'Description', name: 'Description'},
-        { id: 'PoolId', name: 'Pool Id'},
-        { id: 'Instances', name: 'Instances'}
-    ]);
-
-    // Create a function for when the user clicks on a service
-    $scope.click_service = function(serviceId) {
-        var redirect = '/services/' + serviceId;
-        $location.path(redirect);
-    };
-
-    // Get the actual data about the services available
-    refreshServices($scope, servicesService, false);
-}
-
-// Controller for configuration
-function ServiceControl($scope, $routeParams, servicesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    $scope.name = "configuration";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Configuration', url: '#/services', itemClass: '' },
-        { label: $scope.params.serviceId, itemClass: 'active' }
-    ];
-
-    // Create metadata necessary to display service details
-    $scope.services = {
-        headers: [
-            { name: 'Id', id: 'Id' },
-            { name: 'Name', id: 'Name' },
-            { name: 'Description', id: 'Description' },
-            { name: 'Pool Id', id: 'PoolId' },
-            { name: 'Startup Command', id: 'Startup' },
-            { name: 'Instances', id: 'Instances' },
-            { name: 'Desired State', id: 'DesiredState' }
-        ]
-    };
-
-    // Ensure that we have service data populated
-    refreshServices($scope, servicesService, true);
 }
 
 // Common controller for resource action buttons
@@ -351,37 +287,6 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
 
     }
 }
-
-// Controller for resources
-function ResourcesControl($scope, $routeParams, $location, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "resources";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Resources', itemClass: 'active' }
-    ];
-    // Build metadata for displaying a list of pools
-    $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'Id'}, 
-        { id: 'ParentId', name: 'Parent Id'},
-        { id: 'Priority', name: 'Priority'}
-    ]);
-
-    // Create function for selecting a pool
-    $scope.click_pool = function(poolId) {
-        var redirect = '/pools/' + poolId;
-        $location.path(redirect);
-    }
-    $scope.hosts = {};
-
-    // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
-    // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false);
-}
-
 
 function DeployWizard($scope, resourcesService) {
     console.log('Loading deployWizard');
@@ -546,11 +451,12 @@ function DeployWizard($scope, resourcesService) {
     refreshPools($scope, resourcesService, true);
 }
 
-function DeployedAppsControl($scope, $routeParams, servicesService, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "resources";
     $scope.params = $routeParams;
+    $scope.servicesService = servicesService;
 
     $scope.services = buildTable('Deployment', [
         { id: 'Name', name: 'Application'}, 
@@ -559,29 +465,35 @@ function DeployedAppsControl($scope, $routeParams, servicesService, resourcesSer
         { id: 'DesiredState', name: 'Status' }
     ]);
 
-    $scope.clickRunning = function(app, status) {
-        var newState = -1;
-        switch(status) {
-            case 'start': newState = 1; break;
-            case 'stop': newState = 0; break;
-            case 'restart': newState = -1; break;
-        }
-        console.log('App.DesiredState: %s, newState: %d', app.DesiredState, newState);
-        if (newState === app.DesiredState) {
-            console.log('Same status. Ignoring click');
-            return;
-        }
-        app.DesiredState = newState;
-        
-        updateWorking(app);
-        servicesService.update_service(app.Id, app, function() {
-            updateRunning(app);
-        });
+    $scope.click_app = function(id) {
+        $location.path('/service/' + id);
     };
+
+    $scope.clickRunning = toggleRunning;
 
     // Get a list of deployed apps
     refreshServices($scope, servicesService, false);
 }
+
+
+function SubServiceControl($scope, $routeParams, servicesService, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+    $scope.name = "resources";
+    $scope.params = $routeParams;
+    $scope.servicesService = servicesService;
+
+    $scope.services = buildTable('Name', [
+        { id: 'Name', name: 'Application'}, 
+        { id: 'DesiredState', name: 'Status' }
+    ]);
+
+    $scope.clickRunning = toggleRunning;
+
+    // Get a list of deployed apps
+    refreshServices($scope, servicesService, true);
+}
+
 
 function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
@@ -782,8 +694,10 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
 
 function ServicesService($http, $location) {
     var cached_app_templates;
-    var cached_services;
+    var cached_services; // top level services only
+    var cached_services_map; // map of services by by Id, with children attached
 
+    /* Unused - TODO: Delete 
     var _get_services = function(callback) {
         $http.get('/services/top').
             success(function(data, status) {
@@ -796,9 +710,42 @@ function ServicesService($http, $location) {
                 if (status === 401) {
                     unauthorized($location);
                 }
+            });
+    };
+    */
+
+    var _get_services_tree = function(callback) {
+        $http.get('/services/all').
+            success(function(data, status) {
+                console.log('Retrieved list of services');
+                cached_services = [];
+                cached_services_map = {};
+                // Map by id
+                data.map(function(svc) {
+                    cached_services_map[svc.Id] = svc;
+                });
+                data.map(function(svc) {
+                    if (svc.ParentServiceId !== '') {
+                        var parent = cached_services_map[svc.ParentServiceId];
+                        if (!parent.children) {
+                            parent.children = [];
+                        }
+                        parent.children.push(svc);
+                    } else {
+                        cached_services.push(svc);
+                    }
+                });
+                callback(cached_services, cached_services_map);
+            }).
+            error(function(data, status) {
+                console.log('Unable to retrieve services');
+                if (status === 401) {
+                    unauthorized($location);
+                }
 
             });
     };
+
 
     var _get_app_templates = function(callback) {
         $http.get('/templates').
@@ -817,11 +764,11 @@ function ServicesService($http, $location) {
 
     return {
         get_services: function(cacheOk, callback) {
-            if (cacheOk && cached_services) {
+            if (cacheOk && cached_services && cached_services_map) {
                 console.log('Using cached services');
-                callback(cached_services);
+                callback(cached_services, cached_services_map);
             } else {
-                _get_services(callback);
+                _get_services_tree(callback);
             }
         },
 
@@ -876,7 +823,6 @@ function ServicesService($http, $location) {
                     }
                 });
         }
-
     }
 }
 
@@ -1144,28 +1090,25 @@ function refreshServices($scope, servicesService, cacheOk) {
     if ($scope.services === undefined) {
         $scope.services = {};
     }
-    servicesService.get_services(cacheOk, function(allServices) {
-        $scope.services.data = allServices;
-        $scope.services.mapped = {};
-
-        // Create a Map(Id -> Service)
-        allServices.map(function(elem) {
-            $scope.services.mapped[elem.Id] = elem;
-        });
+    servicesService.get_services(cacheOk, function(topServices, mappedServices) {
+        $scope.services.data = topServices;
+        $scope.services.mapped = mappedServices;
 
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
+            console.log('Current = %s', JSON.stringify($scope.services.current));
         }
 
-        for (var i=0; i < allServices.length; i++) {
+        for (var key in $scope.services.mapped) {
+            var svc = $scope.services.mapped[key];
             var depClass = "";
             var iconClass = "";
             var runningClass = "";
             var notRunningClass = "";
-            allServices[i].Deployment = 'successful'; // TODO: replace with real data
+            svc.Deployment = 'successful'; // TODO: replace with real data
 
-            switch(allServices[i].Deployment) {
+            switch(svc.Deployment) {
             case "successful": 
                 depClass = "deploy-success";
                 iconClass = "glyphicon glyphicon-ok";
@@ -1183,10 +1126,10 @@ function refreshServices($scope, servicesService, cacheOk) {
                 iconClass = "glyphicon glyphicon-question-sign";
                 break;
             }
-            updateRunning(allServices[i]);
+            updateRunning(svc);
 
-            allServices[i].deploymentClass = depClass;
-            allServices[i].deploymentIcon = iconClass;
+            svc.deploymentClass = depClass;
+            svc.deploymentIcon = iconClass;
         }
 
     });
@@ -1252,6 +1195,27 @@ function refreshPools($scope, resourcesService, cachePools) {
             $scope.pools.current = allPools[$scope.params.poolId];
             $scope.editPool = $.extend({}, $scope.pools.current);
         }
+    });
+}
+
+function toggleRunning(app, status, servicesService) {
+    var newState = -1;
+    switch(status) {
+    case 'start': newState = 1; break;
+    case 'stop': newState = 0; break;
+    case 'restart': newState = -1; break;
+    }
+
+    console.log('App.DesiredState: %s, newState: %d', app.DesiredState, newState);
+
+    if (newState === app.DesiredState) {
+        console.log('Same status. Ignoring click');
+        return;
+    }
+    app.DesiredState = newState;
+    updateWorking(app);
+    servicesService.update_service(app.Id, app, function() {
+        updateRunning(app);
     });
 }
 

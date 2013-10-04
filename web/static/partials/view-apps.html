@@ -24,8 +24,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" ng-click="click_app(app.Id)" class="link">
-          <td>{{app.Name}}</td>
+        <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">
+          <td ng-click="click_app(app.Id)">{{app.Name}}</td>
           <td ng-class="app.deploymentClass">
             <span ng-class="app.deploymentIcon"></span>
             {{app.Deployment}}
@@ -33,14 +33,14 @@
           <td>{{app.PoolId}}</td>
           <td>
             <div class="btn-group" data-toggle="buttons">
-              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start')">
-                <input type="radio" name="running{{$index}}" id="running{{$index}}_start"
+              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
+                <input type="radio" name="running{{$index}}"
                        ng-model="app.Running" value="1">
                 {{app.runningText}}
               </label>
               
-              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop')">
-                <input type="radio" name="running{{$index}}" id="running{{$index}}_stop"
+              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
+                <input type="radio" name="running{{$index}}"
                        ng-model="app.Running" value="stopped">
                 {{app.notRunningText}}
               </label>

@@ -115,87 +115,8 @@ describe('DeployWizard', function() {
         $scope.wizard_previous();
         expect($scope.step_page).toBe($scope.steps[0].content);
     });
-
 });
 
-describe('ConfigurationControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('ConfigurationControl', { 
-            $scope: $scope, 
-            authService: fake_auth_service(),
-            servicesService: fake_services_service()
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 1 (top level)
-        expect($scope.breadcrumbs.length).toBe(1);
-    });
-
-    it('Creates a services table', function() {
-        expect_table($scope.services);
-    });
-
-    it('Provides a \'click_service\' function', function() {
-        expect($scope.click_service).not.toBeUndefined();
-        $location.path('/before');
-        // Pass a fake serviceId to click_service function
-        $scope.click_service('abcdef'); 
-        // Location should change and end with fake serviceId
-        expect($location.path()).toMatch(/abcdef$/); 
-    });
-});
-
-describe('ServiceControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('ServiceControl', { 
-            $scope: $scope, 
-            $routeParams: { serviceId: 'fakeId1' },
-            authService: fake_auth_service(),
-            servicesService: fake_services_service()
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 2
-        expect($scope.breadcrumbs.length).toBe(2);
-    });
-
-    it('Provides service detail headers', function() {
-        expect($scope.services).not.toBeUndefined();
-        expect($scope.services.headers).not.toBeUndefined();
-        expect($scope.services.headers.length).not.toBeUndefined();
-    });
-
-    it('Sets the current service based on scope.params', function() {
-        // This depends on 'serviceId' being set in $routeParams
-        // and matching an id from $scope.services.data
-        expect($scope.services).not.toBeUndefined();
-        expect($scope.services.current).not.toBeUndefined();
-    });
-});
 
 describe('ActionControl', function() {
     var $scope = null;
@@ -357,46 +278,6 @@ describe('ActionControl', function() {
     });
 });
 
-describe('ResourcesControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('ResourcesControl', { 
-            $scope: $scope, 
-            authService: fake_auth_service(),
-            resourcesService: fake_resources_service()
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 1 (top level)
-        expect($scope.breadcrumbs.length).toBe(1);
-    });
-
-    it('Creates a pools table', function() {
-        expect_table($scope.pools);
-    });
-
-    it('Populates hosts data', function() {
-        expect($scope.hosts.data).not.toBeUndefined();
-    });
-
-    it('Provides a \'click_pool\' function', function() {
-        $location.path('/before');
-        $scope.click_pool('1234');
-        expect($location.path()).toBe('/pools/1234');
-    });
-});
-
 describe('NavbarControl', function() {
     var $scope = null;
     var $location = null;
@@ -470,7 +351,7 @@ describe('ServicesService', function() {
     it('Can retrieve and cache service definitions', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
-        $httpBackend.expect('GET', '/services/top').respond(fake_services());
+        $httpBackend.expect('GET', '/services/all').respond(fake_services());
         var serv = null;
         servicesService.get_services(false, function(data) {
             serv = data;
@@ -923,7 +804,7 @@ function fake_resources_service() {
 function fake_services_service() {
     return {
         get_services: function(cacheOk, callback) {
-            callback(fake_services());
+            callback(fake_services(), fake_services_tree());
         },
         add_service: function(service, callback) {
             callback({});
@@ -1041,38 +922,63 @@ function fake_hosts() {
     };
 }
 
+var fake1 = {
+    "Id": "fakeId1",
+    "Name": "mysql",
+    "Startup": "/usr/libexec/mysqld",
+    "Description": "Database service",
+    "Instances": 0,
+    "ImageId": "default",
+    "PoolId": "default",
+    "DesiredState": 1,
+    "Endpoints": [
+        {
+            "Protocol": "tcp",
+            "PortNumber": 3306,
+            "Application": "mysql",
+            "Purpose": "remote"
+        }
+    ],
+    "ParentServiceId": ''
+};
+var service234 = {
+    "Id": "service234",
+    "Name": "zeneventd",
+    "Startup": "/opt/zenoss/bin/zeneventd",
+    "Description": "",
+    "Instances": 0,
+    "ImageId": "",
+    "PoolId": "default",
+    "DesiredState": 0,
+    "Endpoints": null,
+    "ParentServiceId": ''
+};
+
+var fake1Child = {
+    "Id": "service234",
+    "Name": "zeneventd",
+    "Startup": "/opt/zenoss/bin/zeneventd",
+    "Description": "",
+    "Instances": 0,
+    "ImageId": "",
+    "PoolId": "default",
+    "DesiredState": 0,
+    "Endpoints": null,
+    "ParentServiceId": "fakeId1"
+};
+
 function fake_services() {
     return [
-        {
-            "Id": "fakeId1",
-            "Name": "mysql",
-            "Startup": "/usr/libexec/mysqld",
-            "Description": "Database service",
-            "Instances": 0,
-            "ImageId": "default",
-            "PoolId": "default",
-            "DesiredState": 1,
-            "Endpoints": [
-                {
-                    "Protocol": "tcp",
-                    "PortNumber": 3306,
-                    "Application": "mysql",
-                    "Purpose": "remote"
-                }
-            ]
-        },
-        {
-            "Id": "service234",
-            "Name": "zeneventd",
-            "Startup": "/opt/zenoss/bin/zeneventd",
-            "Description": "",
-            "Instances": 0,
-            "ImageId": "",
-            "PoolId": "default",
-            "DesiredState": 0,
-            "Endpoints": null
-        }
+        fake1, service234
     ];
+}
 
+function fake_services_tree() {
+    fake1.children = [ fake1Child ];
+    var tree = {};
+    fake_services().map(function(e) {
+        tree[e.Id] = e;
+    });
+    return tree;
 }
 
