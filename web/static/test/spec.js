@@ -10,8 +10,8 @@ describe('EntryControl', function() {
         ctrl = $controller('EntryControl', { $scope: $scope });
     }));
 
-    it('Sets 3 main links', function() {
-        expect($scope.mainlinks.length).toEqual(3);
+    it('Sets 2 main links', function() {
+        expect($scope.mainlinks.length).toEqual(2);
     });
 
     it('Creates links that contain url and label', function() {
@@ -66,9 +66,9 @@ describe('LoginControl', function() {
 
 });
 
-describe('WizardControl', function() {
+describe('DeployWizard', function() {
     var $scope = null;
-    var $location = null;
+    var resourcesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -76,36 +76,46 @@ describe('WizardControl', function() {
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
         var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('WizardControl', { 
+        ctrl = $controller('DeployWizard', { 
             $scope: $scope, 
-            resourcesService: fake_resources_service(),
-            wizardService: fake_wizard_service()
+            resourcesService: fake_resources_service()
         });
     }));
 
-    it('Provides a \'next\' function that checks form validity', function() {
-        // Form provided with validity = true
-        $location.path('/before');
-        $scope.next({ $valid: true });
-        expect($location.path()).toBe('/fake_next');
-
-        // Form provided with validity = false
-        $location.path('/before');
-        $scope.next({ $valid: false});
-        expect($location.path()).toBe('/before');
-
-        // No form provided - should assume valid
-        $location.path('/before');
-        $scope.next();
-        expect($location.path()).toBe('/fake_next');
+    it('Defines a set of steps', function() {
+        expect($scope.steps).not.toBeUndefined();
+        expect($scope.steps.length).not.toBeUndefined();
+        for (var i=0; i < $scope.steps.length; i++) {
+            var step = $scope.steps[i];
+            expect(step.content).not.toBeUndefined();
+            expect(step.label).not.toBeUndefined();
+        }
     });
 
-    it('Provides a \'cancel\' function that delegates to wizardService', function() {
-        $location.path('/before');
-        $scope.cancel();
-        expect($location.path()).toBe('/canceled');
+    it('Creates an install context', function() {
+        expect($scope.install).not.toBeUndefined();
+        expect($scope.install.selected).not.toBeUndefined();
+        expect($scope.install.templateData).not.toBeUndefined();
+        expect(typeof $scope.install.templateClass).toBe('function');
+        expect(typeof $scope.install.templateSelected).toBe('function');
+        expect(typeof $scope.install.templateDisabled).toBe('function');
     });
+
+    it('Provides a \'wizard_next\' function', function() {
+        expect($scope.step_page).toBe($scope.steps[0].content);
+        $scope.wizard_next();
+        expect($scope.step_page).toBe($scope.steps[1].content);
+    });
+
+
+    it('Provides a \'wizard_previous\' function', function() {
+        expect($scope.step_page).toBe($scope.steps[0].content);
+        $scope.wizard_next();
+        expect($scope.step_page).toBe($scope.steps[1].content);
+        $scope.wizard_previous();
+        expect($scope.step_page).toBe($scope.steps[0].content);
+    });
+
 });
 
 describe('ConfigurationControl', function() {
@@ -387,85 +397,6 @@ describe('ResourcesControl', function() {
     });
 });
 
-describe('PoolControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('PoolControl', { 
-            $scope: $scope,
-            $routeParams: { poolId: 'pool123' },
-            authService: fake_auth_service(),
-            resourcesService: fake_resources_service(),
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 2
-        expect($scope.breadcrumbs.length).toBe(2);
-    });
-
-    it('Provides a hosts table', function() {
-        expect_table($scope.hosts);
-    });
-
-    it('Provides pool detail headers', function() {
-        expect($scope.pools).not.toBeUndefined();
-        expect($scope.pools.headers).not.toBeUndefined();
-        expect($scope.pools.headers.length).not.toBeUndefined();
-        expect($scope.pools.current).not.toBeUndefined();
-    });
-    
-    it('Provides a \'click_host\' function', function() {
-        $location.path('/before');
-        $scope.click_host('def1234', 'abc321');
-        expect($location.path()).toBe('/pools/def1234/hosts/abc321');
-    });
-
-});
-
-describe('HostControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('HostControl', { 
-            $scope: $scope,
-            $routeParams: { poolId: 'pool123', hostId: 'host123' },
-            authService: fake_auth_service(),
-            resourcesService: fake_resources_service(),
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 3
-        expect($scope.breadcrumbs.length).toBe(3);
-    });
-
-    it('Provides host details headers', function() {
-        expect($scope.hosts).not.toBeUndefined();
-        expect($scope.hosts.headers).not.toBeUndefined();
-        expect($scope.hosts.headers.length).not.toBeUndefined();
-        expect($scope.hosts.current).not.toBeUndefined();
-    });
-});
-
 describe('NavbarControl', function() {
     var $scope = null;
     var $location = null;
@@ -515,73 +446,6 @@ describe('NavbarControl', function() {
     });
 });
 
-describe('WizardService', function() {
-    var $inj = null;
-    var $location = null;
-    var wizardService = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $inj = $injector;
-        wizardService = $injector.get('wizardService');
-        $location = $injector.get('$location');
-    }));
-
-    it('Provides a context that persists across controllers', function() {
-        // Across multiple injections, we get the same service and same context
-        var firstContext = wizardService.get_context();
-        firstContext.some_data = 'foo';
-        var secondService = $inj.get('wizardService');
-        expect(secondService).toBe(wizardService);
-        expect(secondService.get_context()).toBe(firstContext);
-    });
-
-    it('Provides a \'next_page\' function', function() {
-        // Next from nowhere always goes to the start
-        expect('/wizard/start').toEqual(wizardService.next_page('/before'));
-        // start -> page1
-        expect('/wizard/page1').toEqual(wizardService.next_page('/wizard/start'));
-        // page1 -> page2
-        expect('/wizard/page2').toEqual(wizardService.next_page('/wizard/page1'));
-        // page2 -> finish
-        expect('/wizard/finish').toEqual(wizardService.next_page('/wizard/page2'));
-    });
-
-    it('Provides a \'fix_location\' function', function() {
-        // Set the location to the end of the flow and call fix_location.
-        // We should wind up at the start.
-        wizardService.get_context().done = {};
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/start');
-
-        // Assume the start page is done.
-        wizardService.get_context().done = { '/wizard/start': true };
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/page1');
-
-        // Each step only checks the requirements for the previous page
-        wizardService.get_context().done = { '/wizard/page1': true };
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/page2');
-
-        // If we don't understand the current page, do nothing
-        wizardService.get_context().done = {};
-        $location.path('/something/completely/different');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/something/completely/different');
-    });
-
-    it('Provides a \'cancel_page\' function', function() {
-        // Returns index path: /
-        expect(wizardService.cancel_page()).toBe('/');
-    });
-
-});
-
 describe('ServicesService', function() {
     var $scope = null;
     var $location = null;
@@ -606,7 +470,7 @@ describe('ServicesService', function() {
     it('Can retrieve and cache service definitions', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
-        $httpBackend.expect('GET', '/services').respond(fake_services());
+        $httpBackend.expect('GET', '/services/top').respond(fake_services());
         var serv = null;
         servicesService.get_services(false, function(data) {
             serv = data;
@@ -637,7 +501,7 @@ describe('ServicesService', function() {
     it('Can update existing services', function() {
         var serv = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/services/test', serv).respond({ Detail: 'Edited' });
+        $httpBackend.expect('POST', '/service/test', serv).respond({ Detail: 'Edited' });
         servicesService.update_service(serv.Id, serv, function(data) {
             resp = data;
         });
@@ -647,7 +511,7 @@ describe('ServicesService', function() {
 
     it('Can remove existing services', function() {
         var resp = null;
-        $httpBackend.expect('DELETE', '/services/test').respond({ Detail: 'Deleted' });
+        $httpBackend.expect('DELETE', '/service/test').respond({ Detail: 'Deleted' });
         servicesService.remove_service('test', function(data) {
             resp = data;
         });
@@ -836,9 +700,14 @@ describe('AuthService', function() {
 
 describe('refreshServices', function() {
     it('Puts services data in scope', function() {
+        var dummy_data = fake_services();
         var scope = {};
         refreshServices(scope, fake_services_service(), false);
-        expect(scope.services.data).toEqual(fake_services());
+        expect(scope.services.data).not.toBeUndefined();
+        for (var i=0; i < scope.services.data.length; i++) {
+            // Expect the basic fields to be consistent
+            expect(dummy_data[i].Name).toEqual(scope.services.data[i].Name);
+        }
     });
 
     it('Sets the current service based on scope.params', function() {
@@ -864,14 +733,14 @@ describe('refreshPools', function() {
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
         // refreshPools now adds data above and beyond just transforming into an array
-        for (var i=0; i < scope.pools.length; i++) {
+        for (var i=0; i < scope.pools.data.length; i++) {
             // Expect the basic fields to be consistent
-            var dummyPool = dummy_data[scope.pools[i].Id];
-            expect(dummyPool.Name).toEqual(scope.pools[i].Name);
-            expect(dummyPool.ParentId).toEqual(scope.pools[i].ParentId);
-            expect(dummyPool.CoreLimit).toEqual(scope.pools[i].CoreLimit);
-            expect(dummyPool.MemoryLimit).toEqual(scope.pools[i].MemoryLimit);
-            expect(dummyPool.Priority).toEqual(scope.pools[i].Priority);
+            var dummyPool = dummy_data[scope.pools.data[i].Id];
+            expect(dummyPool.Name).toEqual(scope.pools.data[i].Name);
+            expect(dummyPool.ParentId).toEqual(scope.pools.data[i].ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scope.pools.data[i].CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scope.pools.data[i].MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scope.pools.data[i].Priority);
         }
     });
 

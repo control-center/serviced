@@ -20,7 +20,12 @@ table > thead {
     border-top: 0px;
 }
 
-.table-bordered > thead > tr > th, .table-bordered > tbody > tr > th, .table-bordered > tfoot > tr > th, .table-bordered > thead > tr > td, .table-bordered > tbody > tr > td, .table-bordered > tfoot > tr > td {
+.table-bordered.side-flush > thead > tr > th, 
+.table-bordered.side-flush > tbody > tr > th, 
+.table-bordered.side-flush > tfoot > tr > th, 
+.table-bordered.side-flush > thead > tr > td, 
+.table-bordered.side-flush > tbody > tr > td, 
+.table-bordered.side-flush > tfoot > tr > td {
     border-left: 0px;
 }
 
@@ -209,6 +214,11 @@ td.deploy-warning {
     border-radius: 6px;
 }
 
+.add-control:hover {
+    background-color: #f0f0f0;
+}
+
+
 .deployed.alert {
     font-weight: bold;
 }
@@ -219,6 +229,11 @@ td.deploy-warning {
 
 li.active > .pool-data {
     background-color: #eeeeee;
+}
+
+.btn-link, a {
+    color: #404040;
+    text-decoration: none;
 }
 
 .btn-link:hover, .btn-link:active, .btn-link:focus,
