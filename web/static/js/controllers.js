@@ -445,12 +445,35 @@ function DeployWizard($scope, resourcesService) {
         $scope.step_page = $scope.steps[step].content;
     };
 
+    $scope.addHostStart = function() {
+        $scope.newHost = {};
+        $scope.step_page = '/static/partials/wizard-modal-addhost.html';
+    };
+
+    $scope.addHostCancel = function() {
+        $scope.step_page = $scope.steps[step].content;
+    }
+
+    $scope.addHostFinish = function() {
+        $scope.newHost.Name = $scope.newHost.IpAddr;
+        $scope.newHost.Id = 'fakefakefake';
+        $scope.newHost.selected = true;
+        $scope.detected_hosts.push($scope.newHost);
+        $scope.step_page = $scope.steps[step].content;
+    };
+
     $scope.hasPrevious = function() {
-        return step > 0;
+        return step > 0 && 
+            ($scope.step_page === $scope.steps[step].content);
     };
 
     $scope.hasNext = function() {
-        return (step + 1) < $scope.steps.length;
+        return (step + 1) < $scope.steps.length && 
+            ($scope.step_page === $scope.steps[step].content);
+    };
+
+    $scope.hasFinish = function() {
+        return (step + 1) === $scope.steps.length;
     };
 
     $scope.step_item = function(index) {
@@ -466,6 +489,11 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.wizard_next = function() {
+        if ($scope.step_page !== $scope.steps[step].content) {
+            $scope.step_page = $scope.steps[step].content;
+            return;
+        }
+
         step += 1;
         $scope.step_page = $scope.steps[step].content;
     };

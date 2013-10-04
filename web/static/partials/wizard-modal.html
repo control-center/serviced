@@ -18,7 +18,7 @@
             <div ng-include="step_page" class="scroll"></div>
             <div class="navigation">
               <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">Next</button>
-              <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-hide="hasNext()">Start Now</button>
+              <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-show="hasFinish()">Start Now</button>
               <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()">Back</button>
             </div>
           </div>

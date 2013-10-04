@@ -449,3 +449,7 @@ input.search {
     padding: 0px 15px 15px 15px;
     min-height: 600px;
 }
+
+.wizard .content > .scroll {
+    padding-top: 20px;
+}
