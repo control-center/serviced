@@ -164,18 +164,22 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 }
 
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var services []*serviced.Service
+	var allServices []*serviced.Service
+	topServices := []*serviced.Service{}
+
 	request := serviced.EntityRequest{}
-	err := client.GetServices(request, &services)
+	err := client.GetServices(request, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
 		return
 	}
-	if services == nil {
-		services = []*serviced.Service{}
+	for _, service := range allServices {
+		if len(service.ParentServiceId) == 0 {
+			topServices = append(topServices, service)
+		}
 	}
-	w.WriteJson(&services)
+	w.WriteJson(&topServices)
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
