@@ -82,6 +82,12 @@ type ServiceTemplate struct {
 	SubServices      []ServiceTemplate // Child services
 }
 
+// A request to deploy a service template
+type ServiceTemplateDeploymentRequest struct {
+	PoolId   string          // Pool Id to deploy service into
+	Template ServiceTemplate // ServiceTemplate to deploy
+}
+
 // Desired states of services.
 const (
 	SVC_RUN     = 1
@@ -302,16 +308,20 @@ type ControlPlane interface {
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
-	/*
-		// Get a list of ServiceTemplates
-		GetServiceTemplates(unused int, serviceTemplates *[]*ServiceTemplate) error
+	// Deploy an application template in to production
+	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
 
-		// Add a new service Template
-		AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	// Get a list of ServiceTemplates
+	GetServiceTemplates(unused int, serviceTemplates *[]*ServiceTemplate) error
 
-		// Update a new service Template
-		UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
-	*/
+	// Add a new service Template
+	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+
+	// Update a new service Template
+	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+
+	// Update a new service Template
+	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
 }
 
 // The Agent interface is the API for a serviced agent.

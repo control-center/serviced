@@ -809,3 +809,23 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 	}
 
 }
+
+func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+	return fmt.Errorf("unimplemented DeployTemplate")
+}
+
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+	return fmt.Errorf("unimplemented GetServiceTemplates")
+}
+
+func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return fmt.Errorf("unimplemented AddServiceTemplate")
+}
+
+func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return fmt.Errorf("unimplemented UpdateServiceTemplate")
+}
+
+func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
+	return fmt.Errorf("unimplemented RemoveServiceTemplate")
+}

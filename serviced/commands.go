@@ -78,17 +78,26 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	}
 	help := fmt.Sprintf("Usage: serviced [OPTIONS] COMMAND [arg...]\n\nA container based service management system.\n\nCommands:\n")
 	for _, command := range [][2]string{
+
+		{"templates", "show application templates"},
+		{"add-template", "add application templates"},
+		{"remove-template", "remove application templates"},
+		{"deploy-template", "deploy application template"},
+
 		{"hosts", "Display hosts"},
 		{"add-host", "Add a host"},
 		{"remove-host", "Remove a host"},
+
 		{"pools", "Show pools"},
 		{"add-pool", "Add pool"},
 		{"remove-pool", "Remove pool"},
+
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
+
 		{"proxy", "start a proxy in the foreground"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
