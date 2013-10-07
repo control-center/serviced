@@ -19,6 +19,46 @@ table > thead {
     border-left: 0px;
     border-top: 0px;
 }
+table .btn.active {
+    padding-right: 10px;
+}
+table .btn {
+    border-radius: 15px;
+    line-height: .8;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+table .btn-group .btn + .btn, 
+table .btn-group .btn + .btn-group, 
+table .btn-group .btn-group + .btn, 
+table .btn-group .btn-group + .btn-group {
+    margin-left: -11px;
+}
+
+table .btn-group > .btn.off:last-child:not(:first-child) {
+    border-bottom-left-radius: 15px;
+    border-top-left-radius: 15px;
+    border-color: #398439;
+    padding-right: 20px;
+    z-index:3;
+}
+
+table .btn-group > .btn.active:last-child:not(:first-child) {
+    padding-left: 15px;
+}
+
+table .btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
+    border-top-right-radius: 15px;
+    border-bottom-right-radius: 15px;
+    border-color: #ac2925;
+    padding-right: 20px;
+    z-index:3;
+}
+
+table .btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
+    padding-right: 15px;
+}
 
 .table-bordered.side-flush > thead > tr > th, 
 .table-bordered.side-flush > tbody > tr > th, 
@@ -51,10 +91,14 @@ table > thead {
     color: #f6f6f6;
 }
 
-
 @media screen and (min-width: 1024px) {
+    .big.modal-dialog,
     .wizard.modal-dialog {
         width: 1024px;
+    }
+    .big textarea {
+        width: 960px;
+        min-height: 600px
     }
 }
 
@@ -453,3 +497,4 @@ input.search {
 .wizard .content > .scroll {
     padding-top: 20px;
 }
+

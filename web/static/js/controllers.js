@@ -485,10 +485,74 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
 
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'Application'}, 
-        { id: 'DesiredState', name: 'Status' }
+        { id: 'DesiredState', name: 'Status' },
+        { id: 'Details', name: 'Details' }
     ]);
 
+    $scope.range = function(depth) {
+        return Array(depth - 1);
+    }
+
     $scope.clickRunning = toggleRunning;
+
+    $scope.viewConfig = function(service) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.config = '#\n' +
+            '# Ethernet frame types\n' +
+            '#               This file describes some of the various Ethernet\n' +
+            '#               protocol types that are used on Ethernet networks.\n' +
+            '#\n' +
+            '# This list could be found on:\n' +
+            '#         http://www.iana.org/assignments/ethernet-numbers\n' +
+            '#\n' +
+            '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
+            '#\n' +
+            'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
+            'X25             0805\n' +
+            'ARP             0806    ether-arp       #\n' +
+            'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
+            'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
+            'DEC             6000                    # DEC Assigned proto\n' +
+            'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
+            'DNA_RC          6002                    # DEC DNA Remote Console\n' +
+            'DNA_RT          6003                    # DEC DNA Routing\n' +
+            'LAT             6004                    # DEC LAT\N' +
+            'DIAG            6005                    # DEC Diagnostics\n' +
+            'CUST            6006                    # DEC Customer use\n' +
+            'SCA             6007                    # DEC Systems Comms Arch\n' +
+            'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
+            'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
+            'AARP            80F3                    # Appletalk AARP\n' +
+            'ATALK           809B                    # Appletalk\n' +
+            '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
+            'IPX             8137                    # Novell IPX\n' +
+            'NetBEUI         8191                    # NetBEUI\n' +
+            'IPv6            86DD    ip6             # IP version 6\n' +
+            'PPP             880B                    # PPP\N' +
+            'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
+            'PPP_DISC        8863                    # PPPoE discovery messages\n' +
+            'PPP_SES         8864                    # PPPoE session messages\n' +
+            'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
+            'LOOP            9000    loopback        # loop proto\n';
+
+        $('#editConfig').modal('show');
+    };
+
+    $scope.viewLog = function(service) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.log = '[398432.643816] LVM: Logical Volume autoactivation enabled.\n' +
+            '[398432.643821] LVM: Activation generator successfully completed.\n' + 
+            '[965506.972028] usb 2-1.3: new high-speed USB device number 6 using ehci-pci\n' +
+            '[965507.059617] usb 2-1.3: New USB device found, idVendor=04e8, idProduct=6860\n' +
+            '[965507.059622] usb 2-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3\n' +
+            '[965507.059625] usb 2-1.3: Product: SAMSUNG_Android\n' + 
+            '[965507.059628] usb 2-1.3: Manufacturer: SAMSUNG\n' +
+            '[965507.059630] usb 2-1.3: SerialNumber: 9692b6a5\n' +
+            '[975147.458845] usb 2-1.3: USB disconnect, device number 6\n' +
+            '[1052774.702882] lp: driver loaded but no devices found\n';
+        $('#viewLog').modal('show');
+    };
+
 
     // Get a list of deployed apps
     refreshServices($scope, servicesService, true);
@@ -1079,6 +1143,18 @@ function AuthService($cookies, $location) {
     };
 }
 
+function flattenSubservices(depth, current) {
+    // Exclude the root node
+    var retVal = (depth === 0)? [] : [$.extend({ depth: depth }, current)];
+    if (!current.children) {
+        return retVal;
+    }
+    for (var i=0; i < current.children.length; i++) {
+        retVal = retVal.concat(flattenSubservices(depth + 1, current.children[i]))
+    }
+    return retVal;
+}
+
 function refreshServices($scope, servicesService, cacheOk) {
     // defend against empty scope
     if ($scope.services === undefined) {
@@ -1087,12 +1163,6 @@ function refreshServices($scope, servicesService, cacheOk) {
     servicesService.get_services(cacheOk, function(topServices, mappedServices) {
         $scope.services.data = topServices;
         $scope.services.mapped = mappedServices;
-
-        if ($scope.params && $scope.params.serviceId) {
-            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
-            $scope.editService = $.extend({}, $scope.services.current);
-            console.log('Current = %s', JSON.stringify($scope.services.current));
-        }
 
         for (var key in $scope.services.mapped) {
             var svc = $scope.services.mapped[key];
@@ -1125,6 +1195,17 @@ function refreshServices($scope, servicesService, cacheOk) {
             svc.deploymentClass = depClass;
             svc.deploymentIcon = iconClass;
         }
+
+        if ($scope.params && $scope.params.serviceId) {
+            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
+            $scope.editService = $.extend({}, $scope.services.current);
+            // we need a flattened view of all children
+            
+            if ($scope.services.current && $scope.services.current.children) {
+                $scope.services.subservices = flattenSubservices(0, $scope.services.current);
+            }
+        }
+
 
     });
 }
@@ -1211,27 +1292,30 @@ function toggleRunning(app, status, servicesService) {
 }
 
 function updateWorking(app) {
+    
+    /*
     app.runningText = "Updating";
     app.notRunningText = "...";
     app.runningClass = "btn btn-info active disabled";
     app.notRunningClass = "btn btn-default disabled";
+    */
 }
 
 function updateRunning(app) {
     if (app.DesiredState === 1) {
-        app.runningText = "Started";
-        app.notRunningText = "Stop";
+        app.runningText = "started";
+        app.notRunningText = "\xA0"; // &nbsp
         app.runningClass = "btn btn-success active";
-        app.notRunningClass = "btn btn-default";
+        app.notRunningClass = "btn btn-default off";
     } else if (app.DesiredState === -1) {
-        app.runningText = "Restarting";
-        app.notRunningText = "Stop";
+        app.runningText = "restarting";
+        app.notRunningText = "\xA0"; // &nbsp
         app.runningClass = "btn btn-info active";
-        app.notRunningClass = "btn btn-default";
+        app.notRunningClass = "btn btn-default off";
     } else {
-        app.runningText = "Start";
-        app.notRunningText = "Stopped";
-        app.runningClass = "btn btn-default";
+        app.runningText = "\xA0"; // &nbsp
+        app.notRunningText = "stopped";
+        app.runningClass = "btn btn-default off";
         app.notRunningClass = "btn btn-danger active";
     }
     if (app.Deployment !== "successful") {

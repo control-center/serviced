@@ -908,27 +908,27 @@ describe('updateRunning', function() {
     it('Sets text on service when state is 1', function() {
         var svc = { DesiredState: 1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('Started'); // started is current state
-        expect(svc.notRunningText).toBe('Stop'); // stop is action
+        expect(svc.runningText).toBe('started'); // started is current state
+        expect(svc.notRunningText).toBe('\xA0'); // stop is action
     });
 
     it('Sets text on service when state is -1', function() {
         var svc = { DesiredState: -1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('Restarting'); // restarting is current state
-        expect(svc.notRunningText).toBe('Stop'); // stop is action
+        expect(svc.runningText).toBe('restarting'); // restarting is current state
+        expect(svc.notRunningText).toBe('\xA0'); // stop is action
     });
 
     it('Sets text on service when state is 0 or other', function() {
         var svc = { DesiredState: 0 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('Start'); // start is action
-        expect(svc.notRunningText).toBe('Stopped'); // stopped is current state
+        expect(svc.runningText).toBe('\xA0'); // start is action
+        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
 
         svc = { DesiredState: -99 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('Start'); // start is action
-        expect(svc.notRunningText).toBe('Stopped'); // stopped is current state
+        expect(svc.runningText).toBe('\xA0'); // start is action
+        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
 
     });
 });
@@ -954,6 +954,7 @@ describe('toggleRunning', function() {
     });
 });
 
+/*
 describe('updateWorking', function() {
     it('Sets temporary text on service', function() {
         var svc = {};
@@ -962,6 +963,7 @@ describe('updateWorking', function() {
         expect(svc.notRunningText).not.toBeUndefined();
     });
 });
+*/
 
 describe('getFullPath', function() {
     it('Returns pool.Id when there is no parent', function() {
@@ -983,6 +985,42 @@ describe('getFullPath', function() {
         }
         var pool = allPools['Test3'];
         expect(getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
+    });
+});
+
+describe('flattenSubservices', function() {
+    it('turns a tree structure into a flat array', function() {
+        var tree = {
+            id: 'top',
+            children: [
+                { 
+                    id: 'middle1',
+                    children: [
+                        { id: 'leaf1' },
+                        { id: 'leaf2' }
+                    ]
+                },
+                {
+                    id: 'middle2',
+                    children: [ { id: 'leaf3' }, ]
+                }
+            ]
+        }
+        var result = flattenSubservices(0, tree);
+        console.log(JSON.stringify(result));
+        expect(result.length).toBe(6);
+        var expected = [ 
+            { depth: 0, id: 'top' },
+            { depth: 1, id: 'middle1' },
+            { depth: 2, id: 'leaf1' },
+            { depth: 2, id: 'leaf2' },
+            { depth: 1, id: 'middle2' },
+            { depth: 2, id: 'leaf3' }
+        ];
+        for (var i=0; i < expected.length; i++) {
+            expect(result[i].depth).toBe(expected[i].depth);
+            expect(result[i].id).toBe(expected[i].id);
+        }
     });
 });
 

@@ -7,23 +7,32 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.current.children | orderBy:services.sort" ng-click="click_app(app.Id)" class="link">
-          <td>{{app.Name}}</td>
+        <tr ng-repeat="app in services.subservices" ng-click="click_app(app.Id)" class="link">
+          <td><span ng-repeat="i in range(app.depth)" class="indented">&nbsp;</span>{{app.Name}}</td>
           <td>
             <div class="btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
-                <input type="radio" name="running{{$index}}" id="running{{$index}}_start"
+                <!--id="running{{$index}}_start"-->
+                <input type="radio" name="running{{$index}}" 
                        ng-model="app.Running" value="1">
                 {{app.runningText}}
               </label>
               
               <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
-                <input type="radio" name="running{{$index}}" id="running{{$index}}_stop"
+                <!--id="running{{$index}}_stop"-->
+                <input type="radio" name="running{{$index}}" 
                        ng-model="app.Running" value="stopped">
                 {{app.notRunningText}}
               </label>
             </div>
           </td>
+          <td>
+            <button ng-click="viewLog(app)" class="btn btn-link">Log</button>
+            |
+            <button ng-click="viewConfig(app)" class="btn btn-link">Config</button> 
+          </td>
         </tr>
       </tbody>
     </table>
+    <div ng-include="'/static/partials/edit-config.html'"></div>
+    <div ng-include="'/static/partials/view-log.html'"></div>
