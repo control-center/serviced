@@ -474,9 +474,6 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     // Get a list of deployed apps
     refreshServices($scope, servicesService, false);
 }
-function range(depth) {
-    return Array(depth - 1);
-}
 
 function SubServiceControl($scope, $routeParams, servicesService, resourcesService, authService) {
     // Ensure logged in
@@ -491,7 +488,7 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
         { id: 'Details', name: 'Details' }
     ]);
 
-    $scope.range = range;
+    $scope.indent = indentClass;
     $scope.clickRunning = toggleRunning;
 
     $scope.viewConfig = function(service) {
@@ -581,7 +578,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     $scope.name = "resources";
     $scope.params = $routeParams;
-    $scope.range = range;
     $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
         if (toggled.children === undefined) {
@@ -593,6 +589,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         }
     };
     $scope.itemClass = itemClass;
+    $scope.indent = indentClass;
     $scope.newPool = {};
     $scope.newHost = {};
 
@@ -639,7 +636,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     $scope.clickPool = function(poolId) {
         var topPool = $scope.pools.mapped[poolId];
-        if (!topPool) {
+        if (!topPool || $scope.selectedPool === poolId) {
             $scope.clearSelectedPool();
             return;
         }
@@ -665,15 +662,25 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         var pool = $scope.pools.mapped[poolId];
         var host = $scope.dropped[0];
 
-        console.log('Reassigning %s to %s', host.Name, pool.Id);
+        if (poolId === host.PoolId) {
+            // Nothing changed. Don't bother showing the dialog.
+            return;
+        }
 
-        var modifiedHost = $.extend({}, host);
-        modifiedHost.PoolId = pool.Id;
+        $scope.move = {
+            host: host,
+            newpool: poolId
+        };
+        $scope.dropped = [];
+        $('#confirmMove').modal('show');
+    };
+    $scope.confirmMove = function() {
+        console.log('Reassigning %s to %s', $scope.move.host.Name, $scope.move.newpool);
+        var modifiedHost = $.extend({}, $scope.move.host);
+        modifiedHost.PoolId = $scope.move.newpool;
         resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
             refreshHosts($scope, resourcesService, false, false);
         });
-
-        $scope.dropped = [];
     };
 
     // Function for adding new pools
@@ -1457,4 +1464,8 @@ function buildTable(sort, headers) {
         pageSize: 5
     };
 }
+
+function indentClass(depth) { 
+    return 'indent' + (depth -1); 
+};
 

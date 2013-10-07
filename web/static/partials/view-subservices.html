@@ -8,7 +8,7 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in services.subservices" ng-click="click_app(app.Id)" class="link">
-          <td><span ng-repeat="i in range(app.depth)" class="indented">&nbsp;</span>{{app.Name}}</td>
+          <td><span ng-class="indent(app.depth)" class="indented">&nbsp;</span>{{app.Name}}</td>
           <td>
             <div class="btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">

@@ -46,6 +46,7 @@ table .btn-group > .btn.off:last-child:not(:first-child) {
 
 table .btn-group > .btn.active:last-child:not(:first-child) {
     padding-left: 15px;
+    width: 75px;
 }
 
 table .btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
@@ -58,6 +59,7 @@ table .btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
 
 table .btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
     padding-right: 15px;
+    width: 75px;
 }
 
 .table-bordered.side-flush > thead > tr > th, 
@@ -438,6 +440,39 @@ input.search {
 
 .indented {
     margin-left: 20px;
+}
+.indent0 {
+    margin-left: 0;
+}
+.indent1 {
+    margin-left: 20px;
+}
+.indent2 {
+    margin-left: 40px;
+}
+.indent3 {
+    margin-left: 60px;
+}
+.indent4 {
+    margin-left: 80px;
+}
+.indent5 {
+    margin-left: 100px;
+}
+.indent6 {
+    margin-left: 120px;
+}
+.indent7 {
+    margin-left: 140px;
+}
+.indent8 {
+    margin-left: 160px;
+}
+.indent9 {
+    margin-left: 180px;
+}
+.indent10 {
+    margin-left: 200px;
 }
 
 .wizard .modal-body {

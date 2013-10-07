@@ -21,7 +21,7 @@
             jqyoui-droppable="{onDrop: 'dropIt'}" 
             ng-model="dropped"
             ng-class="itemClass(pool)">
-            <span ng-repeat="i in range(pool.depth)" class="indented">&nbsp;</span>
+            <span ng-class="indent(pool.depth)">&nbsp;</span>
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
             <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
 
