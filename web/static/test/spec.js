@@ -99,6 +99,92 @@ describe('DeployedAppsControl', function() {
     });
 });
 
+describe('SubServiceControl', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var servicesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        servicesService = fake_services_service();
+        ctrl = $controller('SubServiceControl', { 
+            $scope: $scope, 
+            resourcesService: resourcesService,
+            servicesService: servicesService
+        });
+    }));
+
+    it('Builds a services table', function() {
+        expect_table($scope.services);
+    });
+});
+
+describe('HostsControl', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        servicesService = fake_services_service();
+        ctrl = $controller('HostsControl', { 
+            $scope: $scope, 
+            resourcesService: resourcesService
+        });
+    }));
+
+    it('Builds a pools table', function() {
+        expect_table($scope.pools);
+    });
+
+    it('Builds a hosts table', function() {
+        expect_table($scope.hosts);
+    });
+
+    it('Provides starter object for creating new pools and hosts', function() {
+        expect($scope.newPool).not.toBeUndefined();
+        expect($scope.newHost).not.toBeUndefined();
+    });
+
+    it('Provides an \'add_host\' function', function() {
+        spyOn(resourcesService,'add_host');
+        $scope.add_host({ IpAddr: '127.0.0.1'});
+        expect(resourcesService.add_host).toHaveBeenCalled();
+    });
+
+    it('Provides a \'remove_pool\' function', function() {
+        spyOn(resourcesService,'remove_pool');
+        $scope.remove_pool('test');
+        expect(resourcesService.remove_pool).toHaveBeenCalled();
+    });
+
+    it('Provides \'filteredHosts\' function', function() {
+        // By default this should produce the same as all hosts
+        var filtered = $scope.filteredHosts();
+        expect(filtered).toEqual($scope.hosts.all);
+    });
+
+    it('Provides \'dropIt\' function for drag and drop', function() {
+        // dropIt is hard to test without a browser due to jquery selector
+        expect(typeof $scope.dropIt).toBe('function');
+    });
+
+});
+
+
 describe('DeployWizard', function() {
     var $scope = null;
     var resourcesService = null;

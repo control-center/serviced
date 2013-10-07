@@ -547,11 +547,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         { id: 'Priority', name: 'Priority'}
     ])
 
-    $scope.click_host = function(pool, host) {
-        var redirect = '/pools/' + pool + "/hosts/" + host;
-        console.log('Clicked %s', redirect);
-    };
-
     var clearLastStyle = function() {
         var lastPool = $scope.pools.mapped[$scope.selectedPool];
         if (lastPool) {
@@ -591,7 +586,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     $scope.dropIt = function(event, ui) {
         var poolId = $(event.target).attr('data-pool-id');
         var pool = $scope.pools.mapped[poolId];
-//        console.log(JSON.stringify($scope.dropped));
         var host = $scope.dropped[0];
 
         console.log('Reassigning %s to %s', host.Name, pool.Id);
