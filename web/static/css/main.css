@@ -198,12 +198,14 @@ table .glyphicon {
     padding: 6px;
 }
 
-
-.nav-tree > li:hover,
-.nav-tree > li.active,
 .nav-tree > li.current {
     background-color: #a8bcd9;
     color: #ffffff;
+}
+
+.nav-tree > li.active,
+.nav-tree > li:hover {
+    background-color: #b8cce9;
 }
 
 
