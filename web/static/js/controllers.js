@@ -474,7 +474,9 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     // Get a list of deployed apps
     refreshServices($scope, servicesService, false);
 }
-
+function range(depth) {
+    return Array(depth - 1);
+}
 
 function SubServiceControl($scope, $routeParams, servicesService, resourcesService, authService) {
     // Ensure logged in
@@ -489,10 +491,7 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
         { id: 'Details', name: 'Details' }
     ]);
 
-    $scope.range = function(depth) {
-        return Array(depth - 1);
-    }
-
+    $scope.range = range;
     $scope.clickRunning = toggleRunning;
 
     $scope.viewConfig = function(service) {
@@ -558,6 +557,23 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
     refreshServices($scope, servicesService, true);
 }
 
+function toggleCollapse(child, collapsed) {
+    child.parentCollapsed = collapsed;
+    if (!child.children) {
+        return;
+    }
+    for(var i=0; i < child.children.length; i++) {
+        toggleCollapse(child.children[i], collapsed);
+    }
+}
+
+function itemClass(item) {
+    var cls = item.current? 'current' : '';
+    if (item.parentCollapsed) {
+        cls += ' hidden';
+    }
+    return cls;
+}
 
 function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
@@ -565,19 +581,18 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     $scope.name = "resources";
     $scope.params = $routeParams;
+    $scope.range = range;
     $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
         if (toggled.children === undefined) {
             return;
         }
-        if (toggled.collapsed) {
-            toggled.icon = POOL_ICON_CLOSED;
-            toggled.childrenClass = POOL_CHILDREN_CLOSED;
-        } else {
-            toggled.icon = POOL_ICON_OPEN;
-            toggled.childrenClass = POOL_CHILDREN_OPEN;
+        toggled.icon = toggled.collapsed? POOL_ICON_CLOSED : POOL_ICON_OPEN;
+        for (var i=0; i < toggled.children.length; i++) {
+            toggleCollapse(toggled.children[i], toggled.collapsed);
         }
     };
+    $scope.itemClass = itemClass;
     $scope.newPool = {};
     $scope.newHost = {};
 
@@ -593,12 +608,10 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     };
 
     $scope.addSubpool = function(poolId) {
-        console.log('Adding subpool of %s; current newPool.ParentId = %s', poolId, $scope.newPool.ParentId);
         $scope.newPool.ParentId = poolId;
         $('#addPool').modal('show');
     };
     $scope.delSubpool = function(poolId) {
-        console.log('Removing pool %s', poolId);
         resourcesService.remove_pool(poolId, function() {
             refreshPools($scope, resourcesService, false);
         });
@@ -614,7 +627,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     var clearLastStyle = function() {
         var lastPool = $scope.pools.mapped[$scope.selectedPool];
         if (lastPool) {
-            lastPool.itemClass = 'pool-data';
+            lastPool.current = false;
         }
     };
 
@@ -631,7 +644,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
             return;
         }
         clearLastStyle();
-        topPool.itemClass = 'pool-data current';
+        topPool.current = true;
 
         var allowed = {};
         addChildren(allowed, topPool);
@@ -1143,14 +1156,16 @@ function AuthService($cookies, $location) {
     };
 }
 
-function flattenSubservices(depth, current) {
+function flattenTree(depth, current) {
     // Exclude the root node
-    var retVal = (depth === 0)? [] : [$.extend({ depth: depth }, current)];
+    var retVal = (depth === 0)? [] : [current];
+    current.depth = depth;
+
     if (!current.children) {
         return retVal;
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenSubservices(depth + 1, current.children[i]))
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
     }
     return retVal;
 }
@@ -1202,11 +1217,9 @@ function refreshServices($scope, servicesService, cacheOk) {
             // we need a flattened view of all children
             
             if ($scope.services.current && $scope.services.current.children) {
-                $scope.services.subservices = flattenSubservices(0, $scope.services.current);
+                $scope.services.subservices = flattenTree(0, $scope.services.current);
             }
         }
-
-
     });
 }
 
@@ -1225,17 +1238,9 @@ function refreshPools($scope, resourcesService, cachePools) {
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
-
-        /* Uncomment to use single rooted tree
-        $scope.pools.tree = [{
-            Id: 'Resource Pools',
-            icon: POOL_ICON_OPEN,
-            childrenClass: POOL_CHILDREN_OPEN,
-            collapsed: false,
-            children: []
-        }];
-        */
         $scope.pools.tree = [];
+
+        var flatroot = { children: [] };
 
         for (var key in allPools) {
             var p = allPools[key];
@@ -1256,11 +1261,8 @@ function refreshPools($scope, resourcesService, cachePools) {
                 console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
                 p.fullPath = getFullPath(allPools, p);
-
             } else {
-                /* Uncomment to use single rooted tree
-                $scope.pools.tree[0].children.push(p);
-                */
+                flatroot.children.push(p);
                 $scope.pools.tree.push(p);
                 p.fullPath = p.Id;
             }
@@ -1270,6 +1272,8 @@ function refreshPools($scope, resourcesService, cachePools) {
             $scope.pools.current = allPools[$scope.params.poolId];
             $scope.editPool = $.extend({}, $scope.pools.current);
         }
+
+        $scope.pools.flattened = flattenTree(0, flatroot);
     });
 }
 

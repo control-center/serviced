@@ -193,45 +193,36 @@ table .glyphicon {
 
 .nav-tree > li {
     display: block;
-    padding: 10px 0px 0px 0px;
+    padding: 6px;
 }
+
+
+.nav-tree > li:hover,
+.nav-tree > li.active,
+.nav-tree > li.current {
+    background-color: #a8bcd9;
+    color: #ffffff;
+}
+
 
 .extended {
     visibility: hidden;
 }
-
-.extended-primary {
-    visibility: hidden;
-}
-
-.pool-data {
-    padding: 0px;
-    margin: 0px;
-    display: inline-block;
-}
-
-.menu-block {
-    position: relative;
-}
-
-.show-menu:hover .extended-primary {
-    visibility: inherit;
-}
-
-.pool-data:hover > .extended {
+li.current > .extended {
     visibility: inherit;
 }
 
 .nav-tree.root {
     padding: 0px;
 }
-h1 > a, h2 > a, h3 > a, h4 > a {
-    text-decoration: none;
-    padding: 5px;
-}
 
-h1 > a:hover, h2 > a:hover, h3 > a:hover, h4 > a:hover,
-h1 > a:focus, h2 > a:focus, h3 > a:focus, h4 > a:focus {
+.sidebar-nav > h4 .btn-link {
+    text-decoration: none;
+    padding: 6px;
+}
+.sidebar-nav > h4 a:hover,
+.sidebar-nav > h4 a:focus,
+.sidebar-nav > h4 .btn-link:hover {
     text-decoration: none;
     cursor: pointer;
 }
@@ -288,17 +279,11 @@ a:hover, a:active, a:focus {
 
 .sidebar-nav .btn-link,
 .sidebar-nav a {
-    position: relative;
-    display: inline-block;
-    padding: 0px 5px 0px 5px;
+    padding: 0px 5px;
     color: #4c6c99;
     font-weight: bold;
 }
 
-.nav-tree .current {
-    background-color: #a8bcd9;
-    color: #ffffff;
-}
 
 .sidebar-nav .current a.main {
     color: #ffffff;
