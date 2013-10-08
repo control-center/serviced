@@ -323,21 +323,20 @@ a:hover, a:active, a:focus {
     cursor: pointer;
     color: #ffffff;
 }
-/*
-.sidebar-nav .btn-link:hover,
-.sidebar-nav a:hover,
-.sidebar-nav a:focus {
-    text-decoration: none;
-    cursor: pointer;
-    color: #587fb3;
-}
-*/
 
 .sidebar-nav > .top-head a,
 .sidebar-nav > .top-head .btn-link {
     color: #595959;
 }
 
+.sidebar-nav > .top-head:hover {
+    background-color: #b8cce9;
+}
+
+.sidebar-nav > .top-head a:hover,
+.sidebar-nav > .top-head .btn-link:hover {
+    color: #ffffff;
+}
 
 .dropdown-menu > li > a {
     display: block;
@@ -369,10 +368,6 @@ div.side-flush {
 
 div.top-bar {
     margin: 0px;
-/*
-    border-right: 1px solid #dddddd;
-    border-top: 1px solid #dddddd; 
-*/
     background-color: #7890b6;
     color: #d7e0ed;
     padding: 4px;
