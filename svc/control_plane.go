@@ -17,6 +17,7 @@ import (
 	_ "github.com/ziutek/mymysql/godrv"
 
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -815,7 +816,29 @@ func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRe
 }
 
 func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
-	return fmt.Errorf("unimplemented GetServiceTemplates")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var templateWrappers []*serviced.ServiceTemplateWrapper
+	_, err = dbmap.Select(&templateWrappers, "SELECT * FROM service_template")
+	if err != nil {
+		fmt.Errorf("could not get service templates: %s", err)
+	}
+
+	templates := make([]*serviced.ServiceTemplate, len(templateWrappers))
+	for i, templateWrapper := range templateWrappers {
+		var template serviced.ServiceTemplate
+		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
+		if err != nil {
+			return err
+		}
+		templates[i] = &template
+	}
+
+	return nil
 }
 
 func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {

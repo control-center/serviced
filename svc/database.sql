@@ -277,6 +277,33 @@ LOCK TABLES `service_state_endpoint` WRITE;
 /*!40000 ALTER TABLE `service_state_endpoint` DISABLE KEYS */;
 /*!40000 ALTER TABLE `service_state_endpoint` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `service_template`
+--
+
+DROP TABLE IF EXISTS `service_template`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_template` (
+  `id` char(36) NOT NULL,
+  `name` varchar(45) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `data` text NOT NULL,
+  `api_version` int(11) NOT NULL DEFAULT '0',
+  `template_version` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_template`
+--
+
+LOCK TABLES `service_template` WRITE;
+/*!40000 ALTER TABLE `service_template` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_template` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -287,4 +314,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-03 12:59:02
+-- Dump completed on 2013-10-07 16:05:03

@@ -14,6 +14,9 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 
+	"encoding/json"
+	"os"
+
 /*
 	clientlib "github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/proxy"
@@ -43,6 +46,20 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 	cmd := Subcmd("add-template", "[OPTIONS]", "Add a template")
 	if err := cmd.Parse(args); err != nil {
 		return err
+	}
+	var serviceTemplate serviced.ServiceTemplate
+	var unused int
+
+	dec := json.NewDecoder(os.Stdin)
+
+	err := dec.Decode(&serviceTemplate)
+	if err != nil {
+		glog.Fatalf("Could not read ServiceTemplate from stdin: %s", err)
+	}
+	c := getClient()
+	err = c.AddServiceTemplate(serviceTemplate, &unused)
+	if err != nil {
+		glog.Fatalf("Could not read add service template:  %s", err)
 	}
 	return nil
 }
