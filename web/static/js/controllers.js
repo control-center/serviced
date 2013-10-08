@@ -722,12 +722,13 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         $scope.dropped = [];
         $('#confirmMove').modal('show');
     };
+
     $scope.confirmMove = function() {
         console.log('Reassigning %s to %s', $scope.move.host.Name, $scope.move.newpool);
         var modifiedHost = $.extend({}, $scope.move.host);
         modifiedHost.PoolId = $scope.move.newpool;
         resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, false);
+            refreshHosts($scope, resourcesService, false, false, $scope.filterHosts);
         });
     };
 
@@ -759,14 +760,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     // Override some values
     $scope.hosts.page = 0; // Start with a few pages
     $scope.hosts.pageSize = 5;
-    /*
-    $scope.previousPage = function() {
-        $scope.hosts.page = Math.max(0, ($scope.hosts.page - 1));
-    };
-    $scope.nextPage = function() {
-        $scope.hosts.page = Math.min(($scope.hosts.pages - 1), ($scope.hosts.page + 1));
-    };
-    */
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
