@@ -2,6 +2,18 @@ body {
     padding: 20px;
 }
 
+.btn-link, a {
+    color: #404040;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-link:hover, a:hover {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+
 table > thead {
     background-color: #7890b6;
     color: #ffffff;
@@ -270,24 +282,31 @@ li.active > .pool-data {
     background-color: #eeeeee;
 }
 
-.btn-link, a {
-    color: #404040;
-    text-decoration: none;
-}
-
 .btn-link:hover, .btn-link:active, .btn-link:focus,
 a:hover, a:active, a:focus {
     color: #303030;
-    text-decoration: none;
+}
+
+.sidebar-nav.flow {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar-nav > div {
+    padding: 5px 15px;
+}
+
+.sidebar-nav > .top-info {
+    background-color: #a7bcd9;
+    color: #ffffff;
+    font-weight: bold;
 }
 
 .sidebar-nav .btn-link,
 .sidebar-nav a {
-    padding: 0px 5px;
     color: #4c6c99;
     font-weight: bold;
 }
-
 
 .sidebar-nav .current a.main {
     color: #ffffff;
@@ -304,7 +323,7 @@ a:hover, a:active, a:focus {
     cursor: pointer;
     color: #ffffff;
 }
-
+/*
 .sidebar-nav .btn-link:hover,
 .sidebar-nav a:hover,
 .sidebar-nav a:focus {
@@ -312,6 +331,13 @@ a:hover, a:active, a:focus {
     cursor: pointer;
     color: #587fb3;
 }
+*/
+
+.sidebar-nav > .top-head a,
+.sidebar-nav > .top-head .btn-link {
+    color: #595959;
+}
+
 
 .dropdown-menu > li > a {
     display: block;
@@ -343,8 +369,10 @@ div.side-flush {
 
 div.top-bar {
     margin: 0px;
+/*
     border-right: 1px solid #dddddd;
-    border-top: 1px solid #dddddd;
+    border-top: 1px solid #dddddd; 
+*/
     background-color: #7890b6;
     color: #d7e0ed;
     padding: 4px;
@@ -520,3 +548,9 @@ input.search {
     padding-top: 20px;
 }
 
+.rotate-down {
+    -webkit-transform: rotate(90deg);
+    -moz-transform: rotate(90deg);
+    -o-transform: rotate(90deg);
+    writing-mode: lr-tb;
+}

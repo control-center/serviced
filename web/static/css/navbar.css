@@ -10,7 +10,8 @@
 }
 
 .navbar {
-    margin-bottom: 5px;
+    margin-bottom: 0px;
+    border-radius: 0;
 }
 
 .item > i {

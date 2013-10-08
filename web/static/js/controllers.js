@@ -93,8 +93,8 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
     });
 
 /* begin constants */
-var POOL_ICON_CLOSED = 'glyphicon glyphicon-folder-close btn-link';
-var POOL_ICON_OPEN = 'glyphicon glyphicon-folder-open btn-link';
+var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
+var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
 var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
@@ -556,9 +556,12 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
 
 function toggleCollapse(child, collapsed) {
     child.parentCollapsed = collapsed;
-    if (!child.children) {
+    // We're done if this node does not have any children OR if this node is 
+    // already collapsed
+    if (!child.children || child.collapsed) {
         return;
     }
+    // Mark all children as having a collapsed parent
     for(var i=0; i < child.children.length; i++) {
         toggleCollapse(child.children[i], collapsed);
     }
@@ -651,9 +654,17 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     $scope.dropped = [];
     $scope.filteredHosts = function() {
+        // Run ordering filter, built in
         var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
+        // Run search filter, built in
         var filtered = $filter('filter')(ordered, $scope.hosts.search);
+        // Run filter for pool and child pools, custom
         var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
+
+        // As a side effect, save number of hosts before paging
+        $scope.filteredHostCount = treeFiltered.length;
+
+        // Run filter for paging, custom
         return $filter('page')(treeFiltered, $scope.hosts);
     };
 

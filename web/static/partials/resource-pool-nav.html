@@ -1,6 +1,6 @@
-    <div class="sidebar-nav show-menu">
-      <h4>
-        <a class="main" ng-click="clearSelectedPool()">Resource Pools</a>
+      <div class="top-info">HOSTS ({{filteredHostCount}})</div>
+      <div class="top-head">
+        <a ng-click="clearSelectedPool()">Resource Pools</a>
         <span class="dropdown">
           <!-- Link or button to toggle dropdown -->
           <button class="btn-link glyphicon glyphicon-plus-sign" data-toggle="dropdown"></button>
@@ -10,7 +10,7 @@
             </li>
           </ul>
         </span>
-      </h4>
+      </div>
 
       <ul class="nav-tree root">
         <!--            ng-include="'/static/partials/pools-tree.html'"  -->
@@ -35,4 +35,3 @@
             </span>
         </li>
       </ul>
-    </div>
