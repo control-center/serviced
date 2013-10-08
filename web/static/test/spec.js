@@ -171,9 +171,9 @@ describe('HostsControl', function() {
         expect(resourcesService.remove_pool).toHaveBeenCalled();
     });
 
-    it('Provides \'filteredHosts\' function', function() {
+    it('Provides \'filterHosts\' function', function() {
         // By default this should produce the same as all hosts
-        var filtered = $scope.filteredHosts();
+        var filtered = $scope.filterHosts();
         expect(filtered).toEqual($scope.hosts.all);
     });
 

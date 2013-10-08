@@ -1,5 +1,5 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
     <div class="col-xs-6 col-sm-3 flow sidebar-nav" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'"></div>
-    <div class="col-xs-12 col-sm-9 side-flush" ng-include="'/static/partials/all-hosts.html'">Loading content...</div>
+    <div class="col-xs-12 col-sm-9 side-flush" scroll-size="100" scroll-watch="hosts.mapped" scroll="loadMore()" ng-include="'/static/partials/all-hosts.html'">Loading content...</div>
     <div ng-include="'/static/partials/resource-actions.html'"></div>
 

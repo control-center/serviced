@@ -66,28 +66,41 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             return items.splice(start, pageSize);
         };
     }).
-    directive('zDef', function ($compile) {
-        // This directive builds a definition list for the object named by 
-        // 'to-define' using the fields enumerated in 'define-headers'
+    directive('scroll', function($rootScope, $window, $timeout) {
         return {
-            // This directive appears as an attribute
-            restrict: 'A', 
-            compile: function(tElem, tAttr) {
-                return function($scope, $elem, $attrs) {
-                    // called whenever the object named in 'define-headers' changes
-                    $scope.$watch($attrs.defineHeaders, function(newVal, oldVal) {
-                        var defineHeaders = newVal;
-                        if (defineHeaders) {
-                            var sb = '';
-                            for(var i=0; i < defineHeaders.length; i++) {
-                                sb += '<dt>' + defineHeaders[i].name +'</dt>';
-                                sb += '<dd>{{' + $attrs.toDefine + '.' + defineHeaders[i].id + '}}</dd>';
+            link: function(scope, elem, attr) {
+                var handler;
+                $window = angular.element($window);
+                handler = function() {
+                    var winEdge, elEdge, dataHidden, scroll;
+                    winEdge = $window.height() + $window.scrollTop();
+                    elEdge = elem.offset().top + elem.height();
+                    dataHidden = elEdge - winEdge;
+                    scroll = dataHidden < parseInt(attr.scrollSize, 10);
+//                    console.log('winEdge %d, elEdge %d, dataHidden %d, scroll %s', winEdge, elEdge, dataHidden, scroll);
+                    if (scroll) {
+                        if ($rootScope.$$phase) {
+                            if (scope.$eval(attr.scroll)) {
+                                $timeout(handler, 100);
                             }
-                            tElem.html(sb);
-                            $compile(tElem.contents())($scope);
+                        } else {
+                            if (scope.$apply(attr.scroll)) {
+                                $timeout(handler, 100);
+                            }
                         }
-                    });
+                    }
                 };
+                if (attr.scrollWatch) {
+                    console.log('scroll watch: %s', attr.scrollWatch);
+                    scope.$watch(attr.scrollWatch, handler);
+                }
+                $window.on('scroll', handler);
+                scope.$on('$destroy', function() {
+                    return $window.off('scroll', handler);
+                });
+                return $timeout((function() {
+                    return handler();
+                }), 0);
             }
         };
     });
@@ -653,22 +666,43 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     };
 
     $scope.dropped = [];
-    $scope.filteredHosts = function() {
+
+    $scope.filterHosts = function() {
+        console.log('filteredHosts called');
+        if (!$scope.hosts.filtered) {
+            $scope.hosts.filtered = [];
+        }
         // Run ordering filter, built in
         var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
         // Run search filter, built in
         var filtered = $filter('filter')(ordered, $scope.hosts.search);
         // Run filter for pool and child pools, custom
         var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
+
+        // As a side effect, save number of hosts before paging
         if (treeFiltered) {
-            // As a side effect, save number of hosts before paging
-            $scope.filteredHostCount = treeFiltered.length;
+            $scope.hosts.filteredCount = treeFiltered.length;
         } else {
-            $scope.filteredHostCount = 0;
+            $scope.hosts.filteredCount = 0;
+        }
+        var page = $scope.hosts.page? $scope.hosts.page : 1;
+        var pageSize = $scope.hosts.pageSize? $scope.hosts.pageSize : 5;
+        var itemsToTake = page * pageSize;
+        $scope.hosts.filteredCountLimit = itemsToTake;
+        if (treeFiltered) {
+            $scope.hosts.filtered = treeFiltered.splice(0, itemsToTake);
+        }
+        return $scope.hosts.filtered;
+    };
+    $scope.loadMore = function() {
+        if ($scope.hosts.filteredCount && $scope.hosts.filteredCountLimit &&
+           $scope.hosts.filteredCountLimit < $scope.hosts.filteredCount) {
+            $scope.hosts.page += 1;
+            $scope.filterHosts();
+            return true;
         }
 
-        // Run filter for paging, custom
-        return $filter('page')(treeFiltered, $scope.hosts);
+        return false;
     };
 
     $scope.dropIt = function(event, ui) {
@@ -718,23 +752,26 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
 
     // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('fullPath', [
+    $scope.hosts = buildTable('Name', [
         { id: 'Name', name: 'Name'},
         { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
-    $scope.hosts.page = ($routeParams.page - 1);
-
+    // Override some values
+    $scope.hosts.page = 0; // Start with a few pages
+    $scope.hosts.pageSize = 5;
+    /*
     $scope.previousPage = function() {
         $scope.hosts.page = Math.max(0, ($scope.hosts.page - 1));
     };
     $scope.nextPage = function() {
         $scope.hosts.page = Math.min(($scope.hosts.pages - 1), ($scope.hosts.page + 1));
     };
+    */
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false);
+    refreshHosts($scope, resourcesService, false, false, $scope.filterHosts);
 }
 
 /*
@@ -1349,7 +1386,7 @@ function updateRunning(app) {
     }
 }
 
-function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
+function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
@@ -1361,15 +1398,12 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
 
         // Get array of all hosts
         $scope.hosts.all = map_to_array(allHosts);
-//        console.log('All hosts length = %d', $scope.hosts.all.length);
-/*        
-        for(var i=0; i < $scope.hosts.all.length; i++) {
-            $scope.hosts.all[i].MemoryUtilization = 25;
-        }
-*/
-        
         // Build array of Hosts relevant to the current pool
         $scope.hosts.data = [];
+
+        if (extraCallback) {
+            extraCallback();
+        }
 
         if ($scope.params && $scope.params.poolId) {
             resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
@@ -1474,7 +1508,7 @@ function buildTable(sort, headers) {
         sort_icons: sort_icons,
         set_order: set_order,
         get_order_class: get_order_class,
-        page: 0,
+        page: 1,
         pageSize: 5
     };
 }

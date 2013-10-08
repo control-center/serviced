@@ -13,7 +13,6 @@ body {
     cursor: pointer;
 }
 
-
 table > thead {
     background-color: #7890b6;
     color: #ffffff;
@@ -364,6 +363,10 @@ a:hover, a:active, a:focus {
 div.side-flush {
     padding-left: 0px;
     padding-right: 0px;
+/*
+    height: 600px; 
+    overflow: auto; 
+*/
 }
 
 div.top-bar {
