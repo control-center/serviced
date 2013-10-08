@@ -660,9 +660,12 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         var filtered = $filter('filter')(ordered, $scope.hosts.search);
         // Run filter for pool and child pools, custom
         var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
-
-        // As a side effect, save number of hosts before paging
-        $scope.filteredHostCount = treeFiltered.length;
+        if (treeFiltered) {
+            // As a side effect, save number of hosts before paging
+            $scope.filteredHostCount = treeFiltered.length;
+        } else {
+            $scope.filteredHostCount = 0;
+        }
 
         // Run filter for paging, custom
         return $filter('page')(treeFiltered, $scope.hosts);
