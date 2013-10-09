@@ -119,8 +119,28 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*ser
 
 func (s *ControlClient) AddHostToResourcePool(poolHost serviced.PoolHost, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.AddHostToResourcePool", poolHost, unused)
-
 }
+
 func (s *ControlClient) RemoveHostFromResourcePool(poolHost serviced.PoolHost, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
+}
+
+func (s *ControlClient) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
+}
+
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
+}
+
+func (s *ControlClient) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, unused)
+}
+
+func (s *ControlClient) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
+}
+
+func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
 }

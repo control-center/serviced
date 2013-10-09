@@ -17,6 +17,7 @@ import (
 	_ "github.com/ziutek/mymysql/godrv"
 
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -123,6 +124,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	host.ColMap("Cores").Rename("cores")
 	host.ColMap("Memory").Rename("memory")
 	host.ColMap("PrivateNetwork").Rename("private_network")
+	host.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	host.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	pool := dbmap.AddTableWithName(serviced.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
 	pool.ColMap("Id").Rename("id")
@@ -130,6 +133,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	pool.ColMap("CoreLimit").Rename("cores")
 	pool.ColMap("MemoryLimit").Rename("memory")
 	pool.ColMap("Priority").Rename("priority")
+	pool.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	pool.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	service := dbmap.AddTableWithName(serviced.Service{}, "service").SetKeys(false, "Id")
 	service.ColMap("Id").Rename("id")
@@ -142,6 +147,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("DesiredState").Rename("desired_state")
 	service.ColMap("Endpoints").SetTransient(true)
 	service.ColMap("ParentServiceId").Rename("parent_service_id")
+	service.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	service.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
@@ -842,4 +849,46 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 		}()
 	}
 
+}
+
+func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+	return fmt.Errorf("unimplemented DeployTemplate")
+}
+
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var templateWrappers []*serviced.ServiceTemplateWrapper
+	_, err = dbmap.Select(&templateWrappers, "SELECT * FROM service_template")
+	if err != nil {
+		fmt.Errorf("could not get service templates: %s", err)
+	}
+
+	templates := make([]*serviced.ServiceTemplate, len(templateWrappers))
+	for i, templateWrapper := range templateWrappers {
+		var template serviced.ServiceTemplate
+		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
+		if err != nil {
+			return err
+		}
+		templates[i] = &template
+	}
+
+	return nil
+}
+
+func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return fmt.Errorf("unimplemented AddServiceTemplate")
+}
+
+func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return fmt.Errorf("unimplemented UpdateServiceTemplate")
+}
+
+func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
+	return fmt.Errorf("unimplemented RemoveServiceTemplate")
 }

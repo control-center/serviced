@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"time"
 )
 
 // Store the command line options
@@ -99,7 +100,8 @@ func startServer() {
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
-		glog.Fatalf("Could not bind to port %v", err)
+		glog.Warningf("Could not bind to port %v", err)
+		time.Sleep(time.Second * 1000)
 	}
 
 	glog.Infof("Listening on %s", l.Addr().String())
