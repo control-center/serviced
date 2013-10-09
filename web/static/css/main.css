@@ -223,7 +223,13 @@ table .glyphicon {
 .extended {
     visibility: hidden;
 }
+li:hover > .extended {
+    visibility: inherit;
+}
 li.current > .extended {
+    visibility: inherit;
+}
+.tempvis.extended {
     visibility: inherit;
 }
 
@@ -365,7 +371,7 @@ div.side-flush {
     padding-right: 0px;
 /*
     height: 600px; 
-    overflow: auto; 
+    overflow-y: auto; 
 */
 }
 

@@ -25,9 +25,10 @@
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
             <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
 
-            <span class="dropdown extended pull-right">
+            <span class="dropdown extended pull-right" id="pool_menu_{{$index}}">
               <!-- Link or button to toggle dropdown -->
-              <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown"></button>
+              <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown"
+                      ng-click="clickMenu($index)"></button>
               <ul class="dropdown-menu" role="menu">
                 <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="addSubpool(pool.Id)">add a sub pool to {{pool.Id}}</a></li>
                 <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="delSubpool(pool.Id)">delete {{pool.Id}}</a></li>

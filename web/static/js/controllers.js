@@ -567,26 +567,6 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
     refreshServices($scope, servicesService, true);
 }
 
-function toggleCollapse(child, collapsed) {
-    child.parentCollapsed = collapsed;
-    // We're done if this node does not have any children OR if this node is 
-    // already collapsed
-    if (!child.children || child.collapsed) {
-        return;
-    }
-    // Mark all children as having a collapsed parent
-    for(var i=0; i < child.children.length; i++) {
-        toggleCollapse(child.children[i], collapsed);
-    }
-}
-
-function itemClass(item) {
-    var cls = item.current? 'current' : '';
-    if (item.parentCollapsed) {
-        cls += ' hidden';
-    }
-    return cls;
-}
 
 function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
     // Ensure logged in
@@ -751,15 +731,22 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         });
     };
 
-
     // Build metadata for displaying a list of hosts
     $scope.hosts = buildTable('Name', [
         { id: 'Name', name: 'Name'},
         { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
+
+    $scope.clickMenu = function(index) {
+        $('#pool_menu_' + index).addClass('tempvis');
+        setTimeout(function() {
+            $('#pool_menu_' + index).removeClass('tempvis');
+        }, 600);
+    };
+
     // Override some values
-    $scope.hosts.page = 0; // Start with a few pages
-    $scope.hosts.pageSize = 5;
+    $scope.hosts.page = 1; // Start with a few pages
+    $scope.hosts.pageSize = 10;
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
@@ -1509,4 +1496,25 @@ function buildTable(sort, headers) {
 function indentClass(depth) { 
     return 'indent' + (depth -1); 
 };
+
+function toggleCollapse(child, collapsed) {
+    child.parentCollapsed = collapsed;
+    // We're done if this node does not have any children OR if this node is 
+    // already collapsed
+    if (!child.children || child.collapsed) {
+        return;
+    }
+    // Mark all children as having a collapsed parent
+    for(var i=0; i < child.children.length; i++) {
+        toggleCollapse(child.children[i], collapsed);
+    }
+}
+
+function itemClass(item) {
+    var cls = item.current? 'current' : '';
+    if (item.parentCollapsed) {
+        cls += ' hidden';
+    }
+    return cls;
+}
 
