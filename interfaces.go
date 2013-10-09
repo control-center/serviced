@@ -60,6 +60,21 @@ type Service struct {
 	ParentServiceId string
 }
 
+// This is created by selecting from service_state and joining to service
+type RunningService struct {
+	Id              string
+	ServiceId       string
+	StartedAt       time.Time
+	Name            string
+	Startup         string
+	Description     string
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	ParentServiceId string
+}
+
 // Desired states of services.
 const (
 	SVC_RUN     = 1
@@ -245,6 +260,9 @@ type ControlPlane interface {
 
 	// Get all the services that need to be running on the given host
 	GetServicesForHost(hostId string, services *[]*Service) error
+
+	// Get the services instances for a given service
+	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
 
 	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error

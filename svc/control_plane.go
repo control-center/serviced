@@ -406,6 +406,46 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 	return err
 }
 
+// Get running services for a host, including start time
+func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[]*serviced.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(&serviced.Host{}, hostId)
+	if obj == nil {
+		return serviced.ControlPlaneError{"Could not find host"}
+	}
+	if err != nil {
+		return err
+	}
+	var services []*serviced.RunningService
+	_, err = dbmap.Select(&services, 
+"SELECT " + 
+" ss.id as Id," +
+" ss.service_id as ServiceId," +
+" ss.started_at as StartedAt," +
+" s.name as Name," +
+" s.startup as Startup," +
+" s.image_id as ImageId," +
+" s.resource_pool_id as PoolId," +
+" s.instances as Instances," +
+" s.description as Description," +
+" s.desired_state as DesiredState," +
+" s.parent_service_id as ParentServiceId " +
+"FROM service_state ss " +
+"JOIN service s on (ss.service_id = s.id) " +
+"WHERE" +
+" ss.terminated_at < '2000-01-01' and" +
+" ss.host_id = ?", hostId)
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
 // Get the current states of the running service instances.
 func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
 	db, dbmap, err := s.getDbConnection()

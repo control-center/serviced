@@ -163,6 +163,25 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 	w.WriteJson(&services)
 }
 
+func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var services []*serviced.RunningService
+	err = client.GetRunningServicesForHost(hostId, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*serviced.RunningService{}
+	}
+	w.WriteJson(&services)
+}
+
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var allServices []*serviced.Service
 	topServices := []*serviced.Service{}

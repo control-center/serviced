@@ -1,0 +1,33 @@
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    
+    <table class="table table-striped table-bordered table-hover side-flush" id="hosts_data">
+      <tbody>
+        <tr ng-repeat="app in running.data | orderBy:running.sort">
+          <td ng-click="click_app(app.Id)" class="link">{{app.Name}}</td>
+          <td>
+            <div class="btn-group" data-toggle="buttons">
+              <label ng-class="app.runningClass" ng-click="unkillRunning(app, servicesService)">
+                <input type="radio" name="running{{$index}}"
+                       ng-model="app.Running" value="1">
+                {{app.runningText}}
+              </label>
+              
+              <label ng-class="app.notRunningClass" ng-click="killRunning(app, servicesService)">
+                <input type="radio" name="running{{$index}}"
+                       ng-model="app.Running" value="stopped">
+                {{app.notRunningText}}
+              </label>
+            </div>
+          </td>
+          <td>{{app.StartedAt}}</td>
+          <td>
+            <button ng-click="viewLog(app)" class="btn btn-link">Log</button>
+            |
+            <button ng-click="viewConfig(app)" class="btn btn-link">Config</button> 
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div ng-include="'/static/partials/edit-config.html'"></div>
+    <div ng-include="'/static/partials/view-log.html'"></div>
+

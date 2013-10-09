@@ -21,7 +21,7 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
-            when('/service/:serviceId', {
+            when('/services/:serviceId', {
                 templateUrl: '/static/partials/view-subservices.html',
                 controller: SubServiceControl}).
             when('/apps', {
@@ -31,6 +31,10 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
                 controller: HostsControl}).
+            when('/hosts/:hostId', {
+                templateUrl: '/static/partials/view-host-details.html',
+                controller: HostDetailsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
@@ -90,13 +94,16 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
                         }
                     }
                 };
-                if (attr.scrollWatch) {
-                    console.log('scroll watch: %s', attr.scrollWatch);
-                    scope.$watch(attr.scrollWatch, handler);
+                if (attr.scrollHandlerObj && attr.scrollHandlerField) {
+                    var obj = scope[attr.scrollHandlerObj];
+                    obj[attr.scrollHandlerField] = handler;
                 }
                 $window.on('scroll', handler);
+                $window.on('resize', handler);
                 scope.$on('$destroy', function() {
-                    return $window.off('scroll', handler);
+                    $window.off('scroll', handler);
+                    $window.off('resize', handler);
+                    return true;
                 });
                 return $timeout((function() {
                     return handler();
@@ -479,13 +486,68 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     ]);
 
     $scope.click_app = function(id) {
-        $location.path('/service/' + id);
+        $location.path('/services/' + id);
     };
 
     $scope.clickRunning = toggleRunning;
 
     // Get a list of deployed apps
     refreshServices($scope, servicesService, false);
+}
+
+function fakeLog() {
+    console.log('TODO: Replace this function');
+    return '[398432.643816] LVM: Logical Volume autoactivation enabled.\n' +
+           '[398432.643821] LVM: Activation generator successfully completed.\n' + 
+           '[965506.972028] usb 2-1.3: new high-speed USB device number 6 using ehci-pci\n' +
+           '[965507.059617] usb 2-1.3: New USB device found, idVendor=04e8, idProduct=6860\n' +
+           '[965507.059622] usb 2-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3\n' +
+           '[965507.059625] usb 2-1.3: Product: SAMSUNG_Android\n' + 
+           '[965507.059628] usb 2-1.3: Manufacturer: SAMSUNG\n' +
+           '[965507.059630] usb 2-1.3: SerialNumber: 9692b6a5\n' +
+           '[975147.458845] usb 2-1.3: USB disconnect, device number 6\n' +
+           '[1052774.702882] lp: driver loaded but no devices found\n';
+}
+
+function fakeConfig() {
+    console.log('TODO: Replace this function');
+    return '#\n' +
+           '# Ethernet frame types\n' +
+           '#               This file describes some of the various Ethernet\n' +
+           '#               protocol types that are used on Ethernet networks.\n' +
+           '#\n' +
+           '# This list could be found on:\n' +
+           '#         http://www.iana.org/assignments/ethernet-numbers\n' +
+           '#\n' +
+           '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
+           '#\n' +
+           'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
+           'X25             0805\n' +
+           'ARP             0806    ether-arp       #\n' +
+           'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
+           'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
+           'DEC             6000                    # DEC Assigned proto\n' +
+           'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
+           'DNA_RC          6002                    # DEC DNA Remote Console\n' +
+           'DNA_RT          6003                    # DEC DNA Routing\n' +
+           'LAT             6004                    # DEC LAT\N' +
+           'DIAG            6005                    # DEC Diagnostics\n' +
+           'CUST            6006                    # DEC Customer use\n' +
+           'SCA             6007                    # DEC Systems Comms Arch\n' +
+           'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
+           'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
+           'AARP            80F3                    # Appletalk AARP\n' +
+           'ATALK           809B                    # Appletalk\n' +
+           '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
+           'IPX             8137                    # Novell IPX\n' +
+           'NetBEUI         8191                    # NetBEUI\n' +
+           'IPv6            86DD    ip6             # IP version 6\n' +
+           'PPP             880B                    # PPP\N' +
+           'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
+           'PPP_DISC        8863                    # PPPoE discovery messages\n' +
+           'PPP_SES         8864                    # PPPoE session messages\n' +
+           'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
+           'LOOP            9000    loopback        # loop proto\n';
 }
 
 function SubServiceControl($scope, $routeParams, servicesService, resourcesService, authService) {
@@ -506,69 +568,23 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
 
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.config = '#\n' +
-            '# Ethernet frame types\n' +
-            '#               This file describes some of the various Ethernet\n' +
-            '#               protocol types that are used on Ethernet networks.\n' +
-            '#\n' +
-            '# This list could be found on:\n' +
-            '#         http://www.iana.org/assignments/ethernet-numbers\n' +
-            '#\n' +
-            '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
-            '#\n' +
-            'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
-            'X25             0805\n' +
-            'ARP             0806    ether-arp       #\n' +
-            'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
-            'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
-            'DEC             6000                    # DEC Assigned proto\n' +
-            'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
-            'DNA_RC          6002                    # DEC DNA Remote Console\n' +
-            'DNA_RT          6003                    # DEC DNA Routing\n' +
-            'LAT             6004                    # DEC LAT\N' +
-            'DIAG            6005                    # DEC Diagnostics\n' +
-            'CUST            6006                    # DEC Customer use\n' +
-            'SCA             6007                    # DEC Systems Comms Arch\n' +
-            'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
-            'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
-            'AARP            80F3                    # Appletalk AARP\n' +
-            'ATALK           809B                    # Appletalk\n' +
-            '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
-            'IPX             8137                    # Novell IPX\n' +
-            'NetBEUI         8191                    # NetBEUI\n' +
-            'IPv6            86DD    ip6             # IP version 6\n' +
-            'PPP             880B                    # PPP\N' +
-            'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
-            'PPP_DISC        8863                    # PPPoE discovery messages\n' +
-            'PPP_SES         8864                    # PPPoE session messages\n' +
-            'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
-            'LOOP            9000    loopback        # loop proto\n';
-
+        $scope.editService.config = fakeConfig(); // FIXME
         $('#editConfig').modal('show');
     };
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.log = '[398432.643816] LVM: Logical Volume autoactivation enabled.\n' +
-            '[398432.643821] LVM: Activation generator successfully completed.\n' + 
-            '[965506.972028] usb 2-1.3: new high-speed USB device number 6 using ehci-pci\n' +
-            '[965507.059617] usb 2-1.3: New USB device found, idVendor=04e8, idProduct=6860\n' +
-            '[965507.059622] usb 2-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3\n' +
-            '[965507.059625] usb 2-1.3: Product: SAMSUNG_Android\n' + 
-            '[965507.059628] usb 2-1.3: Manufacturer: SAMSUNG\n' +
-            '[965507.059630] usb 2-1.3: SerialNumber: 9692b6a5\n' +
-            '[975147.458845] usb 2-1.3: USB disconnect, device number 6\n' +
-            '[1052774.702882] lp: driver loaded but no devices found\n';
+        $scope.editService.log = fakeLog(); // FIXME
         $('#viewLog').modal('show');
     };
-
 
     // Get a list of deployed apps
     refreshServices($scope, servicesService, true);
 }
 
-
-function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
+                      resourcesService, authService) 
+{
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -592,7 +608,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     $scope.add_host = function() {
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false);
+            refreshHosts($scope, resourcesService, false, false, hostCallback);
         });
         // Reset for another add
         $scope.newHost = {
@@ -628,6 +644,11 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         clearLastStyle();
         $scope.selectedPool = null;
         $scope.subPools = null;
+        hostCallback();
+    };
+
+    $scope.clickHost = function(hostId) {
+        $location.path('/hosts/' + hostId);
     };
 
     $scope.clickPool = function(poolId) {
@@ -643,6 +664,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         addChildren(allowed, topPool);
         $scope.subPools = allowed;
         $scope.selectedPool = poolId;
+        hostCallback();
     };
 
     $scope.dropped = [];
@@ -674,6 +696,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         }
         return $scope.hosts.filtered;
     };
+
     $scope.loadMore = function() {
         if ($scope.hosts.filteredCount && $scope.hosts.filteredCountLimit &&
            $scope.hosts.filteredCountLimit < $scope.hosts.filteredCount) {
@@ -744,15 +767,52 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         }, 600);
     };
 
-    // Override some values
-    $scope.hosts.page = 1; // Start with a few pages
-    $scope.hosts.pageSize = 10;
+    var hostCallback = function() {
+        $scope.hosts.page = 1;
+        $scope.hosts.pageSize = 10;
+        $scope.filterHosts();
+        $timeout($scope.hosts.scroll, 100);
+    };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false, $scope.filterHosts);
+    refreshHosts($scope, resourcesService, false, false, hostCallback);
 }
+
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostdetails";
+    $scope.params = $routeParams;
+
+    // Also ensure we have a list of hosts
+    refreshHosts($scope, resourcesService, true, true);
+
+    buildTable('Name', [
+        { id: 'Name', name: 'Service Name' },
+        { id: 'Running', name: 'Running' },
+        { id: 'StartedAt', name: 'Start Time' }
+    ]);
+
+    $scope.viewConfig = function(service) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.config = fakeConfig(); // FIXME
+        $('#editConfig').modal('show');
+    };
+
+    $scope.viewLog = function(service) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.log = fakeLog(); // FIXME
+        $('#viewLog').modal('show');
+    };
+
+    $scope.killRunning = killRunning;
+    $scope.unkillRunning = unkillRunning;
+    refreshRunning($scope, resourcesService, $scope.params.hostId);
+}
+
 
 /*
  * Recurse through children building up allowed along the way.
@@ -805,26 +865,8 @@ function ServicesService($http, $location) {
     var cached_app_templates;
     var cached_services; // top level services only
     var cached_services_map; // map of services by by Id, with children attached
-
-    /* Unused - TODO: Delete 
-    var _get_services = function(callback) {
-        $http.get('/services/top').
-            success(function(data, status) {
-                console.log('Retrieved list of services');
-                cached_services = data;
-                callback(data);
-            }).
-            error(function(data, status) {
-                console.log('Unable to retrieve services');
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-    */
-
     var _get_services_tree = function(callback) {
-        $http.get('/services/all').
+        $http.get('/services').
             success(function(data, status) {
                 console.log('Retrieved list of services');
                 cached_services = [];
@@ -906,7 +948,7 @@ function ServicesService($http, $location) {
         },
 
         update_service: function(serviceId, editedService, callback) {
-            $http.post('/service/' + serviceId, editedService).
+            $http.post('/services/' + serviceId, editedService).
                 success(function(data, status) {
                     console.log('Updated service ' + serviceId);
                     callback(data);
@@ -920,7 +962,7 @@ function ServicesService($http, $location) {
         },
 
         remove_service: function(serviceId, callback) {
-            $http.delete('/service/' + serviceId).
+            $http.delete('/services/' + serviceId).
                 success(function(data, status) {
                     console.log('Removed service ' + serviceId);
                     callback(data);
@@ -1002,6 +1044,21 @@ function ResourcesService($http, $location) {
             }
         },
 
+
+        get_running_services: function(hostId, callback) {
+            $http.get('/hosts/' + hostId + '/running').
+                success(function(data, status) {
+                    console.log('Got running services for %s', hostId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
         /*
          * Posts new resource pool information to the server.
          *
@@ -1016,7 +1073,7 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding pool failed: ' + JSON.stringify(data));
+                    console.log('Adding pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1033,11 +1090,11 @@ function ResourcesService($http, $location) {
         update_pool: function(poolId, editedPool, callback) {
             $http.post('/pools/' + poolId, editedPool).
                 success(function(data, status) {
-                    console.log('Updated pool ' + poolId);
+                    console.log('Updated pool %s', poolId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating pool failed: ' + JSON.stringify(data));
+                    console.log('Updating pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1053,11 +1110,11 @@ function ResourcesService($http, $location) {
         remove_pool: function(poolId, callback) {
             $http.delete('/pools/' + poolId).
                 success(function(data, status) {
-                    console.log('Removed pool ' + poolId);
+                    console.log('Removed pool %s', poolId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing pool failed: ' + JSON.stringify(data));
+                    console.log('Removing pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1094,7 +1151,7 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding host failed: ' + JSON.stringify(data));
+                    console.log('Adding host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1111,11 +1168,11 @@ function ResourcesService($http, $location) {
         update_host: function(hostId, editedHost, callback) {
             $http.post('/hosts/' + hostId, editedHost).
                 success(function(data, status) {
-                    console.log('Updated host ' + hostId);
+                    console.log('Updated host %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating host failed: ' + JSON.stringify(data));
+                    console.log('Updating host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1132,11 +1189,11 @@ function ResourcesService($http, $location) {
         remove_host: function(hostId, callback) {
             $http.delete('/hosts/' + hostId).
                 success(function(data, status) {
-                    console.log('Removed host' + hostId);
+                    console.log('Removed host %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing host failed: ' + JSON.stringify(data));
+                    console.log('Removing host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1327,21 +1384,23 @@ function toggleRunning(app, status, servicesService) {
         return;
     }
     app.DesiredState = newState;
-    updateWorking(app);
     servicesService.update_service(app.Id, app, function() {
         updateRunning(app);
     });
 }
 
-function updateWorking(app) {
-    
-    /*
-    app.runningText = "Updating";
-    app.notRunningText = "...";
-    app.runningClass = "btn btn-info active disabled";
-    app.notRunningClass = "btn btn-default disabled";
-    */
+function killRunning(app) {
+    app.DesiredState = 0;
+    console.log("TODO: Kill service");
+    updateRunning(app);
 }
+
+function unkillRunning(app) {
+    app.DesiredState = 1;
+    console.log("TODO: Remove this function");
+    updateRunning(app);
+}
+
 
 function updateRunning(app) {
     if (app.DesiredState === 1) {
@@ -1408,6 +1467,21 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
             });
         } else {
             fix_pool_paths($scope);
+        }
+    });
+}
+
+function refreshRunning($scope, resourcesService, hostId) {
+    if ($scope.running === undefined) {
+        $scope.running = {};
+    }
+
+    resourcesService.get_running_services(hostId, function(runningServices) {
+        $scope.running.data = runningServices;
+        for (var i=0; i < runningServices.length; i++) {
+            runningServices[i].DesiredState = 1; // All should be running
+            runningServices[i].Deployment = 'successful'; // TODO: Replace
+            updateRunning(runningServices[i]);
         }
     });
 }
