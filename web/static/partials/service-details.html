@@ -1,0 +1,15 @@
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    <ol class="breadcrumb inline">
+      <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
+        <span ng-switch-when="undefined">{{crumb.label}}</span>
+        <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label}}</a>
+      </li>
+    </ol>
+    <p>
+      <a data-toggle="modal" href="#editService" class="btn btn-primary">Edit service</a>
+      <a data-toggle="modal" href="#removeService" class="btn btn-default">Remove service</a>
+    </p>
+    <h4>Service Details</h4>
+    <dl class="dl-horizontal" z-def to-define="services.current" define-headers="services.headers"></dl>
+    <div ng-include="'/static/partials/service-actions.html'" ng-controller="ActionControl"></div>
+  

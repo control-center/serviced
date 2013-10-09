@@ -1,0 +1,22 @@
+      <div class="box">
+        <h2>Zenoss Installation Wizard</h2>
+        <p>Welcome to the Zenoss Control Plane Wizard.</p>
+        <form class="form-horizontal" role="form">
+          <div class="radio">
+            <label>
+              <input type="radio" value="local" name="install_type" id="install_type" ng-model="context.installType" />
+              Local
+            </label>
+          </div>
+          <div class="radio">
+            <label>
+              <input type="radio" value="distributed" name="install_type" id="install_type" ng-model="context.installType"/>
+              Distributed
+            </label>
+          </div>
+        </form>
+        <div class="page-nav" role="navigation">
+          <button class="btn btn-lg btn-primary" ng-click="next()">Start</button>
+          <button class="btn btn-lg btn-default" ng-click="cancel()">Cancel</button>
+        </div>
+      </div>
