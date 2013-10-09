@@ -3,7 +3,6 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/svc"
 	"github.com/zenoss/serviced"
 	clientlib "github.com/zenoss/serviced/client"
 
@@ -20,6 +19,7 @@ type ServiceConfig struct {
 	Tls         bool
 	KeyPEMFile  string
 	CertPEMFile string
+	Zookeepers  []string
 }
 
 /* TODO: delete App struct */
@@ -35,7 +35,6 @@ type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient)
 
 var started bool
-var masterService *svc.ControlSvc
 var configuration ServiceConfig
 
 func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {

@@ -1,0 +1,9 @@
+description "Zenoss ServiceD"
+
+start on filesystem or runlevel [2345]
+stop on run level [!2345]
+
+script
+    . /etc/default/serviced
+    start-stop-daemon --start --chdir /usr/local/serviced/ --exec /usr/local/serviced/bin/serviced -- -agent -master
+end script
