@@ -95,7 +95,7 @@ describe('DeployedAppsControl', function() {
     it('Provides a \'click_app\' function', function() {
         expect($scope.click_app).not.toBeUndefined();
         $scope.click_app('test');
-        expect($location.path()).toBe('/service/test');
+        expect($location.path()).toBe('/services/test');
     });
 });
 
@@ -470,7 +470,7 @@ describe('ServicesService', function() {
     it('Can retrieve and cache service definitions', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
-        $httpBackend.expect('GET', '/services/all').respond(fake_services());
+        $httpBackend.expect('GET', '/services').respond(fake_services());
         var ser_top, ser_by_id = null;
         servicesService.get_services(false, function(top, mapped) {
             ser_top = top;
@@ -494,7 +494,7 @@ describe('ServicesService', function() {
     it('Separates top level services from sub services', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
-        $httpBackend.expect('GET', '/services/all').respond(fake_services());
+        $httpBackend.expect('GET', '/services').respond(fake_services());
         var ser_top, ser_by_id = null;
         servicesService.get_services(false, function(top, mapped) {
             ser_top = top;
@@ -526,7 +526,7 @@ describe('ServicesService', function() {
     it('Can update existing services', function() {
         var serv = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/service/test', serv).respond({ Detail: 'Edited' });
+        $httpBackend.expect('POST', '/services/test', serv).respond({ Detail: 'Edited' });
         servicesService.update_service(serv.Id, serv, function(data) {
             resp = data;
         });
@@ -536,7 +536,7 @@ describe('ServicesService', function() {
 
     it('Can remove existing services', function() {
         var resp = null;
-        $httpBackend.expect('DELETE', '/service/test').respond({ Detail: 'Deleted' });
+        $httpBackend.expect('DELETE', '/services/test').respond({ Detail: 'Deleted' });
         servicesService.remove_service('test', function(data) {
             resp = data;
         });
@@ -795,26 +795,8 @@ describe('refreshPools', function() {
 });
 
 describe('refreshHosts', function() {
-    it('Puts hosts filtered for current pool into scope', function() {
-        var scope = { params: { poolId: "default" }, $watch: function() {}};
-        var dummy_hosts = fake_hosts_for_pool("default");
-        refreshHosts(scope, fake_resources_service(), false, false);
-        expect(scope.hosts.data).not.toBeUndefined();
-        // Do a little transformation for easier testing
-        var actual_hosts = {};
-        scope.hosts.data.map(function(elem) {
-            actual_hosts[elem.Id] = elem;
-        });
-        // Actual data should have expected number of hosts
-        expect(scope.hosts.data.length).toBe(dummy_hosts.length);
-        // Actual data should have expected hosts only
-        for (var i=0; i < dummy_hosts.length; i++) {
-            expect(actual_hosts[dummy_hosts[i].HostId]).not.toBeUndefined();
-        }
-    });
-
     it('Sets the current host based on scope.params', function() {
-        var scope = { params: { poolId: "default", hostId: "def" }, $watch: function() {}};
+        var scope = { params: { hostId: "def" }, $watch: function() {}};
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
     });

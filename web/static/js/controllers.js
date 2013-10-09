@@ -79,8 +79,7 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
                     winEdge = $window.height() + $window.scrollTop();
                     elEdge = elem.offset().top + elem.height();
                     dataHidden = elEdge - winEdge;
-                    scroll = dataHidden < parseInt(attr.scrollSize, 10);
-                    if (scroll) {
+                    if (dataHidden < parseInt(attr.scrollSize, 10)) {
                         if ($rootScope.$$phase) {
                             if (scope.$eval(attr.scroll)) {
                                 $timeout(handler, 100);
@@ -141,6 +140,7 @@ function LoginControl($scope, $http, $location, authService) {
             }, 3000);
         });
     };
+
     // Makes XHR POST with contents of login form
     $scope.login = function() {
         var creds = { "Username": $scope.username, "Password": $scope.password };
@@ -188,7 +188,7 @@ function ActionControl($scope, $routeParams, $location, resourcesService, servic
 
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false);
+            refreshHosts($scope, resourcesService, false, false);
         });
         // Reset for another add
         $scope.newHost = {
@@ -740,7 +740,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
         var modifiedHost = $.extend({}, $scope.move.host);
         modifiedHost.PoolId = $scope.move.newpool;
         resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, false, $scope.filterHosts);
+            refreshHosts($scope, resourcesService, false, false, hostCallback);
         });
     };
 
@@ -797,8 +797,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.breadcrumbs = [
-        { label: 'Hosts', url: '#/hosts' },
-        { label: $scope.params.hostId, itemClass: 'active' }
+        { label: 'Hosts', url: '#/hosts' }
     ];
 
     // Also ensure we have a list of hosts
@@ -825,6 +824,13 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.killRunning = killRunning;
     $scope.unkillRunning = unkillRunning;
     refreshRunning($scope, resourcesService, $scope.params.hostId);
+    refreshHosts($scope, resourcesService, true, true, function() {
+        console.log('ExtraCallback!');
+        if ($scope.hosts.current) {
+            console.log('$scope.hosts.current: %s', JSON.stringify($scope.hosts.current));
+            $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
+        }
+    })
 }
 
 
@@ -1457,24 +1463,6 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
         // Build array of Hosts relevant to the current pool
         $scope.hosts.data = [];
 
-        if (extraCallback) {
-            extraCallback();
-        }
-
-        if ($scope.params && $scope.params.poolId) {
-            resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
-                // hostsForPool is Array(PoolHost)
-                for (var i=0; i < hostsForPool.length; i++) {
-                    var currentHost = allHosts[hostsForPool[i].HostId];
-                    $scope.hosts.data.push(currentHost);
-                    if ($scope.params.hostId === currentHost.Id) {
-                        $scope.hosts.current = currentHost;
-                        $scope.editHost = $.extend({}, $scope.hosts.current);
-                    }
-                }
-            });
-        }
-
         // This method gets called more than once. We don't watch to keep
         // setting watches if we've already got one.
         if ($scope.pools === undefined || $scope.pools.mapped === undefined) {
@@ -1484,6 +1472,18 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
             });
         } else {
             fix_pool_paths($scope);
+        }
+
+        if ($scope.params && $scope.params.hostId) {
+            var current = allHosts[$scope.params.hostId];
+            if (current) {
+                $scope.editHost = $.extend({}, current);
+                $scope.hosts.current = current;
+            }
+        }
+
+        if (extraCallback) {
+            extraCallback();
         }
     });
 }
