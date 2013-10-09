@@ -127,6 +127,9 @@ table .btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle
     background-color: #8b8b8b;
     border-color: #555;
 }
+.breadcrumb {
+    margin-bottom: 0;
+}
 .breadcrumb.inline > li + li:before {
     padding: 0 5px;
     color: #cccccc;

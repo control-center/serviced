@@ -107,7 +107,7 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
                 });
                 return $timeout((function() {
                     return handler();
-                }), 0);
+                }), 100);
             }
         };
     });
@@ -557,6 +557,10 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
     $scope.params = $routeParams;
     $scope.servicesService = servicesService;
 
+    $scope.breadcrumbs = [
+        { label: 'Deployed Apps', url: '#/apps' }
+    ];
+
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'Application'}, 
         { id: 'DesiredState', name: 'Status' },
@@ -579,7 +583,14 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
     };
 
     // Get a list of deployed apps
-    refreshServices($scope, servicesService, true);
+    refreshServices($scope, servicesService, true, function() {
+        if ($scope.services.current) {
+            $scope.breadcrumbs.push({ 
+                label: $scope.services.current.Name, 
+                itemClass: 'active'
+            });
+        }
+    });
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
@@ -786,6 +797,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.name = "hostdetails";
     $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'Hosts', url: '#/hosts' },
+        { label: $scope.params.hostId, itemClass: 'active' }
+    ];
 
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, true, true);
@@ -1265,7 +1281,7 @@ function flattenTree(depth, current) {
     return retVal;
 }
 
-function refreshServices($scope, servicesService, cacheOk) {
+function refreshServices($scope, servicesService, cacheOk, extraCallback) {
     // defend against empty scope
     if ($scope.services === undefined) {
         $scope.services = {};
@@ -1314,6 +1330,9 @@ function refreshServices($scope, servicesService, cacheOk) {
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current);
             }
+        }
+        if (extraCallback) {
+            extraCallback();
         }
     });
 }
