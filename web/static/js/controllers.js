@@ -73,15 +73,13 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
     directive('scroll', function($rootScope, $window, $timeout) {
         return {
             link: function(scope, elem, attr) {
-                var handler;
                 $window = angular.element($window);
-                handler = function() {
+                var handler = function() {
                     var winEdge, elEdge, dataHidden, scroll;
                     winEdge = $window.height() + $window.scrollTop();
                     elEdge = elem.offset().top + elem.height();
                     dataHidden = elEdge - winEdge;
                     scroll = dataHidden < parseInt(attr.scrollSize, 10);
-//                    console.log('winEdge %d, elEdge %d, dataHidden %d, scroll %s', winEdge, elEdge, dataHidden, scroll);
                     if (scroll) {
                         if ($rootScope.$$phase) {
                             if (scope.$eval(attr.scroll)) {
