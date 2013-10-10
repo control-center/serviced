@@ -991,11 +991,11 @@ describe('flattenSubservices', function() {
         var result = flattenTree(0, tree);
         var expected = [ 
 //            { depth: 0, id: 'top' }, // Excludes depth: 0
-            { depth: 1, id: 'middle1' },
-            { depth: 2, id: 'leaf1' },
-            { depth: 2, id: 'leaf2' },
-            { depth: 1, id: 'middle2' },
-            { depth: 2, id: 'leaf3' }
+            { zendepth: 1, id: 'middle1' },
+            { zendepth: 2, id: 'leaf1' },
+            { zendepth: 2, id: 'leaf2' },
+            { zendepth: 1, id: 'middle2' },
+            { zendepth: 2, id: 'leaf3' }
         ];
         expect(result.length).toBe(expected.length);
         for (var i=0; i < expected.length; i++) {
