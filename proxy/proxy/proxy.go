@@ -98,21 +98,23 @@ func main() {
 		}
 		defer client.Close()
 
-		var endpoints []serviced.ApplicationEndpoint
-		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
+		var svceps map[string][]*serviced.ApplicationEndpoint
+		err = client.GetServiceEndpoints(config.ServiceId, &svceps)
 		if err != nil {
 			glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
 			return
 		}
 
-		for _, endpoint := range endpoints {
-			proxy := proxy.Proxy{}
-			proxy.Name = fmt.Sprintf("%v", endpoint)
-			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.Port)
-			proxy.TCPMux = config.TCPMux.Enabled
-			proxy.UseTLS = config.TCPMux.UseTLS
-			proxy.Port = endpoint.ServicePort
-			go proxy.ListenAndProxy()
+		for _, appeps := range svceps {
+            for _, appep := range appeps {
+			    proxy := proxy.Proxy{}
+			    proxy.Name = fmt.Sprintf("%v", appep)
+			    proxy.Address = fmt.Sprintf("%s:%d", appep.HostIp, appep.HostPort)
+			    proxy.TCPMux = config.TCPMux.Enabled
+			    proxy.UseTLS = config.TCPMux.UseTLS
+			    proxy.Port = appep.ContainerPort
+			    go proxy.ListenAndProxy()
+            }
 		}
 	}()
 
