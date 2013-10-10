@@ -397,8 +397,19 @@ div.top-bar {
     color: #d7e0ed;
     padding: 4px;
 }
+
+.top-bar > a {
+    font-size: 18px;
+    font-weight: bold;
+    color: #d7e0ed;
+    padding: 0px 5px;
+}
+
 .top-bar > label {
     font-size: 18px;
+    padding: 0px 5px;
+    background-color: #647aa0;
+    border-radius: 15px;
 }
 
 .deployed.alert {
@@ -582,4 +593,18 @@ input.search {
     -moz-transform: rotate(90deg);
     -o-transform: rotate(90deg);
     writing-mode: lr-tb;
+}
+
+.node {
+  border: solid 1px white;
+  font: 10px sans-serif;
+  line-height: 12px;
+  overflow: hidden;
+  position: absolute;
+  text-indent: 2px;
+}
+
+.treemap {
+    position: relative;
+
 }

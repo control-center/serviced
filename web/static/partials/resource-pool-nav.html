@@ -13,7 +13,6 @@
       </div>
 
       <ul class="nav-tree root">
-        <!--            ng-include="'/static/partials/pools-tree.html'"  -->
         <li ng-repeat="pool in pools.flattened" 
             data-pool-id="{{pool.Id}}"
             data-drop="true" 
@@ -21,7 +20,7 @@
             jqyoui-droppable="{onDrop: 'dropIt'}" 
             ng-model="dropped"
             ng-class="itemClass(pool)">
-            <span ng-class="indent(pool.depth)">&nbsp;</span>
+            <span ng-class="indent(pool.zendepth)">&nbsp;</span>
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
             <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
 

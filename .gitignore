@@ -26,3 +26,4 @@ _testmain.go
 # re-add some potentially excluded items
 !angular*/
 !bootstrap*/
+!d3*/

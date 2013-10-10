@@ -31,6 +31,9 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
                 controller: HostsControl}).
+            when('/hostsmap', {
+                templateUrl: '/static/partials/view-host-map.html',
+                controller: HostsMapControl}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
                 controller: HostDetailsControl
@@ -838,6 +841,120 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     })
 }
 
+function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostsmap";
+    $scope.params = $routeParams;
+    $scope.itemClass = itemClass;
+    $scope.indent = indentClass;
+
+    var clearLastStyle = function() {
+        var lastPool = $scope.pools.mapped[$scope.selectedPool];
+        if (lastPool) {
+            lastPool.current = false;
+        }
+    };
+
+    $scope.clearSelectedPool = function() {
+        clearLastStyle();
+        $scope.selectedPool = null;
+        var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+        selectNewRoot(root);
+    };
+
+    $scope.clickPool = function(poolId) {
+        var topPool = $scope.pools.mapped[poolId];
+        if (!topPool || $scope.selectedPool === poolId) {
+            $scope.clearSelectedPool();
+            return;
+        }
+        clearLastStyle();
+        topPool.current = true;
+
+        $scope.selectedPool = poolId;
+        selectNewRoot(topPool);
+    };
+    var width = 857;
+    var height = 564;
+
+    var cpuCores = function(h) { 
+        return h.Cores;
+    };
+    var memoryCapacity = function(h) {
+        return h.Memory;
+    };
+
+    var color = d3.scale.category20c();
+    var treemap = d3.layout.treemap()
+        .size([width, height])
+        .value(function(d) { return d.Cores });
+
+    var position = function() {
+        this.style("left", function(d) { return d.x + "px"; })
+            .style("top", function(d) { return d.y + "px"; })
+            .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+            .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+    };
+
+    var div = d3.select("#hostmap");
+
+    var selectNewRoot = function(newroot) {
+        console.log('Selected %s', newroot.Id);
+
+        var node = div.
+            datum(newroot).
+            selectAll(".node").
+            data(treemap.nodes)
+
+        node.enter().
+            append("div").
+            attr("class", "node");
+
+        node.transition().duration(1000).
+            call(position).
+            style("background", function(d) { return d.children ? color(d.Id) : null; }).
+            text(function(d) { return d.children ? null : d.Name; });
+        node.exit().remove();
+    };
+
+    var hostsAddedToPools = false;
+    var addHostsToPools = function() {
+        if (!$scope.pools.mapped || !$scope.hosts.mapped) {
+            console.log('Need both pools and hosts');
+            return;
+        }
+        if (hostsAddedToPools) {
+            console.log('Already built');
+            return;
+        }
+
+        console.log('Preparing tree map');
+        hostsAddedToPools = true;
+        for(var key in $scope.hosts.mapped) {
+            var host = $scope.hosts.mapped[key];
+            var pool = $scope.pools.mapped[host.PoolId];
+            if (pool.children === undefined) {
+                pool.children = [];
+            }
+            pool.children.push(host);
+        }
+        var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+        var node = div.
+            datum(root).
+            selectAll(".node").
+            data(treemap.nodes)
+        node.enter().
+            append("div").attr("class", "node").
+            call(position).
+            style("background", function(d) { return d.children ? color(d.Id) : null; }).
+            text(function(d) { return d.children ? null : d.Name; });
+    };
+    // Also ensure we have a list of hosts
+    refreshPools($scope, resourcesService, false, addHostsToPools);
+    refreshHosts($scope, resourcesService, false, false, addHostsToPools);
+}
 
 /*
  * Recurse through children building up allowed along the way.
@@ -1279,7 +1396,7 @@ function AuthService($cookies, $location) {
 function flattenTree(depth, current) {
     // Exclude the root node
     var retVal = (depth === 0)? [] : [current];
-    current.depth = depth;
+    current.zendepth = depth;
 
     if (!current.children) {
         return retVal;
@@ -1295,6 +1412,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
     if ($scope.services === undefined) {
         $scope.services = {};
     }
+    console.log('refresh services called');
     servicesService.get_services(cacheOk, function(topServices, mappedServices) {
         $scope.services.data = topServices;
         $scope.services.mapped = mappedServices;
@@ -1353,11 +1471,12 @@ function getFullPath(allPools, pool) {
     return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
 }
 
-function refreshPools($scope, resourcesService, cachePools) {
+function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
+    console.log('Refreshing pools');
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
@@ -1397,6 +1516,10 @@ function refreshPools($scope, resourcesService, cachePools) {
         }
 
         $scope.pools.flattened = flattenTree(0, flatroot);
+
+        if (extraCallback) {
+            extraCallback();
+        }
     });
 }
 
