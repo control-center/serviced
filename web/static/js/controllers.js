@@ -476,6 +476,11 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     $scope.params = $routeParams;
     $scope.servicesService = servicesService;
 
+    $scope.breadcrumbs = [
+        { label: 'Deployed Apps', itemClass: 'active' }
+    ];
+
+
     $scope.services = buildTable('Deployment', [
         { id: 'Name', name: 'Application'}, 
         { id: 'Deployment', name: 'Deployment Status'},
@@ -803,10 +808,10 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, true, true);
 
-    buildTable('Name', [
-        { id: 'Name', name: 'Service Name' },
-        { id: 'Running', name: 'Running' },
-        { id: 'StartedAt', name: 'Start Time' }
+    $scope.running = buildTable('Name', [
+        { id: 'Name', name: 'Sub Applications' },
+        { id: 'StartedAt', name: 'Start Time' },
+        { id: 'View', name: 'View' }
     ]);
 
     $scope.viewConfig = function(service) {
