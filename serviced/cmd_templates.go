@@ -41,7 +41,7 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 
 	for id, template := range serviceTemplates {
 		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
-            fmt.Printf("%s: %s\n", id, t)
+			fmt.Printf("%s: %s\n", id, t)
 		}
 	}
 
@@ -79,6 +79,18 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var unused int
+	if err := getClient().RemoveServiceTemplate(cmd.Arg(0), &unused); err != nil {
+		glog.Fatalf("Could not remove service template: %v", err)
+	}
+
+	glog.Infof("Service template %s removed", cmd.Arg(0))
 	return nil
 }
 

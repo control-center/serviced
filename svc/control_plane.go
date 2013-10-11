@@ -175,7 +175,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
-	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template")
+	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
 	svc_template.ColMap("Id").Rename("id")
 	svc_template.ColMap("Name").Rename("name")
 	svc_template.ColMap("Description").Rename("description")
@@ -878,5 +878,12 @@ func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTempl
 }
 
 func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
-	return fmt.Errorf("unimplemented RemoveServiceTemplate")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = dbmap.Delete(&serviced.ServiceTemplateWrapper{Id: serviceTemplateId})
+	return err
 }
