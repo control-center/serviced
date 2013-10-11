@@ -166,149 +166,6 @@ function LoginControl($scope, $http, $location, authService) {
     };
 }
 
-// Common controller for resource action buttons
-function ActionControl($scope, $routeParams, $location, resourcesService, servicesService) {
-    $scope.name = 'actions';
-    $scope.params = $routeParams;
-
-    // New hosts should belong to the current pool by default
-    $scope.newHost = {
-        PoolId: $scope.params.poolId
-    };
-
-    // New pools should belong to the current pool by default
-    $scope.newPool = {
-        ParentId: $scope.params.poolId
-    };
-
-    // Just create a stub for new services
-    $scope.newService = {};
-
-    // Function for adding new hosts
-    $scope.add_host = function() {
-        console.log('Adding host %s as child of pool %s', 
-                    $scope.newHost.Name, $scope.newHost.PoolId);
-
-        resourcesService.add_host($scope.newHost, function(data) {
-            // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false, false);
-        });
-        // Reset for another add
-        $scope.newHost = {
-            PoolId: $scope.params.poolId
-        };
-    };
-
-    // Function for adding new pools
-    $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
-        resourcesService.add_pool($scope.newPool, function(data) {
-            // After adding, refresh our list
-            refreshPools($scope, resourcesService, false);
-        });
-        // Reset for another add
-        $scope.newPool = {
-            ParentId: $scope.params.poolId
-        };
-    };
-
-    // Function for removing the current pool
-    $scope.remove_pool = function() {
-        console.log('Removing pool %s', $scope.params.poolId);
-        resourcesService.remove_pool($scope.params.poolId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removePool').on('hidden.bs.modal', function() {
-                var redirect = '/resources';
-                console.log('Redirecting to %s', redirect);
-                $location.path(redirect);
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-
-        });
-    };
-
-    // Function for removing the current host
-    $scope.remove_host = function() {
-        console.log('Removing host %s', $scope.params.hostId);
-        resourcesService.remove_host($scope.params.hostId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removeHost').on('hidden.bs.modal', function() {
-                var redirect = '/pools/' + $scope.params.poolId;
-                console.log('Redirecting to %s', redirect);
-                $location.path(redirect);
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-        });
-    };
-
-    // Function for editing the current pool
-    $scope.edit_pool = function() {
-        console.log('Updating pool %s', $scope.params.poolId);
-        resourcesService.update_pool($scope.params.poolId, $scope.editPool, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-
-    // Function for editing the current host
-    $scope.edit_host = function() {
-        console.log('Updating host %s', $scope.params.hostId);
-        resourcesService.update_host($scope.params.hostId, $scope.editHost, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshHosts($scope, resourcesService, false, false);
-        });
-    };
-
-    // Function for adding a new host
-    $scope.add_service = function() {
-        console.log('Adding service %s', $scope.newService.Name);
-        servicesService.add_service($scope.newService, function(data) {
-            // After the add succeeds, refresh the list
-            refreshServices($scope, servicesService, false);
-        });
-        // Reset for another add
-        $scope.newService = {};
-    };
-
-    // Function for editing the current service
-    $scope.edit_service = function() {
-        console.log('Editing service %s', $scope.services.current.Name);
-        servicesService.update_service($scope.params.serviceId, $scope.editService, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshServices($scope, servicesService, false);
-        });
-    };
-
-    // Function for removing the current service
-    $scope.remove_service = function() {
-        console.log('Removing service %s', $scope.params.serviceId);
-        servicesService.remove_service($scope.params.serviceId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removeService').on('hidden.bs.modal', function() {
-                console.log('redirecting to /services');
-                $location.path('/services');
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-        });
-
-    }
-}
-
 function DeployWizard($scope, resourcesService) {
     console.log('Loading deployWizard');
 
@@ -849,6 +706,18 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     $scope.params = $routeParams;
     $scope.itemClass = itemClass;
     $scope.indent = indentClass;
+
+    $scope.addSubpool = function(poolId) {
+        $scope.newPool.ParentId = poolId;
+        $('#addPool').modal('show');
+    };
+    $scope.delSubpool = function(poolId) {
+        resourcesService.remove_pool(poolId, function() {
+            refreshPools($scope, resourcesService, false);
+        });
+    };
+    $scope.newPool = {};
+    $scope.newHost = {};
 
     var clearLastStyle = function() {
         var lastPool = $scope.pools.mapped[$scope.selectedPool];
