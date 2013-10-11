@@ -151,7 +151,7 @@ describe('HostsControl', function() {
     });
 
     it('Builds a hosts table', function() {
-        expect_table($scope.hosts);
+        expect_table_no_data($scope.hosts);
     });
 
     it('Provides starter object for creating new pools and hosts', function() {
