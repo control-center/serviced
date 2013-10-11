@@ -861,9 +861,20 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         clearLastStyle();
         $scope.selectedPool = null;
         var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+        $scope.hosts.filteredCount = $scope.hosts.all.length;
         selectNewRoot(root);
     };
 
+    var countFromPool = function(e) {
+        if (e.isHost) return 1;
+        if (e.children === undefined) return 0;
+
+        var count = 0;
+        for (var i=0; i < e.children.length; i++) {
+            count += countFromPool(e.children[i]);
+        }
+        return count;
+    };
     $scope.clickPool = function(poolId) {
         var topPool = $scope.pools.mapped[poolId];
         if (!topPool || $scope.selectedPool === poolId) {
@@ -874,6 +885,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         topPool.current = true;
 
         $scope.selectedPool = poolId;
+        $scope.hosts.filteredCount = countFromPool(topPool);
         selectNewRoot(topPool);
     };
     var width = 857;
@@ -885,6 +897,12 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     var memoryCapacity = function(h) {
         return h.Memory;
     };
+    var poolBgColor = function(p) {
+        return p.isHost? null : color(p.Id);
+    };
+    var hostText = function(h) {
+        return h.isHost? h.Name : null;
+    }
 
     var color = d3.scale.category20c();
     var treemap = d3.layout.treemap()
@@ -908,31 +926,24 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
 
     $scope.selectByMemory = function() {
         $scope.treemapSelection = 'memory';
-        var node = d3.select("#hostmap").
-            selectAll(".node").
-            data(treemap.value(memoryCapacity).nodes)
-        node.enter().
-            append("div").
-            attr("class", "node");
-        node.transition().duration(1000).
-            call(position).
-            style("background", function(d) { return d.children ? color(d.Id) : null; }).
-            text(function(d) { return d.children ? null : d.Name; });
-        node.exit().remove();
+        selectNewValue(memoryCapacity);
     };
-
     $scope.selectByCores = function() {
         $scope.treemapSelection = 'cpu';
+        selectNewValue(cpuCores);
+    };
+
+    var selectNewValue = function(valFunc) {
         var node = d3.select("#hostmap").
             selectAll(".node").
-            data(treemap.value(cpuCores).nodes)
+            data(treemap.value(valFunc).nodes)
         node.enter().
             append("div").
             attr("class", "node");
         node.transition().duration(1000).
             call(position).
-            style("background", function(d) { return d.children ? color(d.Id) : null; }).
-            text(function(d) { return d.children ? null : d.Name; });
+            style("background", poolBgColor).
+            text(hostText);
         node.exit().remove();
     };
 
@@ -949,8 +960,8 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
 
         node.transition().duration(1000).
             call(position).
-            style("background", function(d) { return d.children ? color(d.Id) : null; }).
-            text(function(d) { return d.children ? null : d.Name; });
+            style("background", poolBgColor).
+            text(hostText);
         node.exit().remove();
     };
 
@@ -966,6 +977,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         }
 
         console.log('Preparing tree map');
+        $scope.hosts.filteredCount = $scope.hosts.all.length;
         hostsAddedToPools = true;
         for(var key in $scope.hosts.mapped) {
             var host = $scope.hosts.mapped[key];
@@ -974,17 +986,10 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
                 pool.children = [];
             }
             pool.children.push(host);
+            host.isHost = true;
         }
         var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
-        var node = d3.select("#hostmap").
-            datum(root).
-            selectAll(".node").
-            data(treemap.nodes)
-        node.enter().
-            append("div").attr("class", "node").
-            call(position).
-            style("background", function(d) { return d.children ? color(d.Id) : null; }).
-            text(function(d) { return d.children ? null : d.Name; });
+        selectNewRoot(root);
     };
     $scope.treemapSelection = 'memory';
     // Also ensure we have a list of hosts
@@ -1624,8 +1629,6 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
 
         // Get array of all hosts
         $scope.hosts.all = map_to_array(allHosts);
-        // Build array of Hosts relevant to the current pool
-        $scope.hosts.data = [];
 
         // This method gets called more than once. We don't watch to keep
         // setting watches if we've already got one.
