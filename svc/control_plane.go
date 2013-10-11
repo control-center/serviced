@@ -175,6 +175,14 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
+	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template")
+	svc_template.ColMap("Id").Rename("id")
+	svc_template.ColMap("Name").Rename("name")
+	svc_template.ColMap("Description").Rename("description")
+	svc_template.ColMap("Data").Rename("data")
+	svc_template.ColMap("ApiVersion").Rename("api_version")
+	svc_template.ColMap("TemplateVersion").Rename("template_version")
+
 	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
@@ -838,11 +846,31 @@ func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*servic
 		templates[i] = &template
 	}
 
+	*serviceTemplates = templates
+
 	return nil
 }
 
 func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
-	return fmt.Errorf("unimplemented AddServiceTemplate")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	data, err := json.Marshal(serviceTemplate)
+	if err != nil {
+		return err
+	}
+
+	uuid, err := serviced.NewUuid()
+	if err != nil {
+		return err
+	}
+
+	wrapper := serviced.ServiceTemplateWrapper{uuid, serviceTemplate.Name, serviceTemplate.Description, string(data), 1, 1}
+
+	return dbmap.Insert(&wrapper)
 }
 
 func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {

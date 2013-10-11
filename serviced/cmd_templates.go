@@ -11,10 +11,10 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-
-	"encoding/json"
 	"os"
 
 /*
@@ -25,19 +25,27 @@ import (
 
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
-
 	cmd := Subcmd("templates", "[OPTIONS]", "List templates")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
 	c := getClient()
+
 	var serviceTemplates []*serviced.ServiceTemplate
 	var unused int
 	err := c.GetServiceTemplates(unused, &serviceTemplates)
 	if err != nil {
 		glog.Fatalf("Could not get list of templates: %s", err)
 	}
-	return nil
+
+	for _, template := range serviceTemplates {
+		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
+			fmt.Printf("%s\n", t)
+		}
+	}
+
+	return err
 }
 
 // Add a service template to the control plane.

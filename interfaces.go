@@ -63,6 +63,7 @@ type Service struct {
 }
 
 type ServiceTemplateWrapper struct {
+	Id              string // Primary key
 	Name            string // Name of top level service
 	Description     string // Description
 	Data            string // JSON encoded template definition
@@ -98,7 +99,7 @@ const (
 // Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = newUuid()
+	s.Id, err = NewUuid()
 	if err != nil {
 		return s, err
 	}
@@ -217,7 +218,7 @@ type ContainerState struct {
 // A new service instance (ServiceState)
 func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = newUuid()
+	serviceState.Id, err = NewUuid()
 	if err != nil {
 		return serviceState, err
 	}
