@@ -26,6 +26,10 @@ import (
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	cmd := Subcmd("templates", "[OPTIONS]", "List templates")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each template")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -41,7 +45,11 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 
 	for id, template := range serviceTemplates {
 		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
-			fmt.Printf("%s: %s\n", id, t)
+			if verbose {
+				fmt.Printf("%s: %s\n", id, t)
+			} else {
+				fmt.Printf("%s\t%s\n", id, template.Name)
+			}
 		}
 	}
 
@@ -90,7 +98,6 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 		glog.Fatalf("Could not remove service template: %v", err)
 	}
 
-	glog.Infof("Service template %s removed", cmd.Arg(0))
 	return nil
 }
 
