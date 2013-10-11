@@ -290,6 +290,9 @@ td.deploy-warning {
     background-color: #f0f0f0;
 }
 
+.add-control > .btn-link {
+    color: #404040;
+}
 
 .deployed.alert {
     font-weight: bold;
@@ -378,17 +381,10 @@ a:hover, a:active, a:focus {
     cursor: not-allowed;
     opacity: 0.65;
 }
-.search-control label {
-    margin: 0px;
-}
 
 div.side-flush {
     padding-left: 0px;
     padding-right: 0px;
-/*
-    height: 600px; 
-    overflow-y: auto; 
-*/
 }
 
 div.top-bar {
@@ -398,16 +394,16 @@ div.top-bar {
     padding: 4px;
 }
 
-.top-bar > a {
-    font-size: 18px;
+.top-bar .nav-link {
+    font-size: 16px;
     font-weight: bold;
     color: #d7e0ed;
-    padding: 0px 5px;
+    padding: 0px 10px;
 }
-
-.top-bar > label {
-    font-size: 18px;
-    padding: 0px 5px;
+.top-bar .nav-link.active,
+.top-bar label.active {
+    font-size: 16px;
+    padding: 0px 10px;
     background-color: #647aa0;
     border-radius: 15px;
 }
@@ -423,13 +419,16 @@ input.search {
     line-height: 1.0;
 }
 
+.search-control label {
+    margin: 0px;
+}
+
 .details-control .alert,
 .search-control .alert {
     padding: 2px 5px;
     margin: 0px 10px;
     font-size: 14px;
     text-align: left;
-    vertical-align: bottom;
 }
 
 .close {

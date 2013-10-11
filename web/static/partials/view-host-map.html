@@ -4,10 +4,13 @@
     <div class="col-xs-12 col-sm-9 side-flush">
       <div class="top-bar">
         <div class="search-control pull-right">
-          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}' and sub pools</label>
-          <label class="sr-only" for="all_hosts_search">Search</label>
+          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}'</label>
+
+          <button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">By RAM</button>
+          <button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">By CPU</button>
         </div>
-        <a href="#/hosts">Hosts List</a><label>Hosts Map</label>
+        <a class="nav-link" href="#/hosts">Hosts List</a>
+        <label class="active">Hosts Map</label>
       </div>
       <div id="hostmap" class="treemap"></div>
     </div>
