@@ -313,7 +313,7 @@ type ControlPlane interface {
 	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *[]*ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
 
 	// Add a new service Template
 	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error

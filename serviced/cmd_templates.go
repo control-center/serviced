@@ -32,16 +32,16 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 
 	c := getClient()
 
-	var serviceTemplates []*serviced.ServiceTemplate
+	var serviceTemplates map[string]*serviced.ServiceTemplate
 	var unused int
 	err := c.GetServiceTemplates(unused, &serviceTemplates)
 	if err != nil {
 		glog.Fatalf("Could not get list of templates: %s", err)
 	}
 
-	for _, template := range serviceTemplates {
+	for id, template := range serviceTemplates {
 		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
-			fmt.Printf("%s\n", t)
+            fmt.Printf("%s: %s\n", id, t)
 		}
 	}
 

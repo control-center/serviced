@@ -823,7 +823,7 @@ func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRe
 	return fmt.Errorf("unimplemented DeployTemplate")
 }
 
-func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -836,14 +836,14 @@ func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*servic
 		fmt.Errorf("could not get service templates: %s", err)
 	}
 
-	templates := make([]*serviced.ServiceTemplate, len(templateWrappers))
-	for i, templateWrapper := range templateWrappers {
+	templates := make(map[string]*serviced.ServiceTemplate, len(templateWrappers))
+	for _, templateWrapper := range templateWrappers {
 		var template serviced.ServiceTemplate
 		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
 		if err != nil {
 			return err
 		}
-		templates[i] = &template
+		templates[templateWrapper.Id] = &template
 	}
 
 	*serviceTemplates = templates
