@@ -41,9 +41,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/proxy"
-	"github.com/zenoss/glog"
 	"net"
 	"os"
 )
@@ -106,15 +106,15 @@ func main() {
 		}
 
 		for _, appeps := range svceps {
-            for _, appep := range appeps {
-			    proxy := proxy.Proxy{}
-			    proxy.Name = fmt.Sprintf("%v", appep)
-			    proxy.Address = fmt.Sprintf("%s:%d", appep.HostIp, appep.HostPort)
-			    proxy.TCPMux = config.TCPMux.Enabled
-			    proxy.UseTLS = config.TCPMux.UseTLS
-			    proxy.Port = appep.ContainerPort
-			    go proxy.ListenAndProxy()
-            }
+			for _, appep := range appeps {
+				proxy := proxy.Proxy{}
+				proxy.Name = fmt.Sprintf("%v", appep)
+				proxy.Address = fmt.Sprintf("%s:%d", appep.HostIp, appep.HostPort)
+				proxy.TCPMux = config.TCPMux.Enabled
+				proxy.UseTLS = config.TCPMux.UseTLS
+				proxy.Port = appep.ContainerPort
+				go proxy.ListenAndProxy()
+			}
 		}
 	}()
 
