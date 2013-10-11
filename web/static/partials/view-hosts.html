@@ -5,7 +5,7 @@
          scroll-size="100" scroll="loadMore()">
       <div class="top-bar">
         <div class="search-control pull-right">
-          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}' and sub pools</label>
+          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}'</label>
           <label class="sr-only" for="all_hosts_search">Search</label>
           <input placeholder="Search" id="all_hosts_search" type="text" ng-model="hosts.search" class="form-control search" ng-change="filterHosts()"></input>
           <span class="add-control">

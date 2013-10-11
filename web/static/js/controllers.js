@@ -877,7 +877,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         selectNewRoot(topPool);
     };
     var width = 857;
-    var height = 564;
+    var height = 567;
 
     var cpuCores = function(h) { 
         return h.Cores;
