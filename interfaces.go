@@ -71,16 +71,21 @@ type ServiceTemplateWrapper struct {
 	TemplateVersion int    // Version of the template
 }
 
+type ServiceDefinition struct {
+	Name        string              // Name of the defined service
+	Command     string              // Command which runs the service
+	Description string              // Description of the service
+	ImageId     string              // Docker image hosting the service
+	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
+	Services    []ServiceDefinition // Supporting subservices
+}
+
 // A Service Template used for
 type ServiceTemplate struct {
-	Name             string            // Name of service
-	Startup          string            // Startup command
-	Description      string            // Meaningful description of service
-	MinInstances     int               // mininum number of instances to run
-	MaxInstances     int               // maximum number of instances to run
-	ImageId          string            // Docker image id
-	ServiceEndpoints []ServiceEndpoint // Ports that this service uses
-	SubServices      []ServiceTemplate // Child services
+	Name        string              // Name of service template
+	Description string              // Meaningful description of service
+	Instances   map[string]int      // Constaints on the number of instances
+	Services    []ServiceDefinition // Child services
 }
 
 // A request to deploy a service template

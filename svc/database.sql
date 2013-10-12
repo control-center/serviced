@@ -296,6 +296,15 @@ CREATE TABLE `service_template` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+CREATE TABLE service_deployment
+(
+    `id` char(36) NOT NULL 
+    ,PRIMARY KEY (id)
+    ,`service_template_id` varchar(36) NOT NULL 
+    ,`service_id` varchar(36) NOT NULL 
+    ,`deployed_at` datetime NOT NULL 
+)
+ENGINE=INNODB
 --
 -- Dumping data for table `service_template`
 --
