@@ -81,6 +81,13 @@ type ServiceDefinition struct {
 	Services    []ServiceDefinition // Supporting subservices
 }
 
+type ServiceDeployment struct {
+	Id         string    // Primary key
+	TemplateId string    // id of template being deployed
+	ServiceId  string    // id of service created by deployment
+	DeployedAt time.Time // when the template was deployed
+}
+
 // A Service Template used for
 type ServiceTemplate struct {
 	Name        string              // Name of service template
@@ -90,8 +97,8 @@ type ServiceTemplate struct {
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
-	PoolId   string          // Pool Id to deploy service into
-	Template ServiceTemplate // ServiceTemplate to deploy
+	PoolId     string // Pool Id to deploy service into
+	TemplateId string // Id of template to be deployed
 }
 
 // Desired states of services.
