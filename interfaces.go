@@ -63,6 +63,7 @@ type Service struct {
 }
 
 type ServiceTemplateWrapper struct {
+	Id              string // Primary key
 	Name            string // Name of top level service
 	Description     string // Description
 	Data            string // JSON encoded template definition
@@ -70,16 +71,21 @@ type ServiceTemplateWrapper struct {
 	TemplateVersion int    // Version of the template
 }
 
+type ServiceDefinition struct {
+	Name        string              // Name of the defined service
+	Command     string              // Command which runs the service
+	Description string              // Description of the service
+	ImageId     string              // Docker image hosting the service
+	Instances   map[string]int      // Constaints on the number of instances
+	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
+	Services    []ServiceDefinition // Supporting subservices
+}
+
 // A Service Template used for
 type ServiceTemplate struct {
-	Name             string            // Name of service
-	Startup          string            // Startup command
-	Description      string            // Meaningful description of service
-	MinInstances     int               // mininum number of instances to run
-	MaxInstances     int               // maximum number of instances to run
-	ImageId          string            // Docker image id
-	ServiceEndpoints []ServiceEndpoint // Ports that this service uses
-	SubServices      []ServiceTemplate // Child services
+	Name        string              // Name of service template
+	Description string              // Meaningful description of service
+	Services    []ServiceDefinition // Child services
 }
 
 // A request to deploy a service template
@@ -113,7 +119,7 @@ const (
 // Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = newUuid()
+	s.Id, err = NewUuid()
 	if err != nil {
 		return s, err
 	}
@@ -232,7 +238,7 @@ type ContainerState struct {
 // A new service instance (ServiceState)
 func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = newUuid()
+	serviceState.Id, err = NewUuid()
 	if err != nil {
 		return serviceState, err
 	}
@@ -330,7 +336,7 @@ type ControlPlane interface {
 	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *[]*ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
 
 	// Add a new service Template
 	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error

@@ -175,6 +175,14 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
+	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
+	svc_template.ColMap("Id").Rename("id")
+	svc_template.ColMap("Name").Rename("name")
+	svc_template.ColMap("Description").Rename("description")
+	svc_template.ColMap("Data").Rename("data")
+	svc_template.ColMap("ApiVersion").Rename("api_version")
+	svc_template.ColMap("TemplateVersion").Rename("template_version")
+
 	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
@@ -855,7 +863,7 @@ func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRe
 	return fmt.Errorf("unimplemented DeployTemplate")
 }
 
-func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -868,21 +876,41 @@ func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *[]*servic
 		fmt.Errorf("could not get service templates: %s", err)
 	}
 
-	templates := make([]*serviced.ServiceTemplate, len(templateWrappers))
-	for i, templateWrapper := range templateWrappers {
+	templates := make(map[string]*serviced.ServiceTemplate, len(templateWrappers))
+	for _, templateWrapper := range templateWrappers {
 		var template serviced.ServiceTemplate
 		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
 		if err != nil {
 			return err
 		}
-		templates[i] = &template
+		templates[templateWrapper.Id] = &template
 	}
+
+	*serviceTemplates = templates
 
 	return nil
 }
 
 func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
-	return fmt.Errorf("unimplemented AddServiceTemplate")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	data, err := json.Marshal(serviceTemplate)
+	if err != nil {
+		return err
+	}
+
+	uuid, err := serviced.NewUuid()
+	if err != nil {
+		return err
+	}
+
+	wrapper := serviced.ServiceTemplateWrapper{uuid, serviceTemplate.Name, serviceTemplate.Description, string(data), 1, 1}
+
+	return dbmap.Insert(&wrapper)
 }
 
 func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
@@ -890,5 +918,12 @@ func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTempl
 }
 
 func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
-	return fmt.Errorf("unimplemented RemoveServiceTemplate")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = dbmap.Delete(&serviced.ServiceTemplateWrapper{Id: serviceTemplateId})
+	return err
 }

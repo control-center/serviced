@@ -129,7 +129,7 @@ func (s *ControlClient) DeployTemplate(request serviced.ServiceTemplateDeploymen
 	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
 }
 
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *[]*serviced.ServiceTemplate) error {
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
 }
 

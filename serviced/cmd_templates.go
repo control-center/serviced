@@ -11,10 +11,10 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-
-	"encoding/json"
 	"os"
 
 /*
@@ -25,19 +25,35 @@ import (
 
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
-
 	cmd := Subcmd("templates", "[OPTIONS]", "List templates")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each template")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
 	c := getClient()
-	var serviceTemplates []*serviced.ServiceTemplate
+
+	var serviceTemplates map[string]*serviced.ServiceTemplate
 	var unused int
 	err := c.GetServiceTemplates(unused, &serviceTemplates)
 	if err != nil {
 		glog.Fatalf("Could not get list of templates: %s", err)
 	}
-	return nil
+
+	for id, template := range serviceTemplates {
+		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
+			if verbose {
+				fmt.Printf("%s: %s\n", id, t)
+			} else {
+				fmt.Printf("%s\t%s\n", id, template.Name)
+			}
+		}
+	}
+
+	return err
 }
 
 // Add a service template to the control plane.
@@ -71,6 +87,17 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var unused int
+	if err := getClient().RemoveServiceTemplate(cmd.Arg(0), &unused); err != nil {
+		glog.Fatalf("Could not remove service template: %v", err)
+	}
+
 	return nil
 }
 
