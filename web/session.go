@@ -111,10 +111,6 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	}
 }
 
-func validateLogin(creds *Login) bool {
-	return creds.Username == "admin" && creds.Password == "zenoss"
-}
-
 func createSession(user string) (*Session, error){
 	sid, err := randomSessionId()
 	if err != nil {
