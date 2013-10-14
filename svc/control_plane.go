@@ -18,6 +18,7 @@ import (
 
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -174,6 +175,12 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ProtocolType").Rename("protocol")
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
+
+	svc_deployment := dbmap.AddTableWithName(serviced.ServiceDeployment{}, "service_deployment").SetKeys(false, "Id")
+	svc_deployment.ColMap("Id").Rename("id")
+	svc_deployment.ColMap("TemplateId").Rename("service_template_id")
+	svc_deployment.ColMap("ServiceId").Rename("service_id")
+	svc_deployment.ColMap("DeployedAt").Rename("deployed_at").SetTransient(true)
 
 	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
 	svc_template.ColMap("Id").Rename("id")
@@ -376,6 +383,21 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 	return err
 }
 
+func addService(tx *gorp.Transaction, svc serviced.Service) error {
+	if err := tx.Insert(&svc); err != nil {
+		return err
+	}
+
+	glog.Infof("Got a service with endpoints: %v", svc.Endpoints)
+	for _, ep := range endpointToPort(svc) {
+		if err := tx.Insert(&ep); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Add a service.
 func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -387,19 +409,13 @@ func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err erro
 	if err != nil {
 		return err
 	}
-	err = tx.Insert(&service)
-	if err != nil {
-		return err
-	}
-	glog.Infof("Got a service with endpoints: %v", service.Endpoints)
-	for _, serviceEndpoint := range endpointToPort(service) {
-		err = tx.Insert(&serviceEndpoint)
-		if err != nil {
-			return err
-		}
-	}
 
-	return tx.Commit()
+	if err := addService(tx, service); err != nil {
+		tx.Rollback()
+		return err
+	} else {
+		return tx.Commit()
+	}
 }
 
 // Update a service.
@@ -856,11 +872,82 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 			return nil
 		}()
 	}
+}
 
+func deployServiceDefinitions(tx *gorp.Transaction, sds []serviced.ServiceDefinition, template string, pool string, parent string) error {
+	for _, sd := range sds {
+		if err := deployServiceDefinition(tx, sd, template, pool, parent); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition, template string, pool string, parent string) error {
+	svcuuid, _ := serviced.NewUuid()
+	now := time.Now()
+
+	svc := serviced.Service{svcuuid,
+		sd.Name,
+		sd.Command,
+		sd.Description,
+		sd.Instances["min"],
+		sd.ImageId,
+		pool,
+		serviced.SVC_RUN,
+		&sd.Endpoints,
+		parent,
+		now,
+		now}
+
+	if err := addService(tx, svc); err != nil {
+		return err
+	} else {
+		sduuid, _ := serviced.NewUuid()
+		if err := tx.Insert(&serviced.ServiceDeployment{sduuid, template, svc.Id, now}); err != nil {
+			return err
+		} else {
+			return deployServiceDefinitions(tx, sd.Services, template, pool, svc.Id)
+		}
+	}
 }
 
 func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
-	return fmt.Errorf("unimplemented DeployTemplate")
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var wrapper *serviced.ServiceTemplateWrapper
+
+	obj, err := dbmap.Get(&serviced.ServiceTemplateWrapper{}, request.TemplateId)
+	switch {
+	case err != nil:
+		return err
+	case obj == nil:
+		return errors.New("no such service template")
+	default:
+		wrapper = obj.(*serviced.ServiceTemplateWrapper)
+	}
+
+	_, err = dbmap.Get(serviced.ResourcePool{}, request.PoolId)
+	if err != nil {
+		return err
+	}
+
+	var template serviced.ServiceTemplate
+	if err = json.Unmarshal([]byte(wrapper.Data), &template); err != nil {
+		return err
+	}
+
+	if tx, err := dbmap.Begin(); err != nil {
+		return err
+	} else {
+		deployServiceDefinitions(tx, template.Services, request.TemplateId, request.PoolId, "")
+		return tx.Commit()
+	}
 }
 
 func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {

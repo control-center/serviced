@@ -108,5 +108,13 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
+	deployreq := serviced.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0)}
+
+	var unused int
+	if err := getClient().DeployTemplate(deployreq, &unused); err != nil {
+		glog.Fatalf("Could not deploy service template: %v", err)
+	}
+
 	return nil
 }
