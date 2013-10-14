@@ -76,6 +76,7 @@ type ServiceDefinition struct {
 	Command     string              // Command which runs the service
 	Description string              // Description of the service
 	ImageId     string              // Docker image hosting the service
+	Instances   map[string]int      // Constaints on the number of instances
 	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
 	Services    []ServiceDefinition // Supporting subservices
 }
@@ -84,7 +85,6 @@ type ServiceDefinition struct {
 type ServiceTemplate struct {
 	Name        string              // Name of service template
 	Description string              // Meaningful description of service
-	Instances   map[string]int      // Constaints on the number of instances
 	Services    []ServiceDefinition // Child services
 }
 
