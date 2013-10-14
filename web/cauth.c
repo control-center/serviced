@@ -13,10 +13,6 @@ int conv(int num_msg,
         return (PAM_SUCCESS);
 }
 
-void cleanup(struct pam_response *pw_reply) {
-        free(pw_reply->resp);
-        free(pw_reply);
-}
 int authenticate(const char *pam_file, const char *username, const char* pass)
 {
         pam_handle_t *pamh;
@@ -28,7 +24,7 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
         {
                 return -1;
         }
-        if ((retval = pam_authenticate(pamh,PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
+        if ((retval = pam_authenticate(pamh, PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
                 retval = pam_end(pamh, PAM_DATA_SILENT);
                 return -1;
         }
