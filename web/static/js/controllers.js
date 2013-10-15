@@ -150,7 +150,7 @@ function LoginControl($scope, $http, $location, authService) {
         $http.post('/login', creds).
             success(function(data, status) {
                 // Ensure that the auth service knows that we are logged in
-                authService.login(true);
+                authService.login(true, $scope.username);
                 // Redirect to main page
                 $location.path('/entry');
             }).
@@ -175,15 +175,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
         { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
         { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
     ];
-/*
-
-        templateData: [
-            { label: 'Resource Manager', id: 'rm', disabledBy: 'impact' },
-            { label: 'Service Impact', id: 'impact', depends: 'rm' },
-            { label: 'Analytics', id: 'analytics' }
-        ],
-*/
-
     $scope.install = { 
         selected: {
             rm: false,
@@ -206,7 +197,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
             }
         },
         templateDisabled: function(template) {
-
             if (template.disabledBy) {
                 return $scope.install.selected[template.disabledBy];
             }
@@ -222,14 +212,13 @@ function DeployWizard($scope, resourcesService, servicesService) {
             templates[templates.length] = template;
         }
         $scope.install.templateData = templates;
-        console.log('install.templateData: %s', JSON.stringify($scope.install.templateData));
     });
 
     $scope.selectedTemplates = function() {
         var templates = [];
         for (var i=0; i < $scope.install.templateData.length; i++) {
             var template = $scope.install.templateData[i];
-            if ($scope.install.selected[template.id]) {
+            if ($scope.install.selected[template.Id]) {
                 templates[templates.length] = template;
             }
         }
@@ -301,7 +290,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
     };
     
     $scope.wizard_finish = function() {
-        console.log('Finish clicked');
         var selected = $scope.selectedTemplates();
         var f = true;
         var dName = "";
@@ -314,9 +302,17 @@ function DeployWizard($scope, resourcesService, servicesService) {
                     dName += "and ";
                 }
             }
-            dName += selected[i].label;
+            dName += selected[i].Name;
+
+            servicesService.deploy_app_template({ 
+                PoolId: $scope.install.selected.pool,
+                TemplateId: selected[i].Id
+            }, function(result) {
+                refreshServices($scope, servicesService, false);
+            });
         }
         console.log('Selected: %s, dName: %s', JSON.stringify(selected), dName);
+
         $scope.services.deployed = {
             name: dName,
             multi: (selected.length > 1),
@@ -897,7 +893,7 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
-    $scope.username = $cookies['ZUsername'];
+    $scope.username = $scope.username? $scope.username : $cookies['ZUsername'];
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
     
     $scope.navlinks = [
@@ -1299,6 +1295,7 @@ function ResourcesService($http, $location) {
 
 function AuthService($cookies, $location) {
     var loggedIn = false;
+    var userName = null;
     return {
 
         /*
@@ -1307,8 +1304,9 @@ function AuthService($cookies, $location) {
          *
          * @param {boolean} truth Whether the user is logged in.
          */
-        login: function(truth) {
+        login: function(truth, username) {
             loggedIn = truth;
+            userName = username;
         },
 
         /*
@@ -1319,6 +1317,7 @@ function AuthService($cookies, $location) {
         checkLogin: function($scope) {
             if (loggedIn) {
                 $scope.loggedIn = true;
+                $scope.username = userName;
                 return;
             }
             if ($cookies['ZCPToken'] !== undefined) {

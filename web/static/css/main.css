@@ -136,8 +136,10 @@ table .btn,
 .breadcrumb {
     margin: 0px 15px;
     padding: 8px 0px;
-    border-bottom: 1px solid #d0d0d0;
     border-radius: 0;
+}
+.breadcrumb.bordered {
+    border-bottom: 1px solid #d0d0d0;
 }
 .breadcrumb.inline > li + li:before {
     padding: 0 5px;
@@ -284,6 +286,7 @@ td.deploy-warning {
     display: inline-block;
     background-color: #e1e1e1;
     border-radius: 6px;
+    vertical-align: top;
 }
 
 .add-control:hover {
@@ -428,9 +431,10 @@ input.search {
 .details-control .alert,
 .search-control .alert {
     padding: 2px 5px;
-    margin: 0px 10px;
     font-size: 14px;
-    text-align: left;
+    display: inline-block;
+    vertical-align: top;
+    margin: 0px 10px;
 }
 
 .close {

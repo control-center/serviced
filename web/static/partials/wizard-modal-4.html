@@ -1,5 +1,5 @@
 <p>
-  <span ng-repeat="template in selectedTemplates()"><span ng-hide="$first">, </span><span ng-show="$last && !$first">and </span>{{template.label}}<span ng-show="$last && !$first"> have</span><span ng-show="$last && $first"> has</span></span>
+  <span ng-repeat="template in selectedTemplates()"><span ng-hide="$first">, </span><span ng-show="$last && !$first">and </span>{{template.Name}}<span ng-show="$last && !$first"> have</span><span ng-show="$last && $first"> has</span></span>
   been configured for resource pool '{{install.selected.pool}}'.
 </p>
   

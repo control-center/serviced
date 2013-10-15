@@ -139,8 +139,8 @@ func StaticData(w *rest.ResponseWriter, r *rest.Request) {
  */ 
 func loginLink() []Link {
 	return []Link{
-		Link{CreateLink, "POST", "/login"}
-		Link{DeleteLink, "DELETE", "/login"}
+		Link{CreateLink, "POST", "/login"},
+		Link{DeleteLink, "DELETE", "/login"},
 	}
 }
 

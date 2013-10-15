@@ -53,7 +53,7 @@ func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *client
 }
 
 func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload ServiceTemplateDeploymentRequest
+	var payload serviced.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.Infof("Could not decode deployment payload: %v", err)
