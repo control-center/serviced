@@ -11,6 +11,7 @@ package client
 import (
 	"net/rpc"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 )
 
 // AgentClient is an interface that the serviced agent implements to provide
@@ -33,7 +34,7 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 }
 
 // Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(unused int, host *serviced.Host) error {
+func (a *AgentClient) GetInfo(unused int, host *dao.Host) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", unused, host)
 }
 

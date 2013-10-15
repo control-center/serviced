@@ -9,6 +9,7 @@
 package serviced
 
 import (
+  "github.com/zenoss/serviced/dao"
 	"bufio"
 	"fmt"
 	"net/url"
@@ -18,21 +19,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-var urandomFilename = "/dev/urandom"
-
-// Generate a new UUID
-func newUuid() (string, error) {
-	f, err := os.Open(urandomFilename)
-	if err != nil {
-		return "", err
-	}
-	b := make([]byte, 16)
-	defer f.Close()
-	f.Read(b)
-	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-	return uuid, err
-}
 
 var hostIdCmdString = "/usr/bin/hostid"
 
@@ -152,13 +138,13 @@ func getIpAddr() (ip string, err error) {
 
 // Create a new Host struct from the running host's values. The resource pool id
 // is set to the passed value.
-func CurrentContextAsHost(poolId string) (host *Host, err error) {
+func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 	cpus := runtime.NumCPU()
 	memory, err := getMemorySize()
 	if err != nil {
 		return nil, err
 	}
-	host = NewHost()
+	host = dao.NewHost()
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err

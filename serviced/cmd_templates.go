@@ -12,8 +12,7 @@ package main
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
-
+	"github.com/zenoss/serviced/dao"
 	"encoding/json"
 	"os"
 
@@ -31,7 +30,7 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 		return err
 	}
 	c := getClient()
-	var serviceTemplates []*serviced.ServiceTemplate
+	var serviceTemplates []*dao.ServiceTemplate
 	var unused int
 	err := c.GetServiceTemplates(unused, &serviceTemplates)
 	if err != nil {
@@ -47,7 +46,7 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
-	var serviceTemplate serviced.ServiceTemplate
+	var serviceTemplate dao.ServiceTemplate
 	var unused int
 
 	dec := json.NewDecoder(os.Stdin)
