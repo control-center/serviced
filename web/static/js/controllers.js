@@ -166,7 +166,7 @@ function LoginControl($scope, $http, $location, authService) {
     };
 }
 
-function DeployWizard($scope, resourcesService) {
+function DeployWizard($scope, resourcesService, servicesService) {
     console.log('Loading deployWizard');
 
     $scope.steps = [
@@ -175,6 +175,14 @@ function DeployWizard($scope, resourcesService) {
         { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
         { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
     ];
+/*
+
+        templateData: [
+            { label: 'Resource Manager', id: 'rm', disabledBy: 'impact' },
+            { label: 'Service Impact', id: 'impact', depends: 'rm' },
+            { label: 'Analytics', id: 'analytics' }
+        ],
+*/
 
     $scope.install = { 
         selected: {
@@ -183,11 +191,6 @@ function DeployWizard($scope, resourcesService) {
             analytics: false,
             pool: 'default'
         },
-        templateData: [
-            { label: 'Resource Manager', id: 'rm', disabledBy: 'impact' },
-            { label: 'Service Impact', id: 'impact', depends: 'rm' },
-            { label: 'Analytics', id: 'analytics' }
-        ],
         templateClass: function(template) {
             var cls = "block-data";
             if (template.depends) {
@@ -210,6 +213,17 @@ function DeployWizard($scope, resourcesService) {
             return false;
         }
     };
+
+    servicesService.get_app_templates(false, function(templatesMap) {
+        var templates = [];
+        for (key in templatesMap) {
+            var template = templatesMap[key];
+            template.Id = key;
+            templates[templates.length] = template;
+        }
+        $scope.install.templateData = templates;
+        console.log('install.templateData: %s', JSON.stringify($scope.install.templateData));
+    });
 
     $scope.selectedTemplates = function() {
         var templates = [];
@@ -954,7 +968,7 @@ function ServicesService($http, $location) {
         $http.get('/templates').
             success(function(data, status) {
                 console.log('Retrieved list of app templates');
-                cached_apps = data;
+                cached_app_templates = data;
                 callback(data);
             }).
             error(function(data, status) {
@@ -976,9 +990,9 @@ function ServicesService($http, $location) {
         },
 
         get_app_templates: function(cacheOk, callback) {
-            if (cacheOk && cached_apps) {
+            if (cacheOk && cached_app_templates) {
                 console.log('Using cached app templates');
-                callback(cached_apps);
+                callback(cached_app_templates);
             } else {
                 _get_app_templates(callback);
             }
@@ -992,7 +1006,7 @@ function ServicesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding service failed: ' + JSON.stringify(data));
+                    console.log('Adding service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1000,13 +1014,27 @@ function ServicesService($http, $location) {
         },
 
         update_service: function(serviceId, editedService, callback) {
-            $http.post('/services/' + serviceId, editedService).
+            $http.put('/services/' + serviceId, editedService).
                 success(function(data, status) {
-                    console.log('Updated service ' + serviceId);
+                    console.log('Updated service %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating service failed: ' + JSON.stringify(data));
+                    console.log('Updating service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        deploy_app_template: function(deployDef, callback) {
+            $http.post('/templates/deploy', deployDef).
+                success(function(data, status) {
+                    console.log('Deployed app template');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Deploying app template failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1016,11 +1044,11 @@ function ServicesService($http, $location) {
         remove_service: function(serviceId, callback) {
             $http.delete('/services/' + serviceId).
                 success(function(data, status) {
-                    console.log('Removed service ' + serviceId);
+                    console.log('Removed service %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing service failed: ' + JSON.stringify(data));
+                    console.log('Removing service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1140,7 +1168,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Update result passed to callback on success.
          */
         update_pool: function(poolId, editedPool, callback) {
-            $http.post('/pools/' + poolId, editedPool).
+            $http.put('/pools/' + poolId, editedPool).
                 success(function(data, status) {
                     console.log('Updated pool %s', poolId);
                     callback(data);
@@ -1218,7 +1246,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Update result passed to callback on success.
          */
         update_host: function(hostId, editedHost, callback) {
-            $http.post('/hosts/' + hostId, editedHost).
+            $http.put('/hosts/' + hostId, editedHost).
                 success(function(data, status) {
                     console.log('Updated host %s', hostId);
                     callback(data);

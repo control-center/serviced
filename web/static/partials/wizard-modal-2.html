@@ -1,9 +1,9 @@
 <p>Select the applications to install:</p>
 <div ng-repeat="template in install.templateData" ng-class="install.templateClass(template)">
   <label>
-    <input type="checkbox" ng-model="install.selected[template.id]" 
+    <input type="checkbox" ng-model="install.selected[template.Id]" 
            ng-disabled="install.templateDisabled(template)"
            ng-change="install.templateSelected(template)">
-    {{template.label}}
+    {{template.Name}}
   </label>
 </div>

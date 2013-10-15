@@ -52,6 +52,24 @@ func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *client
 	w.WriteJson(&templatesMap);
 }
 
+func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var payload ServiceTemplateDeploymentRequest
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode deployment payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	var unused int
+	err = client.DeployTemplate(payload, &unused)
+	if err != nil {
+		glog.Errorf("Could not deploy template: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Removed resource pool", servicesLink()})
+}
+
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	request := serviced.EntityRequest{}
 	var poolsMap map[string]*serviced.ResourcePool

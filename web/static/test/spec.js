@@ -188,6 +188,7 @@ describe('HostsControl', function() {
 describe('DeployWizard', function() {
     var $scope = null;
     var resourcesService = null;
+    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -197,7 +198,8 @@ describe('DeployWizard', function() {
         var $controller = $injector.get('$controller');
         ctrl = $controller('DeployWizard', { 
             $scope: $scope, 
-            resourcesService: fake_resources_service()
+            resourcesService: fake_resources_service(),
+            servicesService: fake_services_service()
         });
     }));
 
@@ -350,7 +352,6 @@ describe('ServicesService', function() {
         });
     });
 
-
     it('Can add new services', function() {
         var serv = { Id: 'test' };
         var resp = null;
@@ -365,7 +366,7 @@ describe('ServicesService', function() {
     it('Can update existing services', function() {
         var serv = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/services/test', serv).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/services/test', serv).respond({ Detail: 'Edited' });
         servicesService.update_service(serv.Id, serv, function(data) {
             resp = data;
         });
@@ -381,6 +382,38 @@ describe('ServicesService', function() {
         });
         $httpBackend.flush();
         expect(resp.Detail).toEqual('Deleted');
+    });
+
+
+    it('Can retrieve and cache template definitions', function() {
+        $httpBackend.expect('GET', '/templates').respond(fake_templates());
+        var tempMap;
+        servicesService.get_app_templates(false, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        $httpBackend.flush();
+        expect(tempMap).not.toBeNull();
+
+        // We should have some cached data this time, so do not expect any
+        // HTTP traffic.
+        tempMap = null;
+        servicesService.get_app_templates(true, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        expect(tempMap).not.toBeNull();
+    });
+
+    it('Can deploy templates to pools', function() {
+        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
+        $httpBackend.expect('POST', '/templates/deploy', deployDef).
+            respond({ Detail: 'Deployed' });
+
+        var resp = null;
+        servicesService.deploy_app_template(deployDef, function(data) {
+            resp = data
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toBe('Deployed');
     });
 
 });
@@ -440,7 +473,7 @@ describe('ResourcesService', function() {
     it('Can update existing resource pools', function() {
         var pool = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/pools/test', pool).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/pools/test', pool).respond({ Detail: 'Edited' });
         resourcesService.update_pool(pool.Id, pool, function(data) {
             resp = data;
         });
@@ -492,7 +525,7 @@ describe('ResourcesService', function() {
     it('Can update existing hosts', function() {
         var host = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/hosts/test', host).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/hosts/test', host).respond({ Detail: 'Edited' });
         resourcesService.update_host(host.Id, host, function(data) {
             resp = data;
         });
@@ -917,6 +950,9 @@ function fake_resources_service() {
 
 function fake_services_service() {
     return {
+        get_app_templates: function(cacheOk, callback) {
+            callback(fake_templates());
+        },
         get_services: function(cacheOk, callback) {
             callback(fake_services(), fake_services_tree());
         },
@@ -1010,6 +1046,55 @@ function fake_pools() {
             Priority: 2
         }
     };
+}
+
+function fake_templates() {
+    return {
+        "74cc4ef9-441d-224a-2c25-ffe6b71f5ea2": {
+            "Name": "hellod 5.x",
+            "Description": "hello world daemon",
+            "Services": [
+                {
+                    "Name": "hellod",
+                    "Command": "/bin/sh -c \"while true; do echo hello world; sleep 1; done\"",
+                    "Description": "",
+                    "ImageId": "",
+                    "Instances": null,
+                    "Endpoints": [
+                        {
+                            "Protocol": "TCP",
+                            "PortNumber": 25,
+                            "Application": "SMTP",
+                            "Purpose": "mail"
+                        }
+                    ],
+                    "Services": null
+                }
+            ]
+        },
+        "84cc4ef9-441d-224a-2c25-ffe6b71f5ea2": {
+            "Name": "hellod 4.x",
+            "Description": "hello world daemon",
+            "Services": [
+                {
+                    "Name": "hellod",
+                    "Command": "/bin/sh -c \"while true; do echo hello; sleep 1; done\"",
+                    "Description": "",
+                    "ImageId": "",
+                    "Instances": null,
+                    "Endpoints": [
+                        {
+                            "Protocol": "TCP",
+                            "PortNumber": 25,
+                            "Application": "SMTP",
+                            "Purpose": "mail"
+                        }
+                    ],
+                    "Services": null
+                }
+            ]
+        }
+    }
 }
 
 function fake_hosts() {

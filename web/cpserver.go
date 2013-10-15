@@ -17,21 +17,22 @@ func Serve() {
 		rest.Route{"GET", "/hosts", AuthorizedClient(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", AuthorizedClient(RestAddHost)},
 		rest.Route{"DELETE", "/hosts/:hostId", AuthorizedClient(RestRemoveHost)},
-		rest.Route{"POST", "/hosts/:hostId", AuthorizedClient(RestUpdateHost)},
+		rest.Route{"PUT", "/hosts/:hostId", AuthorizedClient(RestUpdateHost)},
 		rest.Route{"GET", "/hosts/:hostId/running", AuthorizedClient(RestGetRunning)},
 		// Pools
 		rest.Route{"POST", "/pools/add", AuthorizedClient(RestAddPool)},
 		rest.Route{"GET", "/pools/:poolId/hosts", AuthorizedClient(RestGetHostsForResourcePool)},
 		rest.Route{"DELETE", "/pools/:poolId", AuthorizedClient(RestRemovePool)},
-		rest.Route{"POST", "/pools/:poolId", AuthorizedClient(RestUpdatePool)},
+		rest.Route{"PUT", "/pools/:poolId", AuthorizedClient(RestUpdatePool)},
 		rest.Route{"GET", "/pools", AuthorizedClient(RestGetPools)},
 		// Services (Apps)
 		rest.Route{"GET", "/services", AuthorizedClient(RestGetAllServices)},
 		rest.Route{"POST", "/services/add", AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", AuthorizedClient(RestRemoveService)},
-		rest.Route{"POST", "/services/:serviceId", AuthorizedClient(RestUpdateService)},
+		rest.Route{"PUT", "/services/:serviceId", AuthorizedClient(RestUpdateService)},
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", AuthorizedClient(RestGetAppTemplates)},
+		rest.Route{"POST", "/templates/deploy", AuthorizedClient(RestDeployAppTemplate)},
 		// Login
 		rest.Route{"POST", "/login", RestLogin},
 		rest.Route{"DELETE", "/login", RestLogout},
