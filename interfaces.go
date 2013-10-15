@@ -31,8 +31,10 @@ type EntityRequest struct{}
 type ProtocolType string
 
 const (
-	TCP string = "tcp"
-	UDP string = "udp"
+	AUTO   string = "auto"
+	MANUAL string = "manual"
+	TCP    string = "tcp"
+	UDP    string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.
@@ -71,12 +73,18 @@ type ServiceTemplateWrapper struct {
 	TemplateVersion int    // Version of the template
 }
 
+type MinMax struct {
+	Min int
+	Max int
+}
+
 type ServiceDefinition struct {
 	Name        string              // Name of the defined service
 	Command     string              // Command which runs the service
 	Description string              // Description of the service
 	ImageId     string              // Docker image hosting the service
-	Instances   map[string]int      // Constaints on the number of instances
+	Instances   MinMax              // Constraints on the number of instances
+	Launch      string              // Must be "AUTO", the default, or "MANUAL"
 	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
 	Services    []ServiceDefinition // Supporting subservices
 }
