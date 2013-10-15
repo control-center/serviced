@@ -12,9 +12,10 @@ package main
 // flags and either start a service or execute command line functions.
 
 import (
-	agent "github.com/zenoss/serviced/agent"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
 	svc "github.com/zenoss/serviced/svc"
+	agent "github.com/zenoss/serviced/agent"
 
 	"flag"
 	"github.com/zenoss/glog"
@@ -68,7 +69,10 @@ func init() {
 func startServer() {
 
 	if options.master {
-		master, err := svc.NewControlSvc(options.connection_string, options.zookeepers)
+		var master dao.ControlPlane
+    var err error
+    master, err = svc.NewControlSvc(options.connection_string, options.zookeepers)
+
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}

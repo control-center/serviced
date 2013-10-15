@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
 
 	"os"
@@ -46,8 +46,8 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	request := serviced.EntityRequest{}
-	var poolsMap map[string]*serviced.ResourcePool
+	request := dao.EntityRequest{}
+	var poolsMap map[string]*dao.ResourcePool
 	err := client.GetResourcePools(request, &poolsMap)
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %v", err)
@@ -58,7 +58,7 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 }
 
 func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.ResourcePool
+	var payload dao.ResourcePool
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -82,7 +82,7 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Received update request for %s", poolId)
-	var payload serviced.ResourcePool
+	var payload dao.ResourcePool
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -117,8 +117,8 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var hosts map[string]*serviced.Host
-	request := serviced.EntityRequest{}
+	var hosts map[string]*dao.Host
+	request := dao.EntityRequest{}
 	err := client.GetHosts(request, &hosts)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
@@ -129,8 +129,8 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 }
 
 func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var services []*serviced.Service
-	request := serviced.EntityRequest{}
+	var services []*dao.Service
+	request := dao.EntityRequest{}
 	err := client.GetServices(request, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -138,13 +138,13 @@ func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.
 		return
 	}
 	if services == nil {
-		services = []*serviced.Service{}
+		services = []*dao.Service{}
 	}
 	w.WriteJson(&services)
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.Service
+	var payload dao.Service
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -152,7 +152,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		RestBadRequest(w)
 		return
 	}
-	service, err := serviced.NewService()
+	service, err := dao.NewService()
 	if err != nil {
 		glog.Errorf("Could not create service: %v", err)
 		RestServerError(w)
@@ -180,7 +180,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 		return
 	}
 	glog.Infof("Received update request for %s", serviceId)
-	var payload serviced.Service
+	var payload dao.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -216,7 +216,7 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 }
 
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var poolHosts []*serviced.PoolHost
+	var poolHosts []*dao.PoolHost
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.Infof("Unable to acquire pool ID: %v", err)
@@ -230,13 +230,13 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client
 		return
 	}
 	if poolHosts == nil {
-		poolHosts = []*serviced.PoolHost{}
+		poolHosts = []*dao.PoolHost{}
 	}
 	w.WriteJson(&poolHosts)
 }
 
 func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.Host
+	var payload dao.Host
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -281,7 +281,7 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Received update request for %s", hostId)
-	var payload serviced.Host
+	var payload dao.Host
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
