@@ -29,6 +29,7 @@ func Serve() {
 		rest.Route{"GET", "/services", AuthorizedClient(RestGetAllServices)},
 		rest.Route{"POST", "/services/add", AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", AuthorizedClient(RestRemoveService)},
+		rest.Route{"GET", "/services/:serviceId/logs", AuthorizedClient(RestGetServiceLogs)},
 		rest.Route{"PUT", "/services/:serviceId", AuthorizedClient(RestUpdateService)},
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", AuthorizedClient(RestGetAppTemplates)},

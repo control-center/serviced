@@ -378,6 +378,18 @@ func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	w.WriteJson(&SimpleResponse{"Removed host", hostsLink()})
 }
 
+func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var logs string
+	client.GetServiceLogs(serviceId, &logs)
+	w.WriteJson(&SimpleResponse{logs, servicesLink()})
+}
+
+
 func init() {
 	configuration = ServiceConfig{}
 	configDefaults(&configuration)

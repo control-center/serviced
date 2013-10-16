@@ -182,6 +182,7 @@ func poolsLink() []Link {
 func servicesLink() []Link {
 	return []Link{
 		Link{RetrieveLink, "GET", "/services"},
+		Link{"ServiceLogs", "GET", "/services/:serviceId/logs"},
 		Link{CreateLink, "POST", "/services/add"},
 		Link{UpdateLink, "PUT", "/services/:serviceId"},
 		Link{DeleteLink, "DELETE", "/services/:serviceId"},

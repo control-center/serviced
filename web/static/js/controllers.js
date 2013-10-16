@@ -379,20 +379,6 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     refreshServices($scope, servicesService, false);
 }
 
-function fakeLog() {
-    console.log('TODO: Replace this function');
-    return '[398432.643816] LVM: Logical Volume autoactivation enabled.\n' +
-           '[398432.643821] LVM: Activation generator successfully completed.\n' + 
-           '[965506.972028] usb 2-1.3: new high-speed USB device number 6 using ehci-pci\n' +
-           '[965507.059617] usb 2-1.3: New USB device found, idVendor=04e8, idProduct=6860\n' +
-           '[965507.059622] usb 2-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3\n' +
-           '[965507.059625] usb 2-1.3: Product: SAMSUNG_Android\n' + 
-           '[965507.059628] usb 2-1.3: Manufacturer: SAMSUNG\n' +
-           '[965507.059630] usb 2-1.3: SerialNumber: 9692b6a5\n' +
-           '[975147.458845] usb 2-1.3: USB disconnect, device number 6\n' +
-           '[1052774.702882] lp: driver loaded but no devices found\n';
-}
-
 function fakeConfig() {
     console.log('TODO: Replace this function');
     return '#\n' +
@@ -466,8 +452,10 @@ function SubServiceControl($scope, $routeParams, $location, servicesService, res
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.log = fakeLog(); // FIXME
-        $('#viewLog').modal('show');
+        servicesService.get_service_logs(service.Id, function(log) {
+            $scope.editService.log = log.Detail;
+            $('#viewLog').modal('show');
+        });
     };
 
     $scope.updateService = function() {
@@ -693,7 +681,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     refreshHosts($scope, resourcesService, false, false, hostCallback);
 }
 
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, servicesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -721,8 +709,10 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.log = fakeLog(); // FIXME
-        $('#viewLog').modal('show');
+        servicesService.get_service_logs(service.Id, function(log) {
+            $scope.editService.log = log.Detail;
+            $('#viewLog').modal('show');
+        });
     };
 
     $scope.killRunning = killRunning;
@@ -1011,6 +1001,19 @@ function ServicesService($http, $location) {
             } else {
                 _get_services_tree(callback);
             }
+        },
+
+        get_service_logs: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         },
 
         get_app_templates: function(cacheOk, callback) {
