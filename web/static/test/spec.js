@@ -223,6 +223,11 @@ describe('DeployWizard', function() {
     });
 
     it('Provides a \'wizard_next\' function', function() {
+        // The first page does validation, so we need to mark a template
+        // as selected before the wizard_next function will send us to
+        // the next page.
+        var template = $scope.install.templateData[0];
+        $scope.install.selected[template.Id] = true;
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
@@ -230,6 +235,8 @@ describe('DeployWizard', function() {
 
 
     it('Provides a \'wizard_previous\' function', function() {
+        var template = $scope.install.templateData[0];
+        $scope.install.selected[template.Id] = true;
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
