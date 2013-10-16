@@ -6,6 +6,7 @@
           <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label}}</a>
         </li>
       </ol>
+
       <div class="details-form">
         <div class="vertical-info">
           <label for="app_data_name">ID</label>
@@ -28,9 +29,23 @@
               {{services.current.notRunningText}}
             </label>
           </div>
-
         </div>
 
+        <div class="vertical-info">
+          <label for="app_data_instances">Instances</label>
+          <input type="number" min="0" id="app_data_instances" class="instances"
+                 ng-model="services.current.Instances"></input>
+        </div>
+
+        <div class="vertical-info">
+          <label for="app_data_startup">Startup</label>
+          <input type="text" id="app_data_startup" class="startup"
+                 ng-model="services.current.Startup"></input>
+        </div>
+
+      </div>
+      <div class="details-actions">
+        <button ng-click="updateService()">Save Changes</button>
       </div>
     </div>
 
@@ -41,8 +56,9 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.subservices" ng-click="click_app(app.Id)" class="link">
-          <td><span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
+        <tr ng-repeat="app in services.subservices">
+          <td ng-click="click_app(app.Id)" class="link">
+            <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
           <td>
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">

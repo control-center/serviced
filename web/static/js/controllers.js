@@ -423,7 +423,7 @@ function fakeConfig() {
            'LOOP            9000    loopback        # loop proto\n';
 }
 
-function SubServiceControl($scope, $routeParams, servicesService, resourcesService, authService) {
+function SubServiceControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "resources";
@@ -440,6 +440,10 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
         { id: 'Details', name: 'Details' }
     ]);
 
+    $scope.click_app = function(id) {
+        $location.path('/services/' + id);
+    };
+
     $scope.indent = indentClass;
     $scope.clickRunning = toggleRunning;
 
@@ -455,13 +459,28 @@ function SubServiceControl($scope, $routeParams, servicesService, resourcesServi
         $('#viewLog').modal('show');
     };
 
+    $scope.updateService = function() {
+        servicesService.update_service($scope.services.current.Id, $scope.services.current, function() {
+            console.log('Updated %s', $scope.services.current.Id);
+        });
+    }
+
+
     // Get a list of deployed apps
     refreshServices($scope, servicesService, true, function() {
         if ($scope.services.current) {
-            $scope.breadcrumbs.push({ 
-                label: $scope.services.current.Name, 
-                itemClass: 'active'
-            });
+            var lineage = getServiceLineage($scope.services.mapped, $scope.services.current);
+            for (var i=0; i < lineage.length; i++) {
+                var crumb = {
+                    label: lineage[i].Name
+                };
+                if (i == lineage.length - 1) {
+                    crumb.itemClass = 'active';
+                } else {
+                    crumb.url = '#/services/' + lineage[i].Id;
+                }
+                $scope.breadcrumbs.push(crumb);
+            }
         }
     });
 }
@@ -754,6 +773,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         }
         return count;
     };
+
     $scope.clickPool = function(poolId) {
         var topPool = $scope.pools.mapped[poolId];
         if (!topPool || $scope.selectedPool === poolId) {
@@ -1330,6 +1350,11 @@ function AuthService($cookies, $location) {
     };
 }
 
+/*
+ * Starting at some root node, recurse through children,
+ * building a flattened array where each node has a depth
+ * tracking field 'zendepth'.
+ */
 function flattenTree(depth, current) {
     // Exclude the root node
     var retVal = (depth === 0)? [] : [current];
@@ -1408,6 +1433,15 @@ function getFullPath(allPools, pool) {
     return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
 }
 
+function getServiceLineage(mappedServices, service) {
+    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+        return [ service ];
+    }
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    lineage.push(service);
+    return lineage;
+}
+
 function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
@@ -1425,7 +1459,6 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
             var p = allPools[key];
             p.collapsed = false;
             p.childrenClass = 'nav-tree';
-            p.safeId = encodeURIComponent(p.Id);
             p.dropped = [];
             p.itemClass = 'pool-data';
             if (p.icon === undefined) {
@@ -1437,7 +1470,6 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
                     parent.children = [];
                     parent.icon = POOL_ICON_OPEN;
                 }
-                console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
                 p.fullPath = getFullPath(allPools, p);
             } else {

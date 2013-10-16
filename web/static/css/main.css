@@ -278,6 +278,9 @@ td.deploy-warning {
 .details > .details-control {
     padding: 5px;
 }
+.details > .details-actions {
+    padding: 0px 15px 8px 15px;
+}
 
 .add-control {
     padding: 2px 5px;
@@ -422,6 +425,13 @@ input.search {
     border-radius: 15px;
     height: 27px;
     line-height: 1.0;
+}
+
+input.instances {
+    width: 70px;
+}
+input.startup {
+    width: 350px;
 }
 
 .search-control label {
