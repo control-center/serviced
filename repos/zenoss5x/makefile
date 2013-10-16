@@ -1,5 +1,6 @@
 
+TAG="zenoss/zenoss5x"
 default:
-	docker build -t zenoss/zenoss5x .
+	docker build -t $(TAG) .
 
 

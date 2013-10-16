@@ -314,6 +314,9 @@ type ControlPlane interface {
 	// Get all the services that need to be running on the given host
 	GetServicesForHost(hostId string, services *[]*Service) error
 
+	// Get logs for the given app
+	GetServiceLogs(serviceId string, logs *string) error
+
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
 

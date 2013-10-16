@@ -5,3 +5,5 @@ default:
 	cd rabbitmq && make
 	cd zenoss5x && make
 	cd memcached && make
+	cd redis && make
+

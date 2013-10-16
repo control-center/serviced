@@ -20,5 +20,5 @@ RUN /usr/sbin/rabbitmq-plugins enable rabbitmq_management
 
 EXPOSE 5672 15672
 
-ENTRYPOINT ["/usr/sbin/rabbitmq-server"]
+CMD ["/usr/sbin/rabbitmq-server"]
 
