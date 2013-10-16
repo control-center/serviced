@@ -31,8 +31,10 @@ type EntityRequest struct{}
 type ProtocolType string
 
 const (
-	TCP string = "tcp"
-	UDP string = "udp"
+	AUTO   string = "auto"
+	MANUAL string = "manual"
+	TCP    string = "tcp"
+	UDP    string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.
@@ -58,6 +60,68 @@ type Service struct {
 	DesiredState    int
 	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type ServiceTemplateWrapper struct {
+	Id              string // Primary key
+	Name            string // Name of top level service
+	Description     string // Description
+	Data            string // JSON encoded template definition
+	ApiVersion      int    // Version of the ServiceTemplate API this expects
+	TemplateVersion int    // Version of the template
+}
+
+type MinMax struct {
+	Min int
+	Max int
+}
+
+type ServiceDefinition struct {
+	Name        string              // Name of the defined service
+	Command     string              // Command which runs the service
+	Description string              // Description of the service
+	ImageId     string              // Docker image hosting the service
+	Instances   MinMax              // Constraints on the number of instances
+	Launch      string              // Must be "AUTO", the default, or "MANUAL"
+	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
+	Services    []ServiceDefinition // Supporting subservices
+}
+
+type ServiceDeployment struct {
+	Id         string    // Primary key
+	TemplateId string    // id of template being deployed
+	ServiceId  string    // id of service created by deployment
+	DeployedAt time.Time // when the template was deployed
+}
+
+// A Service Template used for
+type ServiceTemplate struct {
+	Name        string              // Name of service template
+	Description string              // Meaningful description of service
+	Services    []ServiceDefinition // Child services
+}
+
+// A request to deploy a service template
+type ServiceTemplateDeploymentRequest struct {
+	PoolId     string // Pool Id to deploy service into
+	TemplateId string // Id of template to be deployed
+}
+
+// This is created by selecting from service_state and joining to service
+type RunningService struct {
+	Id              string
+	ServiceId       string
+	StartedAt       time.Time
+	Name            string
+	Startup         string
+	Description     string
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	ParentServiceId string
 }
 
 // Desired states of services.
@@ -70,7 +134,7 @@ const (
 // Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = newUuid()
+	s.Id, err = NewUuid()
 	if err != nil {
 		return s, err
 	}
@@ -86,6 +150,8 @@ type Host struct {
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Create a new host.
@@ -101,6 +167,8 @@ type ResourcePool struct {
 	CoreLimit   int    // Number of cores on the host available to serviced
 	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
 	Priority    int    // relative priority of resource pools, used for CPU priority
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // A new ResourcePool
@@ -185,7 +253,7 @@ type ContainerState struct {
 // A new service instance (ServiceState)
 func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = newUuid()
+	serviceState.Id, err = NewUuid()
 	if err != nil {
 		return serviceState, err
 	}
@@ -247,6 +315,9 @@ type ControlPlane interface {
 	GetServicesForHost(hostId string, services *[]*Service) error
 
 	// Get the services instances for a given service
+	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+
+	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error
 
 	// Schedule the given service to start
@@ -275,6 +346,21 @@ type ControlPlane interface {
 
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
+
+	// Deploy an application template in to production
+	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
+
+	// Get a list of ServiceTemplates
+	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
+
+	// Add a new service Template
+	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+
+	// Update a new service Template
+	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+
+	// Update a new service Template
+	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
 }
 
 // The Agent interface is the API for a serviced agent.

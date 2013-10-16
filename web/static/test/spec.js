@@ -10,8 +10,8 @@ describe('EntryControl', function() {
         ctrl = $controller('EntryControl', { $scope: $scope });
     }));
 
-    it('Sets 3 main links', function() {
-        expect($scope.mainlinks.length).toEqual(3);
+    it('Sets 2 main links', function() {
+        expect($scope.mainlinks.length).toEqual(2);
     });
 
     it('Creates links that contain url and label', function() {
@@ -66,128 +66,7 @@ describe('LoginControl', function() {
 
 });
 
-describe('WizardControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('WizardControl', { 
-            $scope: $scope, 
-            resourcesService: fake_resources_service(),
-            wizardService: fake_wizard_service()
-        });
-    }));
-
-    it('Provides a \'next\' function that checks form validity', function() {
-        // Form provided with validity = true
-        $location.path('/before');
-        $scope.next({ $valid: true });
-        expect($location.path()).toBe('/fake_next');
-
-        // Form provided with validity = false
-        $location.path('/before');
-        $scope.next({ $valid: false});
-        expect($location.path()).toBe('/before');
-
-        // No form provided - should assume valid
-        $location.path('/before');
-        $scope.next();
-        expect($location.path()).toBe('/fake_next');
-    });
-
-    it('Provides a \'cancel\' function that delegates to wizardService', function() {
-        $location.path('/before');
-        $scope.cancel();
-        expect($location.path()).toBe('/canceled');
-    });
-});
-
-describe('ConfigurationControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('ConfigurationControl', { 
-            $scope: $scope, 
-            authService: fake_auth_service(),
-            servicesService: fake_services_service()
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 1 (top level)
-        expect($scope.breadcrumbs.length).toBe(1);
-    });
-
-    it('Creates a services table', function() {
-        expect_table($scope.services);
-    });
-
-    it('Provides a \'click_service\' function', function() {
-        expect($scope.click_service).not.toBeUndefined();
-        $location.path('/before');
-        // Pass a fake serviceId to click_service function
-        $scope.click_service('abcdef'); 
-        // Location should change and end with fake serviceId
-        expect($location.path()).toMatch(/abcdef$/); 
-    });
-});
-
-describe('ServiceControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('ServiceControl', { 
-            $scope: $scope, 
-            $routeParams: { serviceId: 'fakeId1' },
-            authService: fake_auth_service(),
-            servicesService: fake_services_service()
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 2
-        expect($scope.breadcrumbs.length).toBe(2);
-    });
-
-    it('Provides service detail headers', function() {
-        expect($scope.services).not.toBeUndefined();
-        expect($scope.services.headers).not.toBeUndefined();
-        expect($scope.services.headers.length).not.toBeUndefined();
-    });
-
-    it('Sets the current service based on scope.params', function() {
-        // This depends on 'serviceId' being set in $routeParams
-        // and matching an id from $scope.services.data
-        expect($scope.services).not.toBeUndefined();
-        expect($scope.services.current).not.toBeUndefined();
-    });
-});
-
-describe('ActionControl', function() {
+describe('DeployedAppsControl', function() {
     var $scope = null;
     var $location = null;
     var resourcesService = null;
@@ -202,154 +81,29 @@ describe('ActionControl', function() {
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
         servicesService = fake_services_service();
-        ctrl = $controller('ActionControl', { 
+        ctrl = $controller('DeployedAppsControl', { 
             $scope: $scope, 
-            $routeParams: { poolId: 'pool123', hostId: 'host123', serviceId: 'service234' },
-            servicesService: servicesService,
             resourcesService: resourcesService,
+            servicesService: servicesService
         });
-        $scope.pools = {};
-        $scope.hosts = {};
-        $scope.services = {};
     }));
-    
-    it('Creates a stub for new pools', function() {
-        expect($scope.newPool).not.toBeUndefined();
-        expect($scope.newPool.ParentId).toBe('pool123');
+
+    it('Builds a services table', function() {
+        expect_table($scope.services);
     });
 
-    it('Crates a stub for new hosts', function() {
-        expect($scope.newHost).not.toBeUndefined();
-        expect($scope.newHost.PoolId).toBe('pool123');
-    });
-
-    it('Creates a stub for new services', function() {
-        expect($scope.newService).not.toBeUndefined();
-    });
-
-    it('Provides an \'add_pool\' function', function() {
-        // add_pool method must not be called unless $scope.pools exists
-        expect($scope.add_pool).not.toBeUndefined();
-        $scope.newPool.Id = 'aoeu';
-        $scope.newPool.ParentId = 'fakeparent';
-        spyOn(resourcesService, 'add_pool');
-        $scope.add_pool();
-        expect(resourcesService.add_pool).toHaveBeenCalled();
-        var addedPool = resourcesService.add_pool.mostRecentCall.args[0];
-        // Expect the values we set earlier
-        expect(addedPool).toEqual({Id: 'aoeu', ParentId: 'fakeparent'});
-        // Expect newPool to be a new object with parentId from routeParams
-        expect($scope.newPool).toEqual({ParentId: 'pool123'});
-    });
-
-    it('Provides an \'add_host\' function', function() {
-        // add_host method must not be called unless $scope.hosts exists
-        expect($scope.add_host).not.toBeUndefined();
-        $scope.newHost.Id = 'aoeu';
-        $scope.newHost.PoolId = 'fakeparent';
-        spyOn(resourcesService, 'add_host');
-        $scope.add_host();
-        expect(resourcesService.add_host).toHaveBeenCalled();
-        var addedHost = resourcesService.add_host.mostRecentCall.args[0];
-        // Expect the values we set earlier
-        expect(addedHost).toEqual({Id: 'aoeu', PoolId: 'fakeparent'});
-        // Expect addedHost to be a new object with pool ID from routeParams
-        expect($scope.newHost).toEqual({PoolId: 'pool123'});
-    });
-
-    it('Provides an \'add_service\' function', function() {
-        // add_service method must not be called unless $scope.pools exists
-        expect($scope.add_service).not.toBeUndefined();
-        $scope.newService.Id = 'aoeu';
-        $scope.newService.PoolId = 'fakeparent';
-        spyOn(servicesService, 'add_service');
-        $scope.add_service();
-        expect(servicesService.add_service).toHaveBeenCalled();
-        var addedService = servicesService.add_service.mostRecentCall.args[0];
-        // Expect the values we set earlier
-        expect(addedService).toEqual({Id: 'aoeu', PoolId: 'fakeparent'});
-        // Expect newService to be an empty object
-        expect($scope.newService).toEqual({});
-    });
-
-    it('Provides a \'remove_pool\' function', function() {
-        spyOn(resourcesService, 'remove_pool');
-        $scope.remove_pool();
-        expect(resourcesService.remove_pool).toHaveBeenCalled();
-        var remPoolId = resourcesService.remove_pool.mostRecentCall.args[0];
-        // Pool ID comes from routeParams
-        expect(remPoolId).toBe('pool123');
-        // Below should be tested, but currently depends on modal dialog being hidden
-        //expect($location.path()).toBe('/resources');
-    });
-
-    it('Provides a \'remove_host\' function', function() {
-        spyOn(resourcesService, 'remove_host');
-        $scope.remove_host();
-        expect(resourcesService.remove_host).toHaveBeenCalled();
-        var remHostId = resourcesService.remove_host.mostRecentCall.args[0];
-        // Host ID comes from routeParams
-        expect(remHostId).toBe('host123');
-        // Below should be tested, but currently depends on modal dialog being hidden
-        //expect($location.path()).toBe('/pools/pool123');
-    });
-
-    it('Provides a \'remove_service\' function', function() {
-        spyOn(servicesService, 'remove_service');
-        $scope.remove_service();
-        expect(servicesService.remove_service).toHaveBeenCalled();
-        // service Id comes from routeParams
-        expect(servicesService.remove_service.mostRecentCall.args[0]).toBe('service234');
-        // expect($location.path()).toBe('/services');7
-    });
-
-    it('Provides an \'edit_pool\' function', function() {
-        // Populate $scope.pools.current. Normally this is done by the main view controller
-        refreshPools($scope, resourcesService, true);
-        // edit_pool method must not be called unless $scope.pools.current exists
-        expect($scope.editPool).not.toBeUndefined();
-        spyOn(resourcesService, 'update_pool');
-        $scope.editPool.Name = 'editedName';
-        $scope.edit_pool();
-
-        expect(resourcesService.update_pool).toHaveBeenCalled();
-        expect(resourcesService.update_pool.mostRecentCall.args[0]).toBe('pool123');
-        expect(resourcesService.update_pool.mostRecentCall.args[1]).toBe($scope.editPool);
-    });
-
-    it('Provides an \'edit_host\' function', function() {
-        // Populate $scope.hosts.current. Normally this is done by the main view controller
-        refreshHosts($scope, resourcesService, true, true);
-        // edit_host method must not be called unless $scope.hosts.current exists
-        expect($scope.editHost).not.toBeUndefined();
-        spyOn(resourcesService, 'update_host');
-        $scope.editHost.Name = 'editedName';
-        $scope.edit_host();
-
-        expect(resourcesService.update_host).toHaveBeenCalled();
-        expect(resourcesService.update_host.mostRecentCall.args[0]).toBe('host123');
-        expect(resourcesService.update_host.mostRecentCall.args[1]).toBe($scope.editHost);
-    });
-
-    it('Provides an \'edit_service\' function', function() {
-        // Populate $scope.hosts.current. Normally this is done by the main view controller
-        refreshServices($scope, servicesService, true);
-        // edit_service method must not be called unless $scope.services.current exists
-        expect($scope.editService).not.toBeUndefined();
-        spyOn(servicesService, 'update_service');
-        $scope.editService.Id = 'editedService';
-        $scope.edit_service();
-
-        expect(servicesService.update_service).toHaveBeenCalled();
-        // service Id comes from routeParams
-        expect(servicesService.update_service.mostRecentCall.args[0]).toBe('service234');
-        expect(servicesService.update_service.mostRecentCall.args[1]).toBe($scope.editService);
+    it('Provides a \'click_app\' function', function() {
+        expect($scope.click_app).not.toBeUndefined();
+        $scope.click_app('test');
+        expect($location.path()).toBe('/services/test');
     });
 });
 
-describe('ResourcesControl', function() {
+describe('SubServiceControl', function() {
     var $scope = null;
     var $location = null;
+    var resourcesService = null;
+    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -358,38 +112,83 @@ describe('ResourcesControl', function() {
         $scope = $injector.get('$rootScope').$new();
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
-        ctrl = $controller('ResourcesControl', { 
+        resourcesService = fake_resources_service();
+        servicesService = fake_services_service();
+        ctrl = $controller('SubServiceControl', { 
             $scope: $scope, 
-            authService: fake_auth_service(),
-            resourcesService: fake_resources_service()
+            resourcesService: resourcesService,
+            servicesService: servicesService
         });
     }));
 
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 1 (top level)
-        expect($scope.breadcrumbs.length).toBe(1);
+    it('Builds a services table', function() {
+        expect_table($scope.services);
     });
+});
 
-    it('Creates a pools table', function() {
+describe('HostsControl', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        servicesService = fake_services_service();
+        ctrl = $controller('HostsControl', { 
+            $scope: $scope, 
+            resourcesService: resourcesService
+        });
+    }));
+
+    it('Builds a pools table', function() {
         expect_table($scope.pools);
     });
 
-    it('Populates hosts data', function() {
-        expect($scope.hosts.data).not.toBeUndefined();
+    it('Builds a hosts table', function() {
+        expect_table_no_data($scope.hosts);
     });
 
-    it('Provides a \'click_pool\' function', function() {
-        $location.path('/before');
-        $scope.click_pool('1234');
-        expect($location.path()).toBe('/pools/1234');
+    it('Provides starter object for creating new pools and hosts', function() {
+        expect($scope.newPool).not.toBeUndefined();
+        expect($scope.newHost).not.toBeUndefined();
     });
+
+    it('Provides an \'add_host\' function', function() {
+        spyOn(resourcesService,'add_host');
+        $scope.add_host({ IpAddr: '127.0.0.1'});
+        expect(resourcesService.add_host).toHaveBeenCalled();
+    });
+
+    it('Provides a \'remove_pool\' function', function() {
+        spyOn(resourcesService,'remove_pool');
+        $scope.remove_pool('test');
+        expect(resourcesService.remove_pool).toHaveBeenCalled();
+    });
+
+    it('Provides \'filterHosts\' function', function() {
+        // By default this should produce the same as all hosts
+        var filtered = $scope.filterHosts();
+        expect(filtered).toEqual($scope.hosts.all);
+    });
+
+    it('Provides \'dropIt\' function for drag and drop', function() {
+        // dropIt is hard to test without a browser due to jquery selector
+        expect(typeof $scope.dropIt).toBe('function');
+    });
+
 });
 
-describe('PoolControl', function() {
+
+describe('DeployWizard', function() {
     var $scope = null;
-    var $location = null;
+    var resourcesService = null;
+    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -397,72 +196,45 @@ describe('PoolControl', function() {
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
         var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('PoolControl', { 
-            $scope: $scope,
-            $routeParams: { poolId: 'pool123' },
-            authService: fake_auth_service(),
+        ctrl = $controller('DeployWizard', { 
+            $scope: $scope, 
             resourcesService: fake_resources_service(),
+            servicesService: fake_services_service()
         });
     }));
 
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 2
-        expect($scope.breadcrumbs.length).toBe(2);
+    it('Defines a set of steps', function() {
+        expect($scope.steps).not.toBeUndefined();
+        expect($scope.steps.length).not.toBeUndefined();
+        for (var i=0; i < $scope.steps.length; i++) {
+            var step = $scope.steps[i];
+            expect(step.content).not.toBeUndefined();
+            expect(step.label).not.toBeUndefined();
+        }
     });
 
-    it('Provides a hosts table', function() {
-        expect_table($scope.hosts);
+    it('Creates an install context', function() {
+        expect($scope.install).not.toBeUndefined();
+        expect($scope.install.selected).not.toBeUndefined();
+        expect($scope.install.templateData).not.toBeUndefined();
+        expect(typeof $scope.install.templateClass).toBe('function');
+        expect(typeof $scope.install.templateSelected).toBe('function');
+        expect(typeof $scope.install.templateDisabled).toBe('function');
     });
 
-    it('Provides pool detail headers', function() {
-        expect($scope.pools).not.toBeUndefined();
-        expect($scope.pools.headers).not.toBeUndefined();
-        expect($scope.pools.headers.length).not.toBeUndefined();
-        expect($scope.pools.current).not.toBeUndefined();
-    });
-    
-    it('Provides a \'click_host\' function', function() {
-        $location.path('/before');
-        $scope.click_host('def1234', 'abc321');
-        expect($location.path()).toBe('/pools/def1234/hosts/abc321');
+    it('Provides a \'wizard_next\' function', function() {
+        expect($scope.step_page).toBe($scope.steps[0].content);
+        $scope.wizard_next();
+        expect($scope.step_page).toBe($scope.steps[1].content);
     });
 
-});
 
-describe('HostControl', function() {
-    var $scope = null;
-    var $location = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        ctrl = $controller('HostControl', { 
-            $scope: $scope,
-            $routeParams: { poolId: 'pool123', hostId: 'host123' },
-            authService: fake_auth_service(),
-            resourcesService: fake_resources_service(),
-        });
-    }));
-
-    it('Provides a breadcrumb', function() {
-        // Has a breadcrumb
-        expect($scope.breadcrumbs).not.toBeUndefined();
-        // Is an array of size 3
-        expect($scope.breadcrumbs.length).toBe(3);
-    });
-
-    it('Provides host details headers', function() {
-        expect($scope.hosts).not.toBeUndefined();
-        expect($scope.hosts.headers).not.toBeUndefined();
-        expect($scope.hosts.headers.length).not.toBeUndefined();
-        expect($scope.hosts.current).not.toBeUndefined();
+    it('Provides a \'wizard_previous\' function', function() {
+        expect($scope.step_page).toBe($scope.steps[0].content);
+        $scope.wizard_next();
+        expect($scope.step_page).toBe($scope.steps[1].content);
+        $scope.wizard_previous();
+        expect($scope.step_page).toBe($scope.steps[0].content);
     });
 });
 
@@ -515,73 +287,6 @@ describe('NavbarControl', function() {
     });
 });
 
-describe('WizardService', function() {
-    var $inj = null;
-    var $location = null;
-    var wizardService = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $inj = $injector;
-        wizardService = $injector.get('wizardService');
-        $location = $injector.get('$location');
-    }));
-
-    it('Provides a context that persists across controllers', function() {
-        // Across multiple injections, we get the same service and same context
-        var firstContext = wizardService.get_context();
-        firstContext.some_data = 'foo';
-        var secondService = $inj.get('wizardService');
-        expect(secondService).toBe(wizardService);
-        expect(secondService.get_context()).toBe(firstContext);
-    });
-
-    it('Provides a \'next_page\' function', function() {
-        // Next from nowhere always goes to the start
-        expect('/wizard/start').toEqual(wizardService.next_page('/before'));
-        // start -> page1
-        expect('/wizard/page1').toEqual(wizardService.next_page('/wizard/start'));
-        // page1 -> page2
-        expect('/wizard/page2').toEqual(wizardService.next_page('/wizard/page1'));
-        // page2 -> finish
-        expect('/wizard/finish').toEqual(wizardService.next_page('/wizard/page2'));
-    });
-
-    it('Provides a \'fix_location\' function', function() {
-        // Set the location to the end of the flow and call fix_location.
-        // We should wind up at the start.
-        wizardService.get_context().done = {};
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/start');
-
-        // Assume the start page is done.
-        wizardService.get_context().done = { '/wizard/start': true };
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/page1');
-
-        // Each step only checks the requirements for the previous page
-        wizardService.get_context().done = { '/wizard/page1': true };
-        $location.path('/wizard/finish');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/wizard/page2');
-
-        // If we don't understand the current page, do nothing
-        wizardService.get_context().done = {};
-        $location.path('/something/completely/different');
-        wizardService.fix_location($location);
-        expect($location.path()).toBe('/something/completely/different');
-    });
-
-    it('Provides a \'cancel_page\' function', function() {
-        // Returns index path: /
-        expect(wizardService.cancel_page()).toBe('/');
-    });
-
-});
-
 describe('ServicesService', function() {
     var $scope = null;
     var $location = null;
@@ -607,20 +312,44 @@ describe('ServicesService', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
         $httpBackend.expect('GET', '/services').respond(fake_services());
-        var serv = null;
-        servicesService.get_services(false, function(data) {
-            serv = data;
+        var ser_top, ser_by_id = null;
+        servicesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
         });
         $httpBackend.flush();
-        expect(serv).not.toBeNull();
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
 
         // We should have some cached data this time, so do not expect any
         // HTTP traffic.
-        serv = null;
-        servicesService.get_services(true, function(data) {
-            serv = data;
+        ser_top, ser_by_id = null;
+        servicesService.get_services(true, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
         });
-        expect(serv).not.toBeNull();
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
+    });
+
+    it('Separates top level services from sub services', function() {
+        // The first time GET is called, we have nothing cached so the first
+        // parameter is ignored.
+        $httpBackend.expect('GET', '/services').respond(fake_services());
+        var ser_top, ser_by_id = null;
+        servicesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
+        });
+        $httpBackend.flush();
+        ser_top.map(function(ser) {
+            expect(ser.ParentServiceId).toBe('');
+            if (ser.children) {
+                ser.children.map(function(child) {
+                    expect(child.ParentServiceId).toBe(ser.Id);
+                });
+            }
+        });
     });
 
     it('Can add new services', function() {
@@ -637,7 +366,7 @@ describe('ServicesService', function() {
     it('Can update existing services', function() {
         var serv = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/services/test', serv).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/services/test', serv).respond({ Detail: 'Edited' });
         servicesService.update_service(serv.Id, serv, function(data) {
             resp = data;
         });
@@ -653,6 +382,38 @@ describe('ServicesService', function() {
         });
         $httpBackend.flush();
         expect(resp.Detail).toEqual('Deleted');
+    });
+
+
+    it('Can retrieve and cache template definitions', function() {
+        $httpBackend.expect('GET', '/templates').respond(fake_templates());
+        var tempMap;
+        servicesService.get_app_templates(false, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        $httpBackend.flush();
+        expect(tempMap).not.toBeNull();
+
+        // We should have some cached data this time, so do not expect any
+        // HTTP traffic.
+        tempMap = null;
+        servicesService.get_app_templates(true, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        expect(tempMap).not.toBeNull();
+    });
+
+    it('Can deploy templates to pools', function() {
+        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
+        $httpBackend.expect('POST', '/templates/deploy', deployDef).
+            respond({ Detail: 'Deployed' });
+
+        var resp = null;
+        servicesService.deploy_app_template(deployDef, function(data) {
+            resp = data
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toBe('Deployed');
     });
 
 });
@@ -712,7 +473,7 @@ describe('ResourcesService', function() {
     it('Can update existing resource pools', function() {
         var pool = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/pools/test', pool).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/pools/test', pool).respond({ Detail: 'Edited' });
         resourcesService.update_pool(pool.Id, pool, function(data) {
             resp = data;
         });
@@ -764,7 +525,7 @@ describe('ResourcesService', function() {
     it('Can update existing hosts', function() {
         var host = { Id: 'test', Name: 'Test2' };
         var resp = null;
-        $httpBackend.expect('POST', '/hosts/test', host).respond({ Detail: 'Edited' });
+        $httpBackend.expect('PUT', '/hosts/test', host).respond({ Detail: 'Edited' });
         resourcesService.update_host(host.Id, host, function(data) {
             resp = data;
         });
@@ -836,9 +597,14 @@ describe('AuthService', function() {
 
 describe('refreshServices', function() {
     it('Puts services data in scope', function() {
+        var dummy_data = fake_services();
         var scope = {};
         refreshServices(scope, fake_services_service(), false);
-        expect(scope.services.data).toEqual(fake_services());
+        expect(scope.services.data).not.toBeUndefined();
+        for (var i=0; i < scope.services.data.length; i++) {
+            // Expect the basic fields to be consistent
+            expect(dummy_data[i].Name).toEqual(scope.services.data[i].Name);
+        }
     });
 
     it('Sets the current service based on scope.params', function() {
@@ -864,14 +630,14 @@ describe('refreshPools', function() {
         var scope = {};
         refreshPools(scope, fake_resources_service(), false);
         // refreshPools now adds data above and beyond just transforming into an array
-        for (var i=0; i < scope.pools.length; i++) {
+        for (var i=0; i < scope.pools.data.length; i++) {
             // Expect the basic fields to be consistent
-            var dummyPool = dummy_data[scope.pools[i].Id];
-            expect(dummyPool.Name).toEqual(scope.pools[i].Name);
-            expect(dummyPool.ParentId).toEqual(scope.pools[i].ParentId);
-            expect(dummyPool.CoreLimit).toEqual(scope.pools[i].CoreLimit);
-            expect(dummyPool.MemoryLimit).toEqual(scope.pools[i].MemoryLimit);
-            expect(dummyPool.Priority).toEqual(scope.pools[i].Priority);
+            var dummyPool = dummy_data[scope.pools.data[i].Id];
+            expect(dummyPool.Name).toEqual(scope.pools.data[i].Name);
+            expect(dummyPool.ParentId).toEqual(scope.pools.data[i].ParentId);
+            expect(dummyPool.CoreLimit).toEqual(scope.pools.data[i].CoreLimit);
+            expect(dummyPool.MemoryLimit).toEqual(scope.pools.data[i].MemoryLimit);
+            expect(dummyPool.Priority).toEqual(scope.pools.data[i].Priority);
         }
     });
 
@@ -901,32 +667,14 @@ describe('refreshPools', function() {
 });
 
 describe('refreshHosts', function() {
-    it('Puts hosts filtered for current pool into scope', function() {
-        var scope = { params: { poolId: "default" }};
-        var dummy_hosts = fake_hosts_for_pool("default");
-        refreshHosts(scope, fake_resources_service(), false, false);
-        expect(scope.hosts.data).not.toBeUndefined();
-        // Do a little transformation for easier testing
-        var actual_hosts = {};
-        scope.hosts.data.map(function(elem) {
-            actual_hosts[elem.Id] = elem;
-        });
-        // Actual data should have expected number of hosts
-        expect(scope.hosts.data.length).toBe(dummy_hosts.length);
-        // Actual data should have expected hosts only
-        for (var i=0; i < dummy_hosts.length; i++) {
-            expect(actual_hosts[dummy_hosts[i].HostId]).not.toBeUndefined();
-        }
-    });
-
     it('Sets the current host based on scope.params', function() {
-        var scope = { params: { poolId: "default", hostId: "def" }};
+        var scope = { params: { hostId: "def" }, $watch: function() {}};
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
     });
 
     it('Puts host data into scope', function() {
-        var scope = {};
+        var scope = {$watch: function() {}};
         refreshHosts(scope, fake_resources_service(), false, false);
         expect(scope.hosts.mapped).toEqual(fake_hosts());
     });
@@ -1008,7 +756,156 @@ describe('buildTable', function() {
         expect(table.set_order).not.toBeUndefined();
         expect(table.get_order_class).not.toBeUndefined();
     });
+});
 
+describe('updateRunning', function() {
+    it('Sets text on service when state is 1', function() {
+        var svc = { DesiredState: 1 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('started'); // started is current state
+        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+    });
+
+    it('Sets text on service when state is -1', function() {
+        var svc = { DesiredState: -1 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('restarting'); // restarting is current state
+        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+    });
+
+    it('Sets text on service when state is 0 or other', function() {
+        var svc = { DesiredState: 0 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('\xA0'); // start is action
+        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+
+        svc = { DesiredState: -99 };
+        updateRunning(svc);
+        expect(svc.runningText).toBe('\xA0'); // start is action
+        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+
+    });
+});
+
+describe('toggleRunning', function() {
+
+    it('Sets DesiredState and updates service', function() {
+        var servicesService = fake_services_service();
+        var svc = {};
+        spyOn(servicesService, 'update_service');
+
+        toggleRunning(svc, 'start', servicesService);
+        expect(svc.DesiredState).toBe(1);
+        expect(servicesService.update_service).toHaveBeenCalled();
+
+        toggleRunning(svc, 'stop', servicesService);
+        expect(svc.DesiredState).toBe(0);
+        expect(servicesService.update_service).toHaveBeenCalled();
+
+        toggleRunning(svc, 'restart', servicesService);
+        expect(svc.DesiredState).toBe(-1);
+        expect(servicesService.update_service).toHaveBeenCalled();
+    });
+});
+
+/*
+describe('updateWorking', function() {
+    it('Sets temporary text on service', function() {
+        var svc = {};
+        updateWorking(svc);
+        expect(svc.runningText).not.toBeUndefined();
+        expect(svc.notRunningText).not.toBeUndefined();
+    });
+});
+*/
+
+describe('getFullPath', function() {
+    it('Returns pool.Id when there is no parent', function() {
+        var pool = { Id: 'Test' };
+        expect(getFullPath({}, pool)).toBe(pool.Id);
+
+        pool = { Id: 'Test', ParentId: 'Nonexistent' };
+        expect(getFullPath({}, pool)).toBe(pool.Id);
+
+        // Should handle null
+        expect(getFullPath(null, pool)).toBe(pool.Id);
+    });
+
+    it('Returns hierarchical path', function() {
+        var allPools = {
+            'Test3': { Id: 'Test3', ParentId: 'Test2' },
+            'Test2': { Id: 'Test2', ParentId: 'Test1' },
+            'Test1': { Id: 'Test1', ParentId: '' }
+        }
+        var pool = allPools['Test3'];
+        expect(getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
+    });
+});
+
+describe('flattenSubservices', function() {
+    it('turns a tree structure into a flat array', function() {
+        var tree = {
+            id: 'top',
+            children: [
+                { 
+                    id: 'middle1',
+                    children: [
+                        { id: 'leaf1' },
+                        { id: 'leaf2' }
+                    ]
+                },
+                {
+                    id: 'middle2',
+                    children: [ { id: 'leaf3' }, ]
+                }
+            ]
+        }
+        var result = flattenTree(0, tree);
+        var expected = [ 
+//            { depth: 0, id: 'top' }, // Excludes depth: 0
+            { zendepth: 1, id: 'middle1' },
+            { zendepth: 2, id: 'leaf1' },
+            { zendepth: 2, id: 'leaf2' },
+            { zendepth: 1, id: 'middle2' },
+            { zendepth: 2, id: 'leaf3' }
+        ];
+        expect(result.length).toBe(expected.length);
+        for (var i=0; i < expected.length; i++) {
+            expect(result[i].depth).toBe(expected[i].depth);
+            expect(result[i].id).toBe(expected[i].id);
+        }
+    });
+});
+
+describe('fix_pool_paths', function() {
+    it('Defends against empty scope', function() {
+        // just make sure you can call with an empty object
+        fix_pool_paths({});
+        expect(true).toBe(true);
+    });
+
+    it('Sets fullPath on hosts', function() {
+        var scope = {
+            pools: {
+                mapped: {
+                    a1: { fullPath: 'a1' },
+                    a2: { fullPath: 'a1 > a2' },
+                    a3: { fullPath: 'a1 > a2 > a3' }
+                }
+            },
+            hosts: {
+                all: [
+                    { PoolId: 'a3' },
+                    { PoolId: 'a1' },
+                    { PoolId: 'a2' }
+                ]
+            }
+        };
+        fix_pool_paths(scope);
+        scope.hosts.all.map(function(host) {
+            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolId].fullPath);
+        });
+    });
 });
 
 function fake_hosts_for_pool(poolId) {
@@ -1053,8 +950,11 @@ function fake_resources_service() {
 
 function fake_services_service() {
     return {
+        get_app_templates: function(cacheOk, callback) {
+            callback(fake_templates());
+        },
         get_services: function(cacheOk, callback) {
-            callback(fake_services());
+            callback(fake_services(), fake_services_tree());
         },
         add_service: function(service, callback) {
             callback({});
@@ -1108,6 +1008,13 @@ function expect_table(table) {
     expect(table.get_order_class).not.toBeUndefined();
 }
 
+function expect_table_no_data(table) {
+    expect(table).not.toBeUndefined();
+    expect(table.sort).not.toBeUndefined()
+    expect(table.sort_icons).not.toBeUndefined();
+    expect(table.get_order_class).not.toBeUndefined();
+}
+
 function fake_pools() {
     return {
         "default": {
@@ -1141,6 +1048,55 @@ function fake_pools() {
     };
 }
 
+function fake_templates() {
+    return {
+        "74cc4ef9-441d-224a-2c25-ffe6b71f5ea2": {
+            "Name": "hellod 5.x",
+            "Description": "hello world daemon",
+            "Services": [
+                {
+                    "Name": "hellod",
+                    "Command": "/bin/sh -c \"while true; do echo hello world; sleep 1; done\"",
+                    "Description": "",
+                    "ImageId": "",
+                    "Instances": null,
+                    "Endpoints": [
+                        {
+                            "Protocol": "TCP",
+                            "PortNumber": 25,
+                            "Application": "SMTP",
+                            "Purpose": "mail"
+                        }
+                    ],
+                    "Services": null
+                }
+            ]
+        },
+        "84cc4ef9-441d-224a-2c25-ffe6b71f5ea2": {
+            "Name": "hellod 4.x",
+            "Description": "hello world daemon",
+            "Services": [
+                {
+                    "Name": "hellod",
+                    "Command": "/bin/sh -c \"while true; do echo hello; sleep 1; done\"",
+                    "Description": "",
+                    "ImageId": "",
+                    "Instances": null,
+                    "Endpoints": [
+                        {
+                            "Protocol": "TCP",
+                            "PortNumber": 25,
+                            "Application": "SMTP",
+                            "Purpose": "mail"
+                        }
+                    ],
+                    "Services": null
+                }
+            ]
+        }
+    }
+}
+
 function fake_hosts() {
     return {
         "abc": {
@@ -1172,38 +1128,63 @@ function fake_hosts() {
     };
 }
 
+var fake1 = {
+    "Id": "fakeId1",
+    "Name": "mysql",
+    "Startup": "/usr/libexec/mysqld",
+    "Description": "Database service",
+    "Instances": 0,
+    "ImageId": "default",
+    "PoolId": "default",
+    "DesiredState": 1,
+    "Endpoints": [
+        {
+            "Protocol": "tcp",
+            "PortNumber": 3306,
+            "Application": "mysql",
+            "Purpose": "remote"
+        }
+    ],
+    "ParentServiceId": ''
+};
+var service234 = {
+    "Id": "service234",
+    "Name": "zeneventd",
+    "Startup": "/opt/zenoss/bin/zeneventd",
+    "Description": "",
+    "Instances": 0,
+    "ImageId": "",
+    "PoolId": "default",
+    "DesiredState": 0,
+    "Endpoints": null,
+    "ParentServiceId": ''
+};
+
+var fake1Child = {
+    "Id": "service234",
+    "Name": "zeneventd",
+    "Startup": "/opt/zenoss/bin/zeneventd",
+    "Description": "",
+    "Instances": 0,
+    "ImageId": "",
+    "PoolId": "default",
+    "DesiredState": 0,
+    "Endpoints": null,
+    "ParentServiceId": "fakeId1"
+};
+
 function fake_services() {
     return [
-        {
-            "Id": "fakeId1",
-            "Name": "mysql",
-            "Startup": "/usr/libexec/mysqld",
-            "Description": "Database service",
-            "Instances": 0,
-            "ImageId": "default",
-            "PoolId": "default",
-            "DesiredState": 1,
-            "Endpoints": [
-                {
-                    "Protocol": "tcp",
-                    "PortNumber": 3306,
-                    "Application": "mysql",
-                    "Purpose": "remote"
-                }
-            ]
-        },
-        {
-            "Id": "service234",
-            "Name": "zeneventd",
-            "Startup": "/opt/zenoss/bin/zeneventd",
-            "Description": "",
-            "Instances": 0,
-            "ImageId": "",
-            "PoolId": "default",
-            "DesiredState": 0,
-            "Endpoints": null
-        }
+        fake1, service234
     ];
+}
 
+function fake_services_tree() {
+    fake1.children = [ fake1Child ];
+    var tree = {};
+    fake_services().map(function(e) {
+        tree[e.Id] = e;
+    });
+    return tree;
 }
 

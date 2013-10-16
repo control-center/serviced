@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.5.32, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: x
+-- Host: localhost    Database: cp
 -- ------------------------------------------------------
 -- Server version	5.5.32-0ubuntu0.13.04.1
 
@@ -60,6 +60,8 @@ CREATE TABLE `host` (
   `private_network` varchar(45) NOT NULL,
   `cores` int(11) NOT NULL,
   `memory` bigint(20) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostname_UNIQUE` (`name`),
   KEY `resource_pool` (`resource_pool_id`),
@@ -69,12 +71,28 @@ CREATE TABLE `host` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `host`
+-- Table structure for table `image`
 --
 
-LOCK TABLES `host` WRITE;
-/*!40000 ALTER TABLE `host` DISABLE KEYS */;
-/*!40000 ALTER TABLE `host` ENABLE KEYS */;
+DROP TABLE IF EXISTS `image`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `image` (
+  `name` varchar(60) NOT NULL,
+  `dockerfile` mediumtext NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `image`
+--
+
+LOCK TABLES `image` WRITE;
+/*!40000 ALTER TABLE `image` DISABLE KEYS */;
+/*!40000 ALTER TABLE `image` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -90,19 +108,12 @@ CREATE TABLE `resource_pool` (
   `memory` int(11) DEFAULT '0',
   `priority` int(11) DEFAULT '0',
   `parent_id` char(45) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `parent_id` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `resource_pool`
---
-
-LOCK TABLES `resource_pool` WRITE;
-/*!40000 ALTER TABLE `resource_pool` DISABLE KEYS */;
-/*!40000 ALTER TABLE `resource_pool` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `service`
@@ -121,6 +132,8 @@ CREATE TABLE `service` (
   `description` varchar(255) NOT NULL,
   `desired_state` int(11) NOT NULL,
   `parent_service_id` char(36) NOT NULL DEFAULT '',
+  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_pool` (`resource_pool_id`),
   CONSTRAINT `fk_pool` FOREIGN KEY (`resource_pool_id`) REFERENCES `resource_pool` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -134,6 +147,35 @@ CREATE TABLE `service` (
 LOCK TABLES `service` WRITE;
 /*!40000 ALTER TABLE `service` DISABLE KEYS */;
 /*!40000 ALTER TABLE `service` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `service_deployment`
+--
+
+DROP TABLE IF EXISTS `service_deployment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_deployment` (
+  `id` char(36) NOT NULL,
+  `service_id` char(36) NOT NULL,
+  `service_template_id` char(36) NOT NULL,
+  `deployed_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `service_id` (`service_id`),
+  KEY `service_template_id` (`service_template_id`),
+  CONSTRAINT `service_deployment_ibfk_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`),
+  CONSTRAINT `service_deployment_ibfk_2` FOREIGN KEY (`service_template_id`) REFERENCES `service_template` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_deployment`
+--
+
+LOCK TABLES `service_deployment` WRITE;
+/*!40000 ALTER TABLE `service_deployment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_deployment` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -246,6 +288,24 @@ LOCK TABLES `service_state_endpoint` WRITE;
 /*!40000 ALTER TABLE `service_state_endpoint` DISABLE KEYS */;
 /*!40000 ALTER TABLE `service_state_endpoint` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `service_template`
+--
+
+DROP TABLE IF EXISTS `service_template`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_template` (
+  `id` char(36) NOT NULL,
+  `name` varchar(45) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `data` text NOT NULL,
+  `api_version` int(11) NOT NULL DEFAULT '0',
+  `template_version` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -256,4 +316,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-09-05 13:03:07
+-- Dump completed on 2013-10-14 15:00:38
