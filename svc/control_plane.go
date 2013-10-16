@@ -892,7 +892,7 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 		sd.Name,
 		sd.Command,
 		sd.Description,
-		sd.Instances["min"],
+		sd.Instances.Min,
 		sd.ImageId,
 		pool,
 		serviced.SVC_RUN,
