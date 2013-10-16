@@ -1,0 +1,74 @@
+{
+    "Name": "Zenoss 5.0",
+    "Description": "Zenoss RM",
+    "Services": [
+        {
+            "Name": "Zenoss",
+            "Command": "",
+            "ImageId": "",
+            "Instances": {
+                "min": 0
+            },
+            "Launch": "auto",
+            "Endpoints": [],
+            "Services": [
+                {
+                    "Name": "mysql",
+                    "Command": "",
+                    "ImageId": "zenoss/mysql55",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Endpoints": [],
+                    "Services": []
+                },
+                {
+                    "Name": "rabbitmq",
+                    "Command": "",
+                    "ImageId": "zenoss/rabbitmq",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Endpoints": [],
+                    "Services": []
+                },
+                {
+                    "Name": "init",
+                    "Command": "/etc/init.d/zenoss start",
+                    "ImageId": "zenoss/",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Endpoints": [],
+                    "Services": []
+                },
+                {
+                    "Name": "memcached",
+                    "Command": "/usr/sbin/memcached",
+                    "ImageId": "zenoss/memcached",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Endpoints": [],
+                    "Services": []
+                },
+                {
+                    "Name": "redis",
+                    "Command": "/usr/sbin/redis-server",
+                    "ImageId": "zenoss/redis",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Endpoints": [],
+                    "Services": []
+                }
+            ]
+        }
+    ]
+}
+
