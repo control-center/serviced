@@ -1,7 +1,9 @@
 body {
     padding: 20px;
 }
-
+.invisible {
+    visibility: hidden;
+}
 .btn-link, a {
     color: #404040;
     text-decoration: none;

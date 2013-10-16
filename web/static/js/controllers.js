@@ -169,28 +169,33 @@ function LoginControl($scope, $http, $location, authService) {
 function DeployWizard($scope, resourcesService, servicesService) {
     console.log('Loading deployWizard');
 
+    var validTemplateSelected = function() {
+        return $scope.selectedTemplates().length > 0;
+    };
+
     $scope.steps = [
-        { content: '/static/partials/wizard-modal-1.html', label: 'Select Hosts' },
-        { content: '/static/partials/wizard-modal-2.html', label: 'Select Applications' },
+/*        { content: '/static/partials/wizard-modal-1.html', label: 'Select Hosts' }, */
+        {
+            content: '/static/partials/wizard-modal-2.html',
+            label: 'Select Applications',
+            validate: validTemplateSelected
+        },
         { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
         { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
     ];
+
     $scope.install = { 
         selected: {
-            rm: false,
-            impact: false,
-            analytics: false,
             pool: 'default'
         },
         templateClass: function(template) {
-            var cls = "block-data";
+            var cls = "block-data control-group";
             if (template.depends) {
                 cls += " indented";
             }
             return cls;
         },
         templateSelected: function(template) {
-            console.log('Checked %s', template.id);
             if (template.depends) {
                 console.log('Also marking %s', template.depends);
                 $scope.install.selected[template.depends] = true;
@@ -201,8 +206,13 @@ function DeployWizard($scope, resourcesService, servicesService) {
                 return $scope.install.selected[template.disabledBy];
             }
             return false;
+        },
+        templateSelectedFormDiv: function() {
+            return (!nextClicked || validTemplateSelected())?
+                '':'has-error';
         }
     };
+    var nextClicked = false;
 
     servicesService.get_app_templates(false, function(templatesMap) {
         var templates = [];
@@ -275,13 +285,20 @@ function DeployWizard($scope, resourcesService, servicesService) {
     };
 
     $scope.wizard_next = function() {
+        nextClicked = true;
         if ($scope.step_page !== $scope.steps[step].content) {
             $scope.step_page = $scope.steps[step].content;
             return;
         }
-
+        if ($scope.steps[step].validate) {
+            if (!$scope.steps[step].validate()) {
+                console.log('Not valid');
+                return;
+            }
+        }
         step += 1;
         $scope.step_page = $scope.steps[step].content;
+        nextClicked = false;
     };
 
     $scope.wizard_previous = function() {
