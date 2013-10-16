@@ -58,6 +58,7 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
+	Launch          string
 	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
 	CreatedAt       time.Time

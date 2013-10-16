@@ -888,6 +888,13 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 	svcuuid, _ := serviced.NewUuid()
 	now := time.Now()
 
+	// determine the desired state
+	ds := serviced.SVC_RUN
+
+	if sd.Launch == serviced.MANUAL {
+		ds = serviced.SVC_STOP
+	}
+
 	svc := serviced.Service{svcuuid,
 		sd.Name,
 		sd.Command,
@@ -895,7 +902,8 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 		sd.Instances.Min,
 		sd.ImageId,
 		pool,
-		serviced.SVC_RUN,
+		ds,
+		sd.Launch,
 		&sd.Endpoints,
 		parent,
 		now,

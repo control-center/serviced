@@ -71,6 +71,15 @@ CREATE TABLE `host` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Dumping data for table `host`
+--
+
+LOCK TABLES `host` WRITE;
+/*!40000 ALTER TABLE `host` DISABLE KEYS */;
+/*!40000 ALTER TABLE `host` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `image`
 --
 
@@ -116,6 +125,15 @@ CREATE TABLE `resource_pool` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Dumping data for table `resource_pool`
+--
+
+LOCK TABLES `resource_pool` WRITE;
+/*!40000 ALTER TABLE `resource_pool` DISABLE KEYS */;
+/*!40000 ALTER TABLE `resource_pool` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `service`
 --
 
@@ -131,6 +149,7 @@ CREATE TABLE `service` (
   `instances` int(11) NOT NULL,
   `description` varchar(255) NOT NULL,
   `desired_state` int(11) NOT NULL,
+  `launch` char(16) NOT NULL DEFAULT 'auto',
   `parent_service_id` char(36) NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -306,6 +325,15 @@ CREATE TABLE `service_template` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_template`
+--
+
+LOCK TABLES `service_template` WRITE;
+/*!40000 ALTER TABLE `service_template` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_template` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -316,4 +344,4 @@ CREATE TABLE `service_template` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-14 15:00:38
+-- Dump completed on 2013-10-16 19:12:52
