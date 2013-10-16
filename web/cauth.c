@@ -65,6 +65,10 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
                         found_wheel = 1;
                         break;
                 }
+                if (strcmp(_CP_SUDO, gr->gr_name) == 0) {
+                        found_wheel = 1;
+                        break;
+                }
         }
 
         free(group_list);
