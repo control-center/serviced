@@ -551,9 +551,59 @@ func (s *ControlSvc) RestartService(serviceId string, unused *int) (err error) {
 
 }
 
+func stopService(tx *gorp.Transaction, service *serviced.Service) error {
+	service.DesiredState = serviced.SVC_STOP
+	if _, err := tx.Update(service); err != nil {
+		return err
+	}
+
+	var subserviceIds []*struct{ Id string }
+	if _, err := tx.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? AND launch <> \"manual\" ", service.Id); err != nil {
+		return serviced.ControlPlaneError{fmt.Sprintf("Could not get subservices: %s", err.Error())}
+	}
+
+	for _, obj := range subserviceIds {
+		svc, err := tx.Get(&serviced.Service{}, obj.Id)
+		switch {
+		case err != nil:
+			return err
+		case svc == nil:
+			glog.Warningf("Missing subservice: %s", obj.Id)
+		default:
+			return stopService(tx, svc.(*serviced.Service))
+		}
+	}
+
+	return nil
+}
+
 //Schedule a service to stop.
-func (s *ControlSvc) StopService(serviceId string, unused *int) (err error) {
-	return serviced.ControlPlaneError{"Unimplemented"}
+func (s *ControlSvc) StopService(serviceId string, unused *int) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	obj, err := dbmap.Get(&serviced.Service{}, serviceId)
+	switch {
+	case err != nil:
+		return err
+	case obj == nil:
+		return serviced.ControlPlaneError{"Service does not exist"}
+	default:
+		tx, err := dbmap.Begin()
+		if err != nil {
+			return err
+		}
+
+		if err := stopService(tx, obj.(*serviced.Service)); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		return tx.Commit()
+	}
 }
 
 func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints map[string]service_state_endpoint, err error) {
@@ -829,6 +879,29 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 					}
 				}
 			}
+
+			// find the services that should not be running
+			var xservices []*serviced.Service
+			if _, err = dbmap.Select(&xservices, "SELECT * FROM `service` WHERE desired_state <> 1"); err != nil {
+				return err
+			}
+
+			for _, service := range xservices {
+				var serviceStates []*serviced.ServiceState
+				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0000-00-00 00:00:00'", service.Id); err != nil {
+					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
+					return err
+				}
+
+				for _, ss := range serviceStates {
+					glog.Infof("CP: killing %s:%s\n", ss.HostId, ss.DockerId)
+					ss.Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+					if _, err = dbmap.Update(ss); err != nil {
+						glog.Warningf("CP: %s:%s wouldn't die", ss.HostId, ss.DockerId)
+					}
+				}
+			}
+
 			return nil
 		}()
 	}
