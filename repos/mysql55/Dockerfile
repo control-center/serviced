@@ -11,6 +11,6 @@ ADD ./mysql-run.sh /mysql-run.sh
 RUN /bin/sh /tmp/mysql-setup.sh
 
 VOLUME /var/lib/mysql
-EXPOSE 53306:3306
+EXPOSE 3306
 ENTRYPOINT ["/mysql-run.sh"]
 
