@@ -1,0 +1,78 @@
+#! /usr/bin/env bash
+#
+# zenoss_init_pre
+#
+# This script is intended to be run before the zenoss processes have
+# been started for the first time.
+#
+# Note: it is run by root
+#
+##############################################################################
+# 
+# Copyright (C) Zenoss, Inc. 2007, all rights reserved.
+# 
+# This content is made available according to terms specified in
+# License.zenoss under the directory where your Zenoss product is installed.
+# 
+##############################################################################
+
+
+# load startup parameters
+. ${ZENHOME}/bin/zenoss_startup_config
+
+# load the installation functions
+. ${ZENHOME}/bin/shared-functions.sh
+. ${ZENHOME}/bin/install-functions.sh
+
+# Test for Sun/Oracle flavored jre
+confirm_jre
+
+# Confirm installed RRDtool
+confirm_rrd
+
+# set the python shebang line
+shebang
+
+# create the log directory
+mkdir -p ${ZENHOME}/log
+
+# start rabbit
+#start_rabbitmq
+#start_mysql
+#start_redis
+
+RABBITMQ_ADMIN="/usr/local/bin/rabbitmqadmin"
+if [ ! -f $(RABBITMQ_ADMIN) ]; then
+	if curl -O http://localhost:51696/cli/rabbitmqadmin; then
+		chmod +x $(RABBITMQ_ADMIN)
+	else
+		echo "Could not download rabbitmqadmin script for rabbitmq server"
+		exit 1
+	fi
+fi
+
+# copy the etc/*.conf.example files to etc/*.conf if etc/*.conf don't
+# already exist (we don't want to clobber people's configs)
+update_conf_files
+
+# Update AMQP configuration files
+configure_amqp
+
+# create the zodb session database
+create_zodb_session_db
+
+# create the database for ZODB
+create_zodb_db
+
+# create the ZEP database
+create_zep_db
+
+# set up the zope instance
+run_mkzopeinstance
+
+# Register zproxy scripts and conf
+register_zproxy
+
+# Remediate file ownership under $ZENHOME.
+fix_zenhome_owner_and_group ${OS_USERNAME}
+run_zenbuild
