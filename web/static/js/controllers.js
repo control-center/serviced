@@ -120,7 +120,6 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
 
 function EntryControl($scope, authService) {
-    console.log('Loading entry');
     authService.checkLogin($scope);
     $scope.brand_label = "Zenoss Control Plane";
     $scope.page_content = "You can install Resource Manager, Analytics, and Impact here."; 
@@ -167,8 +166,6 @@ function LoginControl($scope, $http, $location, authService) {
 }
 
 function DeployWizard($scope, resourcesService, servicesService) {
-    console.log('Loading deployWizard');
-
     var validTemplateSelected = function() {
         return $scope.selectedTemplates().length > 0;
     };
@@ -197,7 +194,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
         },
         templateSelected: function(template) {
             if (template.depends) {
-                console.log('Also marking %s', template.depends);
                 $scope.install.selected[template.depends] = true;
             }
         },
@@ -292,7 +288,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
         }
         if ($scope.steps[step].validate) {
             if (!$scope.steps[step].validate()) {
-                console.log('Not valid');
                 return;
             }
         }
@@ -328,7 +323,6 @@ function DeployWizard($scope, resourcesService, servicesService) {
                 refreshServices($scope, servicesService, false);
             });
         }
-        console.log('Selected: %s, dName: %s', JSON.stringify(selected), dName);
 
         $scope.services.deployed = {
             name: dName,
@@ -590,7 +584,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     $scope.dropped = [];
 
     $scope.filterHosts = function() {
-        console.log('filteredHosts called');
         if (!$scope.hosts.filtered) {
             $scope.hosts.filtered = [];
         }
@@ -736,9 +729,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.unkillRunning = unkillRunning;
     refreshRunning($scope, resourcesService, $scope.params.hostId);
     refreshHosts($scope, resourcesService, true, true, function() {
-        console.log('ExtraCallback!');
         if ($scope.hosts.current) {
-            console.log('$scope.hosts.current: %s', JSON.stringify($scope.hosts.current));
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
     })
