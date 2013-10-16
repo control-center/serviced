@@ -7,7 +7,7 @@
 #
 ################################################################################
 
-default: elastigo
+default: elastigo docker_ok
 	@echo "Executing make style build. You can also use the 'go' tool."
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
@@ -30,6 +30,14 @@ elastigo:../../mattbaird/elastigo
 	mkdir ../../mattbaird -p && \
 	cd ../../mattbaird && \
 	git clone git@github.com:zenoss/elastigo.git
+
+docker_ok:
+	if docker ps >/dev/null; then \
+		echo "docker OK"; \
+	else \
+		echo "Check 'docker ps' command"; \
+		exit 1;\
+	fi
 
 clean:
 	go clean
