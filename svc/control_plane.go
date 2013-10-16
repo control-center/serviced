@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -438,6 +439,27 @@ func (s *ControlSvc) RemoveService(serviceId string, unused *int) (err error) {
 	}
 	defer db.Close()
 	_, err = dbmap.Delete(&serviced.Service{Id: serviceId})
+	return err
+}
+
+func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var serviceStates []*serviced.ServiceState
+	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? ORDER BY started_at, terminated_at LIMIT 1", serviceId)
+	if err != nil {
+		return err
+	}
+	if len(serviceStates) == 0 {
+		return serviced.ControlPlaneError{"Not found"}
+	}
+        cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
+	output, err := cmd.Output()
+	*logs = string(output)
+
 	return err
 }
 
