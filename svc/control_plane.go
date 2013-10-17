@@ -463,6 +463,27 @@ func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) 
 	return err
 }
 
+func (s *ControlSvc) GetServiceStateLogs(serviceStateId string, logs *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(&serviced.ServiceState{}, serviceStateId)
+	if obj == nil {
+		return serviced.ControlPlaneError{"Could not find serviceState"}
+	}
+	if err != nil {
+		return err
+	}
+	serviceState := obj.(*serviced.ServiceState) 
+        cmd := exec.Command("docker", "logs", serviceState.DockerId)
+	output, err := cmd.Output()
+	*logs = string(output)
+
+	return err
+}
+
 // Get all the services for a host.
 func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*serviced.Service) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -486,7 +507,7 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 		return err
 	}
 	err = s.addEndpointsToServices(services)
-	if err != nil {
+	 if err != nil {
 		return err
 	}
 	*servicesForHost = services

@@ -77,6 +77,10 @@ func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }
 
+func (s *ControlClient) GetServiceStateLogs(serviceStateId string, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", serviceStateId, logs)
+}
+
 func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*serviced.RunningService) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
 }
