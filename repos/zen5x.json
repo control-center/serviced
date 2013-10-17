@@ -1,74 +1,99 @@
 {
-    "Name": "Zenoss 5.0",
     "Description": "Zenoss RM",
+    "Name": "Zenoss 5.0",
     "Services": [
         {
-            "Name": "Zenoss",
             "Command": "",
+            "Endpoints": [],
             "ImageId": "",
             "Instances": {
                 "min": 0
             },
             "Launch": "auto",
-            "Endpoints": [],
+            "Name": "Zenoss",
             "Services": [
                 {
-                    "Name": "mysql",
-                    "Command": "",
+                    "Command": "/usr/sbin/mysqld",
+                    "Endpoints": [],
                     "ImageId": "zenoss/mysql55",
                     "Instances": {
                         "min": 1
                     },
                     "Launch": "auto",
-                    "Endpoints": [],
+                    "Name": "mysql",
                     "Services": []
                 },
                 {
-                    "Name": "rabbitmq",
-                    "Command": "",
+                    "Command": "/usr/sbin/rabbitmq-server",
+                    "Endpoints": [
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 15672,
+                            "Protocol": "tcp",
+                            "Purpose": "local"
+                        },
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 5672,
+                            "Protocol": "tcp",
+                            "Purpose": "local"
+                        }
+                    ],
                     "ImageId": "zenoss/rabbitmq",
                     "Instances": {
                         "min": 1
                     },
                     "Launch": "auto",
-                    "Endpoints": [],
+                    "Name": "rabbitmq",
                     "Services": []
                 },
                 {
-                    "Name": "init",
                     "Command": "/etc/init.d/zenoss start",
-                    "ImageId": "zenoss/",
+                    "Endpoints": [
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 15672,
+                            "Protocol": "tcp",
+                            "Purpose": "remote"
+                        },
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 5672,
+                            "Protocol": "tcp",
+                            "Purpose": "remote"
+                        }
+                    ],
+                    "ImageId": "zenoss/zenoss5x",
                     "Instances": {
                         "min": 1
                     },
                     "Launch": "auto",
-                    "Endpoints": [],
+                    "Name": "init",
                     "Services": []
                 },
                 {
-                    "Name": "memcached",
                     "Command": "/usr/sbin/memcached",
+                    "Endpoints": [],
                     "ImageId": "zenoss/memcached",
                     "Instances": {
                         "min": 1
                     },
                     "Launch": "auto",
-                    "Endpoints": [],
+                    "Name": "memcached",
                     "Services": []
                 },
                 {
-                    "Name": "redis",
                     "Command": "/usr/sbin/redis-server",
+                    "Endpoints": [],
                     "ImageId": "zenoss/redis",
                     "Instances": {
                         "min": 1
                     },
                     "Launch": "auto",
-                    "Endpoints": [],
+                    "Name": "redis",
                     "Services": []
                 }
             ]
         }
     ]
 }
-
