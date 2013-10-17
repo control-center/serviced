@@ -464,7 +464,6 @@ function SubServiceControl($scope, $routeParams, $location, servicesService, res
         });
     }
 
-
     // Get a list of deployed apps
     refreshServices($scope, servicesService, true, function() {
         if ($scope.services.current) {
@@ -701,15 +700,15 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, s
         { id: 'View', name: 'View' }
     ]);
 
-    $scope.viewConfig = function(service) {
-        $scope.editService = $.extend({}, service);
+    $scope.viewConfig = function(running) {
+        $scope.editService = $.extend({}, running);
         $scope.editService.config = fakeConfig(); // FIXME
         $('#editConfig').modal('show');
     };
 
-    $scope.viewLog = function(service) {
-        $scope.editService = $.extend({}, service);
-        servicesService.get_service_logs(service.Id, function(log) {
+    $scope.viewLog = function(running) {
+        $scope.editService = $.extend({}, running);
+        servicesService.get_service_state_logs(running.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -1005,6 +1004,20 @@ function ServicesService($http, $location) {
 
         get_service_logs: function(serviceId, callback) {
             $http.get('/services/' + serviceId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+
+        get_service_state_logs: function(serviceStateId, callback) {
+            $http.get('/running/' + serviceStateId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).

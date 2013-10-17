@@ -30,6 +30,7 @@ func Serve() {
 		rest.Route{"POST", "/services/add", AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", AuthorizedClient(RestRemoveService)},
 		rest.Route{"GET", "/services/:serviceId/logs", AuthorizedClient(RestGetServiceLogs)},
+
 		rest.Route{"PUT", "/services/:serviceId", AuthorizedClient(RestUpdateService)},
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", AuthorizedClient(RestGetAppTemplates)},
@@ -37,8 +38,9 @@ func Serve() {
 		// Login
 		rest.Route{"POST", "/login", RestLogin},
 		rest.Route{"DELETE", "/login", RestLogout},
-		// "Top" stuff
+		// "Misc" stuff
 		rest.Route{"GET", "/top/services", AuthorizedClient(RestGetTopServices)},
+		rest.Route{"GET", "/running/:serviceStateId/logs", AuthorizedClient(RestGetServiceStateLogs)},
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},
 		rest.Route{"GET", "/static*resource", StaticData},

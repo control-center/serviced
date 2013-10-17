@@ -389,6 +389,16 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
+func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var logs string
+	client.GetServiceStateLogs(serviceStateId, &logs)
+	w.WriteJson(&SimpleResponse{logs, servicesLink()})
+}
 
 func init() {
 	configuration = ServiceConfig{}
