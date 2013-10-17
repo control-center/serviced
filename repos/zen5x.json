@@ -13,7 +13,7 @@
             "Name": "Zenoss",
             "Services": [
                 {
-                    "Command": "/usr/sbin/mysqld",
+                    "Command": "/usr/bin/mysqld_safe",
                     "Endpoints": [],
                     "ImageId": "zenoss/mysql55",
                     "Instances": {

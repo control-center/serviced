@@ -2,5 +2,5 @@
 
 tar xvfz /var/lib/mysql.tgz
 
-/usr/sbin/mysqld
+/usr/bin/mysqld_safe
 
