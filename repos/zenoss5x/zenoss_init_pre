@@ -43,7 +43,7 @@ mkdir -p ${ZENHOME}/log
 
 RABBITMQ_ADMIN="/usr/local/bin/rabbitmqadmin"
 if [ ! -f $RABBITMQ_ADMIN ]; then
-	if curl -s -O http://localhost:51696/cli/rabbitmqadmin; then
+	if curl -s -O http://localhost:15672/cli/rabbitmqadmin; then
 		chmod +x $(RABBITMQ_ADMIN)
 	else
 		echo "Could not download rabbitmqadmin script for rabbitmq server"

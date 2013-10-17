@@ -98,7 +98,7 @@ type service_endpoint struct {
 	Port            uint16 // port number
 	ProtocolType    string // tcp or udp
 	ApplicationType string
-	Purpose         string // remote or local
+	Purpose         string // export or import
 }
 
 type service_state_endpoint struct {
@@ -196,26 +196,25 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 }
 
 const SQL_APPLICATION_ENDPOINTS = `
-		select 
-		    live_services.service_id as ServiceId, 
-		    port as ContainerPort, 
-		    external_port as HostPort, 
-		    h.ip_addr as HostIp, 
-		    live_services.private_ip as ContainerIp, 
-		    protocol as Protocol
-		from service_state_endpoint sse
-		inner join 
-		(
-		    select ss.id, private_ip, host_id , ss.service_id
-		    from service_state ss
-		    where ss.terminated_at < '2000-01-01 00:00:00' and ss.started_at > '2000-01-01 00:00:00'
-		    and ss.service_id in (
-		        select service_id 
-		        from service_endpoint se
-		        where se.protocol = ? and se.application = ? and se.purpose = 'remote'
-		    )
-		) as live_services on live_services.id = sse.service_state_id
-		inner join host h on h.id = live_services.host_id
+select 
+    live_services.service_id as ServiceId, 
+    port as ContainerPort, 
+    external_port as HostPort, 
+    h.ip_addr as HostIp, 
+    live_services.private_ip as ContainerIp, 
+    protocol as Protocol
+from service_state_endpoint sse
+inner join (
+    select ss.id, private_ip, host_id , ss.service_id
+    from service_state ss
+    where ss.terminated_at < '2000-01-01 00:00:00' and ss.started_at > '2000-01-01 00:00:00'
+    and ss.service_id in (
+        select service_id 
+        from service_endpoint se
+        where se.protocol = ? and se.application = ? and se.purpose = 'import'
+    )
+) as live_services on live_services.id = sse.service_state_id
+inner join host h on h.id = live_services.host_id
 `
 
 // Get a service endpoint.
@@ -232,24 +231,97 @@ func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string]
 	_, err = dbmap.Select(&service_endpoints, `
 	select *
 from service_endpoint where service_id = ?
-and purpose = 'local'`, serviceId)
+and purpose = 'import'`, serviceId)
 	if err != nil {
 		return err
 	}
-
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
 		glog.Errorf("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
+	var servicesList []*serviced.Service
+	_, err = dbmap.Select(&servicesList, "SELECT * from service")
+	if err != nil {
+		return err
+	}
+	// Map all services by Id so we can construct a tree for the current service ID
+	servicesMap := make(map[string]*treenode)
+	for _, service := range servicesList {
+		servicesMap[service.Id] = &treenode{
+			service.Id,
+			service.ParentServiceId,
+			[]*treenode{},
+		}
+	}
+
+	// second time through builds our tree
+	root := treenode{"root", "", []*treenode{}}
+	for _, service := range servicesList {
+		node := servicesMap[service.Id]
+		parent, found := servicesMap[service.ParentServiceId]
+		// no parent means this node belongs to root
+		if !found {
+			parent = &root
+		}
+		parent.children = append(parent.children, node)
+	}
+
+	// now walk up the tree, then back down capturing all siblings for this service ID
+	topService := servicesMap[serviceId]
+	for len(topService.parent) != 0 {
+		topService = servicesMap[topService.parent]
+	}
+	// We should now have the top-level service for the current service ID
+
 	remoteEndpoints := make(map[string][]*serviced.ApplicationEndpoint)
+	query := `
+select 
+    se.service_id as ServiceId, 
+    sse.port as ContainerPort, 
+    sse.external_port as HostPort, 
+    h.ip_addr as HostIp, 
+    ss.private_ip as ContainerIp, 
+    sse.protocol as Protocol
+from service_endpoint se 
+inner join service_state ss on (se.service_id = ss.service_id)
+inner join service_state_endpoint sse on (
+      ss.id = sse.service_state_id and
+      sse.port = se.port
+)
+inner join host h on (h.id = ss.host_id)
+where 
+      se.protocol = ? and
+      se.application = ? and 
+      se.port = ? and
+      se.purpose = 'export' and
+      ss.terminated_at < '2000-01-01 00:00:00' and 
+      ss.started_at > '2000-01-01 00:00:00' and
+      se.service_id in (
+`
+	relatedServiceIds := walkTree(topService)
+	lastIndex := len(relatedServiceIds) - 1
+	for idx, rsid := range relatedServiceIds {
+		if idx == lastIndex {
+			query += "'" + rsid + "')"
+		} else {
+			query += "'" + rsid + "', "
+		}
+	}
+
+	glog.Infof("Query: %s", query)
 
 	// for each proxied port, find list of potential remote endpoints
 	for _, localport := range service_endpoints {
 		var applicationEndpoints []*serviced.ApplicationEndpoint
-		_, err := dbmap.Select(&applicationEndpoints, SQL_APPLICATION_ENDPOINTS,
-			string(localport.ProtocolType), string(localport.ApplicationType))
+		_, err := dbmap.Select(
+			&applicationEndpoints,
+			query,
+			string(localport.ProtocolType),
+			string(localport.ApplicationType),
+			string(localport.Port),
+		)
 		if err != nil {
 			return err
 		}
@@ -259,6 +331,25 @@ and purpose = 'local'`, serviceId)
 
 	*response = remoteEndpoints
 	return nil
+}
+
+func walkTree(node *treenode) []string {
+	if len(node.children) == 0 {
+		return make([]string, 0)
+	}
+	relatedServiceIds := make([]string, 0)
+	for _, childNode := range node.children {
+		for _, childId := range walkTree(childNode) {
+			relatedServiceIds = append(relatedServiceIds, childId)
+		}
+	}
+	return append(relatedServiceIds, node.id)
+}
+
+type treenode struct {
+	id       string
+	parent   string
+	children []*treenode
 }
 
 // Return the matching hosts.
@@ -456,7 +547,7 @@ func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) 
 	if len(serviceStates) == 0 {
 		return serviced.ControlPlaneError{"Not found"}
 	}
-        cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
+	cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
 	output, err := cmd.Output()
 	*logs = string(output)
 
@@ -476,8 +567,8 @@ func (s *ControlSvc) GetServiceStateLogs(serviceStateId string, logs *string) (e
 	if err != nil {
 		return err
 	}
-	serviceState := obj.(*serviced.ServiceState) 
-        cmd := exec.Command("docker", "logs", serviceState.DockerId)
+	serviceState := obj.(*serviced.ServiceState)
+	cmd := exec.Command("docker", "logs", serviceState.DockerId)
 	output, err := cmd.Output()
 	*logs = string(output)
 
@@ -507,7 +598,7 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 		return err
 	}
 	err = s.addEndpointsToServices(services)
-	 if err != nil {
+	if err != nil {
 		return err
 	}
 	*servicesForHost = services
@@ -529,24 +620,24 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 		return err
 	}
 	var services []*serviced.RunningService
-	_, err = dbmap.Select(&services, 
-"SELECT " + 
-" ss.id as Id," +
-" ss.service_id as ServiceId," +
-" ss.started_at as StartedAt," +
-" s.name as Name," +
-" s.startup as Startup," +
-" s.image_id as ImageId," +
-" s.resource_pool_id as PoolId," +
-" s.instances as Instances," +
-" s.description as Description," +
-" s.desired_state as DesiredState," +
-" s.parent_service_id as ParentServiceId " +
-"FROM service_state ss " +
-"JOIN service s on (ss.service_id = s.id) " +
-"WHERE" +
-" ss.terminated_at < '2000-01-01' and" +
-" ss.host_id = ?", hostId)
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '2000-01-01' and"+
+			" ss.host_id = ?", hostId)
 	if err != nil {
 		return err
 	}
