@@ -209,7 +209,7 @@ CREATE TABLE `service_endpoint` (
   `port` int(11) NOT NULL,
   `protocol` enum('tcp','udp') NOT NULL,
   `application` varchar(45) DEFAULT NULL,
-  `purpose` enum('local','remote') NOT NULL,
+  `purpose` enum('export','import') NOT NULL,
   PRIMARY KEY (`service_id`,`port`,`protocol`),
   KEY `fk_port_1` (`service_id`),
   CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION

@@ -14,7 +14,14 @@
             "Services": [
                 {
                     "Command": "/usr/bin/mysqld_safe",
-                    "Endpoints": [],
+                    "Endpoints": [
+                        {
+                            "Application": "mysql",
+                            "PortNumber": 3306,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
                     "ImageId": "zenoss/mysql55",
                     "Instances": {
                         "min": 1
@@ -27,16 +34,16 @@
                     "Command": "/usr/sbin/rabbitmq-server",
                     "Endpoints": [
                         {
-                            "Application": "rabbitmq",
+                            "Application": "rabbitmq_admin",
                             "PortNumber": 15672,
                             "Protocol": "tcp",
-                            "Purpose": "local"
+                            "Purpose": "export"
                         },
                         {
                             "Application": "rabbitmq",
                             "PortNumber": 5672,
                             "Protocol": "tcp",
-                            "Purpose": "local"
+                            "Purpose": "export"
                         }
                     ],
                     "ImageId": "zenoss/rabbitmq",
@@ -51,16 +58,34 @@
                     "Command": "/etc/init.d/zenoss start",
                     "Endpoints": [
                         {
-                            "Application": "rabbitmq",
+                            "Application": "rabbitmq_admin",
                             "PortNumber": 15672,
                             "Protocol": "tcp",
-                            "Purpose": "remote"
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "mysql",
+                            "PortNumber": 3306,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "memcached",
+                            "PortNumber": 11211,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "redis",
+                            "PortNumber": 6379,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
                         },
                         {
                             "Application": "rabbitmq",
                             "PortNumber": 5672,
                             "Protocol": "tcp",
-                            "Purpose": "remote"
+                            "Purpose": "import"
                         }
                     ],
                     "ImageId": "zenoss/zenoss5x",
@@ -73,7 +98,14 @@
                 },
                 {
                     "Command": "/usr/sbin/memcached",
-                    "Endpoints": [],
+                    "Endpoints": [
+                        {
+                            "Application": "memcached",
+                            "PortNumber": 11211,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
                     "ImageId": "zenoss/memcached",
                     "Instances": {
                         "min": 1
@@ -84,7 +116,14 @@
                 },
                 {
                     "Command": "/usr/sbin/redis-server",
-                    "Endpoints": [],
+                    "Endpoints": [
+                        {
+                            "Application": "redis",
+                            "PortNumber": 6379,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
                     "ImageId": "zenoss/redis",
                     "Instances": {
                         "min": 1
