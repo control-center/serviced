@@ -8,3 +8,7 @@ RUN yum clean all
 RUN yum -y localinstall zenoss_*.rpm
 
 ADD zenoss_init_pre /opt/zenoss/bin/zenoss_init_pre
+ADD global.conf /opt/zenoss/etc/global.conf
+ADD install-functions.sh /opt/zenoss/bin/install-functions.sh
+RUN chown zenoss:zenoss /opt/zenoss/bin/{zenoss_init_pre,install-functions.sh} /opt/zenoss/etc/global.conf
+
