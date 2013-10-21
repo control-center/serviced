@@ -355,6 +355,10 @@ type poolWithHost struct {
 // Print a list of pools. Args are ignored.
 func (cli *ServicedCli) CmdPools(args ...string) error {
 	cmd := Subcmd("pools", "[OPTIONS]", "Display pools")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each pool")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -365,24 +369,38 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
 	}
-	poolsWithHost := make(map[string]poolWithHost)
-	for _, pool := range pools {
 
-		// get pool hosts
-		var poolHosts []*serviced.PoolHost
-		err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
-		if err != nil {
-			glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
+	if verbose == false {
+		fmt.Printf("%12s %12s %6s %6s %6s %30s %30s\n", "ID", "PARENT", "CORE", "MEM", "PRI", "CREATED", "UPDATED")
+		for _, pool := range pools {
+			fmt.Printf("%12s %12s %6d %6d %6d %30s %30s\n",
+				pool.Id,
+				pool.ParentId,
+				pool.CoreLimit,
+				pool.MemoryLimit,
+				pool.Priority,
+				pool.CreatedAt,
+				pool.UpdatedAt)
 		}
-		hosts := make([]string, len(poolHosts))
-		for i, hostPool := range poolHosts {
-			hosts[i] = hostPool.HostId
+	} else {
+		poolsWithHost := make(map[string]poolWithHost)
+		for _, pool := range pools {
+			// get pool hosts
+			var poolHosts []*serviced.PoolHost
+			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
+			if err != nil {
+				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
+			}
+			hosts := make([]string, len(poolHosts))
+			for i, hostPool := range poolHosts {
+				hosts[i] = hostPool.HostId
+			}
+			poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
 		}
-		poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
-	}
-	poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
-	if err == nil {
-		fmt.Printf("%s\n", poolsWithHostJson)
+		poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
+		if err == nil {
+			fmt.Printf("%s\n", poolsWithHostJson)
+		}
 	}
 	return err
 }
