@@ -21,41 +21,26 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
-            when('/services', {
-                templateUrl: '/static/partials/services.html',
-                controller: ConfigurationControl}).
             when('/services/:serviceId', {
-                templateUrl: '/static/partials/service-details.html',
-                controller: ServiceControl}).
-            when('/resources', {
-                templateUrl: '/static/partials/resources.html',
-                controller: ResourcesControl}).
-            when('/pools/:poolId', {
-                templateUrl: '/static/partials/pool-details.html',
-                controller: PoolControl}).
-            when('/pools/:poolId/hosts/:hostId', {
-                templateUrl: '/static/partials/host-details.html',
-                controller: HostControl}).
-            when('/wizard/start', {
-                templateUrl: '/static/partials/wizard_splash.html', 
-                controller: WizardControl}).
-            when('/wizard/page1', {
-                templateUrl: '/static/partials/wizard1.html', 
-                controller: WizardControl}).
-            when('/wizard/page2', {
-                templateUrl: '/static/partials/wizard2.html', 
-                controller: WizardControl}).
-            when('/wizard/finish', {
-                templateUrl: '/static/partials/wizard_finish.html', 
-                controller: WizardControl}).
-            when('/hosts', {redirectTo: '/hosts/1'}).
-            when('/hosts/:page', {
+                templateUrl: '/static/partials/view-subservices.html',
+                controller: SubServiceControl}).
+            when('/apps', {
+                templateUrl: '/static/partials/view-apps.html',
+                controller: DeployedAppsControl
+            }).
+            when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: NewHostsControl}).
+                controller: HostsControl}).
+            when('/hostsmap', {
+                templateUrl: '/static/partials/view-host-map.html',
+                controller: HostsMapControl}).
+            when('/hosts/:hostId', {
+                templateUrl: '/static/partials/view-host-details.html',
+                controller: HostDetailsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
-    factory('wizardService', WizardService).
     factory('servicesService', ServicesService).
     factory('authService', AuthService).
     filter('treeFilter', function() {
@@ -88,46 +73,59 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             return items.splice(start, pageSize);
         };
     }).
-    directive('zDef', function ($compile) {
-        // This directive builds a definition list for the object named by 
-        // 'to-define' using the fields enumerated in 'define-headers'
+    directive('scroll', function($rootScope, $window, $timeout) {
         return {
-            // This directive appears as an attribute
-            restrict: 'A', 
-            compile: function(tElem, tAttr) {
-                return function($scope, $elem, $attrs) {
-                    // called whenever the object named in 'define-headers' changes
-                    $scope.$watch($attrs.defineHeaders, function(newVal, oldVal) {
-                        var defineHeaders = newVal;
-                        if (defineHeaders) {
-                            var sb = '';
-                            for(var i=0; i < defineHeaders.length; i++) {
-                                sb += '<dt>' + defineHeaders[i].name +'</dt>';
-                                sb += '<dd>{{' + $attrs.toDefine + '.' + defineHeaders[i].id + '}}</dd>';
+            link: function(scope, elem, attr) {
+                $window = angular.element($window);
+                var handler = function() {
+                    var winEdge, elEdge, dataHidden, scroll;
+                    winEdge = $window.height() + $window.scrollTop();
+                    elEdge = elem.offset().top + elem.height();
+                    dataHidden = elEdge - winEdge;
+                    if (dataHidden < parseInt(attr.scrollSize, 10)) {
+                        if ($rootScope.$$phase) {
+                            if (scope.$eval(attr.scroll)) {
+                                $timeout(handler, 100);
                             }
-                            tElem.html(sb);
-                            $compile(tElem.contents())($scope);
+                        } else {
+                            if (scope.$apply(attr.scroll)) {
+                                $timeout(handler, 100);
+                            }
                         }
-                    });
+                    }
                 };
+                if (attr.scrollHandlerObj && attr.scrollHandlerField) {
+                    var obj = scope[attr.scrollHandlerObj];
+                    obj[attr.scrollHandlerField] = handler;
+                }
+                $window.on('scroll', handler);
+                $window.on('resize', handler);
+                scope.$on('$destroy', function() {
+                    $window.off('scroll', handler);
+                    $window.off('resize', handler);
+                    return true;
+                });
+                return $timeout((function() {
+                    return handler();
+                }), 100);
             }
         };
     });
 
 /* begin constants */
-var POOL_ICON_CLOSED = 'glyphicon glyphicon-folder-close btn-link';
-var POOL_ICON_OPEN = 'glyphicon glyphicon-folder-open btn-link';
+var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
+var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
 var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
 
 function EntryControl($scope, authService) {
-    console.log('Loading entry');
     authService.checkLogin($scope);
+    $scope.brand_label = "Zenoss Control Plane";
+    $scope.page_content = "You can install Resource Manager, Analytics, and Impact here."; 
     $scope.mainlinks = [
-        { url: '#/wizard/start', label: 'Install' },
-        { url: '#/services', label: 'Configure services' },
-        { url: '#/resources', label: 'Manage resources' }
+        { url: '#/apps', label: 'Applications' },
+        { url: '#/hosts', label: 'Hosts' }
     ];
 }
 
@@ -144,13 +142,14 @@ function LoginControl($scope, $http, $location, authService) {
             }, 3000);
         });
     };
+
     // Makes XHR POST with contents of login form
     $scope.login = function() {
         var creds = { "Username": $scope.username, "Password": $scope.password };
         $http.post('/login', creds).
             success(function(data, status) {
                 // Ensure that the auth service knows that we are logged in
-                authService.login(true);
+                authService.login(true, $scope.username);
                 // Redirect to main page
                 $location.path('/entry');
             }).
@@ -166,275 +165,327 @@ function LoginControl($scope, $http, $location, authService) {
     };
 }
 
-function WizardControl($scope, $location, wizardService, resourcesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    console.log('Initialized control for %s', $location.path());
-    $scope.params = {}; // No path params for wizard pages
-    $scope.pools = {}; // We start with no pools
-    $scope.context = wizardService.get_context();
-    $scope.nextClicked = false;
-
-    // Ensure our scope has a list of pools
-    refreshPools($scope, resourcesService, true);
-    
-    // The next function checks form validity then gets location from wizardService
-    $scope.next = function(wizardForm) {
-        $scope.nextClicked = true;
-        if (wizardForm == null || wizardForm.$valid) {
-            console.log('Next called from %s', $location.path());
-            var nextPath = wizardService.next_page($location.path());
-            $location.path(nextPath);
-        } else {
-            console.log('Validation failed');
-        }
-    };
-    // All wizard pages have some kind of cancel function. Delegate location.
-    $scope.cancel = function() {
-        console.log('Cancel called from %s', $location.path());
-        var nextPath = wizardService.cancel_page($location.path());
-        $location.path(nextPath);
+function DeployWizard($scope, resourcesService, servicesService) {
+    var validTemplateSelected = function() {
+        return $scope.selectedTemplates().length > 0;
     };
 
-    // This call ensures that the previous page was processed.
-    wizardService.fix_location($location);
-}
-
-
-// Controller for configuration
-function ConfigurationControl($scope, $routeParams, $location, servicesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    $scope.name = "configuration";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Configuration', itemClass: 'active' }
+    $scope.steps = [
+/*        { content: '/static/partials/wizard-modal-1.html', label: 'Select Hosts' }, */
+        {
+            content: '/static/partials/wizard-modal-2.html',
+            label: 'Select Applications',
+            validate: validTemplateSelected
+        },
+        { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
+        { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
     ];
 
-    // Build metadata necessary to display a table of services
-    $scope.services = buildTable('Name', [
-        { id: 'Name', name: 'Name'},
-        { id: 'Description', name: 'Description'},
-        { id: 'PoolId', name: 'Pool Id'},
-        { id: 'Instances', name: 'Instances'}
-    ]);
+    $scope.install = { 
+        selected: {
+            pool: 'default'
+        },
+        templateClass: function(template) {
+            var cls = "block-data control-group";
+            if (template.depends) {
+                cls += " indented";
+            }
+            return cls;
+        },
+        templateSelected: function(template) {
+            if (template.depends) {
+                $scope.install.selected[template.depends] = true;
+            }
+        },
+        templateDisabled: function(template) {
+            if (template.disabledBy) {
+                return $scope.install.selected[template.disabledBy];
+            }
+            return false;
+        },
+        templateSelectedFormDiv: function() {
+            return (!nextClicked || validTemplateSelected())?
+                '':'has-error';
+        }
+    };
+    var nextClicked = false;
 
-    // Create a function for when the user clicks on a service
-    $scope.click_service = function(serviceId) {
-        var redirect = '/services/' + serviceId;
-        $location.path(redirect);
+    servicesService.get_app_templates(false, function(templatesMap) {
+        var templates = [];
+        for (key in templatesMap) {
+            var template = templatesMap[key];
+            template.Id = key;
+            templates[templates.length] = template;
+        }
+        $scope.install.templateData = templates;
+    });
+
+    $scope.selectedTemplates = function() {
+        var templates = [];
+        for (var i=0; i < $scope.install.templateData.length; i++) {
+            var template = $scope.install.templateData[i];
+            if ($scope.install.selected[template.Id]) {
+                templates[templates.length] = template;
+            }
+        }
+        return templates;
     };
 
-    // Get the actual data about the services available
+    var step = 0;
+    var resetStepPage = function() {
+        step = 0;
+        $scope.step_page = $scope.steps[step].content;
+    };
+
+    $scope.addHostStart = function() {
+        $scope.newHost = {};
+        $scope.step_page = '/static/partials/wizard-modal-addhost.html';
+    };
+
+    $scope.addHostCancel = function() {
+        $scope.step_page = $scope.steps[step].content;
+    }
+
+    $scope.addHostFinish = function() {
+        $scope.newHost.Name = $scope.newHost.IpAddr;
+        $scope.newHost.Id = 'fakefakefake';
+        $scope.newHost.selected = true;
+        $scope.detected_hosts.push($scope.newHost);
+        $scope.step_page = $scope.steps[step].content;
+    };
+
+    $scope.hasPrevious = function() {
+        return step > 0 && 
+            ($scope.step_page === $scope.steps[step].content);
+    };
+
+    $scope.hasNext = function() {
+        return (step + 1) < $scope.steps.length && 
+            ($scope.step_page === $scope.steps[step].content);
+    };
+
+    $scope.hasFinish = function() {
+        return (step + 1) === $scope.steps.length;
+    };
+
+    $scope.step_item = function(index) {
+        var cls = index <= step ? 'active' : 'inactive';
+        if (index === step) { 
+            cls += ' current';
+        }
+        return cls;
+    };
+
+    $scope.step_label = function(index) {
+        return index < step ? 'done' : '';
+    };
+
+    $scope.wizard_next = function() {
+        nextClicked = true;
+        if ($scope.step_page !== $scope.steps[step].content) {
+            $scope.step_page = $scope.steps[step].content;
+            return;
+        }
+        if ($scope.steps[step].validate) {
+            if (!$scope.steps[step].validate()) {
+                return;
+            }
+        }
+        step += 1;
+        $scope.step_page = $scope.steps[step].content;
+        nextClicked = false;
+    };
+
+    $scope.wizard_previous = function() {
+        step -= 1;
+        $scope.step_page = $scope.steps[step].content;
+    };
+    
+    $scope.wizard_finish = function() {
+        var selected = $scope.selectedTemplates();
+        var f = true;
+        var dName = "";
+        for (var i=0; i < selected.length; i++) {
+            if (f) {
+                f = false;
+            } else {
+                dName += ", ";
+                if (i + 1 === selected.length) {
+                    dName += "and ";
+                }
+            }
+            dName += selected[i].Name;
+
+            servicesService.deploy_app_template({ 
+                PoolId: $scope.install.selected.pool,
+                TemplateId: selected[i].Id
+            }, function(result) {
+                refreshServices($scope, servicesService, false);
+            });
+        }
+
+        $scope.services.deployed = {
+            name: dName,
+            multi: (selected.length > 1),
+            class: "deployed alert alert-success",
+            show: true,
+            url: "http://localhost:8080/",
+            deployment: "ready"
+        };
+        $('#addApp').modal('hide');
+        resetStepPage();
+    };
+
+    $scope.detected_hosts = [
+        { Name: 'Hostname A', IpAddr: '192.168.34.1', Id: 'A071BF1' },
+        { Name: 'Hostname B', IpAddr: '192.168.34.25', Id: 'B770DAD' },
+        { Name: 'Hostname C', IpAddr: '192.168.33.99', Id: 'CCD090B' },
+        { Name: 'Hostname D', IpAddr: '192.168.33.129', Id: 'DCDD3F0' },
+    ];
+    $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
+
+    resetStepPage();
+
+    // Get a list of pools (cached is OK)
+    refreshPools($scope, resourcesService, true);
+}
+
+function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+    $scope.name = "resources";
+    $scope.params = $routeParams;
+    $scope.servicesService = servicesService;
+
+    $scope.breadcrumbs = [
+        { label: 'Deployed Apps', itemClass: 'active' }
+    ];
+
+
+    $scope.services = buildTable('Deployment', [
+        { id: 'Name', name: 'Application'}, 
+        { id: 'Deployment', name: 'Deployment Status'},
+        { id: 'PoolId', name: 'Resource Pool'},
+        { id: 'DesiredState', name: 'Status' }
+    ]);
+
+    $scope.click_app = function(id) {
+        $location.path('/services/' + id);
+    };
+
+    $scope.clickRunning = toggleRunning;
+
+    // Get a list of deployed apps
     refreshServices($scope, servicesService, false);
 }
 
-// Controller for configuration
-function ServiceControl($scope, $routeParams, servicesService, authService) {
-    // Ensure that if the user is not logged in, we show the /login page
-    authService.checkLogin($scope);
-
-    $scope.name = "configuration";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Configuration', url: '#/services', itemClass: '' },
-        { label: $scope.params.serviceId, itemClass: 'active' }
-    ];
-
-    // Create metadata necessary to display service details
-    $scope.services = {
-        headers: [
-            { name: 'Id', id: 'Id' },
-            { name: 'Name', id: 'Name' },
-            { name: 'Description', id: 'Description' },
-            { name: 'Pool Id', id: 'PoolId' },
-            { name: 'Startup Command', id: 'Startup' },
-            { name: 'Instances', id: 'Instances' },
-            { name: 'Desired State', id: 'DesiredState' }
-        ]
-    };
-
-    // Ensure that we have service data populated
-    refreshServices($scope, servicesService, true);
+function fakeConfig() {
+    console.log('TODO: Replace this function');
+    return '#\n' +
+           '# Ethernet frame types\n' +
+           '#               This file describes some of the various Ethernet\n' +
+           '#               protocol types that are used on Ethernet networks.\n' +
+           '#\n' +
+           '# This list could be found on:\n' +
+           '#         http://www.iana.org/assignments/ethernet-numbers\n' +
+           '#\n' +
+           '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
+           '#\n' +
+           'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
+           'X25             0805\n' +
+           'ARP             0806    ether-arp       #\n' +
+           'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
+           'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
+           'DEC             6000                    # DEC Assigned proto\n' +
+           'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
+           'DNA_RC          6002                    # DEC DNA Remote Console\n' +
+           'DNA_RT          6003                    # DEC DNA Routing\n' +
+           'LAT             6004                    # DEC LAT\N' +
+           'DIAG            6005                    # DEC Diagnostics\n' +
+           'CUST            6006                    # DEC Customer use\n' +
+           'SCA             6007                    # DEC Systems Comms Arch\n' +
+           'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
+           'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
+           'AARP            80F3                    # Appletalk AARP\n' +
+           'ATALK           809B                    # Appletalk\n' +
+           '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
+           'IPX             8137                    # Novell IPX\n' +
+           'NetBEUI         8191                    # NetBEUI\n' +
+           'IPv6            86DD    ip6             # IP version 6\n' +
+           'PPP             880B                    # PPP\N' +
+           'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
+           'PPP_DISC        8863                    # PPPoE discovery messages\n' +
+           'PPP_SES         8864                    # PPPoE session messages\n' +
+           'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
+           'LOOP            9000    loopback        # loop proto\n';
 }
 
-// Common controller for resource action buttons
-function ActionControl($scope, $routeParams, $location, resourcesService, servicesService) {
-    $scope.name = 'actions';
-    $scope.params = $routeParams;
-
-    // New hosts should belong to the current pool by default
-    $scope.newHost = {
-        PoolId: $scope.params.poolId
-    };
-
-    // New pools should belong to the current pool by default
-    $scope.newPool = {
-        ParentId: $scope.params.poolId
-    };
-
-    // Just create a stub for new services
-    $scope.newService = {};
-
-    // Function for adding new hosts
-    $scope.add_host = function() {
-        console.log('Adding host %s as child of pool %s', 
-                    $scope.newHost.Name, $scope.newHost.PoolId);
-
-        resourcesService.add_host($scope.newHost, function(data) {
-            // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false);
-        });
-        // Reset for another add
-        $scope.newHost = {
-            PoolId: $scope.params.poolId
-        };
-    };
-
-    // Function for adding new pools
-    $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
-        resourcesService.add_pool($scope.newPool, function(data) {
-            // After adding, refresh our list
-            refreshPools($scope, resourcesService, false);
-        });
-        // Reset for another add
-        $scope.newPool = {
-            ParentId: $scope.params.poolId
-        };
-    };
-
-    // Function for removing the current pool
-    $scope.remove_pool = function() {
-        console.log('Removing pool %s', $scope.params.poolId);
-        resourcesService.remove_pool($scope.params.poolId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removePool').on('hidden.bs.modal', function() {
-                var redirect = '/resources';
-                console.log('Redirecting to %s', redirect);
-                $location.path(redirect);
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-
-        });
-    };
-
-    // Function for removing the current host
-    $scope.remove_host = function() {
-        console.log('Removing host %s', $scope.params.hostId);
-        resourcesService.remove_host($scope.params.hostId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removeHost').on('hidden.bs.modal', function() {
-                var redirect = '/pools/' + $scope.params.poolId;
-                console.log('Redirecting to %s', redirect);
-                $location.path(redirect);
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-        });
-    };
-
-    // Function for editing the current pool
-    $scope.edit_pool = function() {
-        console.log('Updating pool %s', $scope.params.poolId);
-        resourcesService.update_pool($scope.params.poolId, $scope.editPool, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-
-    // Function for editing the current host
-    $scope.edit_host = function() {
-        console.log('Updating host %s', $scope.params.hostId);
-        resourcesService.update_host($scope.params.hostId, $scope.editHost, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshHosts($scope, resourcesService, false, false);
-        });
-    };
-
-    // Function for adding a new host
-    $scope.add_service = function() {
-        console.log('Adding service %s', $scope.newService.Name);
-        servicesService.add_service($scope.newService, function(data) {
-            // After the add succeeds, refresh the list
-            refreshServices($scope, servicesService, false);
-        });
-        // Reset for another add
-        $scope.newService = {};
-    };
-
-    // Function for editing the current service
-    $scope.edit_service = function() {
-        console.log('Editing service %s', $scope.services.current.Name);
-        servicesService.update_service($scope.params.serviceId, $scope.editService, function(data) {
-            // After the edit succeeds, refresh the list
-            refreshServices($scope, servicesService, false);
-        });
-    };
-
-    // Function for removing the current service
-    $scope.remove_service = function() {
-        console.log('Removing service %s', $scope.params.serviceId);
-        servicesService.remove_service($scope.params.serviceId, function(data) {
-
-            // The UI can be weird if we don't wait for the modal to hide
-            // before we change the path
-            $('#removeService').on('hidden.bs.modal', function() {
-                console.log('redirecting to /services');
-                $location.path('/services');
-
-                // Because this is happening in a weird place, the $scope 
-                // seems to need a hint
-                $scope.$apply();
-            });
-        });
-
-    }
-}
-
-// Controller for resources
-function ResourcesControl($scope, $routeParams, $location, resourcesService, authService) {
+function SubServiceControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
-
     $scope.name = "resources";
     $scope.params = $routeParams;
+    $scope.servicesService = servicesService;
+
     $scope.breadcrumbs = [
-        { label: 'Resources', itemClass: 'active' }
+        { label: 'Deployed Apps', url: '#/apps' }
     ];
-    // Build metadata for displaying a list of pools
-    $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'Id'}, 
-        { id: 'ParentId', name: 'Parent Id'},
-        { id: 'Priority', name: 'Priority'}
+
+    $scope.services = buildTable('Name', [
+        { id: 'Name', name: 'Application'}, 
+        { id: 'DesiredState', name: 'Status' },
+        { id: 'Details', name: 'Details' }
     ]);
 
-    // Create function for selecting a pool
-    $scope.click_pool = function(poolId) {
-        var redirect = '/pools/' + poolId;
-        $location.path(redirect);
-    }
-    $scope.hosts = {};
+    $scope.click_app = function(id) {
+        $location.path('/services/' + id);
+    };
 
-    // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
-    // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false);
+    $scope.indent = indentClass;
+    $scope.clickRunning = toggleRunning;
+
+    $scope.viewConfig = function(service) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.config = fakeConfig(); // FIXME
+        $('#editConfig').modal('show');
+    };
+
+    $scope.viewLog = function(service) {
+        $scope.editService = $.extend({}, service);
+        servicesService.get_service_logs(service.Id, function(log) {
+            $scope.editService.log = log.Detail;
+            $('#viewLog').modal('show');
+        });
+    };
+
+    $scope.updateService = function() {
+        servicesService.update_service($scope.services.current.Id, $scope.services.current, function() {
+            console.log('Updated %s', $scope.services.current.Id);
+        });
+    }
+
+    // Get a list of deployed apps
+    refreshServices($scope, servicesService, true, function() {
+        if ($scope.services.current) {
+            var lineage = getServiceLineage($scope.services.mapped, $scope.services.current);
+            for (var i=0; i < lineage.length; i++) {
+                var crumb = {
+                    label: lineage[i].Name
+                };
+                if (i == lineage.length - 1) {
+                    crumb.itemClass = 'active';
+                } else {
+                    crumb.url = '#/services/' + lineage[i].Id;
+                }
+                $scope.breadcrumbs.push(crumb);
+            }
+        }
+    });
 }
 
-
-function NewHostsControl($scope, $routeParams, $location, $filter, resourcesService, authService) {
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
+                      resourcesService, authService) 
+{
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -445,16 +496,35 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
         if (toggled.children === undefined) {
             return;
         }
-        if (toggled.collapsed) {
-            toggled.icon = POOL_ICON_CLOSED;
-            toggled.childrenClass = POOL_CHILDREN_CLOSED;
-        } else {
-            toggled.icon = POOL_ICON_OPEN;
-            toggled.childrenClass = POOL_CHILDREN_OPEN;
+        toggled.icon = toggled.collapsed? POOL_ICON_CLOSED : POOL_ICON_OPEN;
+        for (var i=0; i < toggled.children.length; i++) {
+            toggleCollapse(toggled.children[i], toggled.collapsed);
         }
     };
+    $scope.itemClass = itemClass;
+    $scope.indent = indentClass;
+    $scope.newPool = {};
+    $scope.newHost = {};
+
+    $scope.add_host = function() {
+        resourcesService.add_host($scope.newHost, function(data) {
+            // After adding, refresh our list
+            refreshHosts($scope, resourcesService, false, false, hostCallback);
+        });
+        // Reset for another add
+        $scope.newHost = {
+            PoolId: $scope.params.poolId
+        };
+    };
+
     $scope.addSubpool = function(poolId) {
-        console.log('Adding subpool of %s', poolId);
+        $scope.newPool.ParentId = poolId;
+        $('#addPool').modal('show');
+    };
+    $scope.delSubpool = function(poolId) {
+        resourcesService.remove_pool(poolId, function() {
+            refreshPools($scope, resourcesService, false);
+        });
     };
 
     // Build metadata for displaying a list of pools
@@ -464,74 +534,363 @@ function NewHostsControl($scope, $routeParams, $location, $filter, resourcesServ
         { id: 'Priority', name: 'Priority'}
     ])
 
-    $scope.click_host = function(pool, host) {
-        var redirect = '/pools/' + pool + "/hosts/" + host;
-        console.log('Clicked %s', redirect);
-        //$location.path(redirect);
+    var clearLastStyle = function() {
+        var lastPool = $scope.pools.mapped[$scope.selectedPool];
+        if (lastPool) {
+            lastPool.current = false;
+        }
     };
 
     $scope.clearSelectedPool = function() {
+        clearLastStyle();
         $scope.selectedPool = null;
         $scope.subPools = null;
+        hostCallback();
+    };
+
+    $scope.clickHost = function(hostId) {
+        $location.path('/hosts/' + hostId);
     };
 
     $scope.clickPool = function(poolId) {
         var topPool = $scope.pools.mapped[poolId];
-        if (!topPool) {
+        if (!topPool || $scope.selectedPool === poolId) {
             $scope.clearSelectedPool();
             return;
         }
+        clearLastStyle();
+        topPool.current = true;
+
         var allowed = {};
         addChildren(allowed, topPool);
-        console.log('Filtering to: %s', JSON.stringify(allowed));
         $scope.subPools = allowed;
         $scope.selectedPool = poolId;
-        
+        hostCallback();
     };
 
     $scope.dropped = [];
-    $scope.filteredHosts = function() {
+
+    $scope.filterHosts = function() {
+        if (!$scope.hosts.filtered) {
+            $scope.hosts.filtered = [];
+        }
+        // Run ordering filter, built in
         var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
+        // Run search filter, built in
         var filtered = $filter('filter')(ordered, $scope.hosts.search);
+        // Run filter for pool and child pools, custom
         var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
-        return $filter('page')(treeFiltered, $scope.hosts);
+
+        // As a side effect, save number of hosts before paging
+        if (treeFiltered) {
+            $scope.hosts.filteredCount = treeFiltered.length;
+        } else {
+            $scope.hosts.filteredCount = 0;
+        }
+        var page = $scope.hosts.page? $scope.hosts.page : 1;
+        var pageSize = $scope.hosts.pageSize? $scope.hosts.pageSize : 5;
+        var itemsToTake = page * pageSize;
+        $scope.hosts.filteredCountLimit = itemsToTake;
+        if (treeFiltered) {
+            $scope.hosts.filtered = treeFiltered.splice(0, itemsToTake);
+        }
+        return $scope.hosts.filtered;
+    };
+
+    $scope.loadMore = function() {
+        if ($scope.hosts.filteredCount && $scope.hosts.filteredCountLimit &&
+           $scope.hosts.filteredCountLimit < $scope.hosts.filteredCount) {
+            $scope.hosts.page += 1;
+            $scope.filterHosts();
+            return true;
+        }
+
+        return false;
     };
 
     $scope.dropIt = function(event, ui) {
-        var poolId = $(event.target).attr('pool-id');
+        var poolId = $(event.target).attr('data-pool-id');
         var pool = $scope.pools.mapped[poolId];
-//        console.log(JSON.stringify($scope.dropped));
         var host = $scope.dropped[0];
 
-        console.log('Reassigning %s to %s', host.Name, pool.Id);
+        if (poolId === host.PoolId) {
+            // Nothing changed. Don't bother showing the dialog.
+            return;
+        }
 
-        var modifiedHost = $.extend({}, host);
-        modifiedHost.PoolId = pool.Id;
-        resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, false);
-        });
-
+        $scope.move = {
+            host: host,
+            newpool: poolId
+        };
         $scope.dropped = [];
+        $('#confirmMove').modal('show');
+    };
+
+    $scope.confirmMove = function() {
+        console.log('Reassigning %s to %s', $scope.move.host.Name, $scope.move.newpool);
+        var modifiedHost = $.extend({}, $scope.move.host);
+        modifiedHost.PoolId = $scope.move.newpool;
+        resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
+            refreshHosts($scope, resourcesService, false, false, hostCallback);
+        });
+    };
+
+    // Function for adding new pools
+    $scope.add_pool = function() {
+        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
+        resourcesService.add_pool($scope.newPool, function(data) {
+            // After adding, refresh our list
+            refreshPools($scope, resourcesService, false);
+        });
+        // Reset for another add
+        $scope.newPool = {};
+    };
+
+    // Function for removing the current pool
+    $scope.remove_pool = function() {
+        console.log('Removing pool %s', $scope.params.poolId);
+        resourcesService.remove_pool($scope.params.poolId, function(data) {
+            refreshPools($scope, resourcesService, false);
+        });
     };
 
     // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('PoolId', [
+    $scope.hosts = buildTable('Name', [
         { id: 'Name', name: 'Name'},
-        { id: 'PoolId', name: 'Assigned Resource Pool'},
+        { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
-    $scope.hosts.page = ($routeParams.page - 1);
 
-    $scope.previousPage = function() {
-        $scope.hosts.page = Math.max(0, ($scope.hosts.page - 1));
+    $scope.clickMenu = function(index) {
+        $('#pool_menu_' + index).addClass('tempvis');
+        setTimeout(function() {
+            $('#pool_menu_' + index).removeClass('tempvis');
+        }, 600);
     };
-    $scope.nextPage = function() {
-        $scope.hosts.page = Math.min(($scope.hosts.pages - 1), ($scope.hosts.page + 1));
+
+    var hostCallback = function() {
+        $scope.hosts.page = 1;
+        $scope.hosts.pageSize = 10;
+        $scope.filterHosts();
+        $timeout($scope.hosts.scroll, 100);
     };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false);
+    refreshHosts($scope, resourcesService, false, false, hostCallback);
+}
+
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, servicesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostdetails";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'Hosts', url: '#/hosts' }
+    ];
+
+    // Also ensure we have a list of hosts
+    refreshHosts($scope, resourcesService, true, true);
+
+    $scope.running = buildTable('Name', [
+        { id: 'Name', name: 'Sub Applications' },
+        { id: 'StartedAt', name: 'Start Time' },
+        { id: 'View', name: 'View' }
+    ]);
+
+    $scope.viewConfig = function(running) {
+        $scope.editService = $.extend({}, running);
+        $scope.editService.config = fakeConfig(); // FIXME
+        $('#editConfig').modal('show');
+    };
+
+    $scope.viewLog = function(running) {
+        $scope.editService = $.extend({}, running);
+        servicesService.get_service_state_logs(running.Id, function(log) {
+            $scope.editService.log = log.Detail;
+            $('#viewLog').modal('show');
+        });
+    };
+
+    $scope.killRunning = killRunning;
+    $scope.unkillRunning = unkillRunning;
+    refreshRunning($scope, resourcesService, $scope.params.hostId);
+    refreshHosts($scope, resourcesService, true, true, function() {
+        if ($scope.hosts.current) {
+            $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
+        }
+    })
+}
+
+function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostsmap";
+    $scope.params = $routeParams;
+    $scope.itemClass = itemClass;
+    $scope.indent = indentClass;
+
+    $scope.addSubpool = function(poolId) {
+        $scope.newPool.ParentId = poolId;
+        $('#addPool').modal('show');
+    };
+    $scope.delSubpool = function(poolId) {
+        resourcesService.remove_pool(poolId, function() {
+            refreshPools($scope, resourcesService, false);
+        });
+    };
+    $scope.newPool = {};
+    $scope.newHost = {};
+
+    var clearLastStyle = function() {
+        var lastPool = $scope.pools.mapped[$scope.selectedPool];
+        if (lastPool) {
+            lastPool.current = false;
+        }
+    };
+
+    $scope.clearSelectedPool = function() {
+        clearLastStyle();
+        $scope.selectedPool = null;
+        var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+        $scope.hosts.filteredCount = $scope.hosts.all.length;
+        selectNewRoot(root);
+    };
+
+    var countFromPool = function(e) {
+        if (e.isHost) return 1;
+        if (e.children === undefined) return 0;
+
+        var count = 0;
+        for (var i=0; i < e.children.length; i++) {
+            count += countFromPool(e.children[i]);
+        }
+        return count;
+    };
+
+    $scope.clickPool = function(poolId) {
+        var topPool = $scope.pools.mapped[poolId];
+        if (!topPool || $scope.selectedPool === poolId) {
+            $scope.clearSelectedPool();
+            return;
+        }
+        clearLastStyle();
+        topPool.current = true;
+
+        $scope.selectedPool = poolId;
+        $scope.hosts.filteredCount = countFromPool(topPool);
+        selectNewRoot(topPool);
+    };
+    var width = 857;
+    var height = 567;
+
+    var cpuCores = function(h) { 
+        return h.Cores;
+    };
+    var memoryCapacity = function(h) {
+        return h.Memory;
+    };
+    var poolBgColor = function(p) {
+        return p.isHost? null : color(p.Id);
+    };
+    var hostText = function(h) {
+        return h.isHost? h.Name : null;
+    }
+
+    var color = d3.scale.category20c();
+    var treemap = d3.layout.treemap()
+        .size([width, height])
+        .value(memoryCapacity);
+
+    var position = function() {
+        this.style("left", function(d) { return d.x + "px"; })
+            .style("top", function(d) { return d.y + "px"; })
+            .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+            .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+    };
+
+    $scope.selectionButtonClass = function(id) {
+        var cls = 'btn btn-link nav-link';
+        if ($scope.treemapSelection === id) {
+            cls += ' active';
+        }
+        return cls;
+    };
+
+    $scope.selectByMemory = function() {
+        $scope.treemapSelection = 'memory';
+        selectNewValue(memoryCapacity);
+    };
+    $scope.selectByCores = function() {
+        $scope.treemapSelection = 'cpu';
+        selectNewValue(cpuCores);
+    };
+
+    var selectNewValue = function(valFunc) {
+        var node = d3.select("#hostmap").
+            selectAll(".node").
+            data(treemap.value(valFunc).nodes)
+        node.enter().
+            append("div").
+            attr("class", "node");
+        node.transition().duration(1000).
+            call(position).
+            style("background", poolBgColor).
+            text(hostText);
+        node.exit().remove();
+    };
+
+    var selectNewRoot = function(newroot) {
+        console.log('Selected %s', newroot.Id);
+        var node = d3.select("#hostmap").
+            datum(newroot).
+            selectAll(".node").
+            data(treemap.nodes)
+
+        node.enter().
+            append("div").
+            attr("class", "node");
+
+        node.transition().duration(1000).
+            call(position).
+            style("background", poolBgColor).
+            text(hostText);
+        node.exit().remove();
+    };
+
+    var hostsAddedToPools = false;
+    var addHostsToPools = function() {
+        if (!$scope.pools.mapped || !$scope.hosts.mapped) {
+            console.log('Need both pools and hosts');
+            return;
+        }
+        if (hostsAddedToPools) {
+            console.log('Already built');
+            return;
+        }
+
+        console.log('Preparing tree map');
+        $scope.hosts.filteredCount = $scope.hosts.all.length;
+        hostsAddedToPools = true;
+        for(var key in $scope.hosts.mapped) {
+            var host = $scope.hosts.mapped[key];
+            var pool = $scope.pools.mapped[host.PoolId];
+            if (pool.children === undefined) {
+                pool.children = [];
+            }
+            pool.children.push(host);
+            host.isHost = true;
+        }
+        var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+        selectNewRoot(root);
+    };
+    $scope.treemapSelection = 'memory';
+    // Also ensure we have a list of hosts
+    refreshPools($scope, resourcesService, false, addHostsToPools);
+    refreshHosts($scope, resourcesService, false, false, addHostsToPools);
 }
 
 /*
@@ -546,96 +905,23 @@ function addChildren(allowed, parent) {
     }
 }
 
-
-// Controller for resources -> pool details
-function PoolControl($scope, $routeParams, $http, $location, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "pool-details";
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Resources', url: '#/resources' },
-        { label: $scope.params.poolId, itemClass: 'active' }
-    ];
-
-    // Build metadata for displaying pool details
-    $scope.pools = {
-        headers: [
-            { id: 'Id', name: 'Id'}, 
-            { id: 'ParentId', name: 'Parent Id'},
-            { id: 'CoreLimit', name: 'Core Limit'},
-            { id: 'MemoryLimit', name: 'Memory Limit'},
-            { id: 'Priority', name: 'Priority'}
-        ]
-    };
-    // Populate list of pools
-    refreshPools($scope, resourcesService, true);
-
-    // Create function for selecting a host
-    $scope.click_host = function(pool, host) {
-        var redirect = '/pools/' + pool + "/hosts/" + host;
-        console.log('Redirecting to %s', redirect);
-        $location.path(redirect);
-    };
-
-    // Build metadata for displaying a list of hosts
-    $scope.hosts = buildTable('Name', [
-        { id: 'Name', name: 'Name'},
-        { id: 'IpAddr', name: 'IP Address'},
-        { id: 'PrivateNetwork', name: 'Private Network'}
-    ]);
-
-    // Populate list of hosts
-    refreshHosts($scope, resourcesService, true, false);
-}
-
-// Controller for resources -> pool details -> host details
-function HostControl($scope, $routeParams, $http, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "host-details"
-    $scope.params = $routeParams;
-    $scope.breadcrumbs = [
-        { label: 'Resources', url: '#/resources' },
-        { label: $scope.params.poolId, url: '#/pools/' + $scope.params.poolId },
-        { label: $scope.params.hostId, itemClass: 'active' }
-    ];
-
-    $scope.pools = {};
-
-    // Build metadata for displaying host details
-    $scope.hosts = {
-        headers: [
-            { id: 'Id', name: 'Id'}, 
-            { id: 'Name', name: 'Name'},
-            { id: 'Cores', name: 'Cores'},
-            { id: 'Memory', name: 'Memory'},
-            { id: 'IpAddr', name: 'IP Address'},
-            { id: 'PrivateNetwork', name: 'Private Network'}
-        ]
-    };
-
-    // Populate list of pools
-    refreshPools($scope, resourcesService, true);
-
-    // Populate list of hosts
-    refreshHosts($scope, resourcesService, true, true);
-}
-
-
 // Controller for top nav
 function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
-    $scope.username = $cookies['ZUsername'];
+    $scope.username = $scope.username? $scope.username : $cookies['ZUsername'];
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
+    
     $scope.navlinks = [
-        { url: '#/services', label: 'Configuration' },
-        { url: '#/resources', label: 'Resources' }
+        { url: '#/apps', label: 'Deployed Apps' },
+        { url: '#/hosts', label: 'Hosts' }
     ];
+
+    for (var i=0; i < $scope.navlinks.length; i++) {
+        $scope.navlinks[i].itemClass = ($scope.navlinks[i].url === '#' + $location.path())? 
+            "active" : "";
+    }
 
     // Create a logout function
     $scope.logout = function() {
@@ -654,137 +940,32 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     };
 }
 
-/*******************************************************************************
- * Helper functions
- ******************************************************************************/
-
-function WizardService() {
-    // Wizard data is a context object that persists across controllers, but not
-    // across full page loads. This is fine for what we want since we are 
-    // controlling the view without full page loads.
-    var wizard_data;
-
-    // This is a lazy-loading accessor function that defines a default context
-    // if one does not yet exist.
-    var _get_wizard_data = function() {
-        if (wizard_data === undefined) {
-            wizard_data = {
-                // Temporary: local or distributed
-                installType: 'local',
-
-                // Default install type
-                localInstallType: 'Resource Manager',
-
-                // List of products to install
-                installOptions: [
-                    'Resource Manager',
-                    'Impact',
-                    'Analytics'
-                ],
-
-                // Default pool
-                destination: 'default',
-
-                // The 'flow' field defines the order of the pages
-                flow: [
-                    '/wizard/start', 
-                    '/wizard/page1', 
-                    '/wizard/page2', 
-                    '/wizard/finish'
-                ],
-
-                // Where to go when a user cancels the flow
-                cancel: '/',
-
-                // The 'done' field defines which pages have successfully been
-                // completed.
-                done: {}
-            };
-        }
-        return wizard_data;
-    };
-
-    /*
-     * The basic premise here is that we want to check to see if there is an 
-     * entry for the previous page of the flow in our wizard_data.done object.
-     * If yes then the current page is fine and we do nothing; otherwise repeat
-     * repeat until we find a page with an appropriate wizard_data.done entry.
-     */
-    var _fix_location = function($location) {
-        var d = _get_wizard_data();
-        var pageIndex = 0;
-        for (var i=0; i < d.flow.length; i++) {
-            if (d.flow[i] === $location.path()) {
-                // Found current element.
-                pageIndex = i;
-                break;
-            }
-        }
-        
-        // Assume we don't need to redirect
-        var needToRedirect = false;
-
-        // We only redirect if this page is in the flow and the requirements are
-        // not met.
-        while (pageIndex > 0 && d.done[d.flow[pageIndex -1]] !== true) {
-            // The requirements are not met for the current page. Set the 
-            // current page to the previous page and check again.
-            pageIndex -= 1;
-            // We definitely need to redirect.
-            needToRedirect = true;
-        }
-
-        if (needToRedirect) {
-            var redirect = d.flow[pageIndex];
-            console.log('Requirements not met so redirecting to: %s', redirect);
-            $location.path(redirect);
-        }
-    };
-
-    // This function is used to mark the current page as complete.
-    var _current_done = function(currentPath) {
-        var d = _get_wizard_data();
-        d.done[currentPath] = true;
-    };
-
-    // This function is used to return the destination when a user cancels
-    var _cancel_page = function(currentPath) {
-        var d = _get_wizard_data();
-        return d.cancel;
-    };
-
-    // Mark the current page as complete then return the path for the next page
-    var _next_page = function(currentPath) {
-        _current_done(currentPath);
-        var d = _get_wizard_data();
-        var pageIndex = 0;
-        for (var i=0; i < d.flow.length; i++) {
-            if (d.flow[i] === currentPath) {
-                // Found current element.
-                pageIndex = (i + 1);
-                break;
-            }
-        }
-        return d.flow[pageIndex];
-    };
-
-    // This function is a factory. Return an object.
-    return {
-        get_context: _get_wizard_data,
-        fix_location: _fix_location,
-        next_page: _next_page,
-        cancel_page: _cancel_page
-    };
-}
-
 function ServicesService($http, $location) {
-    var cached_services;
-    var _get_services = function(callback) {
+    var cached_app_templates;
+    var cached_services; // top level services only
+    var cached_services_map; // map of services by by Id, with children attached
+    var _get_services_tree = function(callback) {
         $http.get('/services').
             success(function(data, status) {
                 console.log('Retrieved list of services');
-                cached_services = data;
-                callback(data);
+                cached_services = [];
+                cached_services_map = {};
+                // Map by id
+                data.map(function(svc) {
+                    cached_services_map[svc.Id] = svc;
+                });
+                data.map(function(svc) {
+                    if (svc.ParentServiceId !== '') {
+                        var parent = cached_services_map[svc.ParentServiceId];
+                        if (!parent.children) {
+                            parent.children = [];
+                        }
+                        parent.children.push(svc);
+                    } else {
+                        cached_services.push(svc);
+                    }
+                });
+                callback(cached_services, cached_services_map);
             }).
             error(function(data, status) {
                 console.log('Unable to retrieve services');
@@ -795,13 +976,65 @@ function ServicesService($http, $location) {
             });
     };
 
+
+    var _get_app_templates = function(callback) {
+        $http.get('/templates').
+            success(function(data, status) {
+                console.log('Retrieved list of app templates');
+                cached_app_templates = data;
+                callback(data);
+            }).
+            error(function(data, status) {
+                console.log('Unable to retrieve app templates');
+                if (status === 401) {
+                    unauthorized($location);
+                }
+            });
+    };
+
     return {
         get_services: function(cacheOk, callback) {
-            if (cacheOk && cached_services) {
+            if (cacheOk && cached_services && cached_services_map) {
                 console.log('Using cached services');
-                callback(cached_services);
+                callback(cached_services, cached_services_map);
             } else {
-                _get_services(callback);
+                _get_services_tree(callback);
+            }
+        },
+
+        get_service_logs: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+
+        get_service_state_logs: function(serviceStateId, callback) {
+            $http.get('/running/' + serviceStateId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        get_app_templates: function(cacheOk, callback) {
+            if (cacheOk && cached_app_templates) {
+                console.log('Using cached app templates');
+                callback(cached_app_templates);
+            } else {
+                _get_app_templates(callback);
             }
         },
 
@@ -813,7 +1046,7 @@ function ServicesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding service failed: ' + JSON.stringify(data));
+                    console.log('Adding service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -821,13 +1054,27 @@ function ServicesService($http, $location) {
         },
 
         update_service: function(serviceId, editedService, callback) {
-            $http.post('/services/' + serviceId, editedService).
+            $http.put('/services/' + serviceId, editedService).
                 success(function(data, status) {
-                    console.log('Updated service ' + serviceId);
+                    console.log('Updated service %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating service failed: ' + JSON.stringify(data));
+                    console.log('Updating service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        deploy_app_template: function(deployDef, callback) {
+            $http.post('/templates/deploy', deployDef).
+                success(function(data, status) {
+                    console.log('Deployed app template');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Deploying app template failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -837,17 +1084,16 @@ function ServicesService($http, $location) {
         remove_service: function(serviceId, callback) {
             $http.delete('/services/' + serviceId).
                 success(function(data, status) {
-                    console.log('Removed service ' + serviceId);
+                    console.log('Removed service %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing service failed: ' + JSON.stringify(data));
+                    console.log('Removing service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
                 });
         }
-
     }
 }
 
@@ -918,6 +1164,21 @@ function ResourcesService($http, $location) {
             }
         },
 
+
+        get_running_services: function(hostId, callback) {
+            $http.get('/hosts/' + hostId + '/running').
+                success(function(data, status) {
+                    console.log('Got running services for %s', hostId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
         /*
          * Posts new resource pool information to the server.
          *
@@ -932,7 +1193,7 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding pool failed: ' + JSON.stringify(data));
+                    console.log('Adding pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -947,13 +1208,13 @@ function ResourcesService($http, $location) {
          * @param {function} callback Update result passed to callback on success.
          */
         update_pool: function(poolId, editedPool, callback) {
-            $http.post('/pools/' + poolId, editedPool).
+            $http.put('/pools/' + poolId, editedPool).
                 success(function(data, status) {
-                    console.log('Updated pool ' + poolId);
+                    console.log('Updated pool %s', poolId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating pool failed: ' + JSON.stringify(data));
+                    console.log('Updating pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -969,11 +1230,11 @@ function ResourcesService($http, $location) {
         remove_pool: function(poolId, callback) {
             $http.delete('/pools/' + poolId).
                 success(function(data, status) {
-                    console.log('Removed pool ' + poolId);
+                    console.log('Removed pool %s', poolId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing pool failed: ' + JSON.stringify(data));
+                    console.log('Removing pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1010,7 +1271,7 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding host failed: ' + JSON.stringify(data));
+                    console.log('Adding host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1025,13 +1286,13 @@ function ResourcesService($http, $location) {
          * @param {function} callback Update result passed to callback on success.
          */
         update_host: function(hostId, editedHost, callback) {
-            $http.post('/hosts/' + hostId, editedHost).
+            $http.put('/hosts/' + hostId, editedHost).
                 success(function(data, status) {
-                    console.log('Updated host ' + hostId);
+                    console.log('Updated host %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating host failed: ' + JSON.stringify(data));
+                    console.log('Updating host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1048,11 +1309,11 @@ function ResourcesService($http, $location) {
         remove_host: function(hostId, callback) {
             $http.delete('/hosts/' + hostId).
                 success(function(data, status) {
-                    console.log('Removed host' + hostId);
+                    console.log('Removed host %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing host failed: ' + JSON.stringify(data));
+                    console.log('Removing host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1078,6 +1339,7 @@ function ResourcesService($http, $location) {
 
 function AuthService($cookies, $location) {
     var loggedIn = false;
+    var userName = null;
     return {
 
         /*
@@ -1086,8 +1348,9 @@ function AuthService($cookies, $location) {
          *
          * @param {boolean} truth Whether the user is logged in.
          */
-        login: function(truth) {
+        login: function(truth, username) {
             loggedIn = truth;
+            userName = username;
         },
 
         /*
@@ -1098,6 +1361,7 @@ function AuthService($cookies, $location) {
         checkLogin: function($scope) {
             if (loggedIn) {
                 $scope.loggedIn = true;
+                $scope.username = userName;
                 return;
             }
             if ($cookies['ZCPToken'] !== undefined) {
@@ -1110,50 +1374,117 @@ function AuthService($cookies, $location) {
     };
 }
 
-function refreshServices($scope, servicesService, cacheOk) {
+/*
+ * Starting at some root node, recurse through children,
+ * building a flattened array where each node has a depth
+ * tracking field 'zendepth'.
+ */
+function flattenTree(depth, current) {
+    // Exclude the root node
+    var retVal = (depth === 0)? [] : [current];
+    current.zendepth = depth;
+
+    if (!current.children) {
+        return retVal;
+    }
+    for (var i=0; i < current.children.length; i++) {
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
+    }
+    return retVal;
+}
+
+function refreshServices($scope, servicesService, cacheOk, extraCallback) {
     // defend against empty scope
     if ($scope.services === undefined) {
         $scope.services = {};
     }
-    servicesService.get_services(cacheOk, function(allServices) {
-        $scope.services.data = allServices;
-        $scope.services.mapped = {};
-        // Create a Map(Id -> Service)
-        allServices.map(function(elem) {
-            $scope.services.mapped[elem.Id] = elem;
-        });
+    console.log('refresh services called');
+    servicesService.get_services(cacheOk, function(topServices, mappedServices) {
+        $scope.services.data = topServices;
+        $scope.services.mapped = mappedServices;
+
+        for (var key in $scope.services.mapped) {
+            var svc = $scope.services.mapped[key];
+            var depClass = "";
+            var iconClass = "";
+            var runningClass = "";
+            var notRunningClass = "";
+            svc.Deployment = 'successful'; // TODO: replace with real data
+
+            switch(svc.Deployment) {
+            case "successful": 
+                depClass = "deploy-success";
+                iconClass = "glyphicon glyphicon-ok";
+                break;
+            case "failed":
+                depClass = "deploy-error";
+                iconClass = "glyphicon glyphicon-remove";
+                break;
+            case "in-process":
+                depClass = "deploy-info";
+                iconClass = "glyphicon glyphicon-refresh";
+                break;
+            default:
+                depClass = "deploy-warning";
+                iconClass = "glyphicon glyphicon-question-sign";
+                break;
+            }
+            updateRunning(svc);
+
+            svc.deploymentClass = depClass;
+            svc.deploymentIcon = iconClass;
+        }
+
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
+            // we need a flattened view of all children
+            
+            if ($scope.services.current && $scope.services.current.children) {
+                $scope.services.subservices = flattenTree(0, $scope.services.current);
+            }
+        }
+        if (extraCallback) {
+            extraCallback();
         }
     });
 }
 
-function refreshPools($scope, resourcesService, cachePools) {
+function getFullPath(allPools, pool) {
+    if (!allPools || !pool.ParentId || !allPools[pool.ParentId]) {
+        return pool.Id;
+    }
+    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
+}
+
+function getServiceLineage(mappedServices, service) {
+    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+        return [ service ];
+    }
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    lineage.push(service);
+    return lineage;
+}
+
+function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
+    console.log('Refreshing pools');
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
-
-        /* Uncomment to use single rooted tree
-        $scope.pools.tree = [{
-            Id: 'Resource Pools',
-            icon: POOL_ICON_OPEN,
-            childrenClass: POOL_CHILDREN_OPEN,
-            collapsed: false,
-            children: []
-        }];
-        */
         $scope.pools.tree = [];
+
+        var flatroot = { children: [] };
 
         for (var key in allPools) {
             var p = allPools[key];
             p.collapsed = false;
-            p.childrenClass = "nav-tree";
+            p.childrenClass = 'nav-tree';
             p.dropped = [];
+            p.itemClass = 'pool-data';
             if (p.icon === undefined) {
                 p.icon = 'glyphicon spacer disabled';
             }
@@ -1163,13 +1494,12 @@ function refreshPools($scope, resourcesService, cachePools) {
                     parent.children = [];
                     parent.icon = POOL_ICON_OPEN;
                 }
-                console.log('Adding %s as child of %s', p.Id, p.ParentId);
                 parent.children.push(p);
+                p.fullPath = getFullPath(allPools, p);
             } else {
-                /* Uncomment to use single rooted tree
-                $scope.pools.tree[0].children.push(p);
-                */
+                flatroot.children.push(p);
                 $scope.pools.tree.push(p);
+                p.fullPath = p.Id;
             }
         }
 
@@ -1177,42 +1507,130 @@ function refreshPools($scope, resourcesService, cachePools) {
             $scope.pools.current = allPools[$scope.params.poolId];
             $scope.editPool = $.extend({}, $scope.pools.current);
         }
+
+        $scope.pools.flattened = flattenTree(0, flatroot);
+
+        if (extraCallback) {
+            extraCallback();
+        }
     });
 }
 
-function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool) {
+function toggleRunning(app, status, servicesService) {
+    var newState = -1;
+    switch(status) {
+    case 'start': newState = 1; break;
+    case 'stop': newState = 0; break;
+    case 'restart': newState = -1; break;
+    }
+    if (newState === app.DesiredState) {
+        console.log('Same status. Ignoring click');
+        return;
+    }
+    app.DesiredState = newState;
+    servicesService.update_service(app.Id, app, function() {
+        updateRunning(app);
+    });
+}
+
+function killRunning(app) {
+    app.DesiredState = 0;
+    console.log("TODO: Kill service");
+    updateRunning(app);
+}
+
+function unkillRunning(app) {
+    app.DesiredState = 1;
+    console.log("TODO: Remove this function");
+    updateRunning(app);
+}
+
+
+function updateRunning(app) {
+    if (app.DesiredState === 1) {
+        app.runningText = "started";
+        app.notRunningText = "\xA0"; // &nbsp
+        app.runningClass = "btn btn-success active";
+        app.notRunningClass = "btn btn-default off";
+    } else if (app.DesiredState === -1) {
+        app.runningText = "restarting";
+        app.notRunningText = "\xA0"; // &nbsp
+        app.runningClass = "btn btn-info active";
+        app.notRunningClass = "btn btn-default off";
+    } else {
+        app.runningText = "\xA0"; // &nbsp
+        app.notRunningText = "stopped";
+        app.runningClass = "btn btn-default off";
+        app.notRunningClass = "btn btn-danger active";
+    }
+    if (app.Deployment !== "successful") {
+        app.runningClass += " disabled";
+        app.notRunningClass += " disabled";
+    }
+}
+
+function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
     }
+
     resourcesService.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.mapped = allHosts;
 
         // Get array of all hosts
         $scope.hosts.all = map_to_array(allHosts);
-//        console.log('All hosts length = %d', $scope.hosts.all.length);
-        for(var i=0; i < $scope.hosts.all.length; i++) {
-            $scope.hosts.all[i].MemoryUtilization = 25;
-        }
-        
-        // Build array of Hosts relevant to the current pool
-        $scope.hosts.data = [];
 
-        if ($scope.params && $scope.params.poolId) {
-            resourcesService.get_hosts_for_pool(cacheHostsPool, $scope.params.poolId, function(hostsForPool) {
-                // hostsForPool is Array(PoolHost)
-                for (var i=0; i < hostsForPool.length; i++) {
-                    var currentHost = allHosts[hostsForPool[i].HostId];
-                    $scope.hosts.data.push(currentHost);
-                    if ($scope.params.hostId === currentHost.Id) {
-                        $scope.hosts.current = currentHost;
-                        $scope.editHost = $.extend({}, $scope.hosts.current);
-                    }
-                }
+        // This method gets called more than once. We don't watch to keep
+        // setting watches if we've already got one.
+        if ($scope.pools === undefined || $scope.pools.mapped === undefined) {
+            // Transfer path from pool to host
+            $scope.$watch('pools.mapped', function() {
+                fix_pool_paths($scope);
             });
+        } else {
+            fix_pool_paths($scope);
+        }
+
+        if ($scope.params && $scope.params.hostId) {
+            var current = allHosts[$scope.params.hostId];
+            if (current) {
+                $scope.editHost = $.extend({}, current);
+                $scope.hosts.current = current;
+            }
+        }
+
+        if (extraCallback) {
+            extraCallback();
         }
     });
+}
+
+function refreshRunning($scope, resourcesService, hostId) {
+    if ($scope.running === undefined) {
+        $scope.running = {};
+    }
+
+    resourcesService.get_running_services(hostId, function(runningServices) {
+        $scope.running.data = runningServices;
+        for (var i=0; i < runningServices.length; i++) {
+            runningServices[i].DesiredState = 1; // All should be running
+            runningServices[i].Deployment = 'successful'; // TODO: Replace
+            updateRunning(runningServices[i]);
+        }
+    });
+}
+
+function fix_pool_paths($scope) {
+    if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
+        for(var i=0; i < $scope.hosts.all.length; i++) {
+            var host = $scope.hosts.all[i];
+            host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+        }
+    } else {
+        console.log('Unable to update host pool paths');
+    }
 }
 
 /*
@@ -1280,8 +1698,33 @@ function buildTable(sort, headers) {
         sort_icons: sort_icons,
         set_order: set_order,
         get_order_class: get_order_class,
-        page: 0,
+        page: 1,
         pageSize: 5
     };
+}
+
+function indentClass(depth) { 
+    return 'indent' + (depth -1); 
+};
+
+function toggleCollapse(child, collapsed) {
+    child.parentCollapsed = collapsed;
+    // We're done if this node does not have any children OR if this node is 
+    // already collapsed
+    if (!child.children || child.collapsed) {
+        return;
+    }
+    // Mark all children as having a collapsed parent
+    for(var i=0; i < child.children.length; i++) {
+        toggleCollapse(child.children[i], collapsed);
+    }
+}
+
+function itemClass(item) {
+    var cls = item.current? 'current' : '';
+    if (item.parentCollapsed) {
+        cls += ' hidden';
+    }
+    return cls;
 }
 

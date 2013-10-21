@@ -73,6 +73,18 @@ func (s *ControlClient) GetServicesForHost(hostId string, servicesForHost *[]*se
 	return s.rpcClient.Call("ControlPlane.GetServicesForHost", hostId, servicesForHost)
 }
 
+func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
+}
+
+func (s *ControlClient) GetServiceStateLogs(serviceStateId string, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", serviceStateId, logs)
+}
+
+func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*serviced.RunningService) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
+}
+
 func (s *ControlClient) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
@@ -115,8 +127,28 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*ser
 
 func (s *ControlClient) AddHostToResourcePool(poolHost serviced.PoolHost, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.AddHostToResourcePool", poolHost, unused)
-
 }
+
 func (s *ControlClient) RemoveHostFromResourcePool(poolHost serviced.PoolHost, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
+}
+
+func (s *ControlClient) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
+}
+
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
+}
+
+func (s *ControlClient) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, unused)
+}
+
+func (s *ControlClient) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
+}
+
+func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
 }

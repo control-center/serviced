@@ -14,6 +14,7 @@ package main
 import (
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/web"
 	svc "github.com/zenoss/serviced/svc"
 
 	"flag"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"time"
 )
 
 // Store the command line options
@@ -75,7 +77,7 @@ func startServer() {
 		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
-		go websvc()
+		go web.Serve()
 	}
 	if options.agent {
 		mux := proxy.TCPMux{}
@@ -98,7 +100,8 @@ func startServer() {
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
-		glog.Fatalf("Could not bind to port %v", err)
+		glog.Warningf("Could not bind to port %v", err)
+		time.Sleep(time.Second * 1000)
 	}
 
 	glog.Infof("Listening on %s", l.Addr().String())
