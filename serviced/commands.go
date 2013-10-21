@@ -359,6 +359,9 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	var verbose bool
 	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each pool")
 
+	var raw bool
+	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -371,9 +374,16 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	}
 
 	if verbose == false {
-		fmt.Printf("%12s %12s %6s %6s %6s %30s %30s\n", "ID", "PARENT", "CORE", "MEM", "PRI", "CREATED", "UPDATED")
+		outfmt := "%12s %12s %6d %6d %6d %30s %30s\n"
+
+		if raw == false {
+			fmt.Printf("%12s %12s %6s %6s %6s %30s %30s\n", "ID", "PARENT", "CORE", "MEM", "PRI", "CREATED", "UPDATED")
+		} else {
+			outfmt = "%s|%s|%d|%d|%d|%s|%s\n"
+		}
+
 		for _, pool := range pools {
-			fmt.Printf("%12s %12s %6d %6d %6d %30s %30s\n",
+			fmt.Printf(outfmt,
 				pool.Id,
 				pool.ParentId,
 				pool.CoreLimit,
