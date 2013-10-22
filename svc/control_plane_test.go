@@ -83,7 +83,7 @@ func setup(t *testing.T) {
 
 	cleanTestDB(t)
 	glog.Infof("Starting server with: %s", serviced.ToMymysqlConnectionString(connInfo))
-	server, err := NewControlSvc("mysql://root@127.0.0.1:3306/cp_test")
+	server, err := NewControlSvc("mysql://root@127.0.0.1:3306/cp_test", []string{})
 
 	// register the server API
 	rpc.RegisterName("ControlPlane", server)

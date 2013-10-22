@@ -21,20 +21,37 @@ depends on docker.
 4. One instance of serviced will be the "master". On this host, install the
    MySQL server and client.
 
-5. Create the database "cp" on the master and source 
+5. Download and install elastic search.  Location is irrelvant
+   http://www.elasticsearch.org/download/
+   
+```bash
+wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.5.tar.gz
+tar xzf elasticsearch-0.90.5.tar.gz
+cd elasticsearch-0.90.5
+./bin/elasticsearch
+```
+
+6. Create the database "cp" on the master and source 
    $GOPATH/github.com/zenoss/serviced/serviced/database.sql in to it. For example:
 
 ```bash
 mysql -u root cp "source $GOPATH/github.com/zenoss/serviced/serviced/database.sql"
 ```
 
-6. Start the master serviced. It can also act as an agent. 
+7.  Install elasticsearch document models
+
+```bash
+cd $GOPATH/src/github.com/zenoss/serviced/dao/elasticsearch
+curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
+```
+
+8. Start the master serviced. It can also act as an agent. 
 
 ```bash
 serviced -agent -master
 ```
 
-7. Register the agent to the control plane. For example, to register host foo that
+9. Register the agent to the control plane. For example, to register host foo that
    is running serviced on port 4979:
 ```bash
 serviced add-host foo:4979
@@ -77,8 +94,14 @@ Setup a dev environment.
 
 ```bash
 export GOPATH=~/mygo
+export GOBIN=~/mygo/bin
 mkdir $GOPATH/pkg -p
 mkdir $GOPATH/src/github.com/zenoss -p
+mkdir $GOPATH/src/github.com/mattbaird -p
+cd $GOPATH/src/github.com/mattbaird
+git clone git@github.com:zenoss/elasticgo.git
+cd elasticgo
+go build install
 cd $GOPATH/src/github.com/zenoss
 git clone git@github.com:zenoss/serviced.git
 cd GOPATH/src/github.com/zenoss/serviced
