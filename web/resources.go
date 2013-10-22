@@ -45,6 +45,31 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 	}
 }
 
+func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var unused int
+	var templatesMap map[string]*serviced.ServiceTemplate
+	client.GetServiceTemplates(unused, &templatesMap)
+	w.WriteJson(&templatesMap);
+}
+
+func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var payload serviced.ServiceTemplateDeploymentRequest
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.Infof("Could not decode deployment payload: %v", err)
+		RestBadRequest(w)
+		return
+	}
+	var unused int
+	err = client.DeployTemplate(payload, &unused)
+	if err != nil {
+		glog.Errorf("Could not deploy template: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Removed resource pool", servicesLink()})
+}
+
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	request := serviced.EntityRequest{}
 	var poolsMap map[string]*serviced.ResourcePool
@@ -128,7 +153,7 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 	w.WriteJson(&hosts)
 }
 
-func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*serviced.Service
 	request := serviced.EntityRequest{}
 	err := client.GetServices(request, &services)
@@ -141,6 +166,44 @@ func RestGetServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.
 		services = []*serviced.Service{}
 	}
 	w.WriteJson(&services)
+}
+
+func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var services []*serviced.RunningService
+	err = client.GetRunningServicesForHost(hostId, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*serviced.RunningService{}
+	}
+	w.WriteJson(&services)
+}
+
+func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var allServices []*serviced.Service
+	topServices := []*serviced.Service{}
+
+	request := serviced.EntityRequest{}
+	err := client.GetServices(request, &allServices)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	for _, service := range allServices {
+		if len(service.ParentServiceId) == 0 {
+			topServices = append(topServices, service)
+		}
+	}
+	w.WriteJson(&topServices)
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -175,11 +238,11 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	glog.Infof("Received update request for %s", serviceId)
 	if err != nil {
 		RestBadRequest(w)
 		return
 	}
-	glog.Infof("Received update request for %s", serviceId)
 	var payload serviced.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
@@ -313,6 +376,28 @@ func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	}
 	glog.Infof("Removed host %s", hostId)
 	w.WriteJson(&SimpleResponse{"Removed host", hostsLink()})
+}
+
+func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var logs string
+	client.GetServiceLogs(serviceId, &logs)
+	w.WriteJson(&SimpleResponse{logs, servicesLink()})
+}
+
+func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var logs string
+	client.GetServiceStateLogs(serviceStateId, &logs)
+	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
 func init() {

@@ -133,10 +133,12 @@ func execPath() (string, string, error) {
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
+	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
 	portOps := ""
 	if service.Endpoints != nil {
+		glog.Infof("Endpoints for service: %v", service.Endpoints)
 		for _, endpoint := range *service.Endpoints {
-			if endpoint.Purpose == "remote" { // only expose remote endpoints
+			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
 			}
 		}

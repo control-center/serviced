@@ -77,7 +77,7 @@ type Config struct {
 // listenAndProxy listens, locally, on the proxy's specified Port. For each
 // incoming connection a goroutine running the proxy method is created.
 func (p *Proxy) ListenAndProxy() error {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", p.Port))
+	l, err := net.Listen("tcp4", fmt.Sprintf(":%d", p.Port))
 	if err != nil {
 		glog.Error("Error (net.Listen): ", err)
 		return err
@@ -118,9 +118,9 @@ func (p *Proxy) Proxy(local net.Conn) {
 
 	if p.UseTLS && p.TCPMux { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
-		remote, err = tls.Dial("tcp", remoteAddr, &config)
+		remote, err = tls.Dial("tcp4", remoteAddr, &config)
 	} else {
-		remote, err = net.Dial("tcp", remoteAddr)
+		remote, err = net.Dial("tcp4", remoteAddr)
 	}
 	if err != nil {
 		glog.Error("Error (net.Dial): ", err)
@@ -173,7 +173,7 @@ func (mux TCPMux) MuxConnection(conn net.Conn) {
 		return
 	}
 
-	svc, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
+	svc, err := net.Dial("tcp4", fmt.Sprintf("172.17.42.1:%d", port))
 	if err != nil {
 		sendMuxError(conn, "MuxConnection", "net.Dial", "cannot connect to service", err)
 		conn.Close()
@@ -192,7 +192,7 @@ func (mux *TCPMux) ListenAndMux() {
 	var err error
 
 	if mux.UseTLS == false {
-		l, err = net.Listen("tcp", fmt.Sprintf(":%d", mux.Port))
+		l, err = net.Listen("tcp4", fmt.Sprintf(":%d", mux.Port))
 	} else {
 		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 		if cerr != nil {
@@ -201,7 +201,7 @@ func (mux *TCPMux) ListenAndMux() {
 		}
 
 		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
-		l, err = tls.Listen("tcp", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
+		l, err = tls.Listen("tcp4", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
 	}
 	if err != nil {
 		glog.Error("ListenAndMux Error (net.Listen): ", err)

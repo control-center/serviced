@@ -7,10 +7,22 @@
 *******************************************************************************/
 package elasticsearch
 
-import "github.com/zenoss/serviced/dao"
-import "testing"
+import (
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/glog"
+
+	"testing"
+)
 
 var	controlPlaneDao, err = NewControlPlaneDao("localhost", 9200)
+
+func init() {
+	err := isvcs.ElasticSearchContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start es container: %s", err)
+	}
+}
 
 func TestNewControlPlaneDao(t *testing.T) {
   if err == nil {

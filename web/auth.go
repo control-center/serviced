@@ -12,13 +12,14 @@ import (
 )
 
 func validateLogin(creds *Login) bool {
-	glog.Infof("Attempting PAM auth for %s", creds.Username)
-	var cprog *C.char = C.CString("su")
+	var cprog *C.char = C.CString("sudo")
 	defer C.free(unsafe.Pointer(cprog))
 	var cuser *C.char = C.CString(creds.Username)
 	defer C.free(unsafe.Pointer(cuser))
 	var cpass *C.char = C.CString(creds.Password)
 	defer C.free(unsafe.Pointer(cpass))
-	return (C.authenticate(cprog, cuser, cpass) == 0);
+	auth_res := C.authenticate(cprog, cuser, cpass)
+	glog.Infof("PAM result for %s was %d", creds.Username, auth_res);
+	return (auth_res == 0)
 }
 

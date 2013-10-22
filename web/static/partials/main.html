@@ -1,8 +1,8 @@
       <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
       <!-- Main component for a primary marketing message or call to action -->
       <div class="jumbotron">
-        <h2>Service Dynamics</h2>
-        <p>Welcome to the Control Plane.</p>
+        <h2>{{brand_label}}</h2>
+        <p>{{page_content}}</p>
         <ul class="list-unstyled">
           <li ng-repeat="link in mainlinks">
             <a href="{{link.url}}">{{link.label}}</a>
