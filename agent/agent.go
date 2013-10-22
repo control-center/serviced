@@ -64,16 +64,20 @@ func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, serv
 	// get docker status
 
 	containerState, err := getDockerState(serviceState.DockerId)
-	if err != nil {
-		glog.Errorln("updateCurrentState: Could not get dockerstate")
-		return err
-	}
-	if !containerState.State.Running {
+
+	markTerminated := func() error {
 		serviceState.Terminated = time.Now()
 		var unused int
-		err = controlClient.UpdateServiceState(*serviceState, &unused)
+		return controlClient.UpdateServiceState(*serviceState, &unused)
 	}
-	return
+
+	switch {
+	case err == nil && !containerState.State.Running:
+		err = markTerminated()
+	case err != nil && strings.HasPrefix(err.Error(), "no container"):
+		err = markTerminated()
+	}
+	return err
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
@@ -107,9 +111,12 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	}
 	var containerStates []serviced.ContainerState
 	err = json.Unmarshal(output, &containerStates)
-	if len(containerStates) < 1 {
+	if err != nil {
 		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
 		return containerState, serviced.ControlPlaneError{"no state"}
+	}
+	if len(containerStates) < 1 {
+		return containerState, serviced.ControlPlaneError{"no container"}
 	}
 	return containerStates[0], err
 }
@@ -126,10 +133,12 @@ func execPath() (string, string, error) {
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
+	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
 	portOps := ""
 	if service.Endpoints != nil {
+		glog.Infof("Endpoints for service: %v", service.Endpoints)
 		for _, endpoint := range *service.Endpoints {
-			if endpoint.Purpose == "remote" { // only expose remote endpoints
+			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
 			}
 		}

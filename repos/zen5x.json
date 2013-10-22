@@ -1,0 +1,144 @@
+{
+    "Description": "Zenoss RM",
+    "Name": "Zenoss 5.0",
+    "Services": [
+        {
+            "Command": "",
+            "Endpoints": [],
+            "ImageId": "",
+            "Instances": {
+                "min": 0
+            },
+            "Launch": "auto",
+            "Name": "Zenoss",
+            "Services": [
+                {
+                    "Command": "/usr/bin/mysqld_safe",
+                    "Endpoints": [
+                        {
+                            "Application": "mysql",
+                            "PortNumber": 3306,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
+                    "ImageId": "zenoss/mysql55",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Name": "mysql",
+                    "Services": []
+                },
+                {
+                    "Command": "/usr/sbin/rabbitmq-server",
+                    "Endpoints": [
+                        {
+                            "Application": "rabbitmq_admin",
+                            "PortNumber": 15672,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        },
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 5672,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
+                    "ImageId": "zenoss/rabbitmq",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Name": "rabbitmq",
+                    "Services": []
+                },
+                {
+                    "Command": "/etc/init.d/zenoss start; sleep 100000",
+                    "Endpoints": [
+                        {
+                            "Application": "rabbitmq_admin",
+                            "PortNumber": 15672,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "mysql",
+                            "PortNumber": 3306,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "memcached",
+                            "PortNumber": 11211,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "redis",
+                            "PortNumber": 6379,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "rabbitmq",
+                            "PortNumber": 5672,
+                            "Protocol": "tcp",
+                            "Purpose": "import"
+                        },
+                        {
+                            "Application": "www",
+                            "PortNumber": 8080,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
+                    "ImageId": "zenoss/zenoss5x",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Name": "init",
+                    "Services": []
+                },
+                {
+                    "Command": "/usr/sbin/memcached",
+                    "Endpoints": [
+                        {
+                            "Application": "memcached",
+                            "PortNumber": 11211,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
+                    "ImageId": "zenoss/memcached",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Name": "memcached",
+                    "Services": []
+                },
+                {
+                    "Command": "/usr/sbin/redis-server",
+                    "Endpoints": [
+                        {
+                            "Application": "redis",
+                            "PortNumber": 6379,
+                            "Protocol": "tcp",
+                            "Purpose": "export"
+                        }
+                    ],
+                    "ImageId": "zenoss/redis",
+                    "Instances": {
+                        "min": 1
+                    },
+                    "Launch": "auto",
+                    "Name": "redis",
+                    "Services": []
+                }
+            ]
+        }
+    ]
+}

@@ -12,12 +12,12 @@ import (
 	"testing"
 )
 
-// Test newUuid()
+// Test NewUuid()
 func TestNewUuid(t *testing.T) {
 
 	urandomFilename = "testfiles/urandom_bytes"
 
-	uuid, err := newUuid()
+	uuid, err := NewUuid()
 	if err != nil {
 		t.Errorf("Did not expect error: %s", err)
 		t.Fail()

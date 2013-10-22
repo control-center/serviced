@@ -14,6 +14,7 @@ package main
 import (
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/web"
 	svc "github.com/zenoss/serviced/svc"
 
 	"flag"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"time"
 )
 
 // Store the command line options
@@ -35,6 +37,7 @@ var options struct {
 	tls               bool
 	keyPEMFile        string
 	certPEMFile       string
+	zookeepers        ListOpts
 }
 
 // Setup flag options (static block)
@@ -47,6 +50,8 @@ func init() {
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
+	options.zookeepers = make(ListOpts, 0)
+	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -62,8 +67,9 @@ func init() {
 
 // Start the agent or master services on this host.
 func startServer() {
+
 	if options.master {
-		master, err := svc.NewControlSvc(options.connection_string)
+		master, err := svc.NewControlSvc(options.connection_string, options.zookeepers)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
@@ -71,6 +77,7 @@ func startServer() {
 		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
+		go web.Serve()
 	}
 	if options.agent {
 		mux := proxy.TCPMux{}
@@ -93,7 +100,8 @@ func startServer() {
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
-		glog.Fatalf("Could not bind to port %v", err)
+		glog.Warningf("Could not bind to port %v", err)
+		time.Sleep(time.Second * 1000)
 	}
 
 	glog.Infof("Listening on %s", l.Addr().String())

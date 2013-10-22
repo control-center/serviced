@@ -1,0 +1,15 @@
+      <!-- Static navbar -->
+      <div class="navbar navbar-zen" ng-controller="NavbarControl">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="{{brand.url}}">{{brand.label}}</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label}}</a></li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li class="item"><i class="glyphicon glyphicon-user"></i>{{username}}</li>
+            <li><a href="#logout" ng-click="logout()">Logout</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>

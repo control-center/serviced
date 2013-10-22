@@ -1,0 +1,30 @@
+<div class="modal fade" id="addService" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Add service</h4>
+      </div>
+      <div class="modal-body">
+
+        <label for="new_service_name">Name:</label>
+        <input class="form-control" name="new_service_name" id="new_service_name" type="text" placeholder="Enter service name" ng-model="newService.Name" />
+
+        <label for="new_service_description">Description</label>
+        <textarea class="form-control" name="new_service_description" id="new_service_description" placeholder="Enter a description" rows="3" ng-model="newService.Description"></textarea>
+
+        <label for="new_service_parent">Pool Id:</label>
+        <input class="form-control" name="new_service_parent" id="new_service_parent" type="text" placeholder="e.g. default" ng-model="newService.PoolId" />
+
+        <label for="new_service_startup">Startup Command:</label>
+        <input class="form-control" name="new_service_startup" id="new_service_startup" type="text" placeholder="e.g. /opt/zenoss/bin/somecommand" ng-model="newService.Startup" />
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="add_service()">Add</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+

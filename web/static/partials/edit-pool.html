@@ -1,0 +1,26 @@
+<div class="modal fade" id="editPool" tabindex="-1" role="dialog" aria-labelledby="editPoolModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Edit resource pool</h4>
+      </div>
+      <div class="modal-body">
+        <label for="edit_pool_name">Pool ID:</label>
+        <input class="form-control" name="edit_pool_name" id="edit_pool_name" type="text" placeholder="Unique name" ng-model="editPool.Id" />
+        <label for="edit_pool_parent">Parent ID:</label>
+        <input class="form-control" name="edit_pool_parent" id="edit_pool_parent" type="text" placeholder="default" ng-model="editPool.ParentId" />
+        <label for="edit_pool_core_limit">Core Limit:</label>
+        <input class="form-control" name="edit_pool_core_limit" id="edit_pool_core_limit" type="number" min="0" placeholder="4" ng-model="editPool.CoreLimit" />
+        <label for="edit_pool_memory_limit">Memory Limit:</label>
+        <input class="form-control" name="edit_pool_memory_limit" id="edit_pool_memory_limit" type="number" min="0" placeholder="4096" ng-model="editPool.MemoryLimit" />
+        <label for="edit_pool_priority">Priority:</label>
+        <input class="form-control" name="edit_pool_priority" id="edit_pool_priority" type="number" min="0" placeholder="1" ng-model="editPool.Priority" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="edit_pool()">Update</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
