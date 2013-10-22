@@ -31,6 +31,9 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	var verbose bool
 	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each template")
 
+	var raw bool
+	cmd.BoolVar(&raw, "raw", false, "Don't show header line")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -44,12 +47,24 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 		glog.Fatalf("Could not get list of templates: %s", err)
 	}
 
-	for id, template := range serviceTemplates {
-		if t, err := json.MarshalIndent(template, " ", " "); err == nil {
-			if verbose {
-				fmt.Printf("%s: %s\n", id, t)
-			} else {
-				fmt.Printf("%s\t%s\n", id, template.Name)
+	if verbose == false {
+		outfmt := "%-36s %-16s %-32.32s\n"
+
+		if raw == false {
+			fmt.Printf("%-36s %-16s %-32s\n", "TEMPLATE ID", "NAME", "DESCRIPTION")
+		} else {
+			outfmt = "%s|%s|%s\n"
+		}
+
+		for id, t := range serviceTemplates {
+			fmt.Printf(outfmt, id, t.Name, t.Description)
+		}
+	} else {
+		for id, template := range serviceTemplates {
+			if t, err := json.MarshalIndent(template, " ", " "); err == nil {
+				if verbose {
+					fmt.Printf("%s: %s\n", id, t)
+				}
 			}
 		}
 	}
