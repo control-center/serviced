@@ -1,0 +1,8 @@
+<p>Select the resource pool to install to:</p>
+
+<div ng-repeat="pool in pools.data">
+  <label>
+    <input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.Id">
+    {{pool.Id}}
+  </label>
+</div>

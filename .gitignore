@@ -2,6 +2,8 @@
 *.o
 *.a
 *.so
+*~
+\#*
 
 # Folders
 _obj
@@ -20,3 +22,8 @@ _cgo_export.*
 _testmain.go
 
 *.exe
+
+# re-add some potentially excluded items
+!angular*/
+!bootstrap*/
+!d3*/

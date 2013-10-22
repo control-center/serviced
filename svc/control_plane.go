@@ -9,16 +9,24 @@
 package svc
 
 import (
-	"database/sql"
-	"fmt"
 	"github.com/coopernurse/gorp"
-	"github.com/zenoss/serviced"
-	_ "github.com/ziutek/mymysql/godrv"
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/isvcs"
+	_ "github.com/ziutek/mymysql/godrv"
+
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"math/rand"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+	"os"
+	"log"
 )
 
 /* A control plane implementation.
@@ -30,13 +38,17 @@ services, & service instances.
 type ControlSvc struct {
 	connectionString string
 	connectionDriver string
+	zookeepers       []string
+	scheduler        *scheduler
 }
 
 // Ensure that ControlSvc implements the ControlPlane interface.
 var _ serviced.ControlPlane = &ControlSvc{}
 
 // Create a new ControlSvc or load an existing one.
-func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
+func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, err error) {
+	glog.Info("calling NewControlSvc()")
+	defer glog.Info("leaving NewControlSvc()")
 	s = new(ControlSvc)
 	connInfo, err := serviced.ParseDatabaseUri(connectionUri)
 	if err != nil {
@@ -45,14 +57,42 @@ func NewControlSvc(connectionUri string) (s *ControlSvc, err error) {
 	s.connectionString = serviced.ToMymysqlConnectionString(connInfo)
 	s.connectionDriver = "mymysql"
 
+	if len(zookeepers) == 0 {
+		isvcs.ZookeeperContainer.Run()
+		s.zookeepers = []string{"127.0.0.1:2181"}
+	} else {
+		s.zookeepers = zookeepers
+	}
+
 	// ensure that a default pool exists
 	_, err = s.getDefaultResourcePool()
 	if err != nil {
 		return s, err
 	}
 
-	go s.scheduler()
+	hostId, err := serviced.HostId()
+	if err != nil {
+		return nil, err
+	}
+
+	go s.handleScheduler(hostId)
 	return s, err
+}
+
+func (s *ControlSvc) handleScheduler(hostId string) {
+
+	for {
+		conn, _, err := zk.Connect(s.zookeepers, time.Second*10)
+		if err != nil {
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		scheduler, shutdown := newScheduler("", conn, hostId, s.lead)
+		scheduler.Start()
+		select {
+		case <-shutdown:
+		}
+	}
 }
 
 type service_endpoint struct {
@@ -60,7 +100,7 @@ type service_endpoint struct {
 	Port            uint16 // port number
 	ProtocolType    string // tcp or udp
 	ApplicationType string
-	Purpose         string // remote or local
+	Purpose         string // export or import
 }
 
 type service_state_endpoint struct {
@@ -88,6 +128,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	host.ColMap("Cores").Rename("cores")
 	host.ColMap("Memory").Rename("memory")
 	host.ColMap("PrivateNetwork").Rename("private_network")
+	host.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	host.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	pool := dbmap.AddTableWithName(serviced.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
 	pool.ColMap("Id").Rename("id")
@@ -95,6 +137,8 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	pool.ColMap("CoreLimit").Rename("cores")
 	pool.ColMap("MemoryLimit").Rename("memory")
 	pool.ColMap("Priority").Rename("priority")
+	pool.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	pool.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	service := dbmap.AddTableWithName(serviced.Service{}, "service").SetKeys(false, "Id")
 	service.ColMap("Id").Rename("id")
@@ -106,6 +150,9 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("PoolId").Rename("resource_pool_id")
 	service.ColMap("DesiredState").Rename("desired_state")
 	service.ColMap("Endpoints").SetTransient(true)
+	service.ColMap("ParentServiceId").Rename("parent_service_id")
+	service.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
+	service.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
 	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
@@ -132,31 +179,44 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
+	svc_deployment := dbmap.AddTableWithName(serviced.ServiceDeployment{}, "service_deployment").SetKeys(false, "Id")
+	svc_deployment.ColMap("Id").Rename("id")
+	svc_deployment.ColMap("TemplateId").Rename("service_template_id")
+	svc_deployment.ColMap("ServiceId").Rename("service_id")
+	svc_deployment.ColMap("DeployedAt").Rename("deployed_at").SetTransient(true)
+
+	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
+	svc_template.ColMap("Id").Rename("id")
+	svc_template.ColMap("Name").Rename("name")
+	svc_template.ColMap("Description").Rename("description")
+	svc_template.ColMap("Data").Rename("data")
+	svc_template.ColMap("ApiVersion").Rename("api_version")
+	svc_template.ColMap("TemplateVersion").Rename("template_version")
+
 	//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
 	return con, dbmap, err
 }
 
 const SQL_APPLICATION_ENDPOINTS = `
-		select 
-		    live_services.service_id as ServiceId, 
-		    port as ContainerPort, 
-		    external_port as HostPort, 
-		    h.ip_addr as HostIp, 
-		    live_services.private_ip as ContainerIp, 
-		    protocol as Protocol
-		from service_state_endpoint sse
-		inner join 
-		(
-		    select ss.id, private_ip, host_id , ss.service_id
-		    from service_state ss
-		    where ss.terminated_at < '2000-01-01 00:00:00' and ss.started_at > '2000-01-01 00:00:00'
-		    and ss.service_id in (
-		        select service_id 
-		        from service_endpoint se
-		        where se.protocol = ? and se.application = ? and se.purpose = 'remote'
-		    )
-		) as live_services on live_services.id = sse.service_state_id
-		inner join host h on h.id = live_services.host_id
+select 
+    live_services.service_id as ServiceId, 
+    port as ContainerPort, 
+    external_port as HostPort, 
+    h.ip_addr as HostIp, 
+    live_services.private_ip as ContainerIp, 
+    protocol as Protocol
+from service_state_endpoint sse
+inner join (
+    select ss.id, private_ip, host_id , ss.service_id
+    from service_state ss
+    where ss.terminated_at < '2000-01-01 00:00:00' and ss.started_at > '2000-01-01 00:00:00'
+    and ss.service_id in (
+        select service_id 
+        from service_endpoint se
+        where se.protocol = ? and se.application = ? and se.purpose = 'import'
+    )
+) as live_services on live_services.id = sse.service_state_id
+inner join host h on h.id = live_services.host_id
 `
 
 // Get a service endpoint.
@@ -173,24 +233,99 @@ func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string]
 	_, err = dbmap.Select(&service_endpoints, `
 	select *
 from service_endpoint where service_id = ?
-and purpose = 'local'`, serviceId)
+and purpose = 'import'`, serviceId)
 	if err != nil {
 		return err
 	}
-
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
 		glog.Errorf("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
+	var servicesList []*serviced.Service
+	_, err = dbmap.Select(&servicesList, "SELECT * from service")
+	if err != nil {
+		return err
+	}
+	// Map all services by Id so we can construct a tree for the current service ID
+	servicesMap := make(map[string]*treenode)
+	for _, service := range servicesList {
+		servicesMap[service.Id] = &treenode{
+			service.Id,
+			service.ParentServiceId,
+			[]*treenode{},
+		}
+	}
+
+	// second time through builds our tree
+	root := treenode{"root", "", []*treenode{}}
+	for _, service := range servicesList {
+		node := servicesMap[service.Id]
+		parent, found := servicesMap[service.ParentServiceId]
+		// no parent means this node belongs to root
+		if !found {
+			parent = &root
+		}
+		parent.children = append(parent.children, node)
+	}
+
+	// now walk up the tree, then back down capturing all siblings for this service ID
+	topService := servicesMap[serviceId]
+	for len(topService.parent) != 0 {
+		topService = servicesMap[topService.parent]
+	}
+	// We should now have the top-level service for the current service ID
+
 	remoteEndpoints := make(map[string][]*serviced.ApplicationEndpoint)
+	query := `
+select 
+    se.service_id as ServiceId, 
+    sse.port as ContainerPort, 
+    sse.external_port as HostPort, 
+    h.ip_addr as HostIp, 
+    ss.private_ip as ContainerIp, 
+    sse.protocol as Protocol
+from service_endpoint se 
+inner join service_state ss on (se.service_id = ss.service_id)
+inner join service_state_endpoint sse on (
+      ss.id = sse.service_state_id and
+      sse.port = se.port
+)
+inner join host h on (h.id = ss.host_id)
+where 
+      se.protocol = ? and
+      se.application = ? and 
+      se.port = ? and
+      se.purpose = 'export' and
+      ss.terminated_at < '2000-01-01 00:00:00' and 
+      ss.started_at > '2000-01-01 00:00:00' and
+      se.service_id in (
+`
+	relatedServiceIds := walkTree(topService)
+	lastIndex := len(relatedServiceIds) - 1
+	for idx, rsid := range relatedServiceIds {
+		if idx == lastIndex {
+			query += "'" + rsid + "')"
+		} else {
+			query += "'" + rsid + "', "
+		}
+	}
+
+	glog.Infof("Query: %s", query)
 
 	// for each proxied port, find list of potential remote endpoints
 	for _, localport := range service_endpoints {
 		var applicationEndpoints []*serviced.ApplicationEndpoint
-		_, err := dbmap.Select(&applicationEndpoints, SQL_APPLICATION_ENDPOINTS,
-			string(localport.ProtocolType), string(localport.ApplicationType))
+		dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
+		_, err := dbmap.Select(
+			&applicationEndpoints,
+			query,
+			string(localport.ProtocolType),
+			string(localport.ApplicationType),
+			localport.Port,
+		)
+		dbmap.TraceOff()
 		if err != nil {
 			return err
 		}
@@ -199,7 +334,27 @@ and purpose = 'local'`, serviceId)
 	}
 
 	*response = remoteEndpoints
+	glog.Infof("Return for %s is %v", serviceId, remoteEndpoints)
 	return nil
+}
+
+func walkTree(node *treenode) []string {
+	if len(node.children) == 0 {
+		return []string{ node.id }
+	}
+	relatedServiceIds := make([]string, 0)
+	for _, childNode := range node.children {
+		for _, childId := range walkTree(childNode) {
+			relatedServiceIds = append(relatedServiceIds, childId)
+		}
+	}
+	return append(relatedServiceIds, node.id)
+}
+
+type treenode struct {
+	id       string
+	parent   string
+	children []*treenode
 }
 
 // Return the matching hosts.
@@ -259,10 +414,11 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
 		endpoints[i] = serviced.ServiceEndpoint{
-			servicePort.ProtocolType,
+			string(servicePort.ProtocolType),
 			uint16(servicePort.Port),
-			servicePort.ApplicationType,
-			servicePort.Purpose}
+			string(servicePort.ApplicationType),
+			servicePort.Purpose,
+		}
 	}
 	return &endpoints
 }
@@ -314,6 +470,7 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 	if err != nil {
 		return err
 	}
+
 	// Get the related ports for each service
 	err = s.addEndpointsToServices(servicesList)
 	if err != nil {
@@ -321,6 +478,21 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 	}
 	*replyServices = servicesList
 	return err
+}
+
+func addService(tx *gorp.Transaction, svc serviced.Service) error {
+	if err := tx.Insert(&svc); err != nil {
+		return err
+	}
+
+	glog.Infof("Got a service with endpoints: %v", svc.Endpoints)
+	for _, ep := range endpointToPort(svc) {
+		if err := tx.Insert(&ep); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Add a service.
@@ -334,19 +506,13 @@ func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err erro
 	if err != nil {
 		return err
 	}
-	err = tx.Insert(&service)
-	if err != nil {
-		return err
-	}
-	glog.Infof("Got a service with endpoints: %v", service.Endpoints)
-	for _, serviceEndpoint := range endpointToPort(service) {
-		err = tx.Insert(&serviceEndpoint)
-		if err != nil {
-			return err
-		}
-	}
 
-	return tx.Commit()
+	if err := addService(tx, service); err != nil {
+		tx.Rollback()
+		return err
+	} else {
+		return tx.Commit()
+	}
 }
 
 // Update a service.
@@ -369,6 +535,48 @@ func (s *ControlSvc) RemoveService(serviceId string, unused *int) (err error) {
 	}
 	defer db.Close()
 	_, err = dbmap.Delete(&serviced.Service{Id: serviceId})
+	return err
+}
+
+func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var serviceStates []*serviced.ServiceState
+	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? ORDER BY started_at, terminated_at LIMIT 1", serviceId)
+	if err != nil {
+		return err
+	}
+	if len(serviceStates) == 0 {
+		return serviced.ControlPlaneError{"Not found"}
+	}
+	cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
+	output, err := cmd.Output()
+	*logs = string(output)
+
+	return err
+}
+
+func (s *ControlSvc) GetServiceStateLogs(serviceStateId string, logs *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(&serviced.ServiceState{}, serviceStateId)
+	if obj == nil {
+		return serviced.ControlPlaneError{"Could not find serviceState"}
+	}
+	if err != nil {
+		return err
+	}
+	serviceState := obj.(*serviced.ServiceState)
+	cmd := exec.Command("docker", "logs", serviceState.DockerId)
+	output, err := cmd.Output()
+	*logs = string(output)
+
 	return err
 }
 
@@ -402,6 +610,46 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 	return err
 }
 
+// Get running services for a host, including start time
+func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[]*serviced.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(&serviced.Host{}, hostId)
+	if obj == nil {
+		return serviced.ControlPlaneError{"Could not find host"}
+	}
+	if err != nil {
+		return err
+	}
+	var services []*serviced.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '2000-01-01' and"+
+			" ss.host_id = ?", hostId)
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
 // Get the current states of the running service instances.
 func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
 	db, dbmap, err := s.getDbConnection()
@@ -421,85 +669,10 @@ func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.Serv
 	return nil
 }
 
-// This is the main loop for the scheduler.
-func (s *ControlSvc) scheduler() {
-
-	for {
-		time.Sleep(time.Second)
-		func() error {
-			db, dbmap, err := s.getDbConnection()
-			if err != nil {
-				glog.Infof("trying to connection: %s", err)
-				return err
-			}
-			defer db.Close()
-			var services []*serviced.Service
-			// get all service that are supposed to be running
-			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
-			if err != nil {
-				return err
-			}
-			for _, service := range services {
-				// check current state
-				var serviceStates []*serviced.ServiceState
-				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
-				if err != nil {
-					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
-					return err
-				}
-				if len(serviceStates) == service.Instances {
-					continue
-				}
-
-				instancesToStart := service.Instances - len(serviceStates)
-				if instancesToStart >= 0 {
-					for i := 0; i < instancesToStart; i++ {
-						// get hosts
-						var pool_hosts []*serviced.PoolHost
-						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
-						if err != nil {
-							return err
-						}
-						if len(pool_hosts) == 0 {
-							glog.Infof("Pool %s has no hosts", service.PoolId)
-							break
-						}
-
-						// randomly select host
-						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
-
-						serviceState, err := service.NewServiceState(service_host.HostId)
-						if err != nil {
-							glog.Errorf("Error creating ServiceState instance: %v", err)
-							break
-						}
-						glog.Infof("cp: serviceState %s", serviceState.Started)
-						err = dbmap.Insert(serviceState)
-					}
-				} else {
-					// pick service instances to kill!
-					instancesToKill := len(serviceStates) - service.Instances
-					for i := 0; i < instancesToKill; i++ {
-						glog.Infof("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
-						serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-						_, err = dbmap.Update(serviceStates[i])
-					}
-				}
-			}
-			return nil
-		}()
-	}
-}
-
-// Schedule a service to run on a host.
-func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) {
-	db, dbmap, err := s.getDbConnection()
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
+// Start a service and its subservices
+func startService(dbmap *gorp.DbMap, serviceId string) error {
 	// check current state
+	var err error
 	var serviceStates []*serviced.ServiceState
 	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", serviceId)
 	if err != nil {
@@ -521,7 +694,34 @@ func (s *ControlSvc) StartService(serviceId string, hostId *string) (err error) 
 	if err != nil {
 		return serviced.ControlPlaneError{"Could not set desired state to start"}
 	}
+
+	// find sub services and start them
+	var subserviceIds []*struct{ Id string }
+	_, err = dbmap.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? ", serviceId)
+	if err != nil {
+		return serviced.ControlPlaneError{
+			fmt.Sprintf("Could not get subservices: %s", err.Error()),
+		}
+	}
+	for _, obj := range subserviceIds {
+		err = startService(dbmap, obj.Id)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
+
+}
+
+// Schedule a service to run on a host.
+func (s *ControlSvc) StartService(serviceId string, unused *string) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return startService(dbmap, serviceId)
 }
 
 //Schedule a service to restart.
@@ -530,9 +730,59 @@ func (s *ControlSvc) RestartService(serviceId string, unused *int) (err error) {
 
 }
 
+func stopService(tx *gorp.Transaction, service *serviced.Service) error {
+	service.DesiredState = serviced.SVC_STOP
+	if _, err := tx.Update(service); err != nil {
+		return err
+	}
+
+	var subserviceIds []*struct{ Id string }
+	if _, err := tx.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? AND launch <> \"manual\" ", service.Id); err != nil {
+		return serviced.ControlPlaneError{fmt.Sprintf("Could not get subservices: %s", err.Error())}
+	}
+
+	for _, obj := range subserviceIds {
+		svc, err := tx.Get(&serviced.Service{}, obj.Id)
+		switch {
+		case err != nil:
+			return err
+		case svc == nil:
+			glog.Warningf("Missing subservice: %s", obj.Id)
+		default:
+			return stopService(tx, svc.(*serviced.Service))
+		}
+	}
+
+	return nil
+}
+
 //Schedule a service to stop.
-func (s *ControlSvc) StopService(serviceId string, unused *int) (err error) {
-	return serviced.ControlPlaneError{"Unimplemented"}
+func (s *ControlSvc) StopService(serviceId string, unused *int) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	obj, err := dbmap.Get(&serviced.Service{}, serviceId)
+	switch {
+	case err != nil:
+		return err
+	case obj == nil:
+		return serviced.ControlPlaneError{"Service does not exist"}
+	default:
+		tx, err := dbmap.Begin()
+		if err != nil {
+			return err
+		}
+
+		if err := stopService(tx, obj.(*serviced.Service)); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		return tx.Commit()
+	}
 }
 
 func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints map[string]service_state_endpoint, err error) {
@@ -729,5 +979,258 @@ func (s *ControlSvc) RemoveResourcePool(poolId string, unused *int) (err error) 
 	}
 	defer db.Close()
 	_, err = dbmap.Delete(&serviced.ResourcePool{Id: poolId})
+	return err
+}
+
+func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
+	shutdown_mode := false
+	for {
+		if shutdown_mode {
+			break
+		}
+		time.Sleep(time.Second)
+		func() error {
+			select {
+			case evt := <-zkEvent:
+				// shut this thing down
+				shutdown_mode = true
+				glog.Errorf("Got a zkevent, leaving lead: %v", evt)
+				return nil
+			default:
+				// passthru
+			}
+			db, dbmap, err := s.getDbConnection()
+			if err != nil {
+				glog.Infof("trying to connection: %s", err)
+				return err
+			}
+			defer db.Close()
+			var services []*serviced.Service
+			// get all service that are supposed to be running
+			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
+			if err != nil {
+				return err
+			}
+			for _, service := range services {
+				// check current state
+				var serviceStates []*serviced.ServiceState
+				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
+				if err != nil {
+					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
+					return err
+				}
+				if len(serviceStates) == service.Instances {
+					continue
+				}
+
+				instancesToStart := service.Instances - len(serviceStates)
+				if instancesToStart >= 0 {
+					for i := 0; i < instancesToStart; i++ {
+						// get hosts
+						var pool_hosts []*serviced.PoolHost
+						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
+						if err != nil {
+							return err
+						}
+						if len(pool_hosts) == 0 {
+							glog.Infof("Pool %s has no hosts", service.PoolId)
+							break
+						}
+
+						// randomly select host
+						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+
+						serviceState, err := service.NewServiceState(service_host.HostId)
+						if err != nil {
+							glog.Errorf("Error creating ServiceState instance: %v", err)
+							break
+						}
+						glog.Infof("cp: serviceState %s", serviceState.Started)
+						err = dbmap.Insert(serviceState)
+					}
+				} else {
+					// pick service instances to kill!
+					instancesToKill := len(serviceStates) - service.Instances
+					for i := 0; i < instancesToKill; i++ {
+						glog.Infof("CP: Choosing to kill %s:%s\n", serviceStates[i].HostId, serviceStates[i].DockerId)
+						serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+						_, err = dbmap.Update(serviceStates[i])
+					}
+				}
+			}
+
+			// find the services that should not be running
+			var xservices []*serviced.Service
+			if _, err = dbmap.Select(&xservices, "SELECT * FROM `service` WHERE desired_state <> 1"); err != nil {
+				return err
+			}
+
+			for _, service := range xservices {
+				var serviceStates []*serviced.ServiceState
+				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0000-00-00 00:00:00'", service.Id); err != nil {
+					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
+					return err
+				}
+
+				for _, ss := range serviceStates {
+					glog.Infof("CP: killing %s:%s\n", ss.HostId, ss.DockerId)
+					ss.Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+					if _, err = dbmap.Update(ss); err != nil {
+						glog.Warningf("CP: %s:%s wouldn't die", ss.HostId, ss.DockerId)
+					}
+				}
+			}
+
+			return nil
+		}()
+	}
+}
+
+func deployServiceDefinitions(tx *gorp.Transaction, sds []serviced.ServiceDefinition, template string, pool string, parent string) error {
+	for _, sd := range sds {
+		if err := deployServiceDefinition(tx, sd, template, pool, parent); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition, template string, pool string, parent string) error {
+	svcuuid, _ := serviced.NewUuid()
+	now := time.Now()
+
+	// determine the desired state
+	ds := serviced.SVC_RUN
+
+	if sd.Launch == serviced.MANUAL {
+		ds = serviced.SVC_STOP
+	}
+
+	svc := serviced.Service{svcuuid,
+		sd.Name,
+		sd.Command,
+		sd.Description,
+		sd.Instances.Min,
+		sd.ImageId,
+		pool,
+		ds,
+		sd.Launch,
+		&sd.Endpoints,
+		parent,
+		now,
+		now}
+
+	if err := addService(tx, svc); err != nil {
+		return err
+	} else {
+		sduuid, _ := serviced.NewUuid()
+		if err := tx.Insert(&serviced.ServiceDeployment{sduuid, template, svc.Id, now}); err != nil {
+			return err
+		} else {
+			return deployServiceDefinitions(tx, sd.Services, template, pool, svc.Id)
+		}
+	}
+}
+
+func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var wrapper *serviced.ServiceTemplateWrapper
+
+	obj, err := dbmap.Get(&serviced.ServiceTemplateWrapper{}, request.TemplateId)
+	switch {
+	case err != nil:
+		return err
+	case obj == nil:
+		return errors.New("no such service template")
+	default:
+		wrapper = obj.(*serviced.ServiceTemplateWrapper)
+	}
+
+	_, err = dbmap.Get(serviced.ResourcePool{}, request.PoolId)
+	if err != nil {
+		return err
+	}
+
+	var template serviced.ServiceTemplate
+	if err = json.Unmarshal([]byte(wrapper.Data), &template); err != nil {
+		return err
+	}
+
+	if tx, err := dbmap.Begin(); err != nil {
+		return err
+	} else {
+		deployServiceDefinitions(tx, template.Services, request.TemplateId, request.PoolId, "")
+		return tx.Commit()
+	}
+}
+
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var templateWrappers []*serviced.ServiceTemplateWrapper
+	_, err = dbmap.Select(&templateWrappers, "SELECT * FROM service_template")
+	if err != nil {
+		fmt.Errorf("could not get service templates: %s", err)
+	}
+
+	templates := make(map[string]*serviced.ServiceTemplate, len(templateWrappers))
+	for _, templateWrapper := range templateWrappers {
+		var template serviced.ServiceTemplate
+		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
+		if err != nil {
+			return err
+		}
+		templates[templateWrapper.Id] = &template
+	}
+
+	*serviceTemplates = templates
+
+	return nil
+}
+
+func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	data, err := json.Marshal(serviceTemplate)
+	if err != nil {
+		return err
+	}
+
+	uuid, err := serviced.NewUuid()
+	if err != nil {
+		return err
+	}
+
+	wrapper := serviced.ServiceTemplateWrapper{uuid, serviceTemplate.Name, serviceTemplate.Description, string(data), 1, 1}
+
+	return dbmap.Insert(&wrapper)
+}
+
+func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+	return fmt.Errorf("unimplemented UpdateServiceTemplate")
+}
+
+func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = dbmap.Delete(&serviced.ServiceTemplateWrapper{Id: serviceTemplateId})
 	return err
 }
