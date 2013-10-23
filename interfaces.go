@@ -19,8 +19,10 @@ import (
 type ProtocolType string
 
 const (
-	TCP string = "tcp"
-	UDP string = "udp"
+	AUTO   string = "auto"
+	MANUAL string = "manual"
+	TCP    string = "tcp"
+	UDP    string = "udp"
 )
 
 // A user defined string that describes an exposed application endpoint.

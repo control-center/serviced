@@ -268,6 +268,13 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 	cmd := Subcmd("hosts", "[OPTIONS]", "List hosts")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each pool")
+
+	var raw bool
+	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -276,13 +283,43 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 	var hosts map[string]*dao.Host
 	request := dao.EntityRequest{}
+
 	err := client.GetHosts(request, &hosts)
 	if err != nil {
 		glog.Fatalf("Could not get hosts %v", err)
 	}
-	hostsJson, err := json.MarshalIndent(hosts, " ", "  ")
-	if err == nil {
-		fmt.Printf("%s\n", hostsJson)
+
+	if verbose == false {
+		outfmt := "%-8s %-12s %-24s %-12s %-5d %-12d %-24s\n"
+
+		if raw == false {
+			fmt.Printf("%-8s %-12s %-24s %-12s %-5s %-12s %-24s\n",
+				"ID",
+				"POOL",
+				"NAME",
+				"ADDR",
+				"CORES",
+				"MEM",
+				"NETWORK")
+		} else {
+			outfmt = "%s|%s|%s|%s|%d|%d|%s\n"
+		}
+
+		for _, h := range hosts {
+			fmt.Printf(outfmt,
+				h.Id,
+				h.PoolId,
+				h.Name,
+				h.IpAddr,
+				h.Cores,
+				h.Memory,
+				h.PrivateNetwork)
+		}
+	} else {
+		hostsJson, err := json.MarshalIndent(hosts, " ", "  ")
+		if err == nil {
+			fmt.Printf("%s\n", hostsJson)
+		}
 	}
 	return err
 }
@@ -356,6 +393,13 @@ type poolWithHost struct {
 // Print a list of pools. Args are ignored.
 func (cli *ServicedCli) CmdPools(args ...string) error {
 	cmd := Subcmd("pools", "[OPTIONS]", "Display pools")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each pool")
+
+	var raw bool
+	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -366,24 +410,43 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
 	}
-	poolsWithHost := make(map[string]poolWithHost)
-	for _, pool := range pools {
 
-		// get pool hosts
-		var poolHosts []*dao.PoolHost
-		err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
-		if err != nil {
-			glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
+	if verbose == false {
+		outfmt := "%-12s %-12s %-6d %-6d %-6d\n"
+
+		if raw == false {
+			fmt.Printf("%-12s %-12s %-6s %-6s %-6s\n", "ID", "PARENT", "CORE", "MEM", "PRI")
+		} else {
+			outfmt = "%s|%s|%d|%d|%d\n"
 		}
-		hosts := make([]string, len(poolHosts))
-		for i, hostPool := range poolHosts {
-			hosts[i] = hostPool.HostId
+
+		for _, pool := range pools {
+			fmt.Printf(outfmt,
+				pool.Id,
+				pool.ParentId,
+				pool.CoreLimit,
+				pool.MemoryLimit,
+				pool.Priority)
 		}
-		poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
-	}
-	poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
-	if err == nil {
-		fmt.Printf("%s\n", poolsWithHostJson)
+	} else {
+		poolsWithHost := make(map[string]poolWithHost)
+		for _, pool := range pools {
+			// get pool hosts
+			var poolHosts []*dao.PoolHost
+			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
+			if err != nil {
+				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
+			}
+			hosts := make([]string, len(poolHosts))
+			for i, hostPool := range poolHosts {
+				hosts[i] = hostPool.HostId
+			}
+			poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
+		}
+		poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
+		if err == nil {
+			fmt.Printf("%s\n", poolsWithHostJson)
+		}
 	}
 	return err
 }
@@ -442,9 +505,17 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 // Print the list of available services.
 func (cli *ServicedCli) CmdServices(args ...string) error {
 	cmd := Subcmd("services", "[CMD]", "Show services")
+
+	var verbose bool
+	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each service")
+
+	var raw bool
+	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	controlPlane := getClient()
 	request := dao.EntityRequest{}
 	var services []*dao.Service
@@ -452,11 +523,47 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not get services: %v", err)
 	}
-	servicesJson, err := json.MarshalIndent(services, " ", " ")
-	if err != nil {
-		glog.Fatalf("Problem marshaling services object: %s", err)
+
+	if verbose == false {
+		outfmt := "%-36s %-12.12s %-32.32s %-16.16s %-4d %-24.24s %-12s %-6d %-6s %-16.16s\n"
+
+		if raw == false {
+			fmt.Printf("%-36s %-12s %-32s %-16s %-4s %-24s %-12s %-6s %-6s %-16.16s\n",
+				"SERVICE ID",
+				"NAME",
+				"COMMAND",
+				"DESCRIPTION",
+				"INST",
+				"IMAGE",
+				"POOL",
+				"DSTATE",
+				"LAUNCH",
+				"PARENT")
+		} else {
+			outfmt = "%s|%s|%s|%s|%d|%s|%s|%d|%s|%s\n"
+		}
+
+		for _, s := range services {
+			fmt.Printf(outfmt,
+				s.Id,
+				s.Name,
+				s.Startup,
+				s.Description,
+				s.Instances,
+				s.ImageId,
+				s.PoolId,
+				s.DesiredState,
+				s.Launch,
+				s.ParentServiceId)
+		}
+	} else {
+		servicesJson, err := json.MarshalIndent(services, " ", " ")
+		if err != nil {
+			glog.Fatalf("Problem marshaling services object: %s", err)
+		}
+		fmt.Printf("%s\n", servicesJson)
 	}
-	fmt.Printf("%s\n", servicesJson)
+
 	return err
 }
 

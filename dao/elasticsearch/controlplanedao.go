@@ -330,6 +330,18 @@ func (this *ControlPlaneDao) GetService(id string, service *dao.Service) error {
   return err
 }
 
+func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) error {
+	return fmt.Errorf("unimplemented GetRunningServicesForHost")
+}
+
+func (this *ControlPlaneDao) GetServiceLogs(serviceId string, logs *string) error {
+	return fmt.Errorf("unimplemented GetRunningServicesForHost")
+}
+
+func (this *ControlPlaneDao) GetServiceStateLogs(serviceStateId string, logs *string) error {
+	return fmt.Errorf("unimplemented GetRunningServicesForHost")
+}
+
 //
 func (this *ControlPlaneDao) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) error {
   glog.Infof( "ControlPlaneDao.GetResourcePools")
@@ -470,7 +482,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return fmt.Errorf("unimplemented RemoveServiceTemplate")
 }
 
-func (this *ControlPlaneDao) GetServiceTemplates(unused int, serviceTemplates *[]*dao.ServiceTemplate) error {
+func (this *ControlPlaneDao) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
 	return fmt.Errorf("unimplemented DeployTemplate")
 }
 

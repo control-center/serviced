@@ -6,7 +6,7 @@ import "os"
 var urandomFilename = "/dev/urandom"
 
 // Generate a new UUID
-func newUuid() (string, error) {
+func NewUuid() (string, error) {
 	f, err := os.Open(urandomFilename)
 	if err != nil {
 		return "", err

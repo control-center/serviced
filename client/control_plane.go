@@ -73,6 +73,18 @@ func (s *ControlClient) GetServicesForHost(hostId string, servicesForHost *[]*da
 	return s.rpcClient.Call("ControlPlane.GetServicesForHost", hostId, servicesForHost)
 }
 
+func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
+}
+
+func (s *ControlClient) GetServiceStateLogs(serviceStateId string, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", serviceStateId, logs)
+}
+
+func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
+}
+
 func (s *ControlClient) GetServiceStates(serviceId string, states *[]*dao.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
@@ -125,7 +137,7 @@ func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequ
 	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
 }
 
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *[]*dao.ServiceTemplate) error {
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
 }
 

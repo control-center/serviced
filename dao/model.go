@@ -2,31 +2,18 @@ package dao
 
 import "time"
 
+type MinMax struct {
+	Min int
+	Max int
+}
+
 type ServiceTemplateWrapper struct {
+  Id              string // Primary-key
 	Name            string // Name of top level service
 	Description     string // Description
 	Data            string // JSON encoded template definition
 	ApiVersion      int    // Version of the ServiceTemplate API this expects
 	TemplateVersion int    // Version of the template
-}
-
-// A Service Template used for
-type ServiceTemplate struct {
-	Id               string                // Unique id of service
-	Name             string                // Name of service
-	Startup          string                // Startup command
-	Description      string                // Meaningful description of service
-	MinInstances     int                   // mininum number of instances to run
-	MaxInstances     int                   // maximum number of instances to run
-	ImageId          string                // Docker image id
-	ServiceEndpoints []ServiceEndpoint     // Ports that this service uses
-	SubServices      []ServiceTemplate     // Child services
-}
-
-// A request to deploy a service template
-type ServiceTemplateDeploymentRequest struct {
-	PoolId   string          // Pool Id to deploy service into
-	Template ServiceTemplate // ServiceTemplate to deploy
 }
 
 // An association between a host and a pool.
@@ -97,10 +84,11 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
+  Launch          string
+	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	Endpoints       *[]ServiceEndpoint
 }
 
 // An endpoint that a Service exposes.
@@ -124,17 +112,63 @@ type ServiceState struct {
 	PortMapping map[string]map[string]string
 }
 
+type ServiceDefinition struct {
+	Name        string              // Name of the defined service
+	Command     string              // Command which runs the service
+	Description string              // Description of the service
+	ImageId     string              // Docker image hosting the service
+	Instances   MinMax              // Constraints on the number of instances
+	Launch      string              // Must be "AUTO", the default, or "MANUAL"
+	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
+	Services    []ServiceDefinition // Supporting subservices
+}
+
+type ServiceDeployment struct {
+	Id         string    // Primary key
+	TemplateId string    // id of template being deployed
+	ServiceId  string    // id of service created by deployment
+	DeployedAt time.Time // when the template was deployed
+}
+
+// A Service Template used for
+type ServiceTemplate struct {
+	Name        string              // Name of service template
+	Description string              // Meaningful description of service
+	Services    []ServiceDefinition // Child services
+}
+
+// A request to deploy a service template
+type ServiceTemplateDeploymentRequest struct {
+	PoolId     string // Pool Id to deploy service into
+	TemplateId string // Id of template to be deployed
+}
+
+// This is created by selecting from service_state and joining to service
+type RunningService struct {
+	Id              string
+	ServiceId       string
+	StartedAt       time.Time
+	Name            string
+	Startup         string
+	Description     string
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	ParentServiceId string
+}
+
 // Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = newUuid()
+	s.Id, err = NewUuid()
 	return s, err
 }
 
 // A new service instance (ServiceState)
 func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = newUuid()
+	serviceState.Id, err = NewUuid()
 	if err == nil {
 	  serviceState.ServiceId = s.Id
 	  serviceState.HostId = hostId

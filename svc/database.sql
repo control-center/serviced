@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.5.32, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: q
+-- Host: localhost    Database: cp
 -- ------------------------------------------------------
 -- Server version	5.5.32-0ubuntu0.13.04.1
 
@@ -149,6 +149,7 @@ CREATE TABLE `service` (
   `instances` int(11) NOT NULL,
   `description` varchar(255) NOT NULL,
   `desired_state` int(11) NOT NULL,
+  `launch` char(16) NOT NULL DEFAULT 'auto',
   `parent_service_id` char(36) NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -168,6 +169,35 @@ LOCK TABLES `service` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `service_deployment`
+--
+
+DROP TABLE IF EXISTS `service_deployment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `service_deployment` (
+  `id` char(36) NOT NULL,
+  `service_id` char(36) NOT NULL,
+  `service_template_id` char(36) NOT NULL,
+  `deployed_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `service_id` (`service_id`),
+  KEY `service_template_id` (`service_template_id`),
+  CONSTRAINT `service_deployment_ibfk_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`),
+  CONSTRAINT `service_deployment_ibfk_2` FOREIGN KEY (`service_template_id`) REFERENCES `service_template` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `service_deployment`
+--
+
+LOCK TABLES `service_deployment` WRITE;
+/*!40000 ALTER TABLE `service_deployment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `service_deployment` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `service_endpoint`
 --
 
@@ -179,7 +209,7 @@ CREATE TABLE `service_endpoint` (
   `port` int(11) NOT NULL,
   `protocol` enum('tcp','udp') NOT NULL,
   `application` varchar(45) DEFAULT NULL,
-  `purpose` enum('local','remote') NOT NULL,
+  `purpose` enum('export','import') NOT NULL,
   PRIMARY KEY (`service_id`,`port`,`protocol`),
   KEY `fk_port_1` (`service_id`),
   CONSTRAINT `fk_port_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
@@ -314,4 +344,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-07 16:05:03
+-- Dump completed on 2013-10-16 19:12:52
