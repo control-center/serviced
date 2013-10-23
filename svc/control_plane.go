@@ -628,6 +628,7 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 	_, err = dbmap.Select(&services,
 		"SELECT "+
 			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
 			" ss.service_id as ServiceId,"+
 			" ss.started_at as StartedAt,"+
 			" s.name as Name,"+
@@ -649,6 +650,40 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 	*runningServices = services
 	return err
 }
+
+// Get all running services
+func (s *ControlSvc) GetRunningServices(request serviced.EntityRequest, runningServices *[]*serviced.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var services []*serviced.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '2000-01-01'")
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
 
 // Get the current states of the running service instances.
 func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
