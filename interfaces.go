@@ -114,6 +114,7 @@ type ServiceTemplateDeploymentRequest struct {
 type RunningService struct {
 	Id              string
 	ServiceId       string
+	HostId          string
 	StartedAt       time.Time
 	Name            string
 	Startup         string
@@ -323,6 +324,9 @@ type ControlPlane interface {
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+
+	// Get all running services
+	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
 
 	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error
