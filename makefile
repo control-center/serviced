@@ -7,8 +7,13 @@
 #
 ################################################################################
 
-default: elastigo docker_ok
-	@echo "Executing make style build. You can also use the 'go' tool."
+default: build
+
+dockerbuild:
+	docker build -t zenoss/serviced-build .
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make
+
+build: elastigo
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
 	go get github.com/zenoss/glog
