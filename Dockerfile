@@ -37,7 +37,9 @@ env	GOPATH	/go
 run	apt-get install -y -q iptables lxc aufs-tools
 
 # build dependencies
-run	apt-get install -y -q make gcc libpam0g-dev
+run	apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
+run	apt-get	install -y -q rubygems
+run	gem install fpm
 
 volume	/var/lib/serviced
 workdir	/go/src/github.com/zenoss/serviced

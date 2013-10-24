@@ -26,7 +26,7 @@ build: elastigo
 
 dockerbuild:
 	docker build -t zenoss/serviced-build .
-	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make && make rpm && make deb
 
 test: build docker_ok
 	go test
