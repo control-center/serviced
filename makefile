@@ -24,6 +24,10 @@ build: elastigo
 	cd dao && make
 	cd serviced && make
 
+dockerbuild:
+	docker build -t zenoss/serviced-build .
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make && cd pkg && make rpm && make deb
+
 test: build docker_ok
 	go test
 	cd client && make test
@@ -57,3 +61,5 @@ clean:
 	cd svc && make clean
 	cd proxy && make clean
 	cd dao && make clean
+	cd pkg && make clean
+
