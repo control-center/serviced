@@ -24,6 +24,10 @@ build: elastigo
 	cd dao && make
 	cd serviced && make
 
+dockerbuild:
+	docker build -t zenoss/serviced-build .
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make
+
 test: build docker_ok
 	go test
 	cd client && make test

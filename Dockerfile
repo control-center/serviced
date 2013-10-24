@@ -37,14 +37,8 @@ env	GOPATH	/go
 run	apt-get install -y -q iptables lxc aufs-tools
 
 # build dependencies
-run	apt-get install -y -q make
+run	apt-get install -y -q make gcc libpam0g-dev
 
 volume	/var/lib/serviced
 workdir	/go/src/github.com/zenoss/serviced
-
-run	apt-get install -y -q gcc libpam0g-dev
-# Upload docker source
-add	.       /go/src/github.com/zenoss/serviced
-run	make
-
 
