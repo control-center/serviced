@@ -189,6 +189,8 @@ func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clie
 
 func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*serviced.RunningService
+	request := serviced.EntityRequest{}
+	err := client.GetRunningServices(request, &services)
 	glog.Infof("services length: %d", len(services))
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
