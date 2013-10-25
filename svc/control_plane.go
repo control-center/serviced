@@ -1102,7 +1102,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 
 			for _, service := range xservices {
 				var serviceStates []*serviced.ServiceState
-				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0000-00-00 00:00:00'", service.Id); err != nil {
+				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0001-01-01 00:00:00'", service.Id); err != nil {
 					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
 					return err
 				}
