@@ -10,6 +10,7 @@ package client
 
 import (
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/glog"
 	"net/rpc"
 )
 
