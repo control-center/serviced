@@ -289,6 +289,8 @@ type LoadBalancer interface {
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
+	LoadBalancer
+
 	// Get a list of registered hosts
 	GetHosts(request EntityRequest, replyHosts *map[string]*Host) error
 

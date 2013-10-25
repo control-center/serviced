@@ -38,6 +38,10 @@ func (s *ControlClient) Close() (err error) {
 	return s.rpcClient.Close()
 }
 
+func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
+}
+
 // Return the matching hosts.
 func (s *ControlClient) GetHosts(request serviced.EntityRequest, replyHosts *map[string]*serviced.Host) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetHosts", request, replyHosts)

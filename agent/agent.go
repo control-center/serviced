@@ -243,6 +243,16 @@ func (a *HostAgent) start() {
 	}
 }
 
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+	controlClient, err := client.NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return
+	}
+	defer controlClient.Close()
+	return controlClient.GetServiceEndpoints(serviceId, response)
+}
+
 // Create a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *serviced.Host) error {
 	hostInfo, err := serviced.CurrentContextAsHost("UNKNOWN")
