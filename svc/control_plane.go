@@ -20,14 +20,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"log"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 /* A control plane implementation.
 
@@ -340,7 +344,7 @@ where
 
 func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
-		return []string{ node.id }
+		return []string{node.id}
 	}
 	relatedServiceIds := make([]string, 0)
 	for _, childNode := range node.children {
@@ -683,7 +687,6 @@ func (s *ControlSvc) GetRunningServices(request serviced.EntityRequest, runningS
 	*runningServices = services
 	return err
 }
-
 
 // Get the current states of the running service instances.
 func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
@@ -1073,7 +1076,10 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 						}
 
 						// randomly select host
-						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+						num_hosts := len(pool_hosts)
+						idx := rand.Intn(num_hosts)
+						glog.Infof("There are %d hosts and we picked number %d", num_hosts, idx)
+						service_host := pool_hosts[idx]
 
 						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
