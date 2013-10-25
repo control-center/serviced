@@ -2,10 +2,25 @@ package web
 
 import (
 	"github.com/ant0ine/go-json-rest"
+
+	"flag"
 	"net/http"
+	"os"
 	"path"
 	"runtime"
 )
+
+
+var webroot string
+
+func init() {
+	webrootDefault := ""
+	servicedHome := os.Getenv("SERVICED_HOME")
+	if len(servicedHome) > 0 {
+		webrootDefault = servicedHome + "/share/web/static"
+	}
+	flag.StringVar(&webroot, "webroot", webrootDefault, "static director for web content, defaults to GO runtime path of src")
+}
 
 /*******************************************************************************
  *
@@ -216,7 +231,10 @@ func noCache(w *rest.ResponseWriter) {
  * Hack to get us the location on the filesystem of our static files.
  */
 func staticRoot() string {
-	_, filename, _, _ := runtime.Caller(1)
-	return path.Join(path.Dir(filename), "static")
+	if len(webroot) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		return path.Join(path.Dir(filename), "static")
+	}
+	return webroot
 }
 
