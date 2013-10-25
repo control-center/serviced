@@ -99,9 +99,10 @@ type ServiceDeployment struct {
 
 // A Service Template used for
 type ServiceTemplate struct {
-	Name        string              // Name of service template
-	Description string              // Meaningful description of service
-	Services    []ServiceDefinition // Child services
+	Name        string                 // Name of service template
+	Description string                 // Meaningful description of Services
+	Context     map[string]interface{} // Context information for Services
+	Services    []ServiceDefinition    // Child services
 }
 
 // A request to deploy a service template
