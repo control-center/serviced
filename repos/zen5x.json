@@ -227,6 +227,42 @@
           "Launch": "auto", 
           "Name": "zeneventd", 
           "Services": []
+        },
+        {
+          "Command": "su - zenoss cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n", 
+          "Endpoints": [
+            {
+              "Application": "mysql", 
+              "PortNumber": 3306, 
+              "Protocol": "tcp", 
+              "Purpose": "import"
+            }, 
+            {
+              "Application": "memcached", 
+              "PortNumber": 11211, 
+              "Protocol": "tcp", 
+              "Purpose": "import"
+            }, 
+            {
+              "Application": "redis", 
+              "PortNumber": 6379, 
+              "Protocol": "tcp", 
+              "Purpose": "import"
+            }, 
+            {
+              "Application": "rabbitmq", 
+              "PortNumber": 5672, 
+              "Protocol": "tcp", 
+              "Purpose": "import"
+            }
+          ], 
+          "ImageId": "zenoss/zenoss5x", 
+          "Instances": {
+            "min": 1
+          }, 
+          "Launch": "auto", 
+          "Name": "zsupervisord", 
+          "Services": []
         }, 
         {
           "Command": "su - zenoss /opt/zenoss/bin/zenactiond run", 
