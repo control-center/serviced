@@ -1039,7 +1039,6 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 
 						// randomly select host
 						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
-
 						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
 							glog.Errorf("Error creating ServiceState instance: %v", err)

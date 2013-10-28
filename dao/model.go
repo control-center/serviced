@@ -132,6 +132,7 @@ type ServiceDeployment struct {
 
 // A Service Template used for
 type ServiceTemplate struct {
+  Id          string              // Unique ID of this service template
 	Name        string              // Name of service template
 	Description string              // Meaningful description of service
 	Services    []ServiceDefinition // Child services
