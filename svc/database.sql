@@ -143,6 +143,7 @@ DROP TABLE IF EXISTS `service`;
 CREATE TABLE `service` (
   `id` char(36) NOT NULL DEFAULT '',
   `name` varchar(45) NOT NULL,
+  `context` text NOT NULL,
   `startup` text NOT NULL,
   `image_id` varchar(50) NOT NULL,
   `resource_pool_id` char(36) NOT NULL,

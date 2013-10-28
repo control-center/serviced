@@ -3,10 +3,8 @@ package svc
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 
 	"bytes"
-	"text/template"
 	"time"
 )
 
@@ -17,32 +15,6 @@ func TimeoutAfter(delay time.Duration) <-chan bool {
 		done <- true
 	}(delay, doneChan)
 	return doneChan
-}
-
-func injectContextInServiceDefinition(ctx map[string]interface{}, sd *serviced.ServiceDefinition) error {
-	t := template.Must(template.New(sd.Name).Parse(sd.Command))
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, ctx); err != nil {
-		return err
-	}
-	sd.Command = buf.String()
-
-	return injectContextInServiceDefinitions(ctx, sd.Services)
-}
-
-func injectContextInServiceDefinitions(ctx map[string]interface{}, sds []serviced.ServiceDefinition) error {
-	for i, _ := range sds {
-		if err := injectContextInServiceDefinition(ctx, &sds[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Use the Context field of the given template to fill in all the templates in
-// the Command fields of the template's ServiceDefinitions
-func InjectContext(st *serviced.ServiceTemplate) error {
-	return injectContextInServiceDefinitions(st.Context, st.Services)
 }
 
 func deleteNodebyData(path string, conn *zk.Conn, data []byte) error {

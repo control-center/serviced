@@ -20,13 +20,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"log"
 )
 
 /* A control plane implementation.
@@ -340,7 +340,7 @@ where
 
 func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
-		return []string{ node.id }
+		return []string{node.id}
 	}
 	relatedServiceIds := make([]string, 0)
 	for _, childNode := range node.children {
@@ -683,7 +683,6 @@ func (s *ControlSvc) GetRunningServices(request serviced.EntityRequest, runningS
 	*runningServices = services
 	return err
 }
-
 
 // Get the current states of the running service instances.
 func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
@@ -1135,6 +1134,11 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 	svcuuid, _ := serviced.NewUuid()
 	now := time.Now()
 
+	ctx, err := json.Marshal(sd.Context)
+	if err != nil {
+		return err
+	}
+
 	// determine the desired state
 	ds := serviced.SVC_RUN
 
@@ -1144,6 +1148,7 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 
 	svc := serviced.Service{svcuuid,
 		sd.Name,
+		string(ctx),
 		sd.Command,
 		sd.Description,
 		sd.Instances.Min,
