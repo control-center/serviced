@@ -10,6 +10,7 @@ package client
 
 import (
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/glog"
 	"net/rpc"
 )
 
@@ -26,6 +27,7 @@ var _ serviced.ControlPlane = &ControlClient{}
 func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
+	glog.Infof("Connecting to %s", addr)
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err
@@ -34,6 +36,10 @@ func NewControlClient(addr string) (s *ControlClient, err error) {
 // Return the matching hosts.
 func (s *ControlClient) Close() (err error) {
 	return s.rpcClient.Close()
+}
+
+func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
 // Return the matching hosts.
