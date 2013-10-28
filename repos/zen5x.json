@@ -229,42 +229,6 @@
           "Services": []
         },
         {
-          "Command": "su - zenoss cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n", 
-          "Endpoints": [
-            {
-              "Application": "mysql", 
-              "PortNumber": 3306, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, 
-            {
-              "Application": "memcached", 
-              "PortNumber": 11211, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, 
-            {
-              "Application": "redis", 
-              "PortNumber": 6379, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, 
-            {
-              "Application": "rabbitmq", 
-              "PortNumber": 5672, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }
-          ], 
-          "ImageId": "zenoss/zenoss5x", 
-          "Instances": {
-            "min": 1
-          }, 
-          "Launch": "auto", 
-          "Name": "zsupervisord", 
-          "Services": []
-        }, 
-        {
           "Command": "su - zenoss /opt/zenoss/bin/zenactiond run", 
           "Endpoints": [
             {
@@ -301,14 +265,8 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss cd /opt/zenoss && enoss /bin/supervisord -c etc/zsupervisor.conf -n", 
+          "Command": "su - zenoss -c 'cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n'", 
           "Endpoints": [
-            {
-              "Application": "mysql", 
-              "PortNumber": 3306, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, 
             {
               "Application": "memcached", 
               "PortNumber": 11211, 
@@ -322,11 +280,23 @@
               "Purpose": "import"
             }, 
             {
-              "Application": "rabbitmq", 
-              "PortNumber": 5672, 
+              "Application": "metric_consumer", 
+              "PortNumber": 8443, 
               "Protocol": "tcp", 
-              "Purpose": "import"
-            }
+              "Purpose": "export"
+            }, 
+            {
+              "Application": "central_query", 
+              "PortNumber": 8888, 
+              "Protocol": "tcp", 
+              "Purpose": "export"
+            }, 
+            {
+              "Application": "zproxy", 
+              "PortNumber": 8080, 
+              "Protocol": "tcp", 
+              "Purpose": "export"
+            }            
           ], 
           "ImageId": "zenoss/zenoss5x", 
           "Instances": {
