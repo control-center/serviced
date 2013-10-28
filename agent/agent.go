@@ -180,7 +180,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	return err
 }
 
-func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, controlClient *client.ControlClient) (err error) {
+func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, hostId string, controlClient *client.ControlClient) (err error) {
 	// find current service states defined on the master
 	var serviceStates []*serviced.ServiceState
 	err = controlClient.GetServiceStates(service.Id, &serviceStates)
@@ -192,6 +192,9 @@ func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, con
 		return err
 	}
 	for _, serviceInstance := range serviceStates {
+		if serviceInstance.HostId != hostId {
+			continue
+		}
 		switch {
 		case serviceInstance.Started.Year() <= 1:
 			err = a.startService(controlClient, service, serviceInstance)
@@ -236,7 +239,7 @@ func (a *HostAgent) start() {
 
 				// iterate over this host's services
 				for _, service := range services {
-					a.handleServiceStatesForService(service, controlClient)
+					a.handleServiceStatesForService(service, a.hostId, controlClient)
 				}
 			}
 		}()
