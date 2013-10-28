@@ -265,7 +265,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c 'cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n'", 
+          "Command": "su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
           "Endpoints": [
             {
               "Application": "memcached", 
