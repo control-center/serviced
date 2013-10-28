@@ -11,11 +11,12 @@ package main
 // This is the main entry point for the application. Here we parse command line
 // flags and either start a service or execute command line functions.
 
+//svc "github.com/zenoss/serviced/svc"
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/web"
-	svc "github.com/zenoss/serviced/svc"
 	agent "github.com/zenoss/serviced/agent"
 
 	"flag"
@@ -72,7 +73,7 @@ func startServer() {
 	if options.master {
 		var master dao.ControlPlane
     var err error
-    master, err = svc.NewControlSvc(options.connection_string, options.zookeepers)
+    master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
