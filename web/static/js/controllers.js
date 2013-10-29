@@ -384,47 +384,6 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     refreshServices($scope, resourcesService, false);
 }
 
-function fakeConfig() {
-    console.log('TODO: Replace this function');
-    return '#\n' +
-           '# Ethernet frame types\n' +
-           '#               This file describes some of the various Ethernet\n' +
-           '#               protocol types that are used on Ethernet networks.\n' +
-           '#\n' +
-           '# This list could be found on:\n' +
-           '#         http://www.iana.org/assignments/ethernet-numbers\n' +
-           '#\n' +
-           '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
-           '#\n' +
-           'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
-           'X25             0805\n' +
-           'ARP             0806    ether-arp       #\n' +
-           'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
-           'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
-           'DEC             6000                    # DEC Assigned proto\n' +
-           'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
-           'DNA_RC          6002                    # DEC DNA Remote Console\n' +
-           'DNA_RT          6003                    # DEC DNA Routing\n' +
-           'LAT             6004                    # DEC LAT\N' +
-           'DIAG            6005                    # DEC Diagnostics\n' +
-           'CUST            6006                    # DEC Customer use\n' +
-           'SCA             6007                    # DEC Systems Comms Arch\n' +
-           'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
-           'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
-           'AARP            80F3                    # Appletalk AARP\n' +
-           'ATALK           809B                    # Appletalk\n' +
-           '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
-           'IPX             8137                    # Novell IPX\n' +
-           'NetBEUI         8191                    # NetBEUI\n' +
-           'IPv6            86DD    ip6             # IP version 6\n' +
-           'PPP             880B                    # PPP\N' +
-           'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
-           'PPP_DISC        8863                    # PPPoE discovery messages\n' +
-           'PPP_SES         8864                    # PPPoE session messages\n' +
-           'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
-           'LOOP            9000    loopback        # loop proto\n';
-}
-
 function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -451,7 +410,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
 
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
@@ -736,7 +695,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
