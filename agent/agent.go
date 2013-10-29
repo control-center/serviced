@@ -21,9 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -145,15 +143,6 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	return containerStates[0], err
 }
 
-// Get the path to the currently running executable.
-func execPath() (string, string, error) {
-	path, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return "", "", err
-	}
-	return filepath.Dir(path), filepath.Base(path), nil
-}
-
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
 
@@ -168,7 +157,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 		}
 	}
 
-	dir, binary, err := execPath()
+	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return err

@@ -19,7 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/zenoss/glog"
-	"io"
+	//"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -198,18 +198,26 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go func(cmdString string) {
 		cmd := exec.Command("bash", "-c", cmdString)
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			glog.Fatalf("Problem opening a stderr pipe to service: %s", err)
-		}
-		go io.Copy(os.Stderr, stderr)
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			glog.Fatalf("Problem opening a stdout pipe to service: %s", err)
-		}
-		go io.Copy(os.Stdout, stdout)
+        cmd.Stderr = os.Stderr
+        cmd.Stdin = os.Stdin
+        cmd.Stdout = os.Stdout
+		//stderr, err := cmd.StderrPipe()
+		//if err != nil {
+		//	glog.Fatalf("Problem opening a stderr pipe to service: %s", err)
+		//}
+		//go io.Copy(os.Stderr, stderr)
+		//stdout, err := cmd.StdoutPipe()
+		//if err != nil {
+		//	glog.Fatalf("Problem opening a stdout pipe to service: %s", err)
+		//}
+		//go io.Copy(os.Stdout, stdout)
+		//stdin, err := cmd.StdinPipe()
+		//if err != nil {
+		//	glog.Fatalf("Problem opening a stdin pipe to service: %s", err)
+		//}
+		//go io.Copy(stdin, os.Stdin)
 		glog.Infof("About to execute: %s", cmdString)
-		err = cmd.Run()
+        err := cmd.Run()
 		if err != nil {
 			glog.Errorf("Problem running service: %v", err)
 			time.Sleep(time.Minute)
@@ -756,5 +764,55 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 		glog.Fatalf("Could not stop service: %v", err)
 	}
 	glog.Infoln("Sevice scheduled to stop.")
+	return err
+}
+
+func (cli *ServicedCli) CmdShell(args ...string) error {
+	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	serviceId := cmd.Arg(0)
+	var services []*serviced.Service
+	controlPlane := getClient()
+	request := serviced.EntityRequest{}
+	// TODO: Replace with call to get single service
+	err := controlPlane.GetServices(request, &services)
+	if err != nil {
+		glog.Fatalf("Could not get services: %v", err)
+	}
+	var service *serviced.Service
+	for _, service = range services {
+		if service.Id == serviceId || service.Name == serviceId {
+			break
+		}
+	}
+	if service == nil {
+		glog.Fatalf("No such service: %s", serviceId)
+	}
+	glog.Infoln(service)
+
+	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	portOps := ""
+	dir, binary, err := serviced.ExecPath()
+	if err != nil {
+		glog.Errorf("Error getting exec path: %v", err)
+		return err
+	}
+	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
+    shellcmd := ""
+    for _, a := range cmd.Args()[1:] {
+        shellcmd += a + " "
+    }
+	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, shellcmd)
+	cmdString := fmt.Sprintf("docker run %s -i -t -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
+	glog.Infof("Starting: %s", cmdString)
+	command := exec.Command("bash", "-c", cmdString)
+	command.Stdout = os.Stdout
+	command.Stdin = os.Stdin
+	command.Stderr = os.Stderr
+    err = command.Run()
+    glog.Infoln(err)
+
 	return err
 }
