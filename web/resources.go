@@ -8,6 +8,7 @@ import (
 
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -162,10 +163,30 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		RestServerError(w)
 		return
 	}
+
 	if services == nil {
 		services = []*serviced.Service{}
 	}
-	w.WriteJson(&services)
+
+	nmregex := r.URL.Query().Get("name")
+
+	if nmregex == "" {
+		w.WriteJson(&services)
+	} else {
+		r, err := regexp.Compile(nmregex)
+		if err != nil {
+			glog.Errorf("Bad name regexp :%s", nmregex)
+			RestServerError(w)
+			return
+		}
+		matches := []*serviced.Service{}
+		for _, service := range services {
+			if r.MatchString(service.Name) {
+				matches = append(matches, service)
+			}
+		}
+		w.WriteJson(&matches)
+	}
 }
 
 func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
