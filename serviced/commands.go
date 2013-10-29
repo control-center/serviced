@@ -99,6 +99,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"stop-service", "Stop a service"},
 
 		{"proxy", "start a proxy in the foreground"},
+		{"shell", "Start an interactive shell based on a container"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -757,4 +758,16 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	}
 	glog.Infoln("Sevice scheduled to stop.")
 	return err
+}
+
+func (cli *ServicedCli) CmdShell(args ...string) error {
+	cmd := Subcmd("shell", "SERVICEID", "Service to use as base config.")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
 }
