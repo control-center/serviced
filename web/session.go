@@ -25,6 +25,29 @@ var sessions map[string]*Session
 
 func init() {
 	sessions = make(map[string]*Session)
+	go purgeOldSessions()
+}
+
+
+func purgeOldSessions() {
+	for {
+		time.Sleep(time.Second * 60)
+		if len(sessions) == 0 {
+			continue;
+		}
+		glog.Infoln("Purging old sessions older than 30 minutes")
+		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
+		toDel := []string{}
+		for key, value := range sessions {
+			if value.access.UTC().Unix() < cutoff {
+				toDel = append(toDel, key)
+			}
+		}
+		for _, key := range toDel {
+			glog.Infof("Deleting session %s", key)
+			delete(sessions, key)
+		}
+	}
 }
 
 /*
