@@ -46,7 +46,7 @@
               "Purpose": "export"
             }
           ], 
-          "ImageId": "zenoss/rabbitmq", 
+          "ImageId": "zenoss/zenoss5x", 
           "Instances": {
             "min": 1
           }, 
@@ -55,7 +55,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventserver run\"", 
+          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventserver run -v10\"", 
           "Endpoints": [
             {
               "Application": "mysql", 
@@ -151,7 +151,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenjobs run\"", 
+          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenjobs run -v10\"", 
           "Endpoints": [
             {
               "Application": "rabbitmq_admin", 
@@ -193,7 +193,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventd run\"", 
+          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventd run -v10\"", 
           "Endpoints": [
             {
               "Application": "mysql", 
@@ -229,7 +229,7 @@
           "Services": []
         },
         {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenactiond run\"", 
+          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenactiond run -v10\"", 
           "Endpoints": [
             {
               "Application": "mysql", 
@@ -307,7 +307,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenhub run\"", 
+          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenhub run -v10\"", 
           "Endpoints": [
             {
               "Application": "mysql", 

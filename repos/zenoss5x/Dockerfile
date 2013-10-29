@@ -98,12 +98,16 @@ RUN rpmdb --rebuilddb && yum install -y  which net-tools \
 	&& yum clean all
 
 RUN rpmdb --rebuilddb && yum install -y http://artifacts.zenoss.loc/europa/44/zenoss-5.0.0-44.fc19.x86_64.rpm
+ENV RABBITMQ_NODENAME rabbit@localhost
 ADD zenoss_init_pre /opt/zenoss/bin/zenoss_init_pre
 ADD global.conf /opt/zenoss/etc/global.conf
 ADD install-functions.sh /opt/zenoss/bin/install-functions.sh
 RUN chown zenoss:zenoss /opt/zenoss/bin/{zenoss_init_pre,install-functions.sh} /opt/zenoss/etc/global.conf
 RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/bin/zeneventserver-create-db 
 RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/Products/ZenModel/migrate/fixMysqlPermissions.py
+
+# remove zenpack install for now 
+RUN rm /opt/zenoss/var/zenpack*
 ADD zenoss_init.sh /tmp/zenoss_init.sh
 RUN /tmp/zenoss_init.sh
 
