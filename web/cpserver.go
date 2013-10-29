@@ -9,7 +9,7 @@ func Serve() {
 
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
-        }
+	}
 	handler.SetRoutes(
 		rest.Route{"GET", "/", MainPage},
 		rest.Route{"GET", "/test", TestPage},
@@ -27,6 +27,7 @@ func Serve() {
 		rest.Route{"GET", "/pools", AuthorizedClient(RestGetPools)},
 		// Services (Apps)
 		rest.Route{"GET", "/services", AuthorizedClient(RestGetAllServices)},
+		rest.Route{"GET", "/services/:serviceId", AuthorizedClient(RestGetService)},
 		rest.Route{"POST", "/services/add", AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", AuthorizedClient(RestRemoveService)},
 		rest.Route{"GET", "/services/:serviceId/logs", AuthorizedClient(RestGetServiceLogs)},
@@ -47,4 +48,3 @@ func Serve() {
 	)
 	http.ListenAndServe(":8787", &handler)
 }
-

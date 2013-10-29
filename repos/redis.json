@@ -1,0 +1,26 @@
+{
+    "Context": {},
+    "Description": "Redis Service",
+    "Name": "Redis",
+    "Services": [
+        {
+            "Command": "/usr/sbin/redis-server",
+            "Context": {},
+            "Endpoints": [
+                {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "export"
+                }
+            ],
+            "ImageId": "zenoss/redis",
+            "Instances": {
+                "min": 1
+            },
+            "Launch": "auto",
+            "Name": "redis",
+            "Services": []
+        }
+    ]
+}
