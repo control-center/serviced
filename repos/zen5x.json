@@ -1,6 +1,7 @@
 {
     "Description": "Zenoss RM",
     "Name": "Zenoss 5.0",
+    "Context": {},
     "Services": [
         {
             "Command": "",
