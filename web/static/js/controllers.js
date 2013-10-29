@@ -466,6 +466,8 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     $scope.updateService = function() {
         resourcesService.update_service($scope.services.current.Id, $scope.services.current, function() {
             console.log('Updated %s', $scope.services.current.Id);
+            var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
+            lastCrumb.label = $scope.services.current.Name;
         });
     }
 
