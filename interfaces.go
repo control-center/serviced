@@ -52,6 +52,7 @@ type ServiceEndpoint struct {
 type Service struct {
 	Id              string
 	Name            string
+	Context         string
 	Startup         string
 	Description     string
 	Instances       int
@@ -80,14 +81,15 @@ type MinMax struct {
 }
 
 type ServiceDefinition struct {
-	Name        string              // Name of the defined service
-	Command     string              // Command which runs the service
-	Description string              // Description of the service
-	ImageId     string              // Docker image hosting the service
-	Instances   MinMax              // Constraints on the number of instances
-	Launch      string              // Must be "AUTO", the default, or "MANUAL"
-	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
-	Services    []ServiceDefinition // Supporting subservices
+	Name        string                 // Name of the defined service
+	Context     map[string]interface{} // Context information for the service
+	Command     string                 // Command which runs the service
+	Description string                 // Description of the service
+	ImageId     string                 // Docker image hosting the service
+	Instances   MinMax                 // Constraints on the number of instances
+	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
+	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
+	Services    []ServiceDefinition    // Supporting subservices
 }
 
 type ServiceDeployment struct {
@@ -100,7 +102,7 @@ type ServiceDeployment struct {
 // A Service Template used for
 type ServiceTemplate struct {
 	Name        string              // Name of service template
-	Description string              // Meaningful description of service
+	Description string              // Meaningful description of Services
 	Services    []ServiceDefinition // Child services
 }
 
@@ -114,6 +116,7 @@ type ServiceTemplateDeploymentRequest struct {
 type RunningService struct {
 	Id              string
 	ServiceId       string
+	HostId          string
 	StartedAt       time.Time
 	Name            string
 	Startup         string
@@ -288,6 +291,8 @@ type LoadBalancer interface {
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
+	LoadBalancer
+
 	// Get a list of registered hosts
 	GetHosts(request EntityRequest, replyHosts *map[string]*Host) error
 
@@ -323,6 +328,9 @@ type ControlPlane interface {
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+
+	// Get all running services
+	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
 
 	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error

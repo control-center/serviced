@@ -1,11 +1,11 @@
 .PHONY: build test clean
 
-default: build test
+default: build
 
 build:
 	go build
 
-test:
+test: build
 	go test
 
 clean:

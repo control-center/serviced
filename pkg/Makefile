@@ -52,11 +52,6 @@ build:
 	mkdir -p $$GOPATH/pkg
 	mkdir -p $$GOPATH/src/github.com/zenoss
 	rsync -a .. $$GOPATH/src/github.com/zenoss/serviced --exclude pkg
-
-	# ***NOTE*** This should be integrated into the serviced makefile
-	cd $$GOPATH/src/github.com/zenoss/serviced && go get github.com/zenoss/glog
-	cd $$GOPATH/src/github.com/zenoss/serviced && go get github.com/ant0ine/go-json-rest
-
 	cd $$GOPATH/src/github.com/zenoss/serviced && make
 
 # Stage serviced files
@@ -69,11 +64,14 @@ stage: build pkgroot
 	cp $$GOPATH/src/github.com/zenoss/serviced/serviced/serviced pkgroot$(INSTALL_DIR)/bin
 
 	# Stage web files
-	mkdir -p pkgroot$(INSTALL_DIR)/web
+	mkdir -p pkgroot$(INSTALL_DIR)/share/web
 
 	# Stage environment default file
 	mkdir -p pkgroot/etc/default
 	cp serviced.default pkgroot/etc/default/serviced
+	cp $$GOPATH/src/github.com/zenoss/serviced/svc/*.sql pkgroot$(INSTALL_DIR)/share/
+	cp $$GOPATH/src/github.com/zenoss/serviced/web/static pkgroot$(INSTALL_DIR)/share/web -R
+	cp $$GOPATH/src/github.com/zenoss/serviced/repos pkgroot$(INSTALL_DIR)/ -R
 
 	# Stage supervisord script
 	#mkdir -p pkgroot/etc/supervisord.d
@@ -95,6 +93,9 @@ deb: stage_deb
 		-n $(NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d lxc-docker \
+		-d mysql-server \
+		-d make \
 		-t deb \
 		-a x86_64 \
 		-C pkgroot \

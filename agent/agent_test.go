@@ -5,6 +5,7 @@ import (
 	"fmt"
 	serviced "github.com/zenoss/serviced"
 	"testing"
+	"time"
 )
 
 const example_state = `
@@ -94,4 +95,112 @@ func TestParseContainerState(t *testing.T) {
 	}
 	fmt.Printf("%s", testState)
 
+}
+
+var injectionTests = []struct {
+	service  serviced.Service
+	expected string
+}{
+	{serviced.Service{"1234567890",
+		"ls",
+		"",
+		"ls",
+		"Run ls",
+		1,
+		"test/ls",
+		"default",
+		1,
+		"auto",
+		&[]serviced.ServiceEndpoint{},
+		"0987654321",
+		time.Now(),
+		time.Now(),
+	}, "ls"},
+	{serviced.Service{"1234567890",
+		"bash",
+		"{\"City\": \"Austin\", \"State\": \"Texas\"}",
+		"/bin/bash",
+		"Run bash",
+		1,
+		"test/bash",
+		"default",
+		1,
+		"auto",
+		&[]serviced.ServiceEndpoint{},
+		"0987654321",
+		time.Now(),
+		time.Now(),
+	}, "/bin/bash"},
+	{serviced.Service{"1234567890",
+		"/bin/sh",
+		"{\"Command\": \"/bin/sh\"}",
+		"{{.Command}}",
+		"Run /bin/sh",
+		1,
+		"test/single",
+		"default",
+		1,
+		"auto",
+		&[]serviced.ServiceEndpoint{},
+		"0987654321",
+		time.Now(),
+		time.Now(),
+	}, "/bin/sh"},
+	{serviced.Service{"1234567890",
+		"pinger",
+		"{\"RemoteHost\": \"zenoss.com\", \"Count\": 32}",
+		"/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
+		"Ping a remote host a fixed number of times",
+		1,
+		"test/pinger",
+		"default",
+		1,
+		"auto",
+		&[]serviced.ServiceEndpoint{},
+		"0987654321",
+		time.Now(),
+		time.Now(),
+	}, "/usr/bin/ping -c 32 zenoss.com"},
+}
+
+func TestContextInjection(t *testing.T) {
+	for _, it := range injectionTests {
+		if err := injectContext(&it.service); err != nil {
+			t.Error(err)
+		}
+
+		result := it.service.Startup
+
+		if result != it.expected {
+			t.Errorf("Expecting %s got %s\n", result, it.expected)
+		}
+	}
+}
+
+func TestIncompleteInjection(t *testing.T) {
+	service := serviced.Service{"1234567890",
+		"pinger",
+		"{\"RemoteHost\": \"zenoss.com\"}",
+		"/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
+		"Ping a remote host a fixed number of times",
+		1,
+		"test/pinger",
+		"default",
+		1,
+		"auto",
+		&[]serviced.ServiceEndpoint{},
+		"0987654321",
+		time.Now(),
+		time.Now(),
+	}
+
+	if err := injectContext(&service); err != nil {
+		t.Error(err)
+	}
+
+	result := service.Startup
+
+	if result == "/usr/bin/ping -c 64 zenoss.com" {
+		t.Errorf("Not expecting a match")
+	}
 }

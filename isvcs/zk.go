@@ -28,5 +28,6 @@ func init() {
 		Name:       "zookeeper",
 		Dockerfile: zk_dockerfile,
 		Tag:        "zenoss/cp_zk",
+		Ports:      []int{2181},
 	}
 }

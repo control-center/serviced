@@ -89,6 +89,10 @@ table .btn,
     background-color: #6b6b6b;
     color: #f6f6f6;
 }
+.navbar-secondary {
+    height: 50px;
+    background-color: #f5f5f5;
+}
 
 .navbar-zen a {
     color: #f6f6f6;
@@ -105,6 +109,42 @@ table .btn,
 .navbar-zen li > a:hover {
     background-color: #969696;
     color: #f6f6f6;
+}
+
+
+.nav > li > .item {
+    position: relative;
+    display: block;
+    padding: 15px 15px;
+}
+
+.navbar-inverse li .item {
+    color: #999999;
+}
+
+.navbar {
+    margin-bottom: 0px;
+    border-radius: 0;
+}
+
+.item > i {
+    margin: 0px 5px;
+    color: #4d4d4d;
+    text-shadow: -1px -1px 0px #414141;
+}
+
+.navbar-nav > li.item {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    line-height: 20px;
+    text-shadow: 1px 1px 2px #414141;
+}
+
+@media (min-width: 768px) {
+    .navbar-nav > li.item {
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
 }
 
 @media screen and (min-width: 1024px) {
@@ -612,6 +652,8 @@ input.startup {
     writing-mode: lr-tb;
 }
 
+/* d3 related below */
+
 .node {
   border: solid 1px white;
   font: 10px sans-serif;
@@ -624,4 +666,59 @@ input.startup {
 .treemap {
     position: relative;
 
+}
+
+/* dagre-d3 related below  */
+
+svg {
+  border: 0px;
+  width: 1140px;
+  height: 600px;
+}
+
+rect {
+  fill: #fff;
+}
+
+.node rect {
+  stroke-width: 2px;
+  stroke: #333;
+  fill: none;
+}
+
+.edge rect {
+  fill: #fff;
+}
+
+.edge path {
+  fill: none;
+  stroke: #333;
+  stroke-width: 1.5px;
+}
+
+.node.host rect {
+    fill: #B89300;
+    stroke: black;
+}
+.node.host text {
+    fill: white;
+}
+
+.node.service rect { 
+    fill: #29A3CC;
+    stroke: black;
+}
+
+.node.service.notrunning rect { 
+    fill: red;
+    stroke: black;
+}
+
+.node.service.meta rect { 
+    fill: #19627A;
+    stroke: black;
+}
+
+.node.service text { 
+    fill: white;
 }
