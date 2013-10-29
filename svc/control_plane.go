@@ -633,6 +633,7 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 		"SELECT "+
 			" ss.id as Id,"+
 			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
 			" ss.service_id as ServiceId,"+
 			" ss.started_at as StartedAt,"+
 			" s.name as Name,"+
@@ -646,7 +647,7 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 			"FROM service_state ss "+
 			"JOIN service s on (ss.service_id = s.id) "+
 			"WHERE"+
-			" ss.terminated_at < '2000-01-01' and"+
+			" ss.terminated_at < '0002-01-01' and"+
 			" ss.host_id = ?", hostId)
 	if err != nil {
 		return err
@@ -654,6 +655,69 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 	*runningServices = services
 	return err
 }
+
+func (s *ControlSvc) GetRunningServicesForService(serviceId string, runningServices *[]*serviced.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(&serviced.Service{}, serviceId)
+	if obj == nil {
+		return serviced.ControlPlaneError{"Could not find service"}
+	}
+	if err != nil {
+		return err
+	}
+	var services []*serviced.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '0002-01-01' and"+
+			" ss.service_id = ?", serviceId)
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
+func (s *ControlSvc) StopRunningInstance(serviceStateId string, unused *int) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(serviced.ServiceState{}, serviceStateId)
+	if obj == nil {
+		return errors.New("no such service instance")
+	}
+	if err != nil {
+		return err
+	}
+	running := obj.(*serviced.ServiceState)
+	// The magic killing time (year 2)
+	running.Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+	_, err = dbmap.Update(running)
+
+	return err
+}
+
 
 // Get all running services
 func (s *ControlSvc) GetRunningServices(request serviced.EntityRequest, runningServices *[]*serviced.RunningService) (err error) {
@@ -667,6 +731,7 @@ func (s *ControlSvc) GetRunningServices(request serviced.EntityRequest, runningS
 		"SELECT "+
 			" ss.id as Id,"+
 			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
 			" ss.service_id as ServiceId,"+
 			" ss.started_at as StartedAt,"+
 			" s.name as Name,"+

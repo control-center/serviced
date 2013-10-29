@@ -229,7 +229,7 @@ func (a *HostAgent) start() {
 				// Get the services that should be running on this host
 				err = controlClient.GetServicesForHost(a.hostId, &services)
 				if err != nil {
-					glog.Errorf("Could not get services for host %s", a.hostId)
+					glog.Errorf("Could not get services for host %s: %v", a.hostId, err)
 					break
 				}
 
