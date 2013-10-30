@@ -117,7 +117,7 @@ func validTemplate(t *serviced.ServiceTemplate) error {
 // Add a service template to the control plane.
 func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
-	cmd := Subcmd("add-template", "filename", "Add a template")
+	cmd := Subcmd("add-template", "filename", "Add a template. Use - for standard input.")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
