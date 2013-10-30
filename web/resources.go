@@ -437,7 +437,11 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		return
 	}
 	var logs string
-	client.GetServiceLogs(serviceId, &logs)
+	err = client.GetServiceLogs(serviceId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
@@ -448,7 +452,11 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *cl
 		return
 	}
 	var logs string
-	client.GetServiceStateLogs(serviceStateId, &logs)
+	err = client.GetServiceStateLogs(serviceStateId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
