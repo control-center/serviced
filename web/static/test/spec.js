@@ -113,8 +113,8 @@ describe('SubServiceControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('SubServiceControl', { 
-            $scope: $scope, 
+        ctrl = $controller('SubServiceControl', {
+            $scope: $scope,
             $routeParams: { serviceId: 'fakeId1' },
             resourcesService: resourcesService,
         });
@@ -194,6 +194,46 @@ describe('HostsControl', function() {
 
 });
 
+describe('HostDetails', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        ctrl = $controller('HostDetailsControl', {
+            $scope: $scope,
+            $routeParams: { hostId: 'fakeHost1' },
+            resourcesService: resourcesService,
+        });
+    }));
+
+    it('Builds a running services table', function() {
+        expect_table($scope.running);
+    });
+
+    it('Provides service state logs', function() {
+        $scope.editService = {};
+        $scope.viewLog({Id: 'fakeId1'})
+        expect($scope.editService.log).toBe(fake_service_logs().Detail);
+    });
+
+    it('Provides a \'click_app\' function', function() {
+        expect($scope.click_app).not.toBeUndefined();
+        $scope.click_app({ServiceId: 'test'});
+        expect($location.path()).toBe('/services/test');
+    });
+
+    it('Provides a \'killRunning\' function', function() {
+        expect(typeof $scope.killRunning).toBe('function');
+    });
+});
 
 describe('DeployWizard', function() {
     var $scope = null;
@@ -973,6 +1013,9 @@ function fake_resources_service() {
            callback(fake_services(), fake_services_tree());
        },
        get_service_logs: function(serviceId, callback) {
+           callback(fake_service_logs());
+       },
+       get_service_state_logs: function(serviceStateId, callback) {
            callback(fake_service_logs());
        },
        get_running_services_for_service: function(serviceId, callback) {
