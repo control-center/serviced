@@ -557,7 +557,8 @@ func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) 
 		return serviced.ControlPlaneError{"Not found"}
 	}
 	cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
+	glog.Info("About to return %d bytes of logs", len(output))
 	*logs = string(output)
 
 	return err
@@ -578,7 +579,7 @@ func (s *ControlSvc) GetServiceStateLogs(serviceStateId string, logs *string) (e
 	}
 	serviceState := obj.(*serviced.ServiceState)
 	cmd := exec.Command("docker", "logs", serviceState.DockerId)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	*logs = string(output)
 
 	return err
