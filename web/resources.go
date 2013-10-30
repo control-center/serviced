@@ -208,11 +208,14 @@ func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clie
 	w.WriteJson(&services)
 }
 
-func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
 	var services []*serviced.RunningService
-	request := serviced.EntityRequest{}
-	err := client.GetRunningServices(request, &services)
-	glog.Infof("services length: %d", len(services))
+	err = client.GetRunningServicesForService(serviceId, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
@@ -222,6 +225,39 @@ func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientli
 		services = []*serviced.RunningService{}
 	}
 	w.WriteJson(&services)
+}
+
+
+func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var services []*serviced.RunningService
+	request := serviced.EntityRequest{}
+	err := client.GetRunningServices(request, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*serviced.RunningService{}
+	}
+	w.WriteJson(&services)
+}
+
+func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	glog.Infof("Received request to kill %s", serviceStateId)
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var unused int
+	err = client.StopRunningInstance(serviceStateId, &unused)
+	if err != nil {
+		glog.Errorf("Unable to stop service: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Marked for death", servicesLink()})
 }
 
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -448,7 +484,11 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		return
 	}
 	var logs string
-	client.GetServiceLogs(serviceId, &logs)
+	err = client.GetServiceLogs(serviceId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
@@ -459,7 +499,11 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *cl
 		return
 	}
 	var logs string
-	client.GetServiceStateLogs(serviceStateId, &logs)
+	err = client.GetServiceStateLogs(serviceStateId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 

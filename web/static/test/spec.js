@@ -94,6 +94,10 @@ describe('DeployedAppsControl', function() {
         $scope.click_app('test');
         expect($location.path()).toBe('/services/test');
     });
+
+    it('Provides a \'clickRunning\' function', function() {
+        expect($scope.clickRunning).not.toBeUndefined();
+    });
 });
 
 describe('SubServiceControl', function() {
@@ -109,14 +113,27 @@ describe('SubServiceControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('SubServiceControl', { 
-            $scope: $scope, 
-            resourcesService: resourcesService
+        ctrl = $controller('SubServiceControl', {
+            $scope: $scope,
+            $routeParams: { serviceId: 'fakeId1' },
+            resourcesService: resourcesService,
         });
     }));
 
     it('Builds a services table', function() {
         expect_table($scope.services);
+    });
+
+    it('Provides service logs', function() {
+        $scope.editService = {};
+        $scope.viewLog({Id: 'fake123'});
+        expect($scope.editService.log).toBe(fake_service_logs().Detail);
+    });
+
+    it('Sets dynamic breadcrumbs', function() {
+        // Get set based on $scope.services.current
+        expect($scope.breadcrumbs.length).toBe(2);
+        expect($scope.breadcrumbs[1].label).toBe(fake1.Name);
     });
 });
 
@@ -177,6 +194,46 @@ describe('HostsControl', function() {
 
 });
 
+describe('HostDetails', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        ctrl = $controller('HostDetailsControl', {
+            $scope: $scope,
+            $routeParams: { hostId: 'fakeHost1' },
+            resourcesService: resourcesService,
+        });
+    }));
+
+    it('Builds a running services table', function() {
+        expect_table($scope.running);
+    });
+
+    it('Provides service state logs', function() {
+        $scope.editService = {};
+        $scope.viewLog({Id: 'fakeId1'})
+        expect($scope.editService.log).toBe(fake_service_logs().Detail);
+    });
+
+    it('Provides a \'click_app\' function', function() {
+        expect($scope.click_app).not.toBeUndefined();
+        $scope.click_app({ServiceId: 'test'});
+        expect($location.path()).toBe('/services/test');
+    });
+
+    it('Provides a \'killRunning\' function', function() {
+        expect(typeof $scope.killRunning).toBe('function');
+    });
+});
 
 describe('DeployWizard', function() {
     var $scope = null;
@@ -224,7 +281,6 @@ describe('DeployWizard', function() {
         expect($scope.step_page).toBe($scope.steps[1].content);
     });
 
-
     it('Provides a \'wizard_previous\' function', function() {
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
@@ -234,6 +290,27 @@ describe('DeployWizard', function() {
         $scope.wizard_previous();
         expect($scope.step_page).toBe($scope.steps[0].content);
     });
+
+    it('Provides an \'addHostStart\' function', function() {
+        $scope.step_page = '';
+        $scope.newHost = { foo: 'bar' };
+        $scope.addHostStart();
+        expect($scope.step_page).toBe('/static/partials/wizard-modal-addhost.html');
+        expect($scope.newHost).toEqual({});
+    });
+
+    it('Provides an \'addHostCancel\' function', function() {
+        $scope.addHostStart();
+        $scope.addHostCancel();
+        expect($scope.step_page).toBe($scope.steps[0].content);
+    });
+
+    it('Provides an \'addHostFinish\' function', function() {
+        $scope.addHostStart();
+        $scope.addHostFinish();
+        expect($scope.step_page).toBe($scope.steps[0].content);
+    });
+
 });
 
 describe('NavbarControl', function() {
@@ -935,6 +1012,18 @@ function fake_resources_service() {
        get_services: function(cacheOk, callback) {
            callback(fake_services(), fake_services_tree());
        },
+       get_service_logs: function(serviceId, callback) {
+           callback(fake_service_logs());
+       },
+       get_service_state_logs: function(serviceStateId, callback) {
+           callback(fake_service_logs());
+       },
+       get_running_services_for_service: function(serviceId, callback) {
+           callback(fake_running_for_host());
+       },
+       get_running_services_for_host: function(hostId, callback) {
+           callback(fake_running_for_host());
+       },
        add_service: function(service, callback) {
            callback({});
        },
@@ -1025,6 +1114,10 @@ function fake_pools() {
             Priority: 2
         }
     };
+}
+
+function fake_service_logs() {
+    return { Detail: "foo bar" };
 }
 
 function fake_running_for_host() {
@@ -1148,6 +1241,14 @@ function fake_hosts() {
             PoolId: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.14",
+            Cores: 2,
+            Memory: 2048
+        },
+        "fakeHost1": {
+            Id: "fakeHost1",
+            PoolId: "pool123",
+            Name: "some fake host",
+            IpAddr: "192.168.33.15",
             Cores: 2,
             Memory: 2048
         }

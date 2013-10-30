@@ -28,6 +28,7 @@ func Serve() {
 		// Services (Apps)
 		rest.Route{"GET", "/services", AuthorizedClient(RestGetAllServices)},
 		rest.Route{"GET", "/services/:serviceId", AuthorizedClient(RestGetService)},
+		rest.Route{"GET", "/services/:serviceId/running", AuthorizedClient(RestGetRunningForService)},
 		rest.Route{"POST", "/services/add", AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", AuthorizedClient(RestRemoveService)},
 		rest.Route{"GET", "/services/:serviceId/logs", AuthorizedClient(RestGetServiceLogs)},
@@ -42,6 +43,7 @@ func Serve() {
 		rest.Route{"GET", "/top/services", AuthorizedClient(RestGetTopServices)},
 		rest.Route{"GET", "/running/:serviceStateId/logs", AuthorizedClient(RestGetServiceStateLogs)},
 		rest.Route{"GET", "/running", AuthorizedClient(RestGetAllRunning)},
+		rest.Route{"DELETE", "/running/:serviceStateId", AuthorizedClient(RestKillRunning)},
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},
 		rest.Route{"GET", "/static*resource", StaticData},

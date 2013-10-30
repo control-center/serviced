@@ -39,67 +39,118 @@ The netcat (nc) command is particularly useful for this:
 package proxy
 
 import (
-	"bufio"
 	"crypto/tls"
 	"fmt"
 	"github.com/zenoss/glog"
 	"io"
 	"net"
-	"net/textproto"
 	"strconv"
 	"strings"
 )
 
 type Proxy struct {
-	Name       string
-	Address    string
-	TCPMux     bool
-	TCPMuxPort int
-	UseTLS     bool
-	Port       uint16
+	name         string          // Name of the remote service
+	addresses    []string        // Public IP:Port of the remote service
+	tcpMuxPort   uint16          // the port to use for TCP Muxing, 0 is disabled
+	useTLS       bool            // use encryption over mux port
+	closing      chan chan error // internal shutdown signal
+	newAddresses chan []string   // a stream of updates to the addresses
+	listener     net.Listener    // handle on the listening socket
 }
 
-type TCPMux struct {
-	Enabled     bool
-	UseTLS      bool
-	CertPEMFile string
-	KeyPEMFile  string
-	Port        int
+// NewProxy create a new Proxy object. It starts listening on the proxy port asynchronously.
+func NewProxy(name string, tcpMuxPort uint16, useTLS bool, listener net.Listener) (proxy *Proxy, err error) {
+	if len(name) == 0 {
+		return nil, fmt.Errorf("proxy: name can not be empty")
+	}
+	proxy = &Proxy{
+		name:       name,
+		addresses:  make([]string, 0),
+		tcpMuxPort: tcpMuxPort,
+		useTLS:     useTLS,
+		listener:   listener,
+	}
+	proxy.newAddresses = make(chan []string, 2)
+	go proxy.listenAndProxy()
+	return proxy, nil
 }
 
-type Config struct {
-	Proxies   []Proxy
-	TCPMux    TCPMux
-	ServiceId string
-	Command   string
+
+// Name() returns the application name associated with the proxy
+func (p *Proxy) Name() string {
+	return p.name
+}
+
+// String() pretty prints the Proxy struct.
+func (p *Proxy) String() string {
+	return fmt.Sprintf("Proxy[%s; %s]=>%v", p.name, p.listener, p.addresses)
+}
+
+// TCPMuxPort() returns the tcp port use for muxing, 0 if not used.
+func (p *Proxy) TCPMuxPort() uint16 {
+	return p.tcpMuxPort
+}
+
+// UseTLS() returns true if TLS is used during tcp muxing.
+func (p *Proxy) UseTLS() bool {
+	return p.useTLS
+}
+
+// Set a new Destination Address set for the proxy
+func (p *Proxy) SetNewAddresses(addresses []string) {
+	p.newAddresses <- addresses
+}
+
+// Close() terminates the proxy; it can not be restarted.
+func (p *Proxy) Close() error {
+	p.listener.Close()
+	errc := make(chan error)
+	p.closing <- errc
+	return <-errc
 }
 
 // listenAndProxy listens, locally, on the proxy's specified Port. For each
 // incoming connection a goroutine running the proxy method is created.
-func (p *Proxy) ListenAndProxy() error {
-	l, err := net.Listen("tcp4", fmt.Sprintf(":%d", p.Port))
-	if err != nil {
-		glog.Error("Error (net.Listen): ", err)
-		return err
-	}
-	defer l.Close()
+func (p *Proxy) listenAndProxy() {
 
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			glog.Error("Error (net.Accept): ", err)
+	connections := make(chan net.Conn)
+	go func(lsocket net.Listener, conns chan net.Conn) {
+		for {
+			conn, err := lsocket.Accept()
+			if err != nil {
+				glog.Fatal("Error (net.Accept): ", err)
+			}
+			conns <- conn
 		}
+	}(p.listener, connections)
 
-		go p.Proxy(conn)
+	i := 0
+	for {
+		select {
+		case conn := <-connections:
+			if len(p.addresses) == 0 {
+				glog.Warningf("No remote services available for proxying %s", p)
+				conn.Close()
+				continue
+			}
+			i += 1
+			// round robin connections to list of addresses
+			glog.Infof("choosing address from %v", p.addresses)
+			go p.proxy(conn, p.addresses[i%len(p.addresses)])
+		case p.addresses = <-p.newAddresses:
+		case errc := <-p.closing:
+			p.listener.Close()
+			errc <- nil
+			return
+		}
 	}
-	return nil
 }
 
 // proxy takes an established local connection, Dials the remote address specified
 // by the Proxy structure and then copies data to and from the resulting pair
 // of endpoints.
-func (p *Proxy) Proxy(local net.Conn) {
-	remoteAddr := p.Address
+func (p *Proxy) proxy(local net.Conn, address string) {
+	remoteAddr := address
 	// NOTE: here we are relying on the initial remoteAddr to have the
 	//       publicly exposed port for the target service. If TCPMux is
 	//       in play that port will be replaced with the TCPMux port, so
@@ -110,13 +161,14 @@ func (p *Proxy) Proxy(local net.Conn) {
 		glog.Error("Error (strconv.Atoi): ", err)
 	}
 
-	if p.TCPMux {
-		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.TCPMuxPort)
+	if p.tcpMuxPort > 0 {
+		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.tcpMuxPort)
 	}
 
 	var remote net.Conn
 
-	if p.UseTLS && p.TCPMux { // Only do TLS if connecting to a TCPMux
+	glog.Info("Abount to dial: %s", remoteAddr)
+	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", remoteAddr, &config)
 	} else {
@@ -127,96 +179,10 @@ func (p *Proxy) Proxy(local net.Conn) {
 		return
 	}
 
-	if p.TCPMux {
-		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.Name, remotePort))
+	if p.tcpMuxPort > 0 {
+		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.name, remotePort))
 	}
 
 	go io.Copy(local, remote)
 	go io.Copy(remote, local)
 }
-
-// sendMuxError logs an error message and attempts to write it to the connected
-// endpoint
-func sendMuxError(conn net.Conn, source, facility, msg string, err error) {
-	glog.Errorf("%s Error (%s): %v\n", source, facility, err)
-	if _, e := conn.Write([]byte(msg)); e != nil {
-		glog.Errorf("%s", e)
-	}
-}
-
-// muxConnection takes an inbound connection reads MIME headers from it and
-// then attempts to set up a connection to the service specified by the
-// Zen-Service header. If the Zen-Service header is missing or the requested
-// service is not running (listening) on the local host and error message
-// is sent to the requestor and its connection is closed. Otherwise data is
-// proxied between the requestor and the local service.
-func (mux TCPMux) MuxConnection(conn net.Conn) {
-	rdr := textproto.NewReader(bufio.NewReader(conn))
-	hdr, err := rdr.ReadMIMEHeader()
-	if err != nil {
-		sendMuxError(conn, "MuxConnection", "textproto.ReadMIMEHeader", "bad request (no headers)", err)
-		conn.Close()
-		return
-	}
-
-	zs, ok := hdr["Zen-Service"]
-	if ok == false {
-		sendMuxError(conn, "MuxConnection", "MIMEHeader", "bad request (no Zen-Service header)", err)
-		conn.Close()
-		return
-	}
-
-	port, err := strconv.Atoi(strings.Split(zs[0], "/")[1])
-	if err != nil {
-		sendMuxError(conn, "MuxConnection", "Zen-Service Header", "bad Zen-Service spec", err)
-		conn.Close()
-		return
-	}
-
-	svc, err := net.Dial("tcp4", fmt.Sprintf("172.17.42.1:%d", port))
-	if err != nil {
-		sendMuxError(conn, "MuxConnection", "net.Dial", "cannot connect to service", err)
-		conn.Close()
-		return
-	}
-
-	go io.Copy(conn, svc)
-	go io.Copy(svc, conn)
-}
-
-// listenAndMux listens for incoming connections and attempts to multiplex them
-// to the local service that they request via a Zen-Service header in their
-// initial message.
-func (mux *TCPMux) ListenAndMux() {
-	var l net.Listener
-	var err error
-
-	if mux.UseTLS == false {
-		l, err = net.Listen("tcp4", fmt.Sprintf(":%d", mux.Port))
-	} else {
-		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
-		if cerr != nil {
-			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", cerr)
-			return
-		}
-
-		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
-		l, err = tls.Listen("tcp4", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
-	}
-	if err != nil {
-		glog.Error("ListenAndMux Error (net.Listen): ", err)
-		return
-	}
-	defer l.Close()
-
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			glog.Error("ListenAndMux Error (net.Accept): ", err)
-			return
-		}
-
-		go mux.MuxConnection(conn)
-	}
-}
-
