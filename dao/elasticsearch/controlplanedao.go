@@ -288,11 +288,16 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*d
 
 // Get a service endpoint.
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
+  glog.Infof( "ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
   var service dao.Service
   err = this.GetService( serviceId, &service)
+  glog.Infof( "ControlPlaneDao.GetServiceEndpoints service=%+v err=%s", service, err)
+
   if err == nil {
     service_imports := service.GetServiceImports()
     if len(service_imports) > 0 {
+      glog.Infof( "  %+v service imports=%+v", service, service_imports)
+
       var request dao.EntityRequest
       var servicesList []*dao.Service
       err = this.GetServices( request, &servicesList)
@@ -534,8 +539,7 @@ func (this *ControlPlaneDao) GetServicesForHost(hostId string, services *[]*dao.
 }
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, services *[]*dao.RunningService) error {
-	now := time.Now().String()
-	query := search.Query().Range(search.Range().Field("Terminated").From("2000-01-01T00:00:00").To(now))
+  query := search.Query().Search("Terminated:0001")
 	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Result()
 
 	if err == nil {
@@ -570,9 +574,8 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, servi
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *[]*dao.RunningService) error {
-	now := time.Now().String()
-	qs := fmt.Sprintf("HostId:%s", hostId)
-	query := search.Query().Range(search.Range().Field("Terminated").From("2001-01-01T00:00:00").To(now))
+  qs := fmt.Sprintf("HostId:%s AND Terminated:0001", hostId)
+	query := search.Query().Search( qs)
 	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Search(qs).Result()
 
 	if err == nil {
