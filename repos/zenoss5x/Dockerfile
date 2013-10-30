@@ -99,7 +99,7 @@ RUN rpmdb --rebuilddb && yum install -y  which net-tools \
 	&& yum clean all
 
 ENV RABBITMQ_NODENAME rabbit@localhost
-RUN rpmdb --rebuilddb && yum install -y http://artifacts.zenoss.loc/europa/44/zenoss-5.0.0-44.fc19.x86_64.rpm
+RUN rpmdb --rebuilddb && yum install -y http://artifacts.zenoss.loc/europa/45/zenoss-5.0.0-45.fc19.x86_64.rpm
 RUN yum -y localinstall zenoss-*.rpm || rpmdb --rebuilddb && yum -y localinstall zenoss-*.rpm
 ADD zenoss_init_pre /opt/zenoss/bin/zenoss_init_pre
 ADD global.conf /opt/zenoss/etc/global.conf
