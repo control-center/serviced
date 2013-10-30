@@ -11,7 +11,7 @@ RUN apt-get -y -q install wget logrotate
 RUN dpkg-divert --local --rename --add /sbin/initctl
 RUN ln -s /bin/true /sbin/initctl
 
-ENV RABBITMQ_NODENAME localhost
+ENV RABBITMQ_NODENAME rabbit@localhost
 RUN wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 RUN apt-key add rabbitmq-signing-key-public.asc
 RUN echo "deb http://www.rabbitmq.com/debian/ testing main" > /etc/apt/sources.list.d/rabbitmq.list
