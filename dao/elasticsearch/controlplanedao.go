@@ -762,7 +762,22 @@ func (this *ControlPlaneDao) GetServiceState(id string, service *dao.ServiceStat
 //
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, servicestates *[]*dao.ServiceState) error {
 	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
-  qs := fmt.Sprintf("ServiceId:%s AND Terminated:%s", serviceId, "0001")
+  qs := fmt.Sprintf("ServiceId:%s AND (Terminated:0001 OR Terminated:0002)", serviceId)
+	query := search.Query().Search(qs)
+	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Result()
+	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s, err=%s", serviceId, err)
+	if err == nil {
+		_ss, err := toServiceStates(result)
+		if err == nil {
+			*servicestates = _ss
+		}
+	}
+	return err
+}
+
+func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, servicestates *[]*dao.ServiceState) error {
+	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
+  qs := fmt.Sprintf("ServiceId:%s AND Terminated:0001", serviceId)
 	query := search.Query().Search(qs)
 	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Result()
 	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s, err=%s", serviceId, err)
@@ -969,7 +984,7 @@ func (this *ControlPlaneDao) lead(zkEvent <-chan zk.Event) {
 				for _, service := range services {
 					// check current state
 					var serviceStates []*dao.ServiceState
-					err = this.GetServiceStates(service.Id, &serviceStates)
+					err = this.getNonTerminatedServiceStates(service.Id, &serviceStates)
 					if err == nil {
 						// pick services instances to start
 						if len(serviceStates) < service.Instances {
