@@ -16,4 +16,4 @@ RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/bin/zeneventserver-create
 RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/Products/ZenModel/migrate/fixMysqlPermissions.py
 ADD zenoss_init.sh /tmp/zenoss_init.sh
 RUN /tmp/zenoss_init.sh
-
+USER zenoss
