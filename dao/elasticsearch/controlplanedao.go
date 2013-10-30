@@ -607,10 +607,12 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *
 }
 
 func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
+  glog.Infof( "ControlPlaneDao.GetServiceLogs id=%s", id)
 	query := search.Query().Search(fmt.Sprintf("ServiceId:%s", id))
 	result, err := search.Search("controlplane").Type("servicestate").Size("1").Query(query).Sort(search.Sort("Started"), search.Sort("Terminated")).Result()
 	if err == nil {
 		states, err := toServiceStates(result)
+    glog.Infof( "ControlPlaneDao.GetServiceLogs servicestates=%+v err=%s", states, err)
 		if err == nil {
 			if len(states) > 0 {
 				cmd := exec.Command("docker", "logs", states[0].DockerId)
@@ -627,8 +629,10 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 }
 
 func (this *ControlPlaneDao) GetServiceStateLogs(id string, logs *string) error {
+  glog.Infof( "ControlPlaneDao.GetServiceStateLogs id=%s", id)
 	var serviceState dao.ServiceState
 	err := this.GetServiceState(id, &serviceState)
+  glog.Infof( "ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceState, err)
 	if err == nil {
 		cmd := exec.Command("docker", "logs", serviceState.DockerId)
 		output, err := cmd.Output()
@@ -749,7 +753,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 func (this *ControlPlaneDao) GetServiceState(id string, service *dao.ServiceState) error {
 	//glog.Infof("ControlPlaneDao.GetServiceState: id=%s", id)
 	request := dao.ServiceState{}
-	err := getService(id, &request)
+	err := getServiceState(id, &request)
 	//glog.Infof("ControlPlaneDao.GetServiceState: id=%s, servicestate=%+v, err=%s", id, request, err)
 	*service = request
 	return err
@@ -758,10 +762,9 @@ func (this *ControlPlaneDao) GetServiceState(id string, service *dao.ServiceStat
 //
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, servicestates *[]*dao.ServiceState) error {
 	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
-	now := time.Now().String()
-	qs := fmt.Sprintf("ServiceId:%s", serviceId)
-	query := search.Query().Range(search.Range().Field("Terminated").From("0001-01-01T00:00:00").To(now))
-	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Search(qs).Result()
+  qs := fmt.Sprintf("ServiceId:%s AND Terminated:%s", serviceId, "0001")
+	query := search.Query().Search(qs)
+	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Result()
 	//glog.Infof( "ControlPlaneDao.GetServiceStates: serviceId=%s, err=%s", serviceId, err)
 	if err == nil {
 		_ss, err := toServiceStates(result)
