@@ -3,7 +3,7 @@ RUN yum clean all
 RUN yum --exclude=systemd\* update -y
 RUN rpmdb --rebuilddb
 RUN yum install -y wget which 
-RUN wget http://artifacts.zenoss.loc/europa/latest/$(wget -O- http://artifacts.zenoss.loc/europa/latest/RPMNAME)
+RUN wget http://artifacts.zenoss.loc/europa/45/zenoss-5.0.0-45.fc19.x86_64.rpm
 RUN yum clean all
 RUN yum -y localinstall zenoss-*.rpm || rpmdb --rebuilddb && yum -y localinstall zenoss-*.rpm
 RUN yum -y install net-tools || rpmdb --rebuilddb && yum -y install net-tools
