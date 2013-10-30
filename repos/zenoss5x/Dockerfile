@@ -106,8 +106,6 @@ RUN chown zenoss:zenoss /opt/zenoss/bin/{zenoss_init_pre,install-functions.sh} /
 RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/bin/zeneventserver-create-db 
 RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/Products/ZenModel/migrate/fixMysqlPermissions.py
 
-# remove zenpack install for now 
-RUN rm /opt/zenoss/var/zenpack*
 ADD zenoss_init.sh /tmp/zenoss_init.sh
 RUN /tmp/zenoss_init.sh
 
