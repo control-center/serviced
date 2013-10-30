@@ -377,3 +377,17 @@ func TestDao_StartService(t *testing.T) {
     t.Fail()
   }
 }
+
+func TestDao_TestingComplete(t *testing.T) {
+  controlPlaneDao.RemoveService( "default", &unused)
+  controlPlaneDao.RemoveService( "0", &unused)
+  controlPlaneDao.RemoveService( "01", &unused)
+  controlPlaneDao.RemoveService( "011", &unused)
+  controlPlaneDao.RemoveService( "02", &unused)
+
+  controlPlaneDao.RemoveResourcePool( "default", &unused)
+
+  controlPlaneDao.RemoveHost( "default", &unused)
+  controlPlaneDao.RemoveHost( "0", &unused)
+  controlPlaneDao.RemoveHost( "1", &unused)
+}

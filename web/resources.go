@@ -168,7 +168,7 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 	w.WriteJson(&services)
 }
 
-func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		RestBadRequest(w)
@@ -186,6 +186,23 @@ func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	}
 	w.WriteJson(&services)
 }
+
+func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var services []*dao.RunningService
+	request := dao.EntityRequest{}
+	err := client.GetRunningServices(request, &services)
+	glog.Infof("services length: %d", len(services))
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*dao.RunningService{}
+	}
+	w.WriteJson(&services)
+}
+
 
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var allServices []*dao.Service

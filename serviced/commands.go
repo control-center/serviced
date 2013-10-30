@@ -229,7 +229,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 		defer client.Close()
 
-		var endpoints map[string][]*serviced.ApplicationEndpoint
+		var endpoints map[string][]*dao.ApplicationEndpoint
 		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
 		if err != nil {
 			glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)

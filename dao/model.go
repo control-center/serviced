@@ -1,6 +1,8 @@
 package dao
 
+import "strconv"
 import "time"
+import "fmt"
 
 type MinMax struct {
 	Min int
@@ -20,6 +22,7 @@ type ServiceTemplateWrapper struct {
 type PoolHost struct {
 	HostId string
 	PoolId string
+  HostIp string
 }
 
 // A collection of computing resources with optional quotas.
@@ -74,10 +77,21 @@ const (
 	SVN_RESTART = -1
 )
 
+// An exposed service endpoint
+type ApplicationEndpoint struct {
+	ServiceId     string
+	ContainerPort uint16
+	HostPort      uint16
+	HostIp        string
+	ContainerIp   string
+	Protocol      string
+}
+
 // A Service that can run in serviced.
 type Service struct {
 	Id              string
 	Name            string
+	Context         string
 	Startup         string
 	Description     string
 	Instances       int
@@ -99,28 +113,39 @@ type ServiceEndpoint struct {
 	Purpose     string
 }
 
+//export definition
+type ServiceExport struct {
+	Protocol    string //tcp or udp
+	Application string //application type
+	Internal    string //internal port number
+	External    string //external port number
+}
+
 // An instantiation of a Service.
 type ServiceState struct {
-	Id          string
-	ServiceId   string
-	HostId      string
-	DockerId    string
-	PrivateIp   string
-	Scheduled   time.Time
-	Terminated  time.Time
-	Started     time.Time
-	PortMapping map[string]map[string]string
+	Id              string
+	ServiceId       string
+	HostId          string
+	DockerId        string
+	PrivateIp       string
+	Scheduled       time.Time
+	Terminated      time.Time
+	Started         time.Time
+	PortMapping     map[string]map[string]string // protocol -> container port (internal) -> host port (external)
+  Endpoints       []ServiceEndpoint
+	HostIp          string
 }
 
 type ServiceDefinition struct {
-	Name        string              // Name of the defined service
-	Command     string              // Command which runs the service
-	Description string              // Description of the service
-	ImageId     string              // Docker image hosting the service
-	Instances   MinMax              // Constraints on the number of instances
-	Launch      string              // Must be "AUTO", the default, or "MANUAL"
-	Endpoints   []ServiceEndpoint   // Comms endpoints used by the service
-	Services    []ServiceDefinition // Supporting subservices
+	Name        string                 // Name of the defined service
+	Command     string                 // Command which runs the service
+	Description string                 // Description of the service
+	ImageId     string                 // Docker image hosting the service
+	Instances   MinMax                 // Constraints on the number of instances
+	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
+  Context     map[string]interface{} // Context information for the service
+	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
+	Services    []ServiceDefinition    // Supporting subservices
 }
 
 type ServiceDeployment struct {
@@ -174,7 +199,50 @@ func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, er
 	  serviceState.ServiceId = s.Id
 	  serviceState.HostId = hostId
 	  serviceState.Scheduled = time.Now()
+    serviceState.Endpoints = *s.Endpoints
 	}
 	return serviceState, err
 }
 
+// Does the service have endpoint imports
+func (s *Service) HasImports() bool {
+  if s.Endpoints == nil {
+    return false
+  }
+
+  for _, ep := range *s.Endpoints {
+    if ep.Purpose == "import" {
+      return true
+    }
+  }
+  return false
+}
+
+// Retrieve service endpoint imports
+func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
+  if s.Endpoints != nil {
+    for _, ep := range *s.Endpoints {
+      if ep.Purpose == "import" {
+        endpoints = append( endpoints, ep)
+      }
+    }
+  }
+  return
+}
+
+// Retrieve service container port, 0 failure
+func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
+  for _, ep := range ss.Endpoints {
+    if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
+      portS := fmt.Sprintf( "%s", port)
+      externalS := ss.PortMapping[protocol][portS]
+      external, err := strconv.Atoi(externalS)
+      if err == nil {
+        return 0
+      }
+      return uint16( external)
+    }
+  }
+
+  return 0
+}

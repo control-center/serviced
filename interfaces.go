@@ -79,19 +79,9 @@ type ContainerState struct {
 	VolumesRW      map[string]bool
 }
 
-// An exposed service endpoint
-type ApplicationEndpoint struct {
-	ServiceId     string
-	ContainerPort uint16
-	HostPort      uint16
-	HostIp        string
-	ContainerIp   string
-	Protocol      string
-}
-
 // The API for a service proxy.
 type LoadBalancer interface {
-	GetServiceEndpoints(serviceId string, endpoints *map[string][]*ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error
 }
 
 // The Agent interface is the API for a serviced agent.

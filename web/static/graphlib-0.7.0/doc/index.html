@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="static/highlight-style.css">
+    <link rel="stylesheet" href="static/style.css">
+    <script src="static/highlight.pack.js"></script>
+  </head>
+</html>
+<body onLoad="hljs.initHighlighting();">
+  <div id="sidebar">
+    <p><a href="#title">Introduction</a></p>
+    <p><a href="#Graph">Graph</a><ul>
+<li><a href="#Graph-constructor">constructor</a></li>
+<li><a href="#Graph-order">order</a></li>
+<li><a href="#Graph-size">size</a></li>
+<li><a href="#Graph-isDirected">isDirected</a></li>
+<li><a href="#Graph-graph">graph</a></li>
+<li><a href="#Graph-hasNode">hasNode</a></li>
+<li><a href="#Graph-node">node</a></li>
+<li><a href="#Graph-nodes">nodes</a></li>
+<li><a href="#Graph-eachNode">eachNode</a></li>
+<li><a href="#Graph-neighbors">neighbors</a></li>
+<li><a href="#Graph-hasEdge">hasEdge</a></li>
+<li><a href="#Graph-edge">edge</a></li>
+<li><a href="#Graph-edges">edges</a></li>
+<li><a href="#Graph-eachEdge">eachEdge</a></li>
+<li><a href="#Graph-incidentNodes">incidentNodes</a></li>
+<li><a href="#Graph-incidentEdges">incidentEdges</a></li>
+<li><a href="#Graph-equals">equals</a></li>
+<li><a href="#Graph-toString">toString</a></li>
+<li><a href="#Graph-addNode">addNode</a></li>
+<li><a href="#Graph-delNode">delNode</a></li>
+<li><a href="#Graph-addEdge">addEdge</a></li>
+<li><a href="#Graph-delEdge">delEdge</a></li>
+<li><a href="#Graph-copy">copy</a></li>
+<li><a href="#Graph-filterNodes">filterNodes</a></li>
+<li><a href="#Graph-toDigraph">toDigraph</a></li>
+</ul>
+
+    </p>
+    <p><a href="#Digraph">Digraph</a><ul>
+<li><a href="#Digraph-constructor">constructor</a></li>
+<li><a href="#Digraph-order">order</a></li>
+<li><a href="#Digraph-size">size</a></li>
+<li><a href="#Digraph-isDirected">isDirected</a></li>
+<li><a href="#Digraph-graph">graph</a></li>
+<li><a href="#Digraph-hasNode">hasNode</a></li>
+<li><a href="#Digraph-node">node</a></li>
+<li><a href="#Digraph-nodes">nodes</a></li>
+<li><a href="#Digraph-eachNode">eachNode</a></li>
+<li><a href="#Digraph-successors">successors</a></li>
+<li><a href="#Digraph-predecessors">predecessors</a></li>
+<li><a href="#Digraph-neighbors">neighbors</a></li>
+<li><a href="#Digraph-sources">sources</a></li>
+<li><a href="#Digraph-sinks">sinks</a></li>
+<li><a href="#Digraph-hasEdge">hasEdge</a></li>
+<li><a href="#Digraph-edge">edge</a></li>
+<li><a href="#Digraph-edges">edges</a></li>
+<li><a href="#Digraph-eachEdge">eachEdge</a></li>
+<li><a href="#Digraph-source">source</a></li>
+<li><a href="#Digraph-target">target</a></li>
+<li><a href="#Digraph-incidentNodes">incidentNodes</a></li>
+<li><a href="#Digraph-inEdges">inEdges</a></li>
+<li><a href="#Digraph-outEdges">outEdges</a></li>
+<li><a href="#Digraph-incidentEdges">incidentEdges</a></li>
+<li><a href="#Digraph-equals">equals</a></li>
+<li><a href="#Digraph-toString">toString</a></li>
+<li><a href="#Digraph-addNode">addNode</a></li>
+<li><a href="#Digraph-delNode">delNode</a></li>
+<li><a href="#Digraph-addEdge">addEdge</a></li>
+<li><a href="#Digraph-delEdge">delEdge</a></li>
+<li><a href="#Digraph-copy">copy</a></li>
+<li><a href="#Digraph-filterNodes">filterNodes</a></li>
+<li><a href="#Digraph-toGraph">toGraph</a></li>
+</ul>
+
+    </p>
+    <p><a href="#CGraph">CGraph</a><ul>
+<li><a href="#CGraph-constructor">constructor</a></li>
+<li><a href="#CGraph-parent">parent</a></li>
+<li><a href="#CGraph-children">children</a></li>
+<li><a href="#CGraph-order">order</a></li>
+<li><a href="#CGraph-size">size</a></li>
+<li><a href="#CGraph-isDirected">isDirected</a></li>
+<li><a href="#CGraph-graph">graph</a></li>
+<li><a href="#CGraph-hasNode">hasNode</a></li>
+<li><a href="#CGraph-node">node</a></li>
+<li><a href="#CGraph-nodes">nodes</a></li>
+<li><a href="#CGraph-eachNode">eachNode</a></li>
+<li><a href="#CGraph-neighbors">neighbors</a></li>
+<li><a href="#CGraph-hasEdge">hasEdge</a></li>
+<li><a href="#CGraph-edge">edge</a></li>
+<li><a href="#CGraph-edges">edges</a></li>
+<li><a href="#CGraph-eachEdge">eachEdge</a></li>
+<li><a href="#CGraph-incidentNodes">incidentNodes</a></li>
+<li><a href="#CGraph-incidentEdges">incidentEdges</a></li>
+<li><a href="#CGraph-equals">equals</a></li>
+<li><a href="#CGraph-toString">toString</a></li>
+<li><a href="#CGraph-addNode">addNode</a></li>
+<li><a href="#CGraph-delNode">delNode</a></li>
+<li><a href="#CGraph-addEdge">addEdge</a></li>
+<li><a href="#CGraph-delEdge">delEdge</a></li>
+<li><a href="#CGraph-copy">copy</a></li>
+<li><a href="#CGraph-filterNodes">filterNodes</a></li>
+<li><a href="#CGraph-toDigraph">toDigraph</a></li>
+</ul>
+
+    </p>
+    <p><a href="#CDigraph">CDigraph</a><ul>
+<li><a href="#CDigraph-constructor">constructor</a></li>
+<li><a href="#CDigraph-parent">parent</a></li>
+<li><a href="#CDigraph-children">children</a></li>
+<li><a href="#CDigraph-order">order</a></li>
+<li><a href="#CDigraph-size">size</a></li>
+<li><a href="#CDigraph-isDirected">isDirected</a></li>
+<li><a href="#CDigraph-graph">graph</a></li>
+<li><a href="#CDigraph-hasNode">hasNode</a></li>
+<li><a href="#CDigraph-node">node</a></li>
+<li><a href="#CDigraph-nodes">nodes</a></li>
+<li><a href="#CDigraph-eachNode">eachNode</a></li>
+<li><a href="#CDigraph-successors">successors</a></li>
+<li><a href="#CDigraph-predecessors">predecessors</a></li>
+<li><a href="#CDigraph-neighbors">neighbors</a></li>
+<li><a href="#CDigraph-sources">sources</a></li>
+<li><a href="#CDigraph-sinks">sinks</a></li>
+<li><a href="#CDigraph-hasEdge">hasEdge</a></li>
+<li><a href="#CDigraph-edge">edge</a></li>
+<li><a href="#CDigraph-edges">edges</a></li>
+<li><a href="#CDigraph-eachEdge">eachEdge</a></li>
+<li><a href="#CDigraph-source">source</a></li>
+<li><a href="#CDigraph-target">target</a></li>
+<li><a href="#CDigraph-incidentNodes">incidentNodes</a></li>
+<li><a href="#CDigraph-inEdges">inEdges</a></li>
+<li><a href="#CDigraph-outEdges">outEdges</a></li>
+<li><a href="#CDigraph-incidentEdges">incidentEdges</a></li>
+<li><a href="#CDigraph-equals">equals</a></li>
+<li><a href="#CDigraph-toString">toString</a></li>
+<li><a href="#CDigraph-addNode">addNode</a></li>
+<li><a href="#CDigraph-delNode">delNode</a></li>
+<li><a href="#CDigraph-addEdge">addEdge</a></li>
+<li><a href="#CDigraph-delEdge">delEdge</a></li>
+<li><a href="#CDigraph-copy">copy</a></li>
+<li><a href="#CDigraph-filterNodes">filterNodes</a></li>
+<li><a href="#CDigraph-toGraph">toGraph</a></li>
+</ul>
+
+    </p>
+    <p><a href="#alg">alg</a><ul>
+<li><a href="#alg-topsort">topsort</a></li>
+<li><a href="#alg-isAcyclic">isAcyclic</a></li>
+<li><a href="#alg-findCycles">findCycles</a></li>
+<li><a href="#alg-dijkstra">dijkstra</a></li>
+<li><a href="#alg-dijkstraAll">dijkstraAll</a></li>
+<li><a href="#alg-floydWarshall">floydWarshall</a></li>
+<li><a href="#alg-tarjan">tarjan</a></li>
+<li><a href="#alg-components">components</a></li>
+<li><a href="#alg-prim">prim</a></li>
+<li><a href="#alg-preorder">preorder</a></li>
+<li><a href="#alg-postorder">postorder</a></li>
+</ul>
+
+    </p>
+    <p><a hef="#converter-json">converter.json</a><ul>
+<li><a href="#converter-json-decode">decode</a></li>
+<li><a href="#converter-json-encode">encode</a></li>
+</ul>
+
+    </p>
+    <p><a href="#filter">filter</a><ul>
+<li><a href="#filter-all">all</a></li>
+<li><a href="#filter-nodesFromList">nodesFromList</a></li>
+</ul>
+
+    </p>
+  </div>
+  <div id="content">
+    <h1 id="title">Graphlib v0.7.0</h1><p>Graphlib is a JavaScript library that provides data structures for
+undirected and directed multi-graphs along with algorithms that can
+be used with them.</p>
+<p>This documentation describes the Graphlib API. Please visit our
+<a href="https://github.com/cpettitt/graphlib">GitHub repository</a> for
+more general information.</p>
+
+    <h2>Graph Types</h2><p>There are currently four major graph types in graphlib:</p>
+<ul>
+<li><a href="#Graph"><code>Graph</code></a> represents an undirected multigraph</li>
+<li><a href="#Digraph"><code>Digraph</code></a> represents a directed multigraph</li>
+<li><a href="#CGraph"><code>CGraph</code></a> represents a compound undirected multigraph</li>
+<li><a href="#CDigraph"><code>CDigraph</code></a> represents a compound directed multigraph</li>
+</ul>
+<p>Multigraphs are graphs that can contain more than one edge between
+the same two nodes.</p>
+<p>Compound graphs are graphs that can have nodes that act as parents
+to, or containers of, other nodes.</p>
+
+    <h2 id="Graph">Graph</h2><p>The <code>Graph</code> class represents an <a href="https://en.wikipedia.org/wiki/Undirected_graph">undirected</a> <a href="https://en.wikipedia.org/wiki/Multigraph">multigraph</a>.</p>
+<p>Subsequent examples in this section assume that <code>Graph</code> has been required
+as follows:</p>
+<pre><code class="lang-js">var Graph = require(&quot;graphlib&quot;).Graph;
+var graph = new Graph();</code></pre>
+
+    <h3 id="Graph-constructor">new Graph()</h3><p>Constructs a new empty <code>Graph</code>.</p>
+
+    <h3 id="Graph-order">graph.order()</h3><p>Returns the number of nodes in this graph. For example:</p>
+<pre><code class="lang-js">graph.order();
+// =&gt; 0
+
+graph.addNode(1);
+graph.addNode(2);
+
+graph.order();
+// =&gt; 2</code></pre>
+
+    <h3 id="Graph-size">graph.size()</h3><p>Returns the number of edges in this graph. For example:</p>
+<pre><code class="lang-js">graph.size();
+// =&gt; 0
+
+graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(null, 1, 2);
+
+graph.size();
+// =&gt; 1</code></pre>
+
+    <h3 id="Graph-isDirected">graph.isDirected()</h3><p>Always returns <code>false</code> for <code>Graph</code>.</p>
+
+    <h3 id="Graph-graph">graph.graph([value])</h3><p>The <code>graph</code> function provides a mechansim to get and set some user-defined
+information on the graph object itself. With no arguments <code>graph</code> returns
+the currently set value. With one argument <code>graph</code> replaces the current
+value on the graph with <code>value</code>. The initial value for the graph is
+<code>undefined</code>.</p>
+<pre><code class="lang-js">graph.graph();
+// =&gt; undefined
+
+graph.graph(&quot;Some graph value&quot;);
+graph.graph();
+// =&gt; &quot;Some graph value&quot;</code></pre>
+
+    <h3 id="Graph-hasNode">graph.hasNode(u)</h3><p>Returns <code>true</code> if the node with the id <code>u</code> is a member of this graph and
+<code>false</code> if not.</p>
+<pre><code class="lang-js">graph.hasNode(1);
+// =&gt; false
+
+graph.addNode(1);
+graph.hasNode(1);
+// =&gt; true</code></pre>
+
+    <h3 id="Graph-node">graph.node(u, [value])</h3><p>The <code>node</code> function provides a mechanism to get and set some user-defined
+information on an individual node. With one argument this function returns
+the value currently assigned to the node with the id <code>u</code>. With two
+arguments this function replaces the current value of the node <code>u</code> with
+<code>value</code>. The initial value for nodes is <code>undefined</code>.</p>
+<p>If there is no node <code>u</code> in this graph this function will throw an
+<code>Error</code>.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.node(1);
+// =&gt; undefined
+
+graph.node(1, &quot;Some node value&quot;);
+graph.node(1);
+// =&gt; &quot;Some node value&quot;
+
+graph.node(2);
+// throws an Error</code></pre>
+
+    <h3 id="Graph-nodes">graph.nodes()</h3><p>Returns the ids of all nodes in this graph. Use
+<a href="#Graph-node"><code>graph.node(u)</code></a> to get the value for a specific node.</p>
+<pre><code class="lang-js">graph.nodes();
+// =&gt; []
+
+graph.addNode(1);
+graph.addNode(2);
+
+graph.nodes()
+// =&gt; [1, 2]</code></pre>
+
+    <h3 id="Graph-eachNode">graph.eachNode(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this graph in
+arbitrary order, where <code>u</code> is the id of the node and <code>value</code> is its
+currently assigned value.</p>
+<pre><code class="lang-js">graph.addNode(1, &quot;label-1&quot;);
+graph.addNode(2, &quot;label-2&quot;);
+
+var results = {};
+graph.eachNode(function(u, value) {
+    results[u] = value;
+});
+
+results
+// =&gt; { &quot;1&quot;: &quot;label-1&quot;, &quot;2&quot;: &quot;label-2&quot; }</code></pre>
+
+    <h3 id="Graph-neighbors">graph.neighbors(u)</h3><p>Returns the ids of all nodes that are adjacent to the node with the id <code>u</code>.
+If <code>u</code> is not a member of this graph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(null, 1, 2);
+
+graph.neighbors(1);
+// =&gt; [2]
+
+graph.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Graph-hasEdge">graph.hasEdge(e)</h3><p>Returns <code>true</code> if an edge with the id <code>e</code> exists in this graph or
+<code>false</code> if not.</p>
+<pre><code class="lang-js">graph.hasEdge(&quot;A&quot;);
+// =&gt; false
+
+graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(&quot;A&quot;, 1, 2);
+graph.hasEdge(&quot;A&quot;);
+// =&gt; true</code></pre>
+
+    <h3 id="Graph-edge">graph.edge(e, [value])</h3><p>The <code>edge</code> function provides a mechanism to get and set some user-defined
+information on an individual edge. With one argument this function returns
+the value currently assigned to the edge with the id <code>e</code>. With two
+arguments this function replaces the current value of the edge <code>e</code> with
+<code>value</code>. The initial value for edges is <code>undefined</code>.</p>
+<p>If there is no edge <code>e</code> in the graph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.edge(&quot;A&quot;, 1, 2);
+// =&gt; undefined
+
+graph.edge(&quot;A&quot;, &quot;Some edge value&quot;);
+graph.edge(&quot;A&quot;);
+// =&gt; &quot;Some edge value&quot;
+
+graph.edge(&quot;B&quot;);
+// throws an Error</code></pre>
+
+    <h3 id="Graph-edges">graph.edges()</h3><p>Returns the ids of all edges in this graph. Use
+<a href="#Graph-edge"><code>graph.edge(e)</code></a> to get the value for a specific edge.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(&quot;A&quot;, 1, 2);
+graph.addEdge(&quot;B&quot;, 1, 2);
+graph.edges();
+// =&gt; [&quot;A&quot;, &quot;B&quot;]</code></pre>
+
+    <h3 id="Graph-eachEdge">graph.eachEdge(f)</h3><p>Applies the function <code>f(e, u, v, value)</code> to each edge in the graph in
+arbitrary order, where <code>e</code> is the edge&#39;s id, <code>u</code> and <code>v</code> are the incident
+node ids, and <code>value</code> it the value assigned to the edge.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(&quot;A&quot;, 1, 2, &quot;A-label&quot;);
+graph.addEdge(&quot;B&quot;, 2, 1, &quot;B-label&quot;);
+
+var results = {};
+graph.eachEdge(function(e, u, v, label) {
+    results[e] = &quot;U: &quot; + u + &quot; V: &quot; + v + &quot; L: &quot; + label;
+});
+
+results
+// =&gt; { &quot;A&quot;: &quot;U: 1 V: 2 L: A-label&quot;,
+//      &quot;B&quot;: &quot;U: 2 V: 1 L: B-label&quot; }</code></pre>
+
+    <h3 id="Graph-incidentNodes">graph.incidentNodes(e)</h3><p>Returns the nodes that are a part of the edge <code>e</code> in a 2-element array.
+There is no significance to the order in which the nodes appear in the
+array.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addEdge(&quot;A&quot;, 1, 2);
+graph.incidentNodes(&quot;A&quot;);
+// =&gt; [ 1, 2 ]</code></pre>
+
+    <h3 id="Graph-incidentEdges">graph.incidentEdges(u, [v])</h3><p>Returns an arrray of ids for all edges in this graph that are incident
+on the node <code>u</code>. If the node <code>u</code> is not in this graph this function
+raises an <code>Error</code>.</p>
+<p>Optionally the id of another node, <code>v</code>, may be be specified. This causes
+the results to be filtered such that only edges between <code>u</code> and <code>v</code> are
+included in the returned array. If the node <code>v</code> is specified but not a
+member of this graph this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addNode(3);
+graph.addEdge(&quot;A&quot;, 1, 2);
+graph.addEdge(&quot;B&quot;, 2, 3);
+graph.addEdge(&quot;C&quot;, 3, 1);
+graph.addEdge(&quot;D&quot;, 3, 2);
+
+graph.incidentEdges(3);
+// =&gt; [ &quot;B&quot;, &quot;C&quot;, &quot;D&quot; ]
+
+graph.inEdges(3, 2);
+// =&gt; [ &quot;B&quot;, &quot;D&quot; ]</code></pre>
+
+    <h3 id="Graph-addNode">graph.addNode(u, [value])</h3><p>Adds a new node with the id <code>u</code> to this graph. The node <code>u</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>. If <code>u</code> is <code>null</code> then a unique id is assigned to the node and
+returned by this function. If a node with the id <code>u</code> is already a member of
+this graph this function throws an <code>Error</code>.</p>
+
+    <h3 id="Graph-delNode">graph.delNode(u)</h3><p>Removes a node from this graph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this graph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="Graph-addEdge">graph.addEdge([e], u, v, [value])</h3><p>Adds a new edge to this graph with the id <code>e</code> between a node
+with the id <code>u</code> and a node with the id <code>v</code>. The edge <code>e</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>.  If <code>e</code> is <code>null</code> this graph will assign an arbitrary id to
+the edge.  This function returns the id of the edge. It will throw an
+<code>Error</code> if <code>u</code> or <code>v</code> are not members of this graph or if <code>e</code> is already
+a member of this graph.</p>
+
+    <h3 id="Graph-delEdge">graph.delEdge(e)</h3><p>Removes an edge in this graph with the id <code>e</code>. If no edge in this graph
+has the id <code>e</code> this function will thrown an <code>Error</code>.</p>
+
+    <h3 id="Graph-copy">graph.copy()</h3><p>Creates a new <code>Graph</code> that contains all of the nodes and edges from this graph.</p>
+
+    <h3 id="Graph-filterNodes">graph.filterNodes(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this graph and returns a
+new <code>Graph</code> that only includes those nodes for which <code>f</code> returns <code>true</code>.
+Edges that have both incident nodes in the new graph are also copied to the
+new graph.</p>
+<pre><code class="lang-js">function filter(u) { return u === 1 || u === 2; }
+
+graph.addNode(1, &quot;node-1&quot;);
+graph.addNode(2, &quot;node-2&quot;);
+graph.addNode(3, &quot;node-3&quot;);
+graph.addEdge(null, 1, 2, &quot;edge-1-2&quot;);
+graph.addEdge(null, 2, 3, &quot;edge-2-3&quot;);
+
+var copy = graph.filterNodes(filter);
+copy.nodes();
+// =&gt; [1, 2]
+
+copy.node(1);
+// =&gt; &quot;node-1&quot;
+
+copy.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Graph-toDigraph">graph.toDigraph()</h3><p>Returns a new directed graph using the nodes and edge from this graph. The
+new graph will have the same nodes, but will have twice the number of
+edges: each edge is split into edges pointing in opposite directions. Edge
+ids, consequently, are not preserved by this transformation.</p>
+<pre><code class="lang-js">graph.addNode(1);
+graph.addNode(2);
+graph.addNode(3);
+graph.addEdge(null, 1, 2);
+graph.addEdge(null, 2, 3);
+graph.size();
+// =&gt; 3
+
+var digraph = graph.toDigraph();
+digraph instanceof Digraph;
+// =&gt; true
+
+digraph.nodes();
+// =&gt; [ 1, 2, 3 ]
+
+digraph.size();
+// =&gt; 6 /* twice the number of edges */
+
+digraph.successors(2);
+// =&gt; [ 1, 3 ]
+
+digraph.edges();
+// =&gt; [ &quot;_ANON-1&quot;, &quot;_ANON-2&quot;, &quot;_ANON-3&quot;, &quot;_ANON-4&quot; ]</code></pre>
+
+    <h2 id="Digraph">Digraph</h2><p>The <code>Digraph</code> class represents a <a href="https://en.wikipedia.org/wiki/Directed_graph">directed</a> <a href="https://en.wikipedia.org/wiki/Multigraph">multigraph</a>.</p>
+<p>Subsequent examples in this section assume that <code>Digraph</code> has been required
+as follows:</p>
+<pre><code class="lang-js">var Digraph = require(&quot;graphlib&quot;).Digraph;
+var digraph = new Digraph();</code></pre>
+
+    <h3 id="Digraph-constructor">new Digraph()</h3><p>Constructs a new empty <code>Digraph</code>.</p>
+
+    <h3 id="Digraph-order">digraph.order()</h3><p>Returns the number of nodes in this digraph. For example:</p>
+<pre><code class="lang-js">digraph.order();
+// =&gt; 0
+
+digraph.addNode(1);
+digraph.addNode(2);
+
+digraph.order();
+// =&gt; 2</code></pre>
+
+    <h3 id="Digraph-size">digraph.size()</h3><p>Returns the number of edges in this digraph. For example:</p>
+<pre><code class="lang-js">digraph.size();
+// =&gt; 0
+
+digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.size();
+// =&gt; 1</code></pre>
+
+    <h3 id="Digraph-isDirected">digraph.isDirected()</h3><p>Always returns <code>true</code> for <code>Digraph</code>.</p>
+
+    <h3 id="Digraph-graph">digraph.graph([value])</h3><p>The <code>graph</code> function provides a mechansim to get and set some user-defined
+information on the digraph object itself. With no arguments <code>graph</code> returns
+the currently set value. With one argument <code>graph</code> replaces the current
+value on the graph with <code>value</code>. The initial value for the graph is
+<code>undefined</code>.</p>
+<pre><code class="lang-js">digraph.graph();
+// =&gt; undefined
+
+digraph.graph(&quot;Some graph value&quot;);
+digraph.graph();
+// =&gt; &quot;Some graph value&quot;</code></pre>
+
+    <h3 id="Digraph-hasNode">digraph.hasNode(u)</h3><p>Returns <code>true</code> if the node with the id <code>u</code> is a member of this digraph and
+<code>false</code> if not.</p>
+<pre><code class="lang-js">digraph.hasNode(1);
+// =&gt; false
+
+digraph.addNode(1);
+digraph.hasNode(1);
+// =&gt; true</code></pre>
+
+    <h3 id="Digraph-node">digraph.node(u, [value])</h3><p>The <code>node</code> function provides a mechanism to get and set some user-defined
+information on an individual node. With one argument this function returns
+the value currently assigned to the node with the id <code>u</code>. With two
+arguments this function replaces the current value of the node <code>u</code> with
+<code>value</code>. The initial value for nodes is <code>undefined</code>.</p>
+<p>If there is no node <code>u</code> in this digraph this function will throw an
+<code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.node(1);
+// =&gt; undefined
+
+digraph.node(1, &quot;Some node value&quot;);
+digraph.node(1);
+// =&gt; &quot;Some node value&quot;
+
+digraph.node(2);
+// throws an Error</code></pre>
+
+    <h3 id="Digraph-nodes">digraph.nodes()</h3><p>Returns the ids of all nodes in this digraph. Use
+<a href="#Digraph-node"><code>digraph.node(u)</code></a> to get the value for a specific node.</p>
+<pre><code class="lang-js">digraph.nodes();
+// =&gt; []
+
+digraph.addNode(1);
+digraph.addNode(2);
+
+digraph.nodes()
+// =&gt; [1, 2]</code></pre>
+
+    <h3 id="Digraph-eachNode">digraph.eachNode(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this digraph in
+arbitrary order, where <code>u</code> is the id of the node and <code>value</code> is its
+currently assigned value.</p>
+<pre><code class="lang-js">digraph.addNode(1, &quot;label-1&quot;);
+digraph.addNode(2, &quot;label-2&quot;);
+
+var results = {};
+digraph.eachNode(function(u, value) {
+    results[u] = value;
+});
+
+results
+// =&gt; { &quot;1&quot;: &quot;label-1&quot;, &quot;2&quot;: &quot;label-2&quot; }</code></pre>
+
+    <h3 id="Digraph-successors">digraph.successors(u)</h3><p>Returns the ids of all nodes that are successors of the node with the id
+<code>u</code>. If <code>u</code> is not a member of this digraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.successors(1);
+// =&gt; [2]
+
+digraph.successors(2);
+// =&gt; []</code></pre>
+
+    <h3 id="Digraph-predecessors">digraph.predecessors(u)</h3><p>Returns the ids of all nodes that are predecessors of the node with the id
+<code>u</code>. If <code>u</code> is not a member of this digraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.predecessors(1);
+// =&gt; []
+
+digraph.predecessors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Digraph-neighbors">digraph.neighbors(u)</h3><p>Returns the ids of all nodes that are adjacent to the node with the id <code>u</code>.
+If <code>u</code> is not a member of this digraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.neighbors(1);
+// =&gt; [2]
+
+digraph.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Digraph-sources">digraph.sources()</h3><p>Returns the ids of all nodes that are in this digraph that are sources. A
+source in a directed graph is a node that has no in-edges.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.sources();
+// =&gt; [1]</code></pre>
+
+    <h3 id="Digraph-sinks">digraph.sinks()</h3><p>Returns the ids of all nodes that are in this digraph that are sinks. A
+sink in a directed graph is a node that has no out-edges.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(null, 1, 2);
+
+digraph.sinks();
+// =&gt; [2]</code></pre>
+
+    <h3 id="Digraph-hasEdge">digraph.hasEdge(e)</h3><p>Returns <code>true</code> if an edge with the id <code>e</code> exists in this digraph or
+<code>false</code> if not.</p>
+<pre><code class="lang-js">digraph.hasEdge(&quot;A&quot;);
+// =&gt; false
+
+digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.hasEdge(&quot;A&quot;);
+// =&gt; true</code></pre>
+
+    <h3 id="Digraph-edge">digraph.edge(e, [value])</h3><p>The <code>edge</code> function provides a mechanism to get and set some user-defined
+information on an individual edge. With one argument this function returns
+the value currently assigned to the edge with the id <code>e</code>. With two
+arguments this function replaces the current value of the edge <code>e</code> with
+<code>value</code>. The initial value for edges is <code>undefined</code>.</p>
+<p>If there is no edge <code>e</code> in the digraph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.edge(&quot;A&quot;, 1, 2);
+// =&gt; undefined
+
+digraph.edge(&quot;A&quot;, &quot;Some edge value&quot;);
+digraph.edge(&quot;A&quot;);
+// =&gt; &quot;Some edge value&quot;
+
+digraph.edge(&quot;B&quot;);
+// throws an Error</code></pre>
+
+    <h3 id="Digraph-edges">digraph.edges()</h3><p>Returns the ids of all edges in this digraph. Use
+<a href="#Digraph-edge"><code>digraph.edge(e)</code></a> to get the value for a specific edge.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 1, 2);
+digraph.edges();
+// =&gt; [&quot;A&quot;, &quot;B&quot;]</code></pre>
+
+    <h3 id="Digraph-eachEdge">digraph.eachEdge(f)</h3><p>Applies the function <code>f(e, u, v, value)</code> to each edge in the digraph in
+arbitrary order, where <code>e</code> is the edge&#39;s id, <code>u</code> and <code>v</code> are the incident
+node ids, and <code>value</code> it the value assigned to the edge.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2, &quot;A-label&quot;);
+digraph.addEdge(&quot;B&quot;, 2, 1, &quot;B-label&quot;);
+
+var results = {};
+digraph.eachEdge(function(e, u, v, label) {
+    results[e] = &quot;U: &quot; + u + &quot; V: &quot; + v + &quot; L: &quot; + label;
+});
+
+results
+// =&gt; { &quot;A&quot;: &quot;U: 1 V: 2 L: A-label&quot;,
+//      &quot;B&quot;: &quot;U: 2 V: 1 L: B-label&quot; }</code></pre>
+
+    <h3 id="Graph-source">digraph.source(e)</h3><p>Returns the source node incident on the edge with the id <code>e</code>. If no such
+edge exists in this digraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.source(&quot;A&quot;);
+// =&gt; 1</code></pre>
+
+    <h3 id="Digraph-target">digraph.target(e)</h3><p>Returns the target node incident on the edge with the id <code>e</code>. If no such
+edge exists in this digraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.target(&quot;A&quot;);
+// =&gt; 2</code></pre>
+
+    <h3 id="Digraph-incidentNodes">digraph.incidentNodes(e)</h3><p>Returns the nodes that are a part of the edge <code>e</code> in a 2-element array.
+There is no significance to the order in which the nodes appear in the
+array.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.incidentNodes(&quot;A&quot;);
+// =&gt; [ 1, 2 ]</code></pre>
+
+    <h3 id="Digraph-inEdges">digraph.inEdges(target, [source])</h3><p>Returns an array of ids for all edges in this digraph that have the node
+identified by <code>target</code> as their target. If the node <code>target</code> is not in this digraph
+this function raises an <code>Error</code>.</p>
+<p>Optionally a node identified by <code>source</code> can be specified. This causes the
+results to be filtered such that only edges pointing from <code>source</code> to
+<code>target</code> are included. If the node <code>source</code> is specified but is not in this digraph
+then this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 2, 3);
+digraph.addEdge(&quot;C&quot;, 3, 1);
+digraph.addEdge(&quot;D&quot;, 3, 2);
+
+digraph.inEdges(2);
+// =&gt; [ &quot;A&quot;, &quot;D&quot; ]
+
+digraph.inEdges(2, 3);
+// =&gt; [ &quot;D&quot; ]</code></pre>
+<p>Note that <code>digraph.inEdges(target, source)</code> yields the same result as
+<code>digraph.outEdges(source, target)</code>.</p>
+
+    <h3 id="Digraph-outEdges">digraph.outEdges(source, [target])</h3><p>Returns an array of ids for all edges in this digraph that have the node
+identified by <code>source</code> as their source. If the node <code>source</code> is not in this digraph
+this function raises an <code>Error</code>.</p>
+<p>Optionally a node identified by <code>target</code> can be specified. This causes the
+results to be filtered such that only edges pointing from <code>source</code> to
+<code>target</code> are included. If the node <code>target</code> is specified but is not in this digraph
+then this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 2, 3);
+digraph.addEdge(&quot;C&quot;, 3, 1);
+digraph.addEdge(&quot;D&quot;, 3, 2);
+
+digraph.outEdges(3);
+// =&gt; [ &quot;C&quot;, &quot;D&quot; ]
+
+digraph.inEdges(3, 2);
+// =&gt; [ &quot;D&quot; ]</code></pre>
+
+    <h3 id="Digraph-incidentEdges">digraph.incidentEdges(u, [v])</h3><p>Returns an arrray of ids for all edges in this digraph that are incident
+on the node <code>u</code>. If the node <code>u</code> is not in this digraph this function
+raises an <code>Error</code>.</p>
+<p>Optionally the id of another node, <code>v</code>, may be be specified. This causes
+the results to be filtered such that only edges between <code>u</code> and <code>v</code> are
+included in the returned array. If the node <code>v</code> is specified but not a
+member of this digraph this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 2, 3);
+digraph.addEdge(&quot;C&quot;, 3, 1);
+digraph.addEdge(&quot;D&quot;, 3, 2);
+
+digraph.incidentEdges(3);
+// =&gt; [ &quot;B&quot;, &quot;C&quot;, &quot;D&quot; ]
+
+digraph.inEdges(3, 2);
+// =&gt; [ &quot;B&quot;, &quot;D&quot; ]</code></pre>
+
+    <h3 id="Digraph-addNode">digraph.addNode(u, [value])</h3><p>Adds a new node with the id <code>u</code> to this digraph. The node <code>u</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>. If <code>u</code> is <code>null</code> then a unique id is assigned to the node and
+returned by this function. If a node with the id <code>u</code> is already a member of
+this digraph this function throws an <code>Error</code>.</p>
+
+    <h3 id="Digraph-delNode">digraph.delNode(u)</h3><p>Removes a node from this digraph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this digraph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="Digraph-addEdge">digraph.addEdge([e], u, v, [value])</h3><p>Adds a new edge to this digraph with the id <code>e</code> from a node
+with the id <code>u</code> to a node with the id <code>v</code>. The edge <code>e</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>.  If <code>e</code> is <code>null</code> this digraph will assign an arbitrary id to
+the edge.  This function returns the id of the edge. It will throw an
+<code>Error</code> if <code>u</code> or <code>v</code> are not members of this digraph or if <code>e</code> is already
+a member of this digraph.</p>
+
+    <h3 id="Digraph-delNode">digraph.delNode(u)</h3><p>Removes a node from this digraph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this digraph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="Digraph-copy">digraph.copy()</h3><p>Creates a new <code>Digraph</code> that contains all of the nodes and edges from this digraph.</p>
+
+    <h3 id="Digraph-filterNodes">digraph.filterNodes(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this digraph and returns a
+new <code>Digraph</code> that only includes those nodes for which <code>f</code> returns <code>true</code>.
+Edges that have both incident nodes in the new digraph are also copied to the
+new digraph.</p>
+<pre><code class="lang-js">function filter(u) { return u === 1 || u === 2; }
+
+digraph.addNode(1, &quot;node-1&quot;);
+digraph.addNode(2, &quot;node-2&quot;);
+digraph.addNode(3, &quot;node-3&quot;);
+digraph.addEdge(null, 1, 2, &quot;edge-1-2&quot;);
+digraph.addEdge(null, 2, 3, &quot;edge-2-3&quot;);
+
+var copy = digraph.filterNodes(filter);
+copy.nodes();
+// =&gt; [1, 2]
+
+copy.node(1);
+// =&gt; &quot;node-1&quot;
+
+copy.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Digraph-toGraph">digraph.toGraph()</h3><p>Returns a new undirected graph using the nodes and edge from this graph.
+The new graph will have the same nodes, but the edges will be made
+undirected. Edge ids are preserved in this transformation.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 2, 3);
+
+var graph = digraph.toGraph();
+graph instanceof Graph;
+// =&gt; true
+
+graph.nodes();
+// =&gt; [ 1, 2, 3 ]
+
+graph.neighbors(2);
+// =&gt; [ 1, 3 ]
+
+graph.edges();
+// =&gt; [ &quot;A&quot;, &quot;B&quot; ]</code></pre>
+
+    <h2 id="CGraph">CGraph</h2><p>The <code>CGraph</code> class represents a compound <a href="https://en.wikipedia.org/wiki/Undirected_graph">undirected</a> <a href="https://en.wikipedia.org/wiki/Multigraph">multigraph</a>.
+It differs from <a href="#Graph"><code>Graph</code></a> in that its nodes can have children.</p>
+<p>Subsequent examples in this section assume that <code>CGraph</code> has been required
+as follows:</p>
+<pre><code class="lang-js">var CGraph = require(&quot;graphlib&quot;).CGraph;
+var cgraph = new CGraph();</code></pre>
+
+    <h3 id="CGraph-constructor">new CGraph()</h3><p>Constructs a new empty <code>CGraph</code>.</p>
+
+    <h3 id="CGraph-parent">cgraph.parent(u, [parent])</h3><p>This function returns the current parent of the node <code>u</code> if only one
+argument is supplied. If two arguments are supplied this function sets the
+parent of <code>u</code> to the node <code>parent</code>. If <code>parent</code> is <code>null</code> this effectively
+sets the parent to the root cgraph.</p>
+<p>This function will throw an <code>Error</code> if either <code>u</code> or <code>parent</code> are not in
+this cgraph.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.parent(1);
+// =&gt; null
+
+cgraph.addNode(&quot;sg1&quot;);
+cgraph.parent(1, &quot;sg1&quot;);
+cgraph.parent(1);
+// =&gt; &quot;sg1&quot;</code></pre>
+
+    <h3 id="CGraph-children">cgraph.children(id)</h3><p>Returns the ids of all children of the  with the id <code>u</code>.
+The id <code>null</code> can be used to get immediate children of the root cgraph.</p>
+<p>If <code>u</code> is not in this cgraph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">cgraph.children(null);
+// =&gt; []
+
+cgraph.addNode(1);
+cgraph.children(null);
+// =&gt; [ 1 ]
+
+g.addNode(&quot;sg1&quot;);
+g.children(null);
+// =&gt; [ 1, &quot;sg1&quot; ]
+
+g.parent(1, &quot;sg1&quot;);
+g.children(null);
+// =&gt; [ &quot;sg1&quot; ]]
+g.children(&quot;sg1&quot;);
+// =&gt; [ 1 ]</code></pre>
+
+    <h3 id="CGraph-order">cgraph.order()</h3><p>Returns the number of nodes in this cgraph. For example:</p>
+<pre><code class="lang-js">cgraph.order();
+// =&gt; 0
+
+cgraph.addNode(1);
+cgraph.addNode(2);
+
+cgraph.order();
+// =&gt; 2</code></pre>
+
+    <h3 id="CGraph-size">cgraph.size()</h3><p>Returns the number of edges in this cgraph. For example:</p>
+<pre><code class="lang-js">cgraph.size();
+// =&gt; 0
+
+cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(null, 1, 2);
+
+cgraph.size();
+// =&gt; 1</code></pre>
+
+    <h3 id="CGraph-isDirected">cgraph.isDirected()</h3><p>Always returns <code>false</code> for <code>CGraph</code>.</p>
+
+    <h3 id="CGraph-graph">cgraph.graph([value])</h3><p>The <code>graph</code> function provides a mechansim to get and set some user-defined
+information on the cgraph object itself. With no arguments <code>graph</code> returns
+the currently set value. With one argument <code>graph</code> replaces the current
+value on the graph with <code>value</code>. The initial value for the graph is
+<code>undefined</code>.</p>
+<pre><code class="lang-js">cgraph.graph();
+// =&gt; undefined
+
+cgraph.graph(&quot;Some graph value&quot;);
+cgraph.graph();
+// =&gt; &quot;Some graph value&quot;</code></pre>
+
+    <h3 id="CGraph-hasNode">cgraph.hasNode(u)</h3><p>Returns <code>true</code> if the node with the id <code>u</code> is a member of this cgraph and
+<code>false</code> if not.</p>
+<pre><code class="lang-js">cgraph.hasNode(1);
+// =&gt; false
+
+cgraph.addNode(1);
+cgraph.hasNode(1);
+// =&gt; true</code></pre>
+
+    <h3 id="CGraph-node">cgraph.node(u, [value])</h3><p>The <code>node</code> function provides a mechanism to get and set some user-defined
+information on an individual node. With one argument this function returns
+the value currently assigned to the node with the id <code>u</code>. With two
+arguments this function replaces the current value of the node <code>u</code> with
+<code>value</code>. The initial value for nodes is <code>undefined</code>.</p>
+<p>If there is no node <code>u</code> in this cgraph this function will throw an
+<code>Error</code>.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.node(1);
+// =&gt; undefined
+
+cgraph.node(1, &quot;Some node value&quot;);
+cgraph.node(1);
+// =&gt; &quot;Some node value&quot;
+
+cgraph.node(2);
+// throws an Error</code></pre>
+
+    <h3 id="CGraph-nodes">cgraph.nodes()</h3><p>Returns the ids of all nodes in this cgraph. Use
+<a href="#CGraph-node"><code>cgraph.node(u)</code></a> to get the value for a specific node.</p>
+<pre><code class="lang-js">cgraph.nodes();
+// =&gt; []
+
+cgraph.addNode(1);
+cgraph.addNode(2);
+
+cgraph.nodes()
+// =&gt; [1, 2]</code></pre>
+
+    <h3 id="CGraph-eachNode">cgraph.eachNode(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this cgraph in
+arbitrary order, where <code>u</code> is the id of the node and <code>value</code> is its
+currently assigned value.</p>
+<pre><code class="lang-js">cgraph.addNode(1, &quot;label-1&quot;);
+cgraph.addNode(2, &quot;label-2&quot;);
+
+var results = {};
+cgraph.eachNode(function(u, value) {
+    results[u] = value;
+});
+
+results
+// =&gt; { &quot;1&quot;: &quot;label-1&quot;, &quot;2&quot;: &quot;label-2&quot; }</code></pre>
+
+    <h3 id="CGraph-neighbors">cgraph.neighbors(u)</h3><p>Returns the ids of all nodes that are adjacent to the node with the id <code>u</code>.
+If <code>u</code> is not a member of this cgraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(null, 1, 2);
+
+cgraph.neighbors(1);
+// =&gt; [2]
+
+cgraph.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="CGraph-hasEdge">cgraph.hasEdge(e)</h3><p>Returns <code>true</code> if an edge with the id <code>e</code> exists in this cgraph or
+<code>false</code> if not.</p>
+<pre><code class="lang-js">cgraph.hasEdge(&quot;A&quot;);
+// =&gt; false
+
+cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(&quot;A&quot;, 1, 2);
+cgraph.hasEdge(&quot;A&quot;);
+// =&gt; true</code></pre>
+
+    <h3 id="CGraph-edge">cgraph.edge(e, [value])</h3><p>The <code>edge</code> function provides a mechanism to get and set some user-defined
+information on an individual edge. With one argument this function returns
+the value currently assigned to the edge with the id <code>e</code>. With two
+arguments this function replaces the current value of the edge <code>e</code> with
+<code>value</code>. The initial value for edges is <code>undefined</code>.</p>
+<p>If there is no edge <code>e</code> in the cgraph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.edge(&quot;A&quot;, 1, 2);
+// =&gt; undefined
+
+cgraph.edge(&quot;A&quot;, &quot;Some edge value&quot;);
+cgraph.edge(&quot;A&quot;);
+// =&gt; &quot;Some edge value&quot;
+
+cgraph.edge(&quot;B&quot;);
+// throws an Error</code></pre>
+
+    <h3 id="CGraph-edges">cgraph.edges()</h3><p>Returns the ids of all edges in this cgraph. Use
+<a href="#CGraph-edge"><code>cgraph.edge(e)</code></a> to get the value for a specific edge.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(&quot;A&quot;, 1, 2);
+cgraph.addEdge(&quot;B&quot;, 1, 2);
+cgraph.edges();
+// =&gt; [&quot;A&quot;, &quot;B&quot;]</code></pre>
+
+    <h3 id="CGraph-eachEdge">cgraph.eachEdge(f)</h3><p>Applies the function <code>f(e, u, v, value)</code> to each edge in the cgraph in
+arbitrary order, where <code>e</code> is the edge&#39;s id, <code>u</code> and <code>v</code> are the incident
+node ids, and <code>value</code> it the value assigned to the edge.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(&quot;A&quot;, 1, 2, &quot;A-label&quot;);
+cgraph.addEdge(&quot;B&quot;, 2, 1, &quot;B-label&quot;);
+
+var results = {};
+cgraph.eachEdge(function(e, u, v, label) {
+    results[e] = &quot;U: &quot; + u + &quot; V: &quot; + v + &quot; L: &quot; + label;
+});
+
+results
+// =&gt; { &quot;A&quot;: &quot;U: 1 V: 2 L: A-label&quot;,
+//      &quot;B&quot;: &quot;U: 2 V: 1 L: B-label&quot; }</code></pre>
+
+    <h3 id="CGraph-incidentNodes">cgraph.incidentNodes(e)</h3><p>Returns the nodes that are a part of the edge <code>e</code> in a 2-element array.
+There is no significance to the order in which the nodes appear in the
+array.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addEdge(&quot;A&quot;, 1, 2);
+cgraph.incidentNodes(&quot;A&quot;);
+// =&gt; [ 1, 2 ]</code></pre>
+
+    <h3 id="CGraph-incidentEdges">cgraph.incidentEdges(u, [v])</h3><p>Returns an arrray of ids for all edges in this cgraph that are incident
+on the node <code>u</code>. If the node <code>u</code> is not in this cgraph this function
+raises an <code>Error</code>.</p>
+<p>Optionally the id of another node, <code>v</code>, may be be specified. This causes
+the results to be filtered such that only edges between <code>u</code> and <code>v</code> are
+included in the returned array. If the node <code>v</code> is specified but not a
+member of this cgraph this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">cgraph.addNode(1);
+cgraph.addNode(2);
+cgraph.addNode(3);
+cgraph.addEdge(&quot;A&quot;, 1, 2);
+cgraph.addEdge(&quot;B&quot;, 2, 3);
+cgraph.addEdge(&quot;C&quot;, 3, 1);
+cgraph.addEdge(&quot;D&quot;, 3, 2);
+
+cgraph.incidentEdges(3);
+// =&gt; [ &quot;B&quot;, &quot;C&quot;, &quot;D&quot; ]
+
+cgraph.inEdges(3, 2);
+// =&gt; [ &quot;B&quot;, &quot;D&quot; ]</code></pre>
+
+    <h3 id="CGraph-addNode">cgraph.addNode(u, [value])</h3><p>Adds a new node with the id <code>u</code> to this cgraph. The node <code>u</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>. If <code>u</code> is <code>null</code> then a unique id is assigned to the node and
+returned by this function. If a node with the id <code>u</code> is already a member of
+this cgraph this function throws an <code>Error</code>.</p>
+
+    <h3 id="CGraph-delNode">cgraph.delNode(u)</h3><p>Removes a node from this cgraph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this cgraph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="CGraph-addEdge">cgraph.addEdge([e], u, v, [value])</h3><p>Adds a new edge to this cgraph with the id <code>e</code> between a node
+with the id <code>u</code> and a node with the id <code>v</code>. The edge <code>e</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>.  If <code>e</code> is <code>null</code> this cgraph will assign an arbitrary id to
+the edge.  This function returns the id of the edge. It will throw an
+<code>Error</code> if <code>u</code> or <code>v</code> are not members of this cgraph or if <code>e</code> is already
+a member of this cgraph.</p>
+
+    <h3 id="CGraph-delEdge">cgraph.delEdge(e)</h3><p>Removes an edge in this cgraph with the id <code>e</code>. If no edge in this cgraph
+has the id <code>e</code> this function will thrown an <code>Error</code>.</p>
+
+    <h3 id="CGraph-copy">cgraph.copy()</h3><p>Creates a new <code>CGraph</code> that contains all of the nodes and edges from this cgraph.</p>
+
+    <h3 id="CGraph-filterNodes">cgraph.filterNodes(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this cgraph and returns a
+new <code>CGraph</code> that only includes those nodes for which <code>f</code> returns <code>true</code>.
+Edges that have both incident nodes in the new cgraph are also copied to the
+new cgraph.</p>
+<pre><code class="lang-js">function filter(u) { return u === 1 || u === 2; }
+
+cgraph.addNode(1, &quot;node-1&quot;);
+cgraph.addNode(2, &quot;node-2&quot;);
+cgraph.addNode(3, &quot;node-3&quot;);
+cgraph.addEdge(null, 1, 2, &quot;edge-1-2&quot;);
+cgraph.addEdge(null, 2, 3, &quot;edge-2-3&quot;);
+
+var copy = cgraph.filterNodes(filter);
+copy.nodes();
+// =&gt; [1, 2]
+
+copy.node(1);
+// =&gt; &quot;node-1&quot;
+
+copy.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h2 id="CDigraph">CDigraph</h2><p>The <code>CDigraph</code> class represents a compound <a href="https://en.wikipedia.org/wiki/Directed_graph">directed</a> <a href="https://en.wikipedia.org/wiki/Multigraph">multigraph</a>.
+It differs from <a href="#Digraph"><code>Digraph</code></a> in that its nodes can have children.</p>
+<p>Subsequent examples in this section assume that <code>CDigraph</code> has been required
+as follows:</p>
+<pre><code class="lang-js">var CDigraph = require(&quot;graphlib&quot;).CDigraph;
+var cdigraph = new CDigraph();</code></pre>
+
+    <h3 id="CDigraph-constructor">new CDigraph()</h3><p>Constructs a new empty <code>CDigraph</code>.</p>
+
+    <h3 id="CDigraph-parent">cdigraph.parent(u, [parent])</h3><p>This function returns the current parent of the node <code>u</code> if only one
+argument is supplied. If two arguments are supplied this function sets the
+parent of <code>u</code> to the node <code>parent</code>. If <code>parent</code> is <code>null</code> this effectively
+sets the parent to the root cdigraph.</p>
+<p>This function will throw an <code>Error</code> if either <code>u</code> or <code>parent</code> are not in
+this cdigraph.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.parent(1);
+// =&gt; null
+
+cdigraph.addNode(&quot;sg1&quot;);
+cdigraph.parent(1, &quot;sg1&quot;);
+cdigraph.parent(1);
+// =&gt; &quot;sg1&quot;</code></pre>
+
+    <h3 id="CDigraph-children">cdigraph.children(id)</h3><p>Returns the ids of all children of the  with the id <code>u</code>.
+The id <code>null</code> can be used to get immediate children of the root cdigraph.</p>
+<p>If <code>u</code> is not in this cdigraph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.children(null);
+// =&gt; []
+
+cdigraph.addNode(1);
+cdigraph.children(null);
+// =&gt; [ 1 ]
+
+g.addNode(&quot;sg1&quot;);
+g.children(null);
+// =&gt; [ 1, &quot;sg1&quot; ]
+
+g.parent(1, &quot;sg1&quot;);
+g.children(null);
+// =&gt; [ &quot;sg1&quot; ]]
+g.children(&quot;sg1&quot;);
+// =&gt; [ 1 ]</code></pre>
+
+    <h3 id="CDigraph-order">cdigraph.order()</h3><p>Returns the number of nodes in this cdigraph. For example:</p>
+<pre><code class="lang-js">cdigraph.order();
+// =&gt; 0
+
+cdigraph.addNode(1);
+cdigraph.addNode(2);
+
+cdigraph.order();
+// =&gt; 2</code></pre>
+
+    <h3 id="CDigraph-size">cdigraph.size()</h3><p>Returns the number of edges in this cdigraph. For example:</p>
+<pre><code class="lang-js">cdigraph.size();
+// =&gt; 0
+
+cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.size();
+// =&gt; 1</code></pre>
+
+    <h3 id="CDigraph-isDirected">cdigraph.isDirected()</h3><p>Always returns <code>true</code> for <code>CDigraph</code>.</p>
+
+    <h3 id="CDigraph-graph">cdigraph.graph([value])</h3><p>The <code>graph</code> function provides a mechansim to get and set some user-defined
+information on the cdigraph object itself. With no arguments <code>graph</code> returns
+the currently set value. With one argument <code>graph</code> replaces the current
+value on the graph with <code>value</code>. The initial value for the graph is
+<code>undefined</code>.</p>
+<pre><code class="lang-js">cdigraph.graph();
+// =&gt; undefined
+
+cdigraph.graph(&quot;Some graph value&quot;);
+cdigraph.graph();
+// =&gt; &quot;Some graph value&quot;</code></pre>
+
+    <h3 id="CDigraph-hasNode">cdigraph.hasNode(u)</h3><p>Returns <code>true</code> if the node with the id <code>u</code> is a member of this cdigraph and
+<code>false</code> if not.</p>
+<pre><code class="lang-js">cdigraph.hasNode(1);
+// =&gt; false
+
+cdigraph.addNode(1);
+cdigraph.hasNode(1);
+// =&gt; true</code></pre>
+
+    <h3 id="CDigraph-node">cdigraph.node(u, [value])</h3><p>The <code>node</code> function provides a mechanism to get and set some user-defined
+information on an individual node. With one argument this function returns
+the value currently assigned to the node with the id <code>u</code>. With two
+arguments this function replaces the current value of the node <code>u</code> with
+<code>value</code>. The initial value for nodes is <code>undefined</code>.</p>
+<p>If there is no node <code>u</code> in this cdigraph this function will throw an
+<code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.node(1);
+// =&gt; undefined
+
+cdigraph.node(1, &quot;Some node value&quot;);
+cdigraph.node(1);
+// =&gt; &quot;Some node value&quot;
+
+cdigraph.node(2);
+// throws an Error</code></pre>
+
+    <h3 id="CDigraph-nodes">cdigraph.nodes()</h3><p>Returns the ids of all nodes in this cdigraph. Use
+<a href="#CDigraph-node"><code>cdigraph.node(u)</code></a> to get the value for a specific node.</p>
+<pre><code class="lang-js">cdigraph.nodes();
+// =&gt; []
+
+cdigraph.addNode(1);
+cdigraph.addNode(2);
+
+cdigraph.nodes()
+// =&gt; [1, 2]</code></pre>
+
+    <h3 id="CDigraph-eachNode">cdigraph.eachNode(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this cdigraph in
+arbitrary order, where <code>u</code> is the id of the node and <code>value</code> is its
+currently assigned value.</p>
+<pre><code class="lang-js">cdigraph.addNode(1, &quot;label-1&quot;);
+cdigraph.addNode(2, &quot;label-2&quot;);
+
+var results = {};
+cdigraph.eachNode(function(u, value) {
+    results[u] = value;
+});
+
+results
+// =&gt; { &quot;1&quot;: &quot;label-1&quot;, &quot;2&quot;: &quot;label-2&quot; }</code></pre>
+
+    <h3 id="CDigraph-successors">cdigraph.successors(u)</h3><p>Returns the ids of all nodes that are successors of the node with the id
+<code>u</code>. If <code>u</code> is not a member of this cdigraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.successors(1);
+// =&gt; [2]
+
+cdigraph.successors(2);
+// =&gt; []</code></pre>
+
+    <h3 id="CDigraph-predecessors">cdigraph.predecessors(u)</h3><p>Returns the ids of all nodes that are predecessors of the node with the id
+<code>u</code>. If <code>u</code> is not a member of this cdigraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.predecessors(1);
+// =&gt; []
+
+cdigraph.predecessors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="CDigraph-neighbors">cdigraph.neighbors(u)</h3><p>Returns the ids of all nodes that are adjacent to the node with the id <code>u</code>.
+If <code>u</code> is not a member of this cdigraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.neighbors(1);
+// =&gt; [2]
+
+cdigraph.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="CDigraph-sources">cdigraph.sources()</h3><p>Returns the ids of all nodes that are in this cdigraph that are sources. A
+source in a directed graph is a node that has no in-edges.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.sources();
+// =&gt; [1]</code></pre>
+
+    <h3 id="CDigraph-sinks">cdigraph.sinks()</h3><p>Returns the ids of all nodes that are in this cdigraph that are sinks. A
+sink in a directed graph is a node that has no out-edges.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(null, 1, 2);
+
+cdigraph.sinks();
+// =&gt; [2]</code></pre>
+
+    <h3 id="CDigraph-hasEdge">cdigraph.hasEdge(e)</h3><p>Returns <code>true</code> if an edge with the id <code>e</code> exists in this cdigraph or
+<code>false</code> if not.</p>
+<pre><code class="lang-js">cdigraph.hasEdge(&quot;A&quot;);
+// =&gt; false
+
+cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.hasEdge(&quot;A&quot;);
+// =&gt; true</code></pre>
+
+    <h3 id="CDigraph-edge">cdigraph.edge(e, [value])</h3><p>The <code>edge</code> function provides a mechanism to get and set some user-defined
+information on an individual edge. With one argument this function returns
+the value currently assigned to the edge with the id <code>e</code>. With two
+arguments this function replaces the current value of the edge <code>e</code> with
+<code>value</code>. The initial value for edges is <code>undefined</code>.</p>
+<p>If there is no edge <code>e</code> in the cdigraph this function will throw an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.edge(&quot;A&quot;, 1, 2);
+// =&gt; undefined
+
+cdigraph.edge(&quot;A&quot;, &quot;Some edge value&quot;);
+cdigraph.edge(&quot;A&quot;);
+// =&gt; &quot;Some edge value&quot;
+
+cdigraph.edge(&quot;B&quot;);
+// throws an Error</code></pre>
+
+    <h3 id="CDigraph-edges">cdigraph.edges()</h3><p>Returns the ids of all edges in this cdigraph. Use
+<a href="#CDigraph-edge"><code>cdigraph.edge(e)</code></a> to get the value for a specific edge.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.addEdge(&quot;B&quot;, 1, 2);
+cdigraph.edges();
+// =&gt; [&quot;A&quot;, &quot;B&quot;]</code></pre>
+
+    <h3 id="CDigraph-eachEdge">cdigraph.eachEdge(f)</h3><p>Applies the function <code>f(e, u, v, value)</code> to each edge in the cdigraph in
+arbitrary order, where <code>e</code> is the edge&#39;s id, <code>u</code> and <code>v</code> are the incident
+node ids, and <code>value</code> it the value assigned to the edge.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2, &quot;A-label&quot;);
+cdigraph.addEdge(&quot;B&quot;, 2, 1, &quot;B-label&quot;);
+
+var results = {};
+cdigraph.eachEdge(function(e, u, v, label) {
+    results[e] = &quot;U: &quot; + u + &quot; V: &quot; + v + &quot; L: &quot; + label;
+});
+
+results
+// =&gt; { &quot;A&quot;: &quot;U: 1 V: 2 L: A-label&quot;,
+//      &quot;B&quot;: &quot;U: 2 V: 1 L: B-label&quot; }</code></pre>
+
+    <h3 id="Graph-source">cdigraph.source(e)</h3><p>Returns the source node incident on the edge with the id <code>e</code>. If no such
+edge exists in this cdigraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.source(&quot;A&quot;);
+// =&gt; 1</code></pre>
+
+    <h3 id="CDigraph-target">cdigraph.target(e)</h3><p>Returns the target node incident on the edge with the id <code>e</code>. If no such
+edge exists in this cdigraph this function throws an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.target(&quot;A&quot;);
+// =&gt; 2</code></pre>
+
+    <h3 id="CDigraph-incidentNodes">cdigraph.incidentNodes(e)</h3><p>Returns the nodes that are a part of the edge <code>e</code> in a 2-element array.
+There is no significance to the order in which the nodes appear in the
+array.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.incidentNodes(&quot;A&quot;);
+// =&gt; [ 1, 2 ]</code></pre>
+
+    <h3 id="CDigraph-inEdges">cdigraph.inEdges(target, [source])</h3><p>Returns an array of ids for all edges in this cdigraph that have the node
+identified by <code>target</code> as their target. If the node <code>target</code> is not in this cdigraph
+this function raises an <code>Error</code>.</p>
+<p>Optionally a node identified by <code>source</code> can be specified. This causes the
+results to be filtered such that only edges pointing from <code>source</code> to
+<code>target</code> are included. If the node <code>source</code> is specified but is not in this cdigraph
+then this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addNode(3);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.addEdge(&quot;B&quot;, 2, 3);
+cdigraph.addEdge(&quot;C&quot;, 3, 1);
+cdigraph.addEdge(&quot;D&quot;, 3, 2);
+
+cdigraph.inEdges(2);
+// =&gt; [ &quot;A&quot;, &quot;D&quot; ]
+
+cdigraph.inEdges(2, 3);
+// =&gt; [ &quot;D&quot; ]</code></pre>
+<p>Note that <code>cdigraph.inEdges(target, source)</code> yields the same result as
+<code>cdigraph.outEdges(source, target)</code>.</p>
+
+    <h3 id="CDigraph-outEdges">cdigraph.outEdges(source, [target])</h3><p>Returns an array of ids for all edges in this cdigraph that have the node
+identified by <code>source</code> as their source. If the node <code>source</code> is not in this cdigraph
+this function raises an <code>Error</code>.</p>
+<p>Optionally a node identified by <code>target</code> can be specified. This causes the
+results to be filtered such that only edges pointing from <code>source</code> to
+<code>target</code> are included. If the node <code>target</code> is specified but is not in this cdigraph
+then this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addNode(3);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.addEdge(&quot;B&quot;, 2, 3);
+cdigraph.addEdge(&quot;C&quot;, 3, 1);
+cdigraph.addEdge(&quot;D&quot;, 3, 2);
+
+cdigraph.outEdges(3);
+// =&gt; [ &quot;C&quot;, &quot;D&quot; ]
+
+cdigraph.inEdges(3, 2);
+// =&gt; [ &quot;D&quot; ]</code></pre>
+
+    <h3 id="CDigraph-incidentEdges">cdigraph.incidentEdges(u, [v])</h3><p>Returns an arrray of ids for all edges in this cdigraph that are incident
+on the node <code>u</code>. If the node <code>u</code> is not in this cdigraph this function
+raises an <code>Error</code>.</p>
+<p>Optionally the id of another node, <code>v</code>, may be be specified. This causes
+the results to be filtered such that only edges between <code>u</code> and <code>v</code> are
+included in the returned array. If the node <code>v</code> is specified but not a
+member of this cdigraph this function raises an <code>Error</code>.</p>
+<pre><code class="lang-js">cdigraph.addNode(1);
+cdigraph.addNode(2);
+cdigraph.addNode(3);
+cdigraph.addEdge(&quot;A&quot;, 1, 2);
+cdigraph.addEdge(&quot;B&quot;, 2, 3);
+cdigraph.addEdge(&quot;C&quot;, 3, 1);
+cdigraph.addEdge(&quot;D&quot;, 3, 2);
+
+cdigraph.incidentEdges(3);
+// =&gt; [ &quot;B&quot;, &quot;C&quot;, &quot;D&quot; ]
+
+cdigraph.inEdges(3, 2);
+// =&gt; [ &quot;B&quot;, &quot;D&quot; ]</code></pre>
+
+    <h3 id="CDigraph-addNode">cdigraph.addNode(u, [value])</h3><p>Adds a new node with the id <code>u</code> to this cdigraph. The node <code>u</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>. If <code>u</code> is <code>null</code> then a unique id is assigned to the node and
+returned by this function. If a node with the id <code>u</code> is already a member of
+this cdigraph this function throws an <code>Error</code>.</p>
+
+    <h3 id="CDigraph-delNode">cdigraph.delNode(u)</h3><p>Removes a node from this cdigraph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this cdigraph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="CDigraph-addEdge">cdigraph.addEdge([e], u, v, [value])</h3><p>Adds a new edge to this cdigraph with the id <code>e</code> from a node
+with the id <code>u</code> to a node with the id <code>v</code>. The edge <code>e</code> is assigned
+the value of <code>value</code> if it is specified. Otherwise it defaults to the value
+<code>undefined</code>.  If <code>e</code> is <code>null</code> this cdigraph will assign an arbitrary id to
+the edge.  This function returns the id of the edge. It will throw an
+<code>Error</code> if <code>u</code> or <code>v</code> are not members of this cdigraph or if <code>e</code> is already
+a member of this cdigraph.</p>
+
+    <h3 id="CDigraph-delNode">cdigraph.delNode(u)</h3><p>Removes a node from this cdigraph that has the id <code>u</code>. Any edges incident on
+the node <code>u</code> are also removed. If this cdigraph does not contain a node <code>u</code>
+then this function will raise an <code>Error</code>.</p>
+
+    <h3 id="CDigraph-copy">cdigraph.copy()</h3><p>Creates a new <code>CDigraph</code> that contains all of the nodes and edges from this cdigraph.</p>
+
+    <h3 id="CDigraph-filterNodes">cdigraph.filterNodes(f)</h3><p>Applies the function <code>f(u, value)</code> to each node in this cdigraph and returns a
+new <code>CDigraph</code> that only includes those nodes for which <code>f</code> returns <code>true</code>.
+Edges that have both incident nodes in the new cdigraph are also copied to the
+new cdigraph.</p>
+<pre><code class="lang-js">function filter(u) { return u === 1 || u === 2; }
+
+cdigraph.addNode(1, &quot;node-1&quot;);
+cdigraph.addNode(2, &quot;node-2&quot;);
+cdigraph.addNode(3, &quot;node-3&quot;);
+cdigraph.addEdge(null, 1, 2, &quot;edge-1-2&quot;);
+cdigraph.addEdge(null, 2, 3, &quot;edge-2-3&quot;);
+
+var copy = cdigraph.filterNodes(filter);
+copy.nodes();
+// =&gt; [1, 2]
+
+copy.node(1);
+// =&gt; &quot;node-1&quot;
+
+copy.neighbors(2);
+// =&gt; [1]</code></pre>
+
+    <h3 id="Digraph-toGraph">digraph.toGraph()</h3><p>Returns a new undirected graph using the nodes and edge from this graph.
+The new graph will have the same nodes, but the edges will be made
+undirected. Edge ids are preserved in this transformation.</p>
+<pre><code class="lang-js">digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(&quot;A&quot;, 1, 2);
+digraph.addEdge(&quot;B&quot;, 2, 3);
+
+var graph = digraph.toGraph();
+graph instanceof Graph;
+// =&gt; true
+
+graph.nodes();
+// =&gt; [ 1, 2, 3 ]
+
+graph.neighbors(2);
+// =&gt; [ 1, 3 ]
+
+graph.edges();
+// =&gt; [ &quot;A&quot;, &quot;B&quot; ]</code></pre>
+
+    <h2 id="alg">alg</h2><p>The <code>alg</code> modules includes a number of algorithms that can be used with the
+graph classes included in graphlib. You can either get to all algorithms
+using <code>var alg = require(&quot;graphlib&quot;).alg</code> or you can get a single
+algorithm, e.g. <a href="#alg-topsort"><code>topsort</code></a>, using <code>var topsort =
+require(&quot;graphlib&quot;).alg.topsort</code>.</p>
+<p>For the purposes of this section, we assume the following requires:</p>
+<pre><code class="lang-js">var alg = require(&quot;graphlib&quot;).alg;</code></pre>
+
+    <h3 id="alg-topsort">alg.topsort(g)</h3><p>An implementation of <a href="https://en.wikipedia.org/wiki/Topological_sorting">topographical
+sorting</a>.</p>
+<p>Given a <a href="#Digraph"><code>Digraph</code></a> <code>g</code> this function returns an array of nodes
+such that for each edge <code>u -&gt; v</code>, <code>u</code> appears before <code>v</code> in the array. If
+the graph has a cycle it is impossible to generate such a list and
+<code>CycleException</code> is thrown.</p>
+<img src="static/topsort-source.png"><pre><code class="lang-js">alg.topsort(digraph);
+// =&gt; [ 1, 2, 3, 4 ] 
+// OR
+// =&gt; [ 1, 3, 2, 4 ]</code></pre>
+
+    <h3 id="alg-isAcyclic">alg.isAyclic(g)</h3><p>Given a <a href="#Digraph"><code>Digraph</code></a>, <code>g</code>, this function returns <code>true</code> if the
+graph has no cycles and returns <code>false</code> if it does. This algorithm returns
+as soon as it detects the first cycle. You can use
+<a href="#alg-findCycles"><code>alg.findCycles</code></a> to get the actual list of cycles in the
+graph.</p>
+<pre><code class="lang-js">var digraph = new Digraph();
+digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(null, 1, 2);
+digraph.addEdge(null, 2, 3);
+
+alg.isAcyclic(digraph);
+// =&gt; true
+
+digraph.addEdge(null, 3, 1);
+alg.isAcyclic(digraph);
+// =&gt; false</code></pre>
+
+    <h3 id="alg-findCycles">alg.findCycles(g)</h3><p>Given a <a href="#Digraph"><code>Digraph</code></a>, <code>g</code>, this function returns all nodes that
+are part of a cycle. As there may be more than one cycle in a graph this
+function return an array of these cycles, where each cycle is itself
+represented by an array of ids for each node involved in that cycle.
+<a href="#alg-isAcyclic"><code>alg.isAcyclic</code></a> is more efficient if you only need to
+determine whether a graph has a cycle or not.</p>
+<pre><code class="lang-js">var digraph = new Digraph();
+digraph.addNode(1);
+digraph.addNode(2);
+digraph.addNode(3);
+digraph.addEdge(null, 1, 2);
+digraph.addEdge(null, 2, 3);
+
+alg.findCycles(digraph);
+// =&gt; []
+
+digraph.addEdge(null, 3, 1);
+alg.findCycles(digraph);
+// =&gt; [ [ 3, 2, 1 ] ]
+
+digraph.addNode(4);
+digraph.addNode(5);
+digraph.addEdge(null, 4, 5);
+digraph.addEdge(null, 5, 4);
+alg.findCycles(digraph);
+// =&gt; [ [ 3, 2, 1 ], [ 5, 4 ] ]</code></pre>
+
+    <h3 id="alg-dijkstra">alg.dijkstra(g, source, [weightFunc], [incidentFunc])</h3><p>This function is an implementation of <a href="http://en.wikipedia.org/wiki/Dijkstra%27s_algorithm">Dijkstra&#39;s algorithm</a> which finds
+the shortest path from <code>source</code> to all other nodes in <code>g</code>. This
+function returns a map of <code>u -&gt; { distance, predecessor }</code>. The distance
+property holds the sum of the weights from <code>source</code> to <code>u</code> along the
+shortest path or <code>Number.POSITIVE_INFINITY</code> if there is no path from
+<code>source</code>. The predecessor property can be used to walk the individual
+elements of the path from <code>source</code> to <code>u</code> in reverse order.</p>
+<p>It takes an optional <code>weightFunc(e)</code> which returns the weight of the edge
+<code>e</code>. If no weightFunc is supplied then each edge is assumed to have a
+weight of 1. This function throws an <code>Error</code> if any of the traversed edges
+have a negative edge weight.  </p>
+<p>It takes an optional <code>incidentFunc(u)</code> which returns the ids of all edges
+incident to the node <code>u</code> for the purposes of shortest path traversal. By
+default this function uses the <code>g.outEdges</code> for Digraphs and
+<code>g.incidentEdges</code> for Graphs.</p>
+<p>It takes <code>O((|E| + |V|) * log |V|)</code> time.</p>
+<img src="static/dijkstra-source.png"><pre><code class="lang-js">function weight(e) { return digraph.edge(e); }
+
+alg.dijkstra(digraph, &quot;A&quot;, weight);
+// =&gt; { A: { distance: 0 },
+//      B: { distance: 6, predecessor: &#39;C&#39; },
+//      C: { distance: 4, predecessor: &#39;A&#39; },
+//      D: { distance: 2, predecessor: &#39;A&#39; },
+//      E: { distance: 8, predecessor: &#39;F&#39; },
+//      F: { distance: 4, predecessor: &#39;D&#39; } }</code></pre>
+
+    <h3 id="alg-dijkstraAll">alg.dijkstraAll(g, [weightFunc], [incidentFunc])</h3><p>This function finds the shortest path from each node to every other
+reachable node in the graph. It is similar to
+<a href="#alg-dijkstra"><code>alg.dijkstra</code></a>, but instead of returning a single-source
+array, it returns a mapping of of <code>source -&gt; alg.dijksta(g, source,
+weightFunc, incidentFunc)</code>.</p>
+<p>This function takes an optional <code>weightFunc(e)</code> which returns the
+weight of the edge <code>e</code>. If no weightFunc is supplied then each edge is
+assumed to have a weight of 1. This function throws an Error if any of
+the traversed edges have a negative edge weight.</p>
+<p>This function takes an optional <code>incidentFunc(u)</code> which returns the ids of
+all edges incident to the node <code>u</code> for the purposes of shortest path
+traversal. By default this function uses the <code>outEdges</code> function on the
+supplied graph.</p>
+<p>This function takes <code>O(|V| * (|E| + |V|) * log |V|)</code> time.</p>
+<img src="static/dijkstra-source.png"><pre><code class="lang-js">function weight(e) { return digraph.edge(e); }
+
+alg.dijkstraAll(digraph, weight);
+// =&gt; { A:
+//       { A: { distance: 0 },
+//         B: { distance: 6, predecessor: &#39;C&#39; },
+//         C: { distance: 4, predecessor: &#39;A&#39; },
+//         D: { distance: 2, predecessor: &#39;A&#39; },
+//         E: { distance: 8, predecessor: &#39;F&#39; },
+//         F: { distance: 4, predecessor: &#39;D&#39; } },
+//      B:
+//       { A: { distance: Infinity },
+//         B: { distance: 0 },
+//         C: { distance: Infinity },
+//         D: { distance: Infinity },
+//         E: { distance: 6, predecessor: &#39;B&#39; },
+//         F: { distance: Infinity } },
+//      C: { ... },
+//      D: { ... },
+//      E: { ... },
+//      F: { ... } }</code></pre>
+
+    <h3 id="alg-floydWarshall">alg.floydWarshall(g, [weightFunc], [incidentFunc])</h3><p>This function is an implementation of the <a href="https://en.wikipedia.org/wiki/Floyd-Warshall_algorithm">Floyd-Warshall algorithm</a>,
+which finds the shortest path from each node to every other reachable node
+in the graph. It is similar to <a href="#alg-dijkstraAll"><code>alg.dijkstraAll</code></a>, but
+it handles negative edge weights and is more efficient for some types of
+graphs. This function returns a map of <code>source -&gt; { target -&gt; { distance,
+predecessor }</code>. The distance property holds the sum of the weights from
+<code>source</code> to <code>target</code> along the shortest path of <code>Number.POSITIVE_INFINITY</code>
+if there is no path from <code>source</code>. The predecessor property can be used to
+walk the individual elements of the path from <code>source</code> to <code>target</code> in
+reverse order.</p>
+<p>This function takes an optional <code>weightFunc(e)</code> which returns the
+weight of the edge <code>e</code>. If no weightFunc is supplied then each edge is
+assumed to have a weight of 1.</p>
+<p>This function takes an optional <code>incidentFunc(u)</code> which returns the ids of
+all edges incident to the node <code>u</code> for the purposes of shortest path
+traversal. By default this function uses the <code>outEdges</code> function on the
+supplied graph.</p>
+<p>This algorithm takes O(|V|^3) time.</p>
+<img src="static/dijkstra-source.png"><pre><code class="lang-js">function weight(e) { return digraph.edge(e); }
+
+alg.floydWarshall(digraph, weight);
+// =&gt; { A:
+//       { A: { distance: 0 },
+//         B: { distance: 6, predecessor: &#39;C&#39; },
+//         C: { distance: 4, predecessor: &#39;A&#39; },
+//         D: { distance: 2, predecessor: &#39;A&#39; },
+//         E: { distance: 8, predecessor: &#39;F&#39; },
+//         F: { distance: 4, predecessor: &#39;D&#39; } },
+//      B:
+//       { A: { distance: Infinity },
+//         B: { distance: 0 },
+//         C: { distance: Infinity },
+//         D: { distance: Infinity },
+//         E: { distance: 6, predecessor: &#39;B&#39; },
+//         F: { distance: Infinity } },
+//      C: { ... },
+//      D: { ... },
+//      E: { ... },
+//      F: { ... } }</code></pre>
+
+    <h3 id="alg-tarjan">alg.tarjan(g)</h3><p>This function is an implementation of <a href="http://en.wikipedia.org/wiki/Tarjan&#39;s_strongly_connected_components_algorithm">Tarjan&#39;s algorithm</a> which finds
+all <a href="http://en.wikipedia.org/wiki/Strongly_connected_component">strongly connected components</a> in the directed graph <strong>g</strong>. Each
+strongly connected component is composed of nodes that can reach all other
+nodes in the component via directed edges. A strongly connected component
+can consist of a single node if that node cannot both reach and be reached
+by any other specific node in the graph. Components of more than one node
+are guaranteed to have at least one cycle.</p>
+<p>This function returns an array of components. Each component is itself an
+array that contains the ids of all nodes in the component.</p>
+<img src="static/tarjan-source.png"><pre><code class="lang-js">alg.tarjan(digraph);
+// =&gt; [ [ &#39;F&#39;, &#39;G&#39; ],
+//      [ &#39;H&#39;, &#39;D&#39;, &#39;C&#39; ],
+//      [ &#39;E&#39;, &#39;B&#39;, &#39;A&#39; ] ]</code></pre>
+
+    <h3 id="alg-components">alg.components(g)</h3><p>Finds all <a href="http://en.wikipedia.org/wiki/Connected_component_(graph_theory)">connected components</a> in a graph and returns an array of these
+components. Each component is itself an array that contains the ids of nodes
+in the component.</p>
+<p>This function works with both undirected and directed graphs.</p>
+<img src="static/components-source.png"><pre><code class="lang-js">alg.components(graph);
+// =&gt; [ [ &#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39; ],
+//      [ &#39;E&#39;, &#39;F&#39;, &#39;G&#39; ],
+//      [ &#39;H&#39;, &#39;I&#39; ] ]</code></pre>
+
+    <h3 id="alg-prim">alg.prim(g, weightFunc)</h3><p><a href="https://en.wikipedia.org/wiki/Prim&#39;s_algorithm">Prim&#39;s algorithm</a> takes a connected undirected graph and generates a
+<a href="https://en.wikipedia.org/wiki/Minimum_spanning_tree">minimum spanning tree</a>. This function returns the minimum spanning
+tree as an undirected graph. This algorithm is derived from the description
+in &quot;Introduction to Algorithms&quot;, Third Edition, Cormen, et al., Pg 634.</p>
+<p>This function takes a <code>weightFunc(e)</code> which returns the weight of the edge
+<code>e</code>. It throws an Error if the graph is not connected.</p>
+<p>This function takes <code>O(|E| log |V|)</code> time.</p>
+<img src="static/prim-source.png"><pre><code class="lang-js">function weight(e) { return graph.edge(e); }
+alg.prim(graph, weight);</code></pre>
+<p>Returns a tree (represented with a <a href="#Graph"><code>Graph</code></a>) of the following form:</p>
+<img src="static/prim-result.png">
+    <h3 id="alg-preorder">alg.preorder(g, root, callback)</h3><p>This function performs a <a href="https://en.wikipedia.org/wiki/Tree_traversal#Depth-first">preorder traversal</a> of the graph <code>g</code> starting
+at the node <code>root</code>. For each node visited, <code>u</code>,  the function <code>callback(u)</code>
+is called. If the graph is a directed graph or if it does not represent a
+tree structure, the function will throw an error. In the latter case, some
+nodes may be visited before it is determined that the graph is not a tree.</p>
+<img src="static/preorder-source.png"><pre><code class="lang-js">alg.preorder(graph, &quot;A&quot;);
+// =&gt; One of:
+// [ &quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot; ]
+// [ &quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;E&quot;, &quot;D&quot; ]
+// [ &quot;A&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;B&quot; ]
+// [ &quot;A&quot;, &quot;C&quot;, &quot;E&quot;, &quot;D&quot;, &quot;B&quot; ]</code></pre>
+
+    <h3 id="alg-postorder">alg.postorder(g, root, callback)</h3><p>This function performs a <a href="https://en.wikipedia.org/wiki/Tree_traversal#Depth-first">postorder traversal</a> of the graph <code>g</code> starting
+at the node <code>root</code>. For each node visited, <code>u</code>,  the function <code>callback(u)</code>
+is called. If the graph is a directed graph or if it does not represent a
+tree structure, the function will throw an error. In the latter case, some
+nodes may be visited before it is determined that the graph is not a tree.</p>
+<img src="static/preorder-source.png"><pre><code class="lang-js">alg.postorder(graph, &quot;A&quot;);
+// =&gt; One of:
+// [ &quot;B&quot;, &quot;D&quot;, &quot;E&quot;, C&quot;, &quot;A&quot; ]
+// [ &quot;B&quot;, &quot;E&quot;, &quot;D&quot;, C&quot;, &quot;A&quot; ]
+// [ &quot;D&quot;, &quot;E&quot;, &quot;C&quot;, B&quot;, &quot;A&quot; ]
+// [ &quot;E&quot;, &quot;D&quot;, &quot;C&quot;, B&quot;, &quot;A&quot; ]</code></pre>
+
+    <h2 id="converter-json">converter.json</h2><p>The <code>converter</code> modules provide a way to convert a graph into some other
+form and back. Currently, we only support a JSON format. The JSON format is
+reversible, so the following assertion passes:</p>
+<pre><code class="lang-js">var decode = require(&quot;graphlib&quot;).converter.json.decode,
+    encode = require(&quot;graphlib&quot;).converter.json.encode;
+
+var encoded = encode(graph);
+var decoded = decode(encoded.nodes, encoded.edges, encoded.type);
+assert.deepEqual(graph, decoded);</code></pre>
+
+    <h3 id="converter-json-decode">converter.json.decode(nodes, edges, [Ctor])</h3><p>Creates a graph of type <code>Ctor</code>, or <code>Digraph</code> if <code>Ctor</code> is <code>undefined</code>, with
+the given <code>nodes</code> and <code>edges</code>. <code>Ctor</code> may be either a constructor function
+or one of the strings <code>&quot;graph&quot;</code>, <code>&quot;digraph&quot;</code>, <code>&quot;cgraph&quot;</code>, or <code>&quot;cdigraph&quot;</code>.</p>
+<p><code>nodes</code> must be an array of entries of the form <code>{ [id], [value],
+[children] }</code>. If <code>id</code> is not set then a unique id will be assigned to the
+node. If <code>value</code> is not set then the node will be assigned the <code>undefined</code>
+value. <code>children</code> is only used when <code>Ctor instanceof CGraph || Ctor
+instanceof CDigraph</code> and if it is set it must contain an array of node ids
+in the graph.</p>
+<p><code>edges</code> must be an array of entries of the form <code>{ [id], u, v, [value] }</code>. If 
+<code>id</code> is not set then a unique id will be assigned to the edge. <code>u</code> represents
+the source in a directed graph and one of the incident nodes in an undirected
+graph. <code>v</code> represents the target in a directed graph or the other incident
+node in a directed graph. If <code>value</code> is not set then the edge will be
+assigned the <code>undefined</code> value.</p>
+<p>Here&#39;s an example of decoding a simple directed graph:</p>
+<pre><code class="lang-js">var decode = require(&quot;graphlib&quot;).converter.json.decode,
+    Digraph = require(&quot;graphlib&quot;).Digraph;
+
+var nodes = [{id: 1}, {id: 2}];
+var edges = [{id: &quot;A&quot;, u: 1, v: 2}, {id: &quot;B&quot;, u: 2, v: 1}];
+var graph = decode(nodes, edges);
+
+graph.nodes();
+// =&gt; [1, 2]
+
+graph.edges();
+// =&gt; [&quot;A&quot;, &quot;B&quot;]
+
+graph.source(&quot;A&quot;);
+// =&gt; 1
+
+graph.target(&quot;A&quot;);
+// =&gt; 2</code></pre>
+<p>Here&#39;s an exmple of decoding a compound directed graph:</p>
+<pre><code class="lang-js">var decode = require(&quot;graphlib&quot;).converter.json.decode,
+    CDigraph = require(&quot;graphlib&quot;).CDigraph;
+
+var nodes = [{id: &quot;sg1&quot;, children: [1, 2]},
+               {id: 1},
+               {id: 2}];
+var graph = decode(nodes, [], CGraph);
+
+  graph.nodes();
+  // =&gt; [&quot;sg1&quot;, 1, 2]
+
+  graph.children(null);
+  // =&gt; [&quot;sg1&quot;]
+
+  graph.children(&quot;sg1&quot;);
+  // =&gt; [1, 2]</code></pre>
+
+    <h3 id="converter-json-encode">converter.json.encode(graph)</h3><p>This function converts the given <code>graph</code> into an object of the form
+<code>{ nodes, edges, type }</code>. These <code>nodes</code> and <code>edges</code> act the same as the
+equivalent parameters for the <code>decode</code> function. The <code>type</code> property will
+be one of the strings <code>&quot;graph&quot;</code>, <code>&quot;digraph&quot;</code>, <code>&quot;cgraph&quot;</code>, or <code>&quot;cdigraph&quot;</code>.</p>
+<pre><code class="lang-js">var encode = require(&quot;graphlib&quot;).converter.json.encode,
+    Digraph = require(&quot;graphlib&quot;).Digraph;
+
+var graph = new Digraph();
+graph.addNode(1);
+graph.addNode(2, &quot;foo&quot;);
+graph.addEdge(&quot;A&quot;, 1, 2, &quot;bar&quot;);
+
+encode(graph);
+// =&gt; { nodes: [{ id: 1, value: undefined },
+//              { id: 2, value: &quot;foo&quot; }],
+//      edges: [{ id: &quot;A&quot;, u: 1, v: 2, value: &quot;bar&quot; }],
+//      type: &quot;digraph&quot; }</code></pre>
+
+    <h2 id="filter">Filters</h2><p>The filters in the module can be used with
+<a href="#Graph-filterNodes"><code>graph.filterNodes</code></a> and
+<a href="#Digraph-filterNodes"><code>digraph.filterNodes</code></a>. These filters are available
+as:</p>
+<pre><code class="lang-js">var filter = require(&quot;graphlib&quot;).filter;</code></pre>
+
+    <h3 id="filter-all">filter.all()</h3><p>Returns all nodes in the graph. Thus <code>subgraph</code> is identical in the
+following code blocks:</p>
+<pre><code class="lang-js">var subgraph = graph.copy();</code></pre>
+<p>and</p>
+<pre><code class="lang-js">var subgraph = graph.filterNode(filter.all());</code></pre>
+
+    <h3 id="filter-nodesFromList">filter.nodesFromList(list)</h3><p>Returns <code>true</code> only for nodes with ids in <code>list</code>.</p>
+
+  </div>
+</body>

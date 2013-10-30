@@ -28,6 +28,7 @@ func init() {
 		Name:       "elasticsearch",
 		Dockerfile: es_dockerfile,
 		Tag:        "zenoss/es",
+		Ports:      []int{9200},
 	}
 }
 

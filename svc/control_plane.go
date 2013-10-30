@@ -21,14 +21,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"log"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 /* A control plane implementation.
 
@@ -221,7 +225,7 @@ inner join host h on h.id = live_services.host_id
 `
 
 // Get a service endpoint.
-func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
@@ -278,7 +282,7 @@ and purpose = 'import'`, serviceId)
 	}
 	// We should now have the top-level service for the current service ID
 
-	remoteEndpoints := make(map[string][]*serviced.ApplicationEndpoint)
+	remoteEndpoints := make(map[string][]*dao.ApplicationEndpoint)
 	query := `
 select 
     se.service_id as ServiceId, 
@@ -317,7 +321,7 @@ where
 
 	// for each proxied port, find list of potential remote endpoints
 	for _, localport := range service_endpoints {
-		var applicationEndpoints []*serviced.ApplicationEndpoint
+		var applicationEndpoints []*dao.ApplicationEndpoint
 		dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
 		_, err := dbmap.Select(
 			&applicationEndpoints,
@@ -341,7 +345,7 @@ where
 
 func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
-		return []string{ node.id }
+		return []string{node.id}
 	}
 	relatedServiceIds := make([]string, 0)
 	for _, childNode := range node.children {
@@ -629,6 +633,7 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 	_, err = dbmap.Select(&services,
 		"SELECT "+
 			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
 			" ss.service_id as ServiceId,"+
 			" ss.started_at as StartedAt,"+
 			" s.name as Name,"+
@@ -644,6 +649,39 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 			"WHERE"+
 			" ss.terminated_at < '2000-01-01' and"+
 			" ss.host_id = ?", hostId)
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
+// Get all running services
+func (s *ControlSvc) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var services []*dao.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '2000-01-01'")
 	if err != nil {
 		return err
 	}
@@ -904,7 +942,7 @@ func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*dao.Poo
 	}
 	responseList := make([]*dao.PoolHost, len(hosts))
 	for i, host := range hosts {
-		responseList[i] = &dao.PoolHost{host.Id, host.PoolId}
+		responseList[i] = &dao.PoolHost{host.Id, host.PoolId, ""}
 	}
 	*response = responseList
 	return err
@@ -1038,7 +1076,10 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 						}
 
 						// randomly select host
-						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+						num_hosts := len(pool_hosts)
+						idx := rand.Intn(num_hosts)
+						glog.Infof("There are %d hosts and we picked number %d", num_hosts, idx)
+						service_host := pool_hosts[idx]
 						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
 							glog.Errorf("Error creating ServiceState instance: %v", err)
@@ -1066,7 +1107,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 
 			for _, service := range xservices {
 				var serviceStates []*dao.ServiceState
-				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0000-00-00 00:00:00'", service.Id); err != nil {
+				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0001-01-01 00:00:00'", service.Id); err != nil {
 					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
 					return err
 				}
@@ -1099,6 +1140,11 @@ func deployServiceDefinition(tx *gorp.Transaction, sd dao.ServiceDefinition, tem
 	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
+	ctx, err := json.Marshal(sd.Context)
+	if err != nil {
+		return err
+	}
+
 	// determine the desired state
 	ds := dao.SVC_RUN
 
@@ -1108,6 +1154,7 @@ func deployServiceDefinition(tx *gorp.Transaction, sd dao.ServiceDefinition, tem
 
 	svc := dao.Service{svcuuid,
 		sd.Name,
+		string(ctx),
 		sd.Command,
 		sd.Description,
 		sd.Instances.Min,

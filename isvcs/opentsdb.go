@@ -25,8 +25,8 @@ RUN cd /tmp ; dpkg -i /fuse.deb
 # Install Packages required to run opentsdb
 RUN apt-get install -y -q openjdk-7-jdk git autoconf build-essential libtool gnuplot wget 
 
-ADD http://www.apache.org/dist/hbase/hbase-0.94.12/hbase-0.94.12.tar.gz /opt/
-RUN tar xzf /opt/hbase-0.94.12.tar.gz -C /opt
+RUN wget http://www.apache.org/dist/hbase/hbase-0.94.12/hbase-0.94.12.tar.gz
+RUN tar xzf hbase-0.94.12.tar.gz -C /opt
 
 ENV COMPRESSION NONE
 ENV HBASE_HOME /opt/hbase-0.94.12
@@ -40,7 +40,7 @@ RUN git clone git://github.com/OpenTSDB/opentsdb.git /opt/opentsdb
 RUN cd /opt/opentsdb && ./build.sh
 RUN mkdir -p /tmp/tsd
 
-EXPOSE 4242:4242
+EXPOSE 4242
 
 # Start an Hbase cluster, wait for master to initialize, configure opentsdb tables, start opentsdb
 CMD bash -c "/opt/hbase-0.94.12/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }"
@@ -51,5 +51,6 @@ func init() {
 		Name:       "opentsdb",
 		Dockerfile: opentsdb_dockerfile,
 		Tag:        "zenoss/cp_opentsdb",
+		Ports:      []int{4242},
 	}
 }

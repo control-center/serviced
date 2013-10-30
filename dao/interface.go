@@ -54,6 +54,8 @@ type ControlPlane interface {
 	// Get a list of services from serviced
 	GetServices(request EntityRequest, services *[]*Service) error
 
+  GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error);
+
   //---------------------------------------------------------------------------
   //ServiceState CRUD
 
@@ -69,18 +71,20 @@ type ControlPlane interface {
 	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
 
-  //TODO
-	//// Get the services instances for a given service
-	//GetServiceStates(serviceId string, states *[]*ServiceState) error
+	// Get the services instances for a given service
+	GetServiceStates(serviceId string, states *[]*ServiceState) error
 
 	// Get all the services that need to be running on the given host
-	//GetServicesForHost(hostId string, services *[]*Service) error
+	GetServicesForHost(hostId string, services *[]*Service) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
 
 	// Get logs for the given app
 	GetServiceStateLogs(serviceStateId string, logs *string) error
+
+  // Get all running services
+  GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
