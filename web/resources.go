@@ -278,6 +278,10 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	service.PoolId = payload.PoolId
 	service.ImageId = payload.ImageId
 	service.Startup = payload.Startup
+	service.Instances = payload.Instances
+	service.ParentServiceId = payload.ParentServiceId
+	service.DesiredState = payload.DesiredState
+	service.Launch = payload.Launch
 
 	err = client.AddService(*service, &unused)
 	if err != nil {

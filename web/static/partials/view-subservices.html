@@ -43,9 +43,17 @@
                  ng-model="services.current.Startup"></input>
         </div>
 
+        <div class="vertical-info" ng-show="dev">
+          <label for="app_data_image">Image ID</label>
+          <input type="text" id="app_data_image" class="image"
+                 ng-model="services.current.ImageId"></input>
+        </div>
+
       </div>
       <div class="details-actions">
         <button ng-click="updateService()">Save Changes</button>
+        <button ng-show="dev" ng-click="showAddService()">Add Service</button>
+        <button ng-show="dev" ng-click="deleteService()">Delete</button>
       </div>
     </div>
 
@@ -106,3 +114,4 @@
 
     <div ng-include="'/static/partials/edit-config.html'"></div>
     <div ng-include="'/static/partials/view-log.html'"></div>
+    <div ng-include="'/static/partials/add-service.html'"></div>
