@@ -214,7 +214,7 @@ function DeployWizard($scope, resourcesService) {
 
     resourcesService.get_app_templates(false, function(templatesMap) {
         var templates = [];
-        for (key in templatesMap) {
+        for (var key in templatesMap) {
             var template = templatesMap[key];
             template.Id = key;
             templates[templates.length] = template;
@@ -384,47 +384,6 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     refreshServices($scope, resourcesService, false);
 }
 
-function fakeConfig() {
-    console.log('TODO: Replace this function');
-    return '#\n' +
-           '# Ethernet frame types\n' +
-           '#               This file describes some of the various Ethernet\n' +
-           '#               protocol types that are used on Ethernet networks.\n' +
-           '#\n' +
-           '# This list could be found on:\n' +
-           '#         http://www.iana.org/assignments/ethernet-numbers\n' +
-           '#\n' +
-           '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
-           '#\n' +
-           'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
-           'X25             0805\n' +
-           'ARP             0806    ether-arp       #\n' +
-           'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
-           'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
-           'DEC             6000                    # DEC Assigned proto\n' +
-           'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
-           'DNA_RC          6002                    # DEC DNA Remote Console\n' +
-           'DNA_RT          6003                    # DEC DNA Routing\n' +
-           'LAT             6004                    # DEC LAT\N' +
-           'DIAG            6005                    # DEC Diagnostics\n' +
-           'CUST            6006                    # DEC Customer use\n' +
-           'SCA             6007                    # DEC Systems Comms Arch\n' +
-           'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
-           'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
-           'AARP            80F3                    # Appletalk AARP\n' +
-           'ATALK           809B                    # Appletalk\n' +
-           '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
-           'IPX             8137                    # Novell IPX\n' +
-           'NetBEUI         8191                    # NetBEUI\n' +
-           'IPv6            86DD    ip6             # IP version 6\n' +
-           'PPP             880B                    # PPP\N' +
-           'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
-           'PPP_DISC        8863                    # PPPoE discovery messages\n' +
-           'PPP_SES         8864                    # PPPoE session messages\n' +
-           'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
-           'LOOP            9000    loopback        # loop proto\n';
-}
-
 function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -451,13 +410,13 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
 
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        resourcesService.get_service_logs(service.Id, function(log) {
+        resourcesService.get_service_state_logs(service.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -466,6 +425,8 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     $scope.updateService = function() {
         resourcesService.update_service($scope.services.current.Id, $scope.services.current, function() {
             console.log('Updated %s', $scope.services.current.Id);
+            var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
+            lastCrumb.label = $scope.services.current.Name;
         });
     }
 
@@ -486,6 +447,33 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
             }
         }
     });
+
+    var wait = { hosts: false, running: false }
+    var mashHostsToInstances = function() {
+        if (!wait.hosts || !wait.running) return;
+        
+        for (var i=0; i < $scope.running.data.length; i++) {
+            var instance = $scope.running.data[i];
+            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+        }
+    }
+    refreshHosts($scope, resourcesService, true, function() {
+        wait.hosts = true;
+        mashHostsToInstances();
+    });
+    refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
+        wait.running = true;
+        mashHostsToInstances();
+    });
+
+    $scope.killRunning = function(app) {
+        resourcesService.kill_running(app.Id, function() {
+            refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
+                wait.running = true;
+                mashHostsToInstances();
+            });
+        });
+    };
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
@@ -514,7 +502,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     $scope.add_host = function() {
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false, false, hostCallback);
+            refreshHosts($scope, resourcesService, false, hostCallback);
         });
         // Reset for another add
         $scope.newHost = {
@@ -636,7 +624,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
         var modifiedHost = $.extend({}, $scope.move.host);
         modifiedHost.PoolId = $scope.move.newpool;
         resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, false, hostCallback);
+            refreshHosts($scope, resourcesService, false, hostCallback);
         });
     };
 
@@ -682,7 +670,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false, hostCallback);
+    refreshHosts($scope, resourcesService, false, hostCallback);
 }
 
 function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
@@ -697,17 +685,17 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     ];
 
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, true, true);
+    refreshHosts($scope, resourcesService, true);
 
     $scope.running = buildTable('Name', [
-        { id: 'Name', name: 'Sub Applications' },
+        { id: 'Name', name: 'Running' },
         { id: 'StartedAt', name: 'Start Time' },
-        { id: 'View', name: 'View' }
+        { id: 'View', name: 'Actions' }
     ]);
 
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
@@ -719,10 +707,18 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         });
     };
 
-    $scope.killRunning = killRunning;
-    $scope.unkillRunning = unkillRunning;
-    refreshRunning($scope, resourcesService, $scope.params.hostId);
-    refreshHosts($scope, resourcesService, true, true, function() {
+    $scope.click_app = function(instance) {
+        $location.path('/services/' + instance.ServiceId);
+    };
+
+    $scope.killRunning = function(running) {
+        resourcesService.kill_running(running.Id, function() {
+            refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
+        });
+    };
+
+    refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
+    refreshHosts($scope, resourcesService, true, function() {
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
@@ -867,9 +863,9 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
 
     var hostsAddedToPools = false;
+    var wait = { pools: false, hosts: false };
     var addHostsToPools = function() {
-        if (!$scope.pools.mapped || !$scope.hosts.mapped) {
-            console.log('Need both pools and hosts');
+        if (!wait.pools || !wait.hosts) {
             return;
         }
         if (hostsAddedToPools) {
@@ -894,8 +890,14 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     $scope.treemapSelection = 'memory';
     // Also ensure we have a list of hosts
-    refreshPools($scope, resourcesService, false, addHostsToPools);
-    refreshHosts($scope, resourcesService, false, false, addHostsToPools);
+    refreshPools($scope, resourcesService, false, function() {
+        wait.pools = true;
+        addHostsToPools();
+    });
+    refreshHosts($scope, resourcesService, false, function() {
+        wait.hosts = true;
+        addHostsToPools();
+    });
 }
 
 function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService) {
@@ -1005,7 +1007,7 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         draw();
     });
 
-    refreshHosts($scope, resourcesService, true, true, function() {
+    refreshHosts($scope, resourcesService, true, function() {
         data_received.hosts = true;
         draw();
     });
@@ -1014,7 +1016,6 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         data_received.services = true;
         draw();
     });
-    
 }
 
 /*
@@ -1198,9 +1199,29 @@ function ResourcesService($http, $location) {
         },
 
         /*
+         * Get the list of services instances currently running for a given service.
+         *
+         * @param {string} serviceId The ID of the service to retrieve running instances for.
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        get_running_services_for_service: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/running').
+                success(function(data, status) {
+                    console.log('Got running services for %s', serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
          * Get the list of services currently running on a particular host.
          *
-         * @param {string} hostId The ID of the host to retrieve running services for
+         * @param {string} hostId The ID of the host to retrieve running services for.
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services_for_host: function(hostId, callback) {
@@ -1216,6 +1237,7 @@ function ResourcesService($http, $location) {
                     }
                 });
         },
+
 
         /*
          * Get the list of all services currently running.
@@ -1291,6 +1313,26 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     console.log('Removing pool failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Stop a running instance of a service.
+         *
+         * @param {string} serviceStateId Unique identifier for a service instance.
+         * @param {function} callback Result passed to callback on success.
+         */
+        kill_running: function(serviceStateId, callback) {
+            $http.delete('/running/' + serviceStateId).
+                success(function(data, status) {
+                    console.log('Terminated %s', serviceStateId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Terminating instance failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1748,19 +1790,6 @@ function toggleRunning(app, status, servicesService) {
     });
 }
 
-function killRunning(app) {
-    app.DesiredState = 0;
-    console.log("TODO: Kill service");
-    updateRunning(app);
-}
-
-function unkillRunning(app) {
-    app.DesiredState = 1;
-    console.log("TODO: Remove this function");
-    updateRunning(app);
-}
-
-
 function updateRunning(app) {
     if (app.DesiredState === 1) {
         app.runningText = "started";
@@ -1784,7 +1813,7 @@ function updateRunning(app) {
     }
 }
 
-function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extraCallback) {
+function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
@@ -1822,7 +1851,7 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
     });
 }
 
-function refreshRunning($scope, resourcesService, hostId) {
+function refreshRunningForHost($scope, resourcesService, hostId) {
     if ($scope.running === undefined) {
         $scope.running = {};
     }
@@ -1833,6 +1862,25 @@ function refreshRunning($scope, resourcesService, hostId) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
             updateRunning(runningServices[i]);
+        }
+    });
+}
+
+function refreshRunningForService($scope, resourcesService, serviceId, extracallback) {
+    if ($scope.running === undefined) {
+        $scope.running = {};
+    }
+
+    resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
+        $scope.running.data = runningServices;
+        for (var i=0; i < runningServices.length; i++) {
+            runningServices[i].DesiredState = 1; // All should be running
+            runningServices[i].Deployment = 'successful'; // TODO: Replace
+            updateRunning(runningServices[i]);
+        }
+
+        if (extracallback) {
+            extracallback();
         }
     });
 }
