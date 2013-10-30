@@ -68,6 +68,9 @@ type ControlPlane interface {
 	// Schedule the given service to stop
 	StopService(serviceId string, unused *int) error
 
+  // Stop a running instance of a service
+  StopRunningInstance(serviceId string, unused *int) error
+
 	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
 
@@ -88,6 +91,9 @@ type ControlPlane interface {
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+
+  // Get the service instances for a given service
+  GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
   //---------------------------------------------------------------------------
   // ResourcePool CRUD

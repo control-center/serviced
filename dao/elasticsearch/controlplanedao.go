@@ -609,6 +609,42 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *
 	return err
 }
 
+func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, services *[]*dao.RunningService) error {
+  qs := fmt.Sprintf("ServiceId:%s AND Terminated:0001", serviceId)
+	query := search.Query().Search( qs)
+	result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Search(qs).Result()
+
+	if err == nil {
+		states, err := toServiceStates(result)
+		if err == nil {
+			var _services []*dao.RunningService = make([]*dao.RunningService, len(states))
+			for i, ss := range states {
+				var s dao.Service
+				err = this.GetService(ss.ServiceId, &s)
+				if err == nil {
+					_services[i] = &dao.RunningService{}
+					_services[i].Id = ss.Id
+					_services[i].ServiceId = ss.ServiceId
+					_services[i].StartedAt = ss.Started
+					_services[i].Startup = s.Startup
+					_services[i].Name = s.Name
+					_services[i].Description = s.Description
+					_services[i].Instances = s.Instances
+					_services[i].PoolId = s.PoolId
+					_services[i].ImageId = s.ImageId
+					_services[i].DesiredState = s.DesiredState
+					_services[i].ParentServiceId = s.ParentServiceId
+				} else {
+					return err
+				}
+			}
+			*services = _services
+		}
+	}
+
+	return err
+}
+
 func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
   glog.Infof( "ControlPlaneDao.GetServiceLogs id=%s", id)
 	query := search.Query().Search(fmt.Sprintf("ServiceId:%s", id))
@@ -829,6 +865,18 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 			}
 		}
 	}
+	return err
+}
+
+func (this *ControlPlaneDao) StopRunningInstance(id string, unused *int) error {
+  var serviceState dao.ServiceState
+  err := this.GetServiceState( id, &serviceState)
+  if err == nil {
+    var unused int
+    serviceState.Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+    err = this.UpdateServiceState( serviceState, &unused)
+  }
+
 	return err
 }
 

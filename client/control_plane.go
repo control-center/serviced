@@ -91,6 +91,14 @@ func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
 }
 
+func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]*dao.RunningService) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
+}
+
+func (s *ControlClient) StopRunningInstance(serviceStateId string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StopRunningInstance", serviceStateId, unused)
+}
+
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices)
 }
