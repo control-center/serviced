@@ -416,7 +416,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        resourcesService.get_service_logs(service.Id, function(log) {
+        resourcesService.get_service_state_logs(service.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });

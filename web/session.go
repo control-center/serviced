@@ -35,7 +35,6 @@ func purgeOldSessions() {
 		if len(sessions) == 0 {
 			continue;
 		}
-		glog.Infoln("Purging old sessions older than 30 minutes")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
 		toDel := []string{}
 		for key, value := range sessions {
@@ -44,7 +43,7 @@ func purgeOldSessions() {
 			}
 		}
 		for _, key := range toDel {
-			glog.Infof("Deleting session %s", key)
+			glog.Infof("Deleting session %s (exceeded max age)", key)
 			delete(sessions, key)
 		}
 	}
