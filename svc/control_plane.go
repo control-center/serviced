@@ -1207,6 +1207,11 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 	svcuuid, _ := serviced.NewUuid()
 	now := time.Now()
 
+	ctx, err := json.Marshal(sd.Context)
+	if err != nil {
+		return err
+	}
+
 	// determine the desired state
 	ds := serviced.SVC_RUN
 
@@ -1216,6 +1221,7 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 
 	svc := serviced.Service{svcuuid,
 		sd.Name,
+		string(ctx),
 		sd.Command,
 		sd.Description,
 		sd.Instances.Min,

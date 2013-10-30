@@ -21,6 +21,7 @@ RUN rpmdb --rebuilddb && yum install -y  which net-tools \
 	net-snmp \
 	net-snmp-libs \
 	net-snmp-utils \
+	net-tools \
 	nmap \
 	openssl \
 	openssl-devel \
@@ -97,8 +98,9 @@ RUN rpmdb --rebuilddb && yum install -y  which net-tools \
 	zip \
 	&& yum clean all
 
-RUN rpmdb --rebuilddb && yum install -y http://artifacts.zenoss.loc/europa/44/zenoss-5.0.0-44.fc19.x86_64.rpm
 ENV RABBITMQ_NODENAME rabbit@localhost
+RUN rpmdb --rebuilddb && yum install -y http://artifacts.zenoss.loc/europa/44/zenoss-5.0.0-44.fc19.x86_64.rpm
+RUN yum -y localinstall zenoss-*.rpm || rpmdb --rebuilddb && yum -y localinstall zenoss-*.rpm
 ADD zenoss_init_pre /opt/zenoss/bin/zenoss_init_pre
 ADD global.conf /opt/zenoss/etc/global.conf
 ADD install-functions.sh /opt/zenoss/bin/install-functions.sh
