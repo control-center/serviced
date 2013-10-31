@@ -717,8 +717,5 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	command.Stdout = os.Stdout
 	command.Stdin = os.Stdin
 	command.Stderr = os.Stderr
-	err = command.Run()
-	glog.Infoln(err)
-
-	return err
+	return command.Run()
 }
