@@ -9,8 +9,8 @@
 package client
 
 import (
+	//"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/glog"
 	"net/rpc"
 )
 
@@ -27,7 +27,7 @@ var _ dao.ControlPlane = &ControlClient{}
 func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
-	glog.Infof("Connecting to %s", addr)
+	//glog.Infof("Client Connecting to %s", addr)
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err

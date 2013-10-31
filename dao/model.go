@@ -234,13 +234,19 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
   for _, ep := range ss.Endpoints {
     if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
-      portS := fmt.Sprintf( "%s", port)
+      if protocol == "tcp" {
+        protocol = "Tcp"
+      } else if protocol == "udp" {
+        protocol = "Udp"
+      }
+
+      portS := fmt.Sprintf( "%d", port)
       externalS := ss.PortMapping[protocol][portS]
       external, err := strconv.Atoi(externalS)
       if err == nil {
-        return 0
+        return uint16( external)
       }
-      return uint16( external)
+      break
     }
   }
 

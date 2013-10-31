@@ -220,10 +220,11 @@ func (this *ControlPlaneDao) queryHosts(query string) ([]*dao.Host, error) {
 }
 
 // query for services using uri
-func (this *ControlPlaneDao) queryServices(query string) ([]*dao.Service, error) {
-	result, err := searchServiceUri(query)
+func (this *ControlPlaneDao) queryServices(queryStr, quantity string) ([]*dao.Service, error) {
+  query := search.Query().Search( queryStr)
+  result, err := search.Search("controlplane").Type("service").Size(quantity).Query(query).Result()
 	if err == nil {
-		return toServices(&result)
+		return toServices(result)
 	}
 	return nil, err
 }
@@ -257,6 +258,7 @@ type treenode struct {
 }
 
 func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*dao.Service) (servicesMap map[string]*treenode, topService *treenode) {
+  //glog.Infof(" getServiceTree = %s", serviceId)
   servicesMap = make(map[string]*treenode)
   for _, service := range *servicesList {
     servicesMap[service.Id] = &treenode{
@@ -288,15 +290,15 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*d
 
 // Get a service endpoint.
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-  glog.Infof( "ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
+  //glog.Infof( "ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
   var service dao.Service
   err = this.GetService( serviceId, &service)
-  glog.Infof( "ControlPlaneDao.GetServiceEndpoints service=%+v err=%s", service, err)
+  //glog.Infof( "ControlPlaneDao.GetServiceEndpoints service=%+v err=%s", service, err)
 
   if err == nil {
     service_imports := service.GetServiceImports()
     if len(service_imports) > 0 {
-      glog.Infof( "  %+v service imports=%+v", service, service_imports)
+      //glog.Infof( "  %+v service imports=%+v", service, service_imports)
 
       var request dao.EntityRequest
       var servicesList []*dao.Service
@@ -304,23 +306,33 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 
       if err == nil {
 	      // Map all services by Id so we can construct a tree for the current service ID
+	      //glog.Infof("ServicesList: %d", len(servicesList))
+        //for i,s := range servicesList {
+        //  glog.Infof(" %d = %+v", i, s)
+        //}
 	      _, topService := this.getServiceTree(serviceId, &servicesList)
         // We should now have the top-level service for the current service ID
         remoteEndpoints := make(map[string][]*dao.ApplicationEndpoint)
 
         //build 'OR' query to grab all service states with in "service" tree
-        var goQuery string
+        goQuery := "("
 	      relatedServiceIds := walkTree(topService)
 	      lastIndex := len(relatedServiceIds) - 1
         for idx, rsid := range relatedServiceIds {
-          if idx == lastIndex {
+          //glog.Infof(" idx:%s, lastIndex:%s, rsid: %s", idx, lastIndex, rsid)
+          if idx >= 0 && idx < lastIndex {
             goQuery += "ServiceId:" + rsid + " OR "
           } else {
-            goQuery += "ServiceId:" + rsid
+            goQuery += "ServiceId:" + rsid + ")"
           }
         }
-        goQuery += " AND Terminated:0001"
-	      glog.Infof("Query: %s", goQuery)
+        if len(relatedServiceIds) <= 0 {
+          goQuery = "Terminated:0001"
+        } else  {
+          goQuery += " AND Terminated:0001"
+        }
+
+	      //glog.Infof("Query: %s", goQuery)
         query := search.Query().Search( goQuery)
 	      result, err := search.Search("controlplane").Type("servicestate").Size("1000").Query(query).Result()
         if err == nil {
@@ -329,6 +341,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
           if err == nil {
             // for each proxied port, find list of potential remote endpoints
             for _, endpoint := range service_imports {
+              //glog.Infof( "Finding exports for import: %+v", endpoint)
               key := fmt.Sprintf("%s:%d", endpoint.Protocol, endpoint.PortNumber)
               if _, exists := remoteEndpoints[key]; !exists {
                 remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
@@ -350,7 +363,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
             }
 
             *response = remoteEndpoints
-            glog.Infof("Return for %s is %v", serviceId, remoteEndpoints)
+            glog.Infof("Return for %s is %+v", serviceId, remoteEndpoints)
           }
         }
       }
@@ -645,7 +658,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, serv
 	return err
 }
 
-func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
+func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) (err error) {
   glog.Infof( "ControlPlaneDao.GetServiceLogs id=%s", id)
 	query := search.Query().Search(fmt.Sprintf("ServiceId:%s", id))
 	result, err := search.Search("controlplane").Type("servicestate").Size("1").Query(query).Sort(search.Sort("Started"), search.Sort("Terminated")).Result()
@@ -655,10 +668,10 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 		if err == nil {
 			if len(states) > 0 {
 				cmd := exec.Command("docker", "logs", states[0].DockerId)
-				output, err := cmd.Output()
-				if err == nil {
-					*logs = string(output)
-				}
+        output, _err := cmd.CombinedOutput()
+        err = _err
+        glog.Infof("About to return %d bytes of logs", len(output))
+        *logs = string(output)
 			} else {
 				err = dao.ControlPlaneError{"Not found"}
 			}
@@ -667,17 +680,17 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 	return err
 }
 
-func (this *ControlPlaneDao) GetServiceStateLogs(id string, logs *string) error {
+func (this *ControlPlaneDao) GetServiceStateLogs(id string, logs *string) (err error) {
   glog.Infof( "ControlPlaneDao.GetServiceStateLogs id=%s", id)
 	var serviceState dao.ServiceState
-	err := this.GetServiceState(id, &serviceState)
+	err = this.GetServiceState(id, &serviceState)
   glog.Infof( "ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceState, err)
 	if err == nil {
 		cmd := exec.Command("docker", "logs", serviceState.DockerId)
-		output, err := cmd.Output()
-		if err == nil {
-			*logs = string(output)
-		}
+    output, _err := cmd.CombinedOutput()
+    err = _err
+    glog.Infof("About to return %d bytes of logs", len(output))
+    *logs = string(output)
 	}
 	return err
 }
@@ -731,9 +744,14 @@ func (this *ControlPlaneDao) GetHosts(request dao.EntityRequest, hosts *map[stri
 //
 func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*dao.Service) error {
 	//glog.Infof("ControlPlaneDao.GetServices")
-	result, err := this.queryServices("_exists_:Id")
-	//glog.Infof("ControlPlaneDao.GetServices: err=%s", err)
-	*services = result
+	query := search.Query().Search("_exists_:Id")
+	results, err := search.Search("controlplane").Type("service").Size("50000").Query(query).Result()
+  //glog.Infof("ControlPlaneDao.GetServices: err=%s", err)
+  if err == nil {
+    var service_results []*dao.Service
+    service_results, err = toServices( results)
+    *services = service_results
+  }
 	return err
 }
 
@@ -773,7 +791,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 		if err == nil {
 			//start all child services
 			var query = fmt.Sprintf("ParentServiceId:%s", serviceId)
-			subServices, err := this.queryServices(query)
+			subServices, err := this.queryServices(query, "100")
 			if err == nil {
 				for _, service := range subServices {
 					err = this.StartService(service.Id, unused)
@@ -844,6 +862,7 @@ func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error
 }
 
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
+  glog.Infof( "ControlPlaneDao.StopService id=%s", id)
 	var service dao.Service
 	err := this.GetService(id, &service)
 	if err == nil {
@@ -851,17 +870,11 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 		err = this.UpdateService(service, unused)
 		if err == nil {
 			query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
-			subservices, err := this.queryServices(query)
+			subservices, err := this.queryServices(query, "100")
 			if err == nil {
 				for _, service := range subservices {
-					var pid = service.ParentServiceId
-					switch {
-					case pid == "":
-						glog.Warningf("Missing subservice: %s", pid)
-					default:
-						return this.StopService(pid, unused)
-					}
-				}
+          return this.StopService(service.Id, unused)
+		    }
 			}
 		}
 	}
@@ -1030,7 +1043,7 @@ func (this *ControlPlaneDao) lead(zkEvent <-chan zk.Event) {
 			}
 
 			// get all service that are supposed to be running
-			services, err := this.queryServices("DesiredState:1")
+			services, err := this.queryServices("DesiredState:1", "1000")
 			if err == nil {
 				for _, service := range services {
 					// check current state
@@ -1082,7 +1095,7 @@ func (this *ControlPlaneDao) lead(zkEvent <-chan zk.Event) {
 
 				// find the services that should not be running
 				var xservices []*dao.Service
-				xservices, err := this.queryServices("NOT DesiredState:1")
+				xservices, err := this.queryServices("NOT DesiredState:1", "1000")
 				if err == nil {
 					for _, service := range xservices {
 						var serviceStates []*dao.ServiceState
