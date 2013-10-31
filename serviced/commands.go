@@ -143,6 +143,7 @@ var proxyOptions struct {
 	keyPEMFile       string
 	certPEMFile      string
 	servicedEndpoint string
+	autorestart      bool
 }
 
 var proxyCmd *flag.FlagSet
@@ -157,6 +158,7 @@ func init() {
 	proxyCmd.StringVar(&proxyOptions.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", gw+":4979", "serviced endpoint address")
+	proxyCmd.BoolVar(&proxyOptions.autorestart, "autorestart", true, "restart process automatically when it exits")
 	proxyCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, `
 Usage: proxy [OPTIONS] SERVICE_ID COMMAND
@@ -169,7 +171,6 @@ COMMAND      is a quoted string that is the actual command to run
 	}
 
 }
-
 
 // List the hosts associated with the control plane.
 func (cli *ServicedCli) CmdHosts(args ...string) error {
@@ -665,4 +666,58 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	}
 	glog.Infoln("Sevice scheduled to stop.")
 	return err
+}
+
+func getService(controlPlane *serviced.ControlPlane, serviceId string) (service *serviced.Service, err error) {
+	// TODO: Replace with RPC call to get single service
+	var services []*serviced.Service
+	request := serviced.EntityRequest{}
+	err = (*controlPlane).GetServices(request, &services)
+	if err != nil {
+		return nil, err
+	}
+	for _, service = range services {
+		if service.Id == serviceId || service.Name == serviceId {
+			return service, nil
+		}
+	}
+	return nil, err
+
+}
+
+func (cli *ServicedCli) CmdShell(args ...string) error {
+	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	serviceId := cmd.Arg(0)
+	controlPlane := getClient()
+	service, err := getService(&controlPlane, serviceId)
+	if err != nil {
+		glog.Fatalf("Unable to retrieve service: %s", serviceId)
+	}
+	if service == nil {
+		glog.Fatalf("No such service: %s", serviceId)
+	}
+	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	dir, binary, err := serviced.ExecPath()
+	if err != nil {
+		glog.Errorf("Error getting exec path: %v", err)
+		return err
+	}
+	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
+	dir, err = os.Getwd()
+	pwdVolume := fmt.Sprintf("%s:/home/zenoss", dir)
+	shellcmd := "cd /home/zenoss && "
+	for _, a := range cmd.Args()[1:] {
+		shellcmd += a + " "
+	}
+	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
+	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
+	glog.Infof("Starting: %s", cmdString)
+	command := exec.Command("bash", "-c", cmdString)
+	command.Stdout = os.Stdout
+	command.Stdin = os.Stdin
+	command.Stderr = os.Stderr
+	return command.Run()
 }
