@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -235,4 +236,13 @@ func ParseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) 
 func ToMymysqlConnectionString(cInfo *DatabaseConnectionInfo) string {
 	return fmt.Sprintf("tcp:%s:%d*%s/%s/%s", cInfo.Host, cInfo.Port,
 		cInfo.Database, cInfo.User, cInfo.Password)
+}
+
+// Get the path to the currently running executable.
+func ExecPath() (string, string, error) {
+	path, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Dir(path), filepath.Base(path), nil
 }

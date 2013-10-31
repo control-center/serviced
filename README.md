@@ -99,7 +99,7 @@ mkdir $GOPATH/pkg -p
 mkdir $GOPATH/src/github.com/zenoss -p
 mkdir $GOPATH/src/github.com/mattbaird -p
 cd $GOPATH/src/github.com/mattbaird
-git clone git@github.com:zenoss/elasticgo.git
+git clone git@github.com:zenoss/elastigo.git
 cd elasticgo
 go build install
 cd $GOPATH/src/github.com/zenoss
