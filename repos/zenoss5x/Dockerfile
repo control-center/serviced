@@ -111,3 +111,4 @@ RUN sed -i '/GRANT SELECT ON mysql.proc/d' /opt/zenoss/Products/ZenModel/migrate
 ADD zenoss_init.sh /tmp/zenoss_init.sh
 RUN /tmp/zenoss_init.sh
 USER zenoss
+ENV ZENHOME /opt/zenoss
