@@ -11,23 +11,19 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	clientlib "github.com/zenoss/serviced/client"
-	"github.com/zenoss/serviced/proxy"
 
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/zenoss/glog"
-	//"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // A type to represent the CLI. All the command will have the same signature.
@@ -172,89 +168,6 @@ COMMAND      is a quoted string that is the actual command to run
 		proxyCmd.PrintDefaults()
 	}
 
-}
-
-// Start a service proxy.
-func (cli *ServicedCli) CmdProxy(args ...string) error {
-
-	if err := proxyCmd.Parse(args); err != nil {
-		return err
-	}
-	if len(proxyCmd.Args()) != 2 {
-		proxyCmd.Usage()
-		glog.Flush()
-		os.Exit(2)
-	}
-	config := proxy.Config{}
-	config.TCPMux.Port = proxyOptions.muxport
-	config.TCPMux.Enabled = proxyOptions.mux
-	config.TCPMux.UseTLS = proxyOptions.tls
-	config.ServiceId = proxyCmd.Arg(0)
-	config.Command = proxyCmd.Arg(1)
-
-	if config.TCPMux.Enabled {
-		go config.TCPMux.ListenAndMux()
-	}
-
-	go func(cmdString string) {
-		glog.Infof("About to execute: %s", cmdString)
-		cmd := exec.Command("bash", "-c", cmdString)
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		time.Sleep(time.Second) // Give it a beat so the proxy stuff logs first
-		err := cmd.Run()
-		if err != nil {
-			glog.Errorf("Problem running service: %v", err)
-			time.Sleep(time.Minute)
-			glog.Flush()
-			os.Exit(1)
-		}
-		glog.Flush()
-		os.Exit(0)
-	}(config.Command)
-
-	func() {
-		client, err := proxy.NewLBClient(proxyOptions.servicedEndpoint)
-		if err != nil {
-			glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
-			return
-		}
-		defer client.Close()
-
-		var endpoints map[string][]*serviced.ApplicationEndpoint
-		err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
-		if err != nil {
-			glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
-			return
-		}
-
-		for key, endpointList := range endpoints {
-
-			glog.Infof("For %s, got %s", key, endpointList)
-			if len(endpointList) <= 0 {
-				continue
-			}
-			proxy := proxy.Proxy{}
-			endpoint := endpointList[0]
-			proxy.Name = fmt.Sprintf("%v", endpoint)
-			proxy.Port = endpoint.ContainerPort
-			proxy.Address = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
-			proxy.TCPMux = config.TCPMux.Enabled
-			proxy.TCPMuxPort = config.TCPMux.Port
-			proxy.UseTLS = config.TCPMux.UseTLS
-			glog.Infof("Proxying %s", proxy)
-			go proxy.ListenAndProxy()
-		}
-	}()
-
-	if l, err := net.Listen("tcp", ":4321"); err == nil {
-		l.Accept()
-	}
-
-	glog.Flush()
-	os.Exit(0)
-	return nil
 }
 
 // List the hosts associated with the control plane.
@@ -763,10 +676,10 @@ func getService(controlPlane *serviced.ControlPlane, serviceId string) (service 
 	}
 	for _, service = range services {
 		if service.Id == serviceId || service.Name == serviceId {
-            return service, nil
+			return service, nil
 		}
 	}
-    return nil, err
+	return nil, err
 
 }
 
@@ -777,10 +690,10 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 	serviceId := cmd.Arg(0)
 	controlPlane := getClient()
-    service, err := getService(&controlPlane, serviceId)
-    if err != nil {
-        glog.Fatalf("Unable to retrieve service: %s", serviceId)
-    }
+	service, err := getService(&controlPlane, serviceId)
+	if err != nil {
+		glog.Fatalf("Unable to retrieve service: %s", serviceId)
+	}
 	if service == nil {
 		glog.Fatalf("No such service: %s", serviceId)
 	}

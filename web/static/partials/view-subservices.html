@@ -9,8 +9,8 @@
 
       <div class="details-form">
         <div class="vertical-info">
-          <label for="app_data_name">ID</label>
-          <div id="app_data_name">{{services.current.Name}}</div>
+          <label for="app_data_name">Name</label>
+          <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
         </div>
 
         <div class="vertical-info">
@@ -43,13 +43,22 @@
                  ng-model="services.current.Startup"></input>
         </div>
 
+        <div class="vertical-info" ng-show="dev">
+          <label for="app_data_image">Image ID</label>
+          <input type="text" id="app_data_image" class="image"
+                 ng-model="services.current.ImageId"></input>
+        </div>
+
       </div>
       <div class="details-actions">
         <button ng-click="updateService()">Save Changes</button>
+        <button ng-show="dev" ng-click="showAddService()">Add Service</button>
+        <button ng-show="dev" ng-click="deleteService()">Delete</button>
       </div>
     </div>
 
-    <table class="table table-striped table-bordered table-hover" id="sub_services_data" ng-show="services.subservices.length > 0">
+    <!-- This table has sub service definitions -->
+    <table class="table table-striped table-bordered table-hover" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
           <th ng-repeat="header in services.headers">{{header.name}}</th>
@@ -62,14 +71,12 @@
           <td>
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
-                <!--id="running{{$index}}_start"-->
                 <input type="radio" name="running{{$index}}" 
                        ng-model="app.Running" value="1">
                 {{app.runningText}}
               </label>
               
               <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
-                <!--id="running{{$index}}_stop"-->
                 <input type="radio" name="running{{$index}}" 
                        ng-model="app.Running" value="stopped">
                 {{app.notRunningText}}
@@ -77,12 +84,34 @@
             </div>
           </td>
           <td>
-            <button ng-click="viewLog(app)" class="btn btn-link">Log</button>
-            |
-            <button ng-click="viewConfig(app)" class="btn btn-link">Config</button> 
+            <button ng-click="viewConfig(app)" class="btn btn-link disabled">Config</button> 
           </td>
         </tr>
       </tbody>
     </table>
+
+
+    <!-- This table has running instances -->
+    <table class="table table-striped table-bordered table-hover" ng-show="running.data.length > 0">
+      <thead>
+        <tr>
+          <th colspan="4">Running Instances</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="app in running.data | orderBy:running.sort">
+          <td>{{app.Name}}</td>
+          <td>{{app.hostName}}</td>
+          <td>{{app.DockerId}}</td>
+          <td>
+            <button ng-click="viewLog(app)" class="btn btn-link">Log</button>
+            |
+            <button ng-click="killRunning(app)" class="btn btn-link">Kill</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
     <div ng-include="'/static/partials/edit-config.html'"></div>
     <div ng-include="'/static/partials/view-log.html'"></div>
+    <div ng-include="'/static/partials/add-service.html'"></div>

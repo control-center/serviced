@@ -2,22 +2,28 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
         <h4 class="modal-title">Add service</h4>
       </div>
       <div class="modal-body">
 
         <label for="new_service_name">Name:</label>
-        <input class="form-control" name="new_service_name" id="new_service_name" type="text" placeholder="Enter service name" ng-model="newService.Name" />
+        <input class="form-control" id="new_service_name" type="text" placeholder="Enter service name" ng-model="newService.Name" />
+
+        <label for="new_service_parent_service">Parent Service:</label>
+        <input class="form-control" id="new_service_parent_service" type="text" placeholder="ID of parent service or blank for none" ng-model="newService.ParentServiceId" />
+
+        <label for="new_service_image">Image Name:</label>
+        <input class="form-control" id="new_service_parent_service" type="text" placeholder="The name of the docker image, e.g. 'zenoss/zenoss5x'" ng-model="newService.ImageId" />
 
         <label for="new_service_description">Description</label>
-        <textarea class="form-control" name="new_service_description" id="new_service_description" placeholder="Enter a description" rows="3" ng-model="newService.Description"></textarea>
+        <textarea class="form-control" id="new_service_description" placeholder="Enter a description" rows="3" ng-model="newService.Description"></textarea>
 
         <label for="new_service_parent">Pool Id:</label>
-        <input class="form-control" name="new_service_parent" id="new_service_parent" type="text" placeholder="e.g. default" ng-model="newService.PoolId" />
+        <input class="form-control" id="new_service_parent" type="text" placeholder="e.g. default" ng-model="newService.PoolId" />
 
         <label for="new_service_startup">Startup Command:</label>
-        <input class="form-control" name="new_service_startup" id="new_service_startup" type="text" placeholder="e.g. /opt/zenoss/bin/somecommand" ng-model="newService.Startup" />
+        <input class="form-control" id="new_service_startup" type="text" placeholder="e.g. /opt/zenoss/bin/somecommand" ng-model="newService.Startup" />
 
       </div>
       <div class="modal-footer">
