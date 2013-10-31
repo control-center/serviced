@@ -266,7 +266,7 @@
           "Services": []
         }, 
         {
-          "Command": "su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
+          "Command": "redis-server /etc/redis.conf & su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
           "Endpoints": [
             {
               "Application": "memcached", 
@@ -275,8 +275,8 @@
               "Purpose": "import"
             }, 
             {
-              "Application": "redis", 
-              "PortNumber": 6379, 
+              "Application": "zope", 
+              "PortNumber": 9080, 
               "Protocol": "tcp", 
               "Purpose": "import"
             }, 
@@ -374,7 +374,7 @@
           "Services": []
         }, 
         {
-          "Command": "/usr/sbin/redis-server", 
+          "Command": "/usr/sbin/redis-server /etc/redis.conf", 
           "Endpoints": [
             {
               "Application": "redis", 
