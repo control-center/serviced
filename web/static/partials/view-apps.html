@@ -24,7 +24,7 @@
       <div class="navbar-secondary">
         <ul class="nav navbar-nav">
           <li ng-repeat="navlink in secondarynav">
-            <a href="{{navlink.url}}">{{navlink.label}}</a>
+            <a data-toggle="{{navlink.toggle}}" href="{{navlink.url}}">{{navlink.label}}</a>
           </li>
         </ul>
       </div>
@@ -67,3 +67,4 @@
     </table>
 
     <div ng-include="'/static/partials/wizard-modal.html'" ng-controller="DeployWizard"></div>
+    <div ng-include="'/static/partials/add-service.html'"></div>

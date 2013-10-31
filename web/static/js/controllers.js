@@ -41,6 +41,10 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
                 templateUrl: '/static/partials/view-host-details.html',
                 controller: HostDetailsControl
             }).
+            when('/devmode', {
+                templateUrl: '/static/partials/view-devmode.html',
+                controller: DevControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
@@ -382,6 +386,28 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
 
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, false);
+
+    var setupNewService = function() {
+        $scope.newService = {
+            PoolId: 'default',
+            ParentServiceId: '',
+            DesiredState: 1,
+            Launch: 'auto',
+            Instances: 1,
+            Description: '',
+            ImageId: ''
+        };
+    };
+    if ($scope.dev) {
+        setupNewService();
+        $scope.add_service = function() {
+            resourcesService.add_service($scope.newService, function() {
+                refreshServices($scope, resourcesService, false);
+                setupNewService();
+            });
+        };
+        $scope.secondarynav.push({ label: 'Add Service', url: '#addService', toggle: 'modal' });
+    }
 }
 
 function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
@@ -474,6 +500,43 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
             });
         });
     };
+
+    var setupNewService = function() {
+        $scope.newService = {
+            PoolId: 'default',
+            ParentServiceId: $scope.params.serviceId,
+            DesiredState: 1,
+            Launch: 'auto',
+            Instances: 1,
+            Description: '',
+            ImageId: ''
+        };
+    };
+    if ($scope.dev) {
+        setupNewService();
+        $scope.add_service = function() {
+            resourcesService.add_service($scope.newService, function() {
+                refreshServices($scope, resourcesService, false);
+                setupNewService();
+            });
+        };
+        $scope.showAddService = function() {
+            $('#addService').modal('show');
+        };
+        $scope.deleteService = function() {
+            var parent = $scope.services.current.ParentServiceId;
+            console.log('Parent: %s, Length: %d', parent, parent.length);
+            resourcesService.remove_service($scope.params.serviceId, function() {
+                refreshServices($scope, resourcesService, false, function() {
+                    if (parent && parent.length > 0) {
+                        $location.path('/services/' + parent);
+                    } else {
+                        $location.path('/apps');
+                    }
+                });
+            });
+        };
+    }
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
@@ -991,7 +1054,7 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         svg.call(d3.behavior.zoom().on("zoom", function() {
             var ev = d3.event;
             svg.select("g")
-                .attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale *2 + ")");
+                .attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
         }));
     };
 
@@ -1035,7 +1098,7 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
-    $scope.username = $scope.username? $scope.username : $cookies['ZUsername'];
+    $scope.username = $scope.username? $scope.username : $cookies.ZUsername;
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
     
     $scope.navlinks = [
@@ -1077,6 +1140,34 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
                 console.log('Unable to log out. Were you logged in to begin with?');
             });
     };
+}
+
+function DevControl($scope, $cookieStore, authService) {
+    authService.checkLogin($scope);
+    $scope.name = "developer control";
+
+    var updateDevMode = function() {
+        if ($scope.devmode.enabled) {
+            $scope.devmode.enabledClass = 'btn btn-success active';
+            $scope.devmode.enabledText = 'Enabled';
+            $scope.devmode.disabledClass = 'btn btn-default off';
+            $scope.devmode.disabledText = '\xA0'; // &nbsp;
+        } else {
+            $scope.devmode.enabledClass = 'btn btn-default off';
+            $scope.devmode.enabledText = '\xA0';
+            $scope.devmode.disabledClass = 'btn btn-danger active';
+            $scope.devmode.disabledText = 'Disabled'; // &nbsp;
+        }
+    };
+    $scope.devmode = {
+        enabled: $cookieStore.get('ZDevMode')
+    };
+    $scope.setDevMode = function(enabled) {
+        $scope.devmode.enabled = enabled;
+        $cookieStore.put('ZDevMode', enabled);
+        updateDevMode();
+    };
+    updateDevMode();
 }
 
 function ResourcesService($http, $location) {
@@ -1594,7 +1685,7 @@ function ResourcesService($http, $location) {
     };
 }
 
-function AuthService($cookies, $location) {
+function AuthService($cookies, $cookieStore, $location) {
     var loggedIn = false;
     var userName = null;
     return {
@@ -1616,18 +1707,19 @@ function AuthService($cookies, $location) {
          * @param {object} scope The 'loggedIn' property will be set if true
          */
         checkLogin: function($scope) {
+            $scope.dev = $cookieStore.get('ZDevMode');
             if (loggedIn) {
                 $scope.loggedIn = true;
                 $scope.username = userName;
                 return;
             }
-            if ($cookies['ZCPToken'] !== undefined) {
+            if ($cookies.ZCPToken !== undefined) {
                 loggedIn = true;
                 $scope.loggedIn = true;
             } else {
                 unauthorized($location);
             }
-        }
+        },
     };
 }
 
