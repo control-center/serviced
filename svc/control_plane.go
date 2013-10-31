@@ -20,9 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -316,12 +314,12 @@ where
 		}
 	}
 
-	glog.Infof("Query: %s", query)
+	// glog.Infof("Query: %s", query)
 
 	// for each proxied port, find list of potential remote endpoints
 	for _, localport := range service_endpoints {
 		var applicationEndpoints []*serviced.ApplicationEndpoint
-		dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
+		//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
 		_, err := dbmap.Select(
 			&applicationEndpoints,
 			query,
@@ -329,7 +327,7 @@ where
 			string(localport.ApplicationType),
 			localport.Port,
 		)
-		dbmap.TraceOff()
+		//dbmap.TraceOff()
 		if err != nil {
 			return err
 		}
@@ -338,7 +336,7 @@ where
 	}
 
 	*response = remoteEndpoints
-	glog.Infof("Return for %s is %v", serviceId, remoteEndpoints)
+	glog.V(4).Infof("Return for %s is %v", serviceId, remoteEndpoints)
 	return nil
 }
 

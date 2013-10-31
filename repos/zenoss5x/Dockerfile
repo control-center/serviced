@@ -16,8 +16,9 @@ RUN rpmdb --rebuilddb && yum install -y  which net-tools \
 	libssl \
 	libutil \
 	libxslt \
-	libz \ 
-	mysql-server \
+	libz \
+	mariadb \
+	mariadb-server \
 	net-snmp \
 	net-snmp-libs \
 	net-snmp-utils \
