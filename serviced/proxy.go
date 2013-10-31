@@ -35,8 +35,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
+	procexit := make(chan int)
+
 	// continually execute subprocess
 	go func(cmdString string) {
+		defer func() { procexit <- 1 }()
 		for {
 			glog.Infof("About to execute: %s", cmdString)
 			cmd := exec.Command("bash", "-c", cmdString)
@@ -48,68 +51,76 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 				glog.Errorf("Problem running service: %v", err)
 				glog.Flush()
 			}
+			if !proxyOptions.autorestart {
+				break
+			}
 			glog.Infof("service exited, sleeping...")
 			time.Sleep(time.Minute)
 		}
+
 	}(config.Command)
 
-	for {
-		func() {
-			client, err := sproxy.NewLBClient(proxyOptions.servicedEndpoint)
-			if err != nil {
-				glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
-				return
-			}
-			defer client.Close()
-
-			var endpoints map[string][]*serviced.ApplicationEndpoint
-			err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
-			if err != nil {
-				glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
-				return
-			}
-
-			for key, endpointList := range endpoints {
-				if len(endpointList) <= 0 {
-					glog.Warningf("No endpoints found for %s", key)
-					if proxy, ok := proxies[key]; ok {
-						emptyAddressList := make([]string, 0)
-						proxy.SetNewAddresses(emptyAddressList)
-					}
-					continue
+	go func() {
+		for {
+			func() {
+				client, err := sproxy.NewLBClient(proxyOptions.servicedEndpoint)
+				if err != nil {
+					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+					return
 				}
-				addresses := make([]string, len(endpointList))
-				for i, endpoint := range endpointList {
-					addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
-				}
-				sort.Strings(addresses)
+				defer client.Close()
 
-				var proxy *sproxy.Proxy
-				var ok bool
-				if proxy, ok = proxies[key]; !ok {
-					// setup a new proxy
-					listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
-					if err != nil {
-						glog.Errorf("Could not bind to port: %s", err)
+				var endpoints map[string][]*serviced.ApplicationEndpoint
+				err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
+				if err != nil {
+					glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
+					return
+				}
+
+				for key, endpointList := range endpoints {
+					if len(endpointList) <= 0 {
+						glog.Warningf("No endpoints found for %s", key)
+						if proxy, ok := proxies[key]; ok {
+							emptyAddressList := make([]string, 0)
+							proxy.SetNewAddresses(emptyAddressList)
+						}
 						continue
 					}
-					proxy, err = sproxy.NewProxy(
-						fmt.Sprintf("%v", endpointList[0]),
-						uint16(config.TCPMux.Port),
-						config.TCPMux.UseTLS,
-						listener)
-					if err != nil {
-						glog.Errorf("Could not build proxy %s", err)
-						continue
+					addresses := make([]string, len(endpointList))
+					for i, endpoint := range endpointList {
+						addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
 					}
-					proxies[key] = proxy
-				}
-				proxy.SetNewAddresses(addresses)
-			}
-		}()
+					sort.Strings(addresses)
 
-		time.Sleep(time.Second * 10)
-	}
+					var proxy *sproxy.Proxy
+					var ok bool
+					if proxy, ok = proxies[key]; !ok {
+						// setup a new proxy
+						listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
+						if err != nil {
+							glog.Errorf("Could not bind to port: %s", err)
+							continue
+						}
+						proxy, err = sproxy.NewProxy(
+							fmt.Sprintf("%v", endpointList[0]),
+							uint16(config.TCPMux.Port),
+							config.TCPMux.UseTLS,
+							listener)
+						if err != nil {
+							glog.Errorf("Could not build proxy %s", err)
+							continue
+						}
+						proxies[key] = proxy
+					}
+					proxy.SetNewAddresses(addresses)
+				}
+			}()
+
+			time.Sleep(time.Second * 10)
+		}
+	}()
+
+	<-procexit // Wait for proc goroutine to exit
 
 	glog.Flush()
 	os.Exit(0)

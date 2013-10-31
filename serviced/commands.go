@@ -143,6 +143,7 @@ var proxyOptions struct {
 	keyPEMFile       string
 	certPEMFile      string
 	servicedEndpoint string
+	autorestart      bool
 }
 
 var proxyCmd *flag.FlagSet
@@ -157,6 +158,7 @@ func init() {
 	proxyCmd.StringVar(&proxyOptions.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", gw+":4979", "serviced endpoint address")
+	proxyCmd.BoolVar(&proxyOptions.autorestart, "autorestart", true, "restart process automatically when it exits")
 	proxyCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, `
 Usage: proxy [OPTIONS] SERVICE_ID COMMAND
@@ -708,7 +710,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	for _, a := range cmd.Args()[1:] {
 		shellcmd += a + " "
 	}
-	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, shellcmd)
+	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
 	cmdString := fmt.Sprintf("docker run -i -t -v %s %s %s", volumeBinding, service.ImageId, proxyCmd)
 	glog.Infof("Starting: %s", cmdString)
 	command := exec.Command("bash", "-c", cmdString)
