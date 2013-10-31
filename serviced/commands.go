@@ -705,13 +705,15 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		glog.Errorf("Error getting exec path: %v", err)
 		return err
 	}
-	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
-	shellcmd := ""
+	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
+	dir, err = os.Getwd()
+	pwdVolume := fmt.Sprintf("%s:/home/zenoss", dir)
+	shellcmd := "cd /home/zenoss && "
 	for _, a := range cmd.Args()[1:] {
 		shellcmd += a + " "
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
-	cmdString := fmt.Sprintf("docker run -i -t -v %s %s %s", volumeBinding, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
 	glog.Infof("Starting: %s", cmdString)
 	command := exec.Command("bash", "-c", cmdString)
 	command.Stdout = os.Stdout
