@@ -27,7 +27,7 @@ var _ serviced.ControlPlane = &ControlClient{}
 func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
-	glog.Infof("Connecting to %s", addr)
+	glog.V(4).Infof("Connecting to %s", addr)
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err
