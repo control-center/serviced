@@ -431,7 +431,6 @@
           "Launch": "auto",
           "Name": "memcached",
           "Services": []
-<<<<<<< HEAD
         }, 
         {
           "Command": "/usr/sbin/redis-server /etc/redis.conf", 
@@ -440,14 +439,6 @@
               "Application": "redis", 
               "PortNumber": 6379, 
               "Protocol": "tcp", 
-=======
-        }, {
-          "Command": "/usr/sbin/redis-server",
-          "Endpoints": [{
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
->>>>>>> develop
               "Purpose": "export"
             }
           ],
