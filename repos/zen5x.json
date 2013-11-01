@@ -244,17 +244,20 @@
           "Launch": "auto",
           "Name": "zenactiond",
           "Services": []
-        }, {
-          "Command": "su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"",
-          "Endpoints": [{
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
+        }, 
+        {
+          "Command": "redis-server /etc/redis.conf & su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
+          "Endpoints": [
+            {
+              "Application": "memcached", 
+              "PortNumber": 11211, 
+              "Protocol": "tcp", 
               "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
+            }, 
+            {
+              "Application": "zope", 
+              "PortNumber": 9080, 
+              "Protocol": "tcp", 
               "Purpose": "import"
             }, {
               "Application": "opentsdb",
@@ -428,12 +431,14 @@
           "Launch": "auto",
           "Name": "memcached",
           "Services": []
-        }, {
-          "Command": "/usr/sbin/redis-server",
-          "Endpoints": [{
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
+        }, 
+        {
+          "Command": "/usr/sbin/redis-server /etc/redis.conf", 
+          "Endpoints": [
+            {
+              "Application": "redis", 
+              "PortNumber": 6379, 
+              "Protocol": "tcp", 
               "Purpose": "export"
             }
           ],
