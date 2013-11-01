@@ -346,7 +346,7 @@
               "Services": []
             }, {
               "Name": "zenping",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenping run -v10\"",
+              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenping run -c -v10\"",
               "Launch": "auto",
               "Endpoints": [{
                   "Application": "zenhubPB",
@@ -368,7 +368,7 @@
               "Services": []
             }, {
               "Name": "zenmodeler",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenmodeler run -v10\"",
+              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenmodeler run -c -v10\"",
               "Launch": "auto",
               "Endpoints": [{
                   "Application": "zenhubPB",
@@ -390,7 +390,7 @@
               "Services": []
             }, {
               "Name": "zenperfsnmp",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenperfsnmp run -v10\"",
+              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenperfsnmp run -c -v10\"",
               "Launch": "auto",
               "Endpoints": [{
                   "Application": "zenhubPB",
