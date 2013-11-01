@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	sproxy "github.com/zenoss/serviced/proxy"
 
 	"fmt"
@@ -57,7 +57,6 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			glog.Infof("service exited, sleeping...")
 			time.Sleep(time.Minute)
 		}
-
 	}(config.Command)
 
 	go func() {
@@ -70,7 +69,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 				}
 				defer client.Close()
 
-				var endpoints map[string][]*serviced.ApplicationEndpoint
+				var endpoints map[string][]*dao.ApplicationEndpoint
 				err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
 				if err != nil {
 					glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)

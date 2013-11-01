@@ -13,6 +13,7 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
 
 	"encoding/json"
@@ -126,7 +127,7 @@ func ParseCommands(args ...string) error {
 }
 
 // Create a client to the control plane.
-func getClient() (c serviced.ControlPlane) {
+func getClient() (c dao.ControlPlane) {
 	// setup the client
 	c, err := clientlib.NewControlClient(options.port)
 	if err != nil {
@@ -189,8 +190,8 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 	client := getClient()
 
-	var hosts map[string]*serviced.Host
-	request := serviced.EntityRequest{}
+	var hosts map[string]*dao.Host
+	request := dao.EntityRequest{}
 
 	err := client.GetHosts(request, &hosts)
 	if err != nil {
@@ -250,7 +251,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
 
-	var remoteHost serviced.Host
+	var remoteHost dao.Host
 	err = client.GetInfo(0, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
@@ -294,7 +295,7 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 
 // A convinience struct for printing to command line
 type poolWithHost struct {
-	serviced.ResourcePool
+	dao.ResourcePool
 	Hosts []string
 }
 
@@ -312,8 +313,8 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-	request := serviced.EntityRequest{}
-	var pools map[string]*serviced.ResourcePool
+	request := dao.EntityRequest{}
+	var pools map[string]*dao.ResourcePool
 	err := controlPlane.GetResourcePools(request, &pools)
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
@@ -340,7 +341,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		poolsWithHost := make(map[string]poolWithHost)
 		for _, pool := range pools {
 			// get pool hosts
-			var poolHosts []*serviced.PoolHost
+			var poolHosts []*dao.PoolHost
 			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
 			if err != nil {
 				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
@@ -369,7 +370,7 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	pool, _ := serviced.NewResourcePool(cmd.Arg(0))
+	pool, _ := dao.NewResourcePool(cmd.Arg(0))
 	coreLimit, err := strconv.Atoi(cmd.Arg(1))
 	if err != nil {
 		glog.Fatalf("Bad core limit %s: %v", cmd.Arg(1), err)
@@ -425,8 +426,8 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	}
 
 	controlPlane := getClient()
-	request := serviced.EntityRequest{}
-	var services []*serviced.Service
+	request := dao.EntityRequest{}
+	var services []*dao.Service
 	err := controlPlane.GetServices(request, &services)
 	if err != nil {
 		glog.Fatalf("Could not get services: %v", err)
@@ -476,7 +477,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 }
 
 // PortOpts type
-type PortOpts map[string]serviced.ServiceEndpoint
+type PortOpts map[string]dao.ServiceEndpoint
 
 func NewPortOpts() PortOpts {
 	return make(PortOpts)
@@ -515,7 +516,7 @@ func (opts *PortOpts) Set(value string) error {
 		return fmt.Errorf("Endpoint name can not be empty")
 	}
 	port := fmt.Sprintf("%s:%d", protocol, portNum)
-	(*opts)[port] = serviced.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portNum), Application: string(portName)}
+	(*opts)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portNum), Application: string(portName)}
 	return nil
 }
 
@@ -535,7 +536,7 @@ func getDefaultGateway() string {
 	return "127.0.0.1"
 }
 
-func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
+func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 	cmd := Subcmd("add-service", "[OPTIONS] NAME POOLID IMAGEID COMMAND", "Add service.")
 
 	if len(args) > 0 && args[0] != "--help" {
@@ -555,7 +556,7 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		return nil, cmd, nil
 	}
 
-	service, err := serviced.NewService()
+	service, err := dao.NewService()
 	if err != nil {
 		glog.Fatalf("Could not create service:%v\n", err)
 	}
@@ -567,7 +568,7 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		startup = startup + " " + cmd.Arg(i)
 	}
 	glog.Infof("endpoints discovered: %v", flPortOpts)
-	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
+	endPoints := make([]dao.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
 	i := 0
 	for _, endpoint := range flPortOpts {
 		endpoint.Purpose = "remote"
@@ -668,10 +669,10 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	return err
 }
 
-func getService(controlPlane *serviced.ControlPlane, serviceId string) (service *serviced.Service, err error) {
+func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.Service, err error) {
 	// TODO: Replace with RPC call to get single service
-	var services []*serviced.Service
-	request := serviced.EntityRequest{}
+	var services []*dao.Service
+	request := dao.EntityRequest{}
 	err = (*controlPlane).GetServices(request, &services)
 	if err != nil {
 		return nil, err
