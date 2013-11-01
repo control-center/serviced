@@ -9,7 +9,7 @@
 package client
 
 import (
-	//"github.com/zenoss/glog"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"net/rpc"
 )
