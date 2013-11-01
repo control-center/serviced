@@ -76,3 +76,5 @@ register_zproxy
 # Remediate file ownership under $ZENHOME.
 fix_zenhome_owner_and_group ${OS_USERNAME}
 run_zenbuild
+
+${ZENHOME}/bin/zendmd --script ${ZENHOME}/bin/addSystemUser.py
