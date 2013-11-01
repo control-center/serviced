@@ -6,4 +6,6 @@ default:
 	cd zenoss5x && make
 	cd memcached && make
 	cd redis && make
+	cd opentsdb && make
+
 
