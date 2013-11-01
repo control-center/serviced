@@ -31,6 +31,6 @@ func (a *LBClient) Close() error {
 
 // Retrieve a list of endpoints for the given service endpoint request.
 func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error {
-	glog.Infoln("ControlPlaneAgent.GetServiceEndpoints()")
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints)
 }
