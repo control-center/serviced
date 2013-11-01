@@ -241,7 +241,7 @@ and purpose = 'import'`, serviceId)
 	}
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
-		glog.Errorf("No service endpoints found for %s", serviceId)
+		glog.V(3).Infof("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
