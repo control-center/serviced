@@ -40,6 +40,7 @@ run	apt-get install -y -q iptables lxc aufs-tools
 run	apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
 run	apt-get	install -y -q rubygems
 run	gem install fpm
+run	apt-get install -y -q rpm
 
 volume	/var/lib/serviced
 workdir	/go/src/github.com/zenoss/serviced
