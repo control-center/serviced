@@ -108,3 +108,16 @@ cd GOPATH/src/github.com/zenoss/serviced
 make
 ```
 
+Purging the elastic search store.
+
+```bash
+curl -XDELETE http://localhost:9200/controlplane
+```
+
+Creating the elastic search data model.
+
+```bash
+cd dao/elasticsearch
+curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
+```
+
