@@ -279,6 +279,11 @@
               "PortNumber": 8080,
               "Protocol": "tcp",
               "Purpose": "export"
+            }, {
+              "Application": "zauth",
+              "PortNumber": 9180,
+              "Protocol": "tcp",
+              "Purpose": "export"
             }
           ],
           "ImageId": "zenoss/zenoss5x",
