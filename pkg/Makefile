@@ -13,7 +13,7 @@
 
 NAME=serviced
 VERSION=0.1.0
-PKG_VERSION=$(VERSION)
+PKG_VERSION=`if [ -z "$(BUILD_NUMBER)" ]; then echo "$(VERSION)"; else echo $(VERSION)-$(BUILD_NUMBER); fi`
 MAINTAINER="Zenoss CM <cm@zenoss.com>"
 
 define DESCRIPTION
@@ -30,7 +30,7 @@ INSTALL_DIR=/usr/local/serviced
 all: desc
 
 desc:
-	echo "Usage: make deb or make rpm. Both options package $(NAME)-$(VERSION)."
+	echo "Usage: make deb or make rpm. Both options package $(NAME)-$(PKG_VERSION)."
 
 # Clean staged files and produced packages
 clean:
