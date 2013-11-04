@@ -29,7 +29,7 @@ pkgs:
 	cd pkg && make rpm && make deb
 
 
-dockerbuild:
+dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build .
 	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make pkgs
 
