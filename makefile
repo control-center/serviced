@@ -31,7 +31,7 @@ pkgs:
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build .
-	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make clean pkgs
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -e BUILD_NUMBER=$(BUILD_NUMBER) -t zenoss/serviced-build make clean pkgs
 
 test: build docker_ok
 	go test
