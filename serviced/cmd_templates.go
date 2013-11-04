@@ -11,12 +11,14 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
+	"encoding/json"
 	"os"
 	"strings"
+	"io/ioutil"
 
 /*
 	clientlib "github.com/zenoss/serviced/client"
@@ -40,7 +42,7 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 
 	c := getClient()
 
-	var serviceTemplates map[string]*serviced.ServiceTemplate
+	var serviceTemplates map[string]*dao.ServiceTemplate
 	var unused int
 	err := c.GetServiceTemplates(unused, &serviceTemplates)
 	if err != nil {
@@ -72,7 +74,7 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	return err
 }
 
-func validServiceDefinition(d *serviced.ServiceDefinition) error {
+func validServiceDefinition(d *dao.ServiceDefinition) error {
 	// Instances["min"] and Instances["max"] must be positive
 	if d.Instances.Min < 0 || d.Instances.Max < 0 {
 		return fmt.Errorf("Instances constrains must be positive")
@@ -99,7 +101,7 @@ func validServiceDefinition(d *serviced.ServiceDefinition) error {
 	return validServiceDefinitions(&d.Services)
 }
 
-func validServiceDefinitions(ds *[]serviced.ServiceDefinition) error {
+func validServiceDefinitions(ds *[]dao.ServiceDefinition) error {
 	for i, _ := range *ds {
 		if err := validServiceDefinition(&(*ds)[i]); err != nil {
 			return err
@@ -109,25 +111,43 @@ func validServiceDefinitions(ds *[]serviced.ServiceDefinition) error {
 	return nil
 }
 
-func validTemplate(t *serviced.ServiceTemplate) error {
+func validTemplate(t *dao.ServiceTemplate) error {
 	return validServiceDefinitions(&t.Services)
 }
 
 // Add a service template to the control plane.
 func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
-	cmd := Subcmd("add-template", "[OPTIONS]", "Add a template")
+	cmd := Subcmd("add-template", "filename", "Add a template. Use - for standard input.")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
-	var serviceTemplate serviced.ServiceTemplate
+	var serviceTemplate dao.ServiceTemplate
 	var unused int
 
-	dec := json.NewDecoder(os.Stdin)
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
 
-	err := dec.Decode(&serviceTemplate)
-	if err != nil {
-		glog.Fatalf("Could not read ServiceTemplate from stdin: %s", err)
+	if cmd.Arg(0) == "-" {
+		// Read from standard input
+		dec := json.NewDecoder(os.Stdin)
+		err := dec.Decode(&serviceTemplate)
+		if err != nil {
+			glog.Fatalf("Could not read ServiceTemplate from stdin: %s", err)
+		}
+	} else {
+		// Read the argument as a file
+		templateStr, err := ioutil.ReadFile(cmd.Arg(0))
+		if err != nil {
+			glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
+		}
+		err = json.Unmarshal(templateStr, &serviceTemplate)
+		if err != nil {
+			glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
+		}
+
 	}
 
 	if err := validTemplate(&serviceTemplate); err != nil {
@@ -138,6 +158,7 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 		if err != nil {
 			glog.Fatalf("Could not read add service template:  %s", err)
 		}
+		fmt.Println("OK")
 	}
 
 	return nil
@@ -160,6 +181,7 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 	if err := getClient().RemoveServiceTemplate(cmd.Arg(0), &unused); err != nil {
 		glog.Fatalf("Could not remove service template: %v", err)
 	}
+	fmt.Println("OK")
 
 	return nil
 }
@@ -172,12 +194,13 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 		return err
 	}
 
-	deployreq := serviced.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0)}
+	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0)}
 
 	var unused int
 	if err := getClient().DeployTemplate(deployreq, &unused); err != nil {
 		glog.Fatalf("Could not deploy service template: %v", err)
 	}
+	fmt.Println("OK")
 
 	return nil
 }

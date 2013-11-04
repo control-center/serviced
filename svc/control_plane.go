@@ -13,6 +13,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/ziutek/mymysql/godrv"
 
@@ -25,9 +26,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"log"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 /* A control plane implementation.
 
@@ -43,7 +46,7 @@ type ControlSvc struct {
 }
 
 // Ensure that ControlSvc implements the ControlPlane interface.
-var _ serviced.ControlPlane = &ControlSvc{}
+var _ dao.ControlPlane = &ControlSvc{}
 
 // Create a new ControlSvc or load an existing one.
 func NewControlSvc(connectionUri string, zookeepers []string) (s *ControlSvc, err error) {
@@ -120,7 +123,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 
 	dbmap = &gorp.DbMap{Db: con, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
 
-	host := dbmap.AddTableWithName(serviced.Host{}, "host").SetKeys(false, "Id")
+	host := dbmap.AddTableWithName(dao.Host{}, "host").SetKeys(false, "Id")
 	host.ColMap("Id").Rename("id")
 	host.ColMap("PoolId").Rename("resource_pool_id")
 	host.ColMap("Name").Rename("name")
@@ -131,7 +134,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	host.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
 	host.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
-	pool := dbmap.AddTableWithName(serviced.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
+	pool := dbmap.AddTableWithName(dao.ResourcePool{}, "resource_pool").SetKeys(false, "Id")
 	pool.ColMap("Id").Rename("id")
 	pool.ColMap("ParentId").Rename("parent_id")
 	pool.ColMap("CoreLimit").Rename("cores")
@@ -140,7 +143,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	pool.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
 	pool.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
-	service := dbmap.AddTableWithName(serviced.Service{}, "service").SetKeys(false, "Id")
+	service := dbmap.AddTableWithName(dao.Service{}, "service").SetKeys(false, "Id")
 	service.ColMap("Id").Rename("id")
 	service.ColMap("Name").Rename("name")
 	service.ColMap("Startup").Rename("startup")
@@ -154,7 +157,7 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	service.ColMap("CreatedAt").Rename("created_at").SetTransient(true)
 	service.ColMap("UpdatedAt").Rename("updated_at").SetTransient(true)
 
-	servicesate := dbmap.AddTableWithName(serviced.ServiceState{}, "service_state").SetKeys(false, "Id")
+	servicesate := dbmap.AddTableWithName(dao.ServiceState{}, "service_state").SetKeys(false, "Id")
 	servicesate.ColMap("Id").Rename("id")
 	servicesate.ColMap("ServiceId").Rename("service_id")
 	servicesate.ColMap("HostId").Rename("host_id")
@@ -179,13 +182,13 @@ func (s *ControlSvc) getDbConnection() (con *sql.DB, dbmap *gorp.DbMap, err erro
 	svc_state_endpoint.ColMap("ExternalPort").Rename("external_port")
 	svc_state_endpoint.ColMap("IpAddr").Rename("ip_addr").SetTransient(true)
 
-	svc_deployment := dbmap.AddTableWithName(serviced.ServiceDeployment{}, "service_deployment").SetKeys(false, "Id")
+	svc_deployment := dbmap.AddTableWithName(dao.ServiceDeployment{}, "service_deployment").SetKeys(false, "Id")
 	svc_deployment.ColMap("Id").Rename("id")
 	svc_deployment.ColMap("TemplateId").Rename("service_template_id")
 	svc_deployment.ColMap("ServiceId").Rename("service_id")
 	svc_deployment.ColMap("DeployedAt").Rename("deployed_at").SetTransient(true)
 
-	svc_template := dbmap.AddTableWithName(serviced.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
+	svc_template := dbmap.AddTableWithName(dao.ServiceTemplateWrapper{}, "service_template").SetKeys(false, "Id")
 	svc_template.ColMap("Id").Rename("id")
 	svc_template.ColMap("Name").Rename("name")
 	svc_template.ColMap("Description").Rename("description")
@@ -220,7 +223,7 @@ inner join host h on h.id = live_services.host_id
 `
 
 // Get a service endpoint.
-func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+func (s *ControlSvc) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
@@ -239,11 +242,11 @@ and purpose = 'import'`, serviceId)
 	}
 	// no services need to be proxied
 	if len(service_endpoints) == 0 {
-		glog.Errorf("No service endpoints found for %s", serviceId)
+		glog.V(3).Infof("No service endpoints found for %s", serviceId)
 		return nil
 	}
 
-	var servicesList []*serviced.Service
+	var servicesList []*dao.Service
 	_, err = dbmap.Select(&servicesList, "SELECT * from service")
 	if err != nil {
 		return err
@@ -277,7 +280,7 @@ and purpose = 'import'`, serviceId)
 	}
 	// We should now have the top-level service for the current service ID
 
-	remoteEndpoints := make(map[string][]*serviced.ApplicationEndpoint)
+	remoteEndpoints := make(map[string][]*dao.ApplicationEndpoint)
 	query := `
 select 
     se.service_id as ServiceId, 
@@ -312,12 +315,12 @@ where
 		}
 	}
 
-	glog.Infof("Query: %s", query)
+	// glog.Infof("Query: %s", query)
 
 	// for each proxied port, find list of potential remote endpoints
 	for _, localport := range service_endpoints {
-		var applicationEndpoints []*serviced.ApplicationEndpoint
-		dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
+		var applicationEndpoints []*dao.ApplicationEndpoint
+		//dbmap.TraceOn("[gorp]", log.New(os.Stdout, "cp:", log.Lmicroseconds))
 		_, err := dbmap.Select(
 			&applicationEndpoints,
 			query,
@@ -325,7 +328,7 @@ where
 			string(localport.ApplicationType),
 			localport.Port,
 		)
-		dbmap.TraceOff()
+		//dbmap.TraceOff()
 		if err != nil {
 			return err
 		}
@@ -334,13 +337,13 @@ where
 	}
 
 	*response = remoteEndpoints
-	glog.Infof("Return for %s is %v", serviceId, remoteEndpoints)
+	glog.V(4).Infof("Return for %s is %v", serviceId, remoteEndpoints)
 	return nil
 }
 
 func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
-		return []string{ node.id }
+		return []string{node.id}
 	}
 	relatedServiceIds := make([]string, 0)
 	for _, childNode := range node.children {
@@ -358,19 +361,19 @@ type treenode struct {
 }
 
 // Return the matching hosts.
-func (s *ControlSvc) GetHosts(request serviced.EntityRequest, hosts *map[string]*serviced.Host) (err error) {
+func (s *ControlSvc) GetHosts(request dao.EntityRequest, hosts *map[string]*dao.Host) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var hostList []*serviced.Host
+	var hostList []*dao.Host
 	_, err = dbmap.Select(&hostList, "SELECT * FROM host")
 	if err != nil {
 		return err
 	}
-	hostmap := make(map[string]*serviced.Host)
+	hostmap := make(map[string]*dao.Host)
 	for _, host := range hostList {
 		hostmap[host.Id] = host
 	}
@@ -379,7 +382,7 @@ func (s *ControlSvc) GetHosts(request serviced.EntityRequest, hosts *map[string]
 }
 
 // Add a host
-func (s *ControlSvc) AddHost(host serviced.Host, unused *int) (err error) {
+func (s *ControlSvc) AddHost(host dao.Host, unused *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -389,7 +392,7 @@ func (s *ControlSvc) AddHost(host serviced.Host, unused *int) (err error) {
 }
 
 // Update a host.
-func (s *ControlSvc) UpdateHost(host serviced.Host, ununsed *int) (err error) {
+func (s *ControlSvc) UpdateHost(host dao.Host, ununsed *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -406,14 +409,14 @@ func (s *ControlSvc) RemoveHost(hostId string, unused *int) (err error) {
 		return err
 	}
 	defer db.Close()
-	_, err = dbmap.Delete(&serviced.Host{Id: hostId})
+	_, err = dbmap.Delete(&dao.Host{Id: hostId})
 	return err
 }
 
-func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoint {
-	endpoints := make([]serviced.ServiceEndpoint, len(servicePorts))
+func portToEndpoint(servicePorts []*service_endpoint) *[]dao.ServiceEndpoint {
+	endpoints := make([]dao.ServiceEndpoint, len(servicePorts))
 	for i, servicePort := range servicePorts {
-		endpoints[i] = serviced.ServiceEndpoint{
+		endpoints[i] = dao.ServiceEndpoint{
 			string(servicePort.ProtocolType),
 			uint16(servicePort.Port),
 			string(servicePort.ApplicationType),
@@ -423,7 +426,7 @@ func portToEndpoint(servicePorts []*service_endpoint) *[]serviced.ServiceEndpoin
 	return &endpoints
 }
 
-func endpointToPort(service serviced.Service) (servicePorts []service_endpoint) {
+func endpointToPort(service dao.Service) (servicePorts []service_endpoint) {
 	if service.Endpoints == nil {
 		return make([]service_endpoint, 0)
 	}
@@ -439,7 +442,7 @@ func endpointToPort(service serviced.Service) (servicePorts []service_endpoint) 
 	return service_ports
 }
 
-func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) error {
+func (s *ControlSvc) addEndpointsToServices(servicesList []*dao.Service) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -458,14 +461,14 @@ func (s *ControlSvc) addEndpointsToServices(servicesList []*serviced.Service) er
 }
 
 // Get list of services.
-func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *[]*serviced.Service) (err error) {
+func (s *ControlSvc) GetServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var servicesList []*serviced.Service
+	var servicesList []*dao.Service
 	_, err = dbmap.Select(&servicesList, "SELECT * from service")
 	if err != nil {
 		return err
@@ -480,7 +483,7 @@ func (s *ControlSvc) GetServices(request serviced.EntityRequest, replyServices *
 	return err
 }
 
-func addService(tx *gorp.Transaction, svc serviced.Service) error {
+func addService(tx *gorp.Transaction, svc dao.Service) error {
 	if err := tx.Insert(&svc); err != nil {
 		return err
 	}
@@ -496,7 +499,7 @@ func addService(tx *gorp.Transaction, svc serviced.Service) error {
 }
 
 // Add a service.
-func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err error) {
+func (s *ControlSvc) AddService(service dao.Service, unused *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -516,7 +519,7 @@ func (s *ControlSvc) AddService(service serviced.Service, unused *int) (err erro
 }
 
 // Update a service.
-func (s *ControlSvc) UpdateService(service serviced.Service, unused *int) (err error) {
+func (s *ControlSvc) UpdateService(service dao.Service, unused *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -534,7 +537,7 @@ func (s *ControlSvc) RemoveService(serviceId string, unused *int) (err error) {
 		return err
 	}
 	defer db.Close()
-	_, err = dbmap.Delete(&serviced.Service{Id: serviceId})
+	_, err = dbmap.Delete(&dao.Service{Id: serviceId})
 	return err
 }
 
@@ -544,16 +547,17 @@ func (s *ControlSvc) GetServiceLogs(serviceId string, logs *string) (err error) 
 		return err
 	}
 	defer db.Close()
-	var serviceStates []*serviced.ServiceState
+	var serviceStates []*dao.ServiceState
 	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? ORDER BY started_at, terminated_at LIMIT 1", serviceId)
 	if err != nil {
 		return err
 	}
 	if len(serviceStates) == 0 {
-		return serviced.ControlPlaneError{"Not found"}
+		return dao.ControlPlaneError{"Not found"}
 	}
 	cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
+	glog.Infof("About to return %d bytes of logs", len(output))
 	*logs = string(output)
 
 	return err
@@ -565,36 +569,37 @@ func (s *ControlSvc) GetServiceStateLogs(serviceStateId string, logs *string) (e
 		return err
 	}
 	defer db.Close()
-	obj, err := dbmap.Get(&serviced.ServiceState{}, serviceStateId)
+	obj, err := dbmap.Get(&dao.ServiceState{}, serviceStateId)
 	if obj == nil {
-		return serviced.ControlPlaneError{"Could not find serviceState"}
+		return dao.ControlPlaneError{"Could not find serviceState"}
 	}
 	if err != nil {
 		return err
 	}
-	serviceState := obj.(*serviced.ServiceState)
+	serviceState := obj.(*dao.ServiceState)
 	cmd := exec.Command("docker", "logs", serviceState.DockerId)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
+	glog.Infof("About to return %d bytes of logs", len(output))
 	*logs = string(output)
 
 	return err
 }
 
 // Get all the services for a host.
-func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*serviced.Service) (err error) {
+func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*dao.Service) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	obj, err := dbmap.Get(&serviced.Host{}, hostId)
+	obj, err := dbmap.Get(&dao.Host{}, hostId)
 	if obj == nil {
-		return serviced.ControlPlaneError{"Could not find host"}
+		return dao.ControlPlaneError{"Could not find host"}
 	}
 	if err != nil {
 		return err
 	}
-	var services []*serviced.Service
+	var services []*dao.Service
 	_, err = dbmap.Select(&services, "SELECT service.* "+
 		"FROM service_state AS state "+
 		"INNER JOIN service ON service.id = state.service_id "+
@@ -611,23 +616,25 @@ func (s *ControlSvc) GetServicesForHost(hostId string, servicesForHost *[]*servi
 }
 
 // Get running services for a host, including start time
-func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[]*serviced.RunningService) (err error) {
+func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	obj, err := dbmap.Get(&serviced.Host{}, hostId)
+	obj, err := dbmap.Get(&dao.Host{}, hostId)
 	if obj == nil {
-		return serviced.ControlPlaneError{"Could not find host"}
+		return dao.ControlPlaneError{"Could not find host"}
 	}
 	if err != nil {
 		return err
 	}
-	var services []*serviced.RunningService
+	var services []*dao.RunningService
 	_, err = dbmap.Select(&services,
 		"SELECT "+
 			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
 			" ss.service_id as ServiceId,"+
 			" ss.started_at as StartedAt,"+
 			" s.name as Name,"+
@@ -641,7 +648,7 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 			"FROM service_state ss "+
 			"JOIN service s on (ss.service_id = s.id) "+
 			"WHERE"+
-			" ss.terminated_at < '2000-01-01' and"+
+			" ss.terminated_at < '0002-01-01' and"+
 			" ss.host_id = ?", hostId)
 	if err != nil {
 		return err
@@ -650,20 +657,117 @@ func (s *ControlSvc) GetRunningServicesForHost(hostId string, runningServices *[
 	return err
 }
 
-// Get the current states of the running service instances.
-func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.ServiceState) (err error) {
+func (s *ControlSvc) GetRunningServicesForService(serviceId string, runningServices *[]*dao.RunningService) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	var serviceStates []*serviced.ServiceState
+	obj, err := dbmap.Get(&dao.Service{}, serviceId)
+	if obj == nil {
+		return dao.ControlPlaneError{"Could not find service"}
+	}
+	if err != nil {
+		return err
+	}
+	var services []*dao.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '0002-01-01' and"+
+			" ss.service_id = ?", serviceId)
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
+func (s *ControlSvc) StopRunningInstance(serviceStateId string, unused *int) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	obj, err := dbmap.Get(dao.ServiceState{}, serviceStateId)
+	if obj == nil {
+		return errors.New("no such service instance")
+	}
+	if err != nil {
+		return err
+	}
+	running := obj.(*dao.ServiceState)
+	// The magic killing time (year 2)
+	running.Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+	_, err = dbmap.Update(running)
+
+	return err
+}
+
+
+// Get all running services
+func (s *ControlSvc) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var services []*dao.RunningService
+	_, err = dbmap.Select(&services,
+		"SELECT "+
+			" ss.id as Id,"+
+			" ss.host_id as HostId,"+
+			" ss.docker_id as DockerId,"+
+			" ss.service_id as ServiceId,"+
+			" ss.started_at as StartedAt,"+
+			" s.name as Name,"+
+			" s.startup as Startup,"+
+			" s.image_id as ImageId,"+
+			" s.resource_pool_id as PoolId,"+
+			" s.instances as Instances,"+
+			" s.description as Description,"+
+			" s.desired_state as DesiredState,"+
+			" s.parent_service_id as ParentServiceId "+
+			"FROM service_state ss "+
+			"JOIN service s on (ss.service_id = s.id) "+
+			"WHERE"+
+			" ss.terminated_at < '2000-01-01'")
+	if err != nil {
+		return err
+	}
+	*runningServices = services
+	return err
+}
+
+// Get the current states of the running service instances.
+func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*dao.ServiceState) (err error) {
+	db, dbmap, err := s.getDbConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var serviceStates []*dao.ServiceState
 	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and (terminated_at = '0001-01-01 00:00:00' or terminated_at = '0002-01-01 00:00:00') ", serviceId)
 	if err != nil {
 		return err
 	}
 	if len(serviceStates) == 0 {
-		return serviced.ControlPlaneError{"Not found"}
+		return dao.ControlPlaneError{"Not found"}
 	}
 	*states = serviceStates
 	return nil
@@ -673,33 +777,33 @@ func (s *ControlSvc) GetServiceStates(serviceId string, states *[]*serviced.Serv
 func startService(dbmap *gorp.DbMap, serviceId string) error {
 	// check current state
 	var err error
-	var serviceStates []*serviced.ServiceState
+	var serviceStates []*dao.ServiceState
 	_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", serviceId)
 	if err != nil {
 		return err
 	}
 
 	// get service
-	obj, err := dbmap.Get(&serviced.Service{}, serviceId)
+	obj, err := dbmap.Get(&dao.Service{}, serviceId)
 	if err != nil {
 		return err
 	}
 	if obj == nil {
-		return serviced.ControlPlaneError{"Service does not exist"}
+		return dao.ControlPlaneError{"Service does not exist"}
 	}
-	service := obj.(*serviced.Service)
+	service := obj.(*dao.Service)
 
 	service.DesiredState = 1
 	_, err = dbmap.Update(service)
 	if err != nil {
-		return serviced.ControlPlaneError{"Could not set desired state to start"}
+		return dao.ControlPlaneError{"Could not set desired state to start"}
 	}
 
 	// find sub services and start them
 	var subserviceIds []*struct{ Id string }
 	_, err = dbmap.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? ", serviceId)
 	if err != nil {
-		return serviced.ControlPlaneError{
+		return dao.ControlPlaneError{
 			fmt.Sprintf("Could not get subservices: %s", err.Error()),
 		}
 	}
@@ -711,7 +815,6 @@ func startService(dbmap *gorp.DbMap, serviceId string) error {
 	}
 
 	return err
-
 }
 
 // Schedule a service to run on a host.
@@ -726,30 +829,30 @@ func (s *ControlSvc) StartService(serviceId string, unused *string) (err error) 
 
 //Schedule a service to restart.
 func (s *ControlSvc) RestartService(serviceId string, unused *int) (err error) {
-	return serviced.ControlPlaneError{"Unimplemented"}
+	return dao.ControlPlaneError{"Unimplemented"}
 
 }
 
-func stopService(tx *gorp.Transaction, service *serviced.Service) error {
-	service.DesiredState = serviced.SVC_STOP
+func stopService(tx *gorp.Transaction, service *dao.Service) error {
+	service.DesiredState = dao.SVC_STOP
 	if _, err := tx.Update(service); err != nil {
 		return err
 	}
 
 	var subserviceIds []*struct{ Id string }
 	if _, err := tx.Select(&subserviceIds, "SELECT id as Id from service WHERE parent_service_id = ? AND launch <> \"manual\" ", service.Id); err != nil {
-		return serviced.ControlPlaneError{fmt.Sprintf("Could not get subservices: %s", err.Error())}
+		return dao.ControlPlaneError{fmt.Sprintf("Could not get subservices: %s", err.Error())}
 	}
 
 	for _, obj := range subserviceIds {
-		svc, err := tx.Get(&serviced.Service{}, obj.Id)
+		svc, err := tx.Get(&dao.Service{}, obj.Id)
 		switch {
 		case err != nil:
 			return err
 		case svc == nil:
 			glog.Warningf("Missing subservice: %s", obj.Id)
 		default:
-			return stopService(tx, svc.(*serviced.Service))
+			return stopService(tx, svc.(*dao.Service))
 		}
 	}
 
@@ -764,19 +867,19 @@ func (s *ControlSvc) StopService(serviceId string, unused *int) error {
 	}
 	defer db.Close()
 
-	obj, err := dbmap.Get(&serviced.Service{}, serviceId)
+	obj, err := dbmap.Get(&dao.Service{}, serviceId)
 	switch {
 	case err != nil:
 		return err
 	case obj == nil:
-		return serviced.ControlPlaneError{"Service does not exist"}
+		return dao.ControlPlaneError{"Service does not exist"}
 	default:
 		tx, err := dbmap.Begin()
 		if err != nil {
 			return err
 		}
 
-		if err := stopService(tx, obj.(*serviced.Service)); err != nil {
+		if err := stopService(tx, obj.(*dao.Service)); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -807,7 +910,7 @@ func (s *ControlSvc) getServiceStateEndpoints(serviceStateId string) (endpoints 
 }
 
 // Update the current state of a service instance.
-func (s *ControlSvc) UpdateServiceState(state serviced.ServiceState, unused *int) (err error) {
+func (s *ControlSvc) UpdateServiceState(state dao.ServiceState, unused *int) (err error) {
 	glog.Infoln("Entering UpdateServiceState()")
 	defer glog.Infoln("Leaving UpdateServiceState()")
 	db, dbmap, err := s.getDbConnection()
@@ -862,7 +965,7 @@ func (s *ControlSvc) getSubResourcePools(poolId string) (poolIds []string, err e
 	}
 	defer db.Close()
 
-	var pools []*serviced.ResourcePool
+	var pools []*dao.ResourcePool
 	_, err = dbmap.Select(&pools, "SELECT * FROM resource_pool WHERE parent_id = ?", poolId)
 	if err != nil {
 		return poolIds, err
@@ -881,7 +984,7 @@ func (s *ControlSvc) getSubResourcePools(poolId string) (poolIds []string, err e
 }
 
 // Get all the hosts assigned to the given pool.
-func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*serviced.PoolHost) (err error) {
+func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*dao.PoolHost) (err error) {
 
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
@@ -895,16 +998,16 @@ func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*service
 	}
 	poolIds = append(poolIds, poolId)
 
-	var hosts []*serviced.Host
+	var hosts []*dao.Host
 	stmt := "SELECT * FROM host WHERE resource_pool_id in ('" + strings.Join(poolIds, "','") + "')"
 	glog.Infof("SQL: %s", stmt)
 	_, err = dbmap.Select(&hosts, stmt)
 	if err != nil {
 		return err
 	}
-	responseList := make([]*serviced.PoolHost, len(hosts))
+	responseList := make([]*dao.PoolHost, len(hosts))
 	for i, host := range hosts {
-		responseList[i] = &serviced.PoolHost{host.Id, host.PoolId}
+		responseList[i] = &dao.PoolHost{host.Id, host.PoolId, ""}
 	}
 	*response = responseList
 	return err
@@ -912,22 +1015,22 @@ func (s *ControlSvc) GetHostsForResourcePool(poolId string, response *[]*service
 
 // Get the default resource pool. If it doesn't exist, create it. Return any
 // errors in retrieving or creating the default resource pool.
-func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err error) {
+func (s *ControlSvc) getDefaultResourcePool() (pool *dao.ResourcePool, err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return pool, err
 	}
 	defer db.Close()
 
-	obj, err := dbmap.Get(serviced.ResourcePool{}, "default")
+	obj, err := dbmap.Get(dao.ResourcePool{}, "default")
 	if obj == nil {
 		glog.Infof("'default' resource pool not found; creating...")
-		default_pool := serviced.ResourcePool{}
+		default_pool := dao.ResourcePool{}
 		default_pool.Id = "default"
 		err = dbmap.Insert(&default_pool)
 		return &default_pool, err
 	}
-	pool, ok := obj.(*serviced.ResourcePool)
+	pool, ok := obj.(*dao.ResourcePool)
 	if !ok {
 		glog.Errorln("Could not cast obj.")
 	}
@@ -935,19 +1038,19 @@ func (s *ControlSvc) getDefaultResourcePool() (pool *serviced.ResourcePool, err 
 }
 
 // Get the resource pools.
-func (s *ControlSvc) GetResourcePools(request serviced.EntityRequest, pools *map[string]*serviced.ResourcePool) (err error) {
+func (s *ControlSvc) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var poolList []*serviced.ResourcePool
+	var poolList []*dao.ResourcePool
 	_, err = dbmap.Select(&poolList, "SELECT * FROM resource_pool")
 	if err != nil {
 		return err
 	}
-	tpools := make(map[string]*serviced.ResourcePool)
+	tpools := make(map[string]*dao.ResourcePool)
 	for _, pool := range poolList {
 		tpools[pool.Id] = pool
 	}
@@ -956,7 +1059,7 @@ func (s *ControlSvc) GetResourcePools(request serviced.EntityRequest, pools *map
 }
 
 // Add a resource pool.
-func (s *ControlSvc) AddResourcePool(pool serviced.ResourcePool, unused *int) (err error) {
+func (s *ControlSvc) AddResourcePool(pool dao.ResourcePool, unused *int) (err error) {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -967,8 +1070,8 @@ func (s *ControlSvc) AddResourcePool(pool serviced.ResourcePool, unused *int) (e
 }
 
 // Update a resource pool.
-func (s *ControlSvc) UpdateResourcePool(pool serviced.ResourcePool, unused *int) (err error) {
-	return serviced.ControlPlaneError{"Unimplemented"}
+func (s *ControlSvc) UpdateResourcePool(pool dao.ResourcePool, unused *int) (err error) {
+	return dao.ControlPlaneError{"Unimplemented"}
 }
 
 // Remove a resource pool.
@@ -978,7 +1081,7 @@ func (s *ControlSvc) RemoveResourcePool(poolId string, unused *int) (err error) 
 		return err
 	}
 	defer db.Close()
-	_, err = dbmap.Delete(&serviced.ResourcePool{Id: poolId})
+	_, err = dbmap.Delete(&dao.ResourcePool{Id: poolId})
 	return err
 }
 
@@ -1005,7 +1108,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 				return err
 			}
 			defer db.Close()
-			var services []*serviced.Service
+			var services []*dao.Service
 			// get all service that are supposed to be running
 			_, err = dbmap.Select(&services, "SELECT * FROM `service` WHERE desired_state = 1")
 			if err != nil {
@@ -1013,7 +1116,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 			}
 			for _, service := range services {
 				// check current state
-				var serviceStates []*serviced.ServiceState
+				var serviceStates []*dao.ServiceState
 				_, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id=? and terminated_at = '0001-01-01 00:00:00'", service.Id)
 				if err != nil {
 					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
@@ -1027,7 +1130,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 				if instancesToStart >= 0 {
 					for i := 0; i < instancesToStart; i++ {
 						// get hosts
-						var pool_hosts []*serviced.PoolHost
+						var pool_hosts []*dao.PoolHost
 						err = s.GetHostsForResourcePool(service.PoolId, &pool_hosts)
 						if err != nil {
 							return err
@@ -1038,8 +1141,10 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 						}
 
 						// randomly select host
-						service_host := pool_hosts[rand.Intn(len(pool_hosts))]
-
+						num_hosts := len(pool_hosts)
+						idx := rand.Intn(num_hosts)
+						glog.Infof("There are %d hosts and we picked number %d", num_hosts, idx)
+						service_host := pool_hosts[idx]
 						serviceState, err := service.NewServiceState(service_host.HostId)
 						if err != nil {
 							glog.Errorf("Error creating ServiceState instance: %v", err)
@@ -1060,14 +1165,14 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 			}
 
 			// find the services that should not be running
-			var xservices []*serviced.Service
+			var xservices []*dao.Service
 			if _, err = dbmap.Select(&xservices, "SELECT * FROM `service` WHERE desired_state <> 1"); err != nil {
 				return err
 			}
 
 			for _, service := range xservices {
-				var serviceStates []*serviced.ServiceState
-				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0000-00-00 00:00:00'", service.Id); err != nil {
+				var serviceStates []*dao.ServiceState
+				if _, err = dbmap.Select(&serviceStates, "SELECT * FROM service_state WHERE service_id = ? and terminated_at = '0001-01-01 00:00:00'", service.Id); err != nil {
 					glog.Errorf("Got error checking service state of %s, %s", service.Id, err.Error())
 					return err
 				}
@@ -1086,7 +1191,7 @@ func (s *ControlSvc) lead(zkEvent <-chan zk.Event) {
 	}
 }
 
-func deployServiceDefinitions(tx *gorp.Transaction, sds []serviced.ServiceDefinition, template string, pool string, parent string) error {
+func deployServiceDefinitions(tx *gorp.Transaction, sds []dao.ServiceDefinition, template string, pool string, parent string) error {
 	for _, sd := range sds {
 		if err := deployServiceDefinition(tx, sd, template, pool, parent); err != nil {
 			return err
@@ -1096,19 +1201,25 @@ func deployServiceDefinitions(tx *gorp.Transaction, sds []serviced.ServiceDefini
 	return nil
 }
 
-func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition, template string, pool string, parent string) error {
-	svcuuid, _ := serviced.NewUuid()
+func deployServiceDefinition(tx *gorp.Transaction, sd dao.ServiceDefinition, template string, pool string, parent string) error {
+	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
-	// determine the desired state
-	ds := serviced.SVC_RUN
-
-	if sd.Launch == serviced.MANUAL {
-		ds = serviced.SVC_STOP
+	ctx, err := json.Marshal(sd.Context)
+	if err != nil {
+		return err
 	}
 
-	svc := serviced.Service{svcuuid,
+	// determine the desired state
+	ds := dao.SVC_RUN
+
+	if sd.Launch == serviced.MANUAL {
+		ds = dao.SVC_STOP
+	}
+
+	svc := dao.Service{svcuuid,
 		sd.Name,
+		string(ctx),
 		sd.Command,
 		sd.Description,
 		sd.Instances.Min,
@@ -1124,8 +1235,8 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 	if err := addService(tx, svc); err != nil {
 		return err
 	} else {
-		sduuid, _ := serviced.NewUuid()
-		if err := tx.Insert(&serviced.ServiceDeployment{sduuid, template, svc.Id, now}); err != nil {
+		sduuid, _ := dao.NewUuid()
+		if err := tx.Insert(&dao.ServiceDeployment{sduuid, template, svc.Id, now}); err != nil {
 			return err
 		} else {
 			return deployServiceDefinitions(tx, sd.Services, template, pool, svc.Id)
@@ -1133,31 +1244,31 @@ func deployServiceDefinition(tx *gorp.Transaction, sd serviced.ServiceDefinition
 	}
 }
 
-func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRequest, unused *int) error {
+func (s *ControlSvc) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, unused *int) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var wrapper *serviced.ServiceTemplateWrapper
+	var wrapper *dao.ServiceTemplateWrapper
 
-	obj, err := dbmap.Get(&serviced.ServiceTemplateWrapper{}, request.TemplateId)
+	obj, err := dbmap.Get(&dao.ServiceTemplateWrapper{}, request.TemplateId)
 	switch {
 	case err != nil:
 		return err
 	case obj == nil:
 		return errors.New("no such service template")
 	default:
-		wrapper = obj.(*serviced.ServiceTemplateWrapper)
+		wrapper = obj.(*dao.ServiceTemplateWrapper)
 	}
 
-	_, err = dbmap.Get(serviced.ResourcePool{}, request.PoolId)
+	_, err = dbmap.Get(dao.ResourcePool{}, request.PoolId)
 	if err != nil {
 		return err
 	}
 
-	var template serviced.ServiceTemplate
+	var template dao.ServiceTemplate
 	if err = json.Unmarshal([]byte(wrapper.Data), &template); err != nil {
 		return err
 	}
@@ -1170,22 +1281,22 @@ func (s *ControlSvc) DeployTemplate(request serviced.ServiceTemplateDeploymentRe
 	}
 }
 
-func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*serviced.ServiceTemplate) error {
+func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	var templateWrappers []*serviced.ServiceTemplateWrapper
+	var templateWrappers []*dao.ServiceTemplateWrapper
 	_, err = dbmap.Select(&templateWrappers, "SELECT * FROM service_template")
 	if err != nil {
 		fmt.Errorf("could not get service templates: %s", err)
 	}
 
-	templates := make(map[string]*serviced.ServiceTemplate, len(templateWrappers))
+	templates := make(map[string]*dao.ServiceTemplate, len(templateWrappers))
 	for _, templateWrapper := range templateWrappers {
-		var template serviced.ServiceTemplate
+		var template dao.ServiceTemplate
 		err := json.Unmarshal([]byte(templateWrapper.Data), &template)
 		if err != nil {
 			return err
@@ -1198,7 +1309,7 @@ func (s *ControlSvc) GetServiceTemplates(unused int, serviceTemplates *map[strin
 	return nil
 }
 
-func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+func (s *ControlSvc) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {
 	db, dbmap, err := s.getDbConnection()
 	if err != nil {
 		return err
@@ -1210,17 +1321,17 @@ func (s *ControlSvc) AddServiceTemplate(serviceTemplate serviced.ServiceTemplate
 		return err
 	}
 
-	uuid, err := serviced.NewUuid()
+	uuid, err := dao.NewUuid()
 	if err != nil {
 		return err
 	}
 
-	wrapper := serviced.ServiceTemplateWrapper{uuid, serviceTemplate.Name, serviceTemplate.Description, string(data), 1, 1}
+	wrapper := dao.ServiceTemplateWrapper{uuid, serviceTemplate.Name, serviceTemplate.Description, string(data), 1, 1}
 
 	return dbmap.Insert(&wrapper)
 }
 
-func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate serviced.ServiceTemplate, unused *int) error {
+func (s *ControlSvc) UpdateServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {
 	return fmt.Errorf("unimplemented UpdateServiceTemplate")
 }
 
@@ -1231,6 +1342,6 @@ func (s *ControlSvc) RemoveServiceTemplate(serviceTemplateId string, unused *int
 	}
 	defer db.Close()
 
-	_, err = dbmap.Delete(&serviced.ServiceTemplateWrapper{Id: serviceTemplateId})
+	_, err = dbmap.Delete(&dao.ServiceTemplateWrapper{Id: serviceTemplateId})
 	return err
 }

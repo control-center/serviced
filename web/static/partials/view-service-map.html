@@ -1,0 +1,11 @@
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    <div class="details">
+      <ol class="breadcrumb inline">
+        <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
+          <span ng-switch-when="undefined">{{crumb.label}}</span>
+          <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label}}</a>
+        </li>
+      </ol>
+    </div>
+    <svg><g transform="translate(20, 20)"/></svg>
+    

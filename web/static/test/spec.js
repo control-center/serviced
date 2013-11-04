@@ -70,7 +70,6 @@ describe('DeployedAppsControl', function() {
     var $scope = null;
     var $location = null;
     var resourcesService = null;
-    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -80,11 +79,9 @@ describe('DeployedAppsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        servicesService = fake_services_service();
         ctrl = $controller('DeployedAppsControl', { 
             $scope: $scope, 
-            resourcesService: resourcesService,
-            servicesService: servicesService
+            resourcesService: resourcesService
         });
     }));
 
@@ -97,13 +94,16 @@ describe('DeployedAppsControl', function() {
         $scope.click_app('test');
         expect($location.path()).toBe('/services/test');
     });
+
+    it('Provides a \'clickRunning\' function', function() {
+        expect($scope.clickRunning).not.toBeUndefined();
+    });
 });
 
 describe('SubServiceControl', function() {
     var $scope = null;
     var $location = null;
     var resourcesService = null;
-    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -113,16 +113,27 @@ describe('SubServiceControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        servicesService = fake_services_service();
-        ctrl = $controller('SubServiceControl', { 
-            $scope: $scope, 
+        ctrl = $controller('SubServiceControl', {
+            $scope: $scope,
+            $routeParams: { serviceId: 'fakeId1' },
             resourcesService: resourcesService,
-            servicesService: servicesService
         });
     }));
 
     it('Builds a services table', function() {
         expect_table($scope.services);
+    });
+
+    it('Provides service logs', function() {
+        $scope.editService = {};
+        $scope.viewLog({Id: 'fake123'});
+        expect($scope.editService.log).toBe(fake_service_logs().Detail);
+    });
+
+    it('Sets dynamic breadcrumbs', function() {
+        // Get set based on $scope.services.current
+        expect($scope.breadcrumbs.length).toBe(2);
+        expect($scope.breadcrumbs[1].label).toBe(fake1.Name);
     });
 });
 
@@ -139,7 +150,6 @@ describe('HostsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        servicesService = fake_services_service();
         ctrl = $controller('HostsControl', { 
             $scope: $scope, 
             resourcesService: resourcesService
@@ -184,11 +194,50 @@ describe('HostsControl', function() {
 
 });
 
+describe('HostDetails', function() {
+    var $scope = null;
+    var $location = null;
+    var resourcesService = null;
+    var ctrl = null;
+
+    beforeEach(module('controlplane'));
+
+    beforeEach(inject(function($injector) {
+        $scope = $injector.get('$rootScope').$new();
+        var $controller = $injector.get('$controller');
+        $location = $injector.get('$location');
+        resourcesService = fake_resources_service();
+        ctrl = $controller('HostDetailsControl', {
+            $scope: $scope,
+            $routeParams: { hostId: 'fakeHost1' },
+            resourcesService: resourcesService,
+        });
+    }));
+
+    it('Builds a running services table', function() {
+        expect_table($scope.running);
+    });
+
+    it('Provides service state logs', function() {
+        $scope.editService = {};
+        $scope.viewLog({Id: 'fakeId1'})
+        expect($scope.editService.log).toBe(fake_service_logs().Detail);
+    });
+
+    it('Provides a \'click_app\' function', function() {
+        expect($scope.click_app).not.toBeUndefined();
+        $scope.click_app({ServiceId: 'test'});
+        expect($location.path()).toBe('/services/test');
+    });
+
+    it('Provides a \'killRunning\' function', function() {
+        expect(typeof $scope.killRunning).toBe('function');
+    });
+});
 
 describe('DeployWizard', function() {
     var $scope = null;
     var resourcesService = null;
-    var servicesService = null;
     var ctrl = null;
 
     beforeEach(module('controlplane'));
@@ -198,8 +247,7 @@ describe('DeployWizard', function() {
         var $controller = $injector.get('$controller');
         ctrl = $controller('DeployWizard', { 
             $scope: $scope, 
-            resourcesService: fake_resources_service(),
-            servicesService: fake_services_service()
+            resourcesService: fake_resources_service()
         });
     }));
 
@@ -233,7 +281,6 @@ describe('DeployWizard', function() {
         expect($scope.step_page).toBe($scope.steps[1].content);
     });
 
-
     it('Provides a \'wizard_previous\' function', function() {
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
@@ -243,6 +290,27 @@ describe('DeployWizard', function() {
         $scope.wizard_previous();
         expect($scope.step_page).toBe($scope.steps[0].content);
     });
+
+    it('Provides an \'addHostStart\' function', function() {
+        $scope.step_page = '';
+        $scope.newHost = { foo: 'bar' };
+        $scope.addHostStart();
+        expect($scope.step_page).toBe('/static/partials/wizard-modal-addhost.html');
+        expect($scope.newHost).toEqual({});
+    });
+
+    it('Provides an \'addHostCancel\' function', function() {
+        $scope.addHostStart();
+        $scope.addHostCancel();
+        expect($scope.step_page).toBe($scope.steps[0].content);
+    });
+
+    it('Provides an \'addHostFinish\' function', function() {
+        $scope.addHostStart();
+        $scope.addHostFinish();
+        expect($scope.step_page).toBe($scope.steps[0].content);
+    });
+
 });
 
 describe('NavbarControl', function() {
@@ -294,137 +362,6 @@ describe('NavbarControl', function() {
     });
 });
 
-describe('ServicesService', function() {
-    var $scope = null;
-    var $location = null;
-    var $httpBackend = null;
-    var $location = null;
-    var servicesService = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        $location = $injector.get('$location');
-        $httpBackend = $injector.get('$httpBackend');
-        servicesService = $injector.get('servicesService');
-    }));
-
-    afterEach(function() {
-        $httpBackend.verifyNoOutstandingExpectation();
-        $httpBackend.verifyNoOutstandingRequest();
-    });
-    
-    it('Can retrieve and cache service definitions', function() {
-        // The first time GET is called, we have nothing cached so the first
-        // parameter is ignored.
-        $httpBackend.expect('GET', '/services').respond(fake_services());
-        var ser_top, ser_by_id = null;
-        servicesService.get_services(false, function(top, mapped) {
-            ser_top = top;
-            ser_by_id = mapped;
-        });
-        $httpBackend.flush();
-        expect(ser_top).not.toBeNull();
-        expect(ser_by_id).not.toBeNull();
-
-        // We should have some cached data this time, so do not expect any
-        // HTTP traffic.
-        ser_top, ser_by_id = null;
-        servicesService.get_services(true, function(top, mapped) {
-            ser_top = top;
-            ser_by_id = mapped;
-        });
-        expect(ser_top).not.toBeNull();
-        expect(ser_by_id).not.toBeNull();
-    });
-
-    it('Separates top level services from sub services', function() {
-        // The first time GET is called, we have nothing cached so the first
-        // parameter is ignored.
-        $httpBackend.expect('GET', '/services').respond(fake_services());
-        var ser_top, ser_by_id = null;
-        servicesService.get_services(false, function(top, mapped) {
-            ser_top = top;
-            ser_by_id = mapped;
-        });
-        $httpBackend.flush();
-        ser_top.map(function(ser) {
-            expect(ser.ParentServiceId).toBe('');
-            if (ser.children) {
-                ser.children.map(function(child) {
-                    expect(child.ParentServiceId).toBe(ser.Id);
-                });
-            }
-        });
-    });
-
-    it('Can add new services', function() {
-        var serv = { Id: 'test' };
-        var resp = null;
-        $httpBackend.expect('POST', '/services/add', serv).respond({ Detail: 'Added' });
-        servicesService.add_service(serv, function(data) {
-            resp = data;
-        });
-        $httpBackend.flush();
-        expect(resp.Detail).toEqual('Added');
-    });
-
-    it('Can update existing services', function() {
-        var serv = { Id: 'test', Name: 'Test2' };
-        var resp = null;
-        $httpBackend.expect('PUT', '/services/test', serv).respond({ Detail: 'Edited' });
-        servicesService.update_service(serv.Id, serv, function(data) {
-            resp = data;
-        });
-        $httpBackend.flush();
-        expect(resp.Detail).toEqual('Edited');
-    });
-
-    it('Can remove existing services', function() {
-        var resp = null;
-        $httpBackend.expect('DELETE', '/services/test').respond({ Detail: 'Deleted' });
-        servicesService.remove_service('test', function(data) {
-            resp = data;
-        });
-        $httpBackend.flush();
-        expect(resp.Detail).toEqual('Deleted');
-    });
-
-
-    it('Can retrieve and cache template definitions', function() {
-        $httpBackend.expect('GET', '/templates').respond(fake_templates());
-        var tempMap;
-        servicesService.get_app_templates(false, function(templatesMap) {
-            tempMap = templatesMap;
-        });
-        $httpBackend.flush();
-        expect(tempMap).not.toBeNull();
-
-        // We should have some cached data this time, so do not expect any
-        // HTTP traffic.
-        tempMap = null;
-        servicesService.get_app_templates(true, function(templatesMap) {
-            tempMap = templatesMap;
-        });
-        expect(tempMap).not.toBeNull();
-    });
-
-    it('Can deploy templates to pools', function() {
-        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
-        $httpBackend.expect('POST', '/templates/deploy', deployDef).
-            respond({ Detail: 'Deployed' });
-
-        var resp = null;
-        servicesService.deploy_app_template(deployDef, function(data) {
-            resp = data
-        });
-        $httpBackend.flush();
-        expect(resp.Detail).toBe('Deployed');
-    });
-
-});
-
 describe('ResourcesService', function() {
     var $scope = null;
     var $location = null;
@@ -444,6 +381,134 @@ describe('ResourcesService', function() {
     afterEach(function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
+    });
+
+    it('Can retrieve running services for a host', function() {
+        $httpBackend.expect('GET', '/hosts/fakeid/running').respond(fake_running_for_host());
+        var running = null;
+        resourcesService.get_running_services_for_host('fakeid', function(data) {
+            running = data;
+        });
+        $httpBackend.flush();
+        expect(running).not.toBeNull();
+    });
+
+    it('Can retrieve all running services', function() {
+        $httpBackend.expect('GET', '/running').respond(fake_running_for_host());
+        var running = null;
+        resourcesService.get_running_services(function(data) {
+            running = data;
+        });
+        $httpBackend.flush();
+        expect(running).not.toBeNull();
+    });
+
+    it('Can retrieve and cache service definitions', function() {
+        // The first time GET is called, we have nothing cached so the first
+        // parameter is ignored.
+        $httpBackend.expect('GET', '/services').respond(fake_services());
+        var ser_top, ser_by_id = null;
+        resourcesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
+        });
+        $httpBackend.flush();
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
+
+        // We should have some cached data this time, so do not expect any
+        // HTTP traffic.
+        ser_top, ser_by_id = null;
+        resourcesService.get_services(true, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
+        });
+        expect(ser_top).not.toBeNull();
+        expect(ser_by_id).not.toBeNull();
+    });
+
+    it('Separates top level services from sub services', function() {
+        // The first time GET is called, we have nothing cached so the first
+        // parameter is ignored.
+        $httpBackend.expect('GET', '/services').respond(fake_services());
+        var ser_top, ser_by_id = null;
+        resourcesService.get_services(false, function(top, mapped) {
+            ser_top = top;
+            ser_by_id = mapped;
+        });
+        $httpBackend.flush();
+        ser_top.map(function(ser) {
+            expect(ser.ParentServiceId).toBe('');
+            if (ser.children) {
+                ser.children.map(function(child) {
+                    expect(child.ParentServiceId).toBe(ser.Id);
+                });
+            }
+        });
+    });
+
+    it('Can add new services', function() {
+        var serv = { Id: 'test' };
+        var resp = null;
+        $httpBackend.expect('POST', '/services/add', serv).respond({ Detail: 'Added' });
+        resourcesService.add_service(serv, function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Added');
+    });
+
+    it('Can update existing services', function() {
+        var serv = { Id: 'test', Name: 'Test2' };
+        var resp = null;
+        $httpBackend.expect('PUT', '/services/test', serv).respond({ Detail: 'Edited' });
+        resourcesService.update_service(serv.Id, serv, function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Edited');
+    });
+
+    it('Can remove existing services', function() {
+        var resp = null;
+        $httpBackend.expect('DELETE', '/services/test').respond({ Detail: 'Deleted' });
+        resourcesService.remove_service('test', function(data) {
+            resp = data;
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toEqual('Deleted');
+    });
+
+
+    it('Can retrieve and cache template definitions', function() {
+        $httpBackend.expect('GET', '/templates').respond(fake_templates());
+        var tempMap;
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        $httpBackend.flush();
+        expect(tempMap).not.toBeNull();
+
+        // We should have some cached data this time, so do not expect any
+        // HTTP traffic.
+        tempMap = null;
+        resourcesService.get_app_templates(true, function(templatesMap) {
+            tempMap = templatesMap;
+        });
+        expect(tempMap).not.toBeNull();
+    });
+
+    it('Can deploy templates to pools', function() {
+        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
+        $httpBackend.expect('POST', '/templates/deploy', deployDef).
+            respond({ Detail: 'Deployed' });
+
+        var resp = null;
+        resourcesService.deploy_app_template(deployDef, function(data) {
+            resp = data
+        });
+        $httpBackend.flush();
+        expect(resp.Detail).toBe('Deployed');
     });
     
     it('Can retrieve and cache resource pools', function() {
@@ -606,7 +671,7 @@ describe('refreshServices', function() {
     it('Puts services data in scope', function() {
         var dummy_data = fake_services();
         var scope = {};
-        refreshServices(scope, fake_services_service(), false);
+        refreshServices(scope, fake_resources_service(), false);
         expect(scope.services.data).not.toBeUndefined();
         for (var i=0; i < scope.services.data.length; i++) {
             // Expect the basic fields to be consistent
@@ -617,7 +682,7 @@ describe('refreshServices', function() {
     it('Sets the current service based on scope.params', function() {
         var dummy_data = fake_services();
         var scope = { params: { serviceId: dummy_data[0].Id }};
-        refreshServices(scope, fake_services_service(), false);
+        refreshServices(scope, fake_resources_service(), false);
         expect(scope.services.current).not.toBeUndefined();
         expect(scope.services.current.Name).toBe(dummy_data[0].Name);
     });
@@ -625,7 +690,7 @@ describe('refreshServices', function() {
     it('Maps services by ID', function() {
         var dummy_data = fake_services();
         var scope = {};
-        refreshServices(scope, fake_services_service(), false);
+        refreshServices(scope, fake_resources_service(), false);
         expect(scope.services.mapped[dummy_data[0].Id].Name).toBe(dummy_data[0].Name);
         expect(scope.services.mapped[dummy_data[1].Id].Startup).toBe(dummy_data[1].Startup);
     });
@@ -797,7 +862,7 @@ describe('updateRunning', function() {
 describe('toggleRunning', function() {
 
     it('Sets DesiredState and updates service', function() {
-        var servicesService = fake_services_service();
+        var servicesService = fake_resources_service();
         var svc = {};
         spyOn(servicesService, 'update_service');
 
@@ -814,17 +879,6 @@ describe('toggleRunning', function() {
         expect(servicesService.update_service).toHaveBeenCalled();
     });
 });
-
-/*
-describe('updateWorking', function() {
-    it('Sets temporary text on service', function() {
-        var svc = {};
-        updateWorking(svc);
-        expect(svc.runningText).not.toBeUndefined();
-        expect(svc.notRunningText).not.toBeUndefined();
-    });
-});
-*/
 
 describe('getFullPath', function() {
     it('Returns pool.Id when there is no parent', function() {
@@ -951,28 +1005,35 @@ function fake_resources_service() {
        },
        update_host: function(hostId, host, callback) {
            callback({});
+       },
+       get_app_templates: function(cacheOk, callback) {
+           callback(fake_templates());
+       },
+       get_services: function(cacheOk, callback) {
+           callback(fake_services(), fake_services_tree());
+       },
+       get_service_logs: function(serviceId, callback) {
+           callback(fake_service_logs());
+       },
+       get_service_state_logs: function(serviceStateId, callback) {
+           callback(fake_service_logs());
+       },
+       get_running_services_for_service: function(serviceId, callback) {
+           callback(fake_running_for_host());
+       },
+       get_running_services_for_host: function(hostId, callback) {
+           callback(fake_running_for_host());
+       },
+       add_service: function(service, callback) {
+           callback({});
+       },
+       update_service: function(serviceId, service, callback) {
+           callback({});
+       },
+       remove_service: function(serviceId, callback) {
+           callback({});
        }
    };
-}
-
-function fake_services_service() {
-    return {
-        get_app_templates: function(cacheOk, callback) {
-            callback(fake_templates());
-        },
-        get_services: function(cacheOk, callback) {
-            callback(fake_services(), fake_services_tree());
-        },
-        add_service: function(service, callback) {
-            callback({});
-        },
-        update_service: function(serviceId, service, callback) {
-            callback({});
-        },
-        remove_service: function(serviceId, callback) {
-            callback({});
-        }
-    };
 }
 
 function fake_auth_service() {
@@ -1055,6 +1116,57 @@ function fake_pools() {
     };
 }
 
+function fake_service_logs() {
+    return { Detail: "foo bar" };
+}
+
+function fake_running_for_host() {
+    return [
+        {
+            Id: "fakeRunning1",
+            ServiceId: "fakeService1",
+            HostId: "fakeHost1",
+            StartedAt: "2013-10-22T15:16:49-05:00",
+            Name: "ServiceFoo",
+            Startup: "/bin/true",
+            Description: "A fake service",
+            Instances: 2,
+            ImageId: "fakeImage1",
+            PoolId: "default",
+            DesiredState: 1,
+            ParentServiceId: ""
+        },
+        {
+            Id: "fakeRunning2",
+            ServiceId: "fakeService1",
+            HostId: "fakeHost1",
+            StartedAt: "2013-10-22T15:16:49-05:00",
+            Name: "ServiceFoo",
+            Startup: "/bin/true",
+            Description: "A fake service",
+            Instances: 2,
+            ImageId: "fakeImage1",
+            PoolId: "default",
+            DesiredState: 1,
+            ParentServiceId: ""
+        },
+        {
+            Id: "fakeRunning3",
+            ServiceId: "fakeService3",
+            HostId: "fakeHost1",
+            StartedAt: "2013-10-22T15:16:49-05:00",
+            Name: "ServiceBar",
+            Startup: "/bin/false",
+            Description: "Another fake service",
+            Instances: 1,
+            ImageId: "fakeImage3",
+            PoolId: "default",
+            DesiredState: 1,
+            ParentServiceId: ""
+        }
+    ];
+}
+
 function fake_templates() {
     return {
         "74cc4ef9-441d-224a-2c25-ffe6b71f5ea2": {
@@ -1129,6 +1241,14 @@ function fake_hosts() {
             PoolId: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.14",
+            Cores: 2,
+            Memory: 2048
+        },
+        "fakeHost1": {
+            Id: "fakeHost1",
+            PoolId: "pool123",
+            Name: "some fake host",
+            IpAddr: "192.168.33.15",
             Cores: 2,
             Memory: 2048
         }

@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
 
 	"os"
@@ -47,13 +47,13 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 
 func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var unused int
-	var templatesMap map[string]*serviced.ServiceTemplate
+	var templatesMap map[string]*dao.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap);
 }
 
 func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.ServiceTemplateDeploymentRequest
+	var payload dao.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.Infof("Could not decode deployment payload: %v", err)
@@ -71,8 +71,8 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clie
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	request := serviced.EntityRequest{}
-	var poolsMap map[string]*serviced.ResourcePool
+	request := dao.EntityRequest{}
+	var poolsMap map[string]*dao.ResourcePool
 	err := client.GetResourcePools(request, &poolsMap)
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %v", err)
@@ -83,7 +83,7 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 }
 
 func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.ResourcePool
+	var payload dao.ResourcePool
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -107,7 +107,7 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Received update request for %s", poolId)
-	var payload serviced.ResourcePool
+	var payload dao.ResourcePool
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -142,8 +142,8 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var hosts map[string]*serviced.Host
-	request := serviced.EntityRequest{}
+	var hosts map[string]*dao.Host
+	request := dao.EntityRequest{}
 	err := client.GetHosts(request, &hosts)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
@@ -154,8 +154,8 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 }
 
 func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var services []*serviced.Service
-	request := serviced.EntityRequest{}
+	var services []*dao.Service
+	request := dao.EntityRequest{}
 	err := client.GetServices(request, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -163,18 +163,18 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		return
 	}
 	if services == nil {
-		services = []*serviced.Service{}
+		services = []*dao.Service{}
 	}
 	w.WriteJson(&services)
 }
 
-func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		RestBadRequest(w)
 		return
 	}
-	var services []*serviced.RunningService
+	var services []*dao.RunningService
 	err = client.GetRunningServicesForHost(hostId, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -182,16 +182,68 @@ func RestGetRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	if services == nil {
-		services = []*serviced.RunningService{}
+		services = []*dao.RunningService{}
 	}
 	w.WriteJson(&services)
 }
 
-func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var allServices []*serviced.Service
-	topServices := []*serviced.Service{}
+func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var services []*dao.RunningService
+	err = client.GetRunningServicesForService(serviceId, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*dao.RunningService{}
+	}
+	w.WriteJson(&services)
+}
 
-	request := serviced.EntityRequest{}
+
+func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var services []*dao.RunningService
+	request := dao.EntityRequest{}
+	err := client.GetRunningServices(request, &services)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+	if services == nil {
+		services = []*dao.RunningService{}
+	}
+	w.WriteJson(&services)
+}
+
+func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	glog.Infof("Received request to kill %s", serviceStateId)
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var unused int
+	err = client.StopRunningInstance(serviceStateId, &unused)
+	if err != nil {
+		glog.Errorf("Unable to stop service: %v", err)
+		RestServerError(w)
+		return
+	}
+	w.WriteJson(&SimpleResponse{"Marked for death", servicesLink()})
+}
+
+func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var allServices []*dao.Service
+	topServices := []*dao.Service{}
+
+	request := dao.EntityRequest{}
 	err := client.GetServices(request, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -207,7 +259,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.Service
+	var payload dao.Service
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -215,7 +267,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		RestBadRequest(w)
 		return
 	}
-	service, err := serviced.NewService()
+	service, err := dao.NewService()
 	if err != nil {
 		glog.Errorf("Could not create service: %v", err)
 		RestServerError(w)
@@ -226,6 +278,10 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	service.PoolId = payload.PoolId
 	service.ImageId = payload.ImageId
 	service.Startup = payload.Startup
+	service.Instances = payload.Instances
+	service.ParentServiceId = payload.ParentServiceId
+	service.DesiredState = payload.DesiredState
+	service.Launch = payload.Launch
 
 	err = client.AddService(*service, &unused)
 	if err != nil {
@@ -243,7 +299,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 		RestBadRequest(w)
 		return
 	}
-	var payload serviced.Service
+	var payload dao.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -279,7 +335,7 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 }
 
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var poolHosts []*serviced.PoolHost
+	var poolHosts []*dao.PoolHost
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.Infof("Unable to acquire pool ID: %v", err)
@@ -293,13 +349,13 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client
 		return
 	}
 	if poolHosts == nil {
-		poolHosts = []*serviced.PoolHost{}
+		poolHosts = []*dao.PoolHost{}
 	}
 	w.WriteJson(&poolHosts)
 }
 
 func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var payload serviced.Host
+	var payload dao.Host
 	var unused int
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -344,7 +400,7 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Received update request for %s", hostId)
-	var payload serviced.Host
+	var payload dao.Host
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -385,7 +441,11 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		return
 	}
 	var logs string
-	client.GetServiceLogs(serviceId, &logs)
+	err = client.GetServiceLogs(serviceId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 
@@ -396,7 +456,11 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *cl
 		return
 	}
 	var logs string
-	client.GetServiceStateLogs(serviceStateId, &logs)
+	err = client.GetServiceStateLogs(serviceStateId, &logs)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
 }
 

@@ -7,14 +7,16 @@
 #
 ################################################################################
 
-default: elastigo docker_ok
-	@echo "Executing make style build. You can also use the 'go' tool."
+default: build
+
+build:
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
 	go get github.com/zenoss/glog
 	go get github.com/samuel/go-zookeeper/zk
 	go get github.com/araddon/gou
-	go build && go test
+	go get github.com/mattbaird/elastigo
+	go build
 	cd client && make
 	cd svc && make 
 	cd agent && make
@@ -23,13 +25,19 @@ default: elastigo docker_ok
 	cd dao && make
 	cd serviced && make
 
+dockerbuild:
+	docker build -t zenoss/serviced-build .
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make && cd pkg && make rpm && make deb
 
-elastigo:../../mattbaird/elastigo
-
-../../mattbaird/elastigo:
-	mkdir ../../mattbaird -p && \
-	cd ../../mattbaird && \
-	git clone git@github.com:zenoss/elastigo.git
+test: build docker_ok
+	go test
+	cd client && make test
+	cd svc && make test
+	cd agent && make test
+	cd web && make test
+	cd proxy && make test
+	cd dao && make test
+	cd serviced && make test
 
 docker_ok:
 	if docker ps >/dev/null; then \
@@ -47,3 +55,5 @@ clean:
 	cd svc && make clean
 	cd proxy && make clean
 	cd dao && make clean
+	cd pkg && make clean
+

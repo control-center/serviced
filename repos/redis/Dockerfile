@@ -1,6 +1,7 @@
 FROM mattdm/fedora
 RUN yum clean all
 RUN yum --exclude=systemd\* update -y
+RUN rpmdb --rebuilddb
 RUN yum -y install redis
 
 VOLUME /var/lib/redis

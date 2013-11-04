@@ -10,8 +10,9 @@ package svc
 
 import (
 	"database/sql"
-	serviced "github.com/zenoss/serviced"
-	client "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/dao"
 	_ "github.com/ziutek/mymysql/godrv"
 	"github.com/zenoss/glog"
 	"net"
@@ -25,7 +26,7 @@ import (
 )
 
 var (
-	server  serviced.ControlPlane
+	server  dao.ControlPlane
 	lclient *client.ControlClient
 	unused  int
 	tempdir string
@@ -108,15 +109,15 @@ func TestControlAPI(t *testing.T) {
 	setup(t)
 
 	var err error
-	var request serviced.EntityRequest
+	var request dao.EntityRequest
 
-	var pools map[string]*serviced.ResourcePool = nil
+	var pools map[string]*dao.ResourcePool = nil
 	err = lclient.GetResourcePools(request, &pools)
 	if err != nil {
 		t.Fatal("Problem getting empty resource pool list.", err)
 	}
 
-	pool, _ := serviced.NewResourcePool("unit_test_pool")
+	pool, _ := dao.NewResourcePool("unit_test_pool")
 	err = lclient.AddResourcePool(*pool, &unused)
 	if err != nil {
 		t.Fatal("Problem adding resource pool", err)
@@ -136,7 +137,7 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Expected 1 pools, got ", len(pools))
 	}
 
-	var hosts map[string]*serviced.Host = nil
+	var hosts map[string]*dao.Host = nil
 
 	err = lclient.GetHosts(request, &hosts)
 	if err != nil {
@@ -181,7 +182,7 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Host was not removed.", err)
 	}
 
-	var services []*serviced.Service
+	var services []*dao.Service
 	err = lclient.GetServices(request, &services)
 	if err != nil {
 		t.Fatal("Error getting services.", err)
@@ -195,7 +196,7 @@ func TestControlAPI(t *testing.T) {
 		t.Fatal("Expected error looking for non-existent service.")
 	}
 
-	service, err := serviced.NewService()
+	service, err := dao.NewService()
 	if err != nil {
 		t.Fatal("Could not create a new service object")
 	}
@@ -206,8 +207,8 @@ func TestControlAPI(t *testing.T) {
 	service.ImageId = "base"
 	service.PoolId = "default"
 	service.DesiredState = 0
-	service.Endpoints = &[]serviced.ServiceEndpoint{
-		serviced.ServiceEndpoint{serviced.TCP, 3306, "mysql", "remote"}}
+	service.Endpoints = &[]dao.ServiceEndpoint{
+		dao.ServiceEndpoint{serviced.TCP, 3306, "mysql", "remote"}}
 	err = lclient.AddService(*service, &unused)
 	if err != nil {
 		t.Fatal("Could not add a service to the control plane")
@@ -236,7 +237,7 @@ func TestServiceStart(t *testing.T) {
 	cleanTestDB(t)
 
 	var err error
-	pool, _ := serviced.NewResourcePool("default")
+	pool, _ := dao.NewResourcePool("default")
 	err = lclient.AddResourcePool(*pool, &unused)
 	if err != nil {
 		t.Fatal("Problem adding resource pool", err)
@@ -253,7 +254,7 @@ func TestServiceStart(t *testing.T) {
 	}
 
 	// add a new service
-	service, _ := serviced.NewService()
+	service, _ := dao.NewService()
 	service.Name = "My test service!"
 	service.PoolId = pool.Id
 	service.Startup = "/bin/sh -c \"while true; do echo hello world; sleep 1; done\""
@@ -269,7 +270,7 @@ func TestServiceStart(t *testing.T) {
 		t.Fatal("Got error starting service: ", err)
 	}
 
-	var services []*serviced.Service
+	var services []*dao.Service
 	// get the services for a host
 	err = lclient.GetServicesForHost(host.Id, &services)
 	if err != nil {

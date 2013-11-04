@@ -14,13 +14,22 @@
         </span>
       </div>
 
-      <ol class="breadcrumb inline">
+      <ol class="breadcrumb inline bordered">
         <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
           <span ng-switch-when="undefined">{{crumb.label}}</span>
           <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label}}</a>
         </li>
       </ol>
+
+      <div class="navbar-secondary">
+        <ul class="nav navbar-nav">
+          <li ng-repeat="navlink in secondarynav">
+            <a data-toggle="{{navlink.toggle}}" href="{{navlink.url}}">{{navlink.label}}</a>
+          </li>
+        </ul>
+      </div>
     </div>
+
     <table class="table table-striped table-bordered table-hover" id="apps_data" >
       <thead>
         <tr>
@@ -58,3 +67,4 @@
     </table>
 
     <div ng-include="'/static/partials/wizard-modal.html'" ng-controller="DeployWizard"></div>
+    <div ng-include="'/static/partials/add-service.html'"></div>

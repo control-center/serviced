@@ -34,14 +34,20 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
             when('/hostsmap', {
                 templateUrl: '/static/partials/view-host-map.html',
                 controller: HostsMapControl}).
+            when('/servicesmap', {
+                templateUrl: '/static/partials/view-service-map.html',
+                controller: ServicesMapControl}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
                 controller: HostDetailsControl
             }).
+            when('/devmode', {
+                templateUrl: '/static/partials/view-devmode.html',
+                controller: DevControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     factory('resourcesService', ResourcesService).
-    factory('servicesService', ServicesService).
     factory('authService', AuthService).
     filter('treeFilter', function() {
         /*
@@ -165,7 +171,7 @@ function LoginControl($scope, $http, $location, authService) {
     };
 }
 
-function DeployWizard($scope, resourcesService, servicesService) {
+function DeployWizard($scope, resourcesService) {
     var validTemplateSelected = function() {
         return $scope.selectedTemplates().length > 0;
     };
@@ -210,9 +216,9 @@ function DeployWizard($scope, resourcesService, servicesService) {
     };
     var nextClicked = false;
 
-    servicesService.get_app_templates(false, function(templatesMap) {
+    resourcesService.get_app_templates(false, function(templatesMap) {
         var templates = [];
-        for (key in templatesMap) {
+        for (var key in templatesMap) {
             var template = templatesMap[key];
             template.Id = key;
             templates[templates.length] = template;
@@ -316,11 +322,11 @@ function DeployWizard($scope, resourcesService, servicesService) {
             }
             dName += selected[i].Name;
 
-            servicesService.deploy_app_template({ 
+            resourcesService.deploy_app_template({ 
                 PoolId: $scope.install.selected.pool,
                 TemplateId: selected[i].Id
             }, function(result) {
-                refreshServices($scope, servicesService, false);
+                refreshServices($scope, resourcesService, false);
             });
         }
 
@@ -350,19 +356,22 @@ function DeployWizard($scope, resourcesService, servicesService) {
     refreshPools($scope, resourcesService, true);
 }
 
-function DeployedAppsControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "resources";
     $scope.params = $routeParams;
-    $scope.servicesService = servicesService;
+    $scope.servicesService = resourcesService;
 
     $scope.breadcrumbs = [
         { label: 'Deployed Apps', itemClass: 'active' }
     ];
 
+    $scope.secondarynav = [
+        { label: 'View Services Map', url: '#/servicesmap' },
+    ];
 
-    $scope.services = buildTable('Deployment', [
+    $scope.services = buildTable('PoolId', [
         { id: 'Name', name: 'Application'}, 
         { id: 'Deployment', name: 'Deployment Status'},
         { id: 'PoolId', name: 'Resource Pool'},
@@ -376,56 +385,37 @@ function DeployedAppsControl($scope, $routeParams, $location, servicesService, r
     $scope.clickRunning = toggleRunning;
 
     // Get a list of deployed apps
-    refreshServices($scope, servicesService, false);
+    refreshServices($scope, resourcesService, false);
+
+    var setupNewService = function() {
+        $scope.newService = {
+            PoolId: 'default',
+            ParentServiceId: '',
+            DesiredState: 1,
+            Launch: 'auto',
+            Instances: 1,
+            Description: '',
+            ImageId: ''
+        };
+    };
+    if ($scope.dev) {
+        setupNewService();
+        $scope.add_service = function() {
+            resourcesService.add_service($scope.newService, function() {
+                refreshServices($scope, resourcesService, false);
+                setupNewService();
+            });
+        };
+        $scope.secondarynav.push({ label: 'Add Service', url: '#addService', toggle: 'modal' });
+    }
 }
 
-function fakeConfig() {
-    console.log('TODO: Replace this function');
-    return '#\n' +
-           '# Ethernet frame types\n' +
-           '#               This file describes some of the various Ethernet\n' +
-           '#               protocol types that are used on Ethernet networks.\n' +
-           '#\n' +
-           '# This list could be found on:\n' +
-           '#         http://www.iana.org/assignments/ethernet-numbers\n' +
-           '#\n' +
-           '# <name>    <hexnumber> <alias1>...<alias35> #Comment\n' +
-           '#\n' +
-           'IPv4            0800    ip ip4          # Internet IP (IPv4)\n' +
-           'X25             0805\n' +
-           'ARP             0806    ether-arp       #\n' +
-           'FR_ARP          0808                    # Frame Relay ARP        [RFC1701]\n' +
-           'BPQ             08FF                    # G8BPQ AX.25 Ethernet Packet\n' +
-           'DEC             6000                    # DEC Assigned proto\n' +
-           'DNA_DL          6001                    # DEC DNA Dump/Load\n' +
-           'DNA_RC          6002                    # DEC DNA Remote Console\n' +
-           'DNA_RT          6003                    # DEC DNA Routing\n' +
-           'LAT             6004                    # DEC LAT\N' +
-           'DIAG            6005                    # DEC Diagnostics\n' +
-           'CUST            6006                    # DEC Customer use\n' +
-           'SCA             6007                    # DEC Systems Comms Arch\n' +
-           'TEB             6558                    # Trans Ether Bridging   [RFC1701]\n' +
-           'RAW_FR          6559                    # Raw Frame Relay        [RFC1701]\n' +
-           'AARP            80F3                    # Appletalk AARP\n' +
-           'ATALK           809B                    # Appletalk\n' +
-           '802_1Q          8100    8021q 1q 802.1q dot1q # 802.1Q Virtual LAN tagged frame\n' +
-           'IPX             8137                    # Novell IPX\n' +
-           'NetBEUI         8191                    # NetBEUI\n' +
-           'IPv6            86DD    ip6             # IP version 6\n' +
-           'PPP             880B                    # PPP\N' +
-           'ATMMPOA         884C                    # MultiProtocol over ATM\n' +
-           'PPP_DISC        8863                    # PPPoE discovery messages\n' +
-           'PPP_SES         8864                    # PPPoE session messages\n' +
-           'ATMFATE         8884                    # Frame-based ATM Transport over Ethernet\n' +
-           'LOOP            9000    loopback        # loop proto\n';
-}
-
-function SubServiceControl($scope, $routeParams, $location, servicesService, resourcesService, authService) {
+function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "resources";
     $scope.params = $routeParams;
-    $scope.servicesService = servicesService;
+    $scope.servicesService = resourcesService;
 
     $scope.breadcrumbs = [
         { label: 'Deployed Apps', url: '#/apps' }
@@ -446,26 +436,28 @@ function SubServiceControl($scope, $routeParams, $location, servicesService, res
 
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
     $scope.viewLog = function(service) {
         $scope.editService = $.extend({}, service);
-        servicesService.get_service_logs(service.Id, function(log) {
+        resourcesService.get_service_state_logs(service.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
     };
 
     $scope.updateService = function() {
-        servicesService.update_service($scope.services.current.Id, $scope.services.current, function() {
+        resourcesService.update_service($scope.services.current.Id, $scope.services.current, function() {
             console.log('Updated %s', $scope.services.current.Id);
+            var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
+            lastCrumb.label = $scope.services.current.Name;
         });
     }
 
     // Get a list of deployed apps
-    refreshServices($scope, servicesService, true, function() {
+    refreshServices($scope, resourcesService, true, function() {
         if ($scope.services.current) {
             var lineage = getServiceLineage($scope.services.mapped, $scope.services.current);
             for (var i=0; i < lineage.length; i++) {
@@ -481,6 +473,70 @@ function SubServiceControl($scope, $routeParams, $location, servicesService, res
             }
         }
     });
+
+    var wait = { hosts: false, running: false }
+    var mashHostsToInstances = function() {
+        if (!wait.hosts || !wait.running) return;
+        
+        for (var i=0; i < $scope.running.data.length; i++) {
+            var instance = $scope.running.data[i];
+            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+        }
+    }
+    refreshHosts($scope, resourcesService, true, function() {
+        wait.hosts = true;
+        mashHostsToInstances();
+    });
+    refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
+        wait.running = true;
+        mashHostsToInstances();
+    });
+
+    $scope.killRunning = function(app) {
+        resourcesService.kill_running(app.Id, function() {
+            refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
+                wait.running = true;
+                mashHostsToInstances();
+            });
+        });
+    };
+
+    var setupNewService = function() {
+        $scope.newService = {
+            PoolId: 'default',
+            ParentServiceId: $scope.params.serviceId,
+            DesiredState: 1,
+            Launch: 'auto',
+            Instances: 1,
+            Description: '',
+            ImageId: ''
+        };
+    };
+    if ($scope.dev) {
+        setupNewService();
+        $scope.add_service = function() {
+            resourcesService.add_service($scope.newService, function() {
+                refreshServices($scope, resourcesService, false);
+                setupNewService();
+            });
+        };
+        $scope.showAddService = function() {
+            $('#addService').modal('show');
+        };
+        $scope.deleteService = function() {
+            var parent = $scope.services.current.ParentServiceId;
+            console.log('Parent: %s, Length: %d', parent, parent.length);
+            resourcesService.remove_service($scope.params.serviceId, function() {
+                refreshServices($scope, resourcesService, false, function() {
+                    if (parent && parent.length > 0) {
+                        $location.path('/services/' + parent);
+                    } else {
+                        $location.path('/apps');
+                    }
+                });
+            });
+        };
+    }
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
@@ -509,7 +565,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     $scope.add_host = function() {
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false, false, hostCallback);
+            refreshHosts($scope, resourcesService, false, hostCallback);
         });
         // Reset for another add
         $scope.newHost = {
@@ -631,7 +687,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
         var modifiedHost = $.extend({}, $scope.move.host);
         modifiedHost.PoolId = $scope.move.newpool;
         resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, false, hostCallback);
+            refreshHosts($scope, resourcesService, false, hostCallback);
         });
     };
 
@@ -677,10 +733,10 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, false, hostCallback);
+    refreshHosts($scope, resourcesService, false, hostCallback);
 }
 
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, servicesService, authService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -692,32 +748,40 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, s
     ];
 
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, true, true);
+    refreshHosts($scope, resourcesService, true);
 
     $scope.running = buildTable('Name', [
-        { id: 'Name', name: 'Sub Applications' },
+        { id: 'Name', name: 'Running' },
         { id: 'StartedAt', name: 'Start Time' },
-        { id: 'View', name: 'View' }
+        { id: 'View', name: 'Actions' }
     ]);
 
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
-        $scope.editService.config = fakeConfig(); // FIXME
+        $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
-        servicesService.get_service_state_logs(running.Id, function(log) {
+        resourcesService.get_service_state_logs(running.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
     };
 
-    $scope.killRunning = killRunning;
-    $scope.unkillRunning = unkillRunning;
-    refreshRunning($scope, resourcesService, $scope.params.hostId);
-    refreshHosts($scope, resourcesService, true, true, function() {
+    $scope.click_app = function(instance) {
+        $location.path('/services/' + instance.ServiceId);
+    };
+
+    $scope.killRunning = function(running) {
+        resourcesService.kill_running(running.Id, function() {
+            refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
+        });
+    };
+
+    refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
+    refreshHosts($scope, resourcesService, true, function() {
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
@@ -862,9 +926,9 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
 
     var hostsAddedToPools = false;
+    var wait = { pools: false, hosts: false };
     var addHostsToPools = function() {
-        if (!$scope.pools.mapped || !$scope.hosts.mapped) {
-            console.log('Need both pools and hosts');
+        if (!wait.pools || !wait.hosts) {
             return;
         }
         if (hostsAddedToPools) {
@@ -889,8 +953,132 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     $scope.treemapSelection = 'memory';
     // Also ensure we have a list of hosts
-    refreshPools($scope, resourcesService, false, addHostsToPools);
-    refreshHosts($scope, resourcesService, false, false, addHostsToPools);
+    refreshPools($scope, resourcesService, false, function() {
+        wait.pools = true;
+        addHostsToPools();
+    });
+    refreshHosts($scope, resourcesService, false, function() {
+        wait.hosts = true;
+        addHostsToPools();
+    });
+}
+
+function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostsmap";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'Deployed Apps', url: '#/apps' },
+        { label: 'Services Map', itemClass: 'active' }
+    ];
+
+    var data_received = {
+        hosts: false,
+        running: false,
+        services: false
+    };
+    var nodeClasses = {};
+    var runningServices = null;
+
+    var draw = function() {
+        if (!data_received.hosts) {
+            console.log('Waiting for host data');
+            return;
+        }
+        if (!data_received.running) {
+            console.log('Waiting for running data');
+            return;
+        }
+        if (!data_received.services) {
+            console.log('Waiting for services data');
+            return;
+        }
+
+        var states = [];
+        var edges = [];
+
+        for (var key in $scope.services.mapped) {
+            var service = $scope.services.mapped[key];
+            states[states.length] = {
+                id: service.Id,
+                value: { label: service.Name}
+            };
+            nodeClasses[service.Id] = 'service notrunning';
+
+            if (service.ParentServiceId !== '') {
+                var parent = $scope.services.mapped[service.ParentServiceId];
+                nodeClasses[service.ParentServiceId] = 'service meta';
+                edges[edges.length] = {
+                    u: service.ParentServiceId,
+                    v: key
+                };
+            }
+        }
+
+        var addedHosts = {};
+
+        for (var i=0; i < runningServices.length; i++) {
+            var running = runningServices[i];
+            if (!addedHosts[running.HostId]) {
+                states[states.length] = {
+                    id: running.HostId,
+                    value: { label: $scope.hosts.mapped[running.HostId].Name }
+                };
+                nodeClasses[running.HostId] = 'host';
+                addedHosts[running.HostId] = true;
+            }
+            nodeClasses[running.ServiceId] = 'service';
+            edges[edges.length] = {
+                u: running.ServiceId,
+                v: running.HostId
+            };
+
+        }
+
+        var renderer = new dagreD3.Renderer();
+        var oldDrawNode = renderer.drawNode();
+        renderer.drawNode(function(graph, u, svg) {
+            oldDrawNode(graph, u, svg);
+            svg.attr("class", "node " + nodeClasses[u]);
+        });
+
+        renderer.run(
+            dagreD3.json.decode(states, edges), 
+            d3.select("svg g"));
+
+        // Add zoom behavior
+        var svg = d3.select("svg");
+        svg.call(d3.behavior.zoom().on("zoom", function() {
+            var ev = d3.event;
+            svg.select("g")
+                .attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
+        }));
+    };
+
+    /*
+     * Each successful resourceServices call will execute draw(),
+     * but draw() will do an early return unless all required
+     * data is available.
+     */
+
+    resourcesService.get_running_services(function(data) {
+        data_received.running = true;
+        runningServices = data;
+        draw();
+    });
+
+    refreshHosts($scope, resourcesService, true, function() {
+        data_received.hosts = true;
+        draw();
+    });
+
+    refreshServices($scope, resourcesService, true, function() {
+        data_received.services = true;
+        draw();
+    });
 }
 
 /*
@@ -910,17 +1098,31 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     $scope.management = 'Management';
     $scope.configuration = 'Configuration';
     $scope.resources = 'Resources';
-    $scope.username = $scope.username? $scope.username : $cookies['ZUsername'];
+    $scope.username = $scope.username? $scope.username : $cookies.ZUsername;
     $scope.brand = { url: '#/entry', label: 'Control Plane' };
     
     $scope.navlinks = [
-        { url: '#/apps', label: 'Deployed Apps' },
-        { url: '#/hosts', label: 'Hosts' }
+        { url: '#/apps', label: 'Deployed Apps', 
+          sublinks: [ '#/services/', '#/servicesmap' ]
+        },
+        { url: '#/hosts', label: 'Hosts',
+          sublinks: [ '#/hosts/', '#/hostsmap' ]
+        }
     ];
 
     for (var i=0; i < $scope.navlinks.length; i++) {
-        $scope.navlinks[i].itemClass = ($scope.navlinks[i].url === '#' + $location.path())? 
-            "active" : "";
+        var cls = '';
+        var currUrl = '#' + $location.path();
+        if ($scope.navlinks[i].url === currUrl) {
+            cls = 'active';
+        } else {
+            for (var j=0; j < $scope.navlinks[i].sublinks.length; j++) {
+                if (currUrl.indexOf($scope.navlinks[i].sublinks[j]) === 0) {
+                    cls = 'active';
+                }
+            }
+        }
+        $scope.navlinks[i].itemClass = cls;
     }
 
     // Create a logout function
@@ -940,10 +1142,42 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
     };
 }
 
-function ServicesService($http, $location) {
+function DevControl($scope, $cookieStore, authService) {
+    authService.checkLogin($scope);
+    $scope.name = "developer control";
+
+    var updateDevMode = function() {
+        if ($scope.devmode.enabled) {
+            $scope.devmode.enabledClass = 'btn btn-success active';
+            $scope.devmode.enabledText = 'Enabled';
+            $scope.devmode.disabledClass = 'btn btn-default off';
+            $scope.devmode.disabledText = '\xA0'; // &nbsp;
+        } else {
+            $scope.devmode.enabledClass = 'btn btn-default off';
+            $scope.devmode.enabledText = '\xA0';
+            $scope.devmode.disabledClass = 'btn btn-danger active';
+            $scope.devmode.disabledText = 'Disabled'; // &nbsp;
+        }
+    };
+    $scope.devmode = {
+        enabled: $cookieStore.get('ZDevMode')
+    };
+    $scope.setDevMode = function(enabled) {
+        $scope.devmode.enabled = enabled;
+        $cookieStore.put('ZDevMode', enabled);
+        updateDevMode();
+    };
+    updateDevMode();
+}
+
+function ResourcesService($http, $location) {
+    var cached_pools;
+    var cached_hosts_for_pool = {};
+    var cached_hosts;
     var cached_app_templates;
     var cached_services; // top level services only
     var cached_services_map; // map of services by by Id, with children attached
+
     var _get_services_tree = function(callback) {
         $http.get('/services').
             success(function(data, status) {
@@ -976,7 +1210,6 @@ function ServicesService($http, $location) {
             });
     };
 
-
     var _get_app_templates = function(callback) {
         $http.get('/templates').
             success(function(data, status) {
@@ -991,116 +1224,6 @@ function ServicesService($http, $location) {
                 }
             });
     };
-
-    return {
-        get_services: function(cacheOk, callback) {
-            if (cacheOk && cached_services && cached_services_map) {
-                console.log('Using cached services');
-                callback(cached_services, cached_services_map);
-            } else {
-                _get_services_tree(callback);
-            }
-        },
-
-        get_service_logs: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/logs').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-
-        get_service_state_logs: function(serviceStateId, callback) {
-            $http.get('/running/' + serviceStateId + '/logs').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        get_app_templates: function(cacheOk, callback) {
-            if (cacheOk && cached_app_templates) {
-                console.log('Using cached app templates');
-                callback(cached_app_templates);
-            } else {
-                _get_app_templates(callback);
-            }
-        },
-
-        add_service: function(service, callback) {
-            console.log('Adding detail: %s', JSON.stringify(service));
-            $http.post('/services/add', service).
-                success(function(data, status) {
-                    console.log('Added new service');
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Adding service failed: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        update_service: function(serviceId, editedService, callback) {
-            $http.put('/services/' + serviceId, editedService).
-                success(function(data, status) {
-                    console.log('Updated service %s', serviceId);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Updating service failed: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        deploy_app_template: function(deployDef, callback) {
-            $http.post('/templates/deploy', deployDef).
-                success(function(data, status) {
-                    console.log('Deployed app template');
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Deploying app template failed: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        remove_service: function(serviceId, callback) {
-            $http.delete('/services/' + serviceId).
-                success(function(data, status) {
-                    console.log('Removed service %s', serviceId);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    console.log('Removing service failed: %s', JSON.stringify(data));
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        }
-    }
-}
-
-function ResourcesService($http, $location) {
-    var cached_pools;
-    var cached_hosts_for_pool = {};
-    var cached_hosts;
 
     // Real implementation for acquiring list of resource pools
     var _get_pools = function(callback) {
@@ -1117,6 +1240,7 @@ function ResourcesService($http, $location) {
                 }
             });
     };
+
     var _get_hosts_for_pool = function(poolId, callback) {
         $http.get('/pools/' + poolId + '/hosts').
             success(function(data, status) {
@@ -1131,6 +1255,7 @@ function ResourcesService($http, $location) {
                 }
             });
     };
+
     var _get_hosts = function(callback) {
         $http.get('/hosts').
             success(function(data, status) {
@@ -1164,11 +1289,55 @@ function ResourcesService($http, $location) {
             }
         },
 
+        /*
+         * Get the list of services instances currently running for a given service.
+         *
+         * @param {string} serviceId The ID of the service to retrieve running instances for.
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        get_running_services_for_service: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/running').
+                success(function(data, status) {
+                    console.log('Got running services for %s', serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
 
-        get_running_services: function(hostId, callback) {
+        /*
+         * Get the list of services currently running on a particular host.
+         *
+         * @param {string} hostId The ID of the host to retrieve running services for.
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        get_running_services_for_host: function(hostId, callback) {
             $http.get('/hosts/' + hostId + '/running').
                 success(function(data, status) {
                     console.log('Got running services for %s', hostId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+
+        /*
+         * Get the list of all services currently running.
+         *
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        get_running_services: function(callback) {
+            $http.get('/running').
+                success(function(data, status) {
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -1235,6 +1404,26 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     console.log('Removing pool failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Stop a running instance of a service.
+         *
+         * @param {string} serviceStateId Unique identifier for a service instance.
+         * @param {function} callback Result passed to callback on success.
+         */
+        kill_running: function(serviceStateId, callback) {
+            $http.delete('/running/' + serviceStateId).
+                success(function(data, status) {
+                    console.log('Terminated %s', serviceStateId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Terminating instance failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1333,11 +1522,170 @@ function ResourcesService($http, $location) {
             } else {
                 _get_hosts_for_pool(poolId, callback);
             }
+        },
+
+        /*
+         * Get all defined services. Note that 2 arguments will be passed
+         * to the callback function instead of the usual 1.
+         *
+         * The first argument to the callback is an array of all top level 
+         * services, with children attached.
+         *
+         * The second argument to the callback is a Map(Id -> Object) of all 
+         * services, with children attached.
+         * 
+         * @param {boolean} cacheOk Whether or not cached data is OK to use.
+         * @param {function} callback Executed on success.
+         */
+        get_services: function(cacheOk, callback) {
+            if (cacheOk && cached_services && cached_services_map) {
+                console.log('Using cached services');
+                callback(cached_services, cached_services_map);
+            } else {
+                _get_services_tree(callback);
+            }
+        },
+
+        /*
+         * Retrieve some (probably not the one you want) set of logs for a
+         * defined service. To get more specific logs, use 
+         * get_service_state_logs.
+         *
+         * @param {string} serviceId ID of the service to retrieve logs for.
+         * @param {function} callback Log data passed to callback on success.
+         */
+        get_service_logs: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Retrieve logs for a particular host running a particular service.
+         *
+         * @param {string} serviceStateId ID to retrieve logs for.
+         * @param {function} callback Log data passed to callback on success.
+         */
+        get_service_state_logs: function(serviceStateId, callback) {
+            $http.get('/running/' + serviceStateId + '/logs').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Retrieve all defined service (a.k.a. application) templates
+         *
+         * @param {boolean} cacheOk Whether or not cached data is OK to use.
+         * @param {function} callback Templates passed to callback on success.
+         */
+        get_app_templates: function(cacheOk, callback) {
+            if (cacheOk && cached_app_templates) {
+                console.log('Using cached app templates');
+                callback(cached_app_templates);
+            } else {
+                _get_app_templates(callback);
+            }
+        },
+
+        /*
+         * Create a new service definition.
+         *
+         * @param {object} service The service definition to create.
+         * @param {function} callback Response passed to callback on success.
+         */
+        add_service: function(service, callback) {
+            console.log('Adding detail: %s', JSON.stringify(service));
+            $http.post('/services/add', service).
+                success(function(data, status) {
+                    console.log('Added new service');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Adding service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Update an existing service
+         * 
+         * @param {string} serviceId The ID of the service to update.
+         * @param {object} editedService The modified service.
+         * @param {function} callback Response passed to callback on success.
+         */
+        update_service: function(serviceId, editedService, callback) {
+            $http.put('/services/' + serviceId, editedService).
+                success(function(data, status) {
+                    console.log('Updated service %s', serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Updating service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Deploy a service (application) template to a resource pool.
+         *
+         * @param {object} deployDef The template definition to deploy.
+         * @param {function} callback Response passed to callback on success.
+         */
+        deploy_app_template: function(deployDef, callback) {
+            $http.post('/templates/deploy', deployDef).
+                success(function(data, status) {
+                    console.log('Deployed app template');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Deploying app template failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Remove a service definition.
+         *
+         * @param {string} serviceId The ID of the service to remove.
+         * @param {function} callback Response passed to callback on success.
+         */
+        remove_service: function(serviceId, callback) {
+            $http.delete('/services/' + serviceId).
+                success(function(data, status) {
+                    console.log('Removed service %s', serviceId);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
 
-function AuthService($cookies, $location) {
+function AuthService($cookies, $cookieStore, $location) {
     var loggedIn = false;
     var userName = null;
     return {
@@ -1359,18 +1707,19 @@ function AuthService($cookies, $location) {
          * @param {object} scope The 'loggedIn' property will be set if true
          */
         checkLogin: function($scope) {
+            $scope.dev = $cookieStore.get('ZDevMode');
             if (loggedIn) {
                 $scope.loggedIn = true;
                 $scope.username = userName;
                 return;
             }
-            if ($cookies['ZCPToken'] !== undefined) {
+            if ($cookies.ZCPToken !== undefined) {
                 loggedIn = true;
                 $scope.loggedIn = true;
             } else {
                 unauthorized($location);
             }
-        }
+        },
     };
 }
 
@@ -1533,19 +1882,6 @@ function toggleRunning(app, status, servicesService) {
     });
 }
 
-function killRunning(app) {
-    app.DesiredState = 0;
-    console.log("TODO: Kill service");
-    updateRunning(app);
-}
-
-function unkillRunning(app) {
-    app.DesiredState = 1;
-    console.log("TODO: Remove this function");
-    updateRunning(app);
-}
-
-
 function updateRunning(app) {
     if (app.DesiredState === 1) {
         app.runningText = "started";
@@ -1569,7 +1905,7 @@ function updateRunning(app) {
     }
 }
 
-function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extraCallback) {
+function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
@@ -1607,17 +1943,36 @@ function refreshHosts($scope, resourcesService, cacheHosts, cacheHostsPool, extr
     });
 }
 
-function refreshRunning($scope, resourcesService, hostId) {
+function refreshRunningForHost($scope, resourcesService, hostId) {
     if ($scope.running === undefined) {
         $scope.running = {};
     }
 
-    resourcesService.get_running_services(hostId, function(runningServices) {
+    resourcesService.get_running_services_for_host(hostId, function(runningServices) {
         $scope.running.data = runningServices;
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
             updateRunning(runningServices[i]);
+        }
+    });
+}
+
+function refreshRunningForService($scope, resourcesService, serviceId, extracallback) {
+    if ($scope.running === undefined) {
+        $scope.running = {};
+    }
+
+    resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
+        $scope.running.data = runningServices;
+        for (var i=0; i < runningServices.length; i++) {
+            runningServices[i].DesiredState = 1; // All should be running
+            runningServices[i].Deployment = 'successful'; // TODO: Replace
+            updateRunning(runningServices[i]);
+        }
+
+        if (extracallback) {
+            extracallback();
         }
     });
 }
