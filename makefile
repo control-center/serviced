@@ -25,9 +25,13 @@ build:
 	cd dao && make
 	cd serviced && make
 
-dockerbuild:
+pkgs:
+	cd pkg && make rpm && make deb
+
+
+dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build .
-	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make && cd pkg && make rpm && make deb
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make pkgs
 
 test: build docker_ok
 	go test
