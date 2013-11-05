@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/zzk"
 
 	"sort"
 	"time"
@@ -61,8 +62,8 @@ func (s *scheduler) loop() {
 	}()
 
 	// create scheduler node
-	scheduler_path := s.cluster_path + "/scheduler"
-	err = createNode(scheduler_path, s.conn)
+	scheduler_path := s.cluster_path + "/election"
+	err = zzk.CreateNode(scheduler_path, s.conn)
 	if err != nil {
 		glog.Error("could not create scheduler node: ", err)
 		return
@@ -71,8 +72,7 @@ func (s *scheduler) loop() {
 	// voter node path
 	voter_path := scheduler_path + "/"
 	instance_data := []byte(s.instance_id)
-	glog.Infof("voter path: %s", voter_path)
-	err = deleteNodebyData(scheduler_path, s.conn, instance_data)
+	err = zzk.DeleteNodebyData(scheduler_path, s.conn, instance_data)
 	if err != nil {
 		glog.Error("could not remove old over node: ", err)
 		return
@@ -128,7 +128,7 @@ func (s *scheduler) loop() {
 				continue
 			}
 			select {
-			case <-TimeoutAfter(time.Second * 30):
+			case <- zzk.TimeoutAfter(time.Second * 30):
 				glog.Info("I've been listening. I'm going to reinit")
 				continue
 			case errc := <-s.closing:

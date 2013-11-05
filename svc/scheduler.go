@@ -135,6 +135,7 @@ func (s *scheduler) loop() {
 				errc <- err
 				return
 			case evt := <-event:
+				glog.Infof("Received zookeeper event: %v", evt)
 				if evt.Type == zk.EventNodeDeleted {
 					continue
 				}

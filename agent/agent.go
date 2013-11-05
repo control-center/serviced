@@ -13,10 +13,12 @@
 package agent
 
 import (
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/zzk"
 
 	"bytes"
 	"encoding/json"
@@ -33,6 +35,7 @@ type HostAgent struct {
 	master          string               // the connection string to the master agent
 	hostId          string               // the hostID of the current host
 	currentServices map[string]*exec.Cmd // the current running services
+	zookeepers       []string
 	mux             proxy.TCPMux
 }
 
@@ -40,7 +43,7 @@ type HostAgent struct {
 var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error) {
+func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
 	agent.mux = mux
@@ -50,6 +53,11 @@ func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error)
 	}
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
+	agent.zookeepers = zookeepers
+	if len(agent.zookeepers) == 0 {
+		agent.zookeepers = []string{"127.0.0.1:2181"}
+	}
+
 	if agent.mux.Enabled {
 		go agent.mux.ListenAndMux()
 	}
@@ -245,7 +253,47 @@ func (a *HostAgent) start() {
 			}
 			defer controlClient.Close() /* this connection gets cleaned up when
 			   the surrounding lamda is exited */
+
 			for {
+				conn, _, err := zk.Connect(a.zookeepers, time.Second*10)
+				if err != nil {
+					glog.Info("Unable to connect, retrying.")
+					time.Sleep(time.Second * 3)
+					continue
+				}
+				defer conn.Close()
+
+				node_path := "/scheduler/" + a.hostId
+				zzk.CreateNode(node_path, conn)
+				glog.Infof("Connected to node %s", node_path)
+				for {
+					children, _, event, err := conn.ChildrenW(node_path)
+					if err != nil {
+						glog.Info("Unable to read children, retrying.")
+						time.Sleep(time.Second * 3)
+						continue
+					}
+					glog.Infof("Found %d children", len(children))
+					for _, childName := range children {
+						childPath := node_path + "/" + childName
+						child, _, err := conn.Get(childPath)
+						if err != nil {
+							glog.Errorf("Got error for %s: %v", childName, err)
+							continue
+						}
+						glog.Infof("Path: %s, data: %s", childPath, string(child))
+					}
+					select {
+					case evt := <-event:
+						glog.Infof("Received event: %v", evt)
+						continue
+					}
+				}
+			}
+			/*
+
+			for {
+
 				time.Sleep(time.Second * 10)
 				var services []*dao.Service
 				// Get the services that should be running on this host
@@ -264,6 +312,7 @@ func (a *HostAgent) start() {
 					a.handleServiceStatesForService(service, a.hostId, controlClient)
 				}
 			}
+                         */
 		}()
 	}
 }

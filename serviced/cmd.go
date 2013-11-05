@@ -93,7 +93,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, mux)
+		agent, err := agent.NewHostAgent(options.port, mux, options.zookeepers)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
