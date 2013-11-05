@@ -14,9 +14,9 @@ package agent
 
 import (
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
-	"github.com/zenoss/serviced/client"
 
 	"bytes"
 	"encoding/json"
@@ -65,13 +65,13 @@ func injectContext(s *dao.Service) error {
 		return nil
 	}
 
-  glog.Infof( "%s", s.Context)
+	glog.Infof("%s", s.Context)
 	var ctx map[string]interface{}
 	if err := json.Unmarshal([]byte(s.Context), &ctx); err != nil {
 		return err
 	}
 
-  glog.Infof( "%+v", ctx)
+	glog.Infof("%+v", ctx)
 	t := template.Must(template.New(s.Name).Parse(s.Startup))
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, ctx); err != nil {

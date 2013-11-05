@@ -13,11 +13,11 @@ package main
 
 //svc "github.com/zenoss/serviced/svc"
 import (
+	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/web"
-	agent "github.com/zenoss/serviced/agent"
 
 	"flag"
 	"github.com/zenoss/glog"
@@ -72,8 +72,8 @@ func startServer() {
 
 	if options.master {
 		var master dao.ControlPlane
-    var err error
-    master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
+		var err error
+		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)

@@ -31,4 +31,3 @@ func init() {
 		Ports:      []int{9200},
 	}
 }
-

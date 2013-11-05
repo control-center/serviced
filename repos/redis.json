@@ -1,9 +1,10 @@
 {
-    "Description": "redis",
-    "Name": "redis",
+    "Description": "Redis Service",
+    "Name": "Redis",
     "Services": [
         {
             "Command": "/usr/sbin/redis-server",
+            "Context": {},
             "Endpoints": [
                 {
                     "Application": "redis",

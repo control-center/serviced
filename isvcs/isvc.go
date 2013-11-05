@@ -82,15 +82,15 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, len(s.Ports) * 2 + 3)
+		args := make([]string, len(s.Ports)*2+3)
 		glog.Errorf("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
-		for i, port := range(s.Ports) {
-			args[2 + i] = "-p"
-			args[2 + i + 1] = fmt.Sprintf("%d:%d", port, port)
+		for i, port := range s.Ports {
+			args[2+i] = "-p"
+			args[2+i+1] = fmt.Sprintf("%d:%d", port, port)
 		}
-		args[len(s.Ports) * 2 + 2] = s.Tag
+		args[len(s.Ports)*2+2] = s.Tag
 		cmd = exec.Command("docker", args...)
 	}
 	glog.Infof("Running docker cmd: %v", cmd)

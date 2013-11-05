@@ -10,7 +10,7 @@ type MinMax struct {
 }
 
 type ServiceTemplateWrapper struct {
-  Id              string // Primary-key
+	Id              string // Primary-key
 	Name            string // Name of top level service
 	Description     string // Description
 	Data            string // JSON encoded template definition
@@ -22,7 +22,7 @@ type ServiceTemplateWrapper struct {
 type PoolHost struct {
 	HostId string
 	PoolId string
-  HostIp string
+	HostIp string
 }
 
 // A collection of computing resources with optional quotas.
@@ -38,7 +38,7 @@ type ResourcePool struct {
 
 // A new ResourcePool
 func NewResourcePool(id string) (*ResourcePool, error) {
-  pool := &ResourcePool{}
+	pool := &ResourcePool{}
 	pool.Id = id
 	return pool, nil
 }
@@ -98,7 +98,7 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
-  Launch          string
+	Launch          string
 	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
 	CreatedAt       time.Time
@@ -123,17 +123,17 @@ type ServiceExport struct {
 
 // An instantiation of a Service.
 type ServiceState struct {
-	Id              string
-	ServiceId       string
-	HostId          string
-	DockerId        string
-	PrivateIp       string
-	Scheduled       time.Time
-	Terminated      time.Time
-	Started         time.Time
-	PortMapping     map[string]map[string]string // protocol -> container port (internal) -> host port (external)
-  Endpoints       []ServiceEndpoint
-	HostIp          string
+	Id          string
+	ServiceId   string
+	HostId      string
+	DockerId    string
+	PrivateIp   string
+	Scheduled   time.Time
+	Terminated  time.Time
+	Started     time.Time
+	PortMapping map[string]map[string]string // protocol -> container port (internal) -> host port (external)
+	Endpoints   []ServiceEndpoint
+	HostIp      string
 }
 
 type ServiceDefinition struct {
@@ -143,7 +143,7 @@ type ServiceDefinition struct {
 	ImageId     string                 // Docker image hosting the service
 	Instances   MinMax                 // Constraints on the number of instances
 	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
-  Context     map[string]interface{} // Context information for the service
+	Context     map[string]interface{} // Context information for the service
 	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
 	Services    []ServiceDefinition    // Supporting subservices
 }
@@ -157,7 +157,7 @@ type ServiceDeployment struct {
 
 // A Service Template used for
 type ServiceTemplate struct {
-  Id          string              // Unique ID of this service template
+	Id          string              // Unique ID of this service template
 	Name        string              // Name of service template
 	Description string              // Meaningful description of service
 	Services    []ServiceDefinition // Child services
@@ -196,59 +196,59 @@ func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, er
 	serviceState = &ServiceState{}
 	serviceState.Id, err = NewUuid()
 	if err == nil {
-	  serviceState.ServiceId = s.Id
-	  serviceState.HostId = hostId
-	  serviceState.Scheduled = time.Now()
-    serviceState.Endpoints = *s.Endpoints
+		serviceState.ServiceId = s.Id
+		serviceState.HostId = hostId
+		serviceState.Scheduled = time.Now()
+		serviceState.Endpoints = *s.Endpoints
 	}
 	return serviceState, err
 }
 
 // Does the service have endpoint imports
 func (s *Service) HasImports() bool {
-  if s.Endpoints == nil {
-    return false
-  }
+	if s.Endpoints == nil {
+		return false
+	}
 
-  for _, ep := range *s.Endpoints {
-    if ep.Purpose == "import" {
-      return true
-    }
-  }
-  return false
+	for _, ep := range *s.Endpoints {
+		if ep.Purpose == "import" {
+			return true
+		}
+	}
+	return false
 }
 
 // Retrieve service endpoint imports
 func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
-  if s.Endpoints != nil {
-    for _, ep := range *s.Endpoints {
-      if ep.Purpose == "import" {
-        endpoints = append( endpoints, ep)
-      }
-    }
-  }
-  return
+	if s.Endpoints != nil {
+		for _, ep := range *s.Endpoints {
+			if ep.Purpose == "import" {
+				endpoints = append(endpoints, ep)
+			}
+		}
+	}
+	return
 }
 
 // Retrieve service container port, 0 failure
 func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
-  for _, ep := range ss.Endpoints {
-    if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
-      if protocol == "tcp" {
-        protocol = "Tcp"
-      } else if protocol == "udp" {
-        protocol = "Udp"
-      }
+	for _, ep := range ss.Endpoints {
+		if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
+			if protocol == "tcp" {
+				protocol = "Tcp"
+			} else if protocol == "udp" {
+				protocol = "Udp"
+			}
 
-      portS := fmt.Sprintf( "%d", port)
-      externalS := ss.PortMapping[protocol][portS]
-      external, err := strconv.Atoi(externalS)
-      if err == nil {
-        return uint16( external)
-      }
-      break
-    }
-  }
+			portS := fmt.Sprintf("%d", port)
+			externalS := ss.PortMapping[protocol][portS]
+			external, err := strconv.Atoi(externalS)
+			if err == nil {
+				return uint16(external)
+			}
+			break
+		}
+	}
 
-  return 0
+	return 0
 }

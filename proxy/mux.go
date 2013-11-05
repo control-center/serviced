@@ -27,8 +27,6 @@ type Config struct {
 	Command   string
 }
 
-
-
 // sendMuxError logs an error message and attempts to write it to the connected
 // endpoint
 func sendMuxError(conn net.Conn, source, facility, msg string, err error) {
@@ -113,4 +111,3 @@ func (mux *TCPMux) ListenAndMux() {
 		go mux.MuxConnection(conn)
 	}
 }
-

@@ -3,12 +3,13 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/dao"
 
-	"os"
-	"strings"
 	"net/url"
+	"os"
+	"regexp"
+	"strings"
 )
 
 type ServiceConfig struct {
@@ -32,7 +33,7 @@ func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !LoginOk(r) {
 			RestUnauthorized(w)
-			return 
+			return
 		}
 		client, err := getClient()
 		if err != nil {
@@ -49,7 +50,7 @@ func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *client
 	var unused int
 	var templatesMap map[string]*dao.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
-	w.WriteJson(&templatesMap);
+	w.WriteJson(&templatesMap)
 }
 
 func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -162,10 +163,30 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		RestServerError(w)
 		return
 	}
+
 	if services == nil {
 		services = []*dao.Service{}
 	}
-	w.WriteJson(&services)
+
+	nmregex := r.URL.Query().Get("name")
+
+	if nmregex == "" {
+		w.WriteJson(&services)
+	} else {
+		r, err := regexp.Compile(nmregex)
+		if err != nil {
+			glog.Errorf("Bad name regexp :%s", nmregex)
+			RestServerError(w)
+			return
+		}
+		matches := []*dao.Service{}
+		for _, service := range services {
+			if r.MatchString(service.Name) {
+				matches = append(matches, service)
+			}
+		}
+		w.WriteJson(&matches)
+	}
 }
 
 func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -205,7 +226,6 @@ func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *c
 	}
 	w.WriteJson(&services)
 }
-
 
 func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*dao.RunningService
@@ -256,6 +276,33 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		}
 	}
 	w.WriteJson(&topServices)
+}
+
+func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	var allServices []*dao.Service
+
+	request := dao.EntityRequest{}
+	if err := client.GetServices(request, &allServices); err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+
+	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	for _, service := range allServices {
+		if service.Id == sid {
+			w.WriteJson(&service)
+			return
+		}
+	}
+
+	glog.Errorf("No such service [%v]", sid)
+	RestServerError(w)
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -316,7 +363,6 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 	w.WriteJson(&SimpleResponse{"Updated service", servicesLink()})
 }
 
-
 func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var unused int
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
@@ -364,7 +410,7 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Cont
 		return
 	}
 	// Save the pool ID and IP address for later. GetInfo wipes these
-	pool := payload.PoolId 
+	pool := payload.PoolId
 	ipAddr := payload.IpAddr
 	remoteClient, err := clientlib.NewAgentClient(payload.IpAddr)
 	if err != nil {
@@ -376,14 +422,14 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Cont
 	err = remoteClient.GetInfo(0, &payload)
 	if err != nil {
 		glog.Errorf("Unable to get remote host info: %v", err)
-		RestBadRequest(w);
+		RestBadRequest(w)
 		return
 	}
 	// Reset the pool ID and IP address
 	payload.PoolId = pool
 	parts := strings.Split(ipAddr, ":")
 	payload.IpAddr = parts[0]
-	
+
 	err = client.AddHost(payload, &unused)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
@@ -498,5 +544,3 @@ func getClient() (c *clientlib.ControlClient, err error) {
 	}
 	return c, err
 }
-
-

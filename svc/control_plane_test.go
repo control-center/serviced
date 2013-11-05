@@ -10,11 +10,11 @@ package svc
 
 import (
 	"database/sql"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
 	_ "github.com/ziutek/mymysql/godrv"
-	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"

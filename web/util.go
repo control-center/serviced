@@ -10,7 +10,6 @@ import (
 	"runtime"
 )
 
-
 var webroot string
 
 func init() {
@@ -28,10 +27,9 @@ func init() {
  *
  ******************************************************************************/
 
-
 type SimpleResponse struct {
 	Detail string
-	Links []Link
+	Links  []Link
 }
 
 type Link struct {
@@ -98,7 +96,6 @@ func WriteJson(w *rest.ResponseWriter, v interface{}, code int) {
 	}
 }
 
-
 /*
  * Provides content for root /
  */
@@ -107,7 +104,7 @@ func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot() + "/index.html")
+		staticRoot()+"/index.html")
 }
 
 /*
@@ -118,9 +115,8 @@ func TestPage(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot() + "/test/index.html")
+		staticRoot()+"/test/index.html")
 }
-
 
 /*
  * Provides content for /favicon.ico
@@ -129,7 +125,7 @@ func FavIcon(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot() + "/ico/zenoss-o.png")
+		staticRoot()+"/ico/zenoss-o.png")
 }
 
 /*
@@ -151,7 +147,7 @@ func StaticData(w *rest.ResponseWriter, r *rest.Request) {
 
 /*
  * Provide a list of login related API calls
- */ 
+ */
 func loginLink() []Link {
 	return []Link{
 		Link{CreateLink, "POST", "/login"},
@@ -161,7 +157,7 @@ func loginLink() []Link {
 
 /*
  * Provide a basic link to the index
- */ 
+ */
 func homeLink() []Link {
 	return []Link{Link{RetrieveLink, "GET", "/"}}
 }
@@ -222,7 +218,7 @@ func templatesLink() []Link {
  */
 func noCache(w *rest.ResponseWriter) {
 	headers := w.ResponseWriter.Header()
-	headers.Add("Cache-Control","no-cache, no-store, must-revalidate")
+	headers.Add("Cache-Control", "no-cache, no-store, must-revalidate")
 	headers.Add("Pragma", "no-cache")
 	headers.Add("Expires", "0")
 }
@@ -237,4 +233,3 @@ func staticRoot() string {
 	}
 	return webroot
 }
-

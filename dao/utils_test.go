@@ -2,7 +2,6 @@ package dao
 
 import "testing"
 
-
 // Test newUuid()
 func TestNewUuid(t *testing.T) {
 	urandomFilename = "../testfiles/urandom_bytes"
@@ -18,4 +17,3 @@ func TestNewUuid(t *testing.T) {
 		t.Fail()
 	}
 }
-

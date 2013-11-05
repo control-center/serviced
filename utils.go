@@ -9,9 +9,9 @@
 package serviced
 
 import (
-  "github.com/zenoss/serviced/dao"
 	"bufio"
 	"fmt"
+	"github.com/zenoss/serviced/dao"
 	"net/url"
 	"os"
 	"os/exec"
