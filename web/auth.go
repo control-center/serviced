@@ -18,7 +18,7 @@ import (
 var currentUser *user.User
 
 func init() {
-        var err error
+	var err error
 	currentUser, err = user.Current()
 	if err != nil {
 		panic(fmt.Errorf("Could not get current user: %s", err))
