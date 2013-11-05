@@ -8,8 +8,7 @@ import (
 	"time"
 )
 
-
-func stringAcceptor(listener net.Listener) (chan string) {
+func stringAcceptor(listener net.Listener) chan string {
 	stringChan := make(chan string)
 	go func() {
 		defer close(stringChan)
@@ -61,8 +60,8 @@ func TestNoMux(t *testing.T) {
 	}
 	timeout := make(chan bool, 1)
 	go func() {
-	    time.Sleep(1 * time.Second)
-	    timeout <- true
+		time.Sleep(1 * time.Second)
+		timeout <- true
 	}()
 
 	select {

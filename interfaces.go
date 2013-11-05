@@ -11,8 +11,8 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/dao"
 	"time"
-  "github.com/zenoss/serviced/dao"
 )
 
 // Network protocol type.

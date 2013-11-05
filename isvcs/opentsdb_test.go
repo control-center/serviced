@@ -19,4 +19,3 @@ func TestOpenTsdb(t *testing.T) {
 	OpenTsdbContainer.Run()
 	log.Printf("Running container: %v", err)
 }
-

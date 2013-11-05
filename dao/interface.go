@@ -11,13 +11,13 @@ func (s ControlPlaneError) Error() string {
 }
 
 // An request for a control plane object.
-type EntityRequest struct {}
+type EntityRequest struct{}
 
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
-  //---------------------------------------------------------------------------
-  // Host CRUD
+	//---------------------------------------------------------------------------
+	// Host CRUD
 
 	// Register a host with serviced
 	AddHost(host Host, unused *int) error
@@ -28,15 +28,15 @@ type ControlPlane interface {
 	// Remove a Host from serviced
 	RemoveHost(hostId string, unused *int) error
 
-  //TODO Does this belong here?
+	//TODO Does this belong here?
 	// Get Host for a registered host
 	//GetHost(hostId int, host *Host) error
 
 	// Get a list of registered hosts
 	GetHosts(request EntityRequest, hosts *map[string]*Host) error
 
-  //---------------------------------------------------------------------------
-  // Service CRUD
+	//---------------------------------------------------------------------------
+	// Service CRUD
 
 	// Add a new service
 	AddService(service Service, unused *int) error
@@ -47,17 +47,17 @@ type ControlPlane interface {
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error
 
-  //TODO
+	//TODO
 	// Get a service from serviced
 	//GetService(serviceId int, service *Service) error
 
 	// Get a list of services from serviced
 	GetServices(request EntityRequest, services *[]*Service) error
 
-  GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error);
+	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error)
 
-  //---------------------------------------------------------------------------
-  //ServiceState CRUD
+	//---------------------------------------------------------------------------
+	//ServiceState CRUD
 
 	// Schedule the given service to start
 	StartService(serviceId string, unused *string) error
@@ -68,8 +68,8 @@ type ControlPlane interface {
 	// Schedule the given service to stop
 	StopService(serviceId string, unused *int) error
 
-  // Stop a running instance of a service
-  StopRunningInstance(serviceId string, unused *int) error
+	// Stop a running instance of a service
+	StopRunningInstance(serviceId string, unused *int) error
 
 	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
@@ -86,17 +86,17 @@ type ControlPlane interface {
 	// Get logs for the given app
 	GetServiceStateLogs(serviceStateId string, logs *string) error
 
-  // Get all running services
-  GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
+	// Get all running services
+	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
 
-  // Get the service instances for a given service
-  GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
+	// Get the service instances for a given service
+	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
-  //---------------------------------------------------------------------------
-  // ResourcePool CRUD
+	//---------------------------------------------------------------------------
+	// ResourcePool CRUD
 
 	// Add a new service pool to serviced
 	AddResourcePool(pool ResourcePool, unused *int) error
@@ -107,7 +107,7 @@ type ControlPlane interface {
 	// Remove a service pool
 	RemoveResourcePool(poolId string, unused *int) error
 
-  //TODO does this belong here
+	//TODO does this belong here
 	// Get a list of all the resource pools
 	//GetResourcePool(poolId string, pool *ResourcePool) error
 
@@ -117,8 +117,8 @@ type ControlPlane interface {
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
-  //---------------------------------------------------------------------------
-  // ServiceTemplate CRUD
+	//---------------------------------------------------------------------------
+	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
 	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error

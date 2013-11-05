@@ -11,14 +11,14 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	"encoding/json"
+	"io/ioutil"
 	"os"
 	"strings"
-	"io/ioutil"
 
 /*
 	clientlib "github.com/zenoss/serviced/client"

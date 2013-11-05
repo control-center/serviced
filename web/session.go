@@ -4,10 +4,10 @@ import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
 
-	"encoding/base64"
-	"net/http"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"net/http"
 	"time"
 )
 
@@ -15,10 +15,10 @@ const SessionCookie = "ZCPToken"
 const UsernameCookie = "ZUsername"
 
 type Session struct {
-	Id string
-	User string
+	Id       string
+	User     string
 	creation time.Time
-	access time.Time
+	access   time.Time
 }
 
 var sessions map[string]*Session
@@ -28,12 +28,11 @@ func init() {
 	go purgeOldSessions()
 }
 
-
 func purgeOldSessions() {
 	for {
 		time.Sleep(time.Second * 60)
 		if len(sessions) == 0 {
-			continue;
+			continue
 		}
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
 		toDel := []string{}
@@ -77,13 +76,13 @@ func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 		delete(sessions, cookie.Value)
 		glog.Infof("Deleted session %s", cookie.Value)
 	}
-	
+
 	http.SetCookie(
 		w.ResponseWriter,
-		&http.Cookie {
-			Name:SessionCookie,
-			Value:"",
-			Path:"/",
+		&http.Cookie{
+			Name:   SessionCookie,
+			Value:  "",
+			Path:   "/",
 			MaxAge: -1,
 		})
 
@@ -100,7 +99,7 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 		RestBadRequest(w)
 		return
 	}
-	
+
 	// TODO: Fix hardcoded credentials
 	if validateLogin(&creds) {
 		session, err := createSession(creds.Username)
@@ -112,18 +111,18 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 		glog.Infof("Session ID: %s", session.Id)
 		http.SetCookie(
 			w.ResponseWriter,
-			&http.Cookie {
-				Name:SessionCookie,
-				Value:session.Id,
-				Path:"/",
+			&http.Cookie{
+				Name:   SessionCookie,
+				Value:  session.Id,
+				Path:   "/",
 				MaxAge: 0,
 			})
 		http.SetCookie(
 			w.ResponseWriter,
-			&http.Cookie {
-				Name:UsernameCookie,
-				Value:creds.Username,
-				Path:"/",
+			&http.Cookie{
+				Name:   UsernameCookie,
+				Value:  creds.Username,
+				Path:   "/",
 				MaxAge: 0,
 			})
 
@@ -133,12 +132,12 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	}
 }
 
-func createSession(user string) (*Session, error){
+func createSession(user string) (*Session, error) {
 	sid, err := randomSessionId()
 	if err != nil {
 		return nil, err
 	}
-	return &Session{ sid, user, time.Now(), time.Now() }, nil
+	return &Session{sid, user, time.Now(), time.Now()}, nil
 }
 
 func findSession(sid string) (*Session, error) {
@@ -172,4 +171,3 @@ func randomStr() (string, error) {
 
 	return base64.StdEncoding.EncodeToString(sid), nil
 }
-

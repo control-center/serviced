@@ -75,7 +75,6 @@ func NewProxy(name string, tcpMuxPort uint16, useTLS bool, listener net.Listener
 	return proxy, nil
 }
 
-
 // Name() returns the application name associated with the proxy
 func (p *Proxy) Name() string {
 	return p.name

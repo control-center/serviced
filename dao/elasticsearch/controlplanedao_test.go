@@ -8,14 +8,14 @@
 package elasticsearch
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/glog"
 	"testing"
 )
 
 var unused int
-var	controlPlaneDao, err = NewControlPlaneDao("localhost", 9200)
+var controlPlaneDao, err = NewControlPlaneDao("localhost", 9200)
 
 func init() {
 	err := isvcs.ElasticSearchContainer.Run()
@@ -25,369 +25,369 @@ func init() {
 }
 
 func TestNewControlPlaneDao(t *testing.T) {
-  if err != nil {
+	if err != nil {
 		t.Errorf("Did not expect error: %s", err)
 		t.Fail()
 	}
 }
 
 func TestDao_NewResourcePool(t *testing.T) {
-  controlPlaneDao.RemoveResourcePool( "default", &unused)
-  pool := dao.ResourcePool { }
-  err := controlPlaneDao.AddResourcePool( pool, &unused)
-  if err == nil {
-    t.Errorf("Expected failure to create resource pool %-v", pool)
-    t.Fail()
-  }
+	controlPlaneDao.RemoveResourcePool("default", &unused)
+	pool := dao.ResourcePool{}
+	err := controlPlaneDao.AddResourcePool(pool, &unused)
+	if err == nil {
+		t.Errorf("Expected failure to create resource pool %-v", pool)
+		t.Fail()
+	}
 
-  pool.Id = "default"
-  err = controlPlaneDao.AddResourcePool( pool, &unused)
-  if err != nil {
-    t.Errorf("Failure creating resource pool %-v with error: %s", pool, err)
-    t.Fail()
-  }
+	pool.Id = "default"
+	err = controlPlaneDao.AddResourcePool(pool, &unused)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", pool, err)
+		t.Fail()
+	}
 
-  err = controlPlaneDao.AddResourcePool( pool, &unused)
-  if err == nil {
-    t.Errorf("Expected error creating redundant resource pool %-v", pool)
-    t.Fail()
-  }
+	err = controlPlaneDao.AddResourcePool(pool, &unused)
+	if err == nil {
+		t.Errorf("Expected error creating redundant resource pool %-v", pool)
+		t.Fail()
+	}
 }
 func TestDao_UpdateResourcePool(t *testing.T) {
-  controlPlaneDao.RemoveResourcePool( "default", &unused)
+	controlPlaneDao.RemoveResourcePool("default", &unused)
 
-  pool, _ := dao.NewResourcePool ( "default")
-  controlPlaneDao.AddResourcePool( *pool, &unused)
+	pool, _ := dao.NewResourcePool("default")
+	controlPlaneDao.AddResourcePool(*pool, &unused)
 
-  pool.Priority = 1
-  pool.CoreLimit = 1
-  pool.MemoryLimit = 1
-  err := controlPlaneDao.UpdateResourcePool( *pool, &unused)
+	pool.Priority = 1
+	pool.CoreLimit = 1
+	pool.MemoryLimit = 1
+	err := controlPlaneDao.UpdateResourcePool(*pool, &unused)
 
-  if err != nil {
-    t.Errorf("Failure updating resource pool %-v with error: %s", pool, err)
-    t.Fail()
-  }
+	if err != nil {
+		t.Errorf("Failure updating resource pool %-v with error: %s", pool, err)
+		t.Fail()
+	}
 
-  result := dao.ResourcePool{}
-  controlPlaneDao.GetResourcePool( "default", &result)
-  result.CreatedAt = pool.CreatedAt
-  result.UpdatedAt = pool.UpdatedAt
-  if *pool != result {
-    t.Errorf("%+v != %+v", *pool, result)
-    t.Fail()
-  }
+	result := dao.ResourcePool{}
+	controlPlaneDao.GetResourcePool("default", &result)
+	result.CreatedAt = pool.CreatedAt
+	result.UpdatedAt = pool.UpdatedAt
+	if *pool != result {
+		t.Errorf("%+v != %+v", *pool, result)
+		t.Fail()
+	}
 }
 
 func TestDao_GetResourcePool(t *testing.T) {
-  controlPlaneDao.RemoveResourcePool( "default", &unused)
-  pool, _ := dao.NewResourcePool ( "default")
-  pool.Priority = 1
-  pool.CoreLimit = 1
-  pool.MemoryLimit = 1
-  controlPlaneDao.AddResourcePool( *pool, &unused)
+	controlPlaneDao.RemoveResourcePool("default", &unused)
+	pool, _ := dao.NewResourcePool("default")
+	pool.Priority = 1
+	pool.CoreLimit = 1
+	pool.MemoryLimit = 1
+	controlPlaneDao.AddResourcePool(*pool, &unused)
 
-  result := dao.ResourcePool{}
-  err := controlPlaneDao.GetResourcePool( "default", &result)
-  result.CreatedAt = pool.CreatedAt
-  result.UpdatedAt = pool.UpdatedAt
-  if err == nil {
-    if *pool != result {
-      t.Errorf( "Unexpected ResourcePool: expected=%+v, actual=%+v", pool, result)
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving ResourcePool: err=%s", err)
-  }
+	result := dao.ResourcePool{}
+	err := controlPlaneDao.GetResourcePool("default", &result)
+	result.CreatedAt = pool.CreatedAt
+	result.UpdatedAt = pool.UpdatedAt
+	if err == nil {
+		if *pool != result {
+			t.Errorf("Unexpected ResourcePool: expected=%+v, actual=%+v", pool, result)
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving ResourcePool: err=%s", err)
+	}
 }
 
 func TestDao_GetResourcePools(t *testing.T) {
-  controlPlaneDao.RemoveResourcePool( "default", &unused)
+	controlPlaneDao.RemoveResourcePool("default", &unused)
 
-  pool, _ := dao.NewResourcePool ( "default")
-  pool.Priority = 1
-  pool.CoreLimit = 2
-  pool.MemoryLimit = 3
-  controlPlaneDao.AddResourcePool( *pool, &unused)
+	pool, _ := dao.NewResourcePool("default")
+	pool.Priority = 1
+	pool.CoreLimit = 2
+	pool.MemoryLimit = 3
+	controlPlaneDao.AddResourcePool(*pool, &unused)
 
-  var result map[string]*dao.ResourcePool
-  err := controlPlaneDao.GetResourcePools(dao.EntityRequest{}, &result)
-  if err == nil && len(result) == 1 {
-    result["default"].CreatedAt = pool.CreatedAt
-    result["default"].UpdatedAt = pool.UpdatedAt
-    if *result["default"] != *pool {
-      t.Errorf( "expected [%+v] actual=%s", *pool, result)
-      t.Fail()
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving ResourcePools: err=%s", result)
-    t.Fail()
-  }
+	var result map[string]*dao.ResourcePool
+	err := controlPlaneDao.GetResourcePools(dao.EntityRequest{}, &result)
+	if err == nil && len(result) == 1 {
+		result["default"].CreatedAt = pool.CreatedAt
+		result["default"].UpdatedAt = pool.UpdatedAt
+		if *result["default"] != *pool {
+			t.Errorf("expected [%+v] actual=%s", *pool, result)
+			t.Fail()
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving ResourcePools: err=%s", result)
+		t.Fail()
+	}
 }
 
 func TestDao_AddHost(t *testing.T) {
-  host := dao.Host { }
-  controlPlaneDao.RemoveHost( "default", &unused)
-  err := controlPlaneDao.AddHost( host, &unused)
-  if err == nil {
-    t.Errorf("Expected failure to create host %-v", host)
-    t.Fail()
-  }
+	host := dao.Host{}
+	controlPlaneDao.RemoveHost("default", &unused)
+	err := controlPlaneDao.AddHost(host, &unused)
+	if err == nil {
+		t.Errorf("Expected failure to create host %-v", host)
+		t.Fail()
+	}
 
-  host.Id = "default"
-  err = controlPlaneDao.AddHost( host, &unused)
-  if err != nil {
-    t.Errorf("Failure creating host %-v with error: %s", host, err)
-    t.Fail()
-  }
+	host.Id = "default"
+	err = controlPlaneDao.AddHost(host, &unused)
+	if err != nil {
+		t.Errorf("Failure creating host %-v with error: %s", host, err)
+		t.Fail()
+	}
 
-  err = controlPlaneDao.AddHost( host, &unused)
-  if err == nil {
-    t.Errorf("Expected error creating redundant host %-v", host)
-    t.Fail()
-  }
+	err = controlPlaneDao.AddHost(host, &unused)
+	if err == nil {
+		t.Errorf("Expected error creating redundant host %-v", host)
+		t.Fail()
+	}
 }
 func TestDao_UpdateHost(t *testing.T) {
-  controlPlaneDao.RemoveHost( "default", &unused)
+	controlPlaneDao.RemoveHost("default", &unused)
 
-  host := dao.NewHost()
-  host.Id = "default"
-  controlPlaneDao.AddHost( *host, &unused)
+	host := dao.NewHost()
+	host.Id = "default"
+	controlPlaneDao.AddHost(*host, &unused)
 
-  host.Name = "hostname"
-  host.IpAddr = "127.0.0.1"
-  err := controlPlaneDao.UpdateHost( *host, &unused)
-  if err != nil {
-    t.Errorf("Failure updating host %-v with error: %s", host, err)
-    t.Fail()
-  }
+	host.Name = "hostname"
+	host.IpAddr = "127.0.0.1"
+	err := controlPlaneDao.UpdateHost(*host, &unused)
+	if err != nil {
+		t.Errorf("Failure updating host %-v with error: %s", host, err)
+		t.Fail()
+	}
 
-  var result = dao.Host{}
-  controlPlaneDao.GetHost( "default", &result)
-  result.CreatedAt = host.CreatedAt
-  result.UpdatedAt = host.UpdatedAt
-  if *host != result {
-    t.Errorf("%+v != %+v", result, host)
-    t.Fail()
-  }
+	var result = dao.Host{}
+	controlPlaneDao.GetHost("default", &result)
+	result.CreatedAt = host.CreatedAt
+	result.UpdatedAt = host.UpdatedAt
+	if *host != result {
+		t.Errorf("%+v != %+v", result, host)
+		t.Fail()
+	}
 }
 
 func TestDao_GetHost(t *testing.T) {
-  controlPlaneDao.RemoveHost( "default", &unused)
+	controlPlaneDao.RemoveHost("default", &unused)
 
-  host := dao.NewHost()
-  host.Id = "default"
-  controlPlaneDao.AddHost( *host, &unused)
+	host := dao.NewHost()
+	host.Id = "default"
+	controlPlaneDao.AddHost(*host, &unused)
 
-  var result = dao.Host{}
-  err := controlPlaneDao.GetHost( "default", &result)
-  result.CreatedAt = host.CreatedAt
-  result.UpdatedAt = host.UpdatedAt
-  if err == nil {
-    if *host != result {
-      t.Errorf( "Unexpected Host: expected=%+v, actual=%+v", host, result)
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving Host: err=%s", err)
-  }
+	var result = dao.Host{}
+	err := controlPlaneDao.GetHost("default", &result)
+	result.CreatedAt = host.CreatedAt
+	result.UpdatedAt = host.UpdatedAt
+	if err == nil {
+		if *host != result {
+			t.Errorf("Unexpected Host: expected=%+v, actual=%+v", host, result)
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving Host: err=%s", err)
+	}
 }
 
 func TestDao_GetHosts(t *testing.T) {
-  controlPlaneDao.RemoveHost( "0", &unused)
-  controlPlaneDao.RemoveHost( "1", &unused)
-  controlPlaneDao.RemoveHost( "default", &unused)
+	controlPlaneDao.RemoveHost("0", &unused)
+	controlPlaneDao.RemoveHost("1", &unused)
+	controlPlaneDao.RemoveHost("default", &unused)
 
-  host := dao.NewHost()
-  host.Id = "default"
-  host.Name = "hostname"
-  host.IpAddr = "127.0.1.1"
-  controlPlaneDao.AddHost( *host, &unused)
+	host := dao.NewHost()
+	host.Id = "default"
+	host.Name = "hostname"
+	host.IpAddr = "127.0.1.1"
+	controlPlaneDao.AddHost(*host, &unused)
 
-  var hosts map[string]*dao.Host
-  err := controlPlaneDao.GetHosts( dao.EntityRequest{}, &hosts)
-  if err == nil && len(hosts) == 1 {
-    hosts["default"].CreatedAt = host.CreatedAt
-    hosts["default"].UpdatedAt = host.UpdatedAt
-    if *hosts["default"] != *host {
-      t.Errorf( "expected [%+v] actual=%s", host, hosts)
-      t.Fail()
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving Hosts: hosts=%+v, err=%s", hosts, err)
-    t.Fail()
-  }
+	var hosts map[string]*dao.Host
+	err := controlPlaneDao.GetHosts(dao.EntityRequest{}, &hosts)
+	if err == nil && len(hosts) == 1 {
+		hosts["default"].CreatedAt = host.CreatedAt
+		hosts["default"].UpdatedAt = host.UpdatedAt
+		if *hosts["default"] != *host {
+			t.Errorf("expected [%+v] actual=%s", host, hosts)
+			t.Fail()
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving Hosts: hosts=%+v, err=%s", hosts, err)
+		t.Fail()
+	}
 }
 
 func TestDao_NewService(t *testing.T) {
-  service := dao.Service { }
-  controlPlaneDao.RemoveService( "default", &unused)
-  err := controlPlaneDao.AddService( service, &unused)
-  if err == nil {
-    t.Errorf("Expected failure to create service %-v", service)
-    t.Fail()
-  }
+	service := dao.Service{}
+	controlPlaneDao.RemoveService("default", &unused)
+	err := controlPlaneDao.AddService(service, &unused)
+	if err == nil {
+		t.Errorf("Expected failure to create service %-v", service)
+		t.Fail()
+	}
 
-  service.Id = "default"
-  err = controlPlaneDao.AddService( service, &unused)
-  if err != nil {
-    t.Errorf("Failure creating service %-v with error: %s", service, err)
-    t.Fail()
-  }
+	service.Id = "default"
+	err = controlPlaneDao.AddService(service, &unused)
+	if err != nil {
+		t.Errorf("Failure creating service %-v with error: %s", service, err)
+		t.Fail()
+	}
 
-  err = controlPlaneDao.AddService( service, &unused)
-  if err == nil {
-    t.Errorf("Expected error creating redundant service %-v", service)
-    t.Fail()
-  }
+	err = controlPlaneDao.AddService(service, &unused)
+	if err == nil {
+		t.Errorf("Expected error creating redundant service %-v", service)
+		t.Fail()
+	}
 }
 
 func TestDao_UpdateService(t *testing.T) {
-  controlPlaneDao.RemoveService( "default", &unused)
+	controlPlaneDao.RemoveService("default", &unused)
 
-  service, _ := dao.NewService()
-  service.Id = "default"
-  controlPlaneDao.AddService( *service, &unused)
+	service, _ := dao.NewService()
+	service.Id = "default"
+	controlPlaneDao.AddService(*service, &unused)
 
-  service.Name = "name"
-  err := controlPlaneDao.UpdateService( *service, &unused)
-  if err != nil {
-    t.Errorf("Failure updating service %-v with error: %s", service, err)
-    t.Fail()
-  }
+	service.Name = "name"
+	err := controlPlaneDao.UpdateService(*service, &unused)
+	if err != nil {
+		t.Errorf("Failure updating service %-v with error: %s", service, err)
+		t.Fail()
+	}
 
-  result := dao.Service{}
-  controlPlaneDao.GetService( "default", &result)
-  //XXX the time.Time types fail comparison despite being equal...
-  //    as far as I can tell this is a limitation with Go
-  result.UpdatedAt = service.UpdatedAt
-  result.CreatedAt = service.CreatedAt
-  if *service != result {
-    t.Errorf("Expected Service %+v, Actual Service %+v", result, *service)
-    t.Fail()
-  }
+	result := dao.Service{}
+	controlPlaneDao.GetService("default", &result)
+	//XXX the time.Time types fail comparison despite being equal...
+	//    as far as I can tell this is a limitation with Go
+	result.UpdatedAt = service.UpdatedAt
+	result.CreatedAt = service.CreatedAt
+	if *service != result {
+		t.Errorf("Expected Service %+v, Actual Service %+v", result, *service)
+		t.Fail()
+	}
 }
 
 func TestDao_GetService(t *testing.T) {
-  controlPlaneDao.RemoveService( "default", &unused)
+	controlPlaneDao.RemoveService("default", &unused)
 
-  service, _ := dao.NewService()
-  service.Id = "default"
-  controlPlaneDao.AddService( *service, &unused)
+	service, _ := dao.NewService()
+	service.Id = "default"
+	controlPlaneDao.AddService(*service, &unused)
 
-  result := dao.Service{}
-  err := controlPlaneDao.GetService( "default", &result)
-  //XXX the time.Time types fail comparison despite being equal...
-  //    as far as I can tell this is a limitation with Go
-  result.UpdatedAt = service.UpdatedAt
-  result.CreatedAt = service.CreatedAt
-  if err == nil {
-    if *service != result {
-      t.Errorf( "GetService Failed: expected=%+v, actual=%+v", service, result)
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving Service: err=%s", err)
-  }
+	result := dao.Service{}
+	err := controlPlaneDao.GetService("default", &result)
+	//XXX the time.Time types fail comparison despite being equal...
+	//    as far as I can tell this is a limitation with Go
+	result.UpdatedAt = service.UpdatedAt
+	result.CreatedAt = service.CreatedAt
+	if err == nil {
+		if *service != result {
+			t.Errorf("GetService Failed: expected=%+v, actual=%+v", service, result)
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving Service: err=%s", err)
+	}
 }
 
 func TestDao_GetServices(t *testing.T) {
-  controlPlaneDao.RemoveService( "0", &unused)
-  controlPlaneDao.RemoveService( "01", &unused)
-  controlPlaneDao.RemoveService( "011", &unused)
-  controlPlaneDao.RemoveService( "02", &unused)
-  controlPlaneDao.RemoveService( "default", &unused)
+	controlPlaneDao.RemoveService("0", &unused)
+	controlPlaneDao.RemoveService("01", &unused)
+	controlPlaneDao.RemoveService("011", &unused)
+	controlPlaneDao.RemoveService("02", &unused)
+	controlPlaneDao.RemoveService("default", &unused)
 
-  service, _ := dao.NewService()
-  service.Id = "default"
-  service.Name = "name"
-  service.Description = "description"
-  service.Instances = 0
-  controlPlaneDao.AddService( *service, &unused)
+	service, _ := dao.NewService()
+	service.Id = "default"
+	service.Name = "name"
+	service.Description = "description"
+	service.Instances = 0
+	controlPlaneDao.AddService(*service, &unused)
 
-  var result []*dao.Service;
-  err := controlPlaneDao.GetServices( dao.EntityRequest{}, &result)
-  if err == nil && len(result) == 1 {
-    //XXX the time.Time types fail comparison despite being equal...
-    //    as far as I can tell this is a limitation with Go
-    result[0].UpdatedAt = service.UpdatedAt
-    result[0].CreatedAt = service.CreatedAt
-    if *result[0] != *service {
-      t.Errorf( "expected [%+v] actual=%+v", *service, result)
-      t.Fail()
-    }
-  } else {
-    t.Errorf( "Unexpected Error Retrieving Services: err=%s, result=%s", err, result)
-    t.Fail()
-  }
+	var result []*dao.Service
+	err := controlPlaneDao.GetServices(dao.EntityRequest{}, &result)
+	if err == nil && len(result) == 1 {
+		//XXX the time.Time types fail comparison despite being equal...
+		//    as far as I can tell this is a limitation with Go
+		result[0].UpdatedAt = service.UpdatedAt
+		result[0].CreatedAt = service.CreatedAt
+		if *result[0] != *service {
+			t.Errorf("expected [%+v] actual=%+v", *service, result)
+			t.Fail()
+		}
+	} else {
+		t.Errorf("Unexpected Error Retrieving Services: err=%s, result=%s", err, result)
+		t.Fail()
+	}
 }
 
 func TestDao_StartService(t *testing.T) {
-  controlPlaneDao.RemoveService( "0", &unused)
-  controlPlaneDao.RemoveService( "01", &unused)
-  controlPlaneDao.RemoveService( "011", &unused)
-  controlPlaneDao.RemoveService( "02", &unused)
+	controlPlaneDao.RemoveService("0", &unused)
+	controlPlaneDao.RemoveService("01", &unused)
+	controlPlaneDao.RemoveService("011", &unused)
+	controlPlaneDao.RemoveService("02", &unused)
 
-  s0,_ := dao.NewService()
-  s0.Id = "0"
-  s0.DesiredState = dao.SVC_STOP
+	s0, _ := dao.NewService()
+	s0.Id = "0"
+	s0.DesiredState = dao.SVC_STOP
 
-  s01,_ := dao.NewService()
-  s01.Id = "01"
-  s01.ParentServiceId = "0"
-  s01.DesiredState = dao.SVC_STOP
+	s01, _ := dao.NewService()
+	s01.Id = "01"
+	s01.ParentServiceId = "0"
+	s01.DesiredState = dao.SVC_STOP
 
-  s011,_ := dao.NewService()
-  s011.Id = "011"
-  s011.ParentServiceId = "01"
-  s011.DesiredState = dao.SVC_STOP
+	s011, _ := dao.NewService()
+	s011.Id = "011"
+	s011.ParentServiceId = "01"
+	s011.DesiredState = dao.SVC_STOP
 
-  s02,_ := dao.NewService()
-  s02.Id = "02"
-  s02.ParentServiceId = "0"
-  s02.DesiredState = dao.SVC_STOP
+	s02, _ := dao.NewService()
+	s02.Id = "02"
+	s02.ParentServiceId = "0"
+	s02.DesiredState = dao.SVC_STOP
 
-  controlPlaneDao.AddService( *s0, &unused)
-  controlPlaneDao.AddService( *s01, &unused)
-  controlPlaneDao.AddService( *s011, &unused)
-  controlPlaneDao.AddService( *s02, &unused)
+	controlPlaneDao.AddService(*s0, &unused)
+	controlPlaneDao.AddService(*s01, &unused)
+	controlPlaneDao.AddService(*s011, &unused)
+	controlPlaneDao.AddService(*s02, &unused)
 
-  var unusedString string
-  controlPlaneDao.StartService( "0", &unusedString)
+	var unusedString string
+	controlPlaneDao.StartService("0", &unusedString)
 
-  service := dao.Service{}
-  controlPlaneDao.GetService( "0", &service)
-  if service.DesiredState != dao.SVC_RUN {
-    t.Errorf( "Service: 0 not requested to run: %+v", service)
-    t.Fail()
-  }
+	service := dao.Service{}
+	controlPlaneDao.GetService("0", &service)
+	if service.DesiredState != dao.SVC_RUN {
+		t.Errorf("Service: 0 not requested to run: %+v", service)
+		t.Fail()
+	}
 
-  controlPlaneDao.GetService( "01", &service)
-  if service.DesiredState != dao.SVC_RUN {
-    t.Errorf( "Service: 01 not requested to run: %+v", service)
-    t.Fail()
-  }
+	controlPlaneDao.GetService("01", &service)
+	if service.DesiredState != dao.SVC_RUN {
+		t.Errorf("Service: 01 not requested to run: %+v", service)
+		t.Fail()
+	}
 
-  controlPlaneDao.GetService( "011", &service)
-  if service.DesiredState != dao.SVC_RUN {
-    t.Errorf( "Service: 011 not requested to run: %+v", service)
-    t.Fail()
-  }
+	controlPlaneDao.GetService("011", &service)
+	if service.DesiredState != dao.SVC_RUN {
+		t.Errorf("Service: 011 not requested to run: %+v", service)
+		t.Fail()
+	}
 
-  controlPlaneDao.GetService( "02", &service)
-  if service.DesiredState != dao.SVC_RUN {
-    t.Errorf( "Service: 02 not requested to run: %+v", service)
-    t.Fail()
-  }
+	controlPlaneDao.GetService("02", &service)
+	if service.DesiredState != dao.SVC_RUN {
+		t.Errorf("Service: 02 not requested to run: %+v", service)
+		t.Fail()
+	}
 }
 
 func TestDao_TestingComplete(t *testing.T) {
-  controlPlaneDao.RemoveService( "default", &unused)
-  controlPlaneDao.RemoveService( "0", &unused)
-  controlPlaneDao.RemoveService( "01", &unused)
-  controlPlaneDao.RemoveService( "011", &unused)
-  controlPlaneDao.RemoveService( "02", &unused)
+	controlPlaneDao.RemoveService("default", &unused)
+	controlPlaneDao.RemoveService("0", &unused)
+	controlPlaneDao.RemoveService("01", &unused)
+	controlPlaneDao.RemoveService("011", &unused)
+	controlPlaneDao.RemoveService("02", &unused)
 
-  controlPlaneDao.RemoveResourcePool( "default", &unused)
+	controlPlaneDao.RemoveResourcePool("default", &unused)
 
-  controlPlaneDao.RemoveHost( "default", &unused)
-  controlPlaneDao.RemoveHost( "0", &unused)
-  controlPlaneDao.RemoveHost( "1", &unused)
+	controlPlaneDao.RemoveHost("default", &unused)
+	controlPlaneDao.RemoveHost("0", &unused)
+	controlPlaneDao.RemoveHost("1", &unused)
 }

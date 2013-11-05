@@ -13,8 +13,8 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
 	"flag"

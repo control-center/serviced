@@ -719,7 +719,6 @@ func (s *ControlSvc) StopRunningInstance(serviceStateId string, unused *int) (er
 	return err
 }
 
-
 // Get all running services
 func (s *ControlSvc) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
 	db, dbmap, err := s.getDbConnection()
