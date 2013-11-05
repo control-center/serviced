@@ -13,6 +13,7 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
 
 	"encoding/json"
@@ -126,7 +127,7 @@ func ParseCommands(args ...string) error {
 }
 
 // Create a client to the control plane.
-func getClient() (c serviced.ControlPlane) {
+func getClient() (c dao.ControlPlane) {
 	// setup the client
 	c, err := clientlib.NewControlClient(options.port)
 	if err != nil {
@@ -143,6 +144,7 @@ var proxyOptions struct {
 	keyPEMFile       string
 	certPEMFile      string
 	servicedEndpoint string
+	autorestart      bool
 }
 
 var proxyCmd *flag.FlagSet
@@ -157,6 +159,7 @@ func init() {
 	proxyCmd.StringVar(&proxyOptions.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", gw+":4979", "serviced endpoint address")
+	proxyCmd.BoolVar(&proxyOptions.autorestart, "autorestart", true, "restart process automatically when it exits")
 	proxyCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, `
 Usage: proxy [OPTIONS] SERVICE_ID COMMAND
@@ -169,7 +172,6 @@ COMMAND      is a quoted string that is the actual command to run
 	}
 
 }
-
 
 // List the hosts associated with the control plane.
 func (cli *ServicedCli) CmdHosts(args ...string) error {
@@ -188,8 +190,8 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 	client := getClient()
 
-	var hosts map[string]*serviced.Host
-	request := serviced.EntityRequest{}
+	var hosts map[string]*dao.Host
+	request := dao.EntityRequest{}
 
 	err := client.GetHosts(request, &hosts)
 	if err != nil {
@@ -249,7 +251,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
 
-	var remoteHost serviced.Host
+	var remoteHost dao.Host
 	err = client.GetInfo(0, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
@@ -293,7 +295,7 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 
 // A convinience struct for printing to command line
 type poolWithHost struct {
-	serviced.ResourcePool
+	dao.ResourcePool
 	Hosts []string
 }
 
@@ -311,8 +313,8 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-	request := serviced.EntityRequest{}
-	var pools map[string]*serviced.ResourcePool
+	request := dao.EntityRequest{}
+	var pools map[string]*dao.ResourcePool
 	err := controlPlane.GetResourcePools(request, &pools)
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
@@ -339,7 +341,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		poolsWithHost := make(map[string]poolWithHost)
 		for _, pool := range pools {
 			// get pool hosts
-			var poolHosts []*serviced.PoolHost
+			var poolHosts []*dao.PoolHost
 			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
 			if err != nil {
 				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
@@ -368,7 +370,7 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	pool, _ := serviced.NewResourcePool(cmd.Arg(0))
+	pool, _ := dao.NewResourcePool(cmd.Arg(0))
 	coreLimit, err := strconv.Atoi(cmd.Arg(1))
 	if err != nil {
 		glog.Fatalf("Bad core limit %s: %v", cmd.Arg(1), err)
@@ -424,8 +426,8 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	}
 
 	controlPlane := getClient()
-	request := serviced.EntityRequest{}
-	var services []*serviced.Service
+	request := dao.EntityRequest{}
+	var services []*dao.Service
 	err := controlPlane.GetServices(request, &services)
 	if err != nil {
 		glog.Fatalf("Could not get services: %v", err)
@@ -475,7 +477,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 }
 
 // PortOpts type
-type PortOpts map[string]serviced.ServiceEndpoint
+type PortOpts map[string]dao.ServiceEndpoint
 
 func NewPortOpts() PortOpts {
 	return make(PortOpts)
@@ -514,7 +516,7 @@ func (opts *PortOpts) Set(value string) error {
 		return fmt.Errorf("Endpoint name can not be empty")
 	}
 	port := fmt.Sprintf("%s:%d", protocol, portNum)
-	(*opts)[port] = serviced.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portNum), Application: string(portName)}
+	(*opts)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portNum), Application: string(portName)}
 	return nil
 }
 
@@ -534,7 +536,7 @@ func getDefaultGateway() string {
 	return "127.0.0.1"
 }
 
-func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
+func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 	cmd := Subcmd("add-service", "[OPTIONS] NAME POOLID IMAGEID COMMAND", "Add service.")
 
 	if len(args) > 0 && args[0] != "--help" {
@@ -554,7 +556,7 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		return nil, cmd, nil
 	}
 
-	service, err := serviced.NewService()
+	service, err := dao.NewService()
 	if err != nil {
 		glog.Fatalf("Could not create service:%v\n", err)
 	}
@@ -566,7 +568,7 @@ func ParseAddService(args []string) (*serviced.Service, *flag.FlagSet, error) {
 		startup = startup + " " + cmd.Arg(i)
 	}
 	glog.Infof("endpoints discovered: %v", flPortOpts)
-	endPoints := make([]serviced.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
+	endPoints := make([]dao.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
 	i := 0
 	for _, endpoint := range flPortOpts {
 		endpoint.Purpose = "remote"
@@ -665,4 +667,58 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	}
 	glog.Infoln("Sevice scheduled to stop.")
 	return err
+}
+
+func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.Service, err error) {
+	// TODO: Replace with RPC call to get single service
+	var services []*dao.Service
+	request := dao.EntityRequest{}
+	err = (*controlPlane).GetServices(request, &services)
+	if err != nil {
+		return nil, err
+	}
+	for _, service = range services {
+		if service.Id == serviceId || service.Name == serviceId {
+			return service, nil
+		}
+	}
+	return nil, err
+
+}
+
+func (cli *ServicedCli) CmdShell(args ...string) error {
+	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	serviceId := cmd.Arg(0)
+	controlPlane := getClient()
+	service, err := getService(&controlPlane, serviceId)
+	if err != nil {
+		glog.Fatalf("Unable to retrieve service: %s", serviceId)
+	}
+	if service == nil {
+		glog.Fatalf("No such service: %s", serviceId)
+	}
+	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	dir, binary, err := serviced.ExecPath()
+	if err != nil {
+		glog.Errorf("Error getting exec path: %v", err)
+		return err
+	}
+	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
+	dir, err = os.Getwd()
+	pwdVolume := fmt.Sprintf("%s:/home/zenoss", dir)
+	shellcmd := "cd /home/zenoss && "
+	for _, a := range cmd.Args()[1:] {
+		shellcmd += a + " "
+	}
+	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
+	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
+	glog.Infof("Starting: %s", cmdString)
+	command := exec.Command("bash", "-c", cmdString)
+	command.Stdout = os.Stdout
+	command.Stdin = os.Stdin
+	command.Stderr = os.Stderr
+	return command.Run()
 }

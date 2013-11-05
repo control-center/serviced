@@ -15,7 +15,6 @@ build:
 
 test:
 	go test -i
-	test
 
 clean:
 	go clean

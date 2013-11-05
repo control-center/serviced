@@ -1,5 +1,4 @@
 {
-    "Context": {},
     "Description": "Redis Service",
     "Name": "Redis",
     "Services": [

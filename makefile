@@ -9,12 +9,13 @@
 
 default: build
 
-build: elastigo
+build:
 	go get github.com/coopernurse/gorp
 	go get github.com/ziutek/mymysql/godrv
 	go get github.com/zenoss/glog
 	go get github.com/samuel/go-zookeeper/zk
 	go get github.com/araddon/gou
+	go get github.com/mattbaird/elastigo
 	go build
 	cd client && make
 	cd svc && make 
@@ -24,9 +25,13 @@ build: elastigo
 	cd dao && make
 	cd serviced && make
 
-dockerbuild:
+pkgs:
+	cd pkg && make rpm && make deb
+
+
+dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build .
-	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -t zenoss/serviced-build make && cd pkg && make rpm && make deb
+	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -e BUILD_NUMBER=$(BUILD_NUMBER) -t zenoss/serviced-build make clean pkgs
 
 test: build docker_ok
 	go test
@@ -37,13 +42,6 @@ test: build docker_ok
 	cd proxy && make test
 	cd dao && make test
 	cd serviced && make test
-
-elastigo:../../mattbaird/elastigo
-
-../../mattbaird/elastigo:
-	mkdir ../../mattbaird -p && \
-	cd ../../mattbaird && \
-	git clone https://github.com/zenoss/elastigo.git 
 
 docker_ok:
 	if docker ps >/dev/null; then \

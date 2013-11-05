@@ -1,11 +1,12 @@
 package agent
 
 import (
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	"encoding/json"
-	"fmt"
-	serviced "github.com/zenoss/serviced"
 	"testing"
 	"time"
+	"fmt"
 )
 
 const example_state = `
@@ -98,10 +99,10 @@ func TestParseContainerState(t *testing.T) {
 }
 
 var injectionTests = []struct {
-	service  serviced.Service
+	service  dao.Service
 	expected string
 }{
-	{serviced.Service{"1234567890",
+	{dao.Service{"1234567890",
 		"ls",
 		"",
 		"ls",
@@ -111,12 +112,12 @@ var injectionTests = []struct {
 		"default",
 		1,
 		"auto",
-		&[]serviced.ServiceEndpoint{},
+		&[]dao.ServiceEndpoint{},
 		"0987654321",
 		time.Now(),
 		time.Now(),
 	}, "ls"},
-	{serviced.Service{"1234567890",
+	{dao.Service{"1234567890",
 		"bash",
 		"{\"City\": \"Austin\", \"State\": \"Texas\"}",
 		"/bin/bash",
@@ -126,12 +127,12 @@ var injectionTests = []struct {
 		"default",
 		1,
 		"auto",
-		&[]serviced.ServiceEndpoint{},
+		&[]dao.ServiceEndpoint{},
 		"0987654321",
 		time.Now(),
 		time.Now(),
 	}, "/bin/bash"},
-	{serviced.Service{"1234567890",
+	{dao.Service{"1234567890",
 		"/bin/sh",
 		"{\"Command\": \"/bin/sh\"}",
 		"{{.Command}}",
@@ -141,12 +142,12 @@ var injectionTests = []struct {
 		"default",
 		1,
 		"auto",
-		&[]serviced.ServiceEndpoint{},
+		&[]dao.ServiceEndpoint{},
 		"0987654321",
 		time.Now(),
 		time.Now(),
 	}, "/bin/sh"},
-	{serviced.Service{"1234567890",
+	{dao.Service{"1234567890",
 		"pinger",
 		"{\"RemoteHost\": \"zenoss.com\", \"Count\": 32}",
 		"/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
@@ -156,7 +157,7 @@ var injectionTests = []struct {
 		"default",
 		1,
 		"auto",
-		&[]serviced.ServiceEndpoint{},
+		&[]dao.ServiceEndpoint{},
 		"0987654321",
 		time.Now(),
 		time.Now(),
@@ -178,7 +179,7 @@ func TestContextInjection(t *testing.T) {
 }
 
 func TestIncompleteInjection(t *testing.T) {
-	service := serviced.Service{"1234567890",
+	service := dao.Service{"1234567890",
 		"pinger",
 		"{\"RemoteHost\": \"zenoss.com\"}",
 		"/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
@@ -188,7 +189,7 @@ func TestIncompleteInjection(t *testing.T) {
 		"default",
 		1,
 		"auto",
-		&[]serviced.ServiceEndpoint{},
+		&[]dao.ServiceEndpoint{},
 		"0987654321",
 		time.Now(),
 		time.Now(),

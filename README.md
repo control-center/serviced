@@ -99,12 +99,25 @@ mkdir $GOPATH/pkg -p
 mkdir $GOPATH/src/github.com/zenoss -p
 mkdir $GOPATH/src/github.com/mattbaird -p
 cd $GOPATH/src/github.com/mattbaird
-git clone git@github.com:zenoss/elasticgo.git
+git clone git@github.com:zenoss/elastigo.git
 cd elasticgo
 go build install
 cd $GOPATH/src/github.com/zenoss
 git clone git@github.com:zenoss/serviced.git
 cd GOPATH/src/github.com/zenoss/serviced
 make
+```
+
+Purging the elastic search store.
+
+```bash
+curl -XDELETE http://localhost:9200/controlplane
+```
+
+Creating the elastic search data model.
+
+```bash
+cd dao/elasticsearch
+curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
 ```
 

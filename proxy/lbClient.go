@@ -3,6 +3,7 @@ package proxy
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	"net/rpc"
 )
 
@@ -29,7 +30,7 @@ func (a *LBClient) Close() error {
 }
 
 // Retrieve a list of endpoints for the given service endpoint request.
-func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*serviced.ApplicationEndpoint) error {
-	glog.Infoln("ControlPlaneAgent.GetServiceEndpoints()")
+func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints)
 }

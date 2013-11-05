@@ -14,16 +14,15 @@ package agent
 
 import (
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/client"
 
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -61,16 +60,18 @@ func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error)
 
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
-func injectContext(s *serviced.Service) error {
+func injectContext(s *dao.Service) error {
 	if len(s.Context) == 0 {
 		return nil
 	}
 
+  glog.Infof( "%s", s.Context)
 	var ctx map[string]interface{}
 	if err := json.Unmarshal([]byte(s.Context), &ctx); err != nil {
 		return err
 	}
 
+  glog.Infof( "%+v", ctx)
 	t := template.Must(template.New(s.Name).Parse(s.Startup))
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, ctx); err != nil {
@@ -84,7 +85,7 @@ func injectContext(s *serviced.Service) error {
 // Update the current state of a service. client is the ControlPlane client,
 // service is the reference to the service being updated, and serviceState is
 // the actual service instance being updated.
-func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
 	// get docker status
 
 	containerState, err := getDockerState(serviceState.DockerId)
@@ -105,7 +106,7 @@ func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, serv
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) terminateInstance(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "kill", serviceState.DockerId)
@@ -137,25 +138,16 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
 		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
-		return containerState, serviced.ControlPlaneError{"no state"}
+		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
-		return containerState, serviced.ControlPlaneError{"no container"}
+		return containerState, dao.ControlPlaneError{"no container"}
 	}
 	return containerStates[0], err
 }
 
-// Get the path to the currently running executable.
-func execPath() (string, string, error) {
-	path, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return "", "", err
-	}
-	return filepath.Dir(path), filepath.Base(path), nil
-}
-
 // Start a service instance and update the CP with the state.
-func (a *HostAgent) startService(controlClient *client.ControlClient, service *serviced.Service, serviceState *serviced.ServiceState) (err error) {
+func (a *HostAgent) startService(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
 
 	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
 	portOps := ""
@@ -168,7 +160,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 		}
 	}
 
-	dir, binary, err := execPath()
+	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return err
@@ -176,6 +168,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
 
 	if err := injectContext(service); err != nil {
+		glog.Errorf("Error injecting context: %s", err)
 		return err
 	}
 
@@ -209,9 +202,9 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *s
 	return err
 }
 
-func (a *HostAgent) handleServiceStatesForService(service *serviced.Service, hostId string, controlClient *client.ControlClient) (err error) {
+func (a *HostAgent) handleServiceStatesForService(service *dao.Service, hostId string, controlClient *client.ControlClient) (err error) {
 	// find current service states defined on the master
-	var serviceStates []*serviced.ServiceState
+	var serviceStates []*dao.ServiceState
 	err = controlClient.GetServiceStates(service.Id, &serviceStates)
 	if err != nil {
 		if strings.Contains(err.Error(), "Not found") {
@@ -254,7 +247,7 @@ func (a *HostAgent) start() {
 			   the surrounding lamda is exited */
 			for {
 				time.Sleep(time.Second * 10)
-				var services []*serviced.Service
+				var services []*dao.Service
 				// Get the services that should be running on this host
 				err = controlClient.GetServicesForHost(a.hostId, &services)
 				if err != nil {
@@ -275,7 +268,7 @@ func (a *HostAgent) start() {
 	}
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*serviced.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	controlClient, err := client.NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -286,7 +279,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 }
 
 // Create a Host object from the host this function is running on.
-func (a *HostAgent) GetInfo(unused int, host *serviced.Host) error {
+func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	hostInfo, err := serviced.CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
