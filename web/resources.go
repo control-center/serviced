@@ -3,8 +3,8 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	clientlib "github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced/dao"
 
 	"net/url"
 	"os"
@@ -179,7 +179,7 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 			RestServerError(w)
 			return
 		}
-		matches := []*serviced.Service{}
+		matches := []*dao.Service{}
 		for _, service := range services {
 			if r.MatchString(service.Name) {
 				matches = append(matches, service)
@@ -226,7 +226,6 @@ func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *c
 	}
 	w.WriteJson(&services)
 }
-
 
 func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*dao.RunningService
@@ -280,9 +279,9 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 }
 
 func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	var allServices []*serviced.Service
+	var allServices []*dao.Service
 
-	request := serviced.EntityRequest{}
+	request := dao.EntityRequest{}
 	if err := client.GetServices(request, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
