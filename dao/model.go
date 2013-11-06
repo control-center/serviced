@@ -94,6 +94,7 @@ type Service struct {
 	Context         string
 	Startup         string
 	Description     string
+	Tags            []string
 	Instances       int
 	ImageId         string
 	PoolId          string
@@ -140,6 +141,7 @@ type ServiceDefinition struct {
 	Name        string                 // Name of the defined service
 	Command     string                 // Command which runs the service
 	Description string                 // Description of the service
+	Tags        []string               // Searchable service tags
 	ImageId     string                 // Docker image hosting the service
 	Instances   MinMax                 // Constraints on the number of instances
 	Launch      string                 // Must be "AUTO", the default, or "MANUAL"

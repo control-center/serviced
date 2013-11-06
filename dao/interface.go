@@ -11,7 +11,7 @@ func (s ControlPlaneError) Error() string {
 }
 
 // An request for a control plane object.
-type EntityRequest struct{}
+type EntityRequest interface{}
 
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
@@ -53,6 +53,9 @@ type ControlPlane interface {
 
 	// Get a list of services from serviced
 	GetServices(request EntityRequest, services *[]*Service) error
+
+	// Get services with the given tag(s)
+	GetTaggedServices(request EntityRequest, services *[]*Service) error
 
 	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error)
 
