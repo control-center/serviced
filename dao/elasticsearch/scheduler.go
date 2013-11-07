@@ -69,6 +69,13 @@ func (s *scheduler) loop() {
 		return
 	}
 
+	services_path := s.cluster_path + "/services"
+	err = zzk.CreateNode(services_path, s.conn)
+	if err != nil {
+		glog.Error("could not create services node: ", err)
+		return
+	}
+
 	// voter node path
 	voter_path := scheduler_path + "/"
 	instance_data := []byte(s.instance_id)

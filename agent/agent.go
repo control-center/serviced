@@ -22,6 +22,7 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/zenoss/glog"
 	"os/exec"
@@ -35,7 +36,7 @@ type HostAgent struct {
 	master          string               // the connection string to the master agent
 	hostId          string               // the hostID of the current host
 	currentServices map[string]*exec.Cmd // the current running services
-	zookeepers       []string
+	zookeepers      []string
 	mux             proxy.TCPMux
 }
 
@@ -93,43 +94,45 @@ func injectContext(s *dao.Service) error {
 // Update the current state of a service. client is the ControlPlane client,
 // service is the reference to the service being updated, and serviceState is
 // the actual service instance being updated.
-func (a *HostAgent) updateCurrentState(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
+func (a *HostAgent) updateCurrentState(conn *zk.Conn, ssStats *zk.Stat, hssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState, hss *zzk.HostServiceState) (err error) {
+
 	// get docker status
-
 	containerState, err := getDockerState(serviceState.DockerId)
-
-	markTerminated := func() error {
-		serviceState.Terminated = time.Now()
-		var unused int
-		return controlClient.UpdateServiceState(*serviceState, &unused)
-	}
-
 	switch {
 	case err == nil && !containerState.State.Running:
-		err = markTerminated()
+		err = markTerminated(conn, ssStats, hssStats, service, serviceState, hss)
 	case err != nil && strings.HasPrefix(err.Error(), "no container"):
-		err = markTerminated()
+		err = markTerminated(conn, ssStats, hssStats, service, serviceState, hss)
+	}
+	return err
+}
+
+func markTerminated(conn *zk.Conn, ssStats *zk.Stat, hssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState, hss *zzk.HostServiceState) error {
+	ssPath := zzk.ServiceStatePath(service.Id, serviceState.Id)
+	err := conn.Delete(ssPath, ssStats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete service state %s", ssPath)
+		return err
+	}
+	hssPath := zzk.HostServiceStatePath(hss.HostId, serviceState.Id)
+	err = conn.Delete(hssPath, hssStats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete host service state %s", hssPath)
+		return err
 	}
 	return err
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
+func (a *HostAgent) terminateInstance(conn *zk.Conn, ssStats *zk.Stat, hssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState, hss *zzk.HostServiceState) (err error) {
 	// get docker status
-
 	cmd := exec.Command("docker", "kill", serviceState.DockerId)
 	err = cmd.Run()
 	if err != nil {
 		glog.Errorf("problem killing container instance %s", serviceState.DockerId)
 		return err
 	}
-	serviceState.Terminated = time.Now()
-	var unused int
-	err = controlClient.UpdateServiceState(*serviceState, &unused)
-	if err != nil {
-		glog.Errorf("Problem updating service state: %v", err)
-	}
-	return
+	return markTerminated(conn, ssStats, hssStats, service, serviceState, hss)
 }
 
 // Get the state of the docker container given the dockerId
@@ -155,8 +158,7 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 }
 
 // Start a service instance and update the CP with the state.
-func (a *HostAgent) startService(controlClient *client.ControlClient, service *dao.Service, serviceState *dao.ServiceState) (err error) {
-
+func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (err error) {
 	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
 	portOps := ""
 	if service.Endpoints != nil {
@@ -181,7 +183,6 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *d
 	}
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-
 	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
 
 	glog.Infof("Starting: %s", cmdString)
@@ -202,42 +203,14 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *d
 	serviceState.Started = time.Now()
 	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
 	serviceState.PortMapping = containerState.NetworkSettings.PortMapping
-	var unused int
-	err = controlClient.UpdateServiceState(*serviceState, &unused)
+	ssBytes, err := json.Marshal(serviceState)
 	if err != nil {
-		glog.Errorf("Problem updating service state: %v", err)
-	}
-	return err
-}
-
-func (a *HostAgent) handleServiceStatesForService(service *dao.Service, hostId string, controlClient *client.ControlClient) (err error) {
-	// find current service states defined on the master
-	var serviceStates []*dao.ServiceState
-	err = controlClient.GetServiceStates(service.Id, &serviceStates)
-	if err != nil {
-		if strings.Contains(err.Error(), "Not found") {
-			return nil
-		}
-		glog.Errorf("Got an error getting service states: %v", err)
 		return err
 	}
-	for _, serviceInstance := range serviceStates {
-		if serviceInstance.HostId != hostId {
-			continue
-		}
-		switch {
-		case serviceInstance.Started.Year() <= 1:
-			err = a.startService(controlClient, service, serviceInstance)
-		case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() <= 1:
-			err = a.updateCurrentState(controlClient, service, serviceInstance)
-		case serviceInstance.Started.Year() > 1 && serviceInstance.Terminated.Year() == 2:
-			err = a.terminateInstance(controlClient, service, serviceInstance)
-		}
-		if err != nil {
-			glog.Errorf("Problem servicing state %s,  %v", service.Name, err)
-		}
-	}
-	return nil
+
+	ssPath := zzk.ServiceStatePath(service.Id, serviceState.Id)
+	_, err = conn.Set(ssPath, ssBytes, ssStats.Version)
+	return err
 }
 
 // main loop of the HostAgent
@@ -246,75 +219,98 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
-			controlClient, err := client.NewControlClient(a.master)
+			conn, _, err := zk.Connect(a.zookeepers, time.Second*10)
 			if err != nil {
-				glog.Errorf("Could not start ControlPlane client %v", err)
+				glog.Info("Unable to connect, retrying.")
+				time.Sleep(time.Second * 3)
 				return
 			}
-			defer controlClient.Close() /* this connection gets cleaned up when
-			   the surrounding lamda is exited */
+			defer conn.Close() // Executed after lambda function finishes
 
-			for {
-				conn, _, err := zk.Connect(a.zookeepers, time.Second*10)
+			node_path := zzk.HostPath(a.hostId)
+			zzk.CreateNode(node_path, conn)
+			glog.Infof("Connected to node %s", node_path)
+
+			for { // This loop keeps running until we get an error
+				err = a.processChildrenAndWait(conn, node_path)
 				if err != nil {
-					glog.Info("Unable to connect, retrying.")
 					time.Sleep(time.Second * 3)
-					continue
-				}
-				defer conn.Close()
-
-				node_path := "/scheduler/" + a.hostId
-				zzk.CreateNode(node_path, conn)
-				glog.Infof("Connected to node %s", node_path)
-				for {
-					children, _, event, err := conn.ChildrenW(node_path)
-					if err != nil {
-						glog.Info("Unable to read children, retrying.")
-						time.Sleep(time.Second * 3)
-						continue
-					}
-					glog.Infof("Found %d children", len(children))
-					for _, childName := range children {
-						childPath := node_path + "/" + childName
-						child, _, err := conn.Get(childPath)
-						if err != nil {
-							glog.Errorf("Got error for %s: %v", childName, err)
-							continue
-						}
-						glog.Infof("Path: %s, data: %s", childPath, string(child))
-					}
-					select {
-					case evt := <-event:
-						glog.Infof("Received event: %v", evt)
-						continue
-					}
+					break // An error here forces reconnect
 				}
 			}
-			/*
-
-			for {
-
-				time.Sleep(time.Second * 10)
-				var services []*dao.Service
-				// Get the services that should be running on this host
-				err = controlClient.GetServicesForHost(a.hostId, &services)
-				if err != nil {
-					glog.Errorf("Could not get services for host %s: %v", a.hostId, err)
-					break
-				}
-
-				if len(services) == 0 {
-					glog.Infoln("No services are schedule to run on this host.")
-				}
-
-				// iterate over this host's services
-				for _, service := range services {
-					a.handleServiceStatesForService(service, a.hostId, controlClient)
-				}
-			}
-                         */
 		}()
 	}
+}
+
+func (a *HostAgent) processChildrenAndWait(conn *zk.Conn, node_path string) (err error) {
+	children, _, event, err := conn.ChildrenW(node_path)
+	if err != nil {
+		glog.Info("Unable to read children, retrying.")
+		return err
+	}
+
+	glog.Infof("Found %d children", len(children))
+	for _, childName := range children {
+		childPath := node_path + "/" + childName
+		hostServiceStateNode, hssStats, err := conn.Get(childPath)
+		if err != nil {
+			glog.Errorf("Got error for %s: %v", childName, err)
+			return err
+		}
+		var hss zzk.HostServiceState
+		err = json.Unmarshal(hostServiceStateNode, &hss)
+		if err != nil {
+			glog.Errorf("Unable to unmarshal %s", childName)
+			return err
+		}
+		// TODO: Create validateServiceState function
+		if len(hss.ServiceStateId) == 0 || len(hss.ServiceId) == 0 {
+			glog.Errorf("Service for %s is invalid", childPath)
+			return errors.New("Invalid service")
+		}
+
+		serviceStatePath := zzk.ServiceStatePath(hss.ServiceId, hss.ServiceStateId)
+		var serviceState dao.ServiceState
+		ssNode, ssStats, err := conn.Get(serviceStatePath)
+		err = json.Unmarshal(ssNode, &serviceState)
+		if err != nil {
+			glog.Errorf("Unable to unmarshal %s", serviceStatePath)
+			return err
+		}
+
+		glog.Infof("Attempting to locate service %s", serviceState.ServiceId)
+		servicePath := "/services/" + serviceState.ServiceId
+		serviceNode, _, err := conn.Get(servicePath)
+		if err != nil {
+			glog.Errorf("Got error loading %s: %v", serviceState.ServiceId, err)
+			return err
+		}
+		var service dao.Service
+		err = json.Unmarshal(serviceNode, &service)
+		if err != nil {
+			glog.Errorf("Unable to unmarshal %s", serviceState.ServiceId)
+			return err
+		}
+
+		switch {
+		case serviceState.Started.Year() <= 1:
+			err = a.startService(conn, ssStats, &service, &serviceState)
+		case serviceState.Started.Year() > 1 && serviceState.Terminated.Year() <= 1:
+			err = a.updateCurrentState(conn, ssStats, hssStats, &service, &serviceState, &hss)
+		case serviceState.Started.Year() > 1 && hss.DesiredState == dao.SVC_STOP:
+			err = a.terminateInstance(conn, ssStats, hssStats, &service, &serviceState, &hss)
+		}
+		if err != nil {
+			glog.Errorf("Problem servicing state %s,  %v", service.Name, err)
+		}
+	}
+
+	select {
+	case evt := <-event:
+		glog.Infof("Received event: %v", evt)
+	}
+
+	return nil
 }
 
 func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {

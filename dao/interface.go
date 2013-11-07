@@ -13,6 +13,16 @@ func (s ControlPlaneError) Error() string {
 // An request for a control plane object.
 type EntityRequest interface{}
 
+type ServiceStateRequest struct {
+	ServiceId      string
+	ServiceStateId string
+}
+
+type HostServiceRequest struct {
+	HostId         string
+	ServiceStateId string
+}
+
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
@@ -72,7 +82,7 @@ type ControlPlane interface {
 	StopService(serviceId string, unused *int) error
 
 	// Stop a running instance of a service
-	StopRunningInstance(serviceId string, unused *int) error
+	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
@@ -87,7 +97,7 @@ type ControlPlane interface {
 	GetServiceLogs(serviceId string, logs *string) error
 
 	// Get logs for the given app
-	GetServiceStateLogs(serviceStateId string, logs *string) error
+	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
 
 	// Get all running services
 	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
