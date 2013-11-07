@@ -151,11 +151,12 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 		RestServerError(w)
 		return
 	}
+
 	w.WriteJson(&hosts)
 }
 
 func getTaggedServices(client *clientlib.ControlClient, tags string) ([]*dao.Service, error) {
-	var services []*dao.Service
+	services := []*dao.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
 	if err := client.GetTaggedServices(&ts, &services); err != nil {
@@ -167,7 +168,7 @@ func getTaggedServices(client *clientlib.ControlClient, tags string) ([]*dao.Ser
 }
 
 func getNamedServices(client *clientlib.ControlClient, nmregex string) ([]*dao.Service, error) {
-	var services []*dao.Service
+	services := []*dao.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
@@ -189,7 +190,7 @@ func getNamedServices(client *clientlib.ControlClient, nmregex string) ([]*dao.S
 }
 
 func getServices(client *clientlib.ControlClient) ([]*dao.Service, error) {
-	var services []*dao.Service
+	services := []*dao.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
