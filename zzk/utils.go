@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+const SERVICE_PATH = "/services"
+const SCHEDULER_PATH = "/scheduler"
+
 func TimeoutAfter(delay time.Duration) <-chan bool {
 	doneChan := make(chan bool)
 	go func(t time.Duration, done chan bool) {

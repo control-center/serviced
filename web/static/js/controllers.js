@@ -1038,7 +1038,8 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         }
 
-        var renderer = new dagreD3.Renderer();
+        var layout = dagreD3.layout().nodeSep(5).rankDir("LR")
+        var renderer = new dagreD3.Renderer().layout(layout);
         var oldDrawNode = renderer.drawNode();
         renderer.drawNode(function(graph, u, svg) {
             oldDrawNode(graph, u, svg);
