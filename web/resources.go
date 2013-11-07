@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+var empty interface{}
+
 type ServiceConfig struct {
 	AgentPort   string
 	MasterPort  string
@@ -72,9 +74,8 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clie
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	request := dao.EntityRequest{}
 	var poolsMap map[string]*dao.ResourcePool
-	err := client.GetResourcePools(request, &poolsMap)
+	err := client.GetResourcePools(&empty, &poolsMap)
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %v", err)
 		RestServerError(w)
@@ -144,8 +145,7 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var hosts map[string]*dao.Host
-	request := dao.EntityRequest{}
-	err := client.GetHosts(request, &hosts)
+	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
 		RestServerError(w)
@@ -154,39 +154,80 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 	w.WriteJson(&hosts)
 }
 
-func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+func getTaggedServices(client *clientlib.ControlClient, tags string) ([]*dao.Service, error) {
 	var services []*dao.Service
-	request := dao.EntityRequest{}
-	err := client.GetServices(request, &services)
+	var ts interface{}
+	ts = strings.Split(tags, ",")
+	if err := client.GetTaggedServices(&ts, &services); err != nil {
+		glog.Errorf("Could not get tagged services: %v", err)
+		return nil, err
+	}
+
+	return services, nil
+}
+
+func getNamedServices(client *clientlib.ControlClient, nmregex string) ([]*dao.Service, error) {
+	var services []*dao.Service
+	if err := client.GetServices(&empty, &services); err != nil {
+		glog.Errorf("Could not get named services: %v", err)
+		return nil, err
+	}
+
+	r, err := regexp.Compile(nmregex)
 	if err != nil {
+		glog.Errorf("Bad name regexp :%s", nmregex)
+		return nil, err
+	}
+	matches := []*dao.Service{}
+	for _, service := range services {
+		if r.MatchString(service.Name) {
+			matches = append(matches, service)
+		}
+	}
+
+	return matches, nil
+}
+
+func getServices(client *clientlib.ControlClient) ([]*dao.Service, error) {
+	var services []*dao.Service
+	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
+		return nil, err
+	}
+
+	return services, nil
+}
+
+func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	if tags := r.URL.Query().Get("tags"); tags != "" {
+		result, err := getTaggedServices(client, tags)
+		if err != nil {
+			RestServerError(w)
+			return
+		}
+
+		w.WriteJson(&result)
+		return
+	}
+
+	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
+		result, err := getNamedServices(client, nmregex)
+		if err != nil {
+			RestServerError(w)
+			return
+		}
+
+		w.WriteJson(&result)
+		return
+	}
+
+	result, err := getServices(client)
+	if err != nil {
 		RestServerError(w)
 		return
 	}
 
-	if services == nil {
-		services = []*dao.Service{}
-	}
-
-	nmregex := r.URL.Query().Get("name")
-
-	if nmregex == "" {
-		w.WriteJson(&services)
-	} else {
-		r, err := regexp.Compile(nmregex)
-		if err != nil {
-			glog.Errorf("Bad name regexp :%s", nmregex)
-			RestServerError(w)
-			return
-		}
-		matches := []*dao.Service{}
-		for _, service := range services {
-			if r.MatchString(service.Name) {
-				matches = append(matches, service)
-			}
-		}
-		w.WriteJson(&matches)
-	}
+	w.WriteJson(&result)
 }
 
 func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -229,8 +270,7 @@ func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *c
 
 func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var services []*dao.RunningService
-	request := dao.EntityRequest{}
-	err := client.GetRunningServices(request, &services)
+	err := client.GetRunningServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
@@ -263,8 +303,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 	var allServices []*dao.Service
 	topServices := []*dao.Service{}
 
-	request := dao.EntityRequest{}
-	err := client.GetServices(request, &allServices)
+	err := client.GetServices(&empty, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
@@ -281,8 +320,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientl
 func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var allServices []*dao.Service
 
-	request := dao.EntityRequest{}
-	if err := client.GetServices(request, &allServices); err != nil {
+	if err := client.GetServices(&empty, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
 		return

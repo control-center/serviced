@@ -27,6 +27,8 @@ import (
 	"strings"
 )
 
+var empty interface{}
+
 // A type to represent the CLI. All the command will have the same signature.
 // This makes it easy to call them arbitrarily.
 type ServicedCli struct{}
@@ -191,9 +193,8 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 	client := getClient()
 
 	var hosts map[string]*dao.Host
-	request := dao.EntityRequest{}
 
-	err := client.GetHosts(request, &hosts)
+	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
 		glog.Fatalf("Could not get hosts %v", err)
 	}
@@ -313,9 +314,8 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-	request := dao.EntityRequest{}
 	var pools map[string]*dao.ResourcePool
-	err := controlPlane.GetResourcePools(request, &pools)
+	err := controlPlane.GetResourcePools(&empty, &pools)
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
 	}
@@ -426,9 +426,8 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	}
 
 	controlPlane := getClient()
-	request := dao.EntityRequest{}
 	var services []*dao.Service
-	err := controlPlane.GetServices(request, &services)
+	err := controlPlane.GetServices(&empty, &services)
 	if err != nil {
 		glog.Fatalf("Could not get services: %v", err)
 	}
@@ -672,8 +671,7 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.Service, err error) {
 	// TODO: Replace with RPC call to get single service
 	var services []*dao.Service
-	request := dao.EntityRequest{}
-	err = (*controlPlane).GetServices(request, &services)
+	err = (*controlPlane).GetServices(&empty, &services)
 	if err != nil {
 		return nil, err
 	}

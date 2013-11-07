@@ -63,6 +63,10 @@ func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
 
+func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetTaggedServices", request, replyServices)
+}
+
 func (s *ControlClient) AddService(service dao.Service, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.AddService", service, unused)
 }

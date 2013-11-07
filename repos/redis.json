@@ -19,6 +19,7 @@
             },
             "Launch": "auto",
             "Name": "redis",
+            "Tags": ["core", "daemon"],
             "Services": []
         }
     ]
