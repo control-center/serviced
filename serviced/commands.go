@@ -193,7 +193,6 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 	client := getClient()
 
 	var hosts map[string]*dao.Host
-	// request := dao.EntityRequest{}
 
 	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
@@ -315,7 +314,6 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-	// request := dao.EntityRequest{}
 	var pools map[string]*dao.ResourcePool
 	err := controlPlane.GetResourcePools(&empty, &pools)
 	if err != nil {
@@ -431,7 +429,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	var services []*dao.Service
 	err := controlPlane.GetServices(&empty, &services)
 	if err != nil {
-		glog.Fatalf("BLARG! Could not get services: %v", err)
+		glog.Fatalf("Could not get services: %v", err)
 	}
 
 	if verbose == false {
@@ -673,7 +671,6 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.Service, err error) {
 	// TODO: Replace with RPC call to get single service
 	var services []*dao.Service
-	// request := dao.EntityRequest{}
 	err = (*controlPlane).GetServices(&empty, &services)
 	if err != nil {
 		return nil, err

@@ -74,7 +74,6 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clie
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
-	// request := dao.EntityRequest{}
 	var poolsMap map[string]*dao.ResourcePool
 	err := client.GetResourcePools(&empty, &poolsMap)
 	if err != nil {
@@ -146,7 +145,6 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var hosts map[string]*dao.Host
-	// request := dao.EntityRequest{}
 	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
