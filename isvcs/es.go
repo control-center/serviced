@@ -23,6 +23,7 @@ ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 
 EXPOSE 9200:9200
 
+RUN cd /opt/elasticsearch-0.90.5 && ./bin/plugin -install mobz/elasticsearch-head
 ENTRYPOINT ["/opt/elasticsearch-0.90.5/bin/elasticsearch"]
 CMD ["-f"]
 `
