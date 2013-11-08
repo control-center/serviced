@@ -241,6 +241,7 @@ func (a *HostAgent) start() {
 			}
 			defer conn.Close() // Executed after lambda function finishes
 
+			zzk.CreateNode(zzk.SCHEDULER_PATH, conn)
 			node_path := zzk.HostPath(a.hostId)
 			zzk.CreateNode(node_path, conn)
 			glog.Infof("Connected to node %s", node_path)
@@ -267,7 +268,7 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 		children, _, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
 			glog.Info("Unable to read children, retrying.")
-			time.Sleep(3*time.Second)
+			time.Sleep(3 * time.Second)
 			continue
 		}
 		glog.Infof("Agent for %s processing %d children", a.hostId, len(children))
@@ -290,9 +291,8 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 	}
 }
 
-
 func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- string, ssId string) {
-	defer func() {done <- ssId}()
+	defer func() { done <- ssId }()
 	failures := 0
 	for {
 		if failures >= 10 {
@@ -382,7 +382,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		}
 	}
 }
-
 
 func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	controlClient, err := client.NewControlClient(a.master)
