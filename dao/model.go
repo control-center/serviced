@@ -97,6 +97,7 @@ type Service struct {
 	Startup         string
 	Description     string
 	Tags            []string
+	ConfigFiles     map[string]ConfigFile
 	Instances       int
 	ImageId         string
 	PoolId          string
