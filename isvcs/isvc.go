@@ -86,9 +86,10 @@ func (s *ISvc) Run() error {
 		glog.Errorf("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
+		glog.Errorf("Ports %v", s.Ports)
 		for i, port := range s.Ports {
-			args[2+i] = "-p"
-			args[2+i+1] = fmt.Sprintf("%d:%d", port, port)
+			args[2+i*2] = "-p"
+			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
 		}
 		args[len(s.Ports)*2+2] = s.Tag
 		cmd = exec.Command("docker", args...)

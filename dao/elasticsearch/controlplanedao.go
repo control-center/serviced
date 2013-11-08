@@ -980,6 +980,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
+	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = &sd.Endpoints
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
