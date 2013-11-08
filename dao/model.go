@@ -1,8 +1,10 @@
 package dao
 
-import "strconv"
-import "time"
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"time"
+)
 
 type MinMax struct {
 	Min int
@@ -95,6 +97,7 @@ type Service struct {
 	Startup         string
 	Description     string
 	Tags            []string
+	ConfigFiles     map[string]ConfigFile
 	Instances       int
 	ImageId         string
 	PoolId          string
@@ -137,6 +140,13 @@ type ServiceState struct {
 	HostIp      string
 }
 
+type ConfigFile struct {
+	Filename    string // complete path of file
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
+	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Content     string // content of config file
+}
+
 type ServiceDefinition struct {
 	Name        string                 // Name of the defined service
 	Command     string                 // Command which runs the service
@@ -145,6 +155,7 @@ type ServiceDefinition struct {
 	ImageId     string                 // Docker image hosting the service
 	Instances   MinMax                 // Constraints on the number of instances
 	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles map[string]ConfigFile  // Config file templates
 	Context     map[string]interface{} // Context information for the service
 	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
 	Services    []ServiceDefinition    // Supporting subservices
@@ -159,10 +170,11 @@ type ServiceDeployment struct {
 
 // A Service Template used for
 type ServiceTemplate struct {
-	Id          string              // Unique ID of this service template
-	Name        string              // Name of service template
-	Description string              // Meaningful description of service
-	Services    []ServiceDefinition // Child services
+	Id          string                // Unique ID of this service template
+	Name        string                // Name of service template
+	Description string                // Meaningful description of service
+	Services    []ServiceDefinition   // Child services
+	ConfigFiles map[string]ConfigFile // Config file templates
 }
 
 // A request to deploy a service template

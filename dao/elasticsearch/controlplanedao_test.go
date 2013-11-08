@@ -110,7 +110,7 @@ func TestDao_GetResourcePools(t *testing.T) {
 	controlPlaneDao.AddResourcePool(*pool, &unused)
 
 	var result map[string]*dao.ResourcePool
-	err := controlPlaneDao.GetResourcePools(dao.EntityRequest{}, &result)
+	err := controlPlaneDao.GetResourcePools(new(dao.EntityRequest), &result)
 	if err == nil && len(result) == 1 {
 		result["default"].CreatedAt = pool.CreatedAt
 		result["default"].UpdatedAt = pool.UpdatedAt
@@ -203,7 +203,7 @@ func TestDao_GetHosts(t *testing.T) {
 	controlPlaneDao.AddHost(*host, &unused)
 
 	var hosts map[string]*dao.Host
-	err := controlPlaneDao.GetHosts(dao.EntityRequest{}, &hosts)
+	err := controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
 	if err == nil && len(hosts) == 1 {
 		hosts["default"].CreatedAt = host.CreatedAt
 		hosts["default"].UpdatedAt = host.UpdatedAt
@@ -260,7 +260,7 @@ func TestDao_UpdateService(t *testing.T) {
 	//    as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
-	if *service != result {
+	if !service.Equals(&result) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *service)
 		t.Fail()
 	}
@@ -273,14 +273,14 @@ func TestDao_GetService(t *testing.T) {
 	service.Id = "default"
 	controlPlaneDao.AddService(*service, &unused)
 
-	result := dao.Service{}
+	var result dao.Service
 	err := controlPlaneDao.GetService("default", &result)
 	//XXX the time.Time types fail comparison despite being equal...
 	//    as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
 	if err == nil {
-		if *service != result {
+		if !service.Equals(&result) {
 			t.Errorf("GetService Failed: expected=%+v, actual=%+v", service, result)
 		}
 	} else {
@@ -303,13 +303,13 @@ func TestDao_GetServices(t *testing.T) {
 	controlPlaneDao.AddService(*service, &unused)
 
 	var result []*dao.Service
-	err := controlPlaneDao.GetServices(dao.EntityRequest{}, &result)
+	err := controlPlaneDao.GetServices(new(dao.EntityRequest), &result)
 	if err == nil && len(result) == 1 {
 		//XXX the time.Time types fail comparison despite being equal...
 		//    as far as I can tell this is a limitation with Go
 		result[0].UpdatedAt = service.UpdatedAt
 		result[0].CreatedAt = service.CreatedAt
-		if *result[0] != *service {
+		if !result[0].Equals(service) {
 			t.Errorf("expected [%+v] actual=%+v", *service, result)
 			t.Fail()
 		}

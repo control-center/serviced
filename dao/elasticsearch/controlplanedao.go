@@ -980,6 +980,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
+	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = &sd.Endpoints
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
@@ -1192,7 +1193,6 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 		s.zookeepers = zookeepers
 	}
 
-	// TODO: quick fix for build 15, blocking QA
 	isvcs.ElasticSearchContainer.Run()
 
 	// ensure that a default pool exists
