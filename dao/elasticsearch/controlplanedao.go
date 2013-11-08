@@ -1192,8 +1192,8 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 		s.zookeepers = zookeepers
 	}
 
-	// TODO: quick fix for build 15, blocking QA
 	isvcs.ElasticSearchContainer.Run()
+	time.Sleep(time.Second * 5)
 
 	// ensure that a default pool exists
 	var pool dao.ResourcePool

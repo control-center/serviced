@@ -1,6 +1,6 @@
 # Memcached
 
-FROM ubuntu
+FROM ubuntu:12.04 
 
 MAINTAINER dev@zenoss.com
 

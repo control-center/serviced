@@ -1,4 +1,4 @@
-FROM mattdm/fedora
+FROM mattdm/fedora:f19
 RUN yum clean all
 RUN yum --exclude=systemd\* update -y
 RUN rpmdb --rebuilddb
