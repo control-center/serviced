@@ -711,11 +711,6 @@ func (this *ControlPlaneDao) UpdateServiceState(state dao.ServiceState, unused *
 	return this.zkDao.UpdateServiceState(&state)
 }
 
-func (this *ControlPlaneDao) AddServiceState(state *dao.ServiceState) error {
-	glog.V(2).Infoln("ControlPlaneDao.AddServiceState state=%+v", state)
-	return this.zkDao.AddServiceState(state)
-}
-
 func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error {
 	return dao.ControlPlaneError{"Unimplemented"}
 }
