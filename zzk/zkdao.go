@@ -25,6 +25,13 @@ type HostServiceState struct {
 }
 
 // Communicates to the agent that this service instance should stop
+func TerminateHostService(conn *zk.Conn, hostId string, serviceStateId string) error {
+	return loadAndUpdate(conn, hostId, serviceStateId, func(hss *HostServiceState) {
+		hss.DesiredState = dao.SVC_STOP
+	})
+}
+
+// Communicates to the agent that this service instance should stop
 func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
@@ -32,25 +39,7 @@ func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) er
 	}
 	defer conn.Close()
 
-	hostServiceStatePath := SCHEDULER_PATH + "/" + hostId + "/" + serviceStateId
-	hostStateNode, stats, err := conn.Get(hostServiceStatePath)
-	if err != nil {
-		// Should it really be an error if we can't find anything?
-		glog.Infof("Unable to find data at %s", hostServiceStatePath)
-		return err
-	}
-	var hostServiceState HostServiceState
-	err = json.Unmarshal(hostStateNode, &hostServiceState)
-	if err != nil {
-		return err
-	}
-	hostServiceState.DesiredState = dao.SVC_STOP
-	hssBytes, err := json.Marshal(hostServiceState)
-	if err != nil {
-		return err
-	}
-	_, err = conn.Set(hostServiceStatePath, hssBytes, stats.Version)
-	return err
+	return TerminateHostService(conn, hostId, serviceStateId)
 }
 
 func (this *ZkDao) AddService(service *dao.Service) error {
@@ -80,6 +69,10 @@ func (this *ZkDao) AddServiceState(state *dao.ServiceState) error {
 	}
 	defer conn.Close()
 
+	return AddServiceState(conn, state)
+}
+
+func AddServiceState(conn *zk.Conn, state *dao.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
 	ssBytes, err := json.Marshal(state)
 	if err != nil {
@@ -103,10 +96,7 @@ func (this *ZkDao) AddServiceState(state *dao.ServiceState) error {
 		return err
 	}
 	return err
-}
 
-func ssToHss(ss *dao.ServiceState) *HostServiceState {
-	return &HostServiceState{ss.HostId, ss.ServiceId, ss.Id, dao.SVC_RUN}
 }
 
 func (this *ZkDao) UpdateServiceState(state *dao.ServiceState) error {
@@ -178,6 +168,55 @@ func (this *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceI
 	return err
 }
 
+func (this *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	serviceStateIds, _, err := conn.Children(HostPath(hostId))
+	if err != nil {
+		glog.Errorf("Unable to acquire list of services")
+		return err
+	}
+
+	_ss := make([]*dao.RunningService, len(serviceStateIds))
+	for i, hssId := range serviceStateIds {
+
+		var hss HostServiceState
+		_, err = LoadHostServiceState(conn, hostId, hssId, &hss)
+		if err != nil {
+			return err
+		}
+
+		var s dao.Service
+		_, err = LoadService(conn, hss.ServiceId, &s)
+		if err != nil {
+			return err
+		}
+
+		var ss dao.ServiceState
+		_, err = LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss)
+		if err != nil {
+			return err
+		}
+		_ss[i] = sssToRs(&s, &ss)
+	}
+	*running = append(*running, _ss...)
+	return nil
+}
+
+func (this *ZkDao) GetRunningServicesForService(serviceId string, running *[]*dao.RunningService) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	return LoadRunningServices(conn, running, serviceId)
+}
+
 func (this *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
@@ -186,21 +225,34 @@ func (this *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
 	defer conn.Close()
 
 	serviceIds, _, err := conn.Children(SERVICE_PATH)
-	glog.Infof("Found %d services", len(serviceIds))
 	if err != nil {
 		glog.Errorf("Unable to acquire list of services")
 		return err
 	}
+	return LoadRunningServices(conn, running, serviceIds...)
+}
+
+func HostPath(hostId string) string {
+	return SCHEDULER_PATH + "/" + hostId
+}
+
+func ServicePath(serviceId string) string {
+	return SERVICE_PATH + "/" + serviceId
+}
+
+func ServiceStatePath(serviceId string, serviceStateId string) string {
+	return SERVICE_PATH + "/" + serviceId + "/" + serviceStateId
+}
+
+func HostServiceStatePath(hostId string, serviceStateId string) string {
+	return SCHEDULER_PATH + "/" + hostId + "/" + serviceStateId
+}
+
+func LoadRunningServices(conn *zk.Conn, running *[]*dao.RunningService, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
-		serviceNode, _, err := conn.Get(ServicePath(serviceId))
-		if err != nil {
-			glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
-			return err
-		}
 		var s dao.Service
-		err = json.Unmarshal(serviceNode, &s)
+		_, err := LoadService(conn, serviceId, &s)
 		if err != nil {
-			glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
 			return err
 		}
 
@@ -212,37 +264,92 @@ func (this *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
 
 		_ss := make([]*dao.RunningService, len(childNodes))
 		for i, childId := range childNodes {
-			childPath := servicePath + "/" + childId
-			ssNode, _, err := conn.Get(childPath)
-			if err != nil {
-				glog.Errorf("Got error for %s: %v", childId, err)
-				return err
-			}
 			var ss dao.ServiceState
-			err = json.Unmarshal(ssNode, &ss)
+			_, err = LoadServiceState(conn, serviceId, childId, &ss)
 			if err != nil {
-				glog.Errorf("Unable to unmarshal %s", childId)
 				return err
 			}
-			_ss[i] = &dao.RunningService{}
-			_ss[i].Id = ss.Id
-			_ss[i].ServiceId = ss.ServiceId
-			_ss[i].StartedAt = ss.Started
-			_ss[i].HostId = ss.HostId
-			_ss[i].Startup = s.Startup
-			_ss[i].Name = s.Name
-			_ss[i].Description = s.Description
-			_ss[i].Instances = s.Instances
-			_ss[i].PoolId = s.PoolId
-			_ss[i].ImageId = s.ImageId
-			_ss[i].DesiredState = s.DesiredState
-			_ss[i].ParentServiceId = s.ParentServiceId
+			_ss[i] = sssToRs(&s, &ss)
 
 		}
 		*running = append(*running, _ss...)
 	}
-	glog.Infof("Total running: %d", len(*running))
-	return err
+	return nil
+}
+
+func LoadHostServiceState(conn *zk.Conn, hostId string, hssId string, hss *HostServiceState) (*zk.Stat, error) {
+	hssPath := HostServiceStatePath(hostId, hssId)
+	hssBytes, hssStat, err := conn.Get(hssPath)
+	if err != nil {
+		glog.Errorf("Unable to retrieve host service state %s: %v", hssPath, err)
+		return nil, err
+	}
+
+	err = json.Unmarshal(hssBytes, &hss)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s", hssPath)
+		return nil, err
+	}
+	return hssStat, nil
+}
+
+func LoadHostServiceStateW(conn *zk.Conn, hostId string, hssId string, hss *HostServiceState) (*zk.Stat, <-chan zk.Event, error) {
+	hssPath := HostServiceStatePath(hostId, hssId)
+	hssBytes, hssStat, event, err := conn.GetW(hssPath)
+	if err != nil {
+		glog.Errorf("Unable to retrieve host service state %s: %v", hssPath, err)
+		return nil, nil, err
+	}
+
+	err = json.Unmarshal(hssBytes, &hss)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s", hssPath)
+		return nil, nil, err
+	}
+	return hssStat, event, nil
+}
+
+func LoadService(conn *zk.Conn, serviceId string, s *dao.Service) (*zk.Stat, error) {
+	sBytes, ssStat, err := conn.Get(ServicePath(serviceId))
+	if err != nil {
+		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
+		return nil, err
+	}
+	err = json.Unmarshal(sBytes, &s)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
+		return nil, err
+	}
+	return ssStat, nil
+}
+
+func LoadServiceW(conn *zk.Conn, serviceId string, s *dao.Service) (*zk.Stat, <-chan zk.Event, error) {
+	sBytes, ssStat, event, err := conn.GetW(ServicePath(serviceId))
+	if err != nil {
+		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
+		return nil, nil, err
+	}
+	err = json.Unmarshal(sBytes, &s)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
+		return nil, nil, err
+	}
+	return ssStat, event, nil
+}
+
+func LoadServiceState(conn *zk.Conn, serviceId string, serviceStateId string, ss *dao.ServiceState) (*zk.Stat, error) {
+	ssPath := ServiceStatePath(serviceId, serviceStateId)
+	ssBytes, ssStat, err := conn.Get(ssPath)
+	if err != nil {
+		glog.Errorf("Got error for %s: %v", ssPath, err)
+		return nil, err
+	}
+	err = json.Unmarshal(ssBytes, &ss)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s", ssPath)
+		return nil, err
+	}
+	return ssStat, nil
 }
 
 func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.ServiceState) error {
@@ -271,18 +378,58 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 	return err
 }
 
-func HostPath(hostId string) string {
-	return SCHEDULER_PATH + "/" + hostId
+type hssMutator func(*HostServiceState)
+
+func loadAndUpdate(conn *zk.Conn, hostId string, hssId string, mutator hssMutator) error {
+	hssPath := HostServiceStatePath(hostId, hssId)
+	var hss HostServiceState
+
+	hostStateNode, stats, err := conn.Get(hssPath)
+	if err != nil {
+		// Should it really be an error if we can't find anything?
+		glog.Errorf("Unable to find data %s: %v", hssPath, err)
+		return err
+	}
+	err = json.Unmarshal(hostStateNode, &hss)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s: %v", hssPath, err)
+		return err
+	}
+
+	mutator(&hss)
+	hssBytes, err := json.Marshal(hss)
+	if err != nil {
+		glog.Errorf("Unable to marshal %s: %v", hssPath, err)
+		return err
+	}
+	_, err = conn.Set(hssPath, hssBytes, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to update %s: %v", hssPath, err)
+		return err
+	}
+	return nil
 }
 
-func ServicePath(serviceId string) string {
-	return SERVICE_PATH + "/" + serviceId
+// ServiceState to HostServiceState
+func ssToHss(ss *dao.ServiceState) *HostServiceState {
+	return &HostServiceState{ss.HostId, ss.ServiceId, ss.Id, dao.SVC_RUN}
 }
 
-func ServiceStatePath(serviceId string, serviceStateId string) string {
-	return SERVICE_PATH + "/" + serviceId + "/" + serviceStateId
-}
-
-func HostServiceStatePath(hostId string, serviceStateId string) string {
-	return SCHEDULER_PATH + "/" + hostId + "/" + serviceStateId
+// Service & ServiceState to RunningService
+func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
+	rs := &dao.RunningService{}
+	rs.Id = ss.Id
+	rs.ServiceId = ss.ServiceId
+	rs.StartedAt = ss.Started
+	rs.HostId = ss.HostId
+	rs.DockerId = ss.DockerId
+	rs.Startup = s.Startup
+	rs.Name = s.Name
+	rs.Description = s.Description
+	rs.Instances = s.Instances
+	rs.PoolId = s.PoolId
+	rs.ImageId = s.ImageId
+	rs.DesiredState = s.DesiredState
+	rs.ParentServiceId = s.ParentServiceId
+	return rs
 }

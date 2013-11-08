@@ -79,10 +79,6 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
-func (s *ControlClient) GetServicesForHost(hostId string, servicesForHost *[]*dao.Service) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServicesForHost", hostId, servicesForHost)
-}
-
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }

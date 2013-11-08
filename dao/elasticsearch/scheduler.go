@@ -16,10 +16,10 @@ type scheduler struct {
 	closing      chan chan error // Sending a value on this channel notifies the schduler to shut down
 	shutdown     chan error      // A error is placed on this channel when the scheduler shuts down
 	started      bool            // is the loop running
-	zkleaderFunc func(<-chan zk.Event)
+	zkleaderFunc func(*zk.Conn, <-chan zk.Event)
 }
 
-func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func(<-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
+func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func(*zk.Conn, <-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
 		conn:         conn,
 		cluster_path: cluster_path,
@@ -119,7 +119,7 @@ func (s *scheduler) loop() {
 			if !exists {
 				continue
 			}
-			s.zkleaderFunc(event)
+			s.zkleaderFunc(s.conn, event)
 			return
 		} else {
 			glog.Infof("I must wait for %s to die.", children[0])
