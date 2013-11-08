@@ -79,16 +79,12 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
-func (s *ControlClient) GetServicesForHost(hostId string, servicesForHost *[]*dao.Service) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServicesForHost", hostId, servicesForHost)
-}
-
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }
 
-func (s *ControlClient) GetServiceStateLogs(serviceStateId string, logs *string) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", serviceStateId, logs)
+func (s *ControlClient) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", request, logs)
 }
 
 func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) (err error) {
@@ -99,8 +95,8 @@ func (s *ControlClient) GetRunningServicesForService(serviceId string, runningSe
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
 }
 
-func (s *ControlClient) StopRunningInstance(serviceStateId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.StopRunningInstance", serviceStateId, unused)
+func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StopRunningInstance", request, unused)
 }
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {

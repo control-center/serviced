@@ -1,4 +1,4 @@
-package elasticsearch
+package zzk
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
@@ -7,6 +7,9 @@ import (
 	"bytes"
 	"time"
 )
+
+const SERVICE_PATH = "/services"
+const SCHEDULER_PATH = "/scheduler"
 
 func TimeoutAfter(delay time.Duration) <-chan bool {
 	doneChan := make(chan bool)
@@ -17,7 +20,7 @@ func TimeoutAfter(delay time.Duration) <-chan bool {
 	return doneChan
 }
 
-func deleteNodebyData(path string, conn *zk.Conn, data []byte) error {
+func DeleteNodebyData(path string, conn *zk.Conn, data []byte) error {
 
 	children, _, err := conn.Children(path)
 	if err != nil {
@@ -45,7 +48,7 @@ func deleteNodebyData(path string, conn *zk.Conn, data []byte) error {
 	return nil
 }
 
-func createNode(path string, conn *zk.Conn) error {
+func CreateNode(path string, conn *zk.Conn) error {
 	var err error
 	for i := 0; i < 5; i++ {
 		_, err = conn.Create(path, []byte{}, 0, zk.WorldACL(zk.PermAll))

@@ -187,6 +187,8 @@ type ServiceTemplateDeploymentRequest struct {
 type RunningService struct {
 	Id              string
 	ServiceId       string
+	HostId          string
+	DockerId        string
 	StartedAt       time.Time
 	Name            string
 	Startup         string

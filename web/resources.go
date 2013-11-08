@@ -7,46 +7,14 @@ import (
 	"github.com/zenoss/serviced/dao"
 
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 )
 
 var empty interface{}
 
-type ServiceConfig struct {
-	AgentPort   string
-	MasterPort  string
-	DbString    string
-	MuxPort     int
-	Tls         bool
-	KeyPEMFile  string
-	CertPEMFile string
-	Zookeepers  []string
-}
-
 type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient)
-
-var started bool
-var configuration ServiceConfig
-
-func AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
-	return func(w *rest.ResponseWriter, r *rest.Request) {
-		if !LoginOk(r) {
-			RestUnauthorized(w)
-			return
-		}
-		client, err := getClient()
-		if err != nil {
-			glog.Errorf("Unable to acquire client: %v", err)
-			RestServerError(w)
-			return
-		}
-		defer client.Close()
-		realfunc(w, r, client)
-	}
-}
 
 func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var unused int
@@ -295,13 +263,20 @@ func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *clientli
 
 func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
-	glog.Infof("Received request to kill %s", serviceStateId)
 	if err != nil {
 		RestBadRequest(w)
 		return
 	}
+	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	request := dao.HostServiceRequest{hostId, serviceStateId}
+	glog.Infof("Received request to kill %s", request)
+
 	var unused int
-	err = client.StopRunningInstance(serviceStateId, &unused)
+	err = client.StopRunningInstance(request, &unused)
 	if err != nil {
 		glog.Errorf("Unable to stop service: %v", err)
 		RestServerError(w)
@@ -550,46 +525,18 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *cl
 		RestBadRequest(w)
 		return
 	}
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	request := dao.ServiceStateRequest{serviceId, serviceStateId}
+
 	var logs string
-	err = client.GetServiceStateLogs(serviceStateId, &logs)
+	err = client.GetServiceStateLogs(request, &logs)
 	if err != nil {
 		glog.Errorf("Unexpected error getting logs: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{logs, servicesLink()})
-}
-
-func init() {
-	configuration = ServiceConfig{}
-	configDefaults(&configuration)
-}
-
-func configDefaults(cfg *ServiceConfig) {
-	if len(cfg.AgentPort) == 0 {
-		cfg.AgentPort = "127.0.0.1:4979"
-	}
-	if len(cfg.MasterPort) == 0 {
-		cfg.MasterPort = ":4979"
-	}
-	if cfg.MuxPort == 0 {
-		cfg.MuxPort = 22250
-	}
-	conStr := os.Getenv("CP_PROD_DB")
-	if len(conStr) == 0 {
-		conStr = "mysql://root@127.0.0.1:3306/cp"
-	} else {
-		glog.Infoln("Using connection string from env var CP_PROD_DB")
-	}
-	if len(cfg.DbString) == 0 {
-		cfg.DbString = conStr
-	}
-}
-
-func getClient() (c *clientlib.ControlClient, err error) {
-	// setup the client
-	c, err = clientlib.NewControlClient(configuration.AgentPort)
-	if err != nil {
-		glog.Fatalf("Could not create a control plane client: %v", err)
-	}
-	return c, err
 }
