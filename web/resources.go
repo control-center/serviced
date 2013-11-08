@@ -155,13 +155,34 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 	w.WriteJson(&hosts)
 }
 
-func getTaggedServices(client *clientlib.ControlClient, tags string) ([]*dao.Service, error) {
+func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
+	r, err := regexp.Compile(nmregex)
+	if err != nil {
+		glog.Errorf("Bad name regexp :%s", nmregex)
+		return nil, err
+	}
+
+	matches := []*dao.Service{}
+	for _, service := range services {
+		if r.MatchString(service.Name) {
+			matches = append(matches, service)
+		}
+	}
+
+	return matches, nil
+}
+
+func getTaggedServices(client *clientlib.ControlClient, tags, nmregex string) ([]*dao.Service, error) {
 	services := []*dao.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
 	if err := client.GetTaggedServices(&ts, &services); err != nil {
 		glog.Errorf("Could not get tagged services: %v", err)
 		return nil, err
+	}
+
+	if nmregex != "" {
+		return filterByNameRegex(nmregex, services)
 	}
 
 	return services, nil
@@ -174,19 +195,7 @@ func getNamedServices(client *clientlib.ControlClient, nmregex string) ([]*dao.S
 		return nil, err
 	}
 
-	r, err := regexp.Compile(nmregex)
-	if err != nil {
-		glog.Errorf("Bad name regexp :%s", nmregex)
-		return nil, err
-	}
-	matches := []*dao.Service{}
-	for _, service := range services {
-		if r.MatchString(service.Name) {
-			matches = append(matches, service)
-		}
-	}
-
-	return matches, nil
+	return filterByNameRegex(nmregex, services)
 }
 
 func getServices(client *clientlib.ControlClient) ([]*dao.Service, error) {
@@ -201,7 +210,8 @@ func getServices(client *clientlib.ControlClient) ([]*dao.Service, error) {
 
 func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	if tags := r.URL.Query().Get("tags"); tags != "" {
-		result, err := getTaggedServices(client, tags)
+		nmregex := r.URL.Query().Get("name")
+		result, err := getTaggedServices(client, tags, nmregex)
 		if err != nil {
 			RestServerError(w)
 			return
