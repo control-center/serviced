@@ -18,7 +18,6 @@ build:
 	go get github.com/mattbaird/elastigo
 	go build
 	cd client && make
-	cd svc && make 
 	cd agent && make
 	cd web && make
 	cd proxy && make
