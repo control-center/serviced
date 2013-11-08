@@ -13,7 +13,7 @@ func init() {
 	// Test definition should match on disk (filesystem based) definition
 	testSvc = &ServiceDefinition{
 		Name:        "testsvc",
-		Description: "Top level service. Nothing to see here.",
+		Description: "Top level service. This directory is part of a unit test.",
 		Services: []ServiceDefinition{
 			ServiceDefinition{
 				Name:    "s1",
