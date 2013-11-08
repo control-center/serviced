@@ -216,7 +216,8 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 	}
 	serviceState.Started = time.Now()
 	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
-	serviceState.PortMapping = containerState.NetworkSettings.PortMapping
+	serviceState.PortMapping = containerState.NetworkSettings.Ports
+	glog.Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(service.Id, serviceState.Id), serviceState.PortMapping)
 	ssBytes, err := json.Marshal(serviceState)
 	if err != nil {
 		return err
@@ -224,6 +225,9 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 
 	ssPath := zzk.ServiceStatePath(service.Id, serviceState.Id)
 	_, err = conn.Set(ssPath, ssBytes, ssStats.Version)
+	if err != nil {
+		glog.Errorf("Unable to save updated service state: %v", err)
+	}
 	return err
 }
 

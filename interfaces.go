@@ -72,12 +72,14 @@ type ContainerState struct {
 		Gateway     string
 		Bridge      string
 		PortMapping map[string]map[string]string
+		Ports       map[string][]dao.HostIpAndPort
 	}
 	SysInitPath    string
 	ResolvConfPath string
 	Volumes        map[string]string
 	VolumesRW      map[string]bool
 }
+
 
 // The API for a service proxy.
 type LoadBalancer interface {
