@@ -1193,7 +1193,6 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	}
 
 	isvcs.ElasticSearchContainer.Run()
-	time.Sleep(time.Second * 5)
 
 	// ensure that a default pool exists
 	var pool dao.ResourcePool

@@ -1,6 +1,10 @@
 package isvcs
 
-var ElasticSearchContainer ISvc
+import (
+	"fmt"
+	"net/http"
+	"time"
+)
 
 const es_dockerfile = `
 FROM ubuntu
@@ -23,11 +27,40 @@ ENTRYPOINT ["/opt/elasticsearch-0.90.5/bin/elasticsearch"]
 CMD ["-f"]
 `
 
+type ElasticSearchISvc struct {
+	ISvc
+}
+
+var ElasticSearchContainer ElasticSearchISvc
+
 func init() {
-	ElasticSearchContainer = ISvc{
-		Name:       "elasticsearch",
-		Dockerfile: es_dockerfile,
-		Tag:        "zenoss/es",
-		Ports:      []int{9200},
+	ElasticSearchContainer = ElasticSearchISvc{
+		ISvc{
+			Name:       "elasticsearch",
+			Dockerfile: es_dockerfile,
+			Tag:        "zenoss/es",
+			Ports:      []int{9200},
+		},
 	}
+}
+
+func (c *ElasticSearchISvc) Run() error {
+	err := c.ISvc.Run()
+	if err != nil {
+		return err
+	}
+
+	start := time.Now()
+	timeout := time.Second * 30
+	for {
+		_, err = http.Get("http://localhost:9200/")
+		if err == nil {
+			break
+		}
+		if time.Since(start) > timeout {
+			return fmt.Errorf("Could not startup elastic search container.")
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
+	return nil
 }
