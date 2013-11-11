@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
-docker ps | tail -n +2 | awk '{ print $1 }' | xargs docker kill 
-docker ps -a | tail -n +2 | awk '{ print $1 }' | xargs docker rm
-docker images | tail -n +2 | awk '{ print $1 }' | xargs docker rmi
+
+containers=`docker ps -q`
+if [[ -n "$containers" ]]; then
+	docker kill $containers
+fi
+containers=`docker ps -a -q`
+if [[ -n "$containers" ]]; then
+	docker rm `docker ps -a -q`
+fi
+containers=`docker images -q`
+if [[ -n "$containers" ]]; then
+	docker rmi `docker images -q`
+fi
 
