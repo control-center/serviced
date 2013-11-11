@@ -148,12 +148,17 @@ func (this *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId str
 		return err
 	}
 	defer conn.Close()
+	return GetServiceState(conn, serviceState, serviceId, serviceStateId)
+}
+
+func GetServiceState(conn *zk.Conn, serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
 	serviceStateNode, _, err := conn.Get(ServiceStatePath(serviceId, serviceStateId))
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(serviceStateNode, serviceState)
 }
+
 
 func (this *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
@@ -162,11 +167,19 @@ func (this *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceI
 	}
 	defer conn.Close()
 
-	for _, serviceId := range serviceIds {
-		appendServiceStates(conn, serviceId, serviceStates)
-	}
-	return err
+	return GetServiceStates(conn, serviceStates, serviceIds...)
 }
+
+func GetServiceStates(conn *zk.Conn, serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
+	for _, serviceId := range serviceIds {
+		err := appendServiceStates(conn, serviceId, serviceStates)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 
 func (this *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
@@ -375,7 +388,7 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 		_ss[i] = &serviceState
 	}
 	*serviceStates = append(*serviceStates, _ss...)
-	return err
+	return nil
 }
 
 type hssMutator func(*HostServiceState)

@@ -1,32 +1,38 @@
-package elasticsearch
+package scheduler
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/scheduler/rsched"
 	"github.com/zenoss/serviced/zzk"
 
 	"sort"
 	"time"
 )
 
+type leaderFunc func(dao.ControlPlane, *zk.Conn, <-chan zk.Event)
+
 type scheduler struct {
 	conn         *zk.Conn        // the zookeeper connection
+	cpDao        dao.ControlPlane // ControlPlane interface
 	cluster_path string          // path to the cluster node
 	instance_id  string          // unique id for this node instance
 	closing      chan chan error // Sending a value on this channel notifies the schduler to shut down
 	shutdown     chan error      // A error is placed on this channel when the scheduler shuts down
 	started      bool            // is the loop running
-	zkleaderFunc func(*zk.Conn, <-chan zk.Event)
+	zkleaderFunc leaderFunc      // multiple implementations of leader function possible
 }
 
-func newScheduler(cluster_path string, conn *zk.Conn, instance_id string, zkleaderFunc func(*zk.Conn, <-chan zk.Event)) (s *scheduler, shutdown <-chan error) {
+func NewScheduler(cluster_path string, conn *zk.Conn, instance_id string, cpDao dao.ControlPlane) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
 		conn:         conn,
+		cpDao:        cpDao,
 		cluster_path: cluster_path,
 		instance_id:  instance_id,
 		closing:      make(chan chan error),
 		shutdown:     make(chan error, 1),
-		zkleaderFunc: zkleaderFunc,
+		zkleaderFunc: rsched.Lead, // random scheduler implementation
 	}
 	return s, s.shutdown
 }
@@ -119,7 +125,7 @@ func (s *scheduler) loop() {
 			if !exists {
 				continue
 			}
-			s.zkleaderFunc(s.conn, event)
+			s.zkleaderFunc(s.cpDao, s.conn, event)
 			return
 		} else {
 			glog.Infof("I must wait for %s to die.", children[0])
@@ -135,7 +141,7 @@ func (s *scheduler) loop() {
 				continue
 			}
 			select {
-			case <- zzk.TimeoutAfter(time.Second * 30):
+			case <-zzk.TimeoutAfter(time.Second * 30):
 				glog.Info("I've been listening. I'm going to reinit")
 				continue
 			case errc := <-s.closing:
