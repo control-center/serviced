@@ -33,7 +33,7 @@ func validateLogin(creds *Login) bool {
 	var cpass *C.char = C.CString(creds.Password)
 	defer C.free(unsafe.Pointer(cpass))
 	auth_res := C.authenticate(cprog, cuser, cpass)
-	glog.Infof("PAM result for %s was %d", creds.Username, auth_res)
+	glog.V(1).Infof("PAM result for %s was %d", creds.Username, auth_res)
 	if auth_res != 0 && currentUser.Username != creds.Username && currentUser.Uid != "0" {
 		glog.Errorf("This process must run as root to authenticate users other than %s", currentUser.Username)
 	}

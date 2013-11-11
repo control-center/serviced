@@ -134,7 +134,7 @@ func (p *Proxy) listenAndProxy() {
 			}
 			i += 1
 			// round robin connections to list of addresses
-			glog.Infof("choosing address from %v", p.addresses)
+			glog.V(1).Infof("choosing address from %v", p.addresses)
 			go p.proxy(conn, p.addresses[i%len(p.addresses)])
 		case p.addresses = <-p.newAddresses:
 		case errc := <-p.closing:
@@ -166,7 +166,7 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 
 	var remote net.Conn
 
-	glog.Info("Abount to dial: %s", remoteAddr)
+	glog.V(0).Info("Abount to dial: %s", remoteAddr)
 	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", remoteAddr, &config)

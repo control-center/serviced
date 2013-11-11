@@ -30,6 +30,14 @@ import (
 	"time"
 )
 
+/*
+ glog levels:
+ 0: important info that should always be shown
+ 1: info that might be important for debugging
+ 2: very verbose debug info
+ 3: trace level info
+*/
+
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string               // the connection string to the master agent
@@ -55,7 +63,9 @@ func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (agent *
 	agent.currentServices = make(map[string]*exec.Cmd)
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
-		agent.zookeepers = []string{"127.0.0.1:2181"}
+		defaultZK := "127.0.0.1:2181"
+		glog.V(1).Infoln("Zookeepers not specified: using default of %s", defaultZK)
+		agent.zookeepers = []string{ defaultZK }
 	}
 
 	if agent.mux.Enabled {
@@ -70,22 +80,25 @@ func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (agent *
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *dao.Service) error {
 	if len(s.Context) == 0 {
+		glog.V(1).Infoln("Context was empty")
 		return nil
 	}
 
-	glog.Infof("Context: %s", s.Context)
+	glog.V(2).Infof("Context string: %s", s.Context)
 	var ctx map[string]interface{}
 	if err := json.Unmarshal([]byte(s.Context), &ctx); err != nil {
 		return err
 	}
 
-	glog.Infof("Context: %+v", ctx)
+	glog.V(2).Infof("Context unmarshalled: %+v", ctx)
+
 	t := template.Must(template.New(s.Name).Parse(s.Startup))
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, ctx); err != nil {
 		return err
 	}
 	s.Startup = buf.String()
+	glog.V(2).Infof("injectContext set startup to '%s'", s.Startup)
 
 	return nil
 }
@@ -97,13 +110,15 @@ func (a *HostAgent) updateCurrentState(conn *zk.Conn, ssStats *zk.Stat, hssStats
 
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerId)
+	glog.V(3).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerId, containerState)
+
 	switch {
 	case err == nil && containerState.State.Running && hss.DesiredState == dao.SVC_STOP:
-		glog.Infof("Host service state should stop: %s", service.Name)
+		glog.V(1).Infof("Host service state should stop: %s", service.Name)
 		a.terminateInstance(conn, ssStats, hssStats, service, serviceState, hss)
 		return true, nil
 	case err == nil && !containerState.State.Running:
-		glog.Infof("Container does not appear to be running: %s", service.Name)
+		glog.V(1).Infof("Container does not appear to be running: %s", service.Name)
 		markTerminated(conn, ssStats, hssStats, service, serviceState, hss)
 		return true, nil
 	case err != nil && strings.HasPrefix(err.Error(), "no container"):
@@ -118,13 +133,13 @@ func markTerminated(conn *zk.Conn, ssStats *zk.Stat, hssStats *zk.Stat, service 
 	ssPath := zzk.ServiceStatePath(service.Id, serviceState.Id)
 	err := conn.Delete(ssPath, ssStats.Version)
 	if err != nil {
-		glog.Warningf("Unable to delete service state %s", ssPath)
+		glog.V(0).Infof("Unable to delete service state %s", ssPath)
 		// Nevermind... Keep going
 	}
 	hssPath := zzk.HostServiceStatePath(hss.HostId, serviceState.Id)
 	err = conn.Delete(hssPath, hssStats.Version)
 	if err != nil {
-		glog.Warningf("Unable to delete host service state %s", hssPath)
+		glog.V(0).Infof("Unable to delete host service state %s", hssPath)
 	}
 }
 
@@ -141,6 +156,7 @@ func (a *HostAgent) terminateInstance(conn *zk.Conn, ssStats *zk.Stat, hssStats 
 func (a *HostAgent) dockerTerminate(dockerId string) error {
 	// get docker status
 	cmd := exec.Command("docker", "kill", dockerId)
+	glog.V(1).Infof("dockerTerminate: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
 		glog.Errorf("problem killing container instance %s", dockerId)
@@ -173,10 +189,10 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (err error) {
-	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
 	portOps := ""
 	if service.Endpoints != nil {
-		glog.Infof("Endpoints for service: %v", service.Endpoints)
+		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
 		for _, endpoint := range *service.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
@@ -199,7 +215,7 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
 
-	glog.Infof("Starting: %s", cmdString)
+	glog.V(0).Infof("Starting: %s", cmdString)
 
 	cmd := exec.Command("bash", "-c", cmdString)
 	output, err := cmd.Output()
@@ -217,7 +233,7 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 	serviceState.Started = time.Now()
 	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
 	serviceState.PortMapping = containerState.NetworkSettings.Ports
-	glog.Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(service.Id, serviceState.Id), serviceState.PortMapping)
+	glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(service.Id, serviceState.Id), serviceState.PortMapping)
 	ssBytes, err := json.Marshal(serviceState)
 	if err != nil {
 		return err
@@ -233,13 +249,13 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
-	glog.Infoln("Starting HostAgent")
+	glog.V(1).Info("Starting HostAgent")
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
 			conn, _, err := zk.Connect(a.zookeepers, time.Second*10)
 			if err != nil {
-				glog.Info("Unable to connect, retrying.")
+				glog.V(0).Info("Unable to connect, retrying.")
 				time.Sleep(time.Second * 3)
 				return
 			}
@@ -248,7 +264,7 @@ func (a *HostAgent) start() {
 			zzk.CreateNode(zzk.SCHEDULER_PATH, conn)
 			node_path := zzk.HostPath(a.hostId)
 			zzk.CreateNode(node_path, conn)
-			glog.Infof("Connected to node %s", node_path)
+			glog.V(0).Infof("Connected to zookeeper node %s", node_path)
 			a.processChildrenAndWait(conn)
 		}()
 	}
@@ -261,7 +277,9 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 	// When this function exits, ensure that any started goroutines get
 	// a signal to shutdown
 	defer func() {
-		for _, shutdown := range processing {
+		glog.V(0).Info("Agent shutting down child goroutines.")
+		for key, shutdown := range processing {
+			glog.V(1).Infof("Agent signaling for %s to shutdown.", key)
 			shutdown <- 1
 		}
 	}()
@@ -271,14 +289,15 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 		hostPath := zzk.HostPath(a.hostId)
 		children, _, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
-			glog.Info("Unable to read children, retrying.")
+			glog.V(0).Infoln("Unable to read children, retrying.")
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		glog.Infof("Agent for %s processing %d children", a.hostId, len(children))
+		glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
 
 		for _, childName := range children {
 			if processing[childName] == nil {
+				glog.V(2).Info("Agent starting goroutine to watch ", childName)
 				childChannel := make(chan int)
 				processing[childName] = childChannel
 				go a.processServiceState(conn, childChannel, ssDone, childName)
@@ -287,20 +306,23 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 
 		select {
 		case evt := <-zkEvent:
-			glog.Infof("Agent event: %v", evt)
+			glog.V(1).Info("Agent event: ", evt)
 		case ssId := <-ssDone:
-			glog.Infof("Agent cleaning up for service state %s", ssId)
+			glog.V(1).Info("Agent cleaning up for service state ", ssId)
 			delete(processing, ssId)
 		}
 	}
 }
 
 func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- string, ssId string) {
-	defer func() { done <- ssId }()
+	defer func() {
+		glog.V(3).Info("Exiting function processServiceState ", ssId)
+		done <- ssId 
+	}()
 	failures := 0
 	for {
 		if failures >= 10 {
-			glog.Errorf("Gave up trying to process %s", ssId)
+			glog.V(0).Infof("Gave up trying to process %s", ssId)
 			return
 		}
 
@@ -332,11 +354,11 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		var service dao.Service
 		_, err = zzk.LoadService(conn, ss.ServiceId, &service)
 		if err != nil {
-			glog.Infof("Host service state unable to load service %s", ss.ServiceId)
+			glog.Errorf("Host service state unable to load service %s", ss.ServiceId)
 			return
 		}
 
-		glog.Infof("Processing %s, desired state: %d", service.Name, hss.DesiredState)
+		glog.V(1).Infof("Processing %s, desired state: %d", service.Name, hss.DesiredState)
 		var term bool
 		switch {
 
@@ -348,14 +370,14 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		case ss.Started.Year() > 1 && ss.Terminated.Year() <= 1:
 			term, err = a.updateCurrentState(conn, ssStats, hssStats, &service, &ss, &hss)
 			if term {
-				glog.Infof("Service %s not running, quitting", service.Name)
+				glog.V(1).Infof("Service %s not running, quitting", service.Name)
 				// If we marked the state as terminated, quit watching this node
 				return
 			}
 
 		// This node is marked for death
 		case hss.DesiredState == dao.SVC_STOP:
-			glog.Info("Service %s was marked for death, quitting", service.Name)
+			glog.V(1).Infof("Service %s was marked for death, quitting", service.Name)
 			err = a.terminateInstance(conn, ssStats, hssStats, &service, &ss, &hss)
 			return
 		}
@@ -366,6 +388,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			failures += 1
 			continue
 		} else {
+			glog.V(3).Infoln("Successfully process state for %s", service.Name)
 			failures = 0
 		}
 
@@ -373,15 +396,15 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 
 		case evt := <-zkEvent:
 			if evt.Type == zk.EventNodeDeleted {
-				glog.Infof("Shutting down due to node delete %s", ssId)
+				glog.V(0).Info("Host service state deleted: ", ssId)
 				err = a.terminateInstance(conn, ssStats, hssStats, &service, &ss, &hss)
 				return
 			}
-			glog.Infof("Host service state %s received event %v", ssId, evt)
+			glog.V(1).Infof("Host service state %s received event %v", ssId, evt)
 			continue
 
 		case <-shutdown:
-			glog.Info("Shutting down")
+			glog.V(0).Info("Agent goroutine will stop watching ", ssId)
 			return
 		}
 	}
