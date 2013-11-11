@@ -39,6 +39,7 @@ var options struct {
 	tls               bool
 	keyPEMFile        string
 	certPEMFile       string
+  resourcePath      string
 	zookeepers        ListOpts
 }
 
@@ -50,6 +51,7 @@ func init() {
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
+	flag.StringVar(&options.resourcePath, "resourcePath", ".", "path to bind-mount and create service volumes")
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
@@ -93,7 +95,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, mux)
+		agent, err := agent.NewHostAgent(options.port, options.resourcePath, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

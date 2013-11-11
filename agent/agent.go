@@ -18,6 +18,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
 
+  "os"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -32,6 +33,7 @@ import (
 type HostAgent struct {
 	master          string               // the connection string to the master agent
 	hostId          string               // the hostID of the current host
+  resourcePath    string               // directory to bind mount docker volumes
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             proxy.TCPMux
 }
@@ -40,10 +42,11 @@ type HostAgent struct {
 var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string, mux proxy.TCPMux) (agent *HostAgent, err error) {
+func NewHostAgent(master, resourcePath string, mux proxy.TCPMux) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
 	agent.mux = mux
+  agent.resourcePath = resourcePath
 	hostId, err := serviced.HostId()
 	if err != nil {
 		panic("Could not get hostid")
@@ -160,6 +163,19 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *d
 		}
 	}
 
+  volumeOpts := ""
+  for _, volume:= range service.Volumes {
+    fileMode := os.FileMode( volume.Permission)
+    resourcePath := a.resourcePath + "/" + volume.ResourcePath
+    err := serviced.CreateDirectory( resourcePath, volume.Owner, fileMode)
+    if err == nil {
+      volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
+    } else {
+      glog.Errorf("Error creating resource path: %v", err)
+      return err
+    }
+  }
+
 	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
@@ -174,7 +190,7 @@ func (a *HostAgent) startService(controlClient *client.ControlClient, service *d
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 
-	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s %s", portOps, volumeBinding, volumeOpts, service.ImageId, proxyCmd)
 
 	glog.Infof("Starting: %s", cmdString)
 

@@ -102,6 +102,7 @@ type Service struct {
 	Launch          string
 	Endpoints       *[]ServiceEndpoint
 	ParentServiceId string
+	Volumes         []Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -122,6 +123,29 @@ type ServiceExport struct {
 	External    string //external port number
 }
 
+// volume export defines a file system directory to logically organize volume imports
+type VolumeExport struct {
+	Name       string //Name of volume to export
+	Path       string //Resource Pool Path
+}
+
+// volume import defines a file system directory underneath an export directory
+type VolumeImport struct {
+	Name          string //Name of volume to import
+	Owner         string //Path Owner
+	Permission    uint32 //Path Umask
+	ResourcePath  string //Path under exported path
+	ContainerPath string //Container bind-mount path
+}
+
+// volume import defines a file system directory underneath an export directory
+type Volume struct {
+	Owner         string //Resource Path Owner
+	Permission    uint32 //Resource Path Umask
+	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
+	ContainerPath string //Container bind-mount path
+}
+
 // An instantiation of a Service.
 type ServiceState struct {
 	Id          string
@@ -138,16 +162,18 @@ type ServiceState struct {
 }
 
 type ServiceDefinition struct {
-	Name        string                 // Name of the defined service
-	Command     string                 // Command which runs the service
-	Description string                 // Description of the service
-	Tags        []string               // Searchable service tags
-	ImageId     string                 // Docker image hosting the service
-	Instances   MinMax                 // Constraints on the number of instances
-	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
-	Context     map[string]interface{} // Context information for the service
-	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
-	Services    []ServiceDefinition    // Supporting subservices
+	Name          string                 // Name of the defined service
+	Command       string                 // Command which runs the service
+	Description   string                 // Description of the service
+	Tags          []string               // Searchable service tags
+	ImageId       string                 // Docker image hosting the service
+	Instances     MinMax                 // Constraints on the number of instances
+	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	Context       map[string]interface{} // Context information for the service
+	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
+	Services      []ServiceDefinition    // Supporting subservices
+	VolumeExports []VolumeExport
+	VolumeImports []VolumeImport
 }
 
 type ServiceDeployment struct {
