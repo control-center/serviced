@@ -466,6 +466,9 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 //
 func (this *ControlPlaneDao) GetResourcePool(id string, pool *dao.ResourcePool) error {
 	glog.V(2).Infof("ControlPlaneDao.GetResourcePool: id=%s", id)
+	if len(id) == 0 {
+		return errors.New("Must specify a pool ID")
+	}
 	request := dao.ResourcePool{}
 	err := getResourcePool(id, &request)
 	glog.V(2).Infof("ControlPlaneDao.GetResourcePool: id=%s, resourcepool=%+v, err=%s", id, request, err)
