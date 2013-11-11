@@ -1,10 +1,17 @@
 package dao
 
 import (
+	"github.com/zenoss/glog"
+
 	"fmt"
 	"strconv"
 	"time"
 )
+
+type HostIpAndPort struct {
+	HostIp   string
+	HostPort string
+}
 
 type MinMax struct {
 	Min int
@@ -135,7 +142,7 @@ type ServiceState struct {
 	Scheduled   time.Time
 	Terminated  time.Time
 	Started     time.Time
-	PortMapping map[string]map[string]string // protocol -> container port (internal) -> host port (external)
+	PortMapping map[string][]HostIpAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []ServiceEndpoint
 	HostIp      string
 }
@@ -250,19 +257,25 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
 	for _, ep := range ss.Endpoints {
 		if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
-			if protocol == "tcp" {
-				protocol = "Tcp"
-			} else if protocol == "udp" {
-				protocol = "Udp"
+			if protocol == "Tcp" {
+				protocol = "tcp"
+			} else if protocol == "Udp" {
+				protocol = "udp"
 			}
 
-			portS := fmt.Sprintf("%d", port)
-			externalS := ss.PortMapping[protocol][portS]
-			external, err := strconv.Atoi(externalS)
-			if err == nil {
-				return uint16(external)
+			portS := fmt.Sprintf("%d/%s", port, protocol)
+			external := ss.PortMapping[portS]
+			if len(external) == 0 {
+				glog.Errorf("Found match for %s, but no portmapping is available", application)
+				break
 			}
-			break
+			glog.Infof("Found %v for %s", external, portS)
+			extPort, err := strconv.Atoi(external[0].HostPort)
+			if err != nil {
+				glog.Errorf("Unable to convert to integer: %v", err)
+				break
+			}
+			return uint16(extPort)
 		}
 	}
 

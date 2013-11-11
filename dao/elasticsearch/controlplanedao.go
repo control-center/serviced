@@ -312,6 +312,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 
 			for _, ss := range states {
 				port := ss.GetHostPort(endpoint.Protocol, endpoint.Application, endpoint.PortNumber)
+				//glog.Infof("Remote port: %d", port)
 				if port > 0 {
 					var ep dao.ApplicationEndpoint
 					ep.ServiceId = ss.ServiceId
