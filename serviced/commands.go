@@ -263,13 +263,13 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	glog.Infof("Got host info: %v", remoteHost)
 
 	controlPlane := getClient()
-	var unused int
 
-	err = controlPlane.AddHost(remoteHost, &unused)
+	var hostId string
+	err = controlPlane.AddHost(remoteHost, &hostId)
 	if err != nil {
 		glog.Fatalf("Could not add host: %v", err)
 	}
-	fmt.Println(remoteHost.Id)
+	fmt.Println(hostId)
 	return err
 }
 
@@ -382,12 +382,12 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 	}
 	pool.MemoryLimit = uint64(memoryLimit)
 	controlPlane := getClient()
-	var unused int
-	err = controlPlane.AddResourcePool(*pool, &unused)
+	var poolId string
+	err = controlPlane.AddResourcePool(*pool, &poolId)
 	if err != nil {
 		glog.Fatalf("Could not add resource pool: %v", err)
 	}
-	fmt.Printf("%s\n", pool.Id)
+	fmt.Printf("%s\n", poolId)
 	return err
 }
 
@@ -599,8 +599,8 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 
 	service.Instances = 1
 	glog.Infof("Calling AddService.\n")
-	var unused int
-	err = controlPlane.AddService(*service, &unused)
+	var serviceId string
+	err = controlPlane.AddService(*service, &serviceId)
 	if err != nil {
 		glog.Fatalf("Could not add services: %v", err)
 	}

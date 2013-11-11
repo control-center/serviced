@@ -123,8 +123,6 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 		return err
 	}
 	var serviceTemplate dao.ServiceTemplate
-	var unused int
-
 	if len(cmd.Args()) != 1 {
 		cmd.Usage()
 		return nil
@@ -154,11 +152,12 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 		return err
 	} else {
 		c := getClient()
-		err = c.AddServiceTemplate(serviceTemplate, &unused)
+		var templateId string
+		err = c.AddServiceTemplate(serviceTemplate, &templateId)
 		if err != nil {
 			glog.Fatalf("Could not read add service template:  %s", err)
 		}
-		fmt.Println("OK")
+		fmt.Println(templateId)
 	}
 
 	return nil

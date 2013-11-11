@@ -4,6 +4,7 @@ import (
 	"github.com/ant0ine/go-json-rest"
 
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -165,38 +166,61 @@ func homeLink() []Link {
 /*
  * Provide a list of host related API calls
  */
-func hostsLink() []Link {
+func hostsLinks() []Link {
 	return []Link{
 		Link{RetrieveLink, "GET", "/hosts"},
 		Link{CreateLink, "POST", "/hosts/add"},
-		Link{UpdateLink, "PUT", "/hosts/:hostId"},
-		Link{DeleteLink, "DELETE", "/hosts/:hostId"},
 	}
 }
+
+func hostLinks(hostId string) []Link {
+	hostUri := fmt.Sprintf("/hosts/%s", hostId)
+	return []Link{
+		Link{RetrieveLink, "GET", hostUri},
+		Link{UpdateLink, "PUT", hostUri},
+		Link{DeleteLink, "DELETE", hostUri},
+	}
+}
+
 
 /*
  * Provide a list of pool related API calls
  */
-func poolsLink() []Link {
+func poolsLinks() []Link {
 	return []Link{
 		Link{RetrieveLink, "GET", "/pools"},
-		Link{"RetrieveHosts", "GET", "/pools/:poolId/hosts"},
 		Link{CreateLink, "POST", "/pools/add"},
-		Link{UpdateLink, "PUT", "/pools/:poolId"},
-		Link{DeleteLink, "DELETE", "/pools/:poolId"},
+	}
+}
+
+func poolLinks(poolId string) []Link {
+	poolUri := fmt.Sprintf("/pools/%s", poolId)
+	return []Link{
+		Link{RetrieveLink, "GET", poolUri},
+		Link{"RetrieveHosts", "GET", poolUri + "/hosts"},
+		Link{UpdateLink, "PUT", poolUri},
+		Link{DeleteLink, "DELETE", poolUri},
+	}
+}
+
+
+func servicesLinks() []Link {
+	return []Link{
+		Link{RetrieveLink, "GET", SERVICES_URI},
+		Link{CreateLink, "POST", SERVICES_URI + "/add"},
 	}
 }
 
 /*
  * Provide a list of service related API calls
  */
-func servicesLink() []Link {
+func serviceLinks(serviceId string) []Link {
+	serviceUri := fmt.Sprintf("/services/%s", serviceId)
 	return []Link{
-		Link{RetrieveLink, "GET", "/services"},
-		Link{"ServiceLogs", "GET", "/services/:serviceId/logs"},
-		Link{CreateLink, "POST", "/services/add"},
-		Link{UpdateLink, "PUT", "/services/:serviceId"},
-		Link{DeleteLink, "DELETE", "/services/:serviceId"},
+		Link{RetrieveLink, "GET", serviceUri},
+		Link{"ServiceLogs", "GET", serviceUri + "/logs"},
+		Link{UpdateLink, "PUT", serviceUri},
+		Link{DeleteLink, "DELETE", serviceUri},
 	}
 }
 
@@ -208,10 +232,18 @@ func templatesLink() []Link {
 		Link{RetrieveLink, "GET", "/templates"},
 		Link{CreateLink, "POST", "/templates/add"},
 		Link{"Deploy", "POST", "/templates/deploy"},
-		Link{UpdateLink, "PUT", "/templates/:templateId"},
-		Link{DeleteLink, "DELETE", "/templates/:templateId"},
 	}
 }
+
+func templateLinks(templateId string) []Link {
+	templateUri := fmt.Sprintf("/templates/%s", templateId)
+	return []Link{
+		Link{RetrieveLink, "GET", templateUri},
+		Link{UpdateLink, "PUT", templateUri},
+		Link{DeleteLink, "DELETE", templateUri},
+	}
+}
+
 
 /*
  * Inform browsers that this call should not be cached. Ever.
@@ -233,3 +265,8 @@ func staticRoot() string {
 	}
 	return webroot
 }
+
+const SERVICES_URI = "/services"
+const HOSTS_URI = "/hosts"
+const TEMPLATES_URI = "/templates"
+const POOLS_URI = "/pools"

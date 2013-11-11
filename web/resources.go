@@ -38,7 +38,7 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *clie
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Removed resource pool", servicesLink()})
+	w.WriteJson(&SimpleResponse{"Deployed app template", servicesLinks()})
 }
 
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -54,20 +54,20 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Con
 
 func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload dao.ResourcePool
-	var unused int
+	var poolId string
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.Infof("Could not decode pool payload: %v", err)
 		RestBadRequest(w)
 		return
 	}
-	err = client.AddResourcePool(payload, &unused)
+	err = client.AddResourcePool(payload, &poolId)
 	if err != nil {
 		glog.Errorf("Unable to add pool: %v", err)
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Added resource pool", poolsLink()})
+	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(poolId)})
 }
 
 func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -91,7 +91,7 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Updated resource pool", poolsLink()})
+	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
 }
 
 func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -108,7 +108,7 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Removed pool %s", poolId)
-	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLink()})
+	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -282,7 +282,7 @@ func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *clientlib.
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Marked for death", servicesLink()})
+	w.WriteJson(&SimpleResponse{"Marked for death", servicesLinks()})
 }
 
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -331,7 +331,7 @@ func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload dao.Service
-	var unused int
+	var serviceId string
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.Infof("Could not decode service payload: %v", err)
@@ -355,13 +355,13 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	service.DesiredState = payload.DesiredState
 	service.Launch = payload.Launch
 
-	err = client.AddService(*service, &unused)
+	err = client.AddService(*service, &serviceId)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Added service", servicesLink()})
+	w.WriteJson(&SimpleResponse{"Added service", serviceLinks(serviceId)})
 }
 
 func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -385,7 +385,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Updated service", servicesLink()})
+	w.WriteJson(&SimpleResponse{"Updated service", serviceLinks(serviceId)})
 }
 
 func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -402,7 +402,7 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 		return
 	}
 	glog.Infof("Removed service %s", serviceId)
-	w.WriteJson(&SimpleResponse{"Removed service", servicesLink()})
+	w.WriteJson(&SimpleResponse{"Removed service", servicesLinks()})
 }
 
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -427,7 +427,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client
 
 func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	var payload dao.Host
-	var unused int
+	var hostId string
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.Infof("Could not decode host payload: %v", err)
@@ -455,13 +455,13 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.Cont
 	parts := strings.Split(ipAddr, ":")
 	payload.IpAddr = parts[0]
 
-	err = client.AddHost(payload, &unused)
+	err = client.AddHost(payload, &hostId)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Added host", hostsLink()})
+	w.WriteJson(&SimpleResponse{"Added host", hostLinks(hostId)})
 }
 
 func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -485,7 +485,7 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		RestServerError(w)
 		return
 	}
-	w.WriteJson(&SimpleResponse{"Updated host", hostsLink()})
+	w.WriteJson(&SimpleResponse{"Updated host", hostLinks(hostId)})
 }
 
 func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -502,7 +502,7 @@ func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		return
 	}
 	glog.Infof("Removed host %s", hostId)
-	w.WriteJson(&SimpleResponse{"Removed host", hostsLink()})
+	w.WriteJson(&SimpleResponse{"Removed host", hostsLinks()})
 }
 
 func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -517,7 +517,7 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 		glog.Errorf("Unexpected error getting logs: %v", err)
 		RestServerError(w)
 	}
-	w.WriteJson(&SimpleResponse{logs, servicesLink()})
+	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
 }
 
 func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
@@ -539,5 +539,5 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *cl
 		glog.Errorf("Unexpected error getting logs: %v", err)
 		RestServerError(w)
 	}
-	w.WriteJson(&SimpleResponse{logs, servicesLink()})
+	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
 }
