@@ -333,7 +333,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 }
 
 // add resource pool to index
-func (this *ControlPlaneDao) AddResourcePool(pool dao.ResourcePool, unused *int) error {
+func (this *ControlPlaneDao) AddResourcePool(pool dao.ResourcePool, poolId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.NewResourcePool: %+v", pool)
 	id := strings.TrimSpace(pool.Id)
 	if id == "" {
@@ -344,13 +344,14 @@ func (this *ControlPlaneDao) AddResourcePool(pool dao.ResourcePool, unused *int)
 	response, err := newResourcePool(id, pool)
 	glog.V(2).Infof("ControlPlaneDao.NewResourcePool response: %+v", response)
 	if response.Ok {
+		*poolId = id
 		return nil
 	}
 	return err
 }
 
 //
-func (this *ControlPlaneDao) AddHost(host dao.Host, unused *int) error {
+func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddHost: %+v", host)
 	id := strings.TrimSpace(host.Id)
 	if id == "" {
@@ -361,13 +362,14 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, unused *int) error {
 	response, err := newHost(id, host)
 	glog.V(2).Infof("ControlPlaneDao.AddHost response: %+v", response)
 	if response.Ok {
+		*hostId = id
 		return nil
 	}
 	return err
 }
 
 //
-func (this *ControlPlaneDao) AddService(service dao.Service, unused *int) error {
+func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", service)
 	id := strings.TrimSpace(service.Id)
 	if id == "" {
@@ -378,6 +380,7 @@ func (this *ControlPlaneDao) AddService(service dao.Service, unused *int) error 
 	response, err := newService(id, service)
 	glog.V(2).Infof("ControlPlaneDao.AddService response: %+v", response)
 	if response.Ok {
+		*serviceId = id
 		return this.zkDao.AddService(&service)
 	}
 	return err
@@ -810,8 +813,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 
-	var unused int
-	err = this.AddService(svc, &unused)
+	var serviceId string
+	err = this.AddService(svc, &serviceId)
 	if err != nil {
 		return err
 	}
@@ -824,7 +827,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id)
 }
 
-func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {
+func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
 	var err error
 	var uuid string
 	var response api.BaseResponse
@@ -846,6 +849,7 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 	wrapper.TemplateVersion = 1
 	response, err = newServiceTemplateWrapper(uuid, wrapper)
 	if response.Ok {
+		*templateId = uuid
 		err = nil
 	}
 	return nil
@@ -1102,8 +1106,8 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 		default_pool := dao.ResourcePool{}
 		default_pool.Id = "default"
 
-		var unused int
-		err = s.AddResourcePool(default_pool, &unused)
+		var poolId string
+		err = s.AddResourcePool(default_pool, &poolId)
 		if err != nil {
 			return
 		}

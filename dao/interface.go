@@ -30,7 +30,7 @@ type ControlPlane interface {
 	// Host CRUD
 
 	// Register a host with serviced
-	AddHost(host Host, unused *int) error
+	AddHost(host Host, hostId *string) error
 
 	// Update Host information for a registered host
 	UpdateHost(host Host, ununsed *int) error
@@ -49,7 +49,7 @@ type ControlPlane interface {
 	// Service CRUD
 
 	// Add a new service
-	AddService(service Service, unused *int) error
+	AddService(service Service, serviceId *string) error
 
 	// Update an existing service
 	UpdateService(service Service, unused *int) error
@@ -109,7 +109,7 @@ type ControlPlane interface {
 	// ResourcePool CRUD
 
 	// Add a new service pool to serviced
-	AddResourcePool(pool ResourcePool, unused *int) error
+	AddResourcePool(pool ResourcePool, poolId *string) error
 
 	// Update a service pool definition
 	UpdateResourcePool(pool ResourcePool, unused *int) error
@@ -134,7 +134,7 @@ type ControlPlane interface {
 	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
 
 	// Add a new service Template
-	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
 
 	// Update a new service Template
 	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
