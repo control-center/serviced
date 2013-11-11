@@ -13,6 +13,7 @@ package main
 
 //svc "github.com/zenoss/serviced/svc"
 import (
+	"github.com/zenoss/serviced"
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
@@ -20,6 +21,7 @@ import (
 	"github.com/zenoss/serviced/web"
 
 	"flag"
+	"fmt"
 	"github.com/zenoss/glog"
 	"net"
 	"net/http"
@@ -69,8 +71,36 @@ func init() {
 	}
 }
 
+func compareVersion(a, b []int) int {
+	astr := ""
+	for _, s := range a {
+		astr += fmt.Sprintf("%12d", s)
+	}
+	bstr := ""
+	for _, s := range b {
+		bstr += fmt.Sprintf("%12d", s)
+	}
+	if astr > bstr {
+		return -1
+	}
+	if astr < bstr {
+		return 1
+	}
+	return 0
+}
+
 // Start the agent or master services on this host.
 func startServer() {
+
+	dockerVersion, err := serviced.GetDockerVersion()
+	if err != nil {
+		glog.Fatalf("Could not determine docker version: %s", err)
+	}
+
+	atLeast := []int{0, 6, 5}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 {
+		glog.Fatal("serviced needs at least docker 0.6.5")
+	}
 
 	if options.master {
 		var master dao.ControlPlane
