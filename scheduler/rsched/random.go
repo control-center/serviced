@@ -182,7 +182,7 @@ func startServiceInstances(conn *zk.Conn, service *dao.Service, pool_hosts []*da
 func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	for i := 0; i < numToKill; i++ {
-		glog.V(2)Infof("Killing host service state %s:%s\n", serviceStates[i].HostId, serviceStates[i].Id)
+		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostId, serviceStates[i].Id)
 		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
 		err := zzk.TerminateHostService(conn, serviceStates[i].HostId, serviceStates[i].Id)
 		if err != nil {
