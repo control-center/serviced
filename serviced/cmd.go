@@ -57,9 +57,11 @@ func init() {
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
+		// TODO: Default to elastic
 		conStr = "mysql://root@127.0.0.1:3306/cp"
 	} else {
-		glog.Infoln("Using connection string from env var CP_PROD_DB")
+		// TODO: Use this for something
+		glog.V(1).Infoln("Using connection string from env var CP_PROD_DB")
 	}
 	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
@@ -79,7 +81,7 @@ func startServer() {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlane service")
+		glog.V(0).Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
 
@@ -101,7 +103,7 @@ func startServer() {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlaneAgent service")
+		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
 	}
 	rpc.HandleHTTP()
@@ -112,7 +114,7 @@ func startServer() {
 		time.Sleep(time.Second * 1000)
 	}
 
-	glog.Infof("Listening on %s", l.Addr().String())
+	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	http.Serve(l, nil) // start the server
 }
 

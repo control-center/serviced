@@ -35,6 +35,7 @@ func TerminateHostService(conn *zk.Conn, hostId string, serviceStateId string) e
 func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
+		glog.Errorf("Unable to connect to zookeeper: %v", err)
 		return err
 	}
 	defer conn.Close()

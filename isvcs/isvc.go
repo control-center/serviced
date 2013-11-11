@@ -32,14 +32,14 @@ func (s *ISvc) create() error {
 	if err != nil || exists {
 		return err
 	}
-	glog.Infof("Creating temp directory for building image: %s", s.Tag)
+	glog.V(1).Infof("Creating temp directory for building image: %s", s.Tag)
 	tdir, err := ioutil.TempDir("", "isvc_")
 	if err != nil {
 		return err
 	}
 	dockerfile := tdir + "/Dockerfile"
 	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
-	glog.Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
+	glog.V(0).Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
 	cmd := exec.Command("docker", "build", "-t", s.Tag, tdir)
 	output, returnErr := cmd.CombinedOutput()
 	if returnErr != nil {
@@ -83,10 +83,10 @@ func (s *ISvc) Run() error {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
 		args := make([]string, len(s.Ports)*2+3)
-		glog.Errorf("About to build.")
+		glog.V(1).Info("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
-		glog.Errorf("Ports %v", s.Ports)
+		glog.V(1).Info("Ports %v", s.Ports)
 		for i, port := range s.Ports {
 			args[2+i*2] = "-p"
 			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
@@ -94,7 +94,7 @@ func (s *ISvc) Run() error {
 		args[len(s.Ports)*2+2] = s.Tag
 		cmd = exec.Command("docker", args...)
 	}
-	glog.Infof("Running docker cmd: %v", cmd)
+	glog.V(0).Info("Running docker cmd: ", cmd)
 	return cmd.Run()
 }
 

@@ -59,11 +59,12 @@ func (s *scheduler) Stop() error {
 }
 
 func (s *scheduler) loop() {
-	glog.Info("entering scheduler")
-	defer glog.Info("leaving scheduler")
+	glog.V(3).Infoln("entering scheduler")
+
 	var err error
 	var this_node string
 	defer func() {
+		glog.V(3).Infoln("leaving scheduler")
 		s.shutdown <- err
 	}()
 
@@ -100,7 +101,7 @@ func (s *scheduler) loop() {
 		glog.Error("Could not create voting node:", err)
 		return
 	}
-	glog.Infof("Created voting node: %s", this_node)
+	glog.V(1).Infof("Created voting node: %s", this_node)
 
 	for {
 		s.conn.Sync(scheduler_path)
@@ -114,7 +115,7 @@ func (s *scheduler) loop() {
 
 		leader_path := voter_path + children[0]
 		if this_node == leader_path {
-			glog.Info("I am the leader!")
+			glog.V(0).Info("I am the leader!")
 			exists, _, event, err := s.conn.ExistsW(leader_path)
 			if err != nil {
 				if err == zk.ErrNoNode {
@@ -128,7 +129,7 @@ func (s *scheduler) loop() {
 			s.zkleaderFunc(s.cpDao, s.conn, event)
 			return
 		} else {
-			glog.Infof("I must wait for %s to die.", children[0])
+			glog.V(1).Infof("I must wait for %s to die.", children[0])
 
 			exists, _, event, err := s.conn.ExistsW(leader_path)
 			if err != nil && err != zk.ErrNoNode {
@@ -142,7 +143,7 @@ func (s *scheduler) loop() {
 			}
 			select {
 			case <-zzk.TimeoutAfter(time.Second * 30):
-				glog.Info("I've been listening. I'm going to reinit")
+				glog.V(1).Info("I've been listening. I'm going to reinitialize.")
 				continue
 			case errc := <-s.closing:
 				errc <- err
