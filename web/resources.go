@@ -357,6 +357,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	}
 	service.Name = payload.Name
 	service.Description = payload.Description
+	service.Tags = payload.Tags
 	service.PoolId = payload.PoolId
 	service.ImageId = payload.ImageId
 	service.Startup = payload.Startup
