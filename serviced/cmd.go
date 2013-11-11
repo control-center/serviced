@@ -84,7 +84,10 @@ func startServer() {
 		glog.Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
-		go web.Serve()
+
+		// TODO: Make bind port for web server optional?
+		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers)
+		go cpserver.Serve()
 	}
 	if options.agent {
 		mux := proxy.TCPMux{}
@@ -95,7 +98,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, options.resourcePath, mux)
+		agent, err := agent.NewHostAgent(options.port, options.resourcePath, mux, options.zookeepers)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

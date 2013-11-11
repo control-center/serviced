@@ -1,0 +1,19 @@
+{
+          "Command": "/usr/bin/python -m SimpleHTTPServer",
+          "Endpoints": [{
+              "Application": "www",
+              "PortNumber": 8080,
+              "Protocol": "tcp",
+              "Purpose": "export"
+            },{
+              "Application": "websvc",
+              "PortNumber": 8081,
+              "Protocol": "tcp",
+              "Porpose": "import"
+            }
+          ],
+          "ImageId": "ubuntu",
+          "Instances": {
+            "min": 1
+          }
+}

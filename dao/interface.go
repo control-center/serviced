@@ -13,6 +13,16 @@ func (s ControlPlaneError) Error() string {
 // An request for a control plane object.
 type EntityRequest interface{}
 
+type ServiceStateRequest struct {
+	ServiceId      string
+	ServiceStateId string
+}
+
+type HostServiceRequest struct {
+	HostId         string
+	ServiceStateId string
+}
+
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
@@ -20,7 +30,7 @@ type ControlPlane interface {
 	// Host CRUD
 
 	// Register a host with serviced
-	AddHost(host Host, unused *int) error
+	AddHost(host Host, hostId *string) error
 
 	// Update Host information for a registered host
 	UpdateHost(host Host, ununsed *int) error
@@ -39,7 +49,7 @@ type ControlPlane interface {
 	// Service CRUD
 
 	// Add a new service
-	AddService(service Service, unused *int) error
+	AddService(service Service, serviceId *string) error
 
 	// Update an existing service
 	UpdateService(service Service, unused *int) error
@@ -72,7 +82,7 @@ type ControlPlane interface {
 	StopService(serviceId string, unused *int) error
 
 	// Stop a running instance of a service
-	StopRunningInstance(serviceId string, unused *int) error
+	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Update the service state
 	UpdateServiceState(state ServiceState, unused *int) error
@@ -80,14 +90,11 @@ type ControlPlane interface {
 	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*ServiceState) error
 
-	// Get all the services that need to be running on the given host
-	GetServicesForHost(hostId string, services *[]*Service) error
-
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
 
 	// Get logs for the given app
-	GetServiceStateLogs(serviceStateId string, logs *string) error
+	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
 
 	// Get all running services
 	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
@@ -102,7 +109,7 @@ type ControlPlane interface {
 	// ResourcePool CRUD
 
 	// Add a new service pool to serviced
-	AddResourcePool(pool ResourcePool, unused *int) error
+	AddResourcePool(pool ResourcePool, poolId *string) error
 
 	// Update a service pool definition
 	UpdateResourcePool(pool ResourcePool, unused *int) error
@@ -127,7 +134,7 @@ type ControlPlane interface {
 	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
 
 	// Add a new service Template
-	AddServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
 
 	// Update a new service Template
 	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error

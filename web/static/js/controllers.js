@@ -440,9 +440,9 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         $('#editConfig').modal('show');
     };
 
-    $scope.viewLog = function(service) {
-        $scope.editService = $.extend({}, service);
-        resourcesService.get_service_state_logs(service.Id, function(log) {
+    $scope.viewLog = function(serviceState) {
+        $scope.editService = $.extend({}, serviceState);
+        resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -764,7 +764,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
-        resourcesService.get_service_state_logs(running.Id, function(log) {
+        resourcesService.get_service_state_logs(running.ServiceId, running.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -1038,7 +1038,8 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         }
 
-        var renderer = new dagreD3.Renderer();
+        var layout = dagreD3.layout().nodeSep(5).rankDir("LR")
+        var renderer = new dagreD3.Renderer().layout(layout);
         var oldDrawNode = renderer.drawNode();
         renderer.drawNode(function(graph, u, svg) {
             oldDrawNode(graph, u, svg);
@@ -1573,8 +1574,8 @@ function ResourcesService($http, $location) {
          * @param {string} serviceStateId ID to retrieve logs for.
          * @param {function} callback Log data passed to callback on success.
          */
-        get_service_state_logs: function(serviceStateId, callback) {
-            $http.get('/running/' + serviceStateId + '/logs').
+        get_service_state_logs: function(serviceId, serviceStateId, callback) {
+            $http.get('/services/' + serviceId + '/' + serviceStateId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).

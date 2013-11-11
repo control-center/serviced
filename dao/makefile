@@ -16,7 +16,7 @@ build:
 	go build
 
 test: build
-	cd elasticsearch && make test
+	#cd elasticsearch && make test
 	go test
 
 clean:

@@ -676,6 +676,10 @@ svg {
   height: 600px;
 }
 
+svg.tall {
+  height: 1200px;
+}
+
 rect {
   fill: #fff;
 }

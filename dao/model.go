@@ -1,8 +1,17 @@
 package dao
 
-import "strconv"
-import "time"
-import "fmt"
+import (
+	"github.com/zenoss/glog"
+
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type HostIpAndPort struct {
+	HostIp   string
+	HostPort string
+}
 
 type MinMax struct {
 	Min int
@@ -95,6 +104,7 @@ type Service struct {
 	Startup         string
 	Description     string
 	Tags            []string
+	ConfigFiles     map[string]ConfigFile
 	Instances       int
 	ImageId         string
 	PoolId          string
@@ -156,9 +166,16 @@ type ServiceState struct {
 	Scheduled   time.Time
 	Terminated  time.Time
 	Started     time.Time
-	PortMapping map[string]map[string]string // protocol -> container port (internal) -> host port (external)
+	PortMapping map[string][]HostIpAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []ServiceEndpoint
 	HostIp      string
+}
+
+type ConfigFile struct {
+	Filename    string // complete path of file
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
+	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Content     string // content of config file
 }
 
 type ServiceDefinition struct {
@@ -169,6 +186,7 @@ type ServiceDefinition struct {
 	ImageId       string                 // Docker image hosting the service
 	Instances     MinMax                 // Constraints on the number of instances
 	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles   map[string]ConfigFile  // Config file templates
 	Context       map[string]interface{} // Context information for the service
 	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
 	Services      []ServiceDefinition    // Supporting subservices
@@ -185,10 +203,11 @@ type ServiceDeployment struct {
 
 // A Service Template used for
 type ServiceTemplate struct {
-	Id          string              // Unique ID of this service template
-	Name        string              // Name of service template
-	Description string              // Meaningful description of service
-	Services    []ServiceDefinition // Child services
+	Id          string                // Unique ID of this service template
+	Name        string                // Name of service template
+	Description string                // Meaningful description of service
+	Services    []ServiceDefinition   // Child services
+	ConfigFiles map[string]ConfigFile // Config file templates
 }
 
 // A request to deploy a service template
@@ -201,6 +220,8 @@ type ServiceTemplateDeploymentRequest struct {
 type RunningService struct {
 	Id              string
 	ServiceId       string
+	HostId          string
+	DockerId        string
 	StartedAt       time.Time
 	Name            string
 	Startup         string
@@ -262,19 +283,25 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
 	for _, ep := range ss.Endpoints {
 		if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
-			if protocol == "tcp" {
-				protocol = "Tcp"
-			} else if protocol == "udp" {
-				protocol = "Udp"
+			if protocol == "Tcp" {
+				protocol = "tcp"
+			} else if protocol == "Udp" {
+				protocol = "udp"
 			}
 
-			portS := fmt.Sprintf("%d", port)
-			externalS := ss.PortMapping[protocol][portS]
-			external, err := strconv.Atoi(externalS)
-			if err == nil {
-				return uint16(external)
+			portS := fmt.Sprintf("%d/%s", port, protocol)
+			external := ss.PortMapping[portS]
+			if len(external) == 0 {
+				glog.Errorf("Found match for %s, but no portmapping is available", application)
+				break
 			}
-			break
+			glog.Infof("Found %v for %s", external, portS)
+			extPort, err := strconv.Atoi(external[0].HostPort)
+			if err != nil {
+				glog.Errorf("Unable to convert to integer: %v", err)
+				break
+			}
+			return uint16(extPort)
 		}
 	}
 

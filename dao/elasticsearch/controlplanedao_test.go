@@ -34,20 +34,20 @@ func TestNewControlPlaneDao(t *testing.T) {
 func TestDao_NewResourcePool(t *testing.T) {
 	controlPlaneDao.RemoveResourcePool("default", &unused)
 	pool := dao.ResourcePool{}
-	err := controlPlaneDao.AddResourcePool(pool, &unused)
+	err := controlPlaneDao.AddResourcePool(pool, &pool.Id)
 	if err == nil {
 		t.Errorf("Expected failure to create resource pool %-v", pool)
 		t.Fail()
 	}
 
 	pool.Id = "default"
-	err = controlPlaneDao.AddResourcePool(pool, &unused)
+	err = controlPlaneDao.AddResourcePool(pool, &pool.Id)
 	if err != nil {
 		t.Errorf("Failure creating resource pool %-v with error: %s", pool, err)
 		t.Fail()
 	}
 
-	err = controlPlaneDao.AddResourcePool(pool, &unused)
+	err = controlPlaneDao.AddResourcePool(pool, &pool.Id)
 	if err == nil {
 		t.Errorf("Expected error creating redundant resource pool %-v", pool)
 		t.Fail()
@@ -57,7 +57,7 @@ func TestDao_UpdateResourcePool(t *testing.T) {
 	controlPlaneDao.RemoveResourcePool("default", &unused)
 
 	pool, _ := dao.NewResourcePool("default")
-	controlPlaneDao.AddResourcePool(*pool, &unused)
+	controlPlaneDao.AddResourcePool(*pool, &pool.Id)
 
 	pool.Priority = 1
 	pool.CoreLimit = 1
@@ -85,7 +85,7 @@ func TestDao_GetResourcePool(t *testing.T) {
 	pool.Priority = 1
 	pool.CoreLimit = 1
 	pool.MemoryLimit = 1
-	controlPlaneDao.AddResourcePool(*pool, &unused)
+	controlPlaneDao.AddResourcePool(*pool, &pool.Id)
 
 	result := dao.ResourcePool{}
 	err := controlPlaneDao.GetResourcePool("default", &result)
@@ -107,10 +107,10 @@ func TestDao_GetResourcePools(t *testing.T) {
 	pool.Priority = 1
 	pool.CoreLimit = 2
 	pool.MemoryLimit = 3
-	controlPlaneDao.AddResourcePool(*pool, &unused)
+	controlPlaneDao.AddResourcePool(*pool, &pool.Id)
 
 	var result map[string]*dao.ResourcePool
-	err := controlPlaneDao.GetResourcePools(dao.EntityRequest{}, &result)
+	err := controlPlaneDao.GetResourcePools(new(dao.EntityRequest), &result)
 	if err == nil && len(result) == 1 {
 		result["default"].CreatedAt = pool.CreatedAt
 		result["default"].UpdatedAt = pool.UpdatedAt
@@ -127,20 +127,20 @@ func TestDao_GetResourcePools(t *testing.T) {
 func TestDao_AddHost(t *testing.T) {
 	host := dao.Host{}
 	controlPlaneDao.RemoveHost("default", &unused)
-	err := controlPlaneDao.AddHost(host, &unused)
+  err := controlPlaneDao.AddHost(host, &host.Id)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 		t.Fail()
 	}
 
 	host.Id = "default"
-	err = controlPlaneDao.AddHost(host, &unused)
+  err = controlPlaneDao.AddHost(host, &host.Id)
 	if err != nil {
 		t.Errorf("Failure creating host %-v with error: %s", host, err)
 		t.Fail()
 	}
 
-	err = controlPlaneDao.AddHost(host, &unused)
+  err = controlPlaneDao.AddHost(host, &host.Id)
 	if err == nil {
 		t.Errorf("Expected error creating redundant host %-v", host)
 		t.Fail()
@@ -151,7 +151,7 @@ func TestDao_UpdateHost(t *testing.T) {
 
 	host := dao.NewHost()
 	host.Id = "default"
-	controlPlaneDao.AddHost(*host, &unused)
+  controlPlaneDao.AddHost(*host, &host.Id)
 
 	host.Name = "hostname"
 	host.IpAddr = "127.0.0.1"
@@ -176,7 +176,7 @@ func TestDao_GetHost(t *testing.T) {
 
 	host := dao.NewHost()
 	host.Id = "default"
-	controlPlaneDao.AddHost(*host, &unused)
+  controlPlaneDao.AddHost(*host, &host.Id)
 
 	var result = dao.Host{}
 	err := controlPlaneDao.GetHost("default", &result)
@@ -200,10 +200,10 @@ func TestDao_GetHosts(t *testing.T) {
 	host.Id = "default"
 	host.Name = "hostname"
 	host.IpAddr = "127.0.1.1"
-	controlPlaneDao.AddHost(*host, &unused)
+  controlPlaneDao.AddHost(*host, &host.Id)
 
 	var hosts map[string]*dao.Host
-	err := controlPlaneDao.GetHosts(dao.EntityRequest{}, &hosts)
+	err := controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
 	if err == nil && len(hosts) == 1 {
 		hosts["default"].CreatedAt = host.CreatedAt
 		hosts["default"].UpdatedAt = host.UpdatedAt
@@ -220,20 +220,22 @@ func TestDao_GetHosts(t *testing.T) {
 func TestDao_NewService(t *testing.T) {
 	service := dao.Service{}
 	controlPlaneDao.RemoveService("default", &unused)
-	err := controlPlaneDao.AddService(service, &unused)
+  service.Id = ""
+  var serviceId string
+	err := controlPlaneDao.AddService(service, &serviceId)
 	if err == nil {
 		t.Errorf("Expected failure to create service %-v", service)
 		t.Fail()
 	}
 
 	service.Id = "default"
-	err = controlPlaneDao.AddService(service, &unused)
+	err = controlPlaneDao.AddService(service, &serviceId)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", service, err)
 		t.Fail()
 	}
 
-	err = controlPlaneDao.AddService(service, &unused)
+	err = controlPlaneDao.AddService(service, &serviceId)
 	if err == nil {
 		t.Errorf("Expected error creating redundant service %-v", service)
 		t.Fail()
@@ -245,7 +247,7 @@ func TestDao_UpdateService(t *testing.T) {
 
 	service, _ := dao.NewService()
 	service.Id = "default"
-	controlPlaneDao.AddService(*service, &unused)
+	controlPlaneDao.AddService(*service, &service.Id)
 
 	service.Name = "name"
 	err := controlPlaneDao.UpdateService(*service, &unused)
@@ -260,7 +262,7 @@ func TestDao_UpdateService(t *testing.T) {
 	//    as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
-	if *service != result {
+	if !service.Equals(&result) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *service)
 		t.Fail()
 	}
@@ -271,16 +273,16 @@ func TestDao_GetService(t *testing.T) {
 
 	service, _ := dao.NewService()
 	service.Id = "default"
-	controlPlaneDao.AddService(*service, &unused)
+	controlPlaneDao.AddService(*service, &service.Id)
 
-	result := dao.Service{}
+	var result dao.Service
 	err := controlPlaneDao.GetService("default", &result)
 	//XXX the time.Time types fail comparison despite being equal...
 	//    as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
 	if err == nil {
-		if *service != result {
+		if !service.Equals(&result) {
 			t.Errorf("GetService Failed: expected=%+v, actual=%+v", service, result)
 		}
 	} else {
@@ -300,16 +302,16 @@ func TestDao_GetServices(t *testing.T) {
 	service.Name = "name"
 	service.Description = "description"
 	service.Instances = 0
-	controlPlaneDao.AddService(*service, &unused)
+	controlPlaneDao.AddService(*service, &service.Id)
 
 	var result []*dao.Service
-	err := controlPlaneDao.GetServices(dao.EntityRequest{}, &result)
+	err := controlPlaneDao.GetServices(new(dao.EntityRequest), &result)
 	if err == nil && len(result) == 1 {
 		//XXX the time.Time types fail comparison despite being equal...
 		//    as far as I can tell this is a limitation with Go
 		result[0].UpdatedAt = service.UpdatedAt
 		result[0].CreatedAt = service.CreatedAt
-		if *result[0] != *service {
+		if !result[0].Equals(service) {
 			t.Errorf("expected [%+v] actual=%+v", *service, result)
 			t.Fail()
 		}
@@ -344,10 +346,10 @@ func TestDao_StartService(t *testing.T) {
 	s02.ParentServiceId = "0"
 	s02.DesiredState = dao.SVC_STOP
 
-	controlPlaneDao.AddService(*s0, &unused)
-	controlPlaneDao.AddService(*s01, &unused)
-	controlPlaneDao.AddService(*s011, &unused)
-	controlPlaneDao.AddService(*s02, &unused)
+	controlPlaneDao.AddService(*s0, &s0.Id)
+	controlPlaneDao.AddService(*s01, &s01.Id)
+	controlPlaneDao.AddService(*s011, &s011.Id)
+	controlPlaneDao.AddService(*s02, &s02.Id)
 
 	var unusedString string
 	controlPlaneDao.StartService("0", &unusedString)

@@ -47,8 +47,8 @@ func (s *ControlClient) GetHosts(request dao.EntityRequest, replyHosts *map[stri
 	return s.rpcClient.Call("ControlPlane.GetHosts", request, replyHosts)
 }
 
-func (s *ControlClient) AddHost(host dao.Host, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddHost", host, unused)
+func (s *ControlClient) AddHost(host dao.Host, hostId *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AddHost", host, hostId)
 }
 
 func (s *ControlClient) UpdateHost(host dao.Host, unused *int) (err error) {
@@ -67,8 +67,8 @@ func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServic
 	return s.rpcClient.Call("ControlPlane.GetTaggedServices", request, replyServices)
 }
 
-func (s *ControlClient) AddService(service dao.Service, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddService", service, unused)
+func (s *ControlClient) AddService(service dao.Service, serviceId *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AddService", service, serviceId)
 }
 
 func (s *ControlClient) UpdateService(service dao.Service, unused *int) (err error) {
@@ -79,16 +79,12 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
-func (s *ControlClient) GetServicesForHost(hostId string, servicesForHost *[]*dao.Service) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServicesForHost", hostId, servicesForHost)
-}
-
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }
 
-func (s *ControlClient) GetServiceStateLogs(serviceStateId string, logs *string) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", serviceStateId, logs)
+func (s *ControlClient) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", request, logs)
 }
 
 func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) (err error) {
@@ -99,8 +95,8 @@ func (s *ControlClient) GetRunningServicesForService(serviceId string, runningSe
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
 }
 
-func (s *ControlClient) StopRunningInstance(serviceStateId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.StopRunningInstance", serviceStateId, unused)
+func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StopRunningInstance", request, unused)
 }
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
@@ -131,8 +127,8 @@ func (s *ControlClient) GetResourcePools(request dao.EntityRequest, pools *map[s
 	return s.rpcClient.Call("ControlPlane.GetResourcePools", request, pools)
 }
 
-func (s *ControlClient) AddResourcePool(pool dao.ResourcePool, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddResourcePool", pool, unused)
+func (s *ControlClient) AddResourcePool(pool dao.ResourcePool, poolId *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AddResourcePool", pool, poolId)
 }
 
 func (s *ControlClient) UpdateResourcePool(pool dao.ResourcePool, unused *int) (err error) {
@@ -163,8 +159,8 @@ func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[st
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
 }
 
-func (s *ControlClient) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, unused)
+func (s *ControlClient) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
+	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, templateId)
 }
 
 func (s *ControlClient) UpdateServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {

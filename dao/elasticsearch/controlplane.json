@@ -50,6 +50,13 @@
         },
         "CreatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
         "UpdatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
+        "ConfigFiles":     {
+	  "properties": {
+            "": {"type": "string", "index": "not_analyzed"},
+            "": {"type": "string", "index": "not_analyzed"},
+            "": {"type": "string", "index": "not_analyzed"}
+          }
+	},
         "EndPoints" :      {
           "properties":    {
             "Protocol" :    {"type": "string", "index":"not_analyzed"},
