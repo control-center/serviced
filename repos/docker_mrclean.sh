@@ -7,10 +7,10 @@ if [[ -n "$containers" ]]; then
 fi
 containers=`docker ps -a -q`
 if [[ -n "$containers" ]]; then
-	docker rm `docker ps -a -q`
+	docker rm $containers 
 fi
 containers=`docker images -q`
 if [[ -n "$containers" ]]; then
-	docker rmi `docker images -q`
+	docker rmi $containers
 fi
 
