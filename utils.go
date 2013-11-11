@@ -9,9 +9,10 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/dao"
+
 	"bufio"
 	"fmt"
-	"github.com/zenoss/serviced/dao"
 	"net/url"
 	"os"
 	"os/exec"
@@ -245,4 +246,81 @@ func ExecPath() (string, string, error) {
 		return "", "", err
 	}
 	return filepath.Dir(path), filepath.Base(path), nil
+}
+
+// DockerVersion contains the tuples that describe the version of docker
+type DockerVersion struct {
+	Client []int
+	Server []int
+}
+
+// Compare two DockerVersion structs
+func (a *DockerVersion) equals(b *DockerVersion) bool {
+	if len(a.Client) != len(b.Client) {
+		return false
+	}
+	for i, a_i := range a.Client {
+		if a_i != b.Client[i] {
+			return false
+		}
+	}
+	if len(a.Server) != len(b.Server) {
+		return false
+	}
+	for i, a_i := range a.Server {
+		if a_i != b.Server[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Get the docker version numbers from the runtime
+func GetDockerVersion() (DockerVersion, error) {
+	cmd := exec.Command("docker", "version")
+	output, err := cmd.Output()
+	if err != nil {
+		return DockerVersion{}, err
+	}
+	return parseDockerVersion(string(output))
+}
+
+// parse Docker versions
+func parseDockerVersion(output string) (version DockerVersion, err error) {
+
+	for _, line := range strings.Split(output, "\n") {
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		if strings.HasPrefix(parts[0], "Client version") {
+			b := strings.Split(strings.TrimSpace(parts[1]), ".")
+			version.Client = make([]int, len(b))
+			for i, v := range b {
+				x, err := strconv.Atoi(v)
+				if err != nil {
+					return version, err
+				}
+				version.Client[i] = x
+			}
+		}
+		if strings.HasPrefix(parts[0], "Server version") {
+			b := strings.Split(strings.TrimSpace(parts[1]), ".")
+			version.Server = make([]int, len(b))
+			for i, v := range b {
+				x, err := strconv.Atoi(v)
+				if err != nil {
+					return version, err
+				}
+				version.Server[i] = x
+			}
+		}
+	}
+	if len(version.Client) == 0 {
+		return version, fmt.Errorf("No client version found")
+	}
+	if len(version.Server) == 0 {
+		return version, fmt.Errorf("No server version found")
+	}
+	return version, nil
 }
