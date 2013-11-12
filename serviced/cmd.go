@@ -40,6 +40,8 @@ var options struct {
 	keyPEMFile        string
 	certPEMFile       string
 	zookeepers        ListOpts
+	repstats          bool
+	statshost          string
 }
 
 // Setup flag options (static block)
@@ -54,6 +56,8 @@ func init() {
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
+	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
+	flag.StringVar(&options.statshost, "statshost", "localhost:8443", "host:port for container statistics")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -105,6 +109,11 @@ func startServer() {
 		rpc.RegisterName("ControlPlaneAgent", agent)
 	}
 	rpc.HandleHTTP()
+
+	if options.repstats {
+		sr := StatsReporter{options.statshost}
+		go sr.Report()
+	}
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
