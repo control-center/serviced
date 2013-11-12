@@ -41,7 +41,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	go func(cmdString string) {
 		defer func() { procexit <- 1 }()
 		for {
-			glog.Infof("About to execute: %s", cmdString)
+			glog.V(0).Info("About to execute: ", cmdString)
 			cmd := exec.Command("bash", "-c", cmdString)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -54,7 +54,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			if !proxyOptions.autorestart {
 				break
 			}
-			glog.Infof("service exited, sleeping...")
+			glog.V(0).Info("service exited, sleeping...")
 			time.Sleep(time.Minute)
 		}
 	}(config.Command)

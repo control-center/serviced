@@ -34,8 +34,7 @@ dockerbuild: docker_ok
 
 test: build docker_ok
 	go test
-	cd client && make test
-	cd svc && make test
+	cd client && make test	
 	cd agent && make test
 	cd web && make test
 	cd proxy && make test
@@ -54,8 +53,7 @@ clean:
 	go clean
 	cd client && make clean
 	cd serviced && make clean
-	cd agent && make clean
-	cd svc && make clean
+	cd agent && make clean	
 	cd proxy && make clean
 	cd dao && make clean
 	cd pkg && make clean

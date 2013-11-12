@@ -11,11 +11,12 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -118,7 +119,8 @@ func validTemplate(t *dao.ServiceTemplate) error {
 // Add a service template to the control plane.
 func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
-	cmd := Subcmd("add-template", "filename", "Add a template. Use - for standard input.")
+	cmd := Subcmd("add-template", "[INPUT]", "Add a template. Use - for standard input. "+
+		"[INPUT] is either a json file or template directory.")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -136,14 +138,30 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 			glog.Fatalf("Could not read ServiceTemplate from stdin: %s", err)
 		}
 	} else {
-		// Read the argument as a file
-		templateStr, err := ioutil.ReadFile(cmd.Arg(0))
+		// is the input a file or directory
+		nodeinfo, err := os.Stat(cmd.Arg(0))
 		if err != nil {
-			glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
+			glog.Fatalf("Could not ServiceTemplate from %s: %s", cmd.Arg(0), err)
 		}
-		err = json.Unmarshal(templateStr, &serviceTemplate)
-		if err != nil {
-			glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
+
+		if nodeinfo.IsDir() {
+			sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+			if err != nil {
+				glog.Fatalf("Could not read template from directory %s: %s", nodeinfo.Name(), err)
+			}
+			serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
+			serviceTemplate.Services[0] = *sdefinition
+			serviceTemplate.Name = sdefinition.Name
+		} else {
+			// Read the argument as a file
+			templateStr, err := ioutil.ReadFile(cmd.Arg(0))
+			if err != nil {
+				glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
+			}
+			err = json.Unmarshal(templateStr, &serviceTemplate)
+			if err != nil {
+				glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
+			}
 		}
 
 	}
