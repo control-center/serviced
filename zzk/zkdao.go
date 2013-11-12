@@ -160,7 +160,6 @@ func GetServiceState(conn *zk.Conn, serviceState *dao.ServiceState, serviceId st
 	return json.Unmarshal(serviceStateNode, serviceState)
 }
 
-
 func (this *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
@@ -181,6 +180,27 @@ func GetServiceStates(conn *zk.Conn, serviceStates *[]*dao.ServiceState, service
 	return nil
 }
 
+func (this *ZkDao) GetRunningService(serviceId string, serviceStateId string, running *dao.RunningService) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var s dao.Service
+	_, err = LoadService(conn, serviceId, &s)
+	if err != nil {
+		return err
+	}
+
+	var ss dao.ServiceState
+	_, err = LoadServiceState(conn, serviceId, serviceStateId, &ss)
+	if err != nil {
+		return err
+	}
+	running = sssToRs(&s, &ss)
+	return nil
+}
 
 func (this *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)

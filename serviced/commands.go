@@ -583,7 +583,7 @@ func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 		endPoints[i] = endpoint
 		i++
 	}
-	service.Endpoints = &endPoints
+	service.Endpoints = endPoints
 	service.Startup = startup
 	return service, cmd, nil
 }

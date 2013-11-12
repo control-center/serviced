@@ -110,7 +110,7 @@ type Service struct {
 	PoolId          string
 	DesiredState    int
 	Launch          string
-	Endpoints       *[]ServiceEndpoint
+	Endpoints       []ServiceEndpoint
 	ParentServiceId string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -222,7 +222,7 @@ func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, er
 		serviceState.ServiceId = s.Id
 		serviceState.HostId = hostId
 		serviceState.Scheduled = time.Now()
-		serviceState.Endpoints = *s.Endpoints
+		serviceState.Endpoints = s.Endpoints
 	}
 	return serviceState, err
 }
@@ -233,7 +233,7 @@ func (s *Service) HasImports() bool {
 		return false
 	}
 
-	for _, ep := range *s.Endpoints {
+	for _, ep := range s.Endpoints {
 		if ep.Purpose == "import" {
 			return true
 		}
@@ -244,7 +244,7 @@ func (s *Service) HasImports() bool {
 // Retrieve service endpoint imports
 func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 	if s.Endpoints != nil {
-		for _, ep := range *s.Endpoints {
+		for _, ep := range s.Endpoints {
 			if ep.Purpose == "import" {
 				endpoints = append(endpoints, ep)
 			}

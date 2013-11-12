@@ -698,6 +698,17 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 	return nil
 }
 
+func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *dao.ServiceState) error {
+	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
+	return this.zkDao.GetServiceState(serviceState, request.ServiceId, request.ServiceStateId)
+}
+
+func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
+	glog.V(3).Infof("ControlPlaneDao.GetRunningService: request=%v", request)
+	return this.zkDao.GetRunningService(request.ServiceId, request.ServiceStateId, running)
+}
+
+
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*dao.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
 	return this.zkDao.GetServiceStates(serviceStates, serviceId)
@@ -808,7 +819,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
 	svc.ConfigFiles = sd.ConfigFiles
-	svc.Endpoints = &sd.Endpoints
+	svc.Endpoints = sd.Endpoints
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
