@@ -20,6 +20,7 @@ import (
 	"github.com/zenoss/serviced/web"
 
 	"flag"
+	"fmt"
 	"github.com/zenoss/glog"
 	"net"
 	"net/http"
@@ -41,7 +42,8 @@ var options struct {
 	certPEMFile       string
 	zookeepers        ListOpts
 	repstats          bool
-	statshost          string
+	statshost         string
+	statsperiod       int
 }
 
 // Setup flag options (static block)
@@ -56,8 +58,9 @@ func init() {
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
-	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
-	flag.StringVar(&options.statshost, "statshost", "localhost:8443", "host:port for container statistics")
+	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
+	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
+	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -111,8 +114,11 @@ func startServer() {
 	rpc.HandleHTTP()
 
 	if options.repstats {
-		sr := StatsReporter{options.statshost}
-		go sr.Report()
+		statsdest := fmt.Sprintf("https://%s/api/metrics/store", options.statshost)
+		sr := StatsReporter{statsdest}
+
+		glog.V(1).Infoln("Staring containter statistics reporter")
+		go sr.Report(5 * time.Minute)
 	}
 
 	l, err := net.Listen("tcp", options.listen)
