@@ -44,6 +44,8 @@ var options struct {
 	repstats          bool
 	statshost         string
 	statsperiod       int
+	mcusername        string
+	mcpasswd          string
 }
 
 // Setup flag options (static block)
@@ -61,6 +63,8 @@ func init() {
 	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
+	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
+	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -115,10 +119,11 @@ func startServer() {
 
 	if options.repstats {
 		statsdest := fmt.Sprintf("https://%s/api/metrics/store", options.statshost)
-		sr := StatsReporter{statsdest}
+		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
 
 		glog.V(1).Infoln("Staring containter statistics reporter")
-		go sr.Report(5 * time.Minute)
+		statsduration := time.Duration(options.statsperiod) * time.Minute
+		go sr.Report(statsduration)
 	}
 
 	l, err := net.Listen("tcp", options.listen)
