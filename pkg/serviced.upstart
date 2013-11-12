@@ -7,15 +7,6 @@ script
     export SERVICED_HOME=/usr/local/serviced
     . /etc/default/serviced
 
-    DATABASE_NAME=cp
-    if ! /usr/bin/mysql -u root $DATABASE_NAME -e 'select 1' 1>/dev/null 2>&1; then
-        if ! /usr/bin/mysql -u root -e "create database $DATABASE_NAME"; then
-            echo "Could not create database: $DATABASE_NAME"
-            exit 1
-        fi
-        /usr/bin/mysql -u root $DATABASE_NAME < /usr/local/serviced/share/database.sql
-        echo "Initialized serviced database"
-    fi
     cd $SERVICED_HOME && ./bin/serviced -agent -master
 end script
 
