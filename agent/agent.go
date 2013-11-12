@@ -193,7 +193,7 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
-		for _, endpoint := range *service.Endpoints {
+		for _, endpoint := range service.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
 			}
