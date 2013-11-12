@@ -126,7 +126,7 @@ describe('SubServiceControl', function() {
 
     it('Provides service logs', function() {
         $scope.editService = {};
-        $scope.viewLog({Id: 'fake123'});
+        $scope.viewLog({Id: 'fake123', ServiceId: 'fake1'});
         expect($scope.editService.log).toBe(fake_service_logs().Detail);
     });
 
@@ -1015,7 +1015,7 @@ function fake_resources_service() {
        get_service_logs: function(serviceId, callback) {
            callback(fake_service_logs());
        },
-       get_service_state_logs: function(serviceStateId, callback) {
+       get_service_state_logs: function(serviceId, serviceStateId, callback) {
            callback(fake_service_logs());
        },
        get_running_services_for_service: function(serviceId, callback) {

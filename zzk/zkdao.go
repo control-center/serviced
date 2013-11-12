@@ -35,6 +35,7 @@ func TerminateHostService(conn *zk.Conn, hostId string, serviceStateId string) e
 func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
+		glog.Errorf("Unable to connect to zookeeper: %v", err)
 		return err
 	}
 	defer conn.Close()
@@ -148,6 +149,10 @@ func (this *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId str
 		return err
 	}
 	defer conn.Close()
+	return GetServiceState(conn, serviceState, serviceId, serviceStateId)
+}
+
+func GetServiceState(conn *zk.Conn, serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
 	serviceStateNode, _, err := conn.Get(ServiceStatePath(serviceId, serviceStateId))
 	if err != nil {
 		return err
@@ -162,10 +167,39 @@ func (this *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceI
 	}
 	defer conn.Close()
 
+	return GetServiceStates(conn, serviceStates, serviceIds...)
+}
+
+func GetServiceStates(conn *zk.Conn, serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
-		appendServiceStates(conn, serviceId, serviceStates)
+		err := appendServiceStates(conn, serviceId, serviceStates)
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
+}
+
+func (this *ZkDao) GetRunningService(serviceId string, serviceStateId string, running *dao.RunningService) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var s dao.Service
+	_, err = LoadService(conn, serviceId, &s)
+	if err != nil {
+		return err
+	}
+
+	var ss dao.ServiceState
+	_, err = LoadServiceState(conn, serviceId, serviceStateId, &ss)
+	if err != nil {
+		return err
+	}
+	*running = *sssToRs(&s, &ss)
+	return nil
 }
 
 func (this *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
@@ -375,7 +409,7 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 		_ss[i] = &serviceState
 	}
 	*serviceStates = append(*serviceStates, _ss...)
-	return err
+	return nil
 }
 
 type hssMutator func(*HostServiceState)

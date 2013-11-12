@@ -260,7 +260,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	parts := strings.Split(cmd.Arg(0), ":")
 	remoteHost.IpAddr = parts[0]
 	remoteHost.PoolId = cmd.Arg(1)
-	glog.Infof("Got host info: %v", remoteHost)
+	glog.V(0).Infof("Got host info: %v", remoteHost)
 
 	controlPlane := getClient()
 
@@ -290,7 +290,7 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not remove host: %v", err)
 	}
-	glog.Infof("Host %s removed.", cmd.Arg(0))
+	glog.V(0).Infof("Host %s removed.", cmd.Arg(0))
 	return err
 }
 
@@ -407,7 +407,7 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not remove resource pool: %v", err)
 	}
-	glog.Infof("Pool %s removed.\n", cmd.Arg(0))
+	glog.V(0).Infof("Pool %s removed.\n", cmd.Arg(0))
 	return err
 }
 
@@ -522,9 +522,12 @@ func (opts *PortOpts) Set(value string) error {
 func getDefaultGateway() string {
 	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
+	localhost := "127.0.0.1"
+
 	if err != nil {
-		glog.Infof("Could not get default gateway")
-		return "127.0.0.1"
+		glog.V(2).Info("Error checking gateway: ", err)
+		glog.V(1).Info("Could not get default gateway, using ", localhost)
+		return localhost
 	}
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
@@ -532,7 +535,8 @@ func getDefaultGateway() string {
 			return fields[2]
 		}
 	}
-	return "127.0.0.1"
+	glog.V(1).Info("No gateway found, using ", localhost)
+	return localhost
 }
 
 func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
@@ -566,7 +570,7 @@ func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 	for i := 4; i < len(cmd.Args()); i++ {
 		startup = startup + " " + cmd.Arg(i)
 	}
-	glog.Infof("endpoints discovered: %v", flPortOpts)
+	glog.V(1).Info("endpoints discovered: ", flPortOpts)
 	endPoints := make([]dao.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
 	i := 0
 	for _, endpoint := range flPortOpts {
@@ -579,7 +583,7 @@ func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 		endPoints[i] = endpoint
 		i++
 	}
-	service.Endpoints = &endPoints
+	service.Endpoints = endPoints
 	service.Startup = startup
 	return service, cmd, nil
 }
@@ -598,7 +602,7 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 	controlPlane := getClient()
 
 	service.Instances = 1
-	glog.Infof("Calling AddService.\n")
+	glog.V(0).Info("Calling AddService.\n")
 	var serviceId string
 	err = controlPlane.AddService(*service, &serviceId)
 	if err != nil {
@@ -644,7 +648,7 @@ func (cli *ServicedCli) CmdStartService(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not start service: %v", err)
 	}
-	glog.Infof("Sevice scheduled to start on host %s\n", hostId)
+	glog.V(0).Infof("Sevice scheduled to start on host %s\n", hostId)
 	return err
 }
 
@@ -664,7 +668,7 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not stop service: %v", err)
 	}
-	glog.Infoln("Sevice scheduled to stop.")
+	glog.V(0).Infoln("Sevice scheduled to stop.")
 	return err
 }
 
@@ -698,7 +702,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	if service == nil {
 		glog.Fatalf("No such service: %s", serviceId)
 	}
-	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	glog.V(0).Infof("About to start service %s with name %s", service.Id, service.Name)
 	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
@@ -713,7 +717,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
 	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
-	glog.Infof("Starting: %s", cmdString)
+	glog.V(0).Infof("Starting: %s", cmdString)
 	command := exec.Command("bash", "-c", cmdString)
 	command.Stdout = os.Stdout
 	command.Stdin = os.Stdin

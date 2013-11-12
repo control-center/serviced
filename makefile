@@ -53,7 +53,7 @@ clean:
 	go clean
 	cd client && make clean
 	cd serviced && make clean
-	cd agent && make clean
+	cd agent && make clean	
 	cd proxy && make clean
 	cd dao && make clean
 	cd pkg && make clean

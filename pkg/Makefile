@@ -94,7 +94,6 @@ deb: stage_deb
 		-v $(PKG_VERSION) \
 		-s dir \
 		-d lxc-docker \
-		-d mysql-server \
 		-d make \
 		-t deb \
 		-a x86_64 \

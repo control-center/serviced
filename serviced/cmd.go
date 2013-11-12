@@ -13,6 +13,7 @@ package main
 
 //svc "github.com/zenoss/serviced/svc"
 import (
+	"github.com/zenoss/serviced"
 	agent "github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
@@ -20,6 +21,7 @@ import (
 	"github.com/zenoss/serviced/web"
 
 	"flag"
+	"fmt"
 	"github.com/zenoss/glog"
 	"net"
 	"net/http"
@@ -59,9 +61,11 @@ func init() {
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
+		// TODO: Default to elastic
 		conStr = "mysql://root@127.0.0.1:3306/cp"
 	} else {
-		glog.Infoln("Using connection string from env var CP_PROD_DB")
+		// TODO: Use this for something
+		glog.V(1).Infoln("Using connection string from env var CP_PROD_DB")
 	}
 	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
@@ -69,8 +73,36 @@ func init() {
 	}
 }
 
+func compareVersion(a, b []int) int {
+	astr := ""
+	for _, s := range a {
+		astr += fmt.Sprintf("%12d", s)
+	}
+	bstr := ""
+	for _, s := range b {
+		bstr += fmt.Sprintf("%12d", s)
+	}
+	if astr > bstr {
+		return -1
+	}
+	if astr < bstr {
+		return 1
+	}
+	return 0
+}
+
 // Start the agent or master services on this host.
 func startServer() {
+
+	dockerVersion, err := serviced.GetDockerVersion()
+	if err != nil {
+		glog.Fatalf("Could not determine docker version: %s", err)
+	}
+
+	atLeast := []int{0, 6, 5}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 {
+		glog.Fatal("serviced needs at least docker 0.6.5")
+	}
 
 	if options.master {
 		var master dao.ControlPlane
@@ -81,7 +113,7 @@ func startServer() {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlane service")
+		glog.V(0).Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
 
@@ -103,7 +135,7 @@ func startServer() {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlaneAgent service")
+		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
 	}
 	rpc.HandleHTTP()
@@ -114,7 +146,7 @@ func startServer() {
 		time.Sleep(time.Second * 1000)
 	}
 
-	glog.Infof("Listening on %s", l.Addr().String())
+	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	http.Serve(l, nil) // start the server
 }
 

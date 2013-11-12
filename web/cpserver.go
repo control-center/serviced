@@ -53,6 +53,7 @@ func (this *ServiceConfig) Serve() {
 		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
 		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
 		rest.Route{"GET", "/services/:serviceId/running", this.AuthorizedClient(RestGetRunningForService)},
+		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", this.AuthorizedClient(RestGetRunningService)},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", this.AuthorizedClient(RestGetServiceStateLogs)},
 		rest.Route{"POST", "/services/add", this.AuthorizedClient(RestAddService)},
 		rest.Route{"DELETE", "/services/:serviceId", this.AuthorizedClient(RestRemoveService)},

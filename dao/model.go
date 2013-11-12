@@ -110,7 +110,7 @@ type Service struct {
 	PoolId          string
 	DesiredState    int
 	Launch          string
-	Endpoints       *[]ServiceEndpoint
+	Endpoints       []ServiceEndpoint
 	ParentServiceId string
 	Volumes         []Volume
 	CreatedAt       time.Time
@@ -248,7 +248,7 @@ func (s *Service) NewServiceState(hostId string) (serviceState *ServiceState, er
 		serviceState.ServiceId = s.Id
 		serviceState.HostId = hostId
 		serviceState.Scheduled = time.Now()
-		serviceState.Endpoints = *s.Endpoints
+		serviceState.Endpoints = s.Endpoints
 	}
 	return serviceState, err
 }
@@ -259,7 +259,7 @@ func (s *Service) HasImports() bool {
 		return false
 	}
 
-	for _, ep := range *s.Endpoints {
+	for _, ep := range s.Endpoints {
 		if ep.Purpose == "import" {
 			return true
 		}
@@ -270,7 +270,7 @@ func (s *Service) HasImports() bool {
 // Retrieve service endpoint imports
 func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 	if s.Endpoints != nil {
-		for _, ep := range *s.Endpoints {
+		for _, ep := range s.Endpoints {
 			if ep.Purpose == "import" {
 				endpoints = append(endpoints, ep)
 			}
@@ -295,7 +295,7 @@ func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) u
 				glog.Errorf("Found match for %s, but no portmapping is available", application)
 				break
 			}
-			glog.Infof("Found %v for %s", external, portS)
+			glog.V(1).Infof("Found %v for %s", external, portS)
 			extPort, err := strconv.Atoi(external[0].HostPort)
 			if err != nil {
 				glog.Errorf("Unable to convert to integer: %v", err)
