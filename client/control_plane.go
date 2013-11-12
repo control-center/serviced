@@ -103,6 +103,14 @@ func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningSer
 	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices)
 }
 
+func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *dao.ServiceState) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceState", request, state)
+}
+
+func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
+	return s.rpcClient.Call("ControlPlane.GetRunningService", request, running)
+}
+
 func (s *ControlClient) GetServiceStates(serviceId string, states *[]*dao.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }

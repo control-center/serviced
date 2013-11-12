@@ -537,6 +537,29 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *clientl
 	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
 }
 
+func RestGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
+	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	request := dao.ServiceStateRequest{serviceId, serviceStateId}
+
+	var running dao.RunningService
+	err = client.GetRunningService(request, &running)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(running)
+
+}
+
 func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *clientlib.ControlClient) {
 	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
