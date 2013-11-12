@@ -198,7 +198,7 @@ func (this *ZkDao) GetRunningService(serviceId string, serviceStateId string, ru
 	if err != nil {
 		return err
 	}
-	running = sssToRs(&s, &ss)
+	*running = *sssToRs(&s, &ss)
 	return nil
 }
 

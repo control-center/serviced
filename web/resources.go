@@ -550,8 +550,8 @@ func RestGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *clie
 	}
 	request := dao.ServiceStateRequest{serviceId, serviceStateId}
 
-	var running *dao.RunningService
-	err = client.GetRunningService(request, running)
+	var running dao.RunningService
+	err = client.GetRunningService(request, &running)
 	if err != nil {
 		glog.Errorf("Unexpected error getting logs: %v", err)
 		RestServerError(w)
