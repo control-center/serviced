@@ -16,7 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-  "os/user"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -327,15 +327,15 @@ func parseDockerVersion(output string) (version DockerVersion, err error) {
 }
 
 //create a user directory and setting ownership and permission according to parameters
-func CreateDirectory( path, username string, perm os.FileMode) error {
-  user, err := user.Lookup( username)
-  if err == nil {
-    err = os.MkdirAll( path, perm)
-    if err == nil || err == os.ErrExist {
-      uid,_ := strconv.Atoi( user.Uid)
-      gid,_ := strconv.Atoi( user.Gid)
-      err = os.Chown( path, uid, gid)
-    }
-  }
-  return err
+func CreateDirectory(path, username string, perm os.FileMode) error {
+	user, err := user.Lookup(username)
+	if err == nil {
+		err = os.MkdirAll(path, perm)
+		if err == nil || err == os.ErrExist {
+			uid, _ := strconv.Atoi(user.Uid)
+			gid, _ := strconv.Atoi(user.Gid)
+			err = os.Chown(path, uid, gid)
+		}
+	}
+	return err
 }
