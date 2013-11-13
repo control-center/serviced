@@ -137,7 +137,7 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 		var poolHosts []*dao.PoolHost
 		err = cpDao.GetHostsForResourcePool(service.PoolId, &poolHosts)
 		if err != nil {
-			glog.Errorf("Leader unable to acquire hosts for pool %s", service.PoolId)
+			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolId, err)
 			return err
 		}
 		if len(poolHosts) == 0 {
