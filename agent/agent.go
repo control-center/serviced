@@ -1,4 +1,4 @@
-OB/*******************************************************************************
+/*******************************************************************************
 * Copyright (C) Zenoss, Inc. 2013, all rights reserved.
 *
 * This content is made available according to terms specified in
@@ -58,7 +58,7 @@ var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (*HostAgent, error) {
+func NewHostAgent(master string, resourcePath string, mux proxy.TCPMux, zookeepers []string) (*HostAgent, error) {
 	agent := &HostAgent{}
 	agent.master = master
 	agent.mux = mux
@@ -267,7 +267,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		} else {
 			glog.Errorf("Error creating resource path: %v", err)
-			return err
+			return false, err
 		}
 	}
 
