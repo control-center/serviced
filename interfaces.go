@@ -80,7 +80,6 @@ type ContainerState struct {
 	VolumesRW      map[string]bool
 }
 
-
 // The API for a service proxy.
 type LoadBalancer interface {
 	GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error

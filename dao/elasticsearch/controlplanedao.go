@@ -708,7 +708,6 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 	return this.zkDao.GetRunningService(request.ServiceId, request.ServiceStateId, running)
 }
 
-
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*dao.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
 	return this.zkDao.GetServiceStates(serviceStates, serviceId)
@@ -760,6 +759,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, unused *int) error {
 	var wrapper dao.ServiceTemplateWrapper
 	err := getServiceTemplateWrapper(request.TemplateId, &wrapper)
+
 	if err != nil {
 		glog.Errorf("Unable to load template wrapper: %s", request.TemplateId)
 		return err
@@ -778,19 +778,21 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 		glog.Errorf("Unable to unmarshal template: %s", request.TemplateId)
 		return err
 	}
-	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "")
+
+	volumes := make(map[string]string)
+	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string) error {
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parent); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parent, volumes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parent string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string) error {
 	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
@@ -804,6 +806,11 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 
 	if sd.Launch == "MANUAL" {
 		ds = dao.SVC_STOP
+	}
+
+	exportedVolumes := make(map[string]string)
+	for k, v := range volumes {
+		exportedVolumes[k] = v
 	}
 
 	svc := dao.Service{}
@@ -823,19 +830,34 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
+	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
+
+	//for each export, create directory and add path into export map
+	for _, volumeExport := range sd.VolumeExports {
+		resourcePath := svc.Id + "/" + volumeExport.Path
+		exportedVolumes[volumeExport.Name] = resourcePath
+	}
+
+	//for each import, create directory and configure service paths
+	for i, volumeImport := range sd.VolumeImports {
+		resourcePath := exportedVolumes[volumeImport.Name] + "/" + volumeImport.ResourcePath
+		svc.Volumes[i] = dao.Volume{volumeImport.Owner, volumeImport.Permission, resourcePath, volumeImport.ContainerPath}
+	}
 
 	var serviceId string
 	err = this.AddService(svc, &serviceId)
 	if err != nil {
 		return err
 	}
+
 	sduuid, _ := dao.NewUuid()
 	deployment := dao.ServiceDeployment{sduuid, template, svc.Id, now}
 	_, err = newServiceDeployment(sduuid, &deployment)
 	if err != nil {
 		return err
 	}
-	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id)
+
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes)
 }
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {

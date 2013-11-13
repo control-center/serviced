@@ -34,7 +34,7 @@ dockerbuild: docker_ok
 
 test: build docker_ok
 	go test
-	cd client && make test	
+	cd client && make test
 	cd agent && make test
 	cd web && make test
 	cd proxy && make test

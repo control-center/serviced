@@ -24,7 +24,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -42,6 +44,7 @@ import (
 type HostAgent struct {
 	master          string               // the connection string to the master agent
 	hostId          string               // the hostID of the current host
+	resourcePath    string               // directory to bind mount docker volumes
 	currentServices map[string]*exec.Cmd // the current running services
 	zookeepers      []string
 	mux             proxy.TCPMux
@@ -51,10 +54,11 @@ type HostAgent struct {
 var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (agent *HostAgent, err error) {
+func NewHostAgent(master, resourcePath string, mux proxy.TCPMux, zookeepers []string) (agent *HostAgent, err error) {
 	agent = &HostAgent{}
 	agent.master = master
 	agent.mux = mux
+	agent.resourcePath = resourcePath
 	hostId, err := serviced.HostId()
 	if err != nil {
 		panic("Could not get hostid")
@@ -65,7 +69,7 @@ func NewHostAgent(master string, mux proxy.TCPMux, zookeepers []string) (agent *
 	if len(agent.zookeepers) == 0 {
 		defaultZK := "127.0.0.1:2181"
 		glog.V(1).Infoln("Zookeepers not specified: using default of %s", defaultZK)
-		agent.zookeepers = []string{ defaultZK }
+		agent.zookeepers = []string{defaultZK}
 	}
 
 	if agent.mux.Enabled {
@@ -200,6 +204,19 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 		}
 	}
 
+	volumeOpts := ""
+	for _, volume := range service.Volumes {
+		fileMode := os.FileMode(volume.Permission)
+		resourcePath, _ := filepath.Abs(a.resourcePath + "/" + volume.ResourcePath)
+		err := serviced.CreateDirectory(resourcePath, volume.Owner, fileMode)
+		if err == nil {
+			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
+		} else {
+			glog.Errorf("Error creating resource path: %v", err)
+			return err
+		}
+	}
+
 	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
@@ -213,7 +230,8 @@ func (a *HostAgent) startService(conn *zk.Conn, ssStats *zk.Stat, service *dao.S
 	}
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s", portOps, volumeBinding, service.ImageId, proxyCmd)
+
+	cmdString := fmt.Sprintf("docker run %s -d -v %s %s %s %s", portOps, volumeBinding, volumeOpts, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
 
@@ -317,7 +335,7 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) {
 func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- string, ssId string) {
 	defer func() {
 		glog.V(3).Info("Exiting function processServiceState ", ssId)
-		done <- ssId 
+		done <- ssId
 	}()
 	failures := 0
 	for {
