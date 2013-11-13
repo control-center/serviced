@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zenoss/glog"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,12 +144,6 @@ func (a *HostAgent) attachToService(conn *zk.Conn, procFinished chan<- int, serv
 	}
 
 	cmd := exec.Command("docker", "attach", serviceState.DockerId)
-	err = cmd.Start()
-	if err != nil {
-		glog.Errorf("Problem attaching to container %s: %v", serviceState.DockerId, err)
-		return false, err
-	}
-
 	go waitForProcessToDie(conn, cmd, procFinished, serviceState)
 	return true, nil
 }
@@ -232,17 +228,56 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 }
 
 func waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
-	err := cmd.Wait()
+	tmpName := os.TempDir() + "/" + serviceState.Id + ".log"
+	defer func() {
+		err := os.Remove(tmpName)
+		if err != nil {
+			glog.V(1).Infof("Unable to remove tmp file %s: %v", err)
+		}
+		procFinished <- 1
+	}()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		glog.Warningf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		glog.Warningf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
+	}
+
+	tmpLog, err := os.Create(tmpName)
+	if err != nil {
+		glog.Warningf("Unable to create temp file %s", tmpName)
+	}
+
+	err = cmd.Start()
+
+	go io.Copy(tmpLog, stdout)
+	go io.Copy(tmpLog, stderr)
+
+	if err != nil {
+		glog.Errorf("Problem starting command '%s %s': %v", cmd.Path, cmd.Args, err)
+		return
+	}
+
+	err = cmd.Wait()
 	if err != nil {
 		glog.V(0).Infof("Docker process did not exit cleanly: %v", err)
+		out, err := ioutil.ReadFile(tmpName)
+		if err != nil {
+			glog.V(1).Infof("Unable to read file %s", tmpName)
+		} else {
+			glog.V(0).Infof("Process out:\n%s", out)
+		}
 	} else {
 		glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
 	}
+
 	err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id)
 	if err != nil {
 		glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
 	}
-	procFinished <- 1
 }
 
 // Start a service instance and update the CP with the state.
@@ -288,13 +323,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	cmd := exec.Command("bash", "-c", cmdString)
-	err = cmd.Start()
-	if err != nil {
-		glog.Errorf("Problem starting service: %v, %s", err, service.Startup)
-		return false, err
-	}
 
 	go waitForProcessToDie(conn, cmd, procFinished, serviceState)
+
 	time.Sleep(1 * time.Second) // Sleep just a second to give it a chance to get a PID
 
 	// We are name the container the same as its service state ID, so use that as an alias
