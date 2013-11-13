@@ -41,7 +41,7 @@ var options struct {
 	tls               bool
 	keyPEMFile        string
 	certPEMFile       string
-  resourcePath      string
+	resourcePath      string
 	zookeepers        ListOpts
 }
 
