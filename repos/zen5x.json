@@ -1,461 +1,444 @@
 {
-  "Description": "Zenoss RM",
-  "Name": "Zenoss 5.0",
-  "Context": {},
-  "Services": [{
-      "Command": "",
-      "Endpoints": [],
-      "ImageId": "",
-      "Instances": {
-        "min": 0
-      },
-      "Launch": "auto",
-      "Name": "Zenoss",
-      "Services": [{
-          "Command": "/usr/bin/mysqld_safe",
-          "Endpoints": [{
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "mysql",
-          "Services": []
+    "Name": "Zenoss",
+    "Description": "Zenoss Resource Manager",
+    "Instances": {"min": 1},
+    "Launch": "auto",
+    "Services": [{
+        "Name": "MySQL",
+        "Tags": ["daemon"],
+        "Command": "/usr/bin/mysqld_safe",
+        "Endpoints": [{
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "OpenTSDB",
+        "Tags": ["daemon"],
+        "Command": "/bin/bash -c \"/opt/hbase-0.94.12/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }\"",
+        "Endpoints": [{
+            "Application": "opentsdb",
+            "PortNumber": 4242,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/opentsdb",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "RabbitMQ",
+        "Tags": ["daemon"],
+        "Command": "/usr/sbin/rabbitmq-server",
+        "Endpoints": [{
+            "Application": "rabbitmq_admin",
+            "PortNumber": 15672,
+            "Protocol": "tcp",
+            "Purpose": "export"
         }, {
-          "Command": "/bin/bash -c \"/opt/hbase-0.94.12/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }\"",
-          "Endpoints": [{
-              "Application": "opentsdb",
-              "PortNumber": 4242,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/opentsdb",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "opentsdb",
-          "Services": []
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "memcached",
+        "Tags": ["daemon"],
+        "Command": "/usr/sbin/memcached",
+        "Launch": "auto",
+        "Endpoints": [{
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/memcached",
+        "Instances": {"min": 1},
+        "Services": []
+    }, {
+        "Name": "redis",
+        "Tags": ["daemon"],
+        "Command": "/usr/sbin/redis-server /etc/redis.conf", 
+        "Launch": "auto",
+        "Endpoints": [{
+            "Application": "redis", 
+            "PortNumber": 6379, 
+            "Protocol": "tcp", 
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Services": []
+    }, {
+        "Name": "zsupervisord",
+        "Tags": ["daemon"],
+        "Command": "redis-server /etc/redis.conf & su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
+        "Endpoints": [{
+            "Application": "memcached", 
+            "PortNumber": 11211, 
+            "Protocol": "tcp", 
+            "Purpose": "import"
         }, {
-          "Command": "/usr/sbin/rabbitmq-server",
-          "Endpoints": [{
-              "Application": "rabbitmq_admin",
-              "PortNumber": 15672,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "rabbitmq",
-          "Services": []
+            "Application": "zope", 
+            "PortNumber": 9080, 
+            "Protocol": "tcp", 
+            "Purpose": "import"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventserver run -v10\"",
-          "Endpoints": [{
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "zep",
-              "PortNumber": 8084,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zeneventserver",
-          "Services": []
+            "Application": "opentsdb",
+            "PortNumber": 4242,
+            "Protocol": "tcp",
+            "Purpose": "import"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zopectl fg\"",
-          "Endpoints": [{
-              "Application": "rabbitmq_admin",
-              "PortNumber": 15672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "zep",
-              "PortNumber": 8084,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "zope",
-              "PortNumber": 9080,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zope",
-          "Services": []
+            "Application": "metric_consumer",
+            "PortNumber": 8443,
+            "Protocol": "tcp",
+            "Purpose": "export"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenjobs run -v10\"",
-          "Endpoints": [{
-              "Application": "rabbitmq_admin",
-              "PortNumber": 15672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zenjobs",
-          "Services": []
+            "Application": "central_query",
+            "PortNumber": 8888,
+            "Protocol": "tcp",
+            "Purpose": "export"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventd run -v10\"",
-          "Endpoints": [{
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zeneventd",
-          "Services": []
+            "Application": "zproxy",
+            "PortNumber": 8080,
+            "Protocol": "tcp",
+            "Purpose": "export"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenactiond run -v10\"",
-          "Endpoints": [{
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zenactiond",
-          "Services": []
-        }, 
-        {
-          "Command": "redis-server /etc/redis.conf & su - zenoss -c \"cd /opt/zenoss && /bin/supervisord -c etc/zsupervisor.conf -n\"", 
-          "Endpoints": [
-            {
-              "Application": "memcached", 
-              "PortNumber": 11211, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, 
-            {
-              "Application": "zope", 
-              "PortNumber": 9080, 
-              "Protocol": "tcp", 
-              "Purpose": "import"
-            }, {
-              "Application": "opentsdb",
-              "PortNumber": 4242,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "metric_consumer",
-              "PortNumber": 8443,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }, {
-              "Application": "central_query",
-              "PortNumber": 8888,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }, {
-              "Application": "zproxy",
-              "PortNumber": 8080,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }, {
-              "Application": "zauth",
-              "PortNumber": 9180,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zsupervisord",
-          "Services": []
+            "Application": "zauth",
+            "PortNumber": 9180,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "zeneventserver",
+        "Tags": ["daemon"],
+        "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventserver run -v10\"",
+        "Endpoints": [{
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "import"
         }, {
-          "Command": "su - zenoss -c \"/opt/zenoss/bin/zenhub run -v10\"",
-          "Endpoints": [{
-              "Application": "mysql",
-              "PortNumber": 3306,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "redis",
-              "PortNumber": 6379,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "rabbitmq",
-              "PortNumber": 5672,
-              "Protocol": "tcp",
-              "Purpose": "import"
-            }, {
-              "Application": "zenhubPB",
-              "PortNumber": 8789,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }, {
-              "Application": "zenhubXMLRpc",
-              "PortNumber": 8781,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "zenhub",
-          "Services": [{
-              "Name": "collector_redis",
-              "Command": "",
-              "Launch": "auto",
-              "Endpoints": [{
-                  "Application": "credis",
-                  "PortNumber": 6379,
-                  "Protocol": "tcp",
-                  "Purpose": "export"
-                }
-              ],
-              "ImageId": "zenoss/zenoss5x",
-              "Instances": {
-                "min": 1
-              },
-              "Services": []
-            }, {
-              "Name": "zenping",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenping run -c -v10\"",
-              "Launch": "auto",
-              "Endpoints": [{
-                  "Application": "zenhubPB",
-                  "PortNumber": 8789,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                },
-                {
-                  "Application": "credis",
-                  "PortNumber": 6379,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                }
-              ],
-              "ImageId": "zenoss/zenoss5x",
-              "Instances": {
-                "min": 1
-              },
-              "Services": []
-            }, {
-              "Name": "zenmodeler",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenmodeler run -c -v10\"",
-              "Launch": "auto",
-              "Endpoints": [{
-                  "Application": "zenhubPB",
-                  "PortNumber": 8789,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                },
-                {
-                  "Application": "credis",
-                  "PortNumber": 6379,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                }
-              ],
-              "ImageId": "zenoss/zenoss5x",
-              "Instances": {
-                "min": 1
-              },
-              "Services": []
-            }, {
-              "Name": "zenperfsnmp",
-              "Command": "su - zenoss -c \"/opt/zenoss/bin/zenperfsnmp run -c -v10\"",
-              "Launch": "auto",
-              "Endpoints": [{
-                  "Application": "zenhubPB",
-                  "PortNumber": 8789,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                },
-                {
-                  "Application": "credis",
-                  "PortNumber": 6379,
-                  "Protocol": "tcp",
-                  "Purpose": "import"
-                }
-              ],
-              "ImageId": "zenoss/zenoss5x",
-              "Instances": {
-                "min": 1
-              },
-              "Services": []
-            }
-          ]
-
-
-
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "import"
         }, {
-          "Command": "/usr/sbin/memcached",
-          "Endpoints": [{
-              "Application": "memcached",
-              "PortNumber": 11211,
-              "Protocol": "tcp",
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/memcached",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "memcached",
-          "Services": []
-        }, 
-        {
-          "Command": "/usr/sbin/redis-server /etc/redis.conf", 
-          "Endpoints": [
-            {
-              "Application": "redis", 
-              "PortNumber": 6379, 
-              "Protocol": "tcp", 
-              "Purpose": "export"
-            }
-          ],
-          "ImageId": "zenoss/zenoss5x",
-          "Instances": {
-            "min": 1
-          },
-          "Launch": "auto",
-          "Name": "redis",
-          "Services": []
-        }
-      ]
-    }
-  ]
+            "Application": "redis",
+            "PortNumber": 6379,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "zep",
+            "PortNumber": 8084,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "Zope",
+        "Tags": ["daemon"],
+        "Command": "su - zenoss -c \"/opt/zenoss/bin/zopectl fg\"",
+        "Endpoints": [{
+            "Application": "rabbitmq_admin",
+            "PortNumber": 15672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "redis",
+            "PortNumber": 6379,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "zep",
+            "PortNumber": 8084,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "zope",
+            "PortNumber": 9080,
+            "Protocol": "tcp",
+            "Purpose": "export"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "ZenJobs",
+        "Tags": ["daemon"],
+        "Command": "su - zenoss -c \"/opt/zenoss/bin/zenjobs run -v10\"",
+        "Endpoints": [{
+            "Application": "rabbitmq_admin",
+            "PortNumber": 15672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "redis",
+            "PortNumber": 6379,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "ZenEventd",
+        "Tags": ["daemon"],
+        "Command": "su - zenoss -c \"/opt/zenoss/bin/zeneventd run -v10\"",
+        "Endpoints": [{
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "redis",
+            "PortNumber": 6379,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "ZenActiond",
+        "Tags": ["daemon"],
+        "Command": "su - zenoss -c \"/opt/zenoss/bin/zenactiond run -v10\"",
+        "Endpoints": [{
+            "Application": "mysql",
+            "PortNumber": 3306,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "memcached",
+            "PortNumber": 11211,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "redis",
+            "PortNumber": 6379,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }, {
+            "Application": "rabbitmq",
+            "PortNumber": 5672,
+            "Protocol": "tcp",
+            "Purpose": "import"
+        }],
+        "ImageId": "zenoss/zenoss5x",
+        "Instances": {"min": 1},
+        "Launch": "auto",
+        "Services": []
+    }, {
+        "Name": "localhost",
+        "Tags": ["hub"],
+        "Endpoints": [],
+        "Instances": {"min": 0},
+        "Launch": "auto",
+        "Services": [{
+            "Name": "ZenHub",
+            "Tags": ["daemon", "hub"],
+            "Command": "su - zenoss -c \"/opt/zenoss/bin/zenhub run -v10\"",
+            "Endpoints": [{
+                "Application": "mysql",
+                "PortNumber": 3306,
+                "Protocol": "tcp",
+                "Purpose": "import"
+            }, {
+                "Application": "memcached",
+                "PortNumber": 11211,
+                "Protocol": "tcp",
+                "Purpose": "import"
+            }, {
+                "Application": "redis",
+                "PortNumber": 6379,
+                "Protocol": "tcp",
+                "Purpose": "import"
+            }, {
+                "Application": "rabbitmq",
+                "PortNumber": 5672,
+                "Protocol": "tcp",
+                "Purpose": "import"
+            }, {
+                "Application": "zenhubPB",
+                "PortNumber": 8789,
+                "Protocol": "tcp",
+                "Purpose": "export"
+            }, {
+                "Application": "zenhubXMLRpc",
+                "PortNumber": 8781,
+                "Protocol": "tcp",
+                "Purpose": "export"
+            }],
+            "ImageId": "zenoss/zenoss5x",
+            "Instances": {"min": 1},
+            "Launch": "auto",
+            "Services": []
+        }, {
+            "Name": "localhost",
+            "Tags": ["collector"],
+            "Endpoints": [],
+            "Instances": {"min": 0},
+            "Launch": "auto",
+            "Services": [{
+                "Name": "zenperfsnmp",
+                "Tags": ["daemon", "collector"],
+                "Command": "su - zenoss -c \"/opt/zenoss/bin/zenperfsnmp run -c -v10\"",
+                "Launch": "auto",
+                "Endpoints": [{
+                    "Application": "zenhubPB",
+                    "PortNumber": 8789,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }, {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }],
+                "ImageId": "zenoss/zenoss5x",
+                "Instances": {"min": 1},
+                "Services": []
+            }, {
+                "Name": "zenmodeler",
+                "Tags": ["daemon", "collector"],
+                "Command": "su - zenoss -c \"/opt/zenoss/bin/zenmodeler run -c -v10\"",
+                "Launch": "auto",
+                "Endpoints": [{
+                    "Application": "zenhubPB",
+                    "PortNumber": 8789,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }, {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }],
+                "ImageId": "zenoss/zenoss5x",
+                "Instances": {"min": 1},
+                "Services": []
+            }, {
+                "Name": "zenprocess",
+                "Tags": ["daemon", "collector"],
+                "Command": "su - zenoss -c \"/opt/zenoss/bin/zenprocess run -c -v10\"",
+                "Launch": "auto",
+                "Endpoints": [{
+                    "Application": "zenhubPB",
+                    "PortNumber": 8789,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }, {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }],
+                "ImageId": "zenoss/zenoss5x",
+                "Instances": {"min": 1},
+                "Services": []
+            }, {
+                "Name": "zenping",
+                "Tags": ["daemon", "collector"],
+                "Command": "su - zenoss -c \"/opt/zenoss/bin/zenping run -c -v10\"",
+                "Launch": "auto",
+                "Endpoints": [{
+                    "Application": "zenhubPB",
+                    "PortNumber": 8789,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }, {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }],
+                "ImageId": "zenoss/zenoss5x",
+                "Instances": {"min": 1},
+                "Services": []
+            }, {
+                "Name": "zencommand",
+                "Tags": ["daemon", "collector"],
+                "Command": "su - zenoss -c \"/opt/zenoss/bin/zencommand run -c -v10\"",
+                "Launch": "auto",
+                "Endpoints": [{
+                    "Application": "zenhubPB",
+                    "PortNumber": 8789,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }, {
+                    "Application": "redis",
+                    "PortNumber": 6379,
+                    "Protocol": "tcp",
+                    "Purpose": "import"
+                }],
+                "ImageId": "zenoss/zenoss5x",
+                "Instances": {"min": 1},
+                "Services": []
+            }]
+        }]
+    }]
 }
