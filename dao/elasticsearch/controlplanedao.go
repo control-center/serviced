@@ -368,7 +368,7 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 //
 func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", service)
-	id := strings.TrimSpace(*serviceId)
+	id := strings.TrimSpace(service.Id)
 	if id == "" {
 		return errors.New("empty Service.Id not allowed")
 	}

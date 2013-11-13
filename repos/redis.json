@@ -3,8 +3,19 @@
     "Name": "Redis",
     "Services": [
         {
-            "Command": "/usr/sbin/redis-server",
+            "Command": "/usr/sbin/redis-server", 
             "Context": {},
+            "VolumeExports": [ {
+              "Name": "log",
+              "Path": "var/log"
+            } ],
+            "VolumeImports": [ {
+              "Name": "log",
+              "ResourcePath" : "redis",
+              "ContainerPath" : "/var/redis",
+	            "Owner" : "zenoss",
+	            "Permission" : 511
+            }],
             "Endpoints": [
                 {
                     "Application": "redis",

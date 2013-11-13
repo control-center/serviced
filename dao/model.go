@@ -135,8 +135,8 @@ type ServiceExport struct {
 
 // volume export defines a file system directory to logically organize volume imports
 type VolumeExport struct {
-	Name       string //Name of volume to export
-	Path       string //Resource Pool Path
+	Name string //Name of volume to export
+	Path string //Resource Pool Path
 }
 
 // volume import defines a file system directory underneath an export directory
