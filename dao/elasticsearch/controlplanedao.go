@@ -708,7 +708,6 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 	return this.zkDao.GetRunningService(request.ServiceId, request.ServiceStateId, running)
 }
 
-
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*dao.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
 	return this.zkDao.GetServiceStates(serviceStates, serviceId)
@@ -780,8 +779,8 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 		return err
 	}
 
-  volumes := make(map[string]string)
-  return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes)
+	volumes := make(map[string]string)
+	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes)
 }
 
 func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string) error {
@@ -809,10 +808,10 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		ds = dao.SVC_STOP
 	}
 
-  exportedVolumes := make(map[string]string)
-  for k,v := range volumes {
-    exportedVolumes[k] = v
-  }
+	exportedVolumes := make(map[string]string)
+	for k, v := range volumes {
+		exportedVolumes[k] = v
+	}
 
 	svc := dao.Service{}
 	svc.Id = svcuuid
@@ -831,19 +830,19 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
-  svc.Volumes = make( []dao.Volume, len( sd.VolumeImports))
+	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
 
-  //for each export, create directory and add path into export map
-  for _, volumeExport := range sd.VolumeExports {
-    resourcePath := svc.Id + "/" + volumeExport.Path
-    exportedVolumes[volumeExport.Name] = resourcePath
-  }
+	//for each export, create directory and add path into export map
+	for _, volumeExport := range sd.VolumeExports {
+		resourcePath := svc.Id + "/" + volumeExport.Path
+		exportedVolumes[volumeExport.Name] = resourcePath
+	}
 
-  //for each import, create directory and configure service paths
-  for i, volumeImport := range sd.VolumeImports {
-    resourcePath := exportedVolumes[volumeImport.Name] + "/" + volumeImport.ResourcePath
-    svc.Volumes[i] = dao.Volume{ volumeImport.Owner, volumeImport.Permission, resourcePath, volumeImport.ContainerPath}
-  }
+	//for each import, create directory and configure service paths
+	for i, volumeImport := range sd.VolumeImports {
+		resourcePath := exportedVolumes[volumeImport.Name] + "/" + volumeImport.ResourcePath
+		svc.Volumes[i] = dao.Volume{volumeImport.Owner, volumeImport.Permission, resourcePath, volumeImport.ContainerPath}
+	}
 
 	var serviceId string
 	err = this.AddService(svc, &serviceId)
@@ -858,7 +857,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-  return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes)
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes)
 }
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
