@@ -1,6 +1,8 @@
 package isvcs
 
 import (
+	"github.com/zenoss/glog"
+
 	"fmt"
 	"net/http"
 	"time"
@@ -61,6 +63,7 @@ func (c *ElasticSearchISvc) Run() error {
 		if time.Since(start) > timeout {
 			return fmt.Errorf("Could not startup elastic search container.")
 		}
+		glog.V(2).Infof("Still trying to connect to elastic: %v", err)
 		time.Sleep(time.Millisecond * 100)
 	}
 	return nil

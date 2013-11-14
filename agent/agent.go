@@ -190,15 +190,27 @@ func (a *HostAgent) terminateAttached(conn *zk.Conn, procFinished <-chan int, ss
 	return nil
 }
 
-func (a *HostAgent) dockerTerminate(dockerId string) error {
-	// get docker status
-	cmd := exec.Command("docker", "kill", dockerId)
-	glog.V(1).Infof("dockerTerminate: %s", dockerId)
+func (a *HostAgent) dockerRemove(dockerId string) error {
+	glog.V(1).Infof("Ensuring that container %s does not exist", dockerId)
+	cmd := exec.Command("docker", "rm", dockerId)
 	err := cmd.Run()
 	if err != nil {
-		glog.Errorf("problem killing container instance %s", dockerId)
+		glog.V(1).Infof("problem removing container instance %s", dockerId)
 		return err
 	}
+	glog.V(2).Infof("Successfully removed %s", dockerId)
+	return nil
+}
+
+func (a *HostAgent) dockerTerminate(dockerId string) error {
+	glog.V(1).Infof("Killing container %s", dockerId)
+	cmd := exec.Command("docker", "kill", dockerId)
+	err := cmd.Run()
+	if err != nil {
+		glog.V(1).Infof("problem killing container instance %s", dockerId)
+		return err
+	}
+	glog.V(2).Infof("Successfully killed %s", dockerId)
 	return nil
 }
 
@@ -235,6 +247,8 @@ func dumpOut(tmpName string) {
 }
 
 func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
+	a.dockerRemove(serviceState.Id)
+
 	tmpName := os.TempDir() + "/" + serviceState.Id + ".log"
 	defer func() {
 		err := os.Remove(tmpName)
@@ -383,11 +397,26 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
-			conn, _, err := zk.Connect(a.zookeepers, time.Second*10)
+			conn, zkEvt, err := zk.Connect(a.zookeepers, time.Second*10)
 			if err != nil {
 				glog.V(0).Info("Unable to connect, retrying.")
-				time.Sleep(time.Second * 3)
 				return true
+			}
+
+			connectEvent := false
+			for !connectEvent {
+				select {
+				case errc := <- a.closing:
+					glog.V(0).Info("Received shutdown notice")
+					errc <- errors.New("Unable to connect to zookeeper")
+					return false
+
+				case evt := <- zkEvt:
+					glog.V(1).Infof("Got ZK connect event: %v", evt)
+					if evt.State == zk.StateConnected {
+						connectEvent = true
+					}
+				}
 			}
 			defer conn.Close() // Executed after lambda function finishes
 
