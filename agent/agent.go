@@ -300,10 +300,11 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 
 	err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
-		serviceState.Started = time.Now()
-		serviceState.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
-		serviceState.PortMapping = containerState.NetworkSettings.Ports
+		ss.DockerId = containerState.ID
+		ss.Started = time.Now()
+		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		ss.PrivateIp = containerState.NetworkSettings.IPAddress
+		ss.PortMapping = containerState.NetworkSettings.Ports
 	})
 	if err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
