@@ -56,6 +56,12 @@ func (this *ZkDao) AddService(service *dao.Service) error {
 	}
 	defer conn.Close()
 
+	return AddService(conn, service)
+}
+
+func AddService(conn *zk.Conn, service *dao.Service) error {
+	glog.V(2).Infof("Creating new service %s", service.Id)
+
 	servicePath := ServicePath(service.Id)
 	sBytes, err := json.Marshal(service)
 	if err != nil {
@@ -66,6 +72,8 @@ func (this *ZkDao) AddService(service *dao.Service) error {
 	if err != nil {
 		glog.Errorf("Unable to create service for %s: %v", servicePath, err)
 	}
+
+	glog.V(2).Infof("Successfully created %s", servicePath)
 	return err
 }
 
@@ -143,6 +151,8 @@ func (this *ZkDao) UpdateService(service *dao.Service) error {
 
 	_, stats, err := conn.Get(servicePath)
 	if err != nil {
+		glog.V(0).Infof("Unexpectedly could not retrieve %s", servicePath)
+		err = AddService(conn, service)
 		return err
 	}
 	_, err = conn.Set(servicePath, sBytes, stats.Version)
@@ -438,7 +448,7 @@ func LoadAndUpdateServiceState(conn *zk.Conn, serviceId string, ssId string, mut
 	}
 
 	mutator(&ss)
-	ssBytes, err := json.Marshal(ss)
+	ssBytes, err := json.Marshal(&ss)
 	if err != nil {
 		glog.Errorf("Unable to marshal %s: %v", ssPath, err)
 		return err

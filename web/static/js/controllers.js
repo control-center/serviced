@@ -493,7 +493,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.Id, function() {
+        resourcesService.kill_running(app.HostId, app.Id, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();
@@ -775,7 +775,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     $scope.killRunning = function(running) {
-        resourcesService.kill_running(running.Id, function() {
+        resourcesService.kill_running(running.HostId, running.Id, function() {
             refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
         });
     };
@@ -1417,8 +1417,8 @@ function ResourcesService($http, $location) {
          * @param {string} serviceStateId Unique identifier for a service instance.
          * @param {function} callback Result passed to callback on success.
          */
-        kill_running: function(serviceStateId, callback) {
-            $http.delete('/running/' + serviceStateId).
+        kill_running: function(hostId, serviceStateId, callback) {
+            $http.delete('/hosts/' + hostId + '/' + serviceStateId).
                 success(function(data, status) {
                     console.log('Terminated %s', serviceStateId);
                     callback(data);

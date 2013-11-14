@@ -175,7 +175,7 @@ func getServices(client *clientlib.ControlClient) ([]*dao.Service, error) {
 		return nil, err
 	}
 
-	glog.V(2).Info("Returning %d services", len(services))
+	glog.V(2).Infof("Returning %d services", len(services))
 	return services, nil
 }
 
@@ -393,7 +393,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *clientli
 	}
 	err = client.UpdateService(payload, &unused)
 	if err != nil {
-		glog.Errorf("Unable to update service: %v", err)
+		glog.Errorf("Unable to update service %s: %v", serviceId, err)
 		RestServerError(w)
 		return
 	}
