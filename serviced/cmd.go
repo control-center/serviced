@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -103,7 +104,6 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
-
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
 		glog.Fatalf("Could not determine docker version: %s", err)
@@ -147,6 +147,19 @@ func startServer() {
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
+		go func() {
+			signalChan := make(chan os.Signal, 10)
+			signal.Notify(signalChan, os.Interrupt)
+			<-signalChan
+			glog.V(0).Info("Shutting down due to interrupt")
+			err = agent.Shutdown()
+			if err != nil {
+				glog.V(1).Infof("Agent shutdown with error: %v", err)
+				os.Exit(1)
+			}
+			glog.V(1).Info("Agent shutdown cleanly")
+			os.Exit(0)
+		}()
 	}
 	rpc.HandleHTTP()
 

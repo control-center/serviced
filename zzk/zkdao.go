@@ -26,8 +26,14 @@ type HostServiceState struct {
 
 // Communicates to the agent that this service instance should stop
 func TerminateHostService(conn *zk.Conn, hostId string, serviceStateId string) error {
-	return loadAndUpdate(conn, hostId, serviceStateId, func(hss *HostServiceState) {
+	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *HostServiceState) {
 		hss.DesiredState = dao.SVC_STOP
+	})
+}
+
+func ResetServiceState(conn *zk.Conn, serviceId string, serviceStateId string) error {
+	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *dao.ServiceState) {
+		ss.Terminated = time.Now()
 	})
 }
 
@@ -86,7 +92,7 @@ func AddServiceState(conn *zk.Conn, state *dao.ServiceState) error {
 		return err
 	}
 	hostServicePath := HostServiceStatePath(state.HostId, state.Id)
-	hssBytes, err := json.Marshal(ssToHss(state))
+	hssBytes, err := json.Marshal(SsToHss(state))
 	if err != nil {
 		glog.Errorf("Unable to marshal data for %s", hostServicePath)
 		return err
@@ -413,8 +419,40 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 }
 
 type hssMutator func(*HostServiceState)
+type ssMutator func(*dao.ServiceState)
 
-func loadAndUpdate(conn *zk.Conn, hostId string, hssId string, mutator hssMutator) error {
+func LoadAndUpdateServiceState(conn *zk.Conn, serviceId string, ssId string, mutator ssMutator) error {
+	ssPath := ServiceStatePath(serviceId, ssId)
+	var ss dao.ServiceState
+
+	serviceStateNode, stats, err := conn.Get(ssPath)
+	if err != nil {
+		// Should it really be an error if we can't find anything?
+		glog.Errorf("Unable to find data %s: %v", ssPath, err)
+		return err
+	}
+	err = json.Unmarshal(serviceStateNode, &ss)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s: %v", ssPath, err)
+		return err
+	}
+
+	mutator(&ss)
+	ssBytes, err := json.Marshal(ss)
+	if err != nil {
+		glog.Errorf("Unable to marshal %s: %v", ssPath, err)
+		return err
+	}
+	_, err = conn.Set(ssPath, ssBytes, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to update service state %s: %v", ssPath, err)
+		return err
+	}
+	return nil
+}
+
+
+func loadAndUpdateHss(conn *zk.Conn, hostId string, hssId string, mutator hssMutator) error {
 	hssPath := HostServiceStatePath(hostId, hssId)
 	var hss HostServiceState
 
@@ -438,14 +476,14 @@ func loadAndUpdate(conn *zk.Conn, hostId string, hssId string, mutator hssMutato
 	}
 	_, err = conn.Set(hssPath, hssBytes, stats.Version)
 	if err != nil {
-		glog.Errorf("Unable to update %s: %v", hssPath, err)
+		glog.Errorf("Unable to update host service state %s: %v", hssPath, err)
 		return err
 	}
 	return nil
 }
 
 // ServiceState to HostServiceState
-func ssToHss(ss *dao.ServiceState) *HostServiceState {
+func SsToHss(ss *dao.ServiceState) *HostServiceState {
 	return &HostServiceState{ss.HostId, ss.ServiceId, ss.Id, dao.SVC_RUN}
 }
 

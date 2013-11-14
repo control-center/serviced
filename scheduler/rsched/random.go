@@ -87,6 +87,7 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 			glog.Errorf("Unable to load service %s: %v", serviceId, err)
 			return
 		}
+		_, _, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceId))
 
 		glog.V(1).Info("Leader watching for changes to service ", service.Name)
 
@@ -117,6 +118,10 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 				return
 			}
 			glog.V(1).Infof("Service %s received event: %v", service.Name, evt)
+			continue
+
+		case evt := <-childEvent:
+			glog.V(1).Infof("Service %s received child event: %v", service.Name, evt)
 			continue
 
 		case <-shutdown:
