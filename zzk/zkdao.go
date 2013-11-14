@@ -32,7 +32,7 @@ func TerminateHostService(conn *zk.Conn, hostId string, serviceStateId string) e
 }
 
 func ResetServiceState(conn *zk.Conn, serviceId string, serviceStateId string) error {
-	return loadAndUpdateSs(conn, serviceId, serviceStateId, func(ss *dao.ServiceState) {
+	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *dao.ServiceState) {
 		ss.Terminated = time.Now()
 	})
 }
@@ -421,7 +421,7 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 type hssMutator func(*HostServiceState)
 type ssMutator func(*dao.ServiceState)
 
-func loadAndUpdateSs(conn *zk.Conn, serviceId string, ssId string, mutator ssMutator) error {
+func LoadAndUpdateServiceState(conn *zk.Conn, serviceId string, ssId string, mutator ssMutator) error {
 	ssPath := ServiceStatePath(serviceId, ssId)
 	var ss dao.ServiceState
 

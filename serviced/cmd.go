@@ -152,7 +152,12 @@ func startServer() {
 			signal.Notify(signalChan, os.Interrupt)
 			<-signalChan
 			glog.V(0).Info("Shutting down due to interrupt")
-			agent.Shutdown()
+			err = agent.Shutdown()
+			if err != nil {
+				glog.V(1).Infof("Agent shutdown with error: %v", err)
+				os.Exit(1)
+			}
+			glog.V(1).Info("Agent shutdown cleanly")
 			os.Exit(0)
 		}()
 	}

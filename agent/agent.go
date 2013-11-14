@@ -33,6 +33,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"syscall"
 )
 
 /*
@@ -51,8 +52,7 @@ type HostAgent struct {
 	currentServices map[string]*exec.Cmd // the current running services
 	zookeepers      []string
 	mux             proxy.TCPMux
-	shutdown        chan int // Used to shutdown gracefully
-	finished        chan int // Signal when finished
+	closing         chan chan error
 }
 
 // assert that this implemenents the Agent interface
@@ -65,9 +65,7 @@ func NewHostAgent(master string, resourcePath string, mux proxy.TCPMux, zookeepe
 	agent.master = master
 	agent.mux = mux
 	agent.resourcePath = resourcePath
-	agent.shutdown = make(chan int, 1)
-	agent.finished = make(chan int, 1)
-
+	agent.closing = make(chan chan error)
 
 	hostId, err := serviced.HostId()
 	if err != nil {
@@ -117,12 +115,11 @@ func injectContext(s *dao.Service) error {
 	return nil
 }
 
-func (a *HostAgent) Shutdown() {
+func (a *HostAgent) Shutdown() error {
 	glog.V(2).Info("Issuing shutdown signal")
-	a.shutdown <- 1
-	glog.V(2).Info("Waiting for all done signal")
-	<-a.finished
-	glog.V(1).Info("Agent shutdown complete")
+	errc := make(chan error)
+	a.closing <- errc
+	return <-errc
 }
 
 // Attempts to attach to a running container
@@ -144,7 +141,7 @@ func (a *HostAgent) attachToService(conn *zk.Conn, procFinished chan<- int, serv
 	}
 
 	cmd := exec.Command("docker", "attach", serviceState.DockerId)
-	go waitForProcessToDie(conn, cmd, procFinished, serviceState)
+	go a.waitForProcessToDie(conn, cmd, procFinished, serviceState)
 	return true, nil
 }
 
@@ -175,7 +172,7 @@ func markTerminated(conn *zk.Conn, hss *zzk.HostServiceState) {
 
 // Terminate a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) terminateInstance(conn *zk.Conn, serviceState *dao.ServiceState) error {
-	err := a.dockerTerminate(serviceState.DockerId)
+	err := a.dockerTerminate(serviceState.Id)
 	if err != nil {
 		return err
 	}
@@ -184,7 +181,7 @@ func (a *HostAgent) terminateInstance(conn *zk.Conn, serviceState *dao.ServiceSt
 }
 
 func (a *HostAgent) terminateAttached(conn *zk.Conn, procFinished <-chan int, ss *dao.ServiceState) error {
-	err := a.dockerTerminate(ss.DockerId)
+	err := a.dockerTerminate(ss.Id)
 	if err != nil {
 		return err
 	}
@@ -227,7 +224,17 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 	return containerStates[0], err
 }
 
-func waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
+func dumpOut(tmpName string) {
+		out, err := ioutil.ReadFile(tmpName)
+		if err != nil {
+			glog.V(1).Infof("Unable to read file %s", tmpName)
+		} else {
+			glog.V(0).Infof("Process out:\n%s", out)
+		}
+
+}
+
+func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
 	tmpName := os.TempDir() + "/" + serviceState.Id + ".log"
 	defer func() {
 		err := os.Remove(tmpName)
@@ -239,16 +246,19 @@ func waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, 
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		glog.Warningf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
+		glog.Errorf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
+		return
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		glog.Warningf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
+		glog.Errorf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
+		return
 	}
 
 	tmpLog, err := os.Create(tmpName)
 	if err != nil {
-		glog.Warningf("Unable to create temp file %s", tmpName)
+		glog.Errorf("Unable to create temp file %s", tmpName)
+		return
 	}
 
 	err = cmd.Start()
@@ -258,17 +268,54 @@ func waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, 
 
 	if err != nil {
 		glog.Errorf("Problem starting command '%s %s': %v", cmd.Path, cmd.Args, err)
+		dumpOut(tmpName)
+		return
+	}
+	
+	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
+
+	// We are name the container the same as its service state ID, so use that as an alias
+	dockerId := serviceState.Id
+	serviceState.DockerId = dockerId
+	containerState, err := getDockerState(dockerId)
+	if err != nil {
+		glog.Errorf("Problem getting service state :%v", err)
+		a.dockerTerminate(dockerId)
+		dumpOut(tmpName)
 		return
 	}
 
+	err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+		serviceState.Started = time.Now()
+		serviceState.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
+		serviceState.PortMapping = containerState.NetworkSettings.Ports
+	})
+	if err != nil {
+		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+	}
+
+	glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
+
 	err = cmd.Wait()
 	if err != nil {
-		glog.V(0).Infof("Docker process did not exit cleanly: %v", err)
-		out, err := ioutil.ReadFile(tmpName)
-		if err != nil {
-			glog.V(1).Infof("Unable to read file %s", tmpName)
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				statusCode := status.ExitStatus()
+				switch {
+				case statusCode == 137:
+					glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+
+				case statusCode == 2:
+					glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+
+				default:
+					glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
+					dumpOut(tmpName)
+				}
+			} 
 		} else {
-			glog.V(0).Infof("Process out:\n%s", out)
+			glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 		}
 	} else {
 		glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
@@ -324,50 +371,15 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	cmd := exec.Command("bash", "-c", cmdString)
 
-	go waitForProcessToDie(conn, cmd, procFinished, serviceState)
+	go a.waitForProcessToDie(conn, cmd, procFinished, serviceState)
 
-	time.Sleep(1 * time.Second) // Sleep just a second to give it a chance to get a PID
-
-	// We are name the container the same as its service state ID, so use that as an alias
-	dockerId := serviceState.Id
-	serviceState.DockerId = dockerId
-	containerState, err := getDockerState(dockerId)
-	if err != nil {
-		glog.Errorf("Problem getting service state :%v", err)
-		a.dockerTerminate(serviceState.DockerId)
-		return false, err
-	}
-	serviceState.Started = time.Now()
-	serviceState.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-	serviceState.PrivateIp = containerState.NetworkSettings.IPAddress
-	serviceState.PortMapping = containerState.NetworkSettings.Ports
-
-	glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(service.Id, serviceState.Id), serviceState.PortMapping)
-
-	ssBytes, err := json.Marshal(serviceState)
-	if err != nil {
-		glog.Errorf("Unable to marshal service state: %s", serviceState.Id)
-		a.dockerTerminate(serviceState.DockerId)
-		return false, err
-	}
-
-	ssPath := zzk.ServiceStatePath(service.Id, serviceState.Id)
-	_, err = conn.Set(ssPath, ssBytes, ssStats.Version)
-	if err != nil {
-		glog.Errorf("Unable to save updated service state: %v", err)
-		a.dockerTerminate(serviceState.DockerId)
-		return false, err
-	}
+	glog.V(2).Info("Process started in goroutine")
 	return true, nil
 }
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.V(1).Info("Starting HostAgent")
-	defer func() {
-		glog.V(1).Info("Agent finally exiting")
-		a.finished <- 1
-	}()
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
@@ -391,87 +403,104 @@ func (a *HostAgent) start() {
 	}
 }
 
+type stateResult struct {
+	id  string
+	err error
+}
+
+func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
+	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
+	for _, childName := range children {
+		if processing[childName] == nil {
+			glog.V(2).Info("Agent starting goroutine to watch ", childName)
+			childChannel := make(chan int, 1)
+			processing[childName] = childChannel
+			go a.processServiceState(conn, childChannel, ssDone, childName)
+		}
+	}
+}
+
+func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResult) (err error) {
+	for key, shutdown := range processing {
+		glog.V(1).Infof("Agent signaling for %s to shutdown.", key)
+		shutdown <- 1
+	}
+	
+	// Wait for goroutines to shutdown
+	for len(processing) > 0 {
+		select {
+		case ssResult := <- ssResultChan:
+			glog.V(1).Infof("Goroutine finished %s", ssResult.id)
+			if err == nil && ssResult.err != nil {
+				err = ssResult.err
+			}
+			delete(processing, ssResult.id)
+		}
+	}
+	glog.V(0).Info("All service state nodes are shut down")
+	return
+}
+
 func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
 	processing := make(map[string]chan int)
-	ssDone := make(chan string)
+	ssDone := make(chan stateResult, 25)
 
-	// When this function exits, ensure that any started goroutines get
-	// a signal to shutdown
-	defer func() {
-		glog.V(0).Info("Agent shutting down child goroutines.")
-		for key, shutdown := range processing {
-			glog.V(1).Infof("Agent signaling for %s to shutdown.", key)
-			shutdown <- 1
-		}
+	hostPath := zzk.HostPath(a.hostId)
+	
+	for {
 
-		// Wait for goroutines to shutdown
-		for len(processing) > 0 {
-			select {
-			case ssId := <-ssDone:
-				glog.V(1).Info("Agent cleaning up for service state ", ssId)
-				delete(processing, ssId)
-			}
-		}
-	}()
-
-	for { // This loop keeps running until we get an error
-
-		hostPath := zzk.HostPath(a.hostId)
 		children, _, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
 			glog.V(0).Infoln("Unable to read children, retrying.")
 			time.Sleep(3 * time.Second)
 			return true
 		}
-		glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
-
-		for _, childName := range children {
-			if processing[childName] == nil {
-				glog.V(2).Info("Agent starting goroutine to watch ", childName)
-				childChannel := make(chan int)
-				processing[childName] = childChannel
-				go a.processServiceState(conn, childChannel, ssDone, childName)
-			}
-		}
-
+		a.startMissingChildren(conn, children, processing, ssDone)
+		
 		select {
+
+		case errc := <- a.closing:
+			glog.V(1).Info("Agent received interrupt")
+			err = waitForSsNodes(processing, ssDone)
+			errc <- err
+			return false
+
+		case ssResult := <-ssDone:
+			glog.V(1).Infof("Goroutine finished %s", ssResult.id)
+			delete(processing, ssResult.id)
+
 		case evt := <-zkEvent:
 			glog.V(1).Info("Agent event: ", evt)
-		case ssId := <-ssDone:
-			glog.V(1).Info("Agent cleaning up for service state ", ssId)
-			delete(processing, ssId)
-		case <-a.shutdown:
-			glog.V(1).Info("Agent received interrupt")
-			return false
 		}
 	}
 }
 
-func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- string, ssId string) {
-	defer func() {
-		glog.V(3).Info("Exiting function processServiceState ", ssId)
-		done <- ssId
-	}()
-	failures := 0
+func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- stateResult, ssId string) {
 	procFinished := make(chan int, 1)
-
 	var attached bool
+
 	for {
+
 		var hss zzk.HostServiceState
 		hssStats, zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
 		if err != nil {
-			glog.Errorf("Unable to load host service state %s: %v", ssId, err)
+			errS := fmt.Sprintf("Unable to load host service state %s: %v", ssId, err)
+			glog.Error(errS)
+			done <- stateResult{ ssId, errors.New(errS) }
 			return
 		}
 		if len(hss.ServiceStateId) == 0 || len(hss.ServiceId) == 0 {
-			glog.Errorf("Service for %s is invalid", zzk.HostServiceStatePath(a.hostId, ssId))
+			errS := fmt.Sprintf("Service for %s is invalid", zzk.HostServiceStatePath(a.hostId, ssId))
+			glog.Error(errS)
+			done <- stateResult{ ssId, errors.New(errS) }
 			return
 		}
 
 		var ss dao.ServiceState
 		ssStats, err := zzk.LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss)
 		if err != nil {
-			glog.Errorf("Host service state unable to load service state %s", ssId)
+			errS := fmt.Sprintf("Host service state unable to load service state %s", ssId)
+			glog.Error(errS)
 			// This goroutine is watching a node for a service state that does not
 			// exist or could not be loaded. We should *probably* delete this node.
 			hssPath := zzk.HostServiceStatePath(a.hostId, ssId)
@@ -479,19 +508,16 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			if err != nil {
 				glog.Warningf("Unable to delete host service state %s", hssPath)
 			}
-			return
-		}
-
-		if failures >= 5 {
-			glog.V(0).Infof("Gave up trying to process %s", ssId)
-			a.terminateInstance(conn, &ss)
+			done <- stateResult{ ssId, errors.New(errS) }
 			return
 		}
 
 		var service dao.Service
 		_, err = zzk.LoadService(conn, ss.ServiceId, &service)
 		if err != nil {
-			glog.Errorf("Host service state unable to load service %s", ss.ServiceId)
+			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
+			glog.Errorf(errS)
+			done <- stateResult{ ssId, errors.New(errS) }
 			return
 		}
 
@@ -499,27 +525,30 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 
 		switch {
 
-		// This node is marked for death
 		case hss.DesiredState == dao.SVC_STOP:
+			// This node is marked for death
 			glog.V(1).Infof("Service %s was marked for death, quitting", service.Name)
 			if attached {
 				err = a.terminateAttached(conn, procFinished, &ss)
 			} else {
 				err = a.terminateInstance(conn, &ss)
 			}
+			done <- stateResult{ ssId, err }
 			return
 
 		case attached:
+			// Something uninteresting happened. Why are we here?
 			glog.V(1).Infof("Service %s is attached in a child goroutine", service.Name)
-
-		// Should run, and either not started or process died
+		
 		case hss.DesiredState == dao.SVC_RUN &&
 			ss.Started.Year() <= 1 || ss.Terminated.Year() > 2:
+			// Should run, and either not started or process died
 			glog.V(1).Infof("Service %s does not appear to be running; starting", service.Name)
 			attached, err = a.startService(conn, procFinished, ssStats, &service, &ss)
 
-		// Service superficially seems to be running. We need to attach
+
 		case ss.Started.Year() > 1 && ss.Terminated.Year() <= 1:
+			// Service superficially seems to be running. We need to attach
 			glog.V(1).Infof("Service %s appears to be running; attaching", service.Name)
 			attached, err = a.attachToService(conn, procFinished, &ss, &hss)
 
@@ -527,17 +556,31 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			glog.V(0).Infof("Unhandled service %s", service.Name)
 		}
 
-		if err != nil || !attached {
-			glog.Errorf("Problem servicing state %s,  %v", service.Name, err)
-			time.Sleep(10 * time.Second)
-			failures += 1
-			continue
+		if !attached || err != nil {
+			errS := fmt.Sprintf("Service state %s unable to start or attach to process", ssId)
+			glog.V(1).Info(errS)
+			a.terminateInstance(conn, &ss)
+			done <- stateResult{ ssId, errors.New(errS) }
+			return
 		}
 
 		glog.V(3).Infoln("Successfully processed state for %s", service.Name)
-		failures = 0
 
 		select {
+
+		case <-shutdown:
+			glog.V(0).Info("Agent goroutine will stop watching ", ssId)
+			err = a.terminateAttached(conn, procFinished, &ss)
+			if err != nil {
+				glog.Errorf("Error terminating %s: %v", service.Name, err)
+			}
+			done <- stateResult{ ssId, err }
+			return
+
+		case <-procFinished:
+			glog.V(1).Infof("Process finished %s", ssId)
+			attached = false
+			continue
 
 		case evt := <-zkEvent:
 			if evt.Type == zk.EventNodeDeleted {
@@ -546,24 +589,12 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 				if err != nil {
 					glog.Errorf("Error terminating %s: %v", service.Name, err)
 				}
+				done <- stateResult{ ssId, err }
 				return
 			}
+
 			glog.V(1).Infof("Host service state %s received event %v", ssId, evt)
 			continue
-
-		case <-procFinished:
-			glog.V(1).Infof("Process finished")
-			attached = false
-			continue
-
-		case <-shutdown:
-			glog.V(0).Info("Agent goroutine will stop watching ", ssId)
-			err = a.terminateAttached(conn, procFinished, &ss)
-			if err != nil {
-				glog.Errorf("Error terminating %s: %v", service.Name, err)
-			}
-
-			return
 		}
 	}
 }
