@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -298,6 +299,93 @@ func HostServiceStatePath(hostId string, serviceStateId string) string {
 	return SCHEDULER_PATH + "/" + hostId + "/" + serviceStateId
 }
 
+func (z *ZkDao) RemoveService(id string) error {
+	conn, _, err := zk.Connect(z.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	return RemoveService(conn, id)
+}
+
+func RemoveService(conn *zk.Conn, id string) error {
+	servicePath := ServicePath(id)
+
+	// First mark the service as needing to shutdown so the scheduler
+	// doesn't keep trying to schedule new instances
+	err := loadAndUpdateService(conn, id, func(s *dao.Service) {
+		s.DesiredState = dao.SVC_STOP
+	})
+	if err != nil {
+		return err
+	} // Error already logged
+
+	children, _, zke, err := conn.ChildrenW(servicePath)
+	for ; err == nil && len(children) > 0; children, _, zke, err = conn.ChildrenW(servicePath) {
+
+		select {
+
+		case evt := <-zke:
+			glog.V(1).Infof("RemoveService saw ZK event: %v", evt)
+			continue
+
+		case <-time.After(30 * time.Second):
+			glog.V(0).Infof("Gave up deleting %s with %d children", servicePath, len(children))
+			return errors.New("Timed out waiting for children to die for " + servicePath) 
+		}
+	}
+	if err != nil {
+		glog.Errorf("Unable to get children for %s: %v", id, err)
+		return err
+	}
+
+	var service dao.Service
+	stats, err := LoadService(conn, id, &service)
+	if err != nil {
+		// Error already logged
+		return err
+	}
+	err = conn.Delete(servicePath, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete service %s because: %v", servicePath, err)
+		return err
+	}
+	glog.V(1).Infof("Service %s removed", servicePath)
+
+	return nil
+}
+
+func RemoveServiceState(conn *zk.Conn, serviceId string, serviceStateId string) error {
+	ssPath := ServiceStatePath(serviceId, serviceStateId)
+
+	var ss dao.ServiceState
+	stats, err := LoadServiceState(conn, serviceId, serviceStateId, &ss)
+	if err != nil {
+		return err
+	} // Error already logged
+
+	err = conn.Delete(ssPath, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete service state %s because: %v", ssPath, err)
+		return err
+	}
+
+	hssPath := HostServiceStatePath(ss.HostId, serviceStateId)
+	_, stats, err = conn.Get(hssPath)
+	if err != nil {
+		glog.Errorf("Unable to get host service state %s for delete because: %v", hssPath, err)
+		return err
+	}
+
+	err = conn.Delete(hssPath, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete host service state %s", hssPath)
+		return err
+	}
+	return nil
+}
+
 func LoadRunningServices(conn *zk.Conn, running *[]*dao.RunningService, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
 		var s dao.Service
@@ -428,6 +516,7 @@ func appendServiceStates(conn *zk.Conn, serviceId string, serviceStates *[]*dao.
 	return nil
 }
 
+type serviceMutator func(*dao.Service)
 type hssMutator func(*HostServiceState)
 type ssMutator func(*dao.ServiceState)
 
@@ -461,6 +550,34 @@ func LoadAndUpdateServiceState(conn *zk.Conn, serviceId string, ssId string, mut
 	return nil
 }
 
+func loadAndUpdateService(conn *zk.Conn, serviceId string, mutator serviceMutator) error {
+	servicePath := ServicePath(serviceId)
+	var service dao.Service
+
+	serviceNode, stats, err := conn.Get(servicePath)
+	if err != nil {
+		glog.Errorf("Unable to find data %s: %v", servicePath, err)
+		return err
+	}
+	err = json.Unmarshal(serviceNode, &service)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal %s: %v", servicePath, err)
+		return err
+	}
+
+	mutator(&service)
+	serviceBytes, err := json.Marshal(service)
+	if err != nil {
+		glog.Errorf("Unable to marshal %s: %v", servicePath, err)
+		return err
+	}
+	_, err = conn.Set(servicePath, serviceBytes, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to update service %s: %v", servicePath, err)
+		return err
+	}
+	return nil
+}
 
 func loadAndUpdateHss(conn *zk.Conn, hostId string, hssId string, mutator hssMutator) error {
 	hssPath := HostServiceStatePath(hostId, hssId)

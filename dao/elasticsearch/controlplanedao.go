@@ -457,7 +457,12 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RemoveService: %s", id)
 	response, err := deleteService(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveService response: %+v", response)
-	return err
+	if err != nil {
+		glog.Errorf("Error removing service %s: %v", id, err)
+		return err
+	}
+	go this.zkDao.RemoveService(id)
+	return nil
 }
 
 //
