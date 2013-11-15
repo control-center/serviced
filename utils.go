@@ -295,7 +295,8 @@ func parseDockerVersion(output string) (version DockerVersion, err error) {
 			continue
 		}
 		if strings.HasPrefix(parts[0], "Client version") {
-			b := strings.Split(strings.TrimSpace(parts[1]), ".")
+			a := strings.SplitN(strings.TrimSpace(parts[1]), "-", 2)
+			b := strings.Split(a[0], ".")
 			version.Client = make([]int, len(b))
 			for i, v := range b {
 				x, err := strconv.Atoi(v)
@@ -306,7 +307,8 @@ func parseDockerVersion(output string) (version DockerVersion, err error) {
 			}
 		}
 		if strings.HasPrefix(parts[0], "Server version") {
-			b := strings.Split(strings.TrimSpace(parts[1]), ".")
+			a := strings.SplitN(strings.TrimSpace(parts[1]), "-", 2)
+			b := strings.Split(a[0], ".")
 			version.Server = make([]int, len(b))
 			for i, v := range b {
 				x, err := strconv.Atoi(v)

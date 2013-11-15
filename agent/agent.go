@@ -30,10 +30,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
-	"syscall"
 )
 
 /*
@@ -237,12 +238,12 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 }
 
 func dumpOut(tmpName string) {
-		out, err := ioutil.ReadFile(tmpName)
-		if err != nil {
-			glog.V(1).Infof("Unable to read file %s", tmpName)
-		} else {
-			glog.V(0).Infof("Process out:\n%s", out)
-		}
+	out, err := ioutil.ReadFile(tmpName)
+	if err != nil {
+		glog.V(1).Infof("Unable to read file %s", tmpName)
+	} else {
+		glog.V(0).Infof("Process out:\n%s", out)
+	}
 
 }
 
@@ -285,7 +286,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 		dumpOut(tmpName)
 		return
 	}
-	
+
 	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
 	// We are name the container the same as its service state ID, so use that as an alias
@@ -328,7 +329,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 					glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
 					dumpOut(tmpName)
 				}
-			} 
+			}
 		} else {
 			glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 		}
@@ -380,8 +381,48 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		return false, err
 	}
 
+	// config files
+	configFiles := ""
+	for filename, config := range service.ConfigFiles {
+		glog.Infof("%s: %s", filename, config)
+		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
+		f, err := ioutil.TempFile("", prefix)
+		if err != nil {
+			glog.Errorf("Could not generate tempfile for config %s %s", service.Id, filename)
+			return false, err
+		}
+		_, err = f.WriteString(config.Content)
+		if err != nil {
+			glog.Errorf("Could not write out config file %s %s", service.Id, filename)
+			return false, err
+		}
+		if len(config.Owner) != 0 {
+			parts := strings.Split(config.Owner, ":")
+			if len(parts) != 2 {
+				glog.Errorf("Unsupported owner specification, only %%d:%%d supported for now: %s, %s", service.Id, filename)
+				continue
+			}
+			uid, err := strconv.Atoi(parts[0])
+			if err != nil {
+				glog.Warningf("Malformed UID: %s %s: %s", service.Id, filename, err)
+				continue
+			}
+			gid, err := strconv.Atoi(parts[0])
+			if err != nil {
+				glog.Warningf("Malformed GID: %s %s: %s", service.Id, filename, err)
+				continue
+			}
+			err = f.Chown(uid, gid)
+			if err != nil {
+				glog.Warningf("Could not chown config file: %s %s: %s", service.Id, filename, err)
+			}
+		}
+		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s", portOps, serviceState.Id, volumeBinding, volumeOpts, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, volumeOpts, configFiles, service.ImageId, proxyCmd)
+
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	cmd := exec.Command("bash", "-c", cmdString)
@@ -407,12 +448,12 @@ func (a *HostAgent) start() {
 			connectEvent := false
 			for !connectEvent {
 				select {
-				case errc := <- a.closing:
+				case errc := <-a.closing:
 					glog.V(0).Info("Received shutdown notice")
 					errc <- errors.New("Unable to connect to zookeeper")
 					return false
 
-				case evt := <- zkEvt:
+				case evt := <-zkEvt:
 					glog.V(1).Infof("Got ZK connect event: %v", evt)
 					if evt.State == zk.StateConnected {
 						connectEvent = true
@@ -455,11 +496,11 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 		glog.V(1).Infof("Agent signaling for %s to shutdown.", key)
 		shutdown <- 1
 	}
-	
+
 	// Wait for goroutines to shutdown
 	for len(processing) > 0 {
 		select {
-		case ssResult := <- ssResultChan:
+		case ssResult := <-ssResultChan:
 			glog.V(1).Infof("Goroutine finished %s", ssResult.id)
 			if err == nil && ssResult.err != nil {
 				err = ssResult.err
@@ -476,7 +517,7 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
 	ssDone := make(chan stateResult, 25)
 
 	hostPath := zzk.HostPath(a.hostId)
-	
+
 	for {
 
 		children, _, zkEvent, err := conn.ChildrenW(hostPath)
@@ -486,10 +527,10 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
 			return true
 		}
 		a.startMissingChildren(conn, children, processing, ssDone)
-		
+
 		select {
 
-		case errc := <- a.closing:
+		case errc := <-a.closing:
 			glog.V(1).Info("Agent received interrupt")
 			err = waitForSsNodes(processing, ssDone)
 			errc <- err
@@ -516,13 +557,13 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		if err != nil {
 			errS := fmt.Sprintf("Unable to load host service state %s: %v", ssId, err)
 			glog.Error(errS)
-			done <- stateResult{ ssId, errors.New(errS) }
+			done <- stateResult{ssId, errors.New(errS)}
 			return
 		}
 		if len(hss.ServiceStateId) == 0 || len(hss.ServiceId) == 0 {
 			errS := fmt.Sprintf("Service for %s is invalid", zzk.HostServiceStatePath(a.hostId, ssId))
 			glog.Error(errS)
-			done <- stateResult{ ssId, errors.New(errS) }
+			done <- stateResult{ssId, errors.New(errS)}
 			return
 		}
 
@@ -538,7 +579,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			if err != nil {
 				glog.Warningf("Unable to delete host service state %s", hssPath)
 			}
-			done <- stateResult{ ssId, errors.New(errS) }
+			done <- stateResult{ssId, errors.New(errS)}
 			return
 		}
 
@@ -547,7 +588,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		if err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
 			glog.Errorf(errS)
-			done <- stateResult{ ssId, errors.New(errS) }
+			done <- stateResult{ssId, errors.New(errS)}
 			return
 		}
 
@@ -563,19 +604,18 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			} else {
 				err = a.terminateInstance(conn, &ss)
 			}
-			done <- stateResult{ ssId, err }
+			done <- stateResult{ssId, err}
 			return
 
 		case attached:
 			// Something uninteresting happened. Why are we here?
 			glog.V(1).Infof("Service %s is attached in a child goroutine", service.Name)
-		
+
 		case hss.DesiredState == dao.SVC_RUN &&
 			ss.Started.Year() <= 1 || ss.Terminated.Year() > 2:
 			// Should run, and either not started or process died
 			glog.V(1).Infof("Service %s does not appear to be running; starting", service.Name)
 			attached, err = a.startService(conn, procFinished, ssStats, &service, &ss)
-
 
 		case ss.Started.Year() > 1 && ss.Terminated.Year() <= 1:
 			// Service superficially seems to be running. We need to attach
@@ -590,7 +630,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			errS := fmt.Sprintf("Service state %s unable to start or attach to process", ssId)
 			glog.V(1).Info(errS)
 			a.terminateInstance(conn, &ss)
-			done <- stateResult{ ssId, errors.New(errS) }
+			done <- stateResult{ssId, errors.New(errS)}
 			return
 		}
 
@@ -604,7 +644,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			if err != nil {
 				glog.Errorf("Error terminating %s: %v", service.Name, err)
 			}
-			done <- stateResult{ ssId, err }
+			done <- stateResult{ssId, err}
 			return
 
 		case <-procFinished:
@@ -619,7 +659,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 				if err != nil {
 					glog.Errorf("Error terminating %s: %v", service.Name, err)
 				}
-				done <- stateResult{ ssId, err }
+				done <- stateResult{ssId, err}
 				return
 			}
 
