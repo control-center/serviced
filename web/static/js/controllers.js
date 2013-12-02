@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngCookies','ngDragDrop']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', { 
@@ -46,6 +46,14 @@ angular.module('controlplane', ['ngCookies','ngDragDrop']).
                 controller: DevControl
             }).
             otherwise({redirectTo: '/entry'});
+    },]).
+    config(['$translateProvider', function($translateProvider) {
+       
+        $translateProvider.useStaticFilesLoader({
+            prefix: '/static/i18n/',
+            suffix: '.json'
+        });
+        $translateProvider.preferredLanguage('en_US');
     }]).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
@@ -127,11 +135,11 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 
 function EntryControl($scope, authService) {
     authService.checkLogin($scope);
-    $scope.brand_label = "Zenoss Control Plane";
-    $scope.page_content = "You can install Resource Manager, Analytics, and Impact here."; 
+    $scope.brand_label = "brand_zcp";
+    $scope.page_content = "entry_content";
     $scope.mainlinks = [
-        { url: '#/apps', label: 'Applications' },
-        { url: '#/hosts', label: 'Hosts' }
+        { url: '#/apps', label: 'nav_apps' },
+        { url: '#/hosts', label: 'nav_hosts' }
     ];
 }
 
@@ -148,7 +156,7 @@ function LoginControl($scope, $http, $location, authService) {
             }, 3000);
         });
     };
-
+    
     // Makes XHR POST with contents of login form
     $scope.login = function() {
         var creds = { "Username": $scope.username, "Password": $scope.password };
@@ -172,19 +180,21 @@ function LoginControl($scope, $http, $location, authService) {
 }
 
 function DeployWizard($scope, resourcesService) {
+    $scope.name='wizard';
+
     var validTemplateSelected = function() {
         return $scope.selectedTemplates().length > 0;
     };
 
     $scope.steps = [
-/*        { content: '/static/partials/wizard-modal-1.html', label: 'Select Hosts' }, */
+/*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
         {
             content: '/static/partials/wizard-modal-2.html',
-            label: 'Select Applications',
+            label: 'label_step_select_app',
             validate: validTemplateSelected
         },
-        { content: '/static/partials/wizard-modal-3.html', label: 'Select Resource Pool' },
-        { content: '/static/partials/wizard-modal-4.html', label: 'Start / Go' },
+        { content: '/static/partials/wizard-modal-3.html', label: 'label_step_select_pool' },
+        { content: '/static/partials/wizard-modal-4.html', label: 'label_step_deploy' },
     ];
 
     $scope.install = { 
@@ -359,27 +369,30 @@ function DeployWizard($scope, resourcesService) {
 function DeployedAppsControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
-    $scope.name = "resources";
+    $scope.name = "apps";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
     $scope.breadcrumbs = [
-        { label: 'Deployed Apps', itemClass: 'active' }
+        { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
     $scope.secondarynav = [
-        { label: 'View Services Map', url: '#/servicesmap' },
+        { label: 'nav_servicesmap', path: '/servicesmap' },
     ];
 
     $scope.services = buildTable('PoolId', [
-        { id: 'Name', name: 'Application'}, 
-        { id: 'Deployment', name: 'Deployment Status'},
-        { id: 'PoolId', name: 'Resource Pool'},
-        { id: 'DesiredState', name: 'Status' }
+        { id: 'Name', name: 'deployed_tbl_name'}, 
+        { id: 'Deployment', name: 'deployed_tbl_deployment'},
+        { id: 'PoolId', name: 'deployed_tbl_pool'},
+        { id: 'DesiredState', name: 'deployed_tbl_state' }
     ]);
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+    $scope.modalAddApp = function() {
+        $('#addApp').modal('show');
     };
 
     $scope.clickRunning = toggleRunning;
@@ -398,6 +411,17 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
             ImageId: ''
         };
     };
+    $scope.click_secondary = function(navlink) {
+        if (navlink.path) {
+            $location.path(navlink.path);
+        } 
+        else if (navlink.modal) {
+            $(navlink.modal).modal('show');
+        }
+        else {
+            console.log('Unexpected navlink: %s', JSON.stringify(navlink));
+        }
+    };
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
@@ -406,25 +430,25 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
                 setupNewService();
             });
         };
-        $scope.secondarynav.push({ label: 'Add Service', url: '#addService', toggle: 'modal' });
+        $scope.secondarynav.push({ label: 'btn_add_service', modal: '#addService' });
     }
 }
 
 function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
-    $scope.name = "resources";
+    $scope.name = "servicedetails";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
     $scope.breadcrumbs = [
-        { label: 'Deployed Apps', url: '#/apps' }
+        { label: 'breadcrumb_deployed', url: '#/apps' }
     ];
 
     $scope.services = buildTable('Name', [
-        { id: 'Name', name: 'Application'}, 
-        { id: 'DesiredState', name: 'Status' },
-        { id: 'Details', name: 'Details' }
+        { id: 'Name', name: 'deployed_tbl_name'}, 
+        { id: 'DesiredState', name: 'deployed_tbl_state' },
+        { id: 'Details', name: 'deployed_tbl_details' }
     ]);
 
     $scope.click_app = function(id) {
@@ -545,7 +569,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     // Ensure logged in
     authService.checkLogin($scope);
 
-    $scope.name = "resources";
+    $scope.name = "hosts";
     $scope.params = $routeParams;
     $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
@@ -581,6 +605,10 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
         resourcesService.remove_pool(poolId, function() {
             refreshPools($scope, resourcesService, false);
         });
+    };
+
+    $scope.modalAddHost = function() {
+        $('#addHost').modal('show');
     };
 
     // Build metadata for displaying a list of pools
@@ -744,16 +772,16 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.breadcrumbs = [
-        { label: 'Hosts', url: '#/hosts' }
+        { label: 'breadcrumb_hosts', url: '#/hosts' }
     ];
 
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, true);
 
     $scope.running = buildTable('Name', [
-        { id: 'Name', name: 'Running' },
-        { id: 'StartedAt', name: 'Start Time' },
-        { id: 'View', name: 'Actions' }
+        { id: 'Name', name: 'running_tbl_running' },
+        { id: 'StartedAt', name: 'running_tbl_start' },
+        { id: 'View', name: 'running_tbl_actions' }
     ]);
 
     $scope.viewConfig = function(running) {
@@ -967,12 +995,12 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
     // Ensure logged in
     authService.checkLogin($scope);
 
-    $scope.name = "hostsmap";
+    $scope.name = "servicesmap";
     $scope.params = $routeParams;
 
     $scope.breadcrumbs = [
-        { label: 'Deployed Apps', url: '#/apps' },
-        { label: 'Services Map', itemClass: 'active' }
+        { label: 'breadcrumb_deployed', url: '#/apps' },
+        { label: 'breadcrumb_services_map', itemClass: 'active' }
     ];
 
     var data_received = {
@@ -1095,18 +1123,15 @@ function addChildren(allowed, parent) {
 }
 
 // Controller for top nav
-function NavbarControl($scope, $http, $cookies, $location, authService) {
-    $scope.management = 'Management';
-    $scope.configuration = 'Configuration';
-    $scope.resources = 'Resources';
-    $scope.username = $scope.username? $scope.username : $cookies.ZUsername;
-    $scope.brand = { url: '#/entry', label: 'Control Plane' };
+function NavbarControl($scope, $http, $cookies, $location, $translate, authService) {
+    $scope.name = 'navbar';
+    $scope.brand = { url: '#/entry', label: 'brand_cp' };
     
     $scope.navlinks = [
-        { url: '#/apps', label: 'Deployed Apps', 
+        { url: '#/apps', label: 'nav_apps', 
           sublinks: [ '#/services/', '#/servicesmap' ]
         },
-        { url: '#/hosts', label: 'Hosts',
+        { url: '#/hosts', label: 'nav_hosts',
           sublinks: [ '#/hosts/', '#/hostsmap' ]
         }
     ];
@@ -1141,11 +1166,43 @@ function NavbarControl($scope, $http, $cookies, $location, authService) {
                 console.log('Unable to log out. Were you logged in to begin with?');
             });
     };
+
+    $scope.modalUserDetails = function() {
+        $('#userDetails').modal('show');
+    };
+    updateLanguage($scope, $cookies, $translate);
+}
+
+function LanguageControl($scope, $cookies, $translate) {
+    $scope.name = 'language';
+    $scope.setUserLanguage = function() {
+        console.log('User clicked %s', $scope.user.language);
+        $cookies.Language = $scope.user.language;
+        updateLanguage($scope, $cookies, $translate);
+        $('#userDetails').modal('hide');
+    };
+    $scope.getLanguageClass = function(language) {
+        return ($scope.user.language === language)? 'btn btn-primary active' : 'btn btn-primary';
+    }
+}
+
+function updateLanguage($scope, $cookies, $translate) {
+    var ln = 'en_US';
+    if ($cookies.Language === undefined) {
+        console.log('Defaulting language to en_US');
+    } else {
+        ln = $cookies.Language;
+        console.log('Found language: %s', ln);
+    }
+    if ($scope.user) {
+        $scope.user.language = ln;
+    }
+    $translate.uses(ln);
 }
 
 function DevControl($scope, $cookieStore, authService) {
     authService.checkLogin($scope);
-    $scope.name = "developer control";
+    $scope.name = "developercontrol";
 
     var updateDevMode = function() {
         if ($scope.devmode.enabled) {
@@ -1711,12 +1768,17 @@ function AuthService($cookies, $cookieStore, $location) {
             $scope.dev = $cookieStore.get('ZDevMode');
             if (loggedIn) {
                 $scope.loggedIn = true;
-                $scope.username = userName;
+                $scope.user = {
+                    username: $cookies.ZUsername
+                };
                 return;
             }
             if ($cookies.ZCPToken !== undefined) {
                 loggedIn = true;
                 $scope.loggedIn = true;
+                $scope.user = {
+                    username: $cookies.ZUsername
+                };
             } else {
                 unauthorized($location);
             }
@@ -1885,18 +1947,18 @@ function toggleRunning(app, status, servicesService) {
 
 function updateRunning(app) {
     if (app.DesiredState === 1) {
-        app.runningText = "started";
-        app.notRunningText = "\xA0"; // &nbsp
+        app.runningText = "ctl_running_started";
+        app.notRunningText = "ctl_running_blank"; // &nbsp
         app.runningClass = "btn btn-success active";
         app.notRunningClass = "btn btn-default off";
     } else if (app.DesiredState === -1) {
-        app.runningText = "restarting";
-        app.notRunningText = "\xA0"; // &nbsp
+        app.runningText = "ctl_running_restarting";
+        app.notRunningText = "ctl_running_blank"; // &nbsp
         app.runningClass = "btn btn-info active";
         app.notRunningClass = "btn btn-default off";
     } else {
-        app.runningText = "\xA0"; // &nbsp
-        app.notRunningText = "stopped";
+        app.runningText = "ctl_running_blank"; // &nbsp
+        app.notRunningText = "ctl_running_stopped";
         app.runningClass = "btn btn-default off";
         app.notRunningClass = "btn btn-danger active";
     }

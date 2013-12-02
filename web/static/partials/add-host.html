@@ -3,17 +3,17 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
-        <span class="modal-title">Add host</span>
+        <span class="modal-title">{{'title_add_host'|translate}}</span>
       </div>
       <div class="modal-body">
-        <label for="new_host_name">Host and port:</label>
-        <input class="form-control" name="new_host_name" id="new_host_name" type="text" placeholder="e.g. localhost:4979" ng-model="newHost.IpAddr" />
-        <label for="new_host_parent">Pool Id:</label>
-        <input class="form-control" name="new_host_parent" id="new_host_parent" type="text" placeholder="default" ng-model="newHost.PoolId" />
+        <label for="new_host_name">{{'label_host_and_port'|translate}}:</label>
+        <input class="form-control" name="new_host_name" id="new_host_name" type="text" placeholder="{{'placeholder_host_and_port'|translate}}" ng-model="newHost.IpAddr" />
+        <label for="new_host_parent">{{'label_host_parent'|translate}}:</label>
+        <input class="form-control" name="new_host_parent" id="new_host_parent" type="text" placeholder="{{'placeholder_host_parent'|translate}}" ng-model="newHost.PoolId" />
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="add_host()">Add</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="add_host()">{{'btn_add'|translate}}</button>
       </div>
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->
