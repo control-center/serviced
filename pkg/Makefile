@@ -69,7 +69,7 @@ stage: build pkgroot
 	# Stage environment default file
 	mkdir -p pkgroot/etc/default
 	cp serviced.default pkgroot/etc/default/serviced
-	cp $$GOPATH/src/github.com/zenoss/serviced/svc/*.sql pkgroot$(INSTALL_DIR)/share/
+	cp $$GOPATH/src/github.com/zenoss/serviced/dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
 	cp $$GOPATH/src/github.com/zenoss/serviced/web/static pkgroot$(INSTALL_DIR)/share/web -R
 	cp $$GOPATH/src/github.com/zenoss/serviced/repos pkgroot$(INSTALL_DIR)/ -R
 
