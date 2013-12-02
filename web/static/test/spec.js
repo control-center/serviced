@@ -37,6 +37,7 @@ describe('LoginControl', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         ctrl = $controller('LoginControl', { $scope: $scope });
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
     }));
 
     afterEach(function() {
@@ -47,6 +48,7 @@ describe('LoginControl', function() {
     it('Sets some labels', function() {
         expect($scope.brand_label).not.toBeUndefined();
         expect($scope.login_button_text).not.toBeUndefined();
+        $httpBackend.flush();
     });
 
     it('Sets path on successful login', function() {
@@ -333,6 +335,7 @@ describe('NavbarControl', function() {
             $scope: $scope,
             authService: authService
         });
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
     }));
 
     afterEach(function() {
@@ -343,13 +346,15 @@ describe('NavbarControl', function() {
     it('Provides some navlinks', function() {
         expect($scope.navlinks).not.toBeUndefined();
         // 2 or more navlinks please.
-        expect($scope.navlinks.length).toBeGreaterThan(1); 
+        expect($scope.navlinks.length).toBeGreaterThan(1);
+        $httpBackend.flush();
     });
 
     it('Provides brand details', function() {
         expect($scope.brand).not.toBeUndefined();
         expect($scope.brand.url).not.toBeUndefined();
         expect($scope.brand.label).not.toBeUndefined();
+        $httpBackend.flush();
     });
 
     it('Provides a \'logout\' function', function() {
@@ -376,6 +381,7 @@ describe('ResourcesService', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         resourcesService = $injector.get('resourcesService');
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
     }));
 
     afterEach(function() {
@@ -834,27 +840,27 @@ describe('updateRunning', function() {
     it('Sets text on service when state is 1', function() {
         var svc = { DesiredState: 1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('started'); // started is current state
-        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+        expect(svc.runningText).toBe('ctl_running_started'); // started is current state
+        expect(svc.notRunningText).toBe('ctl_running_blank'); // stop is action
     });
 
     it('Sets text on service when state is -1', function() {
         var svc = { DesiredState: -1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('restarting'); // restarting is current state
-        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+        expect(svc.runningText).toBe('ctl_running_restarting'); // restarting is current state
+        expect(svc.notRunningText).toBe('ctl_running_blank'); // stop is action
     });
 
     it('Sets text on service when state is 0 or other', function() {
         var svc = { DesiredState: 0 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('\xA0'); // start is action
-        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+        expect(svc.runningText).toBe('ctl_running_blank'); // start is action
+        expect(svc.notRunningText).toBe('ctl_running_stopped'); // stopped is current state
 
         svc = { DesiredState: -99 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('\xA0'); // start is action
-        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+        expect(svc.runningText).toBe('ctl_running_blank'); // blank
+        expect(svc.notRunningText).toBe('ctl_running_stopped'); // stopped is current state
 
     });
 });
