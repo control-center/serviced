@@ -20,7 +20,7 @@ RUN cd /tmp ; dpkg -i /fuse.deb
 # Install Packages required to run opentsdb
 RUN apt-get install -y -q openjdk-7-jdk git autoconf build-essential libtool gnuplot wget 
 
-RUN wget http://www.apache.org/dist/hbase/hbase-0.94.12/hbase-0.94.14.tar.gz
+RUN wget http://www.apache.org/dist/hbase/hbase-0.94.14/hbase-0.94.14.tar.gz
 RUN tar xzf hbase-0.94.14.tar.gz -C /opt
 
 ENV COMPRESSION NONE
