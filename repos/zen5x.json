@@ -32,7 +32,7 @@
         }, {
           "Name": "OpenTSDB",
           "Tags": ["daemon"],
-          "Command": "/bin/bash -c \"/opt/hbase-0.94.12/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }\"",
+          "Command": "/bin/bash -c \"/opt/hbase-0.94.14/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }\"",
           "Endpoints": [{
               "Application": "opentsdb",
               "PortNumber": 4242,
