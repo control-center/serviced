@@ -1,0 +1,12 @@
+{
+        "brand_cp":"Plano de Control",
+        "brand_zcp":"Zenoss Plano de Control",
+        "ctl_running_started":"inicia",
+        "ctl_running_blank":"\u00A0",
+        "ctl_running_restarting":"reinicio",
+        "ctl_running_stopped":"detuvo",
+        "nav_apps":"Aplicaciones implementadas",
+        "nav_hosts":"Agentes",
+        "nav_logout":"Finalizar la sesión",
+        "entry_content":"Puede instalar Resource Manager, Analytics, y Impact aquí."
+}

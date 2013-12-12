@@ -1,0 +1,21 @@
+<div class="modal fade" id="userDetails" tabindex="-1" role="dialog" aria-hidden="true" ng-controller="LanguageControl">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
+        <span class="modal-title">{{'title_user_details'|translate}}</span>
+      </div>
+      <div class="modal-body">
+        <p>{{'label_username'|translate}}: {{user.username}}</p>
+        <div class="btn-group">
+          <label ng-class="getLanguageClass('en_US')">
+            <input type="radio" name="user_language" ng-change="setUserLanguage()" ng-model="user.language" value="en_US">English</input>
+          </label>
+          <label ng-class="getLanguageClass('es_US')">
+            <input type="radio" name="user_language" ng-change="setUserLanguage()" ng-model="user.language" value="es_US">Español</input>
+          </label>
+        </div>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
