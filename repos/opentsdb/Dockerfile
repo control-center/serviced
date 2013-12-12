@@ -33,6 +33,7 @@ RUN cd /opt/opentsdb && ./build.sh
 EXPOSE 4242
 CMD /opt/opentsdb/build/start-opentsdb.sh
 VOLUME /tmp
+VOLUME /opt/hbase-0.94.14/logs/
 
 # Configure hbase (xml file's base64 encoded hbase-site.xml)
 ADD hbase-site.xml /opt/hbase-0.94.14/conf/hbase-site.xml
