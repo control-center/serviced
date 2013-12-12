@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/client"
 
+	"mime"
 	"net/http"
 )
 
@@ -29,6 +30,8 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string) *S
 }
 
 func (this *ServiceConfig) Serve() {
+	mime.AddExtensionType(".json", "application/json")
+	mime.AddExtensionType(".woff", "application/font-woff")
 
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,

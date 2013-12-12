@@ -6,11 +6,11 @@
         <div class="search-control pull-right">
           <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}'</label>
 
-          <button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">By RAM</button>
-          <button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">By CPU</button>
+          <button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">{{'nav_by_ram'|translate}}</button>
+          <button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">{{'nav_by_cpu'|translate}}</button>
         </div>
-        <a class="nav-link" href="#/hosts">Hosts List</a>
-        <label class="active">Hosts Map</label>
+        <a class="nav-link" href="#/hosts">{{'nav_hosts_list'|translate}}</a>
+        <label class="active">{{'nav_hosts_map'|translate}}</label>
       </div>
       <div id="hostmap" class="treemap"></div>
     </div>
