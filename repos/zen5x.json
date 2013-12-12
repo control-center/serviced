@@ -90,6 +90,10 @@
           "Tags": ["daemon"],
           "Command": "/usr/sbin/redis-server /etc/redis.conf",
           "Launch": "auto",
+          "ConfigFiles": {
+             "/opt/zenoss/etc/zenping.conf": {
+                "FileName": "/opt/zenoss/etc/zenping.conf",
+                "Content": "daemonize no\npidfile /var/run/redis/redis.pid\nport 6379\ntimeout 0\ntcp-keepalive 0\nloglevel notice\nlogfile /var/log/redis/redis.log\ndatabases 16\n\nsave 900 1\nsave 300 10\nsave 60 10000\n\nstop-writes-on-bgsave-error yes\nrdbcompression yes\nrdbchecksum yes\ndbfilename dump.rdb\ndir /var/lib/redis/\nslave-serve-stale-data yes\nslave-read-only yes\nrepl-disable-tcp-nodelay no\nslave-priority 100\nappendonly no\nappendfsync everysec\nno-appendfsync-on-rewrite no\nauto-aof-rewrite-percentage 100\nauto-aof-rewrite-min-size 64mb\nlua-time-limit 5000\nslowlog-log-slower-than 10000\nslowlog-max-len 128\nhash-max-ziplist-entries 512\nhash-max-ziplist-value 64\nlist-max-ziplist-entries 512\nlist-max-ziplist-value 64\nset-max-intset-entries 512\nzset-max-ziplist-entries 128\nzset-max-ziplist-value 64\nactiverehashing yes\nclient-output-buffer-limit normal 0 0 0\nclient-output-buffer-limit slave 256mb 64mb 60\nclient-output-buffer-limit pubsub 32mb 8mb 60\nhz 10\naof-rewrite-incremental-fsync yes\n"}},
           "Endpoints": [{
               "Application": "redis",
               "PortNumber": 6379,
