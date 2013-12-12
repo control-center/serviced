@@ -11,5 +11,5 @@ while [[ `/opt/opentsdb/src/create_table.sh` != *"ERROR: Table already exists: t
 done
 
 echo "Starting opentsdb..."
-exec /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd --auto-metric=true
+exec /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd --auto-metric
 
