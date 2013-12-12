@@ -110,6 +110,10 @@ table .btn,
     text-shadow: 1px 1px 2px #414141;
 }
 
+.navbar-zen a.glyphicon {
+    top: 0px;
+}
+
 .navbar-zen li.active > button,
 .navbar-zen li.active > a {
     color: #969696;

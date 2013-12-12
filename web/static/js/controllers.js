@@ -1123,7 +1123,7 @@ function addChildren(allowed, parent) {
 }
 
 // Controller for top nav
-function NavbarControl($scope, $http, $cookies, $location, $translate, authService) {
+function NavbarControl($scope, $http, $cookies, $location, $route, $translate, authService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
     
@@ -1171,6 +1171,25 @@ function NavbarControl($scope, $http, $cookies, $location, $translate, authServi
         $('#userDetails').modal('show');
     };
     updateLanguage($scope, $cookies, $translate);
+
+    var helpMap = {
+        '/static/partials/main.html': 'main.html',
+        '/static/partials/login.html': 'login.html',
+        '/static/partials/view-subservices.html': 'subservices.html',
+        '/static/partials/view-apps.html': 'apps.html',
+        '/static/partials/view-hosts.html': 'hosts.html',
+        '/static/partials/view-host-map.html': 'hostmap.html',
+        '/static/partials/view-service-map.html': 'servicemap.html',
+        '/static/partials/view-host-details.html': 'hostdetails.html',
+        '/static/partials/view-devmode.html': 'devmode.html'
+    };
+    
+    $scope.help = {
+        url: function() {
+            return '/static/help/' + $scope.user.language + '/' + helpMap[$route.current.templateUrl];
+        }
+    };
+
 }
 
 function LanguageControl($scope, $cookies, $translate) {
@@ -1189,10 +1208,10 @@ function LanguageControl($scope, $cookies, $translate) {
 function updateLanguage($scope, $cookies, $translate) {
     var ln = 'en_US';
     if ($cookies.Language === undefined) {
-        console.log('Defaulting language to en_US');
+//        console.log('Defaulting language to en_US');
     } else {
         ln = $cookies.Language;
-        console.log('Found language: %s', ln);
+//        console.log('Found language: %s', ln);
     }
     if ($scope.user) {
         $scope.user.language = ln;
