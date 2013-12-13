@@ -71,7 +71,7 @@
         }, {
           "Name": "memcached",
           "Tags": ["daemon"],
-          "Command": "/usr/sbin/memcached",
+          "Command": "/usr/bin/memcached",
           "Launch": "auto",
           "Endpoints": [{
               "Application": "memcached",
@@ -80,7 +80,7 @@
               "Purpose": "export"
             }
           ],
-          "ImageId": "zenoss/memcached",
+          "ImageId": "zenoss/zenoss5x",
           "Instances": {
             "min": 1
           },
