@@ -384,7 +384,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// config files
 	configFiles := ""
 	for filename, config := range service.ConfigFiles {
-		glog.Infof("%s: %s", filename, config)
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
 		f, err := ioutil.TempFile("", prefix)
 		if err != nil {
@@ -424,6 +423,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, volumeOpts, configFiles, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
+
+	a.dockerTerminate(serviceState.Id)
+	a.dockerRemove(serviceState.Id)
 
 	cmd := exec.Command("bash", "-c", cmdString)
 
