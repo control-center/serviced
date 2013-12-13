@@ -1,5 +1,12 @@
 package dao
 
+import (
+	"bytes"
+	"encoding/json"
+	"github.com/zenoss/glog"
+	"text/template"
+)
+
 func (a *Service) Equals(b *Service) bool {
 	if a.Id != b.Id {
 		return false
@@ -41,4 +48,32 @@ func (a *Service) Equals(b *Service) bool {
 		return false
 	}
 	return true
+}
+
+func (service *Service) EvaluateContext(cp ControlPlane) (err error) {
+	parent := func(s Service) (value Service, err error) {
+		err = cp.GetService(s.ParentServiceId, &value)
+		return
+	}
+
+	context := func(s Service) (ctx map[string]interface{}, err error) {
+		err = json.Unmarshal([]byte(s.Context), &ctx)
+		if err != nil {
+			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.Id, s.Context, err)
+		}
+		return
+	}
+
+	functions := template.FuncMap{
+		"parent":  parent,
+		"context": context,
+	}
+
+	t := template.Must(template.New(service.Name).Funcs(functions).Parse(service.Startup))
+
+	var buffer bytes.Buffer
+	if err = t.Execute(&buffer, service); err == nil {
+		service.Startup = buffer.String()
+	}
+	return
 }

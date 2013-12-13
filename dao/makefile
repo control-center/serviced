@@ -13,12 +13,15 @@ default: build
 
 build:
 	cd elasticsearch && make build
+	cd tests && go build
 	go build
 
 test: build
 	cd elasticsearch && make test
+	cd tests && go test
 	go test
 
 clean:
 	cd elasticsearch && make clean
+	cd tests && go clean
 	go clean

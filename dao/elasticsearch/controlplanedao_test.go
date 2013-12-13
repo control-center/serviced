@@ -292,6 +292,10 @@ func TestDao_GetService(t *testing.T) {
 
 func TestDao_GetServices(t *testing.T) {
 	controlPlaneDao.RemoveService("0", &unused)
+	controlPlaneDao.RemoveService("1", &unused)
+	controlPlaneDao.RemoveService("2", &unused)
+	controlPlaneDao.RemoveService("3", &unused)
+	controlPlaneDao.RemoveService("4", &unused)
 	controlPlaneDao.RemoveService("01", &unused)
 	controlPlaneDao.RemoveService("011", &unused)
 	controlPlaneDao.RemoveService("02", &unused)
@@ -316,7 +320,7 @@ func TestDao_GetServices(t *testing.T) {
 			t.Fail()
 		}
 	} else {
-		t.Errorf("Unexpected Error Retrieving Services: err=%s, result=%s", err, result)
+		t.Errorf("Error Retrieving Services: err=%s, result=%s", err, result)
 		t.Fail()
 	}
 }

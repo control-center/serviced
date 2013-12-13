@@ -461,7 +461,7 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 		glog.Errorf("Error removing service %s: %v", id, err)
 		return err
 	}
-	go this.zkDao.RemoveService(id)
+	this.zkDao.RemoveService(id)
 	return nil
 }
 
@@ -529,7 +529,6 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 	}
 	*logs = string(output)
 	return nil
-
 }
 
 func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {

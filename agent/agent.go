@@ -20,7 +20,6 @@ import (
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/zzk"
 
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 )
 
@@ -91,29 +89,8 @@ func NewHostAgent(master string, resourcePath string, mux proxy.TCPMux, zookeepe
 
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
-func injectContext(s *dao.Service) error {
-	if len(s.Context) == 0 {
-		glog.V(1).Infoln("Context was empty")
-		return nil
-	}
-
-	glog.V(2).Infof("Context string: %s", s.Context)
-	var ctx map[string]interface{}
-	if err := json.Unmarshal([]byte(s.Context), &ctx); err != nil {
-		return err
-	}
-
-	glog.V(2).Infof("Context unmarshalled: %+v", ctx)
-
-	t := template.Must(template.New(s.Name).Parse(s.Startup))
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, ctx); err != nil {
-		return err
-	}
-	s.Startup = buf.String()
-	glog.V(2).Infof("injectContext set startup to '%s'", s.Startup)
-
-	return nil
+func injectContext(s *dao.Service, cp dao.ControlPlane) error {
+	return s.EvaluateContext(cp)
 }
 
 func (a *HostAgent) Shutdown() error {
@@ -346,6 +323,13 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
+	client, err := client.NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return false, err
+	}
+	defer client.Close()
+
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
@@ -376,7 +360,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
 
-	if err := injectContext(service); err != nil {
+	if err := injectContext(service, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
 		return false, err
 	}

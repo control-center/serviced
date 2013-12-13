@@ -57,9 +57,8 @@ type ControlPlane interface {
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error
 
-	//TODO
 	// Get a service from serviced
-	//GetService(serviceId int, service *Service) error
+	GetService(serviceId string, service *Service) error
 
 	// Get a list of services from serviced
 	GetServices(request EntityRequest, services *[]*Service) error
