@@ -138,7 +138,7 @@ var injectionTests = []struct {
 		Id:              "1234567890",
 		Name:            "/bin/sh",
 		Context:         "{\"Command\": \"/bin/sh\"}",
-		Startup:         "{{.Command}}",
+		Startup:         "{{(context .).Command}}",
 		Description:     "Run /bin/sh",
 		Instances:       1,
 		ImageId:         "test/single",
@@ -154,7 +154,7 @@ var injectionTests = []struct {
 		Id:              "1234567890",
 		Name:            "pinger",
 		Context:         "{\"RemoteHost\": \"zenoss.com\", \"Count\": 32}",
-		Startup:         "/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
+		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
 		ImageId:         "test/pinger",
@@ -169,15 +169,16 @@ var injectionTests = []struct {
 }
 
 func TestContextInjection(t *testing.T) {
+	var client dao.ControlPlane
 	for _, it := range injectionTests {
-		if err := injectContext(&it.service); err != nil {
+		if err := injectContext(&it.service, client); err != nil {
 			t.Error(err)
 		}
 
 		result := it.service.Startup
 
 		if result != it.expected {
-			t.Errorf("Expecting %s got %s\n", result, it.expected)
+			t.Errorf("Expecting \"%s\" got \"%s\"\n", it.expected, result)
 		}
 	}
 }
@@ -187,7 +188,7 @@ func TestIncompleteInjection(t *testing.T) {
 		Id:              "1234567890",
 		Name:            "pinger",
 		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
-		Startup:         "/usr/bin/ping -c {{.Count}} {{.RemoteHost}}",
+		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
 		ImageId:         "test/pinger",
@@ -200,7 +201,8 @@ func TestIncompleteInjection(t *testing.T) {
 		UpdatedAt:       time.Now(),
 	}
 
-	if err := injectContext(&service); err != nil {
+	var client dao.ControlPlane
+	if err := injectContext(&service, client); err != nil {
 		t.Error(err)
 	}
 
