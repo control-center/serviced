@@ -716,7 +716,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		shellcmd += a + " "
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
-	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run -i -t -e COMMAND='%s' -v %s -v %s %s %s", service.Startup, servicedVolume, pwdVolume, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 	command := exec.Command("bash", "-c", cmdString)
 	command.Stdout = os.Stdout
