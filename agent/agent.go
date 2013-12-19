@@ -92,7 +92,7 @@ func NewHostAgent(master string, resourcePath string, mount []string, zookeepers
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *dao.Service, cp dao.ControlPlane) error {
-	return s.EvaluateContext(cp)
+	return s.EvaluateStartupTemplate(cp)
 }
 
 func (a *HostAgent) Shutdown() error {

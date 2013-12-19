@@ -7,7 +7,7 @@ import "github.com/zenoss/serviced/dao"
 import "github.com/zenoss/serviced/isvcs"
 import "github.com/zenoss/serviced/dao/elasticsearch"
 
-var testcases = []struct {
+var startup_testcases = []struct {
 	service  dao.Service
 	expected string
 }{
@@ -81,6 +81,52 @@ var testcases = []struct {
 	}, "/bin/sh ls -l ."},
 }
 
+var endpoint_testcases = []struct {
+	service  dao.Service
+	expected string
+}{
+	{dao.Service{
+		Id:              "100",
+		Name:            "Zenoss",
+		Context:         "{\"RemoteHost\":\"hostname\"}",
+		Startup:         "",
+		Description:     "Zenoss 5.x",
+		Instances:       0,
+		ImageId:         "",
+		PoolId:          "",
+		DesiredState:    0,
+		Launch:          "auto",
+		Endpoints:       []dao.ServiceEndpoint{},
+		ParentServiceId: "",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}, ""},
+	{dao.Service{
+		Id:           "101",
+		Name:         "Collector",
+		Context:      "",
+		Startup:      "",
+		Description:  "",
+		Instances:    0,
+		ImageId:      "",
+		PoolId:       "",
+		DesiredState: 0,
+		Launch:       "",
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Purpose:             "something",
+				Protocol:            "tcp",
+				PortNumber:          1000,
+				Application:         "",
+				ApplicationTemplate: "{{(context (parent .)).RemoteHost}}_collector",
+			},
+		},
+		ParentServiceId: "100",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}, "hostname_collector"},
+}
+
 var addresses []string
 var cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses)
 
@@ -89,7 +135,14 @@ func init() {
 	if err == nil {
 		err = isvcs.ElasticSearchContainer.Run()
 		if err == nil {
-			for _, testcase := range testcases {
+			for _, testcase := range startup_testcases {
+				var id string
+				cp.RemoveService(testcase.service.Id, &unused)
+				if err = cp.AddService(testcase.service, &id); err != nil {
+					glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
+				}
+			}
+			for _, testcase := range endpoint_testcases {
 				var id string
 				cp.RemoveService(testcase.service.Id, &unused)
 				if err = cp.AddService(testcase.service, &id); err != nil {
@@ -102,12 +155,11 @@ func init() {
 	}
 }
 
-func TestEvaluateContext(t *testing.T) {
-	for _, testcase := range testcases {
-		glog.Infof("Service.Startup before: %s, %s", testcase.service.Startup)
-		err = testcase.service.EvaluateContext(cp)
-		glog.Infof("Service.Startup after: %s, %s", testcase.service.Startup, err)
-
+func TestEvaluateStartupTemplate(t *testing.T) {
+	for _, testcase := range startup_testcases {
+		glog.Infof("Service.Startup before: %s", testcase.service.Startup)
+		err = testcase.service.EvaluateStartupTemplate(cp)
+		glog.Infof("Service.Startup after: %s, error=%s", testcase.service.Startup, err)
 		result := testcase.service.Startup
 		if result != testcase.expected {
 			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
@@ -115,7 +167,22 @@ func TestEvaluateContext(t *testing.T) {
 	}
 }
 
-func TestIncompleteInjection(t *testing.T) {
+func TestEvaluateEndpointTemplate(t *testing.T) {
+	for _, testcase := range endpoint_testcases {
+		if len(testcase.service.Endpoints) > 0 {
+			glog.Infof("Service.Endpoint[0].ApplicationTemplate: %s", testcase.service.Endpoints[0].ApplicationTemplate)
+			err = testcase.service.EvaluateEndpointTemplates(cp)
+			glog.Infof("Service.Endpoint[0].Application: %s, error=%s", testcase.service.Endpoints[0].Application, err)
+
+			result := testcase.service.Endpoints[0].Application
+			if result != testcase.expected {
+				t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
+			}
+		}
+	}
+}
+
+func TestIncompleteStartupInjection(t *testing.T) {
 	service := dao.Service{
 		Id:              "0",
 		Name:            "pinger",
@@ -133,7 +200,7 @@ func TestIncompleteInjection(t *testing.T) {
 		UpdatedAt:       time.Now(),
 	}
 
-	service.EvaluateContext(cp)
+	service.EvaluateStartupTemplate(cp)
 	if service.Startup == "/usr/bin/ping -c 64 zenoss.com" {
 		t.Errorf("Not expecting a match")
 	}
