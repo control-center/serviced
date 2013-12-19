@@ -119,10 +119,11 @@ type Service struct {
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
-	Protocol    string
-	PortNumber  uint16
-	Application string
-	Purpose     string
+	Purpose             string
+	Protocol            string
+	PortNumber          uint16
+	Application         string
+	ApplicationTemplate string
 }
 
 //export definition

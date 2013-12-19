@@ -836,6 +836,11 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.UpdatedAt = now
 	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
 
+	//for each endpoint, evaluate it's Application
+	if err = svc.EvaluateEndpointTemplates(this); err != nil {
+		return err
+	}
+
 	//for each export, create directory and add path into export map
 	for _, volumeExport := range sd.VolumeExports {
 		resourcePath := svc.Id + "/" + volumeExport.Path
