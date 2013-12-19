@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	"testing"
-	"time"
 )
 
 const example_state = `
