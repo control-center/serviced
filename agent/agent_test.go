@@ -2,11 +2,9 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
+  "fmt"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	"testing"
-	"time"
 )
 
 const example_state = `
