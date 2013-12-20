@@ -182,7 +182,6 @@ func hostLinks(hostId string) []Link {
 	}
 }
 
-
 /*
  * Provide a list of pool related API calls
  */
@@ -202,7 +201,6 @@ func poolLinks(poolId string) []Link {
 		Link{DeleteLink, "DELETE", poolUri},
 	}
 }
-
 
 func servicesLinks() []Link {
 	return []Link{
@@ -243,7 +241,6 @@ func templateLinks(templateId string) []Link {
 		Link{DeleteLink, "DELETE", templateUri},
 	}
 }
-
 
 /*
  * Inform browsers that this call should not be cached. Ever.
