@@ -14,7 +14,7 @@ package main
 //svc "github.com/zenoss/serviced/svc"
 import (
 	"github.com/zenoss/serviced"
-	agent "github.com/zenoss/serviced/agent"
+	"github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/proxy"
@@ -49,6 +49,7 @@ var options struct {
 	statsperiod       int
 	mcusername        string
 	mcpasswd          string
+	mount             string
 }
 
 // Setup flag options (static block)
@@ -69,6 +70,7 @@ func init() {
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
+	flag.StringVar(&options.mount, "mount", "", "bind mount custom directories: container_image:host_path:container_path")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -140,7 +142,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, options.resourcePath, mux, options.zookeepers)
+		agent, err := agent.NewHostAgent(options.port, options.resourcePath, options.mount, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
