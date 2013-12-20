@@ -83,6 +83,10 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
+func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
+}
+
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }

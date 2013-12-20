@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var empty interface{}
@@ -355,7 +356,9 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 		RestServerError(w)
 		return
 	}
+	now := time.Now()
 	service.Name = payload.Name
+	service.Context = payload.Context
 	service.Description = payload.Description
 	service.Tags = payload.Tags
 	service.PoolId = payload.PoolId
@@ -365,13 +368,38 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	service.ParentServiceId = payload.ParentServiceId
 	service.DesiredState = payload.DesiredState
 	service.Launch = payload.Launch
+	service.Endpoints = payload.Endpoints
+	service.ConfigFiles = payload.ConfigFiles
+	service.Volumes = payload.Volumes
+	service.CreatedAt = now
+	service.UpdatedAt = now
 
+	//for each endpoint, evaluate it's Application
+	if err = service.EvaluateEndpointTemplates(client); err != nil {
+		glog.Errorf("Unable to evaluate service endpoints: %v", err)
+		RestServerError(w)
+		return
+	}
+
+	//add the service to the data store
 	err = client.AddService(*service, &serviceId)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
 		RestServerError(w)
 		return
 	}
+
+	//deploy the service, in other words start it
+	var unused int
+	sduuid, _ := dao.NewUuid()
+	deployment := dao.ServiceDeployment{sduuid, "", service.Id, now}
+	err = client.AddServiceDeployment(deployment, &unused)
+	if err != nil {
+		glog.Errorf("Unable to add service deployment: %v", err)
+		RestServerError(w)
+		return
+	}
+
 	glog.V(0).Info("Added service ", serviceId)
 	w.WriteJson(&SimpleResponse{"Added service", serviceLinks(serviceId)})
 }

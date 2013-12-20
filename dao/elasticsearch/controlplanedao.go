@@ -872,14 +872,28 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
+	var unused int
 	sduuid, _ := dao.NewUuid()
 	deployment := dao.ServiceDeployment{sduuid, template, svc.Id, now}
-	_, err = newServiceDeployment(sduuid, &deployment)
+	err = this.AddServiceDeployment(deployment, &unused)
 	if err != nil {
 		return err
 	}
 
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId)
+}
+
+func (this *ControlPlaneDao) AddServiceDeployment(deployment dao.ServiceDeployment, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment: %+v", deployment)
+	id := strings.TrimSpace(deployment.Id)
+	if id == "" {
+		return errors.New("empty ServiceDeployment.Id not allowed")
+	}
+
+	deployment.Id = id
+	response, err := newServiceDeployment(id, deployment)
+	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment response: %+v", response)
+	return err
 }
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
