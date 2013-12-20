@@ -45,10 +45,10 @@ import (
 
 // An instance of the control plane Agent.
 type HostAgent struct {
-	master          string               // the connection string to the master agent
-	hostId          string               // the hostID of the current host
-	resourcePath    string               // directory to bind mount docker volumes
-	mount		string               // container image:host path:container path
+	master          string // the connection string to the master agent
+	hostId          string // the hostID of the current host
+	resourcePath    string // directory to bind mount docker volumes
+	mount           string // container image:host path:container path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             proxy.TCPMux
@@ -84,7 +84,7 @@ func NewHostAgent(master string, resourcePath string, mount string, zookeepers [
 	}
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
-	
+
 	go agent.start()
 	return agent, err
 }
@@ -404,23 +404,23 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
 	}
-	
+
 	// add arguments to mount requested directory (if requested)
 	requestedMount := ""
-        if a.mount != "" {
-                splitMount := strings.Split(a.mount, ":")
-                if len(splitMount) == 3 {
-                        //requestedImage, hostPath, containerPath = splitMount[0]
-                        requestedImage := splitMount[0]
-                        hostPath := splitMount[1]
-                        containerPath := splitMount[2]
-                        if requestedImage == service.ImageId {
-                                requestedMount = "-v " + hostPath + ":" + containerPath
-                        }
-                }
-        }
+	if a.mount != "" {
+		splitMount := strings.Split(a.mount, ":")
+		if len(splitMount) == 3 {
+			//requestedImage, hostPath, containerPath = splitMount[0]
+			requestedImage := splitMount[0]
+			hostPath := splitMount[1]
+			containerPath := splitMount[2]
+			if requestedImage == service.ImageId {
+				requestedMount = "-v " + hostPath + ":" + containerPath
+			}
+		}
+	}
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-        cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
 
