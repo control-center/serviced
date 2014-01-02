@@ -784,19 +784,19 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes)
+	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string, deploymentId string) error {
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parent, volumes); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parent, volumes, deploymentId); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string, deploymentId string) error {
 	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
@@ -835,6 +835,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
+	svc.DeploymentId = deploymentId
 
 	//for each export, create directory and add path into export map
 	for _, volumeExport := range sd.VolumeExports {
@@ -861,7 +862,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes)
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId)
 }
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
