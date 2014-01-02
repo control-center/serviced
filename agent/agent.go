@@ -45,11 +45,12 @@ import (
 
 // An instance of the control plane Agent.
 type HostAgent struct {
-	master          string               // the connection string to the master agent
-	hostId          string               // the hostID of the current host
-	resourcePath    string               // directory to bind mount docker volumes
-	currentServices map[string]*exec.Cmd // the current running services
+	master          string // the connection string to the master agent
+	hostId          string // the hostID of the current host
+	resourcePath    string // directory to bind mount docker volumes
+	mount           string // container image:host path:container path
 	zookeepers      []string
+	currentServices map[string]*exec.Cmd // the current running services
 	mux             proxy.TCPMux
 	closing         chan chan error
 }
@@ -59,29 +60,30 @@ var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, resourcePath string, mux proxy.TCPMux, zookeepers []string) (*HostAgent, error) {
+func NewHostAgent(master string, resourcePath string, mount string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
+	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
-	agent.mux = mux
 	agent.resourcePath = resourcePath
-	agent.closing = make(chan chan error)
-
-	hostId, err := serviced.HostId()
-	if err != nil {
-		panic("Could not get hostid")
-	}
-	agent.hostId = hostId
-	agent.currentServices = make(map[string]*exec.Cmd)
+	agent.mount = mount
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
 		defaultZK := "127.0.0.1:2181"
 		glog.V(1).Infoln("Zookeepers not specified: using default of ", defaultZK)
 		agent.zookeepers = []string{defaultZK}
 	}
-
+	agent.mux = mux
 	if agent.mux.Enabled {
 		go agent.mux.ListenAndMux()
 	}
+
+	agent.closing = make(chan chan error)
+	hostId, err := serviced.HostId()
+	if err != nil {
+		panic("Could not get hostid")
+	}
+	agent.hostId = hostId
+	agent.currentServices = make(map[string]*exec.Cmd)
 
 	go agent.start()
 	return agent, err
@@ -403,8 +405,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
 	}
 
+	// add arguments to mount requested directory (if requested)
+	requestedMount := ""
+	if a.mount != "" {
+		splitMount := strings.Split(a.mount, ":")
+		if len(splitMount) == 3 {
+			requestedImage := splitMount[0]
+			hostPath := splitMount[1]
+			containerPath := splitMount[2]
+			if requestedImage == service.ImageId {
+				requestedMount = "-v " + hostPath + ":" + containerPath
+			}
+		}
+	}
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
 
