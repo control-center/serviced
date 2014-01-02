@@ -338,6 +338,8 @@ describe('NavbarControl', function() {
             authService: authService
         });
         $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
+        $httpBackend.when('GET', '/static/partials/main.html').respond({});
+        $httpBackend.when('GET', '/static/partials/login.html').respond({});
     }));
 
     afterEach(function() {
