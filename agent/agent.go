@@ -410,7 +410,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	if a.mount != "" {
 		splitMount := strings.Split(a.mount, ":")
 		if len(splitMount) == 3 {
-			//requestedImage, hostPath, containerPath = splitMount[0]
 			requestedImage := splitMount[0]
 			hostPath := splitMount[1]
 			containerPath := splitMount[2]
