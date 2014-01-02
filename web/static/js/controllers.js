@@ -15,7 +15,7 @@
 angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
-            when('/entry', { 
+            when('/entry', {
                 templateUrl: '/static/partials/main.html',
                 controller: EntryControl}).
             when('/login', {
@@ -48,7 +48,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             otherwise({redirectTo: '/entry'});
     },]).
     config(['$translateProvider', function($translateProvider) {
-       
+
         $translateProvider.useStaticFilesLoader({
             prefix: '/static/i18n/',
             suffix: '.json'
@@ -150,13 +150,13 @@ function LoginControl($scope, $http, $location, authService) {
     $scope.login_alert = $('#login_alert')
     $scope.login_alert.hide();
     $scope.login_alert.rollmsg = function() {
-        $scope.login_alert.fadeIn('slow', function() { 
+        $scope.login_alert.fadeIn('slow', function() {
             setTimeout(function() {
                $scope.login_alert.fadeOut('slow');
             }, 3000);
         });
     };
-    
+
     // Makes XHR POST with contents of login form
     $scope.login = function() {
         var creds = { "Username": $scope.username, "Password": $scope.password };
@@ -183,7 +183,7 @@ function DeployWizard($scope, resourcesService) {
     $scope.name='wizard';
 
     var validTemplateSelected = function() {
-        return $scope.selectedTemplates().length > 0;
+        return $scope.selectedTemplates().length > 0 && $scope.install.deploymentId.length > 0;
     };
 
     $scope.steps = [
@@ -194,10 +194,10 @@ function DeployWizard($scope, resourcesService) {
             validate: validTemplateSelected
         },
         { content: '/static/partials/wizard-modal-3.html', label: 'label_step_select_pool' },
-        { content: '/static/partials/wizard-modal-4.html', label: 'label_step_deploy' },
+        { content: '/static/partials/wizard-modal-4.html', label: 'label_step_deploy' }
     ];
 
-    $scope.install = { 
+    $scope.install = {
         selected: {
             pool: 'default'
         },
@@ -271,12 +271,12 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.hasPrevious = function() {
-        return step > 0 && 
+        return step > 0 &&
             ($scope.step_page === $scope.steps[step].content);
     };
 
     $scope.hasNext = function() {
-        return (step + 1) < $scope.steps.length && 
+        return (step + 1) < $scope.steps.length &&
             ($scope.step_page === $scope.steps[step].content);
     };
 
@@ -286,7 +286,7 @@ function DeployWizard($scope, resourcesService) {
 
     $scope.step_item = function(index) {
         var cls = index <= step ? 'active' : 'inactive';
-        if (index === step) { 
+        if (index === step) {
             cls += ' current';
         }
         return cls;
@@ -316,7 +316,7 @@ function DeployWizard($scope, resourcesService) {
         step -= 1;
         $scope.step_page = $scope.steps[step].content;
     };
-    
+
     $scope.wizard_finish = function() {
         var selected = $scope.selectedTemplates();
         var f = true;
@@ -332,9 +332,10 @@ function DeployWizard($scope, resourcesService) {
             }
             dName += selected[i].Name;
 
-            resourcesService.deploy_app_template({ 
+            resourcesService.deploy_app_template({
                 PoolId: $scope.install.selected.pool,
-                TemplateId: selected[i].Id
+                TemplateId: selected[i].Id,
+                DeploymentId: $scope.install.deploymentId
             }, function(result) {
                 refreshServices($scope, resourcesService, false);
             });
@@ -356,7 +357,7 @@ function DeployWizard($scope, resourcesService) {
         { Name: 'Hostname A', IpAddr: '192.168.34.1', Id: 'A071BF1' },
         { Name: 'Hostname B', IpAddr: '192.168.34.25', Id: 'B770DAD' },
         { Name: 'Hostname C', IpAddr: '192.168.33.99', Id: 'CCD090B' },
-        { Name: 'Hostname D', IpAddr: '192.168.33.129', Id: 'DCDD3F0' },
+        { Name: 'Hostname D', IpAddr: '192.168.33.129', Id: 'DCDD3F0' }
     ];
     $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
 
@@ -378,13 +379,14 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     ];
 
     $scope.secondarynav = [
-        { label: 'nav_servicesmap', path: '/servicesmap' },
+        { label: 'nav_servicesmap', path: '/servicesmap' }
     ];
 
     $scope.services = buildTable('PoolId', [
-        { id: 'Name', name: 'deployed_tbl_name'}, 
+        { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'PoolId', name: 'deployed_tbl_pool'},
+        { id: 'Id', name: 'deployed_tbl_deployment_id'},
         { id: 'DesiredState', name: 'deployed_tbl_state' }
     ]);
 
@@ -414,7 +416,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     $scope.click_secondary = function(navlink) {
         if (navlink.path) {
             $location.path(navlink.path);
-        } 
+        }
         else if (navlink.modal) {
             $(navlink.modal).modal('show');
         }
@@ -446,7 +448,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     ];
 
     $scope.services = buildTable('Name', [
-        { id: 'Name', name: 'deployed_tbl_name'}, 
+        { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
         { id: 'Details', name: 'deployed_tbl_details' }
     ]);
@@ -498,10 +500,10 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         }
     });
 
-    var wait = { hosts: false, running: false }
+    var wait = { hosts: false, running: false };
     var mashHostsToInstances = function() {
         if (!wait.hosts || !wait.running) return;
-        
+
         for (var i=0; i < $scope.running.data.length; i++) {
             var instance = $scope.running.data[i];
             instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
@@ -563,8 +565,8 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     }
 }
 
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, 
-                      resourcesService, authService) 
+function HostsControl($scope, $routeParams, $location, $filter, $timeout,
+                      resourcesService, authService)
 {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -613,7 +615,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
 
     // Build metadata for displaying a list of pools
     $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'Id'}, 
+        { id: 'Id', name: 'Id'},
         { id: 'ParentId', name: 'Parent Id'},
         { id: 'Priority', name: 'Priority'}
     ])
@@ -879,7 +881,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     var width = 857;
     var height = 567;
 
-    var cpuCores = function(h) { 
+    var cpuCores = function(h) {
         return h.Cores;
     };
     var memoryCapacity = function(h) {
@@ -1075,7 +1077,7 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         });
 
         renderer.run(
-            dagreD3.json.decode(states, edges), 
+            dagreD3.json.decode(states, edges),
             d3.select("svg g"));
 
         // Add zoom behavior
@@ -1126,9 +1128,9 @@ function addChildren(allowed, parent) {
 function NavbarControl($scope, $http, $cookies, $location, $route, $translate, authService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
-    
+
     $scope.navlinks = [
-        { url: '#/apps', label: 'nav_apps', 
+        { url: '#/apps', label: 'nav_apps',
           sublinks: [ '#/services/', '#/servicesmap' ]
         },
         { url: '#/hosts', label: 'nav_hosts',
@@ -1183,7 +1185,7 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
         '/static/partials/view-host-details.html': 'hostdetails.html',
         '/static/partials/view-devmode.html': 'devmode.html'
     };
-    
+
     $scope.help = {
         url: function() {
             return '/static/help/' + $scope.user.language + '/' + helpMap[$route.current.templateUrl];
@@ -1351,9 +1353,9 @@ function ResourcesService($http, $location) {
     return {
         /*
          * Get the most recently retrieved map of resource pools.
-         * This will also retrieve the data if it has not yet been 
-         * retrieved. 
-         * 
+         * This will also retrieve the data if it has not yet been
+         * retrieved.
+         *
          * @param {boolean} cacheOk Whether or not cached data is OK to use.
          * @param {function} callback Pool data is passed to a callback on success.
          */
@@ -1509,7 +1511,7 @@ function ResourcesService($http, $location) {
 
         /*
          * Get the most recently retrieved host data.
-         * This will also retrieve the data if it has not yet been 
+         * This will also retrieve the data if it has not yet been
          * retrieved.
          *
          * @param {boolean} cacheOk Whether or not cached data is OK to use.
@@ -1588,7 +1590,7 @@ function ResourcesService($http, $location) {
 
         /*
          * Get the list of hosts belonging to a specified pool.
-         * 
+         *
          * @param {boolean} cacheOk Whether or not cached data is OK to use.
          * @param {string} poolId Unique identifier for pool to use.
          * @param {function} callback List of hosts pass to callback on success.
@@ -1605,12 +1607,12 @@ function ResourcesService($http, $location) {
          * Get all defined services. Note that 2 arguments will be passed
          * to the callback function instead of the usual 1.
          *
-         * The first argument to the callback is an array of all top level 
+         * The first argument to the callback is an array of all top level
          * services, with children attached.
          *
-         * The second argument to the callback is a Map(Id -> Object) of all 
+         * The second argument to the callback is a Map(Id -> Object) of all
          * services, with children attached.
-         * 
+         *
          * @param {boolean} cacheOk Whether or not cached data is OK to use.
          * @param {function} callback Executed on success.
          */
@@ -1625,7 +1627,7 @@ function ResourcesService($http, $location) {
 
         /*
          * Retrieve some (probably not the one you want) set of logs for a
-         * defined service. To get more specific logs, use 
+         * defined service. To get more specific logs, use
          * get_service_state_logs.
          *
          * @param {string} serviceId ID of the service to retrieve logs for.
@@ -1701,7 +1703,7 @@ function ResourcesService($http, $location) {
 
         /*
          * Update an existing service
-         * 
+         *
          * @param {string} serviceId The ID of the service to update.
          * @param {object} editedService The modified service.
          * @param {function} callback Response passed to callback on success.
@@ -1843,7 +1845,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
             svc.Deployment = 'successful'; // TODO: replace with real data
 
             switch(svc.Deployment) {
-            case "successful": 
+            case "successful":
                 depClass = "deploy-success";
                 iconClass = "glyphicon glyphicon-ok";
                 break;
@@ -1870,7 +1872,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
             // we need a flattened view of all children
-            
+
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current);
             }
@@ -2096,8 +2098,8 @@ function unauthorized($location) {
  *
  */
 function next_url(data) {
-    return data.Links.filter(function(e) { 
-        return e.Name == 'Next'; 
+    return data.Links.filter(function(e) {
+        return e.Name == 'Next';
     })[0].Url;
 }
 
@@ -2118,14 +2120,14 @@ function set_order(order, table) {
 }
 
 function get_order_class(order, table) {
-    return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] + 
+    return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
         ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
 }
 
 function buildTable(sort, headers) {
     var sort_icons = {};
     for(var i=0; i < headers.length; i++) {
-        sort_icons[headers[i].id] = (sort === headers[i].id? 
+        sort_icons[headers[i].id] = (sort === headers[i].id?
             'glyphicon-chevron-up' : 'glyphicon-chevron-down');
     }
 
@@ -2140,13 +2142,13 @@ function buildTable(sort, headers) {
     };
 }
 
-function indentClass(depth) { 
-    return 'indent' + (depth -1); 
+function indentClass(depth) {
+    return 'indent' + (depth -1);
 };
 
 function toggleCollapse(child, collapsed) {
     child.parentCollapsed = collapsed;
-    // We're done if this node does not have any children OR if this node is 
+    // We're done if this node does not have any children OR if this node is
     // already collapsed
     if (!child.children || child.collapsed) {
         return;

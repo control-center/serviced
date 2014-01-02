@@ -112,9 +112,10 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	ParentServiceId string
-	Volumes         []Volume
+	Volumes         []Volume	
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	DeploymentId      string
 }
 
 // An endpoint that a Service exposes.
@@ -214,6 +215,7 @@ type ServiceTemplate struct {
 type ServiceTemplateDeploymentRequest struct {
 	PoolId     string // Pool Id to deploy service into
 	TemplateId string // Id of template to be deployed
+	DeploymentId string // Unique id of the instance of this template
 }
 
 // This is created by selecting from service_state and joining to service

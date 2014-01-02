@@ -44,7 +44,7 @@ describe('LoginControl', function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
     });
- 
+
     it('Sets some labels', function() {
         expect($scope.brand_label).not.toBeUndefined();
         expect($scope.login_button_text).not.toBeUndefined();
@@ -81,8 +81,8 @@ describe('DeployedAppsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('DeployedAppsControl', { 
-            $scope: $scope, 
+        ctrl = $controller('DeployedAppsControl', {
+            $scope: $scope,
             resourcesService: resourcesService
         });
     }));
@@ -152,8 +152,8 @@ describe('HostsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('HostsControl', { 
-            $scope: $scope, 
+        ctrl = $controller('HostsControl', {
+            $scope: $scope,
             resourcesService: resourcesService
         });
     }));
@@ -247,8 +247,8 @@ describe('DeployWizard', function() {
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
         var $controller = $injector.get('$controller');
-        ctrl = $controller('DeployWizard', { 
-            $scope: $scope, 
+        ctrl = $controller('DeployWizard', {
+            $scope: $scope,
             resourcesService: fake_resources_service()
         });
     }));
@@ -278,6 +278,7 @@ describe('DeployWizard', function() {
         // the next page.
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
+        $scope.install.deploymentId = "test";
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
@@ -286,6 +287,7 @@ describe('DeployWizard', function() {
     it('Provides a \'wizard_previous\' function', function() {
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
+        $scope.install.deploymentId = "test";
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
@@ -331,11 +333,13 @@ describe('NavbarControl', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         authService = fake_auth_service();
-        ctrl = $controller('NavbarControl', { 
+        ctrl = $controller('NavbarControl', {
             $scope: $scope,
             authService: authService
         });
         $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
+        $httpBackend.when('GET', '/static/partials/main.html').respond({});
+        $httpBackend.when('GET', '/static/partials/login.html').respond({});
     }));
 
     afterEach(function() {
@@ -511,12 +515,12 @@ describe('ResourcesService', function() {
 
         var resp = null;
         resourcesService.deploy_app_template(deployDef, function(data) {
-            resp = data
+            resp = data;
         });
         $httpBackend.flush();
         expect(resp.Detail).toBe('Deployed');
     });
-    
+
     it('Can retrieve and cache resource pools', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
@@ -778,9 +782,9 @@ describe('unauthorized', function() {
 
 describe('next_url', function() {
     it('Finds a link with name \'Next\'', function() {
-        var result = next_url({ foo: 'bar', Links: [ 
-            { Name: 'Baz', Url: '/something' }, 
-            { Name: 'Next', Url: '/expected' }, 
+        var result = next_url({ foo: 'bar', Links: [
+            { Name: 'Baz', Url: '/something' },
+            { Name: 'Next', Url: '/expected' },
             { Name: 'Other', Url: '/other' }
         ]});
         expect(result).toBe('/expected');
@@ -914,7 +918,7 @@ describe('flattenSubservices', function() {
         var tree = {
             id: 'top',
             children: [
-                { 
+                {
                     id: 'middle1',
                     children: [
                         { id: 'leaf1' },
@@ -928,7 +932,7 @@ describe('flattenSubservices', function() {
             ]
         }
         var result = flattenTree(0, tree);
-        var expected = [ 
+        var expected = [
 //            { depth: 0, id: 'top' }, // Excludes depth: 0
             { zendepth: 1, id: 'middle1' },
             { zendepth: 2, id: 'leaf1' },
@@ -1098,7 +1102,7 @@ function fake_pools() {
             MemoryLimit: 0,
             Priority: 0
         },
-        "foo": { 
+        "foo": {
             Id: "foo",
             ParentId: "default",
             CoreLimit: 2,

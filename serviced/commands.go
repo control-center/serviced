@@ -433,10 +433,10 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	}
 
 	if verbose == false {
-		outfmt := "%-36s %-12.12s %-32.32s %-16.16s %-4d %-24.24s %-12s %-6d %-6s %-16.16s\n"
+		outfmt := "%-36s %-12.12s %-32.32s %-16.16s %-4d %-24.24s %-12s %-6d %-6s %-12s %-16.16s\n"
 
 		if raw == false {
-			fmt.Printf("%-36s %-12s %-32s %-16s %-4s %-24s %-12s %-6s %-6s %-16.16s\n",
+			fmt.Printf("%-36s %-12s %-32s %-16s %-4s %-24s %-12s %-6s %-6s %-12s %-16.16s\n",
 				"SERVICE ID",
 				"NAME",
 				"COMMAND",
@@ -446,6 +446,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 				"POOL",
 				"DSTATE",
 				"LAUNCH",
+				"DEPLOYMENT ID",
 				"PARENT")
 		} else {
 			outfmt = "%s|%s|%s|%s|%d|%s|%s|%d|%s|%s\n"
@@ -462,6 +463,7 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 				s.PoolId,
 				s.DesiredState,
 				s.Launch,
+				s.DeploymentId,
 				s.ParentServiceId)
 		}
 	} else {

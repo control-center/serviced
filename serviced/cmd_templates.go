@@ -206,12 +206,12 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 // Deploy a service template into the given pool
 func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 
-	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID", "Deploy TEMPLATE_ID into POOL_ID")
+	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID DEPLOYMENT_ID", "Deploy TEMPLATE_ID into POOL_ID with a new id DEPLOYMENT_ID")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 
-	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0)}
+	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0), cmd.Arg(2)}
 
 	var unused int
 	if err := getClient().DeployTemplate(deployreq, &unused); err != nil {

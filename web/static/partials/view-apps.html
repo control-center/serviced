@@ -40,13 +40,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">
+        <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">		  
           <td ng-click="click_app(app.Id)">{{app.Name}}</td>
           <td ng-class="app.deploymentClass">
             <span ng-class="app.deploymentIcon"></span>
             {{app.Deployment}}
           </td>
           <td>{{app.PoolId}}</td>
+		  <td>{{app.DeploymentId}}</td>
           <td>
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
