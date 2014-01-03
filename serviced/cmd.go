@@ -71,7 +71,7 @@ func init() {
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
-	flag.Var(&options.mount, "mount", "", "bind mount custom directories: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
@@ -142,8 +142,6 @@ func startServer() {
 		mux.Enabled = true
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
-
-		glog.V(0).Infoln("options.mount: %s", options.mount)
 
 		agent, err := agent.NewHostAgent(options.port, options.resourcePath, options.mount, options.zookeepers, mux)
 		if err != nil {

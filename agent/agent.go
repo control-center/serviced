@@ -48,7 +48,7 @@ type HostAgent struct {
 	master          string // the connection string to the master agent
 	hostId          string // the hostID of the current host
 	resourcePath    string // directory to bind mount docker volumes
-	mount           []string // container image:host path:container path
+	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             proxy.TCPMux
@@ -408,10 +408,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add arguments to mount requested directory (if requested)
 	requestedMount := ""
 	for _, bindMountString := range a.mount {
-		glog.V(0).Infoln("********** length of mount: %s", len(a.mount))
-		glog.V(0).Infoln("********** ELEMENT        : %s", bindMountString)
-		glog.V(0).Infof("********** length of mount: %s", len(a.mount))
-		glog.V(0).Infof("********** ELEMENT        : %s", bindMountString)
 		splitMount := strings.Split(bindMountString, ":")
 		if len(splitMount) == 3 {
 			requestedImage := splitMount[0]
