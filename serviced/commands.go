@@ -98,6 +98,13 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"stop-service", "Stop a service"},
 
 		{"proxy", "start a proxy in the foreground"},
+
+        {"show", "Show all available commands"},
+        {"shell", "Starts a shell to run arbitrary system commands from a container"}
+        {"rollback", "Rollback the DFS and container image"}
+        {"commit", "Commit the DFS and container image"}
+        {"get", "Download a file from a container image"}
+        {"recv", "Receives a file from a remote host and loads it to the container"}
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -725,4 +732,68 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	command.Stdin = os.Stdin
 	command.Stderr = os.Stderr
 	return command.Run()
+}
+
+func (cli *ServicedCli) CmdShow(args ...string) error {
+    cmd := Subcmd("show", "SERVICEID", "Shows the list of available serviced commands for a service container")
+    if err:= cmd.Parse(args); err != nil {
+        return nil
+    }
+    if len(cmd.Args()) != 1 {
+        cmd.Usage()
+        return nil
+    }
+    // TODO: implement stubbed method
+}
+
+func (cli *ServicedCli) CmdRollback(args ...string) error {
+    cmd := Subcmd("rollback", "SERVICEID IMAGEID", "Reverts the container's DFS and image to a specified snapshot")
+    if err := cmd.Parse(args); err != nil {
+        return nil
+    }
+    if len(cmd.Args()) != 2 {
+        cmd.Usage()
+        return nil
+    }
+    // TODO: implement stubbed method
+}
+
+func (cli *ServicedCli) CmdCommit(args ...string) error {
+    cmd := Subcmd("commit", "SERVICEID IMAGEID", "Commits the container's DFS and image to a specified snapshot")
+    if err := cmd.Parse(args); err != nil {
+        return nil
+    }
+    if len(cmd.Args()) != 2 {
+        cmd.Usage()
+        return nil
+    }
+    // TODO: implement stubbed method
+}
+
+func (cli *ServicedCli) CmdGet(args ...string) error {
+    cmd := Subcmd("get", "[options] SERVICEID FILE", "Download a file from a container and optional image id")
+
+    var snapshot string
+    cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
+
+    if err := cmd.Parse(args); err != nil {
+        return nil
+    }
+    if len(cmd.Args()) < 2 {
+        cmd.Usage()
+        return nil
+    }
+    // TODO: implement stubbed method
+}
+
+func (cli *ServicedCli) CmdRecv(args ...string) error {
+    cmd := Subcmd("recv", "SERVICEID FILE1..FILEN", "Upload a file from a remote host to a container")
+    if err := cmd.Parse(args); err != nil {
+        return nil
+    }
+    if len(cmd.Args()) < 2 {
+        cmd.Usage()
+        return nil
+    }
+    // TODO: implement stubbed method
 }
