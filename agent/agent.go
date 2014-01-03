@@ -48,7 +48,7 @@ type HostAgent struct {
 	master          string // the connection string to the master agent
 	hostId          string // the hostID of the current host
 	resourcePath    string // directory to bind mount docker volumes
-	mount           string // container image:host path:container path
+	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             proxy.TCPMux
@@ -60,7 +60,7 @@ var _ serviced.Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, resourcePath string, mount string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, resourcePath string, mount []string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
@@ -407,15 +407,17 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	// add arguments to mount requested directory (if requested)
 	requestedMount := ""
-	if a.mount != "" {
-		splitMount := strings.Split(a.mount, ":")
+	for _, bindMountString := range a.mount {
+		splitMount := strings.Split(bindMountString, ":")
 		if len(splitMount) == 3 {
 			requestedImage := splitMount[0]
 			hostPath := splitMount[1]
 			containerPath := splitMount[2]
 			if requestedImage == service.ImageId {
-				requestedMount = "-v " + hostPath + ":" + containerPath
+				requestedMount += " -v " + hostPath + ":" + containerPath
 			}
+		} else {
+			glog.Warningf("Could not bind mount the following: %s", bindMountString)
 		}
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
