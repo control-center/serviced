@@ -100,11 +100,11 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"proxy", "start a proxy in the foreground"},
 
         {"show", "Show all available commands"},
-        {"shell", "Starts a shell to run arbitrary system commands from a container"}
-        {"rollback", "Rollback the DFS and container image"}
-        {"commit", "Commit the DFS and container image"}
-        {"get", "Download a file from a container image"}
-        {"recv", "Receives a file from a remote host and loads it to the container"}
+        {"shell", "Starts a shell to run arbitrary system commands from a container"},
+        {"rollback", "Rollback the DFS and container image"},
+        {"commit", "Commit the DFS and container image"},
+        {"get", "Download a file from a container image"},
+        {"recv", "Receives a file from a remote host and loads it to the container"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -744,6 +744,7 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
         return nil
     }
     // TODO: implement stubbed method
+    return nil
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {
@@ -756,6 +757,7 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
         return nil
     }
     // TODO: implement stubbed method
+    return nil
 }
 
 func (cli *ServicedCli) CmdCommit(args ...string) error {
@@ -768,6 +770,7 @@ func (cli *ServicedCli) CmdCommit(args ...string) error {
         return nil
     }
     // TODO: implement stubbed method
+    return nil
 }
 
 func (cli *ServicedCli) CmdGet(args ...string) error {
@@ -784,6 +787,7 @@ func (cli *ServicedCli) CmdGet(args ...string) error {
         return nil
     }
     // TODO: implement stubbed method
+    return nil
 }
 
 func (cli *ServicedCli) CmdRecv(args ...string) error {
@@ -796,4 +800,5 @@ func (cli *ServicedCli) CmdRecv(args ...string) error {
         return nil
     }
     // TODO: implement stubbed method
+    return nil
 }
