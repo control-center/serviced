@@ -49,7 +49,7 @@ var options struct {
 	statsperiod       int
 	mcusername        string
 	mcpasswd          string
-	mount             string
+	mount             ListOpts
 }
 
 // Setup flag options (static block)
@@ -70,7 +70,8 @@ func init() {
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
-	flag.StringVar(&options.mount, "mount", "", "bind mount custom directories: container_image:host_path:container_path")
+	options.mount = make(ListOpts, 0)
+	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 
 	conStr := os.Getenv("CP_PROD_DB")
 	if len(conStr) == 0 {
