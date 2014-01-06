@@ -187,8 +187,8 @@ func (s *ControlClient) StartShell(service dao.Service, unused *int) error {
     return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
 }
 
-func (s *ControlClient) ExecuteShell(service dao.Service, disableSavepoint *bool) error {
-    return s.rpcClient.Call("ControlPlane.ExecuteShell", service, disableSavepoint)
+func (s *ControlClient) ExecuteShell(service dao.Service, command *string) error {
+    return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
 }
 
 func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {

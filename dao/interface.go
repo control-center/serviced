@@ -151,7 +151,7 @@ type ControlPlane interface {
     StartShell(service Service, unused *int) error
 
     // Execute a service container shell command
-    ExecuteShell(service Service, disableSavepoint *bool) error
+    ExecuteShell(service Service, command *string) error
 
     // Show available commands
     ShowCommands(service Service, unused *int) error

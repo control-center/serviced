@@ -933,7 +933,7 @@ func (this *ControlPlaneDao) StartShell(service dao.Service, unused *int) error 
     return nil
 }
 
-func (this *ControlPlaneDao) ExecuteShell(service dao.Service, disableSavepoint *bool) error {
+func (this *ControlPlaneDao) ExecuteShell(service dao.Service, command *string) error {
     // TODO: implement stub
     return nil
 }
