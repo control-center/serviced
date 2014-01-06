@@ -781,7 +781,7 @@ func (cli *ServicedCli) CmdGet(args ...string) error {
     if err := cmd.Parse(args); err != nil {
         return nil
     }
-    if len(cmd.Args()) < 2 {
+    if len(cmd.Args()) != 2 {
         cmd.Usage()
         return nil
     }

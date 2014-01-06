@@ -938,6 +938,11 @@ func (this *ControlPlaneDao) ExecuteShell(service dao.Service, disableSavepoint 
     return nil
 }
 
+func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) error {
+    // TODO: implement stub
+    return nil
+}
+
 func (this *ControlPlaneDao) Rollback(service dao.Service, unused *int) error {
     // TODO: implement stub
     return nil

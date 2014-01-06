@@ -191,6 +191,10 @@ func (s *ControlClient) ExecuteShell(service dao.Service, disableSavepoint *bool
     return s.rpcClient.Call("ControlPlane.ExecuteShell", service, disableSavepoint)
 }
 
+func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
+    return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
+}
+
 func (s *ControlClient) Rollback(service dao.Service, unused *int) error {
     return s.rpcClient.Call("ControlPlane.Rollback", service, unused)
 }

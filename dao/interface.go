@@ -153,6 +153,9 @@ type ControlPlane interface {
     // Execute a service container shell command
     ExecuteShell(service Service, disableSavepoint *bool) error
 
+    // Show available commands
+    ShowCommands(service Service, unused *int) error
+
     // Rollback DFS and service image
     Rollback(service Service, unused *int) error
 
