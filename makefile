@@ -10,8 +10,6 @@
 default: build
 
 build:
-	go get github.com/coopernurse/gorp
-	go get github.com/ziutek/mymysql/godrv
 	go get github.com/zenoss/glog
 	go get github.com/samuel/go-zookeeper/zk
 	go get github.com/araddon/gou
