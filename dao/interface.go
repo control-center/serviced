@@ -143,4 +143,25 @@ type ControlPlane interface {
 
 	// Get a list of ServiceTemplates
 	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
+
+    //---------------------------------------------------------------------------
+    // Service CRUD
+
+    // Start an interative shell in a service container
+    StartShell(service Service, unused *int) error
+
+    // Execute a service container shell command
+    ExecuteShell(service Service, disableSavepoint *bool) error
+
+    // Rollback DFS and service image
+    Rollback(service Service, unused *int) error
+
+    // Commit DFS and service image
+    Commit(service Service, unused *int) error
+
+    // Download a file from a container
+    Get(service Service, file *string) error
+
+    // Upload file(s) to a container
+    Send(service Service, files *[]string) error
 }
