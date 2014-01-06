@@ -116,6 +116,7 @@ type Service struct {
     CreatedAt       time.Time
     UpdatedAt       time.Time
     DeploymentId      string
+    LogConfigs      []LogConfig
 }
 
 // An endpoint that a Service exposes.
