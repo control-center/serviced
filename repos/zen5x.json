@@ -23,7 +23,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/var/log/mysqld.log",
               "type": "mysql"
           }],
@@ -44,7 +44,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/var/log/supervisor/opentsdb.out.log",
               "type": "opentsdb"
           }],
@@ -70,7 +70,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/var/log/rabbitmq/rabbit@localhost.log",
               "type": "rabbitmq"
           },{
@@ -116,7 +116,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/var/log/redis/redis.log",
               "type": "redis"
           }],
@@ -166,7 +166,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/supervisord.log",
               "type": "zsupervisor"
           }],
@@ -207,7 +207,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/zeneventserver.log",
               "type": "zeneventserver"
           },{
@@ -261,7 +261,7 @@
               "Purpose": "export"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/event.log",
               "type": "zope_eventlog"
           },{
@@ -305,7 +305,7 @@
               "Purpose": "import"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/zenjobs.log",
               "type": "zenjobs"
           }],
@@ -341,7 +341,7 @@
               "Purpose": "import"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/zeneventd.log",
               "type": "zeneventd"
           }],
@@ -377,7 +377,7 @@
               "Purpose": "import"
             }
           ],
-          "Logs": [{
+          "LogConfigs": [{
               "path":"/opt/zenoss/log/zenactiond.log",
               "type": "zenactiond"
           }],
@@ -431,7 +431,7 @@
                   "Purpose": "export"
                 }
               ],
-              "Logs": [{
+              "LogConfigs": [{
                   "path":"/opt/zenoss/log/zenhub.log",
                   "type": "zenhub"
               }],
@@ -466,7 +466,7 @@
                       "Purpose": "import"
                     }
                   ],
-                  "Logs": [{
+                  "LogConfigs": [{
                       "path":"/opt/zenoss/log/zenperfsnmp.log",
                       "type": "zenperfsnmp"
                   }],
@@ -492,7 +492,7 @@
                       "Purpose": "import"
                     }
                   ],
-                  "Logs": [{
+                  "LogConfigs": [{
                       "path":"/opt/zenoss/log/zenmodeler.log",
                       "type": "zenmodeler"
                   }],
@@ -518,7 +518,7 @@
                       "Purpose": "import"
                     }
                   ],
-                  "Logs": [{
+                  "LogConfigs": [{
                       "path":"/opt/zenoss/log/zenprocess.log",
                       "type": "zenprocess"
                   }],
@@ -549,7 +549,7 @@
                       "Purpose": "import"
                     }
                   ],
-                  "Logs": [{
+                  "LogConfigs": [{
                       "path":"/opt/zenoss/log/zenping.log",
                       "type": "zenping"
                   }],
@@ -575,7 +575,7 @@
                       "Purpose": "import"
                     }
                   ],
-                  "Logs": [{
+                  "LogConfigs": [{
                       "path":"/opt/zenoss/log/zencommand.log",
                       "type": "zencommand"
                   }],
