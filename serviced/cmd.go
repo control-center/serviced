@@ -33,23 +33,22 @@ import (
 
 // Store the command line options
 var options struct {
-	port              string
-	listen            string
-	master            bool
-	agent             bool
-	connection_string string
-	muxPort           int
-	tls               bool
-	keyPEMFile        string
-	certPEMFile       string
-	resourcePath      string
-	zookeepers        ListOpts
-	repstats          bool
-	statshost         string
-	statsperiod       int
-	mcusername        string
-	mcpasswd          string
-	mount             ListOpts
+	port         string
+	listen       string
+	master       bool
+	agent        bool
+	muxPort      int
+	tls          bool
+	keyPEMFile   string
+	certPEMFile  string
+	resourcePath string
+	zookeepers   ListOpts
+	repstats     bool
+	statshost    string
+	statsperiod  int
+	mcusername   string
+	mcpasswd     string
+	mount        ListOpts
 }
 
 // Setup flag options (static block)
@@ -73,15 +72,6 @@ func init() {
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 
-	conStr := os.Getenv("CP_PROD_DB")
-	if len(conStr) == 0 {
-		// TODO: Default to elastic
-		conStr = "mysql://root@127.0.0.1:3306/cp"
-	} else {
-		// TODO: Use this for something
-		glog.V(1).Infoln("Using connection string from env var CP_PROD_DB")
-	}
-	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
