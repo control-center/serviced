@@ -104,7 +104,6 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
         {"rollback", "Rollback the DFS and container image"},
         {"commit", "Commit the DFS and container image"},
         {"get", "Download a file from a container image"},
-        {"recv", "Receives a file from a remote host and loads it to the container"},
     } {
         help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
     }
