@@ -7,6 +7,10 @@
               "Purpose": "export"
             }
           ],
+          "LogConfigs":[ {
+            "path": "/tmp/foo",
+            "type": "foo"
+          }],
           "ImageId": "ubuntu",
           "Instances": {
             "min": 1
