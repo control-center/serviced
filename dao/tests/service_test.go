@@ -26,6 +26,7 @@ var testcases = []struct {
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		LogConfigs:      []dao.LogConfig{},
 	}, ""},
 	{dao.Service{
 		Id:              "1",
@@ -42,6 +43,7 @@ var testcases = []struct {
 		ParentServiceId: "0",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		LogConfigs:      []dao.LogConfig{},
 	}, ""},
 	{dao.Service{
 		Id:              "2",
@@ -58,6 +60,7 @@ var testcases = []struct {
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		LogConfigs:      []dao.LogConfig{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
 	{dao.Service{
 		Id:              "3",
@@ -74,6 +77,7 @@ var testcases = []struct {
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		LogConfigs:      []dao.LogConfig{},
 	}, "/bin/sh ls -l ."},
 }
 

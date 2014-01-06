@@ -112,10 +112,11 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	ParentServiceId string
-	Volumes         []Volume	
+	Volumes         []Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	DeploymentId      string
+	DeploymentId    string
+	LogConfigs      []LogConfig
 }
 
 // An endpoint that a Service exposes.
@@ -193,6 +194,14 @@ type ServiceDefinition struct {
 	Services      []ServiceDefinition    // Supporting subservices
 	VolumeExports []VolumeExport
 	VolumeImports []VolumeImport
+	LogConfigs    []LogConfig
+}
+
+type LogConfig struct {
+	Path string // The location on the container's filesystem of the log, can be a directory
+	Type string // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	// available to filter on in the Log file UI
+	Filters string // TODO: Implement Filters somehow
 }
 
 type ServiceDeployment struct {
@@ -213,8 +222,8 @@ type ServiceTemplate struct {
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
-	PoolId     string // Pool Id to deploy service into
-	TemplateId string // Id of template to be deployed
+	PoolId       string // Pool Id to deploy service into
+	TemplateId   string // Id of template to be deployed
 	DeploymentId string // Unique id of the instance of this template
 }
 

@@ -847,6 +847,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.UpdatedAt = now
 	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
 	svc.DeploymentId = deploymentId
+	svc.LogConfigs = sd.LogConfigs
 
 	//for each export, create directory and add path into export map
 	for _, volumeExport := range sd.VolumeExports {
@@ -909,6 +910,14 @@ func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate,
 }
 
 func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error {
+	// make sure it is a valid template first
+	var wrapper dao.ServiceTemplateWrapper
+	err := getServiceTemplateWrapper(id, &wrapper)
+
+	if err != nil {
+		return fmt.Errorf("Unable to find template: %s", id)
+	}
+
 	glog.V(2).Infof("ControlPlaneDao.RemoveServiceTemplate: %s", id)
 	response, err := deleteServiceTemplateWrapper(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveServiceTemplate response: %+v", response)

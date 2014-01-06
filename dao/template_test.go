@@ -36,6 +36,12 @@ func init() {
 						Purpose:     "import",
 					},
 				},
+				LogConfigs: []LogConfig{
+					LogConfig{
+						Path: "/tmp/foo",
+						Type: "foo",
+					},
+				},
 			},
 			ServiceDefinition{
 				Name:    "s2",
@@ -47,6 +53,12 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
+					},
+				},
+				LogConfigs: []LogConfig{
+					LogConfig{
+						Path: "/tmp/foo",
+						Type: "foo",
 					},
 				},
 			},
