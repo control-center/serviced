@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -353,6 +354,16 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 	id := strings.TrimSpace(host.Id)
 	if id == "" {
 		return errors.New("empty Host.Id not allowed")
+	}
+
+	ipAddr, err := net.ResolveIPAddr("ip4", host.IpAddr)
+	if err != nil {
+		glog.Errorf("Could not resolve: %s to an ip4 address: %s", host.IpAddr, err)
+		return err
+	}
+	if ipAddr.IP.IsLoopback() {
+		glog.Errorf("Can not use %s as host address because it is a loopback address", host.IpAddr)
+		return errors.New("host ip can not be a loopback address")
 	}
 
 	host.Id = id

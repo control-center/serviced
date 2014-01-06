@@ -201,11 +201,21 @@ func TestDao_GetHosts(t *testing.T) {
 	host := dao.NewHost()
 	host.Id = "default"
 	host.Name = "hostname"
-	host.IpAddr = "127.0.1.1"
-	controlPlaneDao.AddHost(*host, &id)
+	host.IpAddr = "127.0.0.1"
+	err := controlPlaneDao.AddHost(*host, &id)
+	if err == nil {
+		t.Errorf("Expected error on host having loopback ip address")
+		t.Fail()
+	}
+	host.IpAddr = "10.0.0.1"
+	err = controlPlaneDao.AddHost(*host, &id)
+	if err != nil {
+		t.Errorf("Unexpected error on adding host: %s", err)
+		t.Fail()
+	}
 
 	var hosts map[string]*dao.Host
-	err := controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
+	err = controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
 	if err == nil && len(hosts) == 1 {
 		hosts["default"].CreatedAt = host.CreatedAt
 		hosts["default"].UpdatedAt = host.UpdatedAt
