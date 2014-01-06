@@ -184,30 +184,29 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *
 }
 
 func (s *ControlClient) StartShell(service dao.Service, unused *int) error {
-    return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
+	return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
 }
 
 func (s *ControlClient) ExecuteShell(service dao.Service, command *string) error {
-    return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
+	return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
 }
 
 func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
-    return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
+	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
 func (s *ControlClient) Rollback(service dao.Service, unused *int) error {
-    return s.rpcClient.Call("ControlPlane.Rollback", service, unused)
+	return s.rpcClient.Call("ControlPlane.Rollback", service, unused)
 }
 
 func (s *ControlClient) Commit(service dao.Service, unused *int) error {
-    return s.rpcClient.Call("ControlPlane.Commit", service, unused)
+	return s.rpcClient.Call("ControlPlane.Commit", service, unused)
 }
 
 func (s *ControlClient) Get(service dao.Service, file *string) error {
-    return s.rpcClient.Call("ControlPlane.Get", service, file)
+	return s.rpcClient.Call("ControlPlane.Get", service, file)
 }
 
 func (s *ControlClient) Send(service dao.Service, files *[]string) error {
-    return s.rpcClient.Call("ControlPlane.Send", service, files)
+	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
-

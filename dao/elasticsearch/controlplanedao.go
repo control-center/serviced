@@ -929,38 +929,38 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 }
 
 func (this *ControlPlaneDao) StartShell(service dao.Service, unused *int) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) ExecuteShell(service dao.Service, command *string) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) Rollback(service dao.Service, unused *int) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) Commit(service dao.Service, unused *int) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) Get(service dao.Service, file *string) error {
-    // TODO: implement stub
-    return nil
+	// TODO: implement stub
+	return nil
 }
 
 func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
-    // TODO: implment stub
-    return nil
+	// TODO: implment stub
+	return nil
 }
 
 // Create a elastic search control plane data access object
