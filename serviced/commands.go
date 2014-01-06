@@ -789,20 +789,3 @@ func (cli *ServicedCli) CmdGet(args ...string) error {
     // TODO: implement stubbed method
     return nil
 }
-
-func (cli *ServicedCli) CmdRecv(args ...string) error {
-    cmd := Subcmd("recv", "[options] SERVICEID FILE1..FILEN", "Upload a file from a remote host to a container")
-
-    var snapshot string
-    cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
-
-    if err := cmd.Parse(args); err != nil {
-        return nil
-    }
-    if len(cmd.Args()) < 2 {
-        cmd.Usage()
-        return nil
-    }
-    // TODO: implement stubbed method
-    return nil
-}
