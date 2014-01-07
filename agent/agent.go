@@ -45,9 +45,9 @@ import (
 
 // An instance of the control plane Agent.
 type HostAgent struct {
-	master          string // the connection string to the master agent
-	hostId          string // the hostID of the current host
-	resourcePath    string // directory to bind mount docker volumes
+	master          string   // the connection string to the master agent
+	hostId          string   // the hostID of the current host
+	resourcePath    string   // directory to bind mount docker volumes
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -420,8 +420,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
 		}
 	}
+
+	// add arguments for environment variables
+	environmentVariables := "-e CONTROLPLANE=1"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
 
