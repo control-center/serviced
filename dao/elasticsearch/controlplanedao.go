@@ -901,19 +901,6 @@ func (this *ControlPlaneDao) AddServiceDeployment(deployment dao.ServiceDeployme
 	return err
 }
 
-func (this *ControlPlaneDao) AddServiceDeployment(deployment dao.ServiceDeployment, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment: %+v", deployment)
-	id := strings.TrimSpace(deployment.Id)
-	if id == "" {
-		return errors.New("empty ServiceDeployment.Id not allowed")
-	}
-
-	deployment.Id = id
-	response, err := newServiceDeployment(id, deployment)
-	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment response: %+v", response)
-	return err
-}
-
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
 	var err error
 	var uuid string

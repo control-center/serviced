@@ -360,6 +360,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *clientlib.C
 	service.Name = payload.Name
 	service.Context = payload.Context
 	service.Description = payload.Description
+	service.Context = payload.Context
 	service.Tags = payload.Tags
 	service.PoolId = payload.PoolId
 	service.ImageId = payload.ImageId

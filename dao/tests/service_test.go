@@ -117,8 +117,7 @@ var endpoint_testcases = []struct {
 				Purpose:             "something",
 				Protocol:            "tcp",
 				PortNumber:          1000,
-				Application:         "",
-				ApplicationTemplate: "{{(context (parent .)).RemoteHost}}_collector",
+				Application:         "{{(context (parent .)).RemoteHost}}_collector",
 			},
 		},
 		ParentServiceId: "100",
@@ -170,13 +169,27 @@ func TestEvaluateStartupTemplate(t *testing.T) {
 func TestEvaluateEndpointTemplate(t *testing.T) {
 	for _, testcase := range endpoint_testcases {
 		if len(testcase.service.Endpoints) > 0 {
-			glog.Infof("Service.Endpoint[0].ApplicationTemplate: %s", testcase.service.Endpoints[0].ApplicationTemplate)
+			glog.Infof("Service.Endpoint[0].Application: %s", testcase.service.Endpoints[0].Application)
+			oldApp := testcase.service.Endpoints[0].Application
 			err = testcase.service.EvaluateEndpointTemplates(cp)
 			glog.Infof("Service.Endpoint[0].Application: %s, error=%s", testcase.service.Endpoints[0].Application, err)
 
 			result := testcase.service.Endpoints[0].Application
 			if result != testcase.expected {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
+			}
+			if testcase.service.Endpoints[0].ApplicationTemplate != oldApp {
+				t.Errorf("Expecting \"%s\" got \"%s\"\n", oldApp, testcase.service.Endpoints[0].ApplicationTemplate)
+			}
+
+			glog.Infof("Evaluate ServiceEndpoints a second time")
+			err = testcase.service.EvaluateEndpointTemplates(cp)
+			result = testcase.service.Endpoints[0].Application
+			if result != testcase.expected {
+				t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
+			}
+			if testcase.service.Endpoints[0].ApplicationTemplate != oldApp {
+				t.Errorf("Expecting \"%s\" got \"%s\"\n", oldApp, testcase.service.Endpoints[0].ApplicationTemplate)
 			}
 		}
 	}

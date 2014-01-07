@@ -88,6 +88,10 @@ func (service *Service) EvaluateEndpointTemplates(cp ControlPlane) (err error) {
 	}
 
 	for i, ep := range service.Endpoints {
+		if ep.Application != "" && ep.ApplicationTemplate == "" {
+			ep.ApplicationTemplate = ep.Application
+			service.Endpoints[i].ApplicationTemplate = ep.Application
+		}
 		if ep.ApplicationTemplate != "" {
 			t := template.Must(template.New(service.Name).Funcs(functions).Parse(ep.ApplicationTemplate))
 			var buffer bytes.Buffer
