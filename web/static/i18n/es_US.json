@@ -1,5 +1,5 @@
 {
-    "action_view_log":"Registro",
+	"action_view_log":"Registro",
 	"action_kill":"Terminar",
 	"action_view_cfg":"Configuración",
 	"brand_cp":"Control Plane",
@@ -12,6 +12,7 @@
 	"btn_add_service":"Añadir Servicio",
 	"btn_back":"Atrás",
 	"btn_cancel":"Cancelar",
+	"btn_close":"Cerrar",
 	"btn_delete":"Borrar",
 	"btn_next":"Siguiente",
 	"btn_save":"Guardar",
