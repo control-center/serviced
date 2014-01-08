@@ -2,7 +2,7 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-
+	"github.com/zenoss/serviced"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,7 +15,6 @@ type ISvc struct {
 	Dockerfile string
 	Tag		   string
 	Ports	   []int
-	BindMounts map[string]string
 }
 
 func (s *ISvc) exists() (bool, error) {
@@ -83,7 +82,7 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, (len(s.Ports) + len(s.BindMounts)) * 2 + 3)
+		args := make([]string, (len(s.Ports)) * 2 + 5)
 		glog.V(1).Info("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
@@ -93,23 +92,19 @@ func (s *ISvc) Run() error {
 			args[2+i*2] = "-p"
 			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
 		}
-		// continue i at the length of the ports so that the
-		// bindmount declarations are at the correct place
-		i := len(s.Ports)
-
-		// add the bind mounts to the arg list
-		for localdir, containerdir := range s.BindMounts {
-			args[2+i*2] = "-v"
-			args[2+i*2 + 1] = fmt.Sprintf("%s:%s", localdir, containerdir)
-			i = i + 1
-		}
+		servicedHome := serviced.ServiceDHome()
+		resourcesDir := servicedHome + "/resources"
+		// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
+		containerServiceDResources := "/usr/local/serviced/resources"
+		args[(len(s.Ports))*2+2] = "-v"
+		args[(len(s.Ports))*2+3] = fmt.Sprintf("%s:%s", resourcesDir, containerServiceDResources)
 
 		// specify the image
-		args[(len(s.BindMounts) + len(s.Ports))*2+2] = s.Tag
+		args[(len(s.Ports))*2+4] = s.Tag
 		cmd = exec.Command("docker", args...)
 	}
 	glog.V(0).Info("Running docker cmd: ", cmd)
-	return cmd.Run()
+	return	cmd.Run()
 }
 
 func (s *ISvc) Stop() error {

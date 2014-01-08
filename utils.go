@@ -10,7 +10,6 @@ package serviced
 
 import (
 	"github.com/zenoss/serviced/dao"
-
 	"bufio"
 	"fmt"
 	"net/url"
@@ -68,13 +67,13 @@ func getMemorySize() (size uint64, err error) {
 // Represent a entry from the route command
 type RouteEntry struct {
 	Destination string
-	Gateway     string
-	Genmask     string
-	Flags       string
-	Metric      int
-	Ref         int
-	Use         int
-	Iface       string
+	Gateway		string
+	Genmask		string
+	Flags		string
+	Metric		int
+	Ref			int
+	Use			int
+	Iface		string
 }
 
 // wrapper around the route command
@@ -117,13 +116,13 @@ func routeCmd() (routes []RouteEntry, err error) {
 			}
 			routes[lineNum-2] = RouteEntry{
 				Destination: fields[columnMap["Destination"]],
-				Gateway:     fields[columnMap["Gateway"]],
-				Genmask:     fields[columnMap["Genmask"]],
-				Flags:       fields[columnMap["Flags"]],
-				Metric:      metric,
-				Ref:         ref,
-				Use:         use,
-				Iface:       fields[columnMap["Iface"]],
+				Gateway:	 fields[columnMap["Gateway"]],
+				Genmask:	 fields[columnMap["Genmask"]],
+				Flags:		 fields[columnMap["Flags"]],
+				Metric:		 metric,
+				Ref:		 ref,
+				Use:		 use,
+				Iface:		 fields[columnMap["Iface"]],
 			}
 		}
 	}
@@ -182,13 +181,13 @@ func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 }
 
 type DatabaseConnectionInfo struct {
-	Dialect  string
-	Host     string
-	Port     int
-	User     string
+	Dialect	 string
+	Host	 string
+	Port	 int
+	User	 string
 	Password string
 	Database string
-	Options  map[string]string
+	Options	 map[string]string
 }
 
 func (connInfo *DatabaseConnectionInfo) UrlString() string {
@@ -340,4 +339,9 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 		}
 	}
 	return err
+}
+
+// returns serviced home
+func ServiceDHome()(string) {
+	return os.Getenv("SERVICED_HOME")
 }
