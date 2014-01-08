@@ -1,9 +1,9 @@
 package isvcs
 
 import (
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -11,10 +11,10 @@ import (
 )
 
 type ISvc struct {
-	Name	   string
+	Name       string
 	Dockerfile string
-	Tag		   string
-	Ports	   []int
+	Tag        string
+	Ports      []int
 }
 
 func (s *ISvc) exists() (bool, error) {
@@ -82,7 +82,7 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, (len(s.Ports)) * 2 + 5)
+		args := make([]string, (len(s.Ports))*2+5)
 		glog.V(1).Info("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
@@ -104,7 +104,7 @@ func (s *ISvc) Run() error {
 		cmd = exec.Command("docker", args...)
 	}
 	glog.V(0).Info("Running docker cmd: ", cmd)
-	return	cmd.Run()
+	return cmd.Run()
 }
 
 func (s *ISvc) Stop() error {
