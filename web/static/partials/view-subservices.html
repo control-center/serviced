@@ -49,6 +49,29 @@
                  ng-model="services.current.ImageId"></input>
         </div>
 
+        <table class="table table-striped table-bordered table-hover">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Owner</th>
+              <th>Perms</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="configFile in services.current.ConfigFiles">
+               <td>{{ configFile.Filename }}</td>
+               <td>{{ configFile.Owner }}</td>
+               <td>{{ configFile.Permissions }}</td>
+               <td>
+                 <button ng-click="viewConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
+                 |
+                 <button ng-click="viewConfig(services.current, configFile.Filename)" class="btn btn-link">View</button>
+               </td>
+            </tr>
+          </tbody>
+        </table>
+
       </div>
       <div class="details-actions">
         <button ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
