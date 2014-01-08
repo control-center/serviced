@@ -11,7 +11,12 @@ import (
 
 const tree_outfmt = "%-*s %-8.8s %-40.40s %-04d %-24.24s %-12s %-06d %-6s\n"
 const tree_outfmt_header = "%-*s %-8.8s %-40.40s %4.4s %-24.24s %-12s %6.6s %-6s\n"
-const tree_width = 40
+
+var tree_width int
+
+func init() {
+	tree_width = 40
+}
 
 // Print tree body of deployed services (no header)
 func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
@@ -49,8 +54,22 @@ func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
 	}
 }
 
+// Return maximum depth of tree
+func (node *svcStub) maxDepth(depth int) int {
+	max := depth
+	for _, n := range node.subSvcs {
+		cdepth := n.maxDepth(depth + 1)
+		if cdepth > max {
+			max = cdepth
+		}
+	}
+	return max
+}
+
 // Print a tree of deployed services
 func (node *svcStub) treePrint(raw bool) {
+
+	tree_width = node.maxDepth(0)*2 + 16
 	if !raw {
 		fmt.Printf(tree_outfmt_header,
 			tree_width, "Name", "Id", "Startup", "Inst", "ImageId", "Pool", "DState", "Launch")
