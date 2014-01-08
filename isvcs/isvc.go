@@ -11,10 +11,11 @@ import (
 )
 
 type ISvc struct {
-	Name       string
+	Name	   string
 	Dockerfile string
-	Tag        string
-	Ports      []int
+	Tag		   string
+	Ports	   []int
+	BindMounts map[string]string
 }
 
 func (s *ISvc) exists() (bool, error) {
@@ -82,16 +83,29 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, len(s.Ports)*2+3)
+		args := make([]string, (len(s.Ports) + len(s.BindMounts)) * 2 + 3)
 		glog.V(1).Info("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
 		glog.V(1).Info("Ports %v", s.Ports)
+		// add the ports to the arg list
 		for i, port := range s.Ports {
 			args[2+i*2] = "-p"
 			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
 		}
-		args[len(s.Ports)*2+2] = s.Tag
+		// continue i at the length of the ports so that the
+		// bindmount declarations are at the correct place
+		i := len(s.Ports)
+
+		// add the bind mounts to the arg list
+		for localdir, containerdir := range s.BindMounts {
+			args[2+i*2] = "-v"
+			args[2+i*2 + 1] = fmt.Sprintf("%s:%s", localdir, containerdir)
+			i = i + 1
+		}
+
+		// specify the image
+		args[(len(s.BindMounts) + len(s.Ports))*2+2] = s.Tag
 		cmd = exec.Command("docker", args...)
 	}
 	glog.V(0).Info("Running docker cmd: ", cmd)
