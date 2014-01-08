@@ -1,9 +1,9 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
-
 	"fmt"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -82,16 +82,25 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, len(s.Ports)*2+3)
+		args := make([]string, (len(s.Ports))*2+5)
 		glog.V(1).Info("About to build.")
 		args[0] = "run"
 		args[1] = "-d"
 		glog.V(1).Info("Ports %v", s.Ports)
+		// add the ports to the arg list
 		for i, port := range s.Ports {
 			args[2+i*2] = "-p"
 			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
 		}
-		args[len(s.Ports)*2+2] = s.Tag
+		servicedHome := serviced.ServiceDHome()
+		resourcesDir := servicedHome + "/resources"
+		// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
+		containerServiceDResources := "/usr/local/serviced/resources"
+		args[(len(s.Ports))*2+2] = "-v"
+		args[(len(s.Ports))*2+3] = fmt.Sprintf("%s:%s", resourcesDir, containerServiceDResources)
+
+		// specify the image
+		args[(len(s.Ports))*2+4] = s.Tag
 		cmd = exec.Command("docker", args...)
 	}
 	glog.V(0).Info("Running docker cmd: ", cmd)

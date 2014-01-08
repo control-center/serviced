@@ -9,10 +9,9 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/dao"
-
 	"bufio"
 	"fmt"
+	"github.com/zenoss/serviced/dao"
 	"net/url"
 	"os"
 	"os/exec"
@@ -340,4 +339,9 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 		}
 	}
 	return err
+}
+
+// returns serviced home
+func ServiceDHome() string {
+	return os.Getenv("SERVICED_HOME")
 }
