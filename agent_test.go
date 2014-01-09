@@ -1,9 +1,8 @@
-package agent
+package serviced
 
 import (
 	"encoding/json"
-  "fmt"
-	"github.com/zenoss/serviced"
+	"fmt"
 	"testing"
 )
 
@@ -86,7 +85,7 @@ const example_state = `
 
 // Test parsing container state from docker.
 func TestParseContainerState(t *testing.T) {
-	var testState []serviced.ContainerState
+	var testState []ContainerState
 
 	err := json.Unmarshal([]byte(example_state), &testState)
 	if err != nil {

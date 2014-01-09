@@ -6,9 +6,9 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/scheduler"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -1043,7 +1043,14 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	}
 	s.zkDao = &zzk.ZkDao{s.zookeepers}
 
-	isvcs.ElasticSearchContainer.Run()
+	err = isvcs.ElasticSearchContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start elasticsearch container: %s", err)
+	}
+	err = isvcs.LogstashContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start logstash container: %s", err)
+	}
 
 	// ensure that a default pool exists
 	var pool dao.ResourcePool
@@ -1080,7 +1087,7 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 			}
 			defer conn.Close()
 
-			sched, shutdown := scheduler.NewScheduler("", conn, hostId, s)
+			sched, shutdown := serviced.NewScheduler("", conn, hostId, s)
 			sched.Start()
 			select {
 			case <-shutdown:

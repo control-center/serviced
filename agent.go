@@ -10,14 +10,11 @@
 // responsible for ensuring that a particular node is running the correct services
 // and reporting the state and health of those services back to the master
 // serviced.
-package agent
+package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -45,22 +42,22 @@ import (
 
 // An instance of the control plane Agent.
 type HostAgent struct {
-	master          string // the connection string to the master agent
-	hostId          string // the hostID of the current host
-	resourcePath    string // directory to bind mount docker volumes
+	master          string   // the connection string to the master agent
+	hostId          string   // the hostID of the current host
+	resourcePath    string   // directory to bind mount docker volumes
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
-	mux             proxy.TCPMux
+	mux             TCPMux
 	closing         chan chan error
 }
 
 // assert that this implemenents the Agent interface
-var _ serviced.Agent = &HostAgent{}
+var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, resourcePath string, mount []string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, resourcePath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
@@ -78,7 +75,7 @@ func NewHostAgent(master string, resourcePath string, mount []string, zookeepers
 	}
 
 	agent.closing = make(chan chan error)
-	hostId, err := serviced.HostId()
+	hostId, err := HostId()
 	if err != nil {
 		panic("Could not get hostid")
 	}
@@ -195,7 +192,7 @@ func (a *HostAgent) dockerTerminate(dockerId string) error {
 }
 
 // Get the state of the docker container given the dockerId
-func getDockerState(dockerId string) (containerState serviced.ContainerState, err error) {
+func getDockerState(dockerId string) (containerState ContainerState, err error) {
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", dockerId)
@@ -204,7 +201,7 @@ func getDockerState(dockerId string) (containerState serviced.ContainerState, er
 		glog.Errorln("problem getting docker state")
 		return containerState, err
 	}
-	var containerStates []serviced.ContainerState
+	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
 		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
@@ -325,7 +322,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
-	client, err := client.NewControlClient(a.master)
+	client, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
 		return false, err
@@ -346,7 +343,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	for _, volume := range service.Volumes {
 		fileMode := os.FileMode(volume.Permission)
 		resourcePath, _ := filepath.Abs(a.resourcePath + "/" + volume.ResourcePath)
-		err := serviced.CreateDirectory(resourcePath, volume.Owner, fileMode)
+		err := CreateDirectory(resourcePath, volume.Owner, fileMode)
 		if err == nil {
 			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		} else {
@@ -355,7 +352,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
-	dir, binary, err := serviced.ExecPath()
+	dir, binary, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return false, err
@@ -420,8 +417,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
 		}
 	}
+
+	// add arguments for environment variables
+	environmentVariables := "-e CONTROLPLANE=1"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s -v %s %s %s %s %s %s", portOps, serviceState.Id, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 
 	glog.V(0).Infof("Starting: %s", cmdString)
 
@@ -673,7 +675,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 }
 
 func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := client.NewControlClient(a.master)
+	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
 		return
@@ -684,7 +686,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 
 // Create a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
-	hostInfo, err := serviced.CurrentContextAsHost("UNKNOWN")
+	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
 	}

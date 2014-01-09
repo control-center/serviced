@@ -9,16 +9,16 @@
 
 default: build
 
+install:
+	cd serviced && make install
+
 build:
 	go get github.com/zenoss/glog
 	go get github.com/samuel/go-zookeeper/zk
 	go get github.com/araddon/gou
 	go get github.com/mattbaird/elastigo
 	go build
-	cd client && make
-	cd agent && make
 	cd web && make
-	cd proxy && make
 	cd dao && make
 	cd serviced && make
 
@@ -32,10 +32,7 @@ dockerbuild: docker_ok
 
 test: build docker_ok
 	go test
-	cd client && make test
-	cd agent && make test
 	cd web && make test
-	cd proxy && make test
 	cd dao && make test
 	cd serviced && make test
 
@@ -49,10 +46,9 @@ docker_ok:
 
 clean:
 	go clean
-	cd client && make clean
 	cd serviced && make clean
-	cd agent && make clean	
-	cd proxy && make clean
+	cd web && make clean
 	cd dao && make clean
+	cd serviced && make clean
 	cd pkg && make clean
 

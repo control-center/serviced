@@ -1,4 +1,4 @@
-package proxy
+package serviced
 
 var (
 	proxyCertPEM = `-----BEGIN CERTIFICATE-----
