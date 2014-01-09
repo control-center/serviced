@@ -71,8 +71,7 @@ stage: build pkgroot
 	cp serviced.default pkgroot/etc/default/serviced
 	cp $$GOPATH/src/github.com/zenoss/serviced/dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
 	cp $$GOPATH/src/github.com/zenoss/serviced/web/static pkgroot$(INSTALL_DIR)/share/web -R
-	cp $$GOPATH/src/github.com/zenoss/serviced/repos pkgroot$(INSTALL_DIR)/ -R
-	cp $$GOPATH/src/github.com/zenoss/serviced/resources pkgroot$(INSTALL_DIR)/ -R
+	cp $$GOPATH/src/github.com/zenoss/serviced/isvcs/resources pkgroot$(INSTALL_DIR)/ -R
 
 	# Stage supervisord script
 	#mkdir -p pkgroot/etc/supervisord.d

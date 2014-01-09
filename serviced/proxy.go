@@ -2,16 +2,52 @@ package main
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	sproxy "github.com/zenoss/serviced/proxy"
 
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"sort"
 	"time"
 )
+
+// Handler for bash -c exec command
+func handler(w http.ResponseWriter, r *http.Request) {
+	type ShellRequest struct {
+		Command string
+	}
+	type ShellResponse struct {
+		Stdin, Stdout, Stderr, Code string
+	}
+
+	var req ShellRequest
+	var res ShellResponse
+
+	decoder := json.NewDecoder(r.Body)
+	encoder := json.NewEncoder(w)
+	if err := decoder.Decode(&req); err != nil || req.Command == "" {
+		fmt.Fprintf(w, "Unable to parse param 'command': %s\n", err)
+		return
+	}
+
+	// Execute the command
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("bash", "-c", req.Command)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		res.Code = fmt.Sprintf("%s", err)
+	}
+
+	res.Stdin = req.Command
+	res.Stdout = stdout.String()
+	res.Stderr = stderr.String()
+	encoder.Encode(&res)
+}
 
 // Start a service proxy.
 func (cli *ServicedCli) CmdProxy(args ...string) error {
@@ -24,7 +60,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		glog.Flush()
 		os.Exit(2)
 	}
-	config := sproxy.Config{}
+	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
@@ -34,6 +70,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
 	}
+
+	http.HandleFunc("/exec", handler)
+	http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 
@@ -62,7 +101,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	go func() {
 		for {
 			func() {
-				client, err := sproxy.NewLBClient(proxyOptions.servicedEndpoint)
+				client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 				if err != nil {
 					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 					return
@@ -91,7 +130,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					}
 					sort.Strings(addresses)
 
-					var proxy *sproxy.Proxy
+					var proxy *serviced.Proxy
 					var ok bool
 					if proxy, ok = proxies[key]; !ok {
 						// setup a new proxy
@@ -100,7 +139,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 							glog.Errorf("Could not bind to port: %s", err)
 							continue
 						}
-						proxy, err = sproxy.NewProxy(
+						proxy, err = serviced.NewProxy(
 							fmt.Sprintf("%v", endpointList[0]),
 							uint16(config.TCPMux.Port),
 							config.TCPMux.UseTLS,
@@ -126,8 +165,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	return nil
 }
 
-var proxies map[string]*sproxy.Proxy
+var proxies map[string]*serviced.Proxy
 
 func init() {
-	proxies = make(map[string]*sproxy.Proxy)
+	proxies = make(map[string]*serviced.Proxy)
 }

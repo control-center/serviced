@@ -13,7 +13,6 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	clientlib "github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
@@ -96,6 +95,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
+		{"edit-service", "Edit a service"},
 
 		{"proxy", "start a proxy in the foreground"},
 
@@ -104,6 +104,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"rollback", "Rollback the DFS and container image"},
 		{"commit", "Commit the DFS and container image"},
 		{"get", "Download a file from a container image"},
+		{"recv", "Receive a file for a container image"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -137,9 +138,9 @@ func ParseCommands(args ...string) error {
 // Create a client to the control plane.
 func getClient() (c dao.ControlPlane) {
 	// setup the client
-	c, err := clientlib.NewControlClient(options.port)
+	c, err := serviced.NewControlClient(options.port)
 	if err != nil {
-		glog.Fatalf("Could not create acontrol plane client %v", err)
+		glog.Fatalf("Could not create a control plane client %v", err)
 	}
 	return c
 }
@@ -253,7 +254,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := clientlib.NewAgentClient(cmd.Arg(0))
+	client, err := serviced.NewAgentClient(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
@@ -414,72 +415,6 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 		glog.Fatalf("Could not remove resource pool: %v", err)
 	}
 	glog.V(0).Infof("Pool %s removed.\n", cmd.Arg(0))
-	return err
-}
-
-// Print the list of available services.
-func (cli *ServicedCli) CmdServices(args ...string) error {
-	cmd := Subcmd("services", "[CMD]", "Show services")
-
-	var verbose bool
-	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each service")
-
-	var raw bool
-	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
-
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-
-	controlPlane := getClient()
-	var services []*dao.Service
-	err := controlPlane.GetServices(&empty, &services)
-	if err != nil {
-		glog.Fatalf("Could not get services: %v", err)
-	}
-
-	if verbose == false {
-		outfmt := "%-36s %-12.12s %-32.32s %-16.16s %-4d %-24.24s %-12s %-6d %-6s %-12s %-16.16s\n"
-
-		if raw == false {
-			fmt.Printf("%-36s %-12s %-32s %-16s %-4s %-24s %-12s %-6s %-6s %-12s %-16.16s\n",
-				"SERVICE ID",
-				"NAME",
-				"COMMAND",
-				"DESCRIPTION",
-				"INST",
-				"IMAGE",
-				"POOL",
-				"DSTATE",
-				"LAUNCH",
-				"DEPLOYMENT ID",
-				"PARENT")
-		} else {
-			outfmt = "%s|%s|%s|%s|%d|%s|%s|%d|%s|%s\n"
-		}
-
-		for _, s := range services {
-			fmt.Printf(outfmt,
-				s.Id,
-				s.Name,
-				s.Startup,
-				s.Description,
-				s.Instances,
-				s.ImageId,
-				s.PoolId,
-				s.DesiredState,
-				s.Launch,
-				s.DeploymentId,
-				s.ParentServiceId)
-		}
-	} else {
-		servicesJson, err := json.MarshalIndent(services, " ", " ")
-		if err != nil {
-			glog.Fatalf("Problem marshaling services object: %s", err)
-		}
-		fmt.Printf("%s\n", servicesJson)
-	}
-
 	return err
 }
 
@@ -742,8 +677,13 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	err := controlPlane.ShowCommands(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {
@@ -755,8 +695,14 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = cmd.Arg(1)
+	err := controlPlane.Rollback(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdCommit(args ...string) error {
@@ -768,8 +714,14 @@ func (cli *ServicedCli) CmdCommit(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = cmd.Arg(1)
+	err := controlPlane.Commit(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdGet(args ...string) error {
@@ -785,6 +737,37 @@ func (cli *ServicedCli) CmdGet(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var file string
+	file = cmd.Arg(1)
+	err := controlPlane.Get(service, &file)
+	return err
+}
+
+func (cli *ServicedCli) CmdRecv(args ...string) error {
+	cmd := Subcmd("recv", "[options] SERVICEID FILE1..FILEN", "Upload a file to a container and optional image id")
+
+	var snapshot string
+	cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) < 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var files []string
+	files = cmd.Args()[1:]
+	err := controlPlane.Send(service, &files)
+	return err
 }

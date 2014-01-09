@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"runtime"
 	"strings"
 )
 
@@ -92,18 +94,17 @@ func (s *ISvc) Run() error {
 			args[2+i*2] = "-p"
 			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
 		}
-		servicedHome := serviced.ServiceDHome()
-		resourcesDir := servicedHome + "/resources"
 		// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
 		containerServiceDResources := "/usr/local/serviced/resources"
 		args[(len(s.Ports))*2+2] = "-v"
-		args[(len(s.Ports))*2+3] = fmt.Sprintf("%s:%s", resourcesDir, containerServiceDResources)
+		args[(len(s.Ports))*2+3] = fmt.Sprintf("%s:%s", resourcesDir(), containerServiceDResources)
 
 		// specify the image
 		args[(len(s.Ports))*2+4] = s.Tag
+		glog.Infof("%s", args)
 		cmd = exec.Command("docker", args...)
 	}
-	glog.V(0).Info("Running docker cmd: ", cmd)
+	glog.Info("Running docker cmd: ", cmd)
 	return cmd.Run()
 }
 
@@ -153,4 +154,13 @@ func (s *ISvc) getContainerId() (string, error) {
 		}
 	}
 	return "", SvcNotFoundErr
+}
+
+func resourcesDir() string {
+	homeDir := serviced.ServiceDHome()
+	if len(homeDir) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = path.Dir(filename)
+	}
+	return path.Join(homeDir, "resources")
 }

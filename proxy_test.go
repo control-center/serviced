@@ -1,4 +1,4 @@
-package proxy
+package serviced
 
 import (
 	"github.com/zenoss/glog"

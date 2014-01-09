@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
+	"strconv"
 	"testing"
 )
 
@@ -23,6 +24,15 @@ func init() {
 	err := isvcs.ElasticSearchContainer.Run()
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
+	} else {
+		for i := 0; i < 10; i += 1 {
+			id := strconv.Itoa(i)
+			controlPlaneDao.RemoveService(id, &unused)
+		}
+		for i := 100; i < 110; i += 1 {
+			id := strconv.Itoa(i)
+			controlPlaneDao.RemoveService(id, &unused)
+		}
 	}
 }
 

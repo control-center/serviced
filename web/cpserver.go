@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/client"
+	"github.com/zenoss/serviced"
 
 	"mime"
 	"net/http"
@@ -96,9 +96,9 @@ func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerF
 	}
 }
 
-func (this *ServiceConfig) getClient() (c *client.ControlClient, err error) {
+func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
 	// setup the client
-	c, err = client.NewControlClient(this.agentPort)
+	c, err = serviced.NewControlClient(this.agentPort)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client: %v", err)
 	}

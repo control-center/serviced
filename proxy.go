@@ -36,7 +36,7 @@ The netcat (nc) command is particularly useful for this:
 
     nc 127.0.0.1 4321
 */
-package proxy
+package serviced
 
 import (
 	"crypto/tls"
