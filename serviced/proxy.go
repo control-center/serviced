@@ -6,94 +6,50 @@ import (
 	sproxy "github.com/zenoss/serviced/proxy"
 
 	"bytes"
+    "encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"sort"
+    "strings"
 	"time"
 )
 
+// Handler for bash -c exec command
 func handler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+    r.ParseForm()
 
-	serviced := "./serviced/serviced"
+    var command string
+    if data := r.PostForm["command"]; len(data) == 1 {
+        var commandArray []string
+        commandStream := data[0]
 
-	var op string
-	if opData := r.Form["op"]; len(opData) == 1 {
-		op = opData[0]
-	} else {
-		fmt.Fprintf(w, "Missing required param 'op'")
-		return
-	}
+        // Decode the json stream
+        decoder := json.NewDecoder(strings.NewReader(commandStream))
+        if err := decoder.Decode(&commandArray); err != nil || len(commandArray) == 0 {
+            fmt.Fprintf(w, "Unable to parse param 'command'")
+            return
+        }
+        command = strings.Join(commandArray, " ")
+        fmt.Fprintf(w, ">> %s\n", command)
+    } else {
+        fmt.Fprintf(w, "Missing required param 'command'")
+        return
+    }
 
-	var serviceId string
-	if serviceIdData := r.Form["serviceId"]; len(serviceIdData) == 1 {
-		serviceId = serviceIdData[0]
-	} else {
-		fmt.Fprintf(w, "Missing required param 'serviceId'")
-		return
-	}
-
-	var imageId string
-	if imageIdData := r.Form["imageId"]; len(imageIdData) == 1 {
-		imageId = imageIdData[0]
-	} else {
-		imageId = ""
-	}
-
-	files := r.Form["files"]
-
-	var args string
-	switch op {
-	case "show":
-		args = fmt.Sprintf("%s", serviceId)
-		break
-	case "rollback":
-	case "commit":
-		if imageId == "" {
-			fmt.Fprintf(w, "Missing required param 'imageId'")
-			return
-		}
-		args = fmt.Sprintf("%s %s", serviceId, imageId)
-		break
-	case "get":
-		if len(files) == 0 {
-			fmt.Fprintf(w, "Missing required param 'files'")
-			return
-		}
-		args = fmt.Sprintf("-snapshot=%s %s %s", imageId, serviceId, files[0])
-		break
-	case "recv":
-		if len(files) == 0 {
-			fmt.Fprintf(w, "Missing required param 'files'")
-			return
-		}
-
-		fileArgs := files[0]
-		for i := 1; i < len(files); i++ {
-			fileArgs = fileArgs + " " + files[i]
-		}
-		args = fmt.Sprintf("-snapshot=%s %s %s", imageId, serviceId, fileArgs)
-		break
-	default:
-		fmt.Fprintf(w, "Unknown operation: %s", op)
-		return
-	}
-
+    // Execute the command
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-
-	fmt.Fprintf(w, ">> serviced %s %s\n", op, args)
-	cmd := exec.Command("bash", "-c", serviced+" "+op+" "+args)
+    cmd := exec.Command("bash", "-c", command)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(w, "Received %s\n", err)
-		fmt.Fprintf(w, "%s", stderr.Bytes())
+		fmt.Fprintf(w, "%s\n", err)
+		fmt.Fprintf(w, "%s\n", stderr.String())
 		return
 	}
-	fmt.Fprintf(w, "%s", stdout.Bytes())
+	fmt.Fprintf(w, "%s", stdout.String())
 }
 
 // Start a service proxy.
