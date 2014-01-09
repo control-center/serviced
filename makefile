@@ -49,6 +49,5 @@ clean:
 	cd serviced && make clean
 	cd web && make clean
 	cd dao && make clean
-	cd serviced && make clean
 	cd pkg && make clean
 
