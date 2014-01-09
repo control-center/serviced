@@ -6,7 +6,7 @@
 *
 *******************************************************************************/
 
-package client
+package serviced
 
 import (
 	"github.com/zenoss/glog"

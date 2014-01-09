@@ -13,7 +13,6 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	clientlib "github.com/zenoss/serviced/client"
 	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
@@ -137,7 +136,7 @@ func ParseCommands(args ...string) error {
 // Create a client to the control plane.
 func getClient() (c dao.ControlPlane) {
 	// setup the client
-	c, err := clientlib.NewControlClient(options.port)
+	c, err := serviced.NewControlClient(options.port)
 	if err != nil {
 		glog.Fatalf("Could not create acontrol plane client %v", err)
 	}
@@ -253,7 +252,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := clientlib.NewAgentClient(cmd.Arg(0))
+	client, err := serviced.NewAgentClient(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}

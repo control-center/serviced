@@ -1,8 +1,7 @@
-package proxy
+package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"net/rpc"
 )
@@ -14,7 +13,7 @@ type LBClient struct {
 }
 
 // assert that this implemenents the Agent interface
-var _ serviced.LoadBalancer = &LBClient{}
+var _ LoadBalancer = &LBClient{}
 
 // Create a new AgentClient.
 func NewLBClient(addr string) (s *LBClient, err error) {

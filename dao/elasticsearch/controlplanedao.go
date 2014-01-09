@@ -6,9 +6,9 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/scheduler"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -49,14 +49,14 @@ func exists(pretty *bool, index string, _type string) func(string) (bool, error)
 func create(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
 	var (
 		parentId  string = ""
-		version	  int	 = 0
-		op_type	  string = "create"
-		routing	  string = ""
+		version   int    = 0
+		op_type   string = "create"
+		routing   string = ""
 		timestamp string = ""
-		ttl		  int	 = 0
+		ttl       int    = 0
 		percolate string = ""
-		timeout	  string = ""
-		refresh	  bool	 = true
+		timeout   string = ""
+		refresh   bool   = true
 	)
 	return func(id string, data interface{}) (api.BaseResponse, error) {
 		return core.IndexWithParameters(
@@ -68,14 +68,14 @@ func create(pretty *bool, index string, _type string) func(string, interface{}) 
 func index(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
 	var (
 		parentId  string = ""
-		version	  int	 = 0
-		op_type	  string = ""
-		routing	  string = ""
+		version   int    = 0
+		op_type   string = ""
+		routing   string = ""
 		timestamp string = ""
-		ttl		  int	 = 0
+		ttl       int    = 0
 		percolate string = ""
-		timeout	  string = ""
-		refresh	  bool	 = true
+		timeout   string = ""
+		refresh   bool   = true
 	)
 	return func(id string, data interface{}) (api.BaseResponse, error) {
 		return core.IndexWithParameters(
@@ -96,50 +96,50 @@ var (
 	Pretty bool = false
 
 	//model existance functions
-	hostExists		   func(string) (bool, error) = exists(&Pretty, "controlplane", "host")
-	serviceExists	   func(string) (bool, error) = exists(&Pretty, "controlplane", "service")
+	hostExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "host")
+	serviceExists      func(string) (bool, error) = exists(&Pretty, "controlplane", "service")
 	serviceStateExists func(string) (bool, error) = exists(&Pretty, "controlplane", "servicestate")
 	resourcePoolExists func(string) (bool, error) = exists(&Pretty, "controlplane", "resourcepool")
 
 	//model index functions
-	newHost					  func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
-	newService				  func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
-	newResourcePool			  func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
-	newServiceDeployment	  func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
+	newHost                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
+	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
+	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
+	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
 
 	//model index functions
-	indexHost		  func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
-	indexService	  func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
+	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
+	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
 	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
 	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
 
 	//model delete functions
-	deleteHost					 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
-	deleteService				 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
-	deleteServiceState			 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
-	deleteResourcePool			 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
+	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
+	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
+	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
+	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
 
 	//model get functions
-	getHost					  func(string, interface{}) error = getSource("controlplane", "host")
-	getService				  func(string, interface{}) error = getSource("controlplane", "service")
-	getServiceState			  func(string, interface{}) error = getSource("controlplane", "servicestate")
-	getResourcePool			  func(string, interface{}) error = getSource("controlplane", "resourcepool")
+	getHost                   func(string, interface{}) error = getSource("controlplane", "host")
+	getService                func(string, interface{}) error = getSource("controlplane", "service")
+	getServiceState           func(string, interface{}) error = getSource("controlplane", "servicestate")
+	getResourcePool           func(string, interface{}) error = getSource("controlplane", "resourcepool")
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
 
 	//model search functions, using uri based query
-	searchHostUri		  func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
-	searchServiceUri	  func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
+	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
+	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
 	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
 )
 
 type ControlPlaneDao struct {
 	hostName   string
-	port	   int
+	port       int
 	zookeepers []string
-	zkDao	   *zzk.ZkDao
+	zkDao      *zzk.ZkDao
 }
 
 // convert search result of json host to dao.Host array
@@ -229,8 +229,8 @@ func walkTree(node *treenode) []string {
 }
 
 type treenode struct {
-	id		 string
-	parent	 string
+	id       string
+	parent   string
 	children []*treenode
 }
 
@@ -1019,8 +1019,14 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	}
 	s.zkDao = &zzk.ZkDao{s.zookeepers}
 
-	isvcs.ElasticSearchContainer.Run()
-	isvcs.LogstashContainer.Run()
+	err = isvcs.ElasticSearchContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start elasticsearch container: %s", err)
+	}
+	err = isvcs.LogstashContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start logstash container: %s", err)
+	}
 
 	// ensure that a default pool exists
 	var pool dao.ResourcePool
@@ -1057,7 +1063,7 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 			}
 			defer conn.Close()
 
-			sched, shutdown := scheduler.NewScheduler("", conn, hostId, s)
+			sched, shutdown := serviced.NewScheduler("", conn, hostId, s)
 			sched.Start()
 			select {
 			case <-shutdown:

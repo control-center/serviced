@@ -1,13 +1,13 @@
-package rsched
+package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/zzk"
 
-	"time"
 	"math/rand"
+	"time"
 )
 
 func Lead(dao dao.ControlPlane, conn *zk.Conn, zkEvent <-chan zk.Event) {
@@ -78,7 +78,7 @@ func watchServices(cpDao dao.ControlPlane, conn *zk.Conn) {
 func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, done chan<- string, serviceId string) {
 	defer func() {
 		glog.V(3).Info("Exiting function watchService ", serviceId)
-		done <- serviceId 
+		done <- serviceId
 	}()
 	for {
 		var service dao.Service
@@ -108,7 +108,6 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", service.DesiredState, service.Name)
 		}
-
 
 		select {
 		case evt := <-zkEvent:

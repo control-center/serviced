@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	sproxy "github.com/zenoss/serviced/proxy"
 
 	"fmt"
 	"net"
@@ -24,7 +24,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		glog.Flush()
 		os.Exit(2)
 	}
-	config := sproxy.Config{}
+	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
@@ -62,7 +62,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	go func() {
 		for {
 			func() {
-				client, err := sproxy.NewLBClient(proxyOptions.servicedEndpoint)
+				client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 				if err != nil {
 					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 					return
@@ -91,7 +91,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					}
 					sort.Strings(addresses)
 
-					var proxy *sproxy.Proxy
+					var proxy *serviced.Proxy
 					var ok bool
 					if proxy, ok = proxies[key]; !ok {
 						// setup a new proxy
@@ -100,7 +100,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 							glog.Errorf("Could not bind to port: %s", err)
 							continue
 						}
-						proxy, err = sproxy.NewProxy(
+						proxy, err = serviced.NewProxy(
 							fmt.Sprintf("%v", endpointList[0]),
 							uint16(config.TCPMux.Port),
 							config.TCPMux.UseTLS,
@@ -126,8 +126,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	return nil
 }
 
-var proxies map[string]*sproxy.Proxy
+var proxies map[string]*serviced.Proxy
 
 func init() {
-	proxies = make(map[string]*sproxy.Proxy)
+	proxies = make(map[string]*serviced.Proxy)
 }
