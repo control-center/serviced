@@ -6,43 +6,43 @@ import (
 	sproxy "github.com/zenoss/serviced/proxy"
 
 	"bytes"
-    "encoding/json"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"sort"
-    "strings"
+	"strings"
 	"time"
 )
 
 // Handler for bash -c exec command
 func handler(w http.ResponseWriter, r *http.Request) {
-    r.ParseForm()
+	r.ParseForm()
 
-    var command string
-    if data := r.PostForm["command"]; len(data) == 1 {
-        var commandArray []string
-        commandStream := data[0]
+	var command string
+	if data := r.PostForm["command"]; len(data) == 1 {
+		var commandArray []string
+		commandStream := data[0]
 
-        // Decode the json stream
-        decoder := json.NewDecoder(strings.NewReader(commandStream))
-        if err := decoder.Decode(&commandArray); err != nil || len(commandArray) == 0 {
-            fmt.Fprintf(w, "Unable to parse param 'command'")
-            return
-        }
-        command = strings.Join(commandArray, " ")
-        fmt.Fprintf(w, ">> %s\n", command)
-    } else {
-        fmt.Fprintf(w, "Missing required param 'command'")
-        return
-    }
+		// Decode the json stream
+		decoder := json.NewDecoder(strings.NewReader(commandStream))
+		if err := decoder.Decode(&commandArray); err != nil || len(commandArray) == 0 {
+			fmt.Fprintf(w, "Unable to parse param 'command'")
+			return
+		}
+		command = strings.Join(commandArray, " ")
+		fmt.Fprintf(w, ">> %s\n", command)
+	} else {
+		fmt.Fprintf(w, "Missing required param 'command'")
+		return
+	}
 
-    // Execute the command
+	// Execute the command
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-    cmd := exec.Command("bash", "-c", command)
+	cmd := exec.Command("bash", "-c", command)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(w, "%s\n", err)
