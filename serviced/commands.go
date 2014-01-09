@@ -95,6 +95,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
+		{"edit-service", "Edit a service"},
 
 		{"proxy", "start a proxy in the foreground"},
 
