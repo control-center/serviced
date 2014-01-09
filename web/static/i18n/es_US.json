@@ -101,7 +101,7 @@
 	"running_tbl_actions":"Acciones",
 	"running_tbl_instances":"Instancias en Ejecución",
 	"title_log":"Registro",
-        "title_add_config_file": "Añadir archivos de configuración",
+	"title_add_config_file": "Añadir archivos de configuración",
 	"title_add_host":"Añadir servidor",
 	"title_add_pool":"Añadir grupo de recursos",
 	"title_add_service":"Añadir servicio",
