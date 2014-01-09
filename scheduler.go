@@ -1,10 +1,9 @@
-package scheduler
+package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/scheduler/rsched"
 	"github.com/zenoss/serviced/zzk"
 
 	"sort"
@@ -14,14 +13,14 @@ import (
 type leaderFunc func(dao.ControlPlane, *zk.Conn, <-chan zk.Event)
 
 type scheduler struct {
-	conn         *zk.Conn        // the zookeeper connection
+	conn         *zk.Conn         // the zookeeper connection
 	cpDao        dao.ControlPlane // ControlPlane interface
-	cluster_path string          // path to the cluster node
-	instance_id  string          // unique id for this node instance
-	closing      chan chan error // Sending a value on this channel notifies the schduler to shut down
-	shutdown     chan error      // A error is placed on this channel when the scheduler shuts down
-	started      bool            // is the loop running
-	zkleaderFunc leaderFunc      // multiple implementations of leader function possible
+	cluster_path string           // path to the cluster node
+	instance_id  string           // unique id for this node instance
+	closing      chan chan error  // Sending a value on this channel notifies the schduler to shut down
+	shutdown     chan error       // A error is placed on this channel when the scheduler shuts down
+	started      bool             // is the loop running
+	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
 }
 
 func NewScheduler(cluster_path string, conn *zk.Conn, instance_id string, cpDao dao.ControlPlane) (s *scheduler, shutdown <-chan error) {
@@ -32,7 +31,7 @@ func NewScheduler(cluster_path string, conn *zk.Conn, instance_id string, cpDao 
 		instance_id:  instance_id,
 		closing:      make(chan chan error),
 		shutdown:     make(chan error, 1),
-		zkleaderFunc: rsched.Lead, // random scheduler implementation
+		zkleaderFunc: Lead, // random scheduler implementation
 	}
 	return s, s.shutdown
 }

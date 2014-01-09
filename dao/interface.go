@@ -66,7 +66,11 @@ type ControlPlane interface {
 	// Get services with the given tag(s)
 	GetTaggedServices(request EntityRequest, services *[]*Service) error
 
+	// Find all service endpoint matches
 	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error)
+
+	// Deploy a service
+	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
