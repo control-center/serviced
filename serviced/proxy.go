@@ -13,43 +13,42 @@ import (
 	"os"
 	"os/exec"
 	"sort"
-	"strings"
 	"time"
 )
 
 // Handler for bash -c exec command
 func handler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	type ShellRequest struct {
+		Command string
+	}
+	type ShellResponse struct {
+		Stdin, Stdout, Stderr, Code string
+	}
 
-	var command string
-	if data := r.PostForm["command"]; len(data) == 1 {
-		var commandArray []string
-		commandStream := data[0]
+	var req ShellRequest
+	var res ShellResponse
 
-		// Decode the json stream
-		decoder := json.NewDecoder(strings.NewReader(commandStream))
-		if err := decoder.Decode(&commandArray); err != nil || len(commandArray) == 0 {
-			fmt.Fprintf(w, "Unable to parse param 'command'")
-			return
-		}
-		command = strings.Join(commandArray, " ")
-		fmt.Fprintf(w, ">> %s\n", command)
-	} else {
-		fmt.Fprintf(w, "Missing required param 'command'")
+	decoder := json.NewDecoder(r.Body)
+	encoder := json.NewEncoder(w)
+	if err := decoder.Decode(&req); err != nil || req.Command == "" {
+		fmt.Fprintf(w, "Unable to parse param 'command': %s\n", err)
 		return
 	}
 
 	// Execute the command
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command("bash", "-c", command)
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("bash", "-c", req.Command)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(w, "%s\n", err)
-		fmt.Fprintf(w, "%s\n", stderr.String())
-		return
+		res.Code = fmt.Sprintf("%s", err)
+	} else {
+		res.Code = "0"
 	}
-	fmt.Fprintf(w, "%s", stdout.String())
+
+	res.Stdin = req.Command
+	res.Stdout = stdout.String()
+	res.Stderr = stderr.String()
+	encoder.Encode(&res)
 }
 
 // Start a service proxy.
