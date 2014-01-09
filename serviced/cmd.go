@@ -14,10 +14,8 @@ package main
 //svc "github.com/zenoss/serviced/svc"
 import (
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/agent"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
-	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -125,7 +123,7 @@ func startServer() {
 		go cpserver.Serve()
 	}
 	if options.agent {
-		mux := proxy.TCPMux{}
+		mux := serviced.TCPMux{}
 
 		mux.CertPEMFile = options.certPEMFile
 		mux.KeyPEMFile = options.keyPEMFile
@@ -133,7 +131,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, options.resourcePath, options.mount, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.resourcePath, options.mount, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

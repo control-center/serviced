@@ -6,10 +6,9 @@
 *
 *******************************************************************************/
 
-package client
+package serviced
 
 import (
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"net/rpc"
 )
@@ -22,7 +21,7 @@ type AgentClient struct {
 }
 
 // assert that this implemenents the Agent interface
-var _ serviced.Agent = &AgentClient{}
+var _ Agent = &AgentClient{}
 
 // Create a new AgentClient.
 func NewAgentClient(addr string) (s *AgentClient, err error) {

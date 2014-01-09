@@ -48,12 +48,12 @@ type LogstashISvc struct {
 var LogstashContainer LogstashISvc
 
 func init() {
-	 LogstashContainer= LogstashISvc{
+	LogstashContainer = LogstashISvc{
 		ISvc{
-			Name:		"logstash_master",
+			Name:       "logstash_master",
 			Dockerfile: logstash_dockerfile,
-			Tag:		"zenoss/logstash_master",
-			Ports:		[]int{5043, 9292},
+			Tag:        "zenoss/logstash_master",
+			Ports:      []int{5043, 9292},
 		},
 	}
 }
@@ -71,7 +71,13 @@ func (c *LogstashISvc) Run() error {
 		if err == nil {
 			break
 		}
+		running, err := c.Running()
+		if !running {
+			glog.Errorf("Logstash container stopped: %s", err)
+			return err
+		}
 		if time.Since(start) > timeout {
+			glog.Errorf("Timeout starting up logstash container")
 			return fmt.Errorf("Could not startup logstash container.")
 		}
 		glog.V(2).Infof("Still trying to connect to logstash: %v", err)
