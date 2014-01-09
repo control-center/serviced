@@ -9,6 +9,9 @@
 
 default: build
 
+install:
+	cd serviced && make install
+
 build:
 	go get github.com/zenoss/glog
 	go get github.com/samuel/go-zookeeper/zk
@@ -43,9 +46,8 @@ docker_ok:
 
 clean:
 	go clean
-	cd client && make clean
 	cd serviced && make clean
-	cd proxy && make clean
+	cd web && make clean
 	cd dao && make clean
 	cd pkg && make clean
 
