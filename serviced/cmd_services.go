@@ -1,11 +1,17 @@
 package main
 
 import (
+	"code.google.com/p/go.crypto/ssh/terminal"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"syscall"
 	"unicode/utf8"
 )
 
@@ -138,6 +144,119 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 		}
 		fmt.Printf("%s\n", servicesJson)
 	}
+
+	return err
+}
+
+var editors [3]string
+
+func init() {
+	editors = [...]string{"vim", "vi", "nano"}
+}
+
+func findEditor(defaultEditor string) (string, error) {
+	if len(defaultEditor) > 0 {
+		editorPath, err := exec.LookPath(defaultEditor)
+		if err != nil {
+			return defaultEditor, fmt.Errorf("Editor '%s' not found.", defaultEditor)
+		}
+		return editorPath, nil
+	}
+
+	for _, editor := range editors {
+		path, err := exec.LookPath(editor)
+		if err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("no editor found")
+}
+
+func editService(service *dao.Service, editor string) error {
+
+	serviceJson, err := json.MarshalIndent(service, " ", " ")
+	if err != nil {
+		glog.Fatalf("Problem marshaling service object: %s", err)
+	}
+
+	var reader io.Reader
+	if terminal.IsTerminal(syscall.Stdin) {
+		editorPath, err := findEditor(editor)
+		if err != nil {
+			fmt.Printf("%s\n", err)
+			return err
+		}
+
+		f, err := ioutil.TempFile("", fmt.Sprintf("serviced_edit_%s_", service.Id))
+		if err != nil {
+			glog.Fatalf("Could not write tempfile: %s", err)
+		}
+		defer f.Close()
+		defer os.Remove(f.Name())
+		_, err = f.Write(serviceJson)
+		if err != nil {
+			glog.Fatalf("Problem writing service json to file: %s", err)
+		}
+
+		editorCmd := exec.Command(editorPath, f.Name())
+		editorCmd.Stdout = os.Stdout
+		editorCmd.Stdin = os.Stdin
+		editorCmd.Stderr = os.Stderr
+		err = editorCmd.Run()
+
+		if err != nil {
+			glog.Fatal("Editor command returned error: %s", err)
+		}
+		_, err = f.Seek(0, 0)
+		if err != nil {
+			glog.Fatal("Could not seek to begining of tempfile: %s", err)
+		}
+		reader = f
+	} else {
+		_, err = os.Stdout.Write(serviceJson)
+		if err != nil {
+			glog.Fatal("Could not write service to terminal's stdout: %s", err)
+		}
+		reader = os.Stdin
+	}
+
+	serviceJson, err = ioutil.ReadAll(reader)
+	if err != nil {
+		glog.Fatal("Could not read tempfile back in: %s", err)
+	}
+	err = json.Unmarshal(serviceJson, &service)
+	if err != nil {
+		glog.Fatal("Could not parse json: %s", err)
+	}
+	return nil
+}
+
+func (cli *ServicedCli) CmdEditService(args ...string) error {
+	cmd := Subcmd("edit-service", "[SERVICE_ID]", "edit a service")
+
+	var editor string
+	cmd.StringVar(&editor, "editor", os.Getenv("EDITOR"), "editor to use to edit service definition, also controled by $EDITOR var")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	client := getClient()
+	var service dao.Service
+	err := client.GetService(cmd.Arg(0), &service)
+	if err != nil {
+		glog.Fatalf("Could not get service %s: %v", cmd.Arg(0), err)
+	}
+
+	err = editService(&service, editor)
+
+	var unused int
+	err = client.UpdateService(service, &unused)
 
 	return err
 }
