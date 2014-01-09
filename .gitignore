@@ -14,6 +14,8 @@ pkg/pkgroot/
 pkg/serviced-0.1.0-1.x86_64.rpm
 pkg/serviced_0.1.0_amd64.deb
 
+# emacs tags file
+TAGS
 
 # Architecture specific extensions/prefixes
 *.[568vq]
