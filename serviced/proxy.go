@@ -5,13 +5,49 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"sort"
 	"time"
 )
+
+// Handler for bash -c exec command
+func handler(w http.ResponseWriter, r *http.Request) {
+	type ShellRequest struct {
+		Command string
+	}
+	type ShellResponse struct {
+		Stdin, Stdout, Stderr, Code string
+	}
+
+	var req ShellRequest
+	var res ShellResponse
+
+	decoder := json.NewDecoder(r.Body)
+	encoder := json.NewEncoder(w)
+	if err := decoder.Decode(&req); err != nil || req.Command == "" {
+		fmt.Fprintf(w, "Unable to parse param 'command': %s\n", err)
+		return
+	}
+
+	// Execute the command
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("bash", "-c", req.Command)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		res.Code = fmt.Sprintf("%s", err)
+	}
+
+	res.Stdin = req.Command
+	res.Stdout = stdout.String()
+	res.Stderr = stderr.String()
+	encoder.Encode(&res)
+}
 
 // Start a service proxy.
 func (cli *ServicedCli) CmdProxy(args ...string) error {
@@ -34,6 +70,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
 	}
+
+	http.HandleFunc("/exec", handler)
+	http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 

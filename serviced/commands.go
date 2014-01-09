@@ -103,6 +103,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"rollback", "Rollback the DFS and container image"},
 		{"commit", "Commit the DFS and container image"},
 		{"get", "Download a file from a container image"},
+		{"recv", "Receive a file for a container image"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -138,7 +139,7 @@ func getClient() (c dao.ControlPlane) {
 	// setup the client
 	c, err := serviced.NewControlClient(options.port)
 	if err != nil {
-		glog.Fatalf("Could not create acontrol plane client %v", err)
+		glog.Fatalf("Could not create a control plane client %v", err)
 	}
 	return c
 }
@@ -675,8 +676,13 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	err := controlPlane.ShowCommands(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {
@@ -688,8 +694,14 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = cmd.Arg(1)
+	err := controlPlane.Rollback(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdCommit(args ...string) error {
@@ -701,8 +713,14 @@ func (cli *ServicedCli) CmdCommit(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = cmd.Arg(1)
+	err := controlPlane.Commit(service, &unused)
+	return err
 }
 
 func (cli *ServicedCli) CmdGet(args ...string) error {
@@ -718,6 +736,37 @@ func (cli *ServicedCli) CmdGet(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	// TODO: implement stubbed method
-	return nil
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var file string
+	file = cmd.Arg(1)
+	err := controlPlane.Get(service, &file)
+	return err
+}
+
+func (cli *ServicedCli) CmdRecv(args ...string) error {
+	cmd := Subcmd("recv", "[options] SERVICEID FILE1..FILEN", "Upload a file to a container and optional image id")
+
+	var snapshot string
+	cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) < 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var files []string
+	files = cmd.Args()[1:]
+	err := controlPlane.Send(service, &files)
+	return err
 }
