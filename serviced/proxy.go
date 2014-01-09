@@ -24,7 +24,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		glog.Flush()
 		os.Exit(2)
 	}
-	config := serviced.Config{}
+	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls

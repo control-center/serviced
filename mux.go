@@ -20,7 +20,7 @@ type TCPMux struct {
 	Port        int
 }
 
-type Config struct {
+type MuxConfig struct {
 	Proxies   []Proxy
 	TCPMux    TCPMux
 	ServiceId string
