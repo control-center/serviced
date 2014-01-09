@@ -41,8 +41,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		res.Code = fmt.Sprintf("%s", err)
-	} else {
-		res.Code = "0"
 	}
 
 	res.Stdin = req.Command
