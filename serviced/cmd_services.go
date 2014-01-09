@@ -235,7 +235,7 @@ func (cli *ServicedCli) CmdEditService(args ...string) error {
 	cmd := Subcmd("edit-service", "[SERVICE_ID]", "edit a service")
 
 	var editor string
-	cmd.StringVar(&editor, "editor", os.Getenv("EDITOR"), "editor to use to edit service definition, also controled by $EDITOR var")
+	cmd.StringVar(&editor, "editor", os.Getenv("EDITOR"), "editor to use to edit service definition, also controlled by $EDITOR var")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
