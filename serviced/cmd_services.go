@@ -263,12 +263,13 @@ func (cli *ServicedCli) CmdEditService(args ...string) error {
 	var editor string
 	cmd.StringVar(&editor, "editor", os.Getenv("EDITOR"), "editor to use to edit service definition, also controlled by $EDITOR var")
 
-	if len(cmd.Args()) != 1 {
+	if err := cmd.Parse(args); err != nil {
 		cmd.Usage()
 		return nil
 	}
 
-	if err := cmd.Parse(args); err != nil {
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
 		return nil
 	}
 
