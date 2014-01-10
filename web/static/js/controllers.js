@@ -465,7 +465,13 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
-
+    
+    $scope.editConfig = function(service, config) {
+        $scope.editService = $.extend({}, service);
+        $scope.editService.config = config;
+        $('#editConfig').modal('show');
+    };
+    
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
@@ -538,6 +544,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
             ImageId: ''
         };
     };
+
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
