@@ -268,6 +268,10 @@ func (cli *ServicedCli) CmdEditService(args ...string) error {
 		return nil
 	}
 
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
 	client := getClient()
 	var service dao.Service
 	err := client.GetService(cmd.Arg(0), &service)
