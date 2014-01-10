@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Handler for bash -c exec command
+// Handler for bash -c exec command.
 func handler(w http.ResponseWriter, r *http.Request) {
 	type ShellRequest struct {
 		Command string
