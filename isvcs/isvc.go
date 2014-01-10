@@ -15,18 +15,25 @@ import (
 type ISvc struct {
 	Name       string
 	Dockerfile string
+	Repository string
 	Tag        string
 	Ports      []int
 }
 
 func (s *ISvc) exists() (bool, error) {
 
-	cmd := exec.Command("docker", "images", s.Tag)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("docker images -a %s | tail -n +2 | awk '{ print $2 }'", s.Repository))
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
 	}
-	return strings.Contains(string(output), s.Tag), nil
+	tagsFound := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, tag := range tagsFound {
+		if tag == s.Tag {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *ISvc) create() error {
@@ -34,15 +41,15 @@ func (s *ISvc) create() error {
 	if err != nil || exists {
 		return err
 	}
-	glog.V(1).Infof("Creating temp directory for building image: %s", s.Tag)
+	glog.V(1).Infof("Creating temp directory for building image: %s:%s", s.Repository, s.Tag)
 	tdir, err := ioutil.TempDir("", "isvc_")
 	if err != nil {
 		return err
 	}
 	dockerfile := tdir + "/Dockerfile"
 	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
-	glog.V(0).Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
-	cmd := exec.Command("docker", "build", "-t", s.Tag, tdir)
+	glog.V(0).Infof("building %s:%s with dockerfile in %s", s.Repository, s.Tag, dockerfile)
+	cmd := exec.Command("docker", "build", "-t", s.Repository + ":" + s.Tag, tdir)
 	output, returnErr := cmd.CombinedOutput()
 	if returnErr != nil {
 		glog.Errorf("Problem running docker build: %s", string(output))
@@ -55,12 +62,16 @@ func (s *ISvc) create() error {
 }
 
 func (s *ISvc) Running() (bool, error) {
+	containerId, _ := s.getContainerId()
+	if len(containerId) == 0 {
+		return false, nil
+	}
 	cmd := exec.Command("docker", "ps")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
 	}
-	return strings.Contains(string(output), s.Tag+":latest"), nil
+	return strings.Contains(string(output), containerId), nil
 }
 
 func (s *ISvc) Run() error {
@@ -74,6 +85,7 @@ func (s *ISvc) Run() error {
 	if err != nil || running {
 		return err
 	}
+	glog.Infof("%s is not running", s.Repository)
 
 	containerId, err := s.getContainerId()
 	if err != nil && !IsSvcNotFoundErr(err) {
@@ -84,25 +96,19 @@ func (s *ISvc) Run() error {
 	if containerId != "" {
 		cmd = exec.Command("docker", "start", containerId)
 	} else {
-		args := make([]string, (len(s.Ports))*2+5)
-		glog.V(1).Info("About to build.")
-		args[0] = "run"
-		args[1] = "-d"
-		glog.V(1).Info("Ports %v", s.Ports)
+		args := "docker run -d "
 		// add the ports to the arg list
-		for i, port := range s.Ports {
-			args[2+i*2] = "-p"
-			args[2+i*2+1] = fmt.Sprintf("%d:%d", port, port)
+		for _, port := range s.Ports {
+			args += fmt.Sprintf(" -p %d:%d", port, port)
 		}
 		// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
 		containerServiceDResources := "/usr/local/serviced/resources"
-		args[(len(s.Ports))*2+2] = "-v"
-		args[(len(s.Ports))*2+3] = fmt.Sprintf("%s:%s", resourcesDir(), containerServiceDResources)
+		args += " -v"
+		args += fmt.Sprintf(" %s:%s", resourcesDir(), containerServiceDResources)
 
 		// specify the image
-		args[(len(s.Ports))*2+4] = s.Tag
-		glog.Infof("%s", args)
-		cmd = exec.Command("docker", args...)
+		args += fmt.Sprintf(" %s:%s", s.Repository, s.Tag)
+		cmd = exec.Command("sh", "-c", args)
 	}
 	glog.Info("Running docker cmd: ", cmd)
 	return cmd.Run()
@@ -142,14 +148,15 @@ func init() {
 }
 
 func (s *ISvc) getContainerId() (string, error) {
-	cmd := exec.Command("docker", "ps", "-a")
+	cmd := exec.Command("sh", "-c", `docker ps -a | tail -n +2 | awk '{ print $1 " " $2 }'`)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
+	repoAndName := s.Repository + ":" + s.Tag
 	for _, line := range strings.Split(string(output), "\n") {
-		if strings.Contains(line, s.Tag+":latest") {
-			fields := strings.Fields(line)
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[1] == repoAndName {
 			return fields[0], nil
 		}
 	}

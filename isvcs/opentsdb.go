@@ -50,7 +50,8 @@ func init() {
 	OpenTsdbContainer = ISvc{
 		Name:       "opentsdb",
 		Dockerfile: opentsdb_dockerfile,
-		Tag:        "zenoss/cp_opentsdb",
+		Repository: "zctrl/opentsdb",
+		Tag:        "v1",
 		Ports:      []int{4242},
 	}
 }

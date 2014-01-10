@@ -52,7 +52,8 @@ func init() {
 		ISvc{
 			Name:       "logstash_master",
 			Dockerfile: logstash_dockerfile,
-			Tag:        "zenoss/logstash_master",
+			Repository: "zctrl/logstash_master",
+			Tag:        "v1",
 			Ports:      []int{5043, 9292},
 		},
 	}
