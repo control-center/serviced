@@ -15,13 +15,28 @@ import (
 	"unicode/utf8"
 )
 
-const tree_outfmt = "%-*s %-8.8s %-40.40s %-04d %-24.24s %-12s %-06d %-6s\n"
-const tree_outfmt_header = "%-*s %-8.8s %-40.40s %4.4s %-24.24s %-12s %6.6s %-6s\n"
+const tree_outfmt = "%-*s %-8.8s %-40.40s %-04d %-24.24s %-12s %-06d %-6s %-8.8s\n"
+const tree_outfmt_header = "%-*s %-8.8s %-40.40s %4.4s %-24.24s %-12s %6.6s %-6s %-8.8s\n"
 
 var tree_width int
+var tree_charset map[string]string
+var tree_utf8 map[string]string
+var tree_ascii map[string]string
 
 func init() {
 	tree_width = 40
+	tree_utf8 := make(map[string]string)
+	tree_utf8["bar"] = "│ "
+	tree_utf8["middle"] = "├─"
+	tree_utf8["last"] = "└─"
+
+	tree_ascii = make(map[string]string)
+	tree_ascii["bar"] = "| "
+	tree_ascii["middle"] = "|-"
+	tree_ascii["last"] = "+-"
+
+	tree_charset = tree_utf8 // set default charset for tree
+
 }
 
 // Print tree body of deployed services (no header)
@@ -32,11 +47,11 @@ func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
 		width := tree_width
 		if !raw {
 			if last {
-				fmt.Print("└─")
+				fmt.Print(tree_charset["last"])
 				indent = indent + "  "
 			} else {
-				fmt.Print("├─")
-				indent = indent + "│ "
+				fmt.Print(tree_charset["middle"])
+				indent = indent + tree_charset["bar"]
 			}
 			width = tree_width - utf8.RuneCountInString(indent)
 		}
@@ -49,7 +64,8 @@ func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
 			s.ImageId,
 			s.PoolId,
 			s.DesiredState,
-			s.Launch)
+			s.Launch,
+			s.DeploymentId)
 	}
 	if node.subSvcs != nil {
 		i := 0
@@ -78,7 +94,7 @@ func (node *svcStub) treePrint(raw bool) {
 	tree_width = node.maxDepth(0)*2 + 16
 	if !raw {
 		fmt.Printf(tree_outfmt_header,
-			tree_width, "Name", "Id", "Startup", "Inst", "ImageId", "Pool", "DState", "Launch")
+			tree_width, "NAME", "ID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPIP")
 	}
 	node.treePrintBody("", true, false, raw)
 }
@@ -121,8 +137,18 @@ func (cli *ServicedCli) CmdServices(args ...string) error {
 	var raw bool
 	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
 
+	var ascii bool
+	if os.Getenv("SERVICED_ASCII") == "1" {
+		ascii = true
+	}
+	cmd.BoolVar(&ascii, "ascii", ascii, "use ascii characters for service tree (env SERVICED_ASCII=1 will default to ascii)")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+
+	if ascii {
+		tree_charset = tree_ascii
 	}
 
 	controlPlane := getClient()
@@ -238,6 +264,7 @@ func (cli *ServicedCli) CmdEditService(args ...string) error {
 	cmd.StringVar(&editor, "editor", os.Getenv("EDITOR"), "editor to use to edit service definition, also controlled by $EDITOR var")
 
 	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
 		return nil
 	}
 
