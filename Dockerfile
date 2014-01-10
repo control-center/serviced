@@ -41,6 +41,7 @@ run	apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
 run	apt-get	install -y -q rubygems
 run	gem install fpm
 run	apt-get install -y -q rpm
+run	apt-get install -y -q mercurial bzr
 
 volume	/var/lib/serviced
 workdir	/go/src/github.com/zenoss/serviced
