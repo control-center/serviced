@@ -5,6 +5,7 @@
 *.swp
 *~
 \#*
+.repo_tag_exists
 
 # Folders
 _obj
