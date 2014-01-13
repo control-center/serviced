@@ -1047,10 +1047,6 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	if err != nil {
 		glog.Fatalf("Could not start elasticsearch container: %s", err)
 	}
-	err = isvcs.LogstashContainer.Run()
-	if err != nil {
-		glog.Fatalf("Could not start logstash container: %s", err)
-	}
 
 	// ensure that a default pool exists
 	var pool dao.ResourcePool
@@ -1065,6 +1061,17 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 		if err != nil {
 			return
 		}
+	}
+	glog.V(2).Info("Fetching Service Templates for Logstash")
+	var templatesMap map[string]*dao.ServiceTemplate
+	err = s.GetServiceTemplates(0, &templatesMap)
+	if err != nil {
+		return nil, err
+	}
+	glog.V(2).Info("Starting logstash container")
+	err = isvcs.LogstashContainer.StartService(templatesMap)
+	if err != nil {
+		glog.Fatalf("Could not start logstash container: %s", err)
 	}
 
 	hid, err := hostId()

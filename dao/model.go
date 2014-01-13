@@ -201,8 +201,9 @@ type ServiceDefinition struct {
 }
 
 type LogConfig struct {
-	Path string // The location on the container's filesystem of the log, can be a directory
-	Type string // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	Path    string   // The location on the container's filesystem of the log, can be a directory
+	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter
 }
 
 type ServiceDeployment struct {
