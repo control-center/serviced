@@ -1,12 +1,14 @@
 package isvcs
 
 import (
-	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	"io/ioutil"
+
+	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"runtime"
 	"strings"
@@ -14,7 +16,6 @@ import (
 
 type ISvc struct {
 	Name       string
-	Dockerfile string
 	Repository string
 	Tag        string
 	Ports      []int
@@ -37,28 +38,33 @@ func (s *ISvc) exists() (bool, error) {
 }
 
 func (s *ISvc) create() error {
-	exists, err := s.exists()
-	if err != nil || exists {
+	if exists, err := s.exists(); err != nil || exists {
 		return err
 	}
-	glog.V(1).Infof("Creating temp directory for building image: %s:%s", s.Repository, s.Tag)
-	tdir, err := ioutil.TempDir("", "isvc_")
-	if err != nil {
+	glog.V(1).Infof("Looking for existing tar export of %s:%s", s.Repository, s.Tag)
+	imageTar := fmt.Sprintf("%s/%s/%s.tar", imagesDir(), s.Repository, s.Tag)
+
+	if _, err := os.Stat(imageTar); err != nil {
+		if os.IsNotExist(err) {
+			glog.Errorf("Could not locate: %s", imageTar)
+		}
 		return err
 	}
-	dockerfile := tdir + "/Dockerfile"
-	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
-	glog.V(0).Infof("building %s:%s with dockerfile in %s", s.Repository, s.Tag, dockerfile)
-	cmd := exec.Command("docker", "build", "-t", s.Repository + ":" + s.Tag, tdir)
-	output, returnErr := cmd.CombinedOutput()
-	if returnErr != nil {
-		glog.Errorf("Problem running docker build: %s", string(output))
-	}
-	err = os.RemoveAll(tdir)
+
+	file, err := os.Open(imageTar)
 	if err != nil {
-		glog.Warningf("Failed to cleanup directory :%s ", err)
+		glog.Errorf("Could not open %s: %s", imageTar, err)
+		return err
 	}
-	return returnErr
+
+	cmd := exec.Command("docker", "load")
+	cmd.Stdin = bufio.NewReader(file)
+	glog.V(1).Infof("Importing docker image %s", imageTar)
+	if err := cmd.Run(); err != nil {
+		glog.Errorf("Could not load %s: %s", imageTar, err)
+		return err
+	}
+	return nil
 }
 
 func (s *ISvc) Running() (bool, error) {
@@ -163,11 +169,27 @@ func (s *ISvc) getContainerId() (string, error) {
 	return "", SvcNotFoundErr
 }
 
-func resourcesDir() string {
+func localDir(p string) string {
 	homeDir := serviced.ServiceDHome()
 	if len(homeDir) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
 		homeDir = path.Dir(filename)
 	}
-	return path.Join(homeDir, "resources")
+	return path.Join(homeDir, p)
+}
+
+func resourcesDir() string {
+	return localDir("resources")
+}
+
+func imagesDir() string {
+	homeDir := serviced.ServiceDHome()
+	if len(homeDir) == 0 {
+		current, err := user.Current()
+		if err != nil {
+			panic("Could not get current user info")
+		}
+		return fmt.Sprintf("/tmp/serviced-%s-tmp/images", current.Username)
+	}
+	return path.Join(homeDir, "images")
 }
