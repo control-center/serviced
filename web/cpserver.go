@@ -91,12 +91,12 @@ func (this *ServiceConfig) Serve() {
 var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
 
 func routeToInternalServiceProxy(path string, target string, routes []rest.Route) []rest.Route {
-	// Wrap the normal http.Handler in a rest.HandlerFunc
 	targetUrl, err := url.Parse(target)
 	if err != nil {
 		glog.Errorf("Unable to parse proxy target URL: %s", target)
 		return routes
 	}
+	// Wrap the normal http.Handler in a rest.HandlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
 		proxy := serviced.NewReverseProxy(path, targetUrl)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
