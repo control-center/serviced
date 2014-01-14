@@ -18,9 +18,12 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar: $(REPO_EXISTS)
 
 docker_image: $(REPO_EXISTS)
 
-$(REPO_EXISTS):
+$(REPO_EXISTS): $(REPO_DIR)
 	docker build -t $(REPO):$(TAG) . 
-	docker images | grep zenoss 2>&1 > /dev/null && touch $(REPO_EXISTS)
+	docker images $(REPO) | grep $(TAG) 2>&1 > /dev/null && touch $(REPO_EXISTS)
+
+$(REPO_DIR):
+	mkdir -p $(REPO_DIR)
 
 clean:
 	rm -f $(REPO_EXISTS) *.gz *.tar

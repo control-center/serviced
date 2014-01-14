@@ -1,5 +1,6 @@
 
 default:
+	go build
 	cd es && make
 	cd zk && make
 	cd logstash && make

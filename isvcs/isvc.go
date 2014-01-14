@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"runtime"
 	"strings"
@@ -37,33 +38,35 @@ func (s *ISvc) exists() (bool, error) {
 }
 
 func (s *ISvc) create() error {
-	exists, err := s.exists()
-	if err != nil || exists {
+	if exists, err := s.exists(); err != nil || exists {
 		return err
 	}
 	glog.V(1).Infof("Looking for existing tar export of %s:%s", s.Repository, s.Tag)
 	imageTar := fmt.Sprintf("%s/%s/%s.tar", imagesDir(), s.Repository, s.Tag)
 
-	if _, err := os.Stat(imageTar); !os.IsNotExist(err) {
-
-		file, err := os.Open(imageTar)
+	if _, err := os.Stat(imageTar); os.IsNotExist(err) {
+		glog.Errorf("Could not locate: %s", imageTar)
+		return err
+	} else {
 		if err != nil {
-			glog.Errorf("Could not open %s: %s", imageTar, err)
 			return err
 		}
-		cmd := exec.Command("docker", "load")
-		cmd.Stdin = bufio.NewReader(file)
-		glog.V(1).Infof("Importing docker image %s", imageTar)
-		err = cmd.Run()
-
-		if err != nil {
-			glog.Errorf("Could not load %s: %s", imageTar, err)
-			return err
-		}
-		return nil
 	}
-	glog.Errorf("Could not locate: %s", imageTar)
-	return err
+
+	file, err := os.Open(imageTar)
+	if err != nil {
+		glog.Errorf("Could not open %s: %s", imageTar, err)
+		return err
+	}
+
+	cmd := exec.Command("docker", "load")
+	cmd.Stdin = bufio.NewReader(file)
+	glog.V(1).Infof("Importing docker image %s", imageTar)
+	if err := cmd.Run(); err != nil {
+		glog.Errorf("Could not load %s: %s", imageTar, err)
+		return err
+	}
+	return nil
 }
 
 func (s *ISvc) Running() (bool, error) {
@@ -182,6 +185,13 @@ func resourcesDir() string {
 }
 
 func imagesDir() string {
-	return localDir("images")
+	homeDir := serviced.ServiceDHome()
+	if len(homeDir) == 0 {
+		current, err := user.Current()
+		if err != nil {
+			panic("Could not get current user info")
+		}
+		return fmt.Sprintf("/tmp/serviced-%s-tmp/images", current.Username)
+	}
+	return path.Join(homeDir, "images")
 }
-
