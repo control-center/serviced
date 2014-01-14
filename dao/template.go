@@ -95,9 +95,9 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			if err != nil {
 				return nil, err
 			}
-		case subpath.Name() == "filters":
+		case subpath.Name() == "FILTERS":
 			if !subpath.IsDir() {
-				return nil, fmt.Errorf(path + "/filters must be a directory.")
+				return nil, fmt.Errorf(path + "/-FILTERS- must be a directory.")
 			}
 			filters, err := getFiltersFromDirectory(path + "/" + subpath.Name())
 			if err != nil {
@@ -138,8 +138,8 @@ func getFiltersFromDirectory(path string) (filters map[string]string, err error)
 		filterName := subpath.Name()
 
 		// make sure it is a valid filter
-		if !strings.Contains(filterName, ".conf") {
-			glog.V(2).Infof("Skipping %s because it doesn't have a .conf extension", filterName)
+		if !strings.HasSuffix(filterName, ".conf") {
+			glog.Warning("Skipping %s because it doesn't have a .conf extension", filterName)
 			continue
 		}
 		// read the contents and add it to our map
@@ -148,7 +148,7 @@ func getFiltersFromDirectory(path string) (filters map[string]string, err error)
 			glog.Errorf("Unable to read the file %s, skipping", path+"/"+filterName)
 			continue
 		}
-		filterName = strings.Replace(filterName, ".conf", "", 1)
+		filterName = strings.TrimSuffix(filterName, ".conf")
 		filters[filterName] = string(contents)
 	}
 	glog.V(2).Infof("Here are the filters %v from path %s", filters, path)
