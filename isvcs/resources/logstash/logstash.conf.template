@@ -16,6 +16,6 @@ filter {
 output {
 	stdout { debug => true}
 	elasticsearch {
-		embedded => true
+		host => "172.17.42.1"
 	}
 }
