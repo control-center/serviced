@@ -1036,6 +1036,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	}
 
 	if len(zookeepers) == 0 {
+		glog.Info("Starting Zookeeper container: http://localhost:12181/exhibitor/v1/ui/index.html")
 		isvcs.ZookeeperContainer.Run()
 		s.zookeepers = []string{"127.0.0.1:2181"}
 	} else {
@@ -1043,6 +1044,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	}
 	s.zkDao = &zzk.ZkDao{s.zookeepers}
 
+	glog.Info("Starting elasticsearch container: http://localhost:9200/_plugin/head/ ")
 	err = isvcs.ElasticSearchContainer.Run()
 	if err != nil {
 		glog.Fatalf("Could not start elasticsearch container: %s", err)
