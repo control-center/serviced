@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:12.04
 MAINTAINER Zenoss <dev@zenoss.com>
 
 RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
@@ -27,15 +27,15 @@ ENV COMPRESSION NONE
 ENV HBASE_HOME /opt/hbase-0.94.14
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 
-# Configure hbase (xml file's base64 encoded hbase-site.xml)
-RUN bash -c "echo PD94bWwgdmVyc2lvbj0iMS4wIj8+Cjw/eG1sLXN0eWxlc2hlZXQgdHlwZT0idGV4dC94c2wiIGhyZWY9ImNvbmZpZ3VyYXRpb24ueHNsIj8+Cjxjb25maWd1cmF0aW9uPgogIDxwcm9wZXJ0eT4KICAgIDxuYW1lPmhiYXNlLnJvb3RkaXI8L25hbWU+CiAgICA8dmFsdWU+L3RtcC9oYmFzZTwvdmFsdWU+CiAgPC9wcm9wZXJ0eT4KICA8cHJvcGVydHk+CiAgICA8bmFtZT5oYmFzZS56b29rZWVwZXIuZG5zLmludGVyZmFjZTwvbmFtZT4KICAgIDx2YWx1ZT5sbzwvdmFsdWU+CiAgPC9wcm9wZXJ0eT4KICA8cHJvcGVydHk+CiAgICA8bmFtZT5oYmFzZS5yZWdpb25zZXJ2ZXIuZG5zLmludGVyZmFjZTwvbmFtZT4KICAgIDx2YWx1ZT5sbzwvdmFsdWU+CiAgPC9wcm9wZXJ0eT4KICA8cHJvcGVydHk+CiAgICA8bmFtZT5oYmFzZS5tYXN0ZXIuZG5zLmludGVyZmFjZTwvbmFtZT4KICAgIDx2YWx1ZT5sbzwvdmFsdWU+CiAgPC9wcm9wZXJ0eT4KPC9jb25maWd1cmF0aW9uPgo= | base64 -d > /opt/hbase-0.94.14/conf/hbase-site.xml"
-
 # Build and Configure OpenTsdb
 RUN git clone git://github.com/OpenTSDB/opentsdb.git /opt/opentsdb
 RUN cd /opt/opentsdb && ./build.sh
-RUN mkdir -p /tmp/tsd
-
 EXPOSE 4242
+CMD /opt/opentsdb/build/start-opentsdb.sh
+VOLUME /tmp
+VOLUME /opt/hbase-0.94.14/logs/
 
-# Start an Hbase cluster, wait for master to initialize, configure opentsdb tables, start opentsdb
-CMD bash -c "/opt/hbase-0.94.14/bin/start-hbase.sh && { sleep 10s; /opt/opentsdb/src/create_table.sh; /opt/opentsdb/build/tsdb tsd --port=4242 --staticroot=/opt/opentsdb/build/staticroot --cachedir=/tmp/tsd; }"
+# Configure hbase (xml file's base64 encoded hbase-site.xml)
+ADD hbase-site.xml /opt/hbase-0.94.14/conf/hbase-site.xml
+ADD start-opentsdb.sh /opt/opentsdb/build/start-opentsdb.sh
+
