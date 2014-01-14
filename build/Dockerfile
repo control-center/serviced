@@ -30,7 +30,7 @@ RUN	ln -s /bin/true /sbin/initctl
 RUN	apt-get install -y -q wget curl git
 
 # Install Go
-RUN	curl -s http://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | tar -v -C / -xz && mv /go /goroot
+RUN	curl -s http://go.googlecode.com/files/go1.2.linux-amd64.tar.gz | tar -v -C / -xz && mv /go /goroot
 env	GOROOT	/goroot
 env	PATH	$PATH:/goroot/bin
 env	GOPATH	/go
