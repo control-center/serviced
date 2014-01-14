@@ -44,13 +44,11 @@ func (s *ISvc) create() error {
 	glog.V(1).Infof("Looking for existing tar export of %s:%s", s.Repository, s.Tag)
 	imageTar := fmt.Sprintf("%s/%s/%s.tar", imagesDir(), s.Repository, s.Tag)
 
-	if _, err := os.Stat(imageTar); os.IsNotExist(err) {
-		glog.Errorf("Could not locate: %s", imageTar)
-		return err
-	} else {
-		if err != nil {
-			return err
+	if _, err := os.Stat(imageTar); err != nil {
+		if os.IsNotExist(err) {
+			glog.Errorf("Could not locate: %s", imageTar)
 		}
+		return err
 	}
 
 	file, err := os.Open(imageTar)
