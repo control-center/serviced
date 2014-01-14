@@ -13,6 +13,9 @@ import (
 
 	"bufio"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/user"
@@ -285,4 +288,38 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 // returns serviced home
 func ServiceDHome() string {
 	return os.Getenv("SERVICED_HOME")
+}
+
+// This code is straight out of net/http/httputil
+func singleJoiningSlash(a, b string) string {
+	aslash := strings.HasSuffix(a, "/")
+	bslash := strings.HasPrefix(b, "/")
+	switch {
+	case aslash && bslash:
+		return a + b[1:]
+	case !aslash && !bslash:
+		return a + "/" + b
+	}
+	return a + b
+}
+
+// This differs from httputil.NewSingleHostReverseProxy in that it rewrites
+// the path so that it does /not/ include the incoming path. e.g. request for
+// "/mysvc/thing" when proxy is served from "/mysvc" means target is
+// targeturl.Path + "/thing"; vs. httputil.NewSingleHostReverseProxy, in which
+// it would be targeturl.Path + "/mysvc/thing".
+func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
+	targetQuery := targeturl.RawQuery
+	director := func(r *http.Request) {
+		r.URL.Scheme = targeturl.Scheme
+		r.URL.Host = targeturl.Host
+		newpath := strings.TrimPrefix(r.URL.Path, path)
+		r.URL.Path = singleJoiningSlash(targeturl.Path, newpath)
+		if targetQuery == "" || r.URL.RawQuery == "" {
+			r.URL.RawQuery = targetQuery + r.URL.RawQuery
+		} else {
+			r.URL.RawQuery = targetQuery + "&" + r.URL.RawQuery
+		}
+	}
+	return &httputil.ReverseProxy{Director: director}
 }
