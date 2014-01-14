@@ -5,6 +5,7 @@
 *.swp
 *~
 \#*
+.repo_tag_exists
 
 # Folders
 _obj
@@ -13,6 +14,7 @@ pkg/build/
 pkg/pkgroot/
 pkg/serviced-0.1.0-1.x86_64.rpm
 pkg/serviced_0.1.0_amd64.deb
+isvcs/images/
 
 # emacs tags file
 TAGS
