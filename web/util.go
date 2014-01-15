@@ -1,10 +1,9 @@
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
-
 	"flag"
 	"fmt"
+	"github.com/ant0ine/go-json-rest"
 	"net/http"
 	"os"
 	"path"
@@ -106,6 +105,14 @@ func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 		w.ResponseWriter,
 		r.Request,
 		staticRoot()+"/index.html")
+}
+
+func KibanaMainPage(w *rest.ResponseWriter, r *rest.Request) {
+	noCache(w)
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		staticRoot()+"/kibana/index.html")
 }
 
 /*

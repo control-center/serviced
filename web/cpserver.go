@@ -39,6 +39,7 @@ func (this *ServiceConfig) Serve() {
 	}
 	routes := []rest.Route{
 		rest.Route{"GET", "/", MainPage},
+		rest.Route{"GET", "/static/kibana", KibanaMainPage},
 		rest.Route{"GET", "/test", TestPage},
 		// Hosts
 		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
