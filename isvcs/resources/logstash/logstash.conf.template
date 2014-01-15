@@ -8,9 +8,14 @@ input {
 	}
 }
 
+filter {
+ # NOTE the filters are generated from the service definitions
+ ${FILTER_SECTION}
+ 
+}
 output {
 	stdout { debug => true}
 	elasticsearch {
-		embedded => true
+		host => "172.17.42.1"
 	}
 }

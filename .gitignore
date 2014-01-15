@@ -30,7 +30,7 @@ _cgo_gotypes.go
 _cgo_export.*
 
 _testmain.go
-
+isvcs/resources/logstash/logstash.conf
 *.exe
 
 # re-add some potentially excluded items

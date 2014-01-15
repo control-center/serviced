@@ -1,9 +1,9 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
-
 	"fmt"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
 	"net/http"
 	"time"
 )
@@ -25,8 +25,16 @@ func init() {
 	}
 }
 
-func (c *LogstashISvc) Run() error {
-	err := c.ISvc.Run()
+
+func (c *LogstashISvc) StartService(templates map[string]*dao.ServiceTemplate) error {
+	err := WriteConfigurationFile(templates)
+
+	if err != nil {
+		return err
+	}
+
+	// start up the service
+	err = c.ISvc.Run()
 	if err != nil {
 		return err
 	}

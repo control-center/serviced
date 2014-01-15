@@ -13,4 +13,3 @@ RUN tar xvfz elasticsearch-0.90.5.tar.gz -C /opt && cd /opt/elasticsearch-0.90.5
 ENTRYPOINT ["/opt/elasticsearch-0.90.5/bin/elasticsearch"]
 CMD ["-f"]
 EXPOSE 9200
-
