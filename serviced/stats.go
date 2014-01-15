@@ -82,14 +82,15 @@ func (sr StatsReporter) mkReporter(source string, statfiles []string, ts int64) 
 			if stats, err := ioutil.ReadFile(strings.Join([]string{path, statfile}, "/")); err != nil {
 				return err
 			} else {
-				payload := []containerStat{}
+				cstats := []containerStat{}
 				statscanner := bufio.NewScanner(strings.NewReader(string(stats)))
 				for statscanner.Scan() {
 					cs := mkContainerStat(dirname, source, ts, statscanner.Text())
-					payload = append(payload, cs)
+					cstats = append(cstats, cs)
 				}
 
-				if len(payload) > 0 {
+				if len(stats) > 0 {
+					payload := map[string][]containerStat{"metrics": cstats}
 					data, err := json.Marshal(payload)
 					if err != nil {
 						glog.V(3).Info("Couldn't marshal stats: ", err)
