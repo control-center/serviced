@@ -107,14 +107,6 @@ func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 		staticRoot()+"/index.html")
 }
 
-func KibanaMainPage(w *rest.ResponseWriter, r *rest.Request) {
-	noCache(w)
-	http.ServeFile(
-		w.ResponseWriter,
-		r.Request,
-		staticRoot()+"/kibana/index.html")
-}
-
 /*
  * Provides content for /test
  */
