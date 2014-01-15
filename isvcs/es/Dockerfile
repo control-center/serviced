@@ -7,10 +7,10 @@ RUN apt-get -y upgrade
 RUN apt-get install -y -q openjdk-7-jre-headless wget
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 
-RUN wget -q -O elasticsearch-0.90.5.tar.gz https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.5.tar.gz 
-RUN tar xvfz elasticsearch-0.90.5.tar.gz -C /opt && cd /opt/elasticsearch-0.90.5 && ./bin/plugin -install mobz/elasticsearch-head
+RUN wget -q -O elasticsearch-0.90.9.tar.gz https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.9.tar.gz 
+RUN tar xvfz elasticsearch-0.90.9.tar.gz -C /opt && cd /opt/elasticsearch-0.90.9 && ./bin/plugin -install mobz/elasticsearch-head
 
-ENTRYPOINT ["/opt/elasticsearch-0.90.5/bin/elasticsearch"]
+ENTRYPOINT ["/opt/elasticsearch-0.90.9/bin/elasticsearch"]
 CMD ["-f"]
 EXPOSE 9200
 
