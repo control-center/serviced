@@ -1035,9 +1035,15 @@ func hostId() (hostid string, err error) {
 func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPlaneDao, err error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
-	s, err = NewControlPlaneDao(hostName, port)
 
+	s, err = NewControlPlaneDao(hostName, port)
 	if err != nil {
+		return
+	}
+
+	err = isvcs.OpenTsdbContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start opentsdb container: %s", err)
 		return
 	}
 

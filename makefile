@@ -55,7 +55,7 @@ clean:
 	cd serviced && go clean -r # this cleans all dependencies
 	docker run -rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs"
+	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
 
 clean_fs:
 	cd pkg && make clean
