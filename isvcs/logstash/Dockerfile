@@ -13,7 +13,7 @@ RUN cd /tmp ; apt-get download fuse && dpkg-deb -x fuse_* . && dpkg-deb -e fuse_
 RUN cd /tmp ; echo -en '#!/bin/bash\nexit 0\n' > DEBIAN/postinst
 RUN cd /tmp ; dpkg-deb -b . /fuse.deb && dpkg -i /fuse.deb
 
-RUN apt-get -y install openjdk-7-jdk wget
+RUN apt-get -y install openjdk-7-jre-headless wget
 RUN update-alternatives --install "/usr/bin/java" "java" "/usr/lib/jvm/java-7-openjdk-amd64/bin/java" 1
 RUN update-alternatives --set "java" "/usr/lib/jvm/java-7-openjdk-amd64/bin/java"
 
