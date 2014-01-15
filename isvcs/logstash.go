@@ -16,12 +16,13 @@ var LogstashContainer LogstashISvc
 
 func init() {
 	LogstashContainer = LogstashISvc{
-		ISvc{
-			Name:       "logstash_master",
-			Repository: "zctrl/logstash_master",
-			Tag:        "v1",
-			Ports:      []int{5043, 9292},
-		},
+		NewISvc(
+			"logstash_master",
+			"zctrl/logstash_master",
+			"v1",
+			[]int{5043, 9292},
+			[]string{},
+		),
 	}
 }
 
@@ -33,28 +34,20 @@ func (c *LogstashISvc) StartService(templates map[string]*dao.ServiceTemplate) e
 	}
 
 	// start up the service
-	err = c.ISvc.Run()
-	if err != nil {
-		return err
-	}
+	c.ISvc.Run()
 
 	start := time.Now()
 	timeout := time.Second * 30
 	for {
-		_, err = http.Get("http://localhost:9292/")
-		if err == nil {
+		if _, err := http.Get("http://localhost:9292/"); err == nil {
 			break
-		}
-		running, err := c.Running()
-		if !running {
-			glog.Errorf("Logstash container stopped: %s", err)
-			return err
+		} else {
+			glog.V(2).Infof("Still trying to connect to logstash: %v", err)
 		}
 		if time.Since(start) > timeout {
 			glog.Errorf("Timeout starting up logstash container")
 			return fmt.Errorf("Could not startup logstash container.")
 		}
-		glog.V(2).Infof("Still trying to connect to logstash: %v", err)
 		time.Sleep(time.Millisecond * 100)
 	}
 	return nil

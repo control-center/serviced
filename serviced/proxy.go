@@ -60,6 +60,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		glog.Flush()
 		os.Exit(2)
 	}
+	glog.Info("WTF")
 	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
@@ -80,7 +81,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	go func(cmdString string) {
 		defer func() { procexit <- 1 }()
 		for {
-			glog.V(0).Info("About to execute: ", cmdString)
+			glog.Info("About to execute: ", cmdString)
 			cmd := exec.Command("bash", "-c", cmdString)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr

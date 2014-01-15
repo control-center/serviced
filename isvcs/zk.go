@@ -8,5 +8,6 @@ func init() {
 		Repository: "zctrl/zk",
 		Tag:        "v1",
 		Ports:      []int{2181, 12181},
+		Volumes:    []string{"/tmp"},
 	}
 }

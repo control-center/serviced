@@ -1,10 +1,11 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
-
 	"fmt"
+	"github.com/mattbaird/elastigo/cluster"
+	"github.com/zenoss/glog"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -16,33 +17,39 @@ var ElasticSearchContainer ElasticSearchISvc
 
 func init() {
 	ElasticSearchContainer = ElasticSearchISvc{
-		ISvc{
-			Name:       "elasticsearch",
-			Repository: "zctrl/es",
-			Tag:        "v1",
-			Ports:      []int{9200},
-		},
+		NewISvc(
+			"elasticsearch",
+			"zctrl/es",
+			"v1",
+			[]int{9200},
+			[]string{"/opt/elasticsearch-0.90.5/data"},
+		),
 	}
 }
 
 func (c *ElasticSearchISvc) Run() error {
-	err := c.ISvc.Run()
-	if err != nil {
-		return err
-	}
+	c.ISvc.Run()
 
 	start := time.Now()
 	timeout := time.Second * 30
+
+	schemaFile := localDir("resources/controlplane.json")
+
 	for {
-		_, err = http.Get("http://localhost:9200/")
-		if err == nil {
+		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
+			if buffer, err := os.Open(schemaFile); err != nil {
+				glog.Fatalf("problem reading %s", err)
+			} else {
+				http.Post("http://localhost:9200/controlplane", "application/json", buffer)
+			}
 			break
+		} else {
+			glog.V(2).Infof("Still trying to connect to elastic: %v: %s", err, healthResponse)
 		}
 		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
 			return fmt.Errorf("Could not startup elastic search container.")
 		}
-		glog.V(2).Infof("Still trying to connect to elastic: %v", err)
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 1000)
 	}
 	return nil
 }
