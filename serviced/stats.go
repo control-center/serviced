@@ -14,6 +14,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -111,15 +112,11 @@ func (sr StatsReporter) postStats(stats []byte) error {
 		glog.V(3).Info("Couldn't create stats request: ", err)
 		return err
 	}
-	statsreq.SetBasicAuth(sr.username, sr.passwd)
 	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
 	statsreq.Header["Content-Type"] = []string{"application/json"}
 
 	if glog.V(4) {
-		buf := bytes.NewBuffer([]byte{})
-		if logerr := statsreq.Write(buf); logerr == nil {
-			glog.Info(buf.String())
-		}
+		glog.Info(string(stats))
 	}
 
 	resp, reqerr := http.DefaultClient.Do(statsreq)
@@ -127,15 +124,22 @@ func (sr StatsReporter) postStats(stats []byte) error {
 		glog.V(3).Info("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
+
+	if strings.Contains(resp.Status, "200") == false {
+		glog.V(3).Info("Non-success: ", resp.Status)
+		return fmt.Errorf("Couldn't post stats: ", resp.Status)
+	}
+
 	resp.Body.Close()
 
 	return nil
 }
 
 type containerStat struct {
-	Metric, Value string
-	Timestamp     int64
-	Tags          map[string]string
+	Metric    string            `json:"metric"`
+	Value     string            `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Tags      map[string]string `json:"tags"`
 }
 
 // Package up container statistics
