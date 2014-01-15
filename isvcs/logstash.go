@@ -25,7 +25,6 @@ func init() {
 	}
 }
 
-
 func (c *LogstashISvc) StartService(templates map[string]*dao.ServiceTemplate) error {
 	err := WriteConfigurationFile(templates)
 
