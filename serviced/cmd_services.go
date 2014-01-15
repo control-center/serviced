@@ -15,8 +15,8 @@ import (
 	"unicode/utf8"
 )
 
-const tree_outfmt = "%-*s %-8.8s %-40.40s %-04d %-24.24s %-12s %-06d %-6s %-8.8s\n"
-const tree_outfmt_header = "%-*s %-8.8s %-40.40s %4.4s %-24.24s %-12s %6.6s %-6s %-8.8s\n"
+const tree_outfmt = "%-*s %-36.36s %-40.40s %-04d %-24.24s %-12s %-06d %-6s %-8.8s\n"
+const tree_outfmt_header = "%-*s %-36.36s %-40.40s %4.4s %-24.24s %-12s %6.6s %-6s %-8.8s\n"
 
 var tree_width int
 var tree_charset map[string]string
@@ -94,7 +94,7 @@ func (node *svcStub) treePrint(raw bool) {
 	tree_width = node.maxDepth(0)*2 + 16
 	if !raw {
 		fmt.Printf(tree_outfmt_header,
-			tree_width, "NAME", "ID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPIP")
+			tree_width, "NAME", "SERVICE_ID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPIP")
 	}
 	node.treePrintBody("", true, false, raw)
 }
