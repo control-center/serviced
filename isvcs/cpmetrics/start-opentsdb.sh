@@ -13,4 +13,5 @@ done
 
 cd /opt/zenoss
 
-exec bin/metric-consumer-app.sh
+exec bin/metric-consumer-app.sh &
+exec bin/central-query-app.sh

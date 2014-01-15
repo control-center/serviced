@@ -41,15 +41,13 @@ ADD hbase-site.xml /opt/hbase-0.94.14/conf/hbase-site.xml
 ADD start-opentsdb.sh /opt/opentsdb/build/start-opentsdb.sh
 RUN chmod a+x /opt/opentsdb/build/start-opentsdb.sh
 
-RUN apt-get install -y -q maven
+RUN mkdir /opt/zenoss && mkdir /opt/zenoss/log && mkdir -p /opt/zenoss/etc/supervisor
 
-RUN git clone -b develop http://github.com/zenoss/zenoss.metric.consumer /var/tmp/zenoss.metric.consumer
-RUN cd /var/tmp/zenoss.metric.consumer/metric-consumer-app/src/main/etc && sed -i 's/\(authEnabled:.*\)true/\1false/' configuration.yaml
-ADD settings.xml /var/tmp/settings.xml
-RUN cd /var/tmp/zenoss.metric.consumer && mvn --settings /var/tmp/settings.xml -DskipTests package -P assemble
-RUN mkdir /opt/zenoss && mkdir /opt/zenoss/log
-RUN tar zxf /var/tmp/zenoss.metric.consumer/metric-consumer-app/target/metric-consumer-app-*-SNAPSHOT-zapp.tar.gz -C /opt/zenoss
+RUN wget -qO- http://zenpip.zendev.org/packages/metric-consumer-app-0.0.5-SNAPSHOT-zapp.tar.gz | tar -C /opt/zenoss -xz
 RUN chmod a+x /opt/zenoss/bin/metric-consumer-app.sh
+
+RUN wget -qO- http://zenpip.zendev.org/packages/central-query-0.0.1-zapp.tar.gz | tar -C /opt/zenoss -xz
+RUN chmod a+x /opt/zenoss/bin/central-query.sh
 
 EXPOSE 4242 8443 9090 60000 60010 60020 60030
 
