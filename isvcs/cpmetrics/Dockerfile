@@ -43,12 +43,11 @@ RUN chmod a+x /opt/opentsdb/build/start-opentsdb.sh
 
 RUN apt-get install -y -q maven
 
-RUN git clone -b feature/auth_disable http://github.com/zenoss/zenoss-zapp /var/tmp/zenoss-zapp
-RUN git clone -b feature/cpmetrics http://github.com/zenoss/zenoss.metric.consumer /var/tmp/zenoss.metric.consumer
+RUN git clone -b develop http://github.com/zenoss/zenoss.metric.consumer /var/tmp/zenoss.metric.consumer
+RUN cd /var/tmp/zenoss.metric.consumer/metric-consumer-app/src/main/etc && sed -i 's/\(authEnabled:.*\)true/\1false/' configuration.yaml
 ADD settings.xml /var/tmp/settings.xml
-RUN cd var/tmp/zenoss-zapp/java && mvn --settings /var/tmp/settings.xml -DskipTests package install
 RUN cd /var/tmp/zenoss.metric.consumer && mvn --settings /var/tmp/settings.xml -DskipTests package -P assemble
-RUN mkdir /opt/zenoss && mkdir /opt/zenoss/log && mkdir -p /opt/zenoss/etc/supervisor
+RUN mkdir /opt/zenoss && mkdir /opt/zenoss/log
 RUN tar zxf /var/tmp/zenoss.metric.consumer/metric-consumer-app/target/metric-consumer-app-*-SNAPSHOT-zapp.tar.gz -C /opt/zenoss
 RUN chmod a+x /opt/zenoss/bin/metric-consumer-app.sh
 
