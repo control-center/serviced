@@ -72,7 +72,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}
 
 	http.HandleFunc("/exec", handler)
-	http.ListenAndServe(":50000", nil)
+	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 
