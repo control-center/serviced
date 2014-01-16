@@ -14,6 +14,7 @@ install:
 
 build:
 	go get github.com/ant0ine/go-json-rest
+	go get code.google.com/p/go.crypto/ssh/terminal
 	go build
 
 test: build

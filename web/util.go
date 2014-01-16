@@ -1,10 +1,9 @@
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
-
 	"flag"
 	"fmt"
+	"github.com/ant0ine/go-json-rest"
 	"net/http"
 	"os"
 	"path"

@@ -194,16 +194,16 @@ type ServiceDefinition struct {
 	Context       map[string]interface{} // Context information for the service
 	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
 	Services      []ServiceDefinition    // Supporting subservices
+	LogFilters    map[string]string      // map of log filter name to log filter definitions
 	VolumeExports []VolumeExport
 	VolumeImports []VolumeImport
 	LogConfigs    []LogConfig
 }
 
 type LogConfig struct {
-	Path string // The location on the container's filesystem of the log, can be a directory
-	Type string // Arbitrary string that identifies the "types" of logs that come from this source. This will be
-	// available to filter on in the Log file UI
-	Filters string // TODO: Implement Filters somehow
+	Path    string   // The location on the container's filesystem of the log, can be a directory
+	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter
 }
 
 type ServiceDeployment struct {

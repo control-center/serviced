@@ -22,7 +22,6 @@ depends on docker.
 
 5. Download and install elastic search.  Location is irrelvant
    http://www.elasticsearch.org/download/
-   
 ```bash
 wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.5.tar.gz
 tar xzf elasticsearch-0.90.5.tar.gz
@@ -31,14 +30,12 @@ cd elasticsearch-0.90.5
 ```
 
 6.  Install elasticsearch document models
-
 ```bash
 cd $GOPATH/src/github.com/zenoss/serviced/dao/elasticsearch
 curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
 ```
 
 7. Start the master serviced. It can also act as an agent. 
-
 ```bash
 serviced -agent -master
 ```
@@ -58,14 +55,12 @@ Usage
 Serviced is a platform for running services. Serviced is composed of a master
 serviced process and agent processes running on each host. Each host must be registered
 with the master process. To register a agent process:
-
 ```bash
 serviced add-host [HOSTNAME:PORT]
 ```
 
 After the hosts are registered they must be placed in to a resource pool. This is done
 by first creating a pool:
-
 ```bash
 serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
 ```
@@ -76,14 +71,12 @@ Dev Environment
 ---------------
 Serviced is written in go. To install go, download go v1.1 from http://golang.org.
 Untar the distribution to /usr/local/go. Ensure the following is in your environment
-
 ```bash
 GOROOT=/usr/local/go
 PATH="$PATH:$GOROOT/bin"
 ```
 
 Setup a dev environment.
-
 ```bash
 export GOPATH=~/mygo
 export GOBIN=~/mygo/bin
@@ -101,15 +94,12 @@ make
 ```
 
 Purging the elastic search store.
-
 ```bash
 curl -XDELETE http://localhost:9200/controlplane
 ```
 
 Creating the elastic search data model.
-
 ```bash
 cd dao/elasticsearch
 curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
 ```
-

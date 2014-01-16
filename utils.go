@@ -9,9 +9,12 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/dao"
+
 	"bufio"
 	"fmt"
-	"github.com/zenoss/serviced/dao"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -180,65 +183,6 @@ func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 	return host, err
 }
 
-type DatabaseConnectionInfo struct {
-	Dialect  string
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
-	Options  map[string]string
-}
-
-func (connInfo *DatabaseConnectionInfo) UrlString() string {
-	url := connInfo.Dialect + "://"
-	if len(connInfo.User) > 0 {
-		url += connInfo.User
-		if len(connInfo.Password) > 0 {
-			url += ":" + connInfo.Password
-		}
-		url += "@"
-	}
-	url += connInfo.Host
-	if connInfo.Port > 0 {
-		url += fmt.Sprintf(":%d", connInfo.Port)
-	}
-	url += "/" + connInfo.Database
-	return url
-}
-
-// Parse a URI and create a database connection info object. Eg
-// mysql://user:password@127.0.0.1:3306/test
-func ParseDatabaseUri(str string) (connInfo *DatabaseConnectionInfo, err error) {
-	connInfo = &DatabaseConnectionInfo{}
-	u, err := url.Parse(str)
-	if err != nil {
-		return connInfo, err
-	}
-	connInfo.Dialect = u.Scheme
-	if strings.Contains(u.Host, ":") {
-		parts := strings.SplitN(u.Host, ":", 2)
-		connInfo.Host = parts[0]
-		if len(parts) > 1 {
-			connInfo.Port, _ = strconv.Atoi(parts[1])
-		}
-	}
-	if u.User != nil {
-		password, _ := u.User.Password()
-		connInfo.User = u.User.Username()
-		connInfo.Password = password
-	}
-	if len(u.Path) > 1 {
-		connInfo.Database = u.Path[1:]
-	}
-	return connInfo, nil
-}
-
-func ToMymysqlConnectionString(cInfo *DatabaseConnectionInfo) string {
-	return fmt.Sprintf("tcp:%s:%d*%s/%s/%s", cInfo.Host, cInfo.Port,
-		cInfo.Database, cInfo.User, cInfo.Password)
-}
-
 // Get the path to the currently running executable.
 func ExecPath() (string, string, error) {
 	path, err := os.Readlink("/proc/self/exe")
@@ -344,4 +288,38 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 // returns serviced home
 func ServiceDHome() string {
 	return os.Getenv("SERVICED_HOME")
+}
+
+// This code is straight out of net/http/httputil
+func singleJoiningSlash(a, b string) string {
+	aslash := strings.HasSuffix(a, "/")
+	bslash := strings.HasPrefix(b, "/")
+	switch {
+	case aslash && bslash:
+		return a + b[1:]
+	case !aslash && !bslash:
+		return a + "/" + b
+	}
+	return a + b
+}
+
+// This differs from httputil.NewSingleHostReverseProxy in that it rewrites
+// the path so that it does /not/ include the incoming path. e.g. request for
+// "/mysvc/thing" when proxy is served from "/mysvc" means target is
+// targeturl.Path + "/thing"; vs. httputil.NewSingleHostReverseProxy, in which
+// it would be targeturl.Path + "/mysvc/thing".
+func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
+	targetQuery := targeturl.RawQuery
+	director := func(r *http.Request) {
+		r.URL.Scheme = targeturl.Scheme
+		r.URL.Host = targeturl.Host
+		newpath := strings.TrimPrefix(r.URL.Path, path)
+		r.URL.Path = singleJoiningSlash(targeturl.Path, newpath)
+		if targetQuery == "" || r.URL.RawQuery == "" {
+			r.URL.RawQuery = targetQuery + r.URL.RawQuery
+		} else {
+			r.URL.RawQuery = targetQuery + "&" + r.URL.RawQuery
+		}
+	}
+	return &httputil.ReverseProxy{Director: director}
 }

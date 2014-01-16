@@ -7,35 +7,40 @@
 #
 ################################################################################
 
-default: build
+default: build_binary
 
 install:
-	cd serviced && make install
+	go install github.com/serviced/serviced
 
-build:
-	go get github.com/zenoss/glog
-	go get github.com/samuel/go-zookeeper/zk
-	go get github.com/araddon/gou
-	go get github.com/mattbaird/elastigo
-	go get github.com/gorilla/websocket
-	go build
-	cd web && make
-	cd dao && make
-	cd serviced && make
+build_binary:
+	go get github.com/zenoss/serviced/serviced
+	cd serviced && go build
+	cd isvcs && make
 
 pkgs:
 	cd pkg && make rpm && make deb
 
 
 dockerbuild: docker_ok
-	docker build -t zenoss/serviced-build .
-	docker run -v `pwd`:/go/src/github.com/zenoss/serviced -e BUILD_NUMBER=$(BUILD_NUMBER) -t zenoss/serviced-build make clean pkgs
+	docker build -t zenoss/serviced-build build
+	docker run -rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp
+	time docker run -rm \
+	-privileged \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build /bin/bash \
+	-c 'make build_binary pkgs'
+
+#	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
 test: build docker_ok
 	go test
-	cd web && make test
-	cd dao && make test
-	cd serviced && make test
+	cd web && go test
+	cd dao && go test
+	cd serviced && go test
 
 docker_ok:
 	if docker ps >/dev/null; then \
@@ -46,9 +51,12 @@ docker_ok:
 	fi
 
 clean:
-	go clean
-	cd serviced && make clean
-	cd web && make clean
-	cd dao && make clean
+	go get github.com/zenoss/serviced/serviced # make sure dependencies exist
+	cd serviced && go clean -r # this cleans all dependencies
+	docker run -rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
+
+clean_fs:
 	cd pkg && make clean
 

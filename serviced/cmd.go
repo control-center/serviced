@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -142,6 +143,7 @@ func startServer() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)
 			<-signalChan
+			isvcs.LogstashContainer.Stop()
 			glog.V(0).Info("Shutting down due to interrupt")
 			err = agent.Shutdown()
 			if err != nil {

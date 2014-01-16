@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Handler for bash -c exec command
+// Handler for bash -c exec command.
 func handler(w http.ResponseWriter, r *http.Request) {
 	type ShellRequest struct {
 		Command string
@@ -72,8 +72,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}
 
     go h.run()
-	http.HandleFunc("/exec", wsHandler)
-	http.ListenAndServe(":50000", nil)
+	http.HandleFunc("/exec", handler)
+	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 

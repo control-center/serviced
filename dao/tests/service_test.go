@@ -114,10 +114,10 @@ var endpoint_testcases = []struct {
 		Launch:       "",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
-				Purpose:             "something",
-				Protocol:            "tcp",
-				PortNumber:          1000,
-				Application:         "{{(context (parent .)).RemoteHost}}_collector",
+				Purpose:     "something",
+				Protocol:    "tcp",
+				PortNumber:  1000,
+				Application: "{{(context (parent .)).RemoteHost}}_collector",
 			},
 		},
 		ParentServiceId: "100",
