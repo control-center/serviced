@@ -89,7 +89,7 @@ cd elasticgo
 go build install
 cd $GOPATH/src/github.com/zenoss
 git clone git@github.com:zenoss/serviced.git
-cd GOPATH/src/github.com/zenoss/serviced
+cd $GOPATH/src/github.com/zenoss/serviced
 make
 ```
 
