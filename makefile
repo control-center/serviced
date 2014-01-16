@@ -17,6 +17,7 @@ build:
 	go get github.com/samuel/go-zookeeper/zk
 	go get github.com/araddon/gou
 	go get github.com/mattbaird/elastigo
+	go get github.com/gorilla/websocket
 	go build
 	cd web && make
 	cd dao && make
