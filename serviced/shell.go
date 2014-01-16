@@ -8,11 +8,13 @@ import (
     "io"
     "net/http"
     "os/exec"
+    "syscall"
     "time"
 )
 
 type ShellRequest struct {
     Command string
+    Signal  int
 }
 
 type ShellResponse struct {
@@ -55,10 +57,11 @@ func (p *ShellPipe) Close() {
 
 type Shell struct {
     Done        bool
+    cmd         *exec.Cmd
     stdin       io.WriteCloser
     stdout      ShellPipe
     stderr      ShellPipe
-    wait        func()error
+    signal      chan int
     response    chan ShellResponse
 }
 
@@ -90,10 +93,11 @@ func Connect(command string, send chan ShellResponse) (*Shell, error) {
 
     s := Shell {
         Done:       false,
+        cmd:        cmd,
         stdin:      stdin,
         stdout:     LoadShellPipe(stdout),
         stderr:     LoadShellPipe(stderr),
-        wait:       cmd.Wait,
+        signal:     make(chan int),
         response:   send,
     }
     go s.recv()
@@ -103,7 +107,6 @@ func Connect(command string, send chan ShellResponse) (*Shell, error) {
 
 func (s *Shell) Send(input string) error {
     if _, err := s.stdin.Write([]byte(input)); err != nil {
-        fmt.Println("Error writing to stdin:", input)
         return err
     }
     s.response <- ShellResponse{Stdin: input}
@@ -135,7 +138,7 @@ func (s *Shell) recv() {
                     stdoutBuffer.Reset()
                 }
                 if eof {
-                    if err := s.wait(); err != nil {
+                    if err := s.cmd.Wait(); err != nil {
                         s.response <- ShellResponse{Result: fmt.Sprintf("%s", err)}
                     } else {
                         s.response <- ShellResponse{Result: "0"}
@@ -159,7 +162,7 @@ func (s *Shell) recv() {
                     stderrBuffer.Reset()
                 }
                 if eof {
-                    if err := s.wait(); err != nil {
+                    if err := s.cmd.Wait(); err != nil {
                         s.response <- ShellResponse {Result: fmt.Sprintf("%s", err)}
                     } else {
                         s.response <- ShellResponse {Result: "0"}
@@ -186,6 +189,11 @@ func (s *Shell) recv() {
             }
             if submit {
                 s.response <- response
+            }
+        case sig := <-s.signal:
+            signal := syscall.Signal(sig)
+            if err := s.cmd.Process.Signal(signal); err != nil {
+                return
             }
         }
     }
@@ -216,7 +224,9 @@ func (c *connection) reader() {
                 c.cmd = cmd
             }
         } else {
-            if err := c.cmd.Send(req.Command); err != nil {
+            if req.Signal > 0 {
+                c.cmd.signal <- req.Signal
+            } else if err := c.cmd.Send(req.Command); err != nil {
                 break
             }
         }
