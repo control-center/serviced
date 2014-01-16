@@ -154,8 +154,15 @@ func (s *ISvc) RunAndWait() {
 }
 
 func (s *ISvc) Stop() error {
+	errc := make(chan error)
+	s.shutdown <- errc
+	err := <-errc
 	s.killAndRemove()
-	return nil
+	return err
+}
+
+func (s *ISvc) Kill() error {
+	return s.Stop()
 }
 
 var SvcNotFoundErr error

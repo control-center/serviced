@@ -23,23 +23,20 @@ func init() {
 }
 
 func (c *OpenTsdbISvc) Run() error {
-	err := c.ISvc.Run()
-	if err != nil {
-		return err
-	}
+	c.ISvc.Run()
 
 	start := time.Now()
 	timeout := time.Second * 30
 	for {
-		_, err = http.Get("http://localhost:4242/version")
-		if err == nil {
+		if _, err := http.Get("http://localhost:4242/version"); err == nil {
 			break
+		} else {
+			if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+				return fmt.Errorf("Could not startup elastic search container.")
+			}
+			glog.V(2).Infof("Still trying to connect to opentsdb: %v", err)
+			time.Sleep(time.Millisecond * 100)
 		}
-		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
-			return fmt.Errorf("Could not startup elastic search container.")
-		}
-		glog.V(2).Infof("Still trying to connect to opentsdb: %v", err)
-		time.Sleep(time.Millisecond * 100)
 	}
 	return nil
 }
