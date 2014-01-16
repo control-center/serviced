@@ -76,6 +76,8 @@ GOROOT=/usr/local/go
 PATH="$PATH:$GOROOT/bin"
 ```
 
+You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make.
+
 Setup a dev environment.
 ```bash
 export GOPATH=~/mygo
