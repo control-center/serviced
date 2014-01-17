@@ -157,7 +157,7 @@ func startServer() {
 	rpc.HandleHTTP()
 
 	if options.repstats {
-		statsdest := fmt.Sprintf("https://%s/api/metrics/store", options.statshost)
+		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
 		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
 
 		glog.V(1).Infoln("Staring containter statistics reporter")
