@@ -18,7 +18,7 @@ func init() {
 	ElasticSearchContainer = ElasticSearchISvc{
 		ISvc{
 			Name:       "elasticsearch",
-			Repository: "zctrl/es",
+			Repository: "zctrl/isvcs",
 			Tag:        "v1",
 			Ports:      []int{9200},
 		},

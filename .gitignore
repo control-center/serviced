@@ -6,6 +6,7 @@
 *~
 \#*
 .repo_tag_exists
+.build_repo_exists
 
 # Folders
 _obj
@@ -31,9 +32,11 @@ _cgo_export.*
 
 _testmain.go
 isvcs/resources/logstash/logstash.conf
+isvcs/build/*.tar.gz
 *.exe
 
 # re-add some potentially excluded items
 !angular*/
 !bootstrap*/
 !d3*/
+

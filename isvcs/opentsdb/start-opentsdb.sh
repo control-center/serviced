@@ -2,6 +2,10 @@
 
 mkdir -p /tmp/tsd
 
+export COMPRESSION=NONE
+export HBASE_HOME=/opt/hbase-0.94.14
+export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+
 echo "Starting HBase..."
 /opt/hbase-0.94.14/bin/start-hbase.sh 
 

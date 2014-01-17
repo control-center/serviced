@@ -1,9 +1,11 @@
 package isvcs
 
-import "fmt"
-import "time"
-import "net/http"
-import "github.com/zenoss/glog"
+import (
+	"fmt"
+	"github.com/zenoss/glog"
+	"net/http"
+	"time"
+)
 
 type OpenTsdbISvc struct {
 	ISvc
@@ -17,7 +19,7 @@ func init() {
 			Name:       "opentsdb",
 			Repository: "zctrl/opentsdb",
 			Tag:        "v1",
-			Ports:      []int{4242},
+			Ports:      []int{4242, 8443, 9090, 60000, 60010, 60020, 60030},
 		},
 	}
 }
