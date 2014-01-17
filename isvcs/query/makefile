@@ -10,4 +10,5 @@ tarball:
 	@wget -qO- http://zenpip.zendev.org/packages/central-query-$(QUERY_VERSION)-zapp.tar.gz | tar -C /opt/zenoss -xz
 	@chmod a+x /opt/zenoss/bin/central-query.sh
 	@ln -s /opt/zenoss/etc/central-query/central-query_supervisor.conf /opt/zenoss/etc/supervisor
+	@sed -i 's/\(authEnabled:.*\)true/\1false/' /opt/zenoss/etc/central-query/configuration.yaml
 	@tar czf $(TARGET)/query.tar.gz /opt
