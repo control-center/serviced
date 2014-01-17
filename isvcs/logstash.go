@@ -18,8 +18,9 @@ func init() {
 	LogstashContainer = LogstashISvc{
 		NewISvc(
 			"logstash_master",
-			"zctrl/logstash_master",
+			"zctrl/isvcs",
 			"v1",
+			"java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
 			[]int{5043, 9292},
 			[]string{},
 		),

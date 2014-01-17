@@ -17,16 +17,18 @@ type ISvc struct {
 	Name       string
 	Repository string
 	Tag        string
+	Command    string
 	Ports      []int
 	Volumes    []string
 	shutdown   chan chan error
 }
 
-func NewISvc(name, repository, tag string, ports []int, volumes []string) (s ISvc) {
+func NewISvc(name, repository, tag string, command string, ports []int, volumes []string) (s ISvc) {
 	s = ISvc{
 		Name:       name,
 		Repository: repository,
 		Tag:        tag,
+		Command:    command,
 		Ports:      ports,
 		Volumes:    volumes,
 	}
@@ -131,6 +133,10 @@ func (s *ISvc) RunAndWait() {
 
 	// specify the image
 	args += fmt.Sprintf(" %s:%s", s.Repository, s.Tag)
+
+	// Specify the command to be run
+	args += " " + s.Command
+
 	cmd := exec.Command("sh", "-c", args)
 	glog.Infof("About to start isvc %s : %s", s.Name, args)
 	cmd.Start()

@@ -15,12 +15,14 @@ var OpenTsdbContainer OpenTsdbISvc
 
 func init() {
 	OpenTsdbContainer = OpenTsdbISvc{
-		ISvc{
-			Name:       "opentsdb",
-			Repository: "zctrl/opentsdb",
-			Tag:        "v1",
-			Ports:      []int{4242, 8443, 9090, 60000, 60010, 60020, 60030},
-		},
+		NewISvc(
+			"opentsdb",
+			"zctrl/isvcs",
+			"v1",
+			"/bin/bash -c \"cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf\"",
+			[]int{4242, 8443, 9090, 60000, 60010, 60020, 60030},
+			[]string{"/opt/zenoss/var/hbase"},
+		),
 	}
 }
 
