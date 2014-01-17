@@ -23,7 +23,7 @@ func init() {
 			"v1",
 			"/opt/elasticsearch-0.90.9/bin/elasticsearch -f",
 			[]int{9200},
-			[]string{"/opt/elasticsearch-0.90.5/data"},
+			[]string{"/opt/elasticsearch-0.90.9/data"},
 		),
 	}
 }
