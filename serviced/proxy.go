@@ -71,7 +71,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
-    go h.run()
+	go h.run()
 	http.HandleFunc("/exec", wsHandler)
 	http.ListenAndServe(":50000", nil)
 

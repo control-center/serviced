@@ -18,6 +18,7 @@ type ShellRequest struct {
 }
 
 type ShellResponse struct {
+	Timestamp                     int64
 	Stdin, Stdout, Stderr, Result string
 }
 
@@ -236,6 +237,7 @@ func (c *connection) reader() {
 
 func (c *connection) writer() {
 	for response := range c.send {
+		response.Timestamp = time.Now().Unix()
 		if err := c.ws.WriteJSON(response); err != nil {
 			break
 		}
