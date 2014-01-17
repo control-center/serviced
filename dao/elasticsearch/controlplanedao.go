@@ -1075,10 +1075,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 			return
 		}
 	}
-	err = s.startLogstashContainer()
-	if err != nil {
-		return nil, err
-	}
+	go s.startLogstashContainer()
 
 	hid, err := hostId()
 	if err != nil {

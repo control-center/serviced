@@ -101,9 +101,9 @@ func startServer() {
 		glog.Fatalf("Could not determine docker version: %s", err)
 	}
 
-	atLeast := []int{0, 6, 5}
+	atLeast := []int{0, 7, 5}
 	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker 0.6.5")
+		glog.Fatal("serviced needs at least docker 0.7.5")
 	}
 
 	if options.master {
