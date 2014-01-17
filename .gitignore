@@ -40,3 +40,4 @@ isvcs/build/*.tar.gz
 !bootstrap*/
 !d3*/
 
+*.iml

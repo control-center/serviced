@@ -69,7 +69,7 @@ serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
 
 Dev Environment
 ---------------
-Serviced is written in go. To install go, download go v1.1 from http://golang.org.
+Serviced is written in go. To install go, download go v1.2 from http://golang.org.
 Untar the distribution to /usr/local/go. Ensure the following is in your environment
 ```bash
 GOROOT=/usr/local/go
@@ -77,6 +77,10 @@ PATH="$PATH:$GOROOT/bin"
 ```
 
 You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make.
+
+On Ubuntu install the following:
+
+```apt-get install libpam0g-dev```
 
 Setup a dev environment.
 ```bash

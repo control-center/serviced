@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"reflect"
 )
 
 var testSvc *ServiceDefinition
@@ -40,6 +41,16 @@ func init() {
 					LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
+					},
+				},
+				AddressResources: []AddressResourceConfig{
+					AddressResourceConfig{
+					Port: 9000,
+					Protocol: TCP,
+					},
+					AddressResourceConfig{
+					Port: 8000,
+					Protocol: UDP,
 					},
 				},
 			},
@@ -91,7 +102,6 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 	if len(a.Services) != len(b.Services) {
 		return false, fmt.Sprintf("Number of sub services differ between %s [%s] and %s [%s]",
 			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
-
 	}
 	sort.Sort(ServiceDefinitionByName(a.Services))
 	sort.Sort(ServiceDefinitionByName(b.Services))
@@ -102,6 +112,19 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 			return identical, msg
 		}
 	}
+
+	//check IpResources
+	if len(a.IpResources) != len(b.IpResources){
+		return false, fmt.Sprintf("Number of IP resources differ between %s [%s] and %s [%s]",
+			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
+	}
+	sort.Sort(AddressResourceConfigByPort(a.IpResources))
+	sort.Sort(AddressResourceConfigByPort(b.IpResources))
+	if !reflect.DeepEqual(a.IpResources, b.IpResources){
+		return false, fmt.Sprintf("IP resource port differ between %s %v and %s %v",
+			a.Name, a.IpResources, b.Name, b.IpResources)
+	}
+
 
 	// check config files
 	if len(a.ConfigFiles) != len(b.ConfigFiles) {

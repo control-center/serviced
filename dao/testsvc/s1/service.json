@@ -22,5 +22,6 @@
           "LogConfigs":[ {
             "path": "/tmp/foo",
             "type": "foo"
-          }]
+          }],
+         "AddressResources":[{"Port":9000, "Protocol": "tcp"}, {"Port":8000, "Protocol":"udp"}]
 }

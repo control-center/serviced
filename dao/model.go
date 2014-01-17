@@ -118,6 +118,7 @@ type Service struct {
 	DeploymentId    string
 	DisableImage    bool
 	LogConfigs      []LogConfig
+	AddressResources     []AddressResourceConfig
 }
 
 // An endpoint that a Service exposes.
@@ -198,6 +199,27 @@ type ServiceDefinition struct {
 	VolumeExports []VolumeExport
 	VolumeImports []VolumeImport
 	LogConfigs    []LogConfig
+	AddressResources	  []AddressResourceConfig     // Configuration for external facing IP
+}
+
+
+// AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based
+// on the Port field
+type AddressResourceConfigByPort  []AddressResourceConfig
+
+func (a AddressResourceConfigByPort) Len() int           { return len(a) }
+func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
+
+const(
+	TCP = "tcp"
+	UDP = "udp"
+)
+
+//AddressResourceConfig defines an external facing port
+type AddressResourceConfig struct {
+	Port 	int
+	Protocol string
 }
 
 type LogConfig struct {

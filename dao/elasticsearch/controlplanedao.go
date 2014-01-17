@@ -848,6 +848,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
+	svc.AddressResources = sd.AddressResources
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
