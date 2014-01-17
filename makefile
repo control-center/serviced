@@ -7,6 +7,10 @@
 #
 ################################################################################
 
+
+pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
+dockercache := /tmp/serviced-dind-$(pwdchecksum)
+
 default: build_binary
 
 install:
@@ -25,16 +29,17 @@ dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run -rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp
+	zenoss/serviced-build /bin/bash -c "mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp && rm -f /go/src/github.com/zenoss/serviced/pkg/build/*.{rpm,deb}"
+	echo "Using dock-in-docker cache dir $(dockercache)"
+	mkdir -p $(dockercache)
 	time docker run -rm \
 	-privileged \
+	-v $(dockercache):/var/lib/docker \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
 	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
 	zenoss/serviced-build /bin/bash \
-	-c 'make build_binary pkgs'
-
-#	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
+	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
 test: build docker_ok
 	go test

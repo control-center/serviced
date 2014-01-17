@@ -1064,6 +1064,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 	var pool dao.ResourcePool
 	err = s.GetResourcePool("default", &pool)
 	if err != nil {
+		glog.Errorf("%s", err)
 		glog.V(0).Info("'default' resource pool not found; creating...")
 		default_pool := dao.ResourcePool{}
 		default_pool.Id = "default"
@@ -1074,10 +1075,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 			return
 		}
 	}
-	err = s.startLogstashContainer()
-	if err != nil {
-		return nil, err
-	}
+	go s.startLogstashContainer()
 
 	hid, err := hostId()
 	if err != nil {

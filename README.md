@@ -76,6 +76,8 @@ GOROOT=/usr/local/go
 PATH="$PATH:$GOROOT/bin"
 ```
 
+You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make.
+
 Setup a dev environment.
 ```bash
 export GOPATH=~/mygo
@@ -89,7 +91,7 @@ cd elasticgo
 go build install
 cd $GOPATH/src/github.com/zenoss
 git clone git@github.com:zenoss/serviced.git
-cd GOPATH/src/github.com/zenoss/serviced
+cd $GOPATH/src/github.com/zenoss/serviced
 make
 ```
 

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path"
 	"runtime"
 	"strings"
@@ -19,6 +18,20 @@ type ISvc struct {
 	Repository string
 	Tag        string
 	Ports      []int
+	Volumes    []string
+	shutdown   chan chan error
+}
+
+func NewISvc(name, repository, tag string, ports []int, volumes []string) (s ISvc) {
+	s = ISvc{
+		Name:       name,
+		Repository: repository,
+		Tag:        tag,
+		Ports:      ports,
+		Volumes:    volumes,
+	}
+	s.shutdown = make(chan chan error)
+	return s
 }
 
 func (s *ISvc) exists() (bool, error) {
@@ -67,75 +80,89 @@ func (s *ISvc) create() error {
 	return nil
 }
 
-func (s *ISvc) Running() (bool, error) {
-	containerId, _ := s.getContainerId()
-	if len(containerId) == 0 {
-		return false, nil
-	}
-	cmd := exec.Command("docker", "ps")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return strings.Contains(string(output), containerId), nil
+func (s *ISvc) getContainerId() string {
+	return "serviced_" + s.Name
 }
 
-func (s *ISvc) Run() error {
+func (s *ISvc) Run() {
+	go s.RunAndWait()
+}
 
-	err := s.create()
-	if err != nil {
-		return err
-	}
-
-	running, err := s.Running()
-	if err != nil || running {
-		return err
-	}
-	glog.Infof("%s is not running", s.Repository)
-
-	containerId, err := s.getContainerId()
-	if err != nil && !IsSvcNotFoundErr(err) {
-		return err
-	}
-
-	var cmd *exec.Cmd
-	if containerId != "" {
-		cmd = exec.Command("docker", "start", containerId)
-	} else {
-		args := "docker run -d "
-		// add the ports to the arg list
-		for _, port := range s.Ports {
-			args += fmt.Sprintf(" -p %d:%d", port, port)
+func (s *ISvc) killAndRemove() {
+	cmd := exec.Command("docker", "ps", "-a")
+	if output, err := cmd.Output(); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+			if strings.HasSuffix(strings.TrimSpace(line), s.getContainerId()) {
+				fields := strings.Fields(line)
+				glog.Infof("About to kill isvc %s, %s", s.Name, fields[0])
+				cmd = exec.Command("docker", "kill", strings.TrimSpace(fields[0]))
+				cmd.Run()
+				cmd = exec.Command("docker", "rm", strings.TrimSpace(fields[0]))
+				cmd.Run()
+				cmd = exec.Command("docker", "rm", strings.TrimSpace(s.getContainerId()))
+				cmd.Run()
+			}
 		}
-		// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
-		containerServiceDResources := "/usr/local/serviced/resources"
-		args += " -v"
-		args += fmt.Sprintf(" %s:%s", resourcesDir(), containerServiceDResources)
-
-		// specify the image
-		args += fmt.Sprintf(" %s:%s", s.Repository, s.Tag)
-		cmd = exec.Command("sh", "-c", args)
 	}
-	glog.Info("Running docker cmd: ", cmd)
-	return cmd.Run()
+}
+
+func (s *ISvc) RunAndWait() {
+
+	s.killAndRemove()
+
+	args := "docker run -rm -name=" + s.getContainerId()
+	// add the ports to the arg list
+	for _, port := range s.Ports {
+		args += fmt.Sprintf(" -p %d:%d", port, port)
+	}
+
+	for _, volume := range s.Volumes {
+		hostDir := fmt.Sprintf("/tmp/serviced/%s", s.Name)
+		if err := os.MkdirAll(hostDir, 0700); err != nil {
+			panic(err)
+		}
+		args += fmt.Sprintf(" -v %s:%s", hostDir, volume)
+	}
+
+	// bind mount the resources directory, always make it /usr/local/serviced to simplify the dockerfile commands
+	containerServiceDResources := "/usr/local/serviced/resources"
+	args += " -v"
+	args += fmt.Sprintf(" %s:%s", resourcesDir(), containerServiceDResources)
+
+	// specify the image
+	args += fmt.Sprintf(" %s:%s", s.Repository, s.Tag)
+	cmd := exec.Command("sh", "-c", args)
+	glog.Infof("About to start isvc %s : %s", s.Name, args)
+	cmd.Start()
+
+	done := make(chan error)
+	go func() {
+		done <- cmd.Wait()
+	}()
+	select {
+	case errc := <-s.shutdown:
+		done = nil
+		glog.Infof("Shutting down process: %s", s.Name)
+		errc <- cmd.Process.Kill()
+		s.killAndRemove()
+	case err := <-done:
+		if err != nil {
+			glog.Fatalf("Unexpected failure of isvc %s, try docker logs %s", err, s.getContainerId())
+		}
+		s.killAndRemove()
+	}
 }
 
 func (s *ISvc) Stop() error {
-	containerId, err := s.getContainerId()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("docker", "stop", containerId)
-	return cmd.Run()
+	errc := make(chan error)
+	s.shutdown <- errc
+	err := <-errc
+	s.killAndRemove()
+	return err
 }
 
 func (s *ISvc) Kill() error {
-	containerId, err := s.getContainerId()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("docker", "kill", containerId)
-	return cmd.Run()
+	return s.Stop()
 }
 
 var SvcNotFoundErr error
@@ -153,22 +180,6 @@ func init() {
 	}
 }
 
-func (s *ISvc) getContainerId() (string, error) {
-	cmd := exec.Command("sh", "-c", `docker ps -a | tail -n +2 | awk '{ print $1 " " $2 }'`)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	repoAndName := s.Repository + ":" + s.Tag
-	for _, line := range strings.Split(string(output), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 2 && fields[1] == repoAndName {
-			return fields[0], nil
-		}
-	}
-	return "", SvcNotFoundErr
-}
-
 func localDir(p string) string {
 	homeDir := serviced.ServiceDHome()
 	if len(homeDir) == 0 {
@@ -178,18 +189,10 @@ func localDir(p string) string {
 	return path.Join(homeDir, p)
 }
 
-func resourcesDir() string {
-	return localDir("resources")
+func imagesDir() string {
+	return localDir("images")
 }
 
-func imagesDir() string {
-	homeDir := serviced.ServiceDHome()
-	if len(homeDir) == 0 {
-		current, err := user.Current()
-		if err != nil {
-			panic("Could not get current user info")
-		}
-		return fmt.Sprintf("/tmp/serviced-%s-tmp/images", current.Username)
-	}
-	return path.Join(homeDir, "images")
+func resourcesDir() string {
+	return localDir("resources")
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -100,9 +101,9 @@ func startServer() {
 		glog.Fatalf("Could not determine docker version: %s", err)
 	}
 
-	atLeast := []int{0, 6, 5}
+	atLeast := []int{0, 7, 5}
 	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker 0.6.5")
+		glog.Fatal("serviced needs at least docker 0.7.5")
 	}
 
 	if options.master {
@@ -142,6 +143,7 @@ func startServer() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)
 			<-signalChan
+			isvcs.LogstashContainer.Stop()
 			glog.V(0).Info("Shutting down due to interrupt")
 			err = agent.Shutdown()
 			if err != nil {
