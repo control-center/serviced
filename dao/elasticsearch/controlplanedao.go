@@ -573,9 +573,9 @@ func (this *ControlPlaneDao) GetResourcePools(request dao.EntityRequest, pools *
 		return err
 	}
 	var total = len(result.Hits.Hits)
-	var pool dao.ResourcePool
 	resourcePools = make(map[string]*dao.ResourcePool)
 	for i := 0; i < total; i += 1 {
+		var pool dao.ResourcePool
 		err := json.Unmarshal(result.Hits.Hits[i].Source, &pool)
 		if err != nil {
 			return err
