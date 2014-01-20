@@ -29,7 +29,7 @@ dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run -rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/bash -c "mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp && rm -f /go/src/github.com/zenoss/serviced/pkg/build/*.{rpm,deb}"
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
 	echo "Using dock-in-docker cache dir $(dockercache)"
 	mkdir -p $(dockercache)
 	time docker run -rm \
