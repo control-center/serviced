@@ -1,6 +1,8 @@
 package isvcs
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"github.com/mattbaird/elastigo/cluster"
 	"github.com/zenoss/glog"
@@ -40,8 +42,22 @@ func (c *ElasticSearchISvc) Run() error {
 		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
 			if buffer, err := os.Open(schemaFile); err != nil {
 				glog.Fatalf("problem reading %s", err)
+				return err
 			} else {
-				http.Post("http://localhost:9200/controlplane", "application/json", buffer)
+				postResp, postErr := http.Post("http://localhost:9200/controlplane", "application/json", buffer)
+				if postErr != nil {
+					glog.Infof("Post schema failed: Err=%s, StatusCode=%d", postErr, postResp.StatusCode)
+					return postErr
+				}
+				if postResp.StatusCode != 200 {
+					body := new(bytes.Buffer)
+					body.ReadFrom(postResp.Body)
+					bodyString := body.String()
+					if bodyString != "{\"error\":\"IndexAlreadyExistsException[[controlplane] already exists]\",\"status\":400}" {
+						glog.Infof("Post schema failed: statuscode=%d, body=%s", postResp.StatusCode, bodyString)
+						return errors.New(bodyString)
+					}
+				}
 			}
 			break
 		} else {
