@@ -18,7 +18,7 @@ package main
  #include <stdio.h>
  #include <stdint.h>
 
- int GoGetproc(int fd, char *tty) {
+ char *GoGetproc(int fd, char *tty) {
     FILE *f;
     char *path, *buf;
     size_t len;
@@ -26,7 +26,7 @@ package main
     pid_t pgrp;
     int r;
 
-    if ((pgrp == tcgetgrp(fd)) == -1 {
+    if ((pgrp = tcgetpgrp(fd)) == -1) {
         return NULL;
     }
 
@@ -75,6 +75,7 @@ package main
 import "C"
 import (
     "syscall"
+    "errors"
 )
 
 type Terminal struct {
@@ -86,8 +87,8 @@ type Terminal struct {
 func (t *Terminal) fork(filename string, args []string, env []string, cwd string, cols int, rows int, uid int, gid int) error {
 
     var winp = new(C.struct_winsize)
-    winp.ws_col = C.int(cols)
-    winp.ws_row = C.int(rows)
+    winp.ws_col = C.ushort(cols)
+    winp.ws_row = C.ushort(rows)
     winp.ws_xpixel = 0
     winp.ws_ypixel = 0
 
@@ -102,7 +103,7 @@ func (t *Terminal) fork(filename string, args []string, env []string, cwd string
 
     switch t.pid {
     case -1:
-        return PtyError("forkpty(3) failed")
+        return errors.New("forkpty(3) failed")
     case  0:
         if cwd != "" {
             if err := syscall.Chdir(cwd); err != nil {
@@ -120,7 +121,7 @@ func (t *Terminal) fork(filename string, args []string, env []string, cwd string
             }
         }
 
-        syscall.Exec(filename, argv, env)
+        syscall.Exec(filename, args, env)
         panic("exec failed")
     default:
         if err := syscall.SetNonblock(t.fd, true); err != nil {
@@ -133,16 +134,16 @@ func (t *Terminal) fork(filename string, args []string, env []string, cwd string
 
 func (t *Terminal) open(cols int, rows int) error {
     var winp = new(C.struct_winsize)
-    winp.ws_col = C.int(cols)
-    winp.ws_row = C.int(rows)
+    winp.ws_col = C.ushort(cols)
+    winp.ws_row = C.ushort(rows)
     winp.ws_xpixel = 0
     winp.ws_ypixel = 0
 
     var master, slave C.int
     var name = make([]C.char, 40)
 
-    if ret := int(C.GoOpenPty(&master, &slave, &name[0], &winp)); ret == -1 {
-        return PtyError("openpty(3) failed")
+    if ret := int(C.GoOpenpty(&master, &slave, &name[0], winp)); ret == -1 {
+        return errors.New("openpty(3) failed")
     }
 
     t.fd = int(master)
@@ -161,13 +162,13 @@ func (t *Terminal) open(cols int, rows int) error {
 
 func (t *Terminal) resize(cols int, rows int) error {
     var winp = new(C.struct_winsize)
-    winp.ws_col = C.int(cols)
-    winp.ws_row = C.int(rows)
+    winp.ws_col = C.ushort(cols)
+    winp.ws_row = C.ushort(rows)
     winp.ws_xpixel = 0
     winp.ws_ypixel = 0
 
-    if ret := int(C.GoResize(t.fd, &winp); ret == -1 {
-        return PtyError("ioctl(2) failed")
+    if ret := int(C.GoResize(C.int(t.fd), winp)); ret == -1 {
+        return errors.New("ioctl(2) failed")
     }
 
     return nil
