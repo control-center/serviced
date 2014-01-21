@@ -1,15 +1,24 @@
 package isvcs
 
-var logstash ContainerDescription
+import (
+	"github.com/zenoss/glog"
+)
+
+var logstash *Container
 
 func init() {
-	logstash = ContainerDescription{
-		Name:    "logstash_master",
-		Repo:    "zctrl/isvcs",
-		Tag:     "v1",
-		Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
-		Ports:   []int{5043, 9292},
-		Volumes: []string{},
+	var err error
+	logstash, err = NewContainer(
+		ContainerDescription{
+			Name:    "logstash_master",
+			Repo:    IMAGE_REPO,
+			Tag:     IMAGE_TAG,
+			Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
+			Ports:   []int{5043, 9292},
+			Volumes: map[string]string{},
+		})
+	if err != nil {
+		glog.Fatal("Error initializing logstash_master container: %s", err)
 	}
 }
 

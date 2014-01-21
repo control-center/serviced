@@ -10,19 +10,24 @@ import (
 	"time"
 )
 
-var elasticsearch ContainerDescription
+var elasticsearch *Container
 
 func init() {
-	elasticsearch = ContainerDescription{
-		Name:        "elasticsearch",
-		Repo:        "zctrl/isvcs",
-		Tag:         "v1",
-		Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
-		Ports:       []int{9200},
-		Volumes:     []string{"/opt/elasticsearch-0.90.9/data"},
-		HealthCheck: elasticsearchHealthCheck,
+	var err error
+	elasticsearch, err = NewContainer(
+		ContainerDescription{
+			Name:        "elasticsearch",
+			Repo:        IMAGE_REPO,
+			Tag:         IMAGE_TAG,
+			Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
+			Ports:       []int{9200},
+			Volumes:     map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			HealthCheck: elasticsearchHealthCheck,
+		},
+	)
+	if err != nil {
+		glog.Fatal("Error initializing zookeeper container: %s", err)
 	}
-
 }
 
 func elasticsearchHealthCheck() error {

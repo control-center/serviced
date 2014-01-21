@@ -4,6 +4,8 @@ import (
 	"github.com/zenoss/glog"
 
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -30,13 +32,13 @@ func init() {
 }
 
 type ContainerDescription struct {
-	Name        string       // name of the container (used for docker named containers)
-	Repo        string       // the repository the image for this container uses
-	Tag         string       // the repository tag this container uses
-	Command     string       // the actual command to run inside the container
-	Volumes     []string     // Volumes to bind mount in to the containers
-	Ports       []int        // Ports to expose to the host
-	HealthCheck func() error // A function to verify that the service is healthy
+	Name        string            // name of the container (used for docker named containers)
+	Repo        string            // the repository the image for this container uses
+	Tag         string            // the repository tag this container uses
+	Command     string            // the actual command to run inside the container
+	Volumes     map[string]string // Volumes to bind mount in to the containers
+	Ports       []int             // Ports to expose to the host
+	HealthCheck func() error      // A function to verify that the service is healthy
 }
 
 type Container struct {
@@ -86,8 +88,14 @@ func (c *Container) loop() {
 					req.response <- ErrRunning
 					continue
 				}
+				c.stop()
+				c.rm()
 				cmd, exitChan = c.run()
-				req.response <- nil
+				if c.HealthCheck != nil {
+					req.response <- c.HealthCheck()
+				} else {
+					req.response <- nil
+				}
 
 			}
 		case exitErr := <-exitChan:
@@ -107,9 +115,38 @@ func (c *Container) rm() error {
 	return cmd.Run()
 }
 
+func dirExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 func (c *Container) run() (*exec.Cmd, chan error) {
-	cmd := exec.Command("docker", "run", "-rm", "-name", c.Name, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
-	exitChan := make(chan error)
+	exitChan := make(chan error, 1)
+	args := make([]string, 0)
+	args = append(args, "run", "-rm", "-name", c.Name)
+	for _, port := range c.Ports {
+		args = append(args, "-p", fmt.Sprintf("%d:%d", port, port))
+	}
+	for name, volume := range c.Volumes {
+		hostDir := fmt.Sprintf("/tmp/serviced/%s/%s", c.Name, name)
+		if exists, _ := dirExists(hostDir); !exists {
+			if err := os.Mkdir(hostDir, 0700); err != nil {
+				exitChan <- err
+				return nil, exitChan
+			}
+		}
+		args = append(args, "-v", hostDir+":"+volume)
+	}
+	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
+
+	glog.V(1).Infof("Executing docker %s", args)
+	cmd := exec.Command("docker", args...)
 	go func() {
 		exitChan <- cmd.Run()
 	}()
@@ -117,7 +154,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 }
 
 func (c *Container) Start() error {
-	glog.Info("calling Start()")
+	glog.Infof("calling Start() for %s", c.Name)
 	errc := make(chan error)
 	req := containerOpRequest{
 		op:       containerOpStart,

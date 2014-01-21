@@ -1,15 +1,52 @@
 package isvcs
 
-var zookeeper ContainerDescription
+import (
+	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
+
+	"fmt"
+	"time"
+)
+
+var zookeeper *Container
 
 func init() {
-	zookeeper = ContainerDescription{
-		Name:    "zookeeper",
-		Repo:    "zctrl/isvcs",
-		Tag:     "v1",
-		Command: "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
-		Ports:   []int{2181, 12181},
-		Volumes: []string{"/tmp"},
-	}
 
+	var err error
+
+	zookeeper, err = NewContainer(
+		ContainerDescription{
+			Name:        "zookeeper",
+			Repo:        IMAGE_REPO,
+			Tag:         IMAGE_TAG,
+			Command:     "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
+			Ports:       []int{2181, 12181},
+			Volumes:     map[string]string{"data": "/tmp"},
+			HealthCheck: zkHealthCheck,
+		})
+	if err != nil {
+		glog.Fatal("Error initializing zookeeper container: %s", err)
+	}
+}
+
+// a health check for zookeeper
+func zkHealthCheck() error {
+
+	start := time.Now()
+	timeout := time.Second * 30
+	zookeepers := []string{"127.0.0.1:2181"}
+
+	for {
+		if conn, _, err := zk.Connect(zookeepers, time.Second*10); err == nil {
+			defer conn.Close()
+			break
+		} else {
+			glog.V(1).Infof("Could not connect to zookeeper: %s", err)
+		}
+		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+			return fmt.Errorf("Zookeeper did not respond.")
+		}
+		time.Sleep(time.Millisecond * 1000)
+	}
+	return nil
 }

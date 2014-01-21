@@ -47,7 +47,7 @@ type Manager struct {
 	dockerAddress string              // the docker endpoint address to talk to
 	imagesDir     string              // local directory where images could be loaded from
 	requests      chan managerRequest // the main loops request channel
-	containers    map[string]Container
+	containers    map[string]*Container
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
@@ -56,7 +56,7 @@ func NewManager(dockerAddress, imagesDir string) *Manager {
 		dockerAddress: dockerAddress,
 		imagesDir:     imagesDir,
 		requests:      make(chan managerRequest),
-		containers:    make(map[string]Container),
+		containers:    make(map[string]*Container),
 	}
 	go manager.loop()
 	return manager
@@ -152,7 +152,7 @@ type containerStartResponse struct {
 
 func (m *Manager) loop() {
 
-	var running map[string]Container
+	var running map[string]*Container
 
 	for {
 		select {
@@ -174,7 +174,7 @@ func (m *Manager) loop() {
 					request.response <- err
 				} else {
 					// start a map of running containers
-					running = make(map[string]Container)
+					running = make(map[string]*Container)
 
 					// start a channel to track responses
 					started := make(chan containerStartResponse, len(m.containers))
@@ -182,12 +182,13 @@ func (m *Manager) loop() {
 					// start containers in parallel
 					for _, c := range m.containers {
 						running[c.Name] = c
-						go func() {
+						go func(con *Container) {
+							glog.Infof("calling start on %s", con.Name)
 							started <- containerStartResponse{
-								name: c.Name,
-								err:  c.Start(),
+								name: con.Name,
+								err:  con.Start(),
 							}
-						}()
+						}(c)
 					}
 
 					// wait for containers to respond to start
@@ -214,7 +215,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
-				if container, ok := request.val.(Container); !ok {
+				if container, ok := request.val.(*Container); !ok {
 					panic(errors.New("manager unknown arg type"))
 				} else {
 					m.containers[container.Name] = container
@@ -222,6 +223,7 @@ func (m *Manager) loop() {
 				}
 				continue
 			case managerOpInit:
+				request.response <- nil
 
 			default:
 				request.response <- ErrManagerUnknownOp
@@ -239,7 +241,7 @@ func (m *Manager) makeRequest(op managerOp) error {
 	return <-request.response
 }
 
-func (m *Manager) Register(c Container) error {
+func (m *Manager) Register(c *Container) error {
 	request := managerRequest{
 		op:       managerOpRegisterContainer,
 		val:      c,

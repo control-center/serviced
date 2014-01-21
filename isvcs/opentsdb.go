@@ -1,15 +1,24 @@
 package isvcs
 
-var opentsdb ContainerDescription
+import (
+	"github.com/zenoss/glog"
+)
+
+var opentsdb *Container
 
 func init() {
-	opentsdb = ContainerDescription{
-		Name:    "opentsdb",
-		Repo:    "zctrl/isvcs",
-		Tag:     "v1",
-		Command: `/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
-		Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
-		Volumes: []string{"/opt/zenoss/var/hbase"},
+	var err error
+	opentsdb, err = NewContainer(
+		ContainerDescription{
+			Name:    "opentsdb",
+			Repo:    IMAGE_REPO,
+			Tag:     IMAGE_TAG,
+			Command: `/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
+			Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
+			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
+		})
+	if err != nil {
+		glog.Fatal("Error initializing opentsdb container: %s", err)
 	}
 
 }
