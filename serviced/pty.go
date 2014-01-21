@@ -74,21 +74,168 @@ package main
  */
 import "C"
 import (
-    "syscall"
     "errors"
+    "fmt"
+    "os"
+    "reflect"
+    "strings"
+    "syscall"
 )
 
 type Terminal struct {
-    fd int
-    pid int
-    pty string
+    file, name, pty string
+    fd, pid, master, slave int
+    cols, rows int
+    readable, writeable bool
 }
 
-func (t *Terminal) fork(filename string, args []string, env []string, cwd string, cols int, rows int, uid int, gid int) error {
+func CreateTerminal(file, name, cwd string, args []string, env map[string]string, cols, rows, uid, gid int) (*Terminal, error) {
+    var environ map[string]string
+    for _,e := range os.Environ() {
+        keyvalue := strings.Split(e, "=")
+        environ[keyvalue[0]] = keyvalue[1]
+    }
+    if file == "" {
+        file = "sh"
+    }
+    if cols == 0 {
+        cols = 80
+    }
+    if rows == 0 {
+        rows = 24
+    }
+    if len(env) == 0 {
+        env = environ
+    }
+    if reflect.DeepEqual(environ, env) {
+        // Make sure we didn't start our server from inside tmux.
+        delete(env, "TMUX")
+        delete(env, "TMUX_PANE")
 
+        // Make sure we didn't start our server from inside screen.
+        delete(env, "STY")
+        delete(env, "WINDOW")
+
+        // Delete some variables that might confuse our terminal.
+        delete(env, "WINDOWID")
+        delete(env, "TERMCAP")
+        delete(env, "COLUMNS")
+        delete(env, "LINES")
+    }
+    // Set some basic env vars if they do not exist
+    // USER, SHELL, HOME, LOGNAME, WINDOWID
+    if cwd == "" {
+        cwd,_ = os.Getwd()
+    }
+    if name != "" {
+        // pass
+    } else if env["TERM"] != "" {
+        name = env["TERM"]
+    } else {
+        name = "xterm"
+    }
+
+    var envdata []string
+    for key, value := range env {
+        envdata = append(envdata, fmt.Sprintf("%s=%s", key, value))
+    }
+
+    // fork
+    term := Terminal{
+        file: file,
+        name: name,
+        cols: cols,
+        rows: rows,
+        readable: true,
+        writeable: true,
+    }
+    if err := term.fork(args, envdata, cwd, uid, gid); err != nil {
+        return nil, err
+    }
+
+    return &term, nil
+}
+
+func OpenTerminal(cols, rows int) (*Terminal, error){
+    if cols == 0 {
+        cols = 80
+    }
+    if rows == 0 {
+        rows = 24
+    }
+
+    term := Terminal{
+        cols:       cols,
+        rows:       rows,
+        pid:        -1,
+        readable:   true,
+        writeable:  true,
+    }
+    if err := term.open(); err != nil {
+        return nil, err
+    }
+
+    var environ map[string]string
+    for _,e := range os.Environ() {
+        keyvalue := strings.Split(e,"=")
+        environ[keyvalue[0]] = keyvalue[1]
+    }
+    term.fd = term.master
+    term.file = term.getproc()
+    term.name = environ["TERM"]
+
+    return &term, nil
+}
+
+func (t *Terminal) Write(data []byte) (n int, err error) {
+    return syscall.Write(t.fd, data)
+}
+
+func (t *Terminal) Read(data []byte) (n int, err error) {
+    return syscall.Read(t.fd, data)
+}
+
+func (t *Terminal) Resize(cols, rows int) error {
+    if cols == 0 {
+        cols = 80
+    }
+    if rows == 0 {
+        rows = 24
+    }
+
+    t.cols = cols
+    t.rows = rows
+    return t.resize(cols, rows)
+}
+
+func (t *Terminal) Kill(signal int) error {
+    var s syscall.Signal
+    if signal == 0 {
+        s = syscall.SIGHUP
+    } else {
+        s = syscall.Signal(signal)
+    }
+
+    return syscall.Kill(t.pid, s)
+}
+
+func (t *Terminal) Process() string {
+    p := t.getproc()
+    if p == "" {
+        p = t.file
+    }
+    return p
+}
+
+func (t *Terminal) Close() {
+    t.writeable = false
+    t.readable = false
+}
+
+func (t *Terminal) fork(args, env []string, cwd string, uid int, gid int) error {
     var winp = new(C.struct_winsize)
-    winp.ws_col = C.ushort(cols)
-    winp.ws_row = C.ushort(rows)
+    winp.ws_col = C.ushort(t.cols)
+    winp.ws_row = C.ushort(t.rows)
     winp.ws_xpixel = 0
     winp.ws_ypixel = 0
 
@@ -121,7 +268,7 @@ func (t *Terminal) fork(filename string, args []string, env []string, cwd string
             }
         }
 
-        syscall.Exec(filename, args, env)
+        syscall.Exec(t.file, args, env)
         panic("exec failed")
     default:
         if err := syscall.SetNonblock(t.fd, true); err != nil {
@@ -132,10 +279,10 @@ func (t *Terminal) fork(filename string, args []string, env []string, cwd string
     return nil
 }
 
-func (t *Terminal) open(cols int, rows int) error {
+func (t *Terminal) open() error {
     var winp = new(C.struct_winsize)
-    winp.ws_col = C.ushort(cols)
-    winp.ws_row = C.ushort(rows)
+    winp.ws_col = C.ushort(t.cols)
+    winp.ws_row = C.ushort(t.rows)
     winp.ws_xpixel = 0
     winp.ws_ypixel = 0
 
@@ -146,8 +293,8 @@ func (t *Terminal) open(cols int, rows int) error {
         return errors.New("openpty(3) failed")
     }
 
-    t.fd = int(master)
-    t.pid = int(slave)
+    t.master = int(master)
+    t.slave = int(slave)
     t.pty = C.GoString(&name[0])
 
     if err := syscall.SetNonblock(t.fd, true); err != nil {
