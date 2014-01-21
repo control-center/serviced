@@ -1,31 +1,20 @@
 package isvcs
 
-import (
-	"fmt"
-	"github.com/zenoss/glog"
-	"net/http"
-	"time"
-)
-
-type OpenTsdbISvc struct {
-	ISvc
-}
-
-var OpenTsdbContainer OpenTsdbISvc
+var opentsdb ContainerDescription
 
 func init() {
-	OpenTsdbContainer = OpenTsdbISvc{
-		NewISvc(
-			"opentsdb",
-			"zctrl/isvcs",
-			"v1",
-			`/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
-			[]int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
-			[]string{"/opt/zenoss/var/hbase"},
-		),
+	opentsdb = ContainerDescription{
+		Name:    "opentsdb",
+		Repo:    "zctrl/isvcs",
+		Tag:     "v1",
+		Command: `/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
+		Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
+		Volumes: []string{"/opt/zenoss/var/hbase"},
 	}
+
 }
 
+/*
 func (c *OpenTsdbISvc) Run() error {
 	c.ISvc.Run()
 
@@ -44,3 +33,4 @@ func (c *OpenTsdbISvc) Run() error {
 	}
 	return nil
 }
+*/

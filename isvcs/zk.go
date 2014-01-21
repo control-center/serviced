@@ -1,14 +1,15 @@
 package isvcs
 
-var ZookeeperContainer ISvc
+var zookeeper ContainerDescription
 
 func init() {
-	ZookeeperContainer = NewISvc(
-		"zookeeper",
-		"zctrl/isvcs",
-		"v1",
-		"/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
-		[]int{2181, 12181},
-		[]string{"/tmp"},
-	)
+	zookeeper = ContainerDescription{
+		Name:    "zookeeper",
+		Repo:    "zctrl/isvcs",
+		Tag:     "v1",
+		Command: "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
+		Ports:   []int{2181, 12181},
+		Volumes: []string{"/tmp"},
+	}
+
 }

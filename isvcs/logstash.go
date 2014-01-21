@@ -1,32 +1,19 @@
 package isvcs
 
-import (
-	"fmt"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"net/http"
-	"time"
-)
-
-type LogstashISvc struct {
-	ISvc
-}
-
-var LogstashContainer LogstashISvc
+var logstash ContainerDescription
 
 func init() {
-	LogstashContainer = LogstashISvc{
-		NewISvc(
-			"logstash_master",
-			"zctrl/isvcs",
-			"v1",
-			"java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
-			[]int{5043, 9292},
-			[]string{},
-		),
+	logstash = ContainerDescription{
+		Name:    "logstash_master",
+		Repo:    "zctrl/isvcs",
+		Tag:     "v1",
+		Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
+		Ports:   []int{5043, 9292},
+		Volumes: []string{},
 	}
 }
 
+/*
 func (c *LogstashISvc) StartService(templates map[string]*dao.ServiceTemplate) error {
 	err := WriteConfigurationFile(templates)
 
@@ -53,3 +40,4 @@ func (c *LogstashISvc) StartService(templates map[string]*dao.ServiceTemplate) e
 	}
 	return nil
 }
+*/
