@@ -59,7 +59,7 @@ type ContainerDescription struct {
 	Ports         []int                               // Ports to expose to the host
 	HealthCheck   func() error                        // A function to verify that the service is healthy
 	Configuration interface{}                         // A container specific configuration
-	Reload        func(*Container, interface{}) error // A function to run when asked to reload configuration
+	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 }
 
 type Container struct {

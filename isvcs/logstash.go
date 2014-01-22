@@ -25,14 +25,14 @@ func init() {
 			Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
 			Ports:   []int{5043, 9292},
 			Volumes: map[string]string{},
-			Reload:  reload,
+			Notify:  notifyLogstashConfigChange,
 		})
 	if err != nil {
 		glog.Fatal("Error initializing logstash_master container: %s", err)
 	}
 }
 
-func reload(c *Container, value interface{}) error {
+func notifyLogstashConfigChange(c *Container, value interface{}) error {
 
 	if templates, ok := value.(map[string]*dao.ServiceTemplate); ok {
 		if err := WriteConfigurationFile(templates); err != nil {

@@ -1127,7 +1127,7 @@ func (s *ControlPlaneDao) reloadLogstashContainer() error {
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
-	err = isvcs.Mgr.Reload(templatesMap)
+	err = isvcs.Mgr.Notify(templatesMap)
 	if err != nil {
 		glog.Fatalf("Could not start logstash container: %s", err)
 		return err

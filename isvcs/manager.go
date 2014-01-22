@@ -18,14 +18,14 @@ import (
 	"path"
 )
 
-// managerOp is a type of manager operation (stop, start, reload)
+// managerOp is a type of manager operation (stop, start, notify)
 type managerOp int
 
 // constants for the manager operations
 const (
 	managerOpStart             managerOp = iota // Start the subservices
 	managerOpStop                               // stop the subservices
-	managerOpReload                             // reload config in subservices
+	managerOpNotify                             // notify config in subservices
 	managerOpExit                               // exit the loop of the manager
 	managerOpRegisterContainer                  // register a given container
 	managerOpInit                               // make sure manager is ready to run containers
@@ -169,11 +169,11 @@ func (m *Manager) loop() {
 		select {
 		case request := <-m.requests:
 			switch request.op {
-			case managerOpReload:
+			case managerOpNotify:
 				var retErr error
 				for _, c := range running {
-					if c.Reload != nil {
-						if err := c.Reload(c, request.val); err != nil {
+					if c.Notify != nil {
+						if err := c.Notify(c, request.val); err != nil {
 							retErr = err
 						}
 					}
@@ -304,12 +304,12 @@ func (m *Manager) Start() error {
 	return m.makeRequest(managerOpStart)
 }
 
-// Reload() sends a reload() message to all the containers with the given data val
-func (m *Manager) Reload(val interface{}) error {
-	glog.V(2).Infof("manager sending reload request")
-	defer glog.V(2).Infof("received reload response")
+// Notify() sends a notify() message to all the containers with the given data val
+func (m *Manager) Notify(val interface{}) error {
+	glog.V(2).Infof("manager sending notify request")
+	defer glog.V(2).Infof("received notify response")
 	request := managerRequest{
-		op:       managerOpReload,
+		op:       managerOpNotify,
 		val:      val,
 		response: make(chan error),
 	}
