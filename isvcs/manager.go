@@ -183,7 +183,8 @@ func (m *Manager) loop() {
 
 			case managerOpExit:
 				request.response <- nil
-				return
+				return // this will exit the loop()
+
 			case managerOpStart:
 				if running != nil {
 					request.response <- ErrManagerRunning
