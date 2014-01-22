@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
+	"path"
 	"strings"
 	"time"
 )
@@ -28,6 +30,7 @@ var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
 var randomSource string
+var volumesDir string
 
 func init() {
 	ErrNotRunning = errors.New("container: not running")
@@ -35,16 +38,23 @@ func init() {
 	ErrBadContainerSpec = errors.New("container: bad container specification")
 
 	randomSource = "/dev/urandom"
+	if user, err := user.Current(); err != nil {
+		volumesDir = "/tmp/serviced/isvcs_volumes"
+	} else {
+		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+	}
 }
 
 type ContainerDescription struct {
-	Name        string            // name of the container (used for docker named containers)
-	Repo        string            // the repository the image for this container uses
-	Tag         string            // the repository tag this container uses
-	Command     string            // the actual command to run inside the container
-	Volumes     map[string]string // Volumes to bind mount in to the containers
-	Ports       []int             // Ports to expose to the host
-	HealthCheck func() error      // A function to verify that the service is healthy
+	Name          string                              // name of the container (used for docker named containers)
+	Repo          string                              // the repository the image for this container uses
+	Tag           string                              // the repository tag this container uses
+	Command       string                              // the actual command to run inside the container
+	Volumes       map[string]string                   // Volumes to bind mount in to the containers
+	Ports         []int                               // Ports to expose to the host
+	HealthCheck   func() error                        // A function to verify that the service is healthy
+	Configuration interface{}                         // A container specific configuration
+	Reload        func(*Container, interface{}) error // A function to run when asked to reload configuration
 }
 
 type Container struct {
@@ -64,6 +74,8 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 	return &c, nil
 }
 
+// loop maintains the state of the container; it handles requests to start() &
+// stop() containers as well as detect container failures.
 func (c *Container) loop() {
 
 	var exitChan chan error
@@ -82,9 +94,9 @@ func (c *Container) loop() {
 				oldCmd := cmd
 				cmd = nil
 				exitChan = nil
+				oldCmd.Process.Kill()
 				c.stop()
 				c.rm()
-				oldCmd.Process.Kill()
 				req.response <- nil
 
 			case containerOpStart:
@@ -115,6 +127,7 @@ func (c *Container) loop() {
 	}
 }
 
+// attempt to stop all matching containers
 func (c *Container) stop() error {
 	client, err := newDockerClient("unix:///var/run/docker.sock")
 	if err != nil {
@@ -135,6 +148,7 @@ func (c *Container) stop() error {
 	return nil
 }
 
+// attempt to remove all matching containers
 func (c *Container) rm() error {
 	client, err := newDockerClient("unix:///var/run/docker.sock")
 	if err != nil {
@@ -155,6 +169,7 @@ func (c *Container) rm() error {
 	return nil
 }
 
+// check if the given path is a directory
 func isDir(path string) (bool, error) {
 	stat, err := os.Stat(path)
 	if err == nil {
@@ -167,26 +182,38 @@ func isDir(path string) (bool, error) {
 	return false, err
 }
 
+// generate a uuid
 func uuid() string {
 	f, _ := os.Open(randomSource)
+	defer f.Close()
 	b := make([]byte, 16)
 	f.Read(b)
-	f.Close()
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
 }
 
+// Run() an instance of this container and return it's exec.Command reference and a
+// channel that sends the exit code, when the container exits
 func (c *Container) run() (*exec.Cmd, chan error) {
 
+	// the container name is semi random because containers can get wedged
+	// in docker and can not be removed until a reboot (or aufs trickery)
 	containerName := c.Name + "-" + uuid()
-	exitChan := make(chan error)
+
+	exitChan := make(chan error, 1)
 	args := make([]string, 0)
 	args = append(args, "run", "-rm", "-name", containerName)
+
+	// attach all exported ports
 	for _, port := range c.Ports {
 		args = append(args, "-p", fmt.Sprintf("%d:%d", port, port))
 	}
+
+	// attach resources directory to all containers
+	args = append(args, "-v", resourcesDir()+":"+"/usr/local/serviced/resources")
+
+	// attach all exported volumes
 	for name, volume := range c.Volumes {
-		hostDir := fmt.Sprintf("/tmp/serviced/%s/%s", c.Name, name)
+		hostDir := path.Join(volumesDir, c.Name, name)
 		if exists, _ := isDir(hostDir); !exists {
 			if err := os.MkdirAll(hostDir, 0777); err != nil {
 				glog.Errorf("could not create %s on host: %s", hostDir, err)
@@ -196,6 +223,8 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 		}
 		args = append(args, "-v", hostDir+":"+volume)
 	}
+
+	// set the image and command to run
 	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
 
 	glog.V(1).Infof("Executing docker %s", args)
@@ -206,9 +235,8 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	return cmd, exitChan
 }
 
+// Start() a container by sending the loop() a request
 func (c *Container) Start() error {
-	glog.Infof("entering Start() for %s", c.Name)
-	defer glog.Infof("leaving Start() for %s", c.Name)
 	req := containerOpRequest{
 		op:       containerOpStart,
 		response: make(chan error),
@@ -217,8 +245,8 @@ func (c *Container) Start() error {
 	return <-req.response
 }
 
+// Stop() a container by sending the loop() a request
 func (c *Container) Stop() error {
-	glog.Infof("calling Stop() for %s", c.Name)
 	req := containerOpRequest{
 		op:       containerOpStop,
 		response: make(chan error),

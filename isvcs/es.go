@@ -30,9 +30,12 @@ func init() {
 	}
 }
 
+// elasticsearchHealthCheck() determines if elasticsearch is healthy
 func elasticsearchHealthCheck() error {
 
 	start := time.Now()
+	lastError := time.Now()
+	minUptime := time.Second * 2
 	timeout := time.Second * 30
 
 	schemaFile := localDir("resources/controlplane.json")
@@ -43,12 +46,16 @@ func elasticsearchHealthCheck() error {
 				glog.Fatalf("problem reading %s", err)
 			} else {
 				http.Post("http://localhost:9200/controlplane", "application/json", buffer)
+				buffer.Close()
 			}
-			break
 		} else {
+			lastError = time.Now()
 			glog.V(2).Infof("Still trying to connect to elastic: %v: %s", err, healthResponse)
 		}
-		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+		if time.Since(lastError) > minUptime {
+			break
+		}
+		if time.Since(start) > timeout {
 			return fmt.Errorf("Could not startup elastic search container.")
 		}
 		time.Sleep(time.Millisecond * 1000)

@@ -33,17 +33,24 @@ func init() {
 func zkHealthCheck() error {
 
 	start := time.Now()
+	lastError := time.Now()
+	minUptime := time.Second * 2
 	timeout := time.Second * 30
 	zookeepers := []string{"127.0.0.1:2181"}
 
 	for {
 		if conn, _, err := zk.Connect(zookeepers, time.Second*10); err == nil {
-			defer conn.Close()
-			break
+			conn.Close()
 		} else {
+			conn.Close()
 			glog.V(1).Infof("Could not connect to zookeeper: %s", err)
+			lastError = time.Now()
 		}
-		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+		// make sure that service has been good for at least minUptime
+		if time.Since(lastError) > minUptime {
+			break
+		}
+		if time.Since(start) > timeout {
 			return fmt.Errorf("Zookeeper did not respond.")
 		}
 		time.Sleep(time.Millisecond * 1000)

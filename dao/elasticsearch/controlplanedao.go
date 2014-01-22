@@ -927,7 +927,7 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 		err = nil
 	}
 	// this takes a while so don't block the main thread
-	go this.restartLogstashContainer()
+	go this.reloadLogstashContainer()
 	return err
 }
 
@@ -950,7 +950,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	if err != nil {
 		return err
 	}
-	go this.restartLogstashContainer()
+	go this.reloadLogstashContainer()
 	return nil
 }
 
@@ -1085,31 +1085,19 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (*ControlPlan
 // Anytime the available service definitions are modified
 // we need to restart the logstash container so it can write out
 // its new filter set.
-func (s *ControlPlaneDao) restartLogstashContainer() error {
-	glog.V(0).Info("Shutting down the logstash container")
-	return isvcs.Mgr.Reload()
-}
-
-// Starts up the logstash container with all the available
-// service definitions.
 // This method depends on the elasticsearch container being up and running.
-func (s *ControlPlaneDao) startLogstashContainer() error {
-	glog.V(0).Info("Starting up the logstash container")
-	glog.V(2).Info("Fetching Service Templates for Logstash")
+func (s *ControlPlaneDao) reloadLogstashContainer() error {
 	var templatesMap map[string]*dao.ServiceTemplate
 	err := s.GetServiceTemplates(0, &templatesMap)
 	if err != nil {
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
-	/*
-		FIX ME!
-		err = isvcs.LogstashContainer.StartService(templatesMap)
-		if err != nil {
-			glog.Fatalf("Could not start logstash container: %s", err)
-			return err
-		}
-	*/
+	err = isvcs.Mgr.Reload(templatesMap)
+	if err != nil {
+		glog.Fatalf("Could not start logstash container: %s", err)
+		return err
+	}
 	return nil
 }
 

@@ -160,6 +160,18 @@ func (m *Manager) loop() {
 		select {
 		case request := <-m.requests:
 			switch request.op {
+			case managerOpReload:
+				var retErr error
+				for _, c := range running {
+					if c.Reload != nil {
+						if err := c.Reload(c, request.val); err != nil {
+							retErr = err
+						}
+					}
+				}
+				request.response <- retErr
+				continue
+
 			case managerOpExit:
 				request.response <- nil
 				return
@@ -200,8 +212,10 @@ func (m *Manager) loop() {
 						res := <-started
 						if res.err != nil {
 							returnErr = res.err
+							glog.Errorf("%s started with %s", res.name, res.err)
+						} else {
+							glog.Infof("%s started", res.name)
 						}
-						glog.Infof("%s started with %s", res.name, res.err)
 					}
 					request.response <- returnErr
 				}
@@ -275,10 +289,16 @@ func (m *Manager) Start() error {
 	return m.makeRequest(managerOpStart)
 }
 
-func (m *Manager) Reload() error {
+func (m *Manager) Reload(val interface{}) error {
 	glog.V(2).Infof("manager sending reload request")
 	defer glog.V(2).Infof("received reload response")
-	return m.makeRequest(managerOpReload)
+	request := managerRequest{
+		op:       managerOpReload,
+		val:      val,
+		response: make(chan error),
+	}
+	m.requests <- request
+	return <-request.response
 }
 
 func (m *Manager) TearDown() error {
