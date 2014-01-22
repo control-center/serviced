@@ -99,7 +99,7 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 }
 
 // checks for the existence of all the container images
-func (m *Manager) processStart() error {
+func (m *Manager) allImagesExist() error {
 	for _, c := range m.containers {
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
@@ -192,7 +192,7 @@ func (m *Manager) loop() {
 					request.response <- err
 					continue
 				}
-				if err := m.processStart(); err != nil {
+				if err := m.allImagesExist(); err != nil {
 					request.response <- err
 				} else {
 					// start a map of running containers

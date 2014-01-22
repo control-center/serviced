@@ -98,7 +98,7 @@ func (c *Container) loop() {
 				}
 				oldCmd := cmd
 				cmd = nil
-				exitChan = nil // setting extChan to nil will disable reading from it in the select()
+				exitChan = nil        // setting extChan to nil will disable reading from it in the select()
 				oldCmd.Process.Kill() // kill the docker run() wrapper
 				c.stop()              // stop the container if it's not already stopped
 				c.rm()                // remove the container if it's not already gone
@@ -110,11 +110,11 @@ func (c *Container) loop() {
 					req.response <- ErrRunning
 					continue
 				}
-				c.stop() // stop the container, if it's not stoppped
-				c.rm()   // remove it if it was not already removed
+				c.stop()                // stop the container, if it's not stoppped
+				c.rm()                  // remove it if it was not already removed
 				cmd, exitChan = c.run() // run the actual container
 				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck()  // run the HealthCheck if it exists
+					req.response <- c.HealthCheck() // run the HealthCheck if it exists
 				} else {
 					req.response <- nil
 				}
@@ -130,22 +130,21 @@ func (c *Container) loop() {
 	}
 }
 
-
-/// 
-func (c *Container) getMatchingContainers(client *docker.Client) (*[]docker.APIContainers, error) {
+// getMatchingContainersIds
+func (c *Container) getMatchingContainersIds(client *docker.Client) (*[]string, error) {
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
-	matching := make([]docker.APIContainers, 0)
+	matching := make([]string, 0)
 	for _, container := range containers {
 		for _, name := range container.Names {
 			if strings.HasPrefix(name, "/"+c.Name) {
-				matching = append(matching, container)
+				matching = append(matching, container.ID)
 			}
 		}
 	}
-	return &matching
+	return &matching, nil
 }
 
 // attempt to stop all matching containers
@@ -155,11 +154,11 @@ func (c *Container) stop() error {
 		glog.Errorf("Could not create docker client: %s", err)
 		return err
 	}
-	if containers, err := c.getMatchingContainers(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(client); err != nil {
 		return err
 	} else {
-		for _, container := range containers {
-			client.StopContainer(container.ID, 20)
+		for _, id := range *ids {
+			client.StopContainer(id, 20)
 		}
 	}
 	return nil
@@ -172,11 +171,11 @@ func (c *Container) rm() error {
 		glog.Errorf("Could not create docker client: %s", err)
 		return err
 	}
-	if containers, err := c.getMatchingContainers(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(client); err != nil {
 		return err
 	} else {
-		for _, container := range containers {
-			client.RemoveContainer(container.ID)
+		for _, id := range *ids {
+			client.RemoveContainer(id)
 		}
 	}
 	return nil
