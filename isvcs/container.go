@@ -37,7 +37,6 @@ type containerOpRequest struct {
 var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
-var randomSource string
 var volumesDir string
 
 func init() {
@@ -45,7 +44,6 @@ func init() {
 	ErrRunning = errors.New("container: already running")
 	ErrBadContainerSpec = errors.New("container: bad container specification")
 
-	randomSource = "/dev/urandom"
 	if user, err := user.Current(); err != nil {
 		volumesDir = "/tmp/serviced/isvcs_volumes"
 	} else {
@@ -175,28 +173,6 @@ func (c *Container) rm() error {
 		}
 	}
 	return nil
-}
-
-// check if the given path is a directory
-func isDir(path string) (bool, error) {
-	stat, err := os.Stat(path)
-	if err == nil {
-		return stat.IsDir(), nil
-	} else {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-	}
-	return false, err
-}
-
-// generate a uuid
-func uuid() string {
-	f, _ := os.Open(randomSource)
-	defer f.Close()
-	b := make([]byte, 16)
-	f.Read(b)
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
 // Run() an instance of this container and return it's exec.Command reference and a
