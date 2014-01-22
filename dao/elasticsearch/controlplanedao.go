@@ -1,3 +1,11 @@
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
 package elasticsearch
 
 import (
@@ -953,7 +961,7 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 		err = nil
 	}
 	// this takes a while so don't block the main thread
-	go this.restartLogstashContainer()
+	go this.reloadLogstashContainer()
 	return err
 }
 
@@ -976,7 +984,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	if err != nil {
 		return err
 	}
-	go this.restartLogstashContainer()
+	go this.reloadLogstashContainer()
 	return nil
 }
 
@@ -1058,90 +1066,68 @@ func hostId() (hostid string, err error) {
 	return strings.TrimSpace(string(stdout)), err
 }
 
-func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPlaneDao, err error) {
+func createDefaultPool(s *ControlPlaneDao) error {
+	var pool dao.ResourcePool
+	// does the default pool exist
+	if err := s.GetResourcePool("default", &pool); err != nil {
+		glog.Errorf("%s", err)
+		glog.V(0).Info("'default' resource pool not found; creating...")
+
+		// create it
+		default_pool := dao.ResourcePool{}
+		default_pool.Id = "default"
+		var poolId string
+		if err := s.AddResourcePool(default_pool, &poolId); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func NewControlSvc(hostName string, port int, zookeepers []string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err = NewControlPlaneDao(hostName, port)
-	if err != nil {
-		return
-	}
-
-	err = isvcs.OpenTsdbContainer.Run()
-	if err != nil {
-		glog.Fatalf("Could not start opentsdb container: %s", err)
-		return
-	}
-
-	if len(zookeepers) == 0 {
-		isvcs.ZookeeperContainer.Run()
-		s.zookeepers = []string{"127.0.0.1:2181"}
-	} else {
-		s.zookeepers = zookeepers
-	}
-	s.zkDao = &zzk.ZkDao{s.zookeepers}
-
-	err = isvcs.ElasticSearchContainer.Run()
-	if err != nil {
-		glog.Fatalf("Could not start elasticsearch container: %s", err)
-	}
-
-	// ensure that a default pool exists
-	var pool dao.ResourcePool
-	err = s.GetResourcePool("default", &pool)
-	if err != nil {
-		glog.Errorf("%s", err)
-		glog.V(0).Info("'default' resource pool not found; creating...")
-		default_pool := dao.ResourcePool{}
-		default_pool.Id = "default"
-
-		var poolId string
-		err = s.AddResourcePool(default_pool, &poolId)
-		if err != nil {
-			return
-		}
-	}
-	go s.startLogstashContainer()
-
-	hid, err := hostId()
-	if err != nil {
+	if s, err := NewControlPlaneDao(hostName, port); err != nil {
 		return nil, err
-	}
+	} else {
+		if err := isvcs.Mgr.Start(); err != nil {
+			return nil, err
+		}
 
-	go s.handleScheduler(hid)
-	return s, err
+		if len(zookeepers) == 0 {
+			s.zookeepers = []string{"127.0.0.1:2181"}
+		} else {
+			s.zookeepers = zookeepers
+		}
+		s.zkDao = &zzk.ZkDao{s.zookeepers}
+
+		if err := createDefaultPool(s); err != nil {
+			return nil, err
+		}
+
+		if hid, err := hostId(); err != nil {
+			return nil, err
+		} else {
+			go s.handleScheduler(hid)
+		}
+
+		return s, nil
+	}
 }
 
 // Anytime the available service definitions are modified
 // we need to restart the logstash container so it can write out
 // its new filter set.
-func (s *ControlPlaneDao) restartLogstashContainer() error {
-	glog.V(0).Info("Shutting down the logstash container")
-	err := isvcs.LogstashContainer.Stop()
-	if err != nil {
-		return err
-	}
-
-	err = s.startLogstashContainer()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Starts up the logstash container with all the available
-// service definitions.
 // This method depends on the elasticsearch container being up and running.
-func (s *ControlPlaneDao) startLogstashContainer() error {
-	glog.V(0).Info("Starting up the logstash container")
-	glog.V(2).Info("Fetching Service Templates for Logstash")
+func (s *ControlPlaneDao) reloadLogstashContainer() error {
 	var templatesMap map[string]*dao.ServiceTemplate
 	err := s.GetServiceTemplates(0, &templatesMap)
 	if err != nil {
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
-	err = isvcs.LogstashContainer.StartService(templatesMap)
+	err = isvcs.Mgr.Notify(templatesMap)
 	if err != nil {
 		glog.Fatalf("Could not start logstash container: %s", err)
 		return err

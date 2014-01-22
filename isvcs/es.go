@@ -1,39 +1,49 @@
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
 package isvcs
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
 	"github.com/mattbaird/elastigo/cluster"
 	"github.com/zenoss/glog"
+
+	"fmt"
 	"net/http"
 	"os"
 	"time"
 )
 
-type ElasticSearchISvc struct {
-	ISvc
-}
-
-var ElasticSearchContainer ElasticSearchISvc
+var elasticsearch *Container
 
 func init() {
-	ElasticSearchContainer = ElasticSearchISvc{
-		NewISvc(
-			"elasticsearch",
-			"zctrl/isvcs",
-			"v1",
-			"/opt/elasticsearch-0.90.9/bin/elasticsearch -f",
-			[]int{9200},
-			[]string{"/opt/elasticsearch-0.90.9/data"},
-		),
+	var err error
+	elasticsearch, err = NewContainer(
+		ContainerDescription{
+			Name:        "elasticsearch",
+			Repo:        IMAGE_REPO,
+			Tag:         IMAGE_TAG,
+			Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
+			Ports:       []int{9200},
+			Volumes:     map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			HealthCheck: elasticsearchHealthCheck,
+		},
+	)
+	if err != nil {
+		glog.Fatal("Error initializing zookeeper container: %s", err)
 	}
 }
 
-func (c *ElasticSearchISvc) Run() error {
-	c.ISvc.Run()
+// elasticsearchHealthCheck() determines if elasticsearch is healthy
+func elasticsearchHealthCheck() error {
 
 	start := time.Now()
+	lastError := time.Now()
+	minUptime := time.Second * 2
 	timeout := time.Second * 30
 
 	schemaFile := localDir("resources/controlplane.json")
@@ -44,26 +54,17 @@ func (c *ElasticSearchISvc) Run() error {
 				glog.Fatalf("problem reading %s", err)
 				return err
 			} else {
-				postResp, postErr := http.Post("http://localhost:9200/controlplane", "application/json", buffer)
-				if postErr != nil {
-					glog.Infof("Post schema failed: Err=%s, StatusCode=%d", postErr, postResp.StatusCode)
-					return postErr
-				}
-				if postResp.StatusCode != 200 {
-					body := new(bytes.Buffer)
-					body.ReadFrom(postResp.Body)
-					bodyString := body.String()
-					if bodyString != "{\"error\":\"IndexAlreadyExistsException[[controlplane] already exists]\",\"status\":400}" {
-						glog.Infof("Post schema failed: statuscode=%d, body=%s", postResp.StatusCode, bodyString)
-						return errors.New(bodyString)
-					}
-				}
+				http.Post("http://localhost:9200/controlplane", "application/json", buffer)
+				buffer.Close()
 			}
-			break
 		} else {
+			lastError = time.Now()
 			glog.V(2).Infof("Still trying to connect to elastic: %v: %s", err, healthResponse)
 		}
-		if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+		if time.Since(lastError) > minUptime {
+			break
+		}
+		if time.Since(start) > timeout {
 			return fmt.Errorf("Could not startup elastic search container.")
 		}
 		time.Sleep(time.Millisecond * 1000)

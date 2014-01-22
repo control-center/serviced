@@ -22,6 +22,10 @@ build_binary:
 	cd isvcs && make
 	cd dao && make
 
+go:
+	cd serviced && go build
+
+
 pkgs:
 	cd pkg && make rpm && make deb
 
