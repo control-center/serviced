@@ -112,7 +112,7 @@ func (m *Manager) allImagesExist() error {
 	return nil
 }
 
-// load a docker image fron a tar export
+// loadImage() loads a docker image fron a tar export
 func loadImage(tarball, dockerAddress string) error {
 
 	if file, err := os.Open(tarball); err != nil {
@@ -127,7 +127,7 @@ func loadImage(tarball, dockerAddress string) error {
 	return nil
 }
 
-// load all the images defined in the registered services
+// loadImages() loads all the images defined in the registered services
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.containers {
@@ -160,6 +160,7 @@ type containerStartResponse struct {
 	err  error
 }
 
+// loop() maitainers the Manager's state
 func (m *Manager) loop() {
 
 	var running map[string]*Container
@@ -266,6 +267,7 @@ func (m *Manager) loop() {
 	}
 }
 
+// makeRequest sends a manager operation request to the *Manager's loop()
 func (m *Manager) makeRequest(op managerOp) error {
 	request := managerRequest{
 		op:       op,
@@ -275,6 +277,7 @@ func (m *Manager) makeRequest(op managerOp) error {
 	return <-request.response
 }
 
+// Register() registers a container to be managed by the *Manager
 func (m *Manager) Register(c *Container) error {
 	request := managerRequest{
 		op:       managerOpRegisterContainer,
@@ -285,18 +288,21 @@ func (m *Manager) Register(c *Container) error {
 	return <-request.response
 }
 
+// Stop() stops all the containers currently registered to the *Manager
 func (m *Manager) Stop() error {
 	glog.V(2).Infof("manager sending stop request")
 	defer glog.V(2).Infof("received stop response")
 	return m.makeRequest(managerOpStop)
 }
 
+// Start() starts all the containers managed by the *Manager
 func (m *Manager) Start() error {
 	glog.V(2).Infof("manager sending start request")
 	defer glog.V(2).Infof("received start response")
 	return m.makeRequest(managerOpStart)
 }
 
+// Reload() sends a reload() message to all the containers with the given data val
 func (m *Manager) Reload(val interface{}) error {
 	glog.V(2).Infof("manager sending reload request")
 	defer glog.V(2).Infof("received reload response")
@@ -309,6 +315,7 @@ func (m *Manager) Reload(val interface{}) error {
 	return <-request.response
 }
 
+// TearDown() causes the *Manager's loop() to exit
 func (m *Manager) TearDown() error {
 	glog.V(2).Infof("manager sending exit request")
 	defer glog.V(2).Infof("received exit response")
