@@ -99,10 +99,10 @@ func (c *Container) loop() {
 				}
 				oldCmd := cmd
 				cmd = nil
-				exitChan = nil
-				oldCmd.Process.Kill()
-				c.stop()
-				c.rm()
+				exitChan = nil // setting extChan to nil will disable reading from it in the select()
+				oldCmd.Process.Kill() // kill the docker run() wrapper
+				c.stop()              // stop the container if it's not already stopped
+				c.rm()                // remove the container if it's not already gone
 				req.response <- nil
 
 			case containerOpStart:
@@ -111,11 +111,11 @@ func (c *Container) loop() {
 					req.response <- ErrRunning
 					continue
 				}
-				c.stop()
-				c.rm()
-				cmd, exitChan = c.run()
+				c.stop() // stop the container, if it's not stoppped
+				c.rm()   // remove it if it was not already removed
+				cmd, exitChan = c.run() // run the actual container
 				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck()
+					req.response <- c.HealthCheck()  // run the HealthCheck if it exists
 				} else {
 					req.response <- nil
 				}
@@ -126,9 +126,7 @@ func (c *Container) loop() {
 			output, _ := docker.CombinedOutput()
 			glog.Errorf("isvc:%s, %s", c.Name, string(output))
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
-			time.Sleep(time.Second * 30)
 			glog.Fatalf("iscv:%s, process exited: %s", cmd.ProcessState.Exited())
-			cmd, exitChan = c.run()
 		}
 	}
 }
