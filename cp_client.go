@@ -72,7 +72,7 @@ func (s *ControlClient) GetService(serviceId string, service *dao.Service) (err 
 }
 
 func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddService", serviceId, tenantId)
+	return s.rpcClient.Call("ControlPlane.GetTenantId", serviceId, tenantId)
 }
 
 func (s *ControlClient) AddService(service dao.Service, serviceId *string) (err error) {

@@ -389,7 +389,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) err
 	for {
 		err = this.GetService(id, &service)
 		if err == nil {
-			id = strings.TrimSpace(service.ParentServiceId)
+			id = service.ParentServiceId
 			if id == "" {
 				*tenantId = service.Id
 				return nil
