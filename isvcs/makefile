@@ -1,3 +1,11 @@
+#*******************************************************************************
+#* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
+#*
+#* This content is made available according to terms specified in
+#* License.zenoss under the directory where your Zenoss product is installed.
+#*
+#*******************************************************************************
+
 .PHONY: buildgo buildimage
 
 COMPONENT_NAMES    := es zk opentsdb logstash query consumer
