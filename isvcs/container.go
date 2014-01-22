@@ -19,7 +19,6 @@ import (
 	"os/user"
 	"path"
 	"strings"
-	"time"
 )
 
 type containerOp int
@@ -131,6 +130,24 @@ func (c *Container) loop() {
 	}
 }
 
+
+/// 
+func (c *Container) getMatchingContainers(client *docker.Client) (*[]docker.APIContainers, error) {
+	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+	matching := make([]docker.APIContainers, 0)
+	for _, container := range containers {
+		for _, name := range container.Names {
+			if strings.HasPrefix(name, "/"+c.Name) {
+				matching = append(matching, container)
+			}
+		}
+	}
+	return &matching
+}
+
 // attempt to stop all matching containers
 func (c *Container) stop() error {
 	client, err := newDockerClient("unix:///var/run/docker.sock")
@@ -138,15 +155,11 @@ func (c *Container) stop() error {
 		glog.Errorf("Could not create docker client: %s", err)
 		return err
 	}
-	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
-	if err != nil {
+	if containers, err := c.getMatchingContainers(client); err != nil {
 		return err
-	}
-	for _, container := range containers {
-		for _, name := range container.Names {
-			if strings.HasPrefix(name, "/"+c.Name) {
-				client.StopContainer(container.ID, 20)
-			}
+	} else {
+		for _, container := range containers {
+			client.StopContainer(container.ID, 20)
 		}
 	}
 	return nil
@@ -159,15 +172,11 @@ func (c *Container) rm() error {
 		glog.Errorf("Could not create docker client: %s", err)
 		return err
 	}
-	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
-	if err != nil {
+	if containers, err := c.getMatchingContainers(client); err != nil {
 		return err
-	}
-	for _, container := range containers {
-		for _, name := range container.Names {
-			if strings.HasPrefix(name, "/"+c.Name) {
-				err = client.RemoveContainer(container.ID)
-			}
+	} else {
+		for _, container := range containers {
+			client.RemoveContainer(container.ID)
 		}
 	}
 	return nil
