@@ -1,12 +1,15 @@
 package isvcs
 
 import (
+	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 )
 
 type containerOp int
@@ -24,11 +27,14 @@ type containerOpRequest struct {
 var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
+var randomSource string
 
 func init() {
 	ErrNotRunning = errors.New("container: not running")
 	ErrRunning = errors.New("container: already running")
 	ErrBadContainerSpec = errors.New("container: bad container specification")
+
+	randomSource = "/dev/urandom"
 }
 
 type ContainerDescription struct {
@@ -60,8 +66,6 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 
 func (c *Container) loop() {
 
-	c.stop()
-	c.rm()
 	var exitChan chan error
 	var cmd *exec.Cmd
 
@@ -70,20 +74,21 @@ func (c *Container) loop() {
 		case req := <-c.ops:
 			switch req.op {
 			case containerOpStop:
-				glog.Info("loop_OpStop()")
+				glog.Infof("containerOpStop(): %s", c.Name)
 				if exitChan == nil {
 					req.response <- ErrNotRunning
 					continue
 				}
-				c.stop()
-				c.rm()
-				cmd.Process.Kill()
+				oldCmd := cmd
 				cmd = nil
 				exitChan = nil
+				c.stop()
+				c.rm()
+				oldCmd.Process.Kill()
 				req.response <- nil
 
 			case containerOpStart:
-				glog.Info("loop_OpStart()")
+				glog.Infof("containerOpStart(): %s", c.Name)
 				if cmd != nil {
 					req.response <- ErrRunning
 					continue
@@ -99,44 +104,92 @@ func (c *Container) loop() {
 
 			}
 		case exitErr := <-exitChan:
+			docker := exec.Command("docker", "logs", c.Name)
+			output, _ := docker.CombinedOutput()
+			glog.Errorf("isvc:%s, %s", c.Name, string(output))
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
-			exitChan = nil
+			time.Sleep(time.Second * 30)
+			glog.Fatalf("iscv:%s, process exited: %s", cmd.ProcessState.Exited())
+			cmd, exitChan = c.run()
 		}
 	}
 }
 
 func (c *Container) stop() error {
-	cmd := exec.Command("docker", "stop", c.Name)
-	return cmd.Run()
+	client, err := newDockerClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("Could not create docker client: %s", err)
+		return err
+	}
+	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
+	if err != nil {
+		return err
+	}
+	for _, container := range containers {
+		for _, name := range container.Names {
+			if strings.HasPrefix(name, "/"+c.Name) {
+				client.StopContainer(container.ID, 20)
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Container) rm() error {
-	cmd := exec.Command("docker", "rm", c.Name)
-	return cmd.Run()
+	client, err := newDockerClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("Could not create docker client: %s", err)
+		return err
+	}
+	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
+	if err != nil {
+		return err
+	}
+	for _, container := range containers {
+		for _, name := range container.Names {
+			if strings.HasPrefix(name, "/"+c.Name) {
+				err = client.RemoveContainer(container.ID)
+			}
+		}
+	}
+	return nil
 }
 
-func dirExists(path string) (bool, error) {
-	_, err := os.Stat(path)
+func isDir(path string) (bool, error) {
+	stat, err := os.Stat(path)
 	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
+		return stat.IsDir(), nil
+	} else {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 	}
 	return false, err
 }
 
+func uuid() string {
+	f, _ := os.Open(randomSource)
+	b := make([]byte, 16)
+	f.Read(b)
+	f.Close()
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+}
+
 func (c *Container) run() (*exec.Cmd, chan error) {
-	exitChan := make(chan error, 1)
+
+	containerName := c.Name + "-" + uuid()
+	exitChan := make(chan error)
 	args := make([]string, 0)
-	args = append(args, "run", "-rm", "-name", c.Name)
+	args = append(args, "run", "-rm", "-name", containerName)
 	for _, port := range c.Ports {
 		args = append(args, "-p", fmt.Sprintf("%d:%d", port, port))
 	}
 	for name, volume := range c.Volumes {
 		hostDir := fmt.Sprintf("/tmp/serviced/%s/%s", c.Name, name)
-		if exists, _ := dirExists(hostDir); !exists {
-			if err := os.Mkdir(hostDir, 0700); err != nil {
+		if exists, _ := isDir(hostDir); !exists {
+			if err := os.MkdirAll(hostDir, 0777); err != nil {
+				glog.Errorf("could not create %s on host: %s", hostDir, err)
 				exitChan <- err
 				return nil, exitChan
 			}
@@ -154,21 +207,21 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 }
 
 func (c *Container) Start() error {
-	glog.Infof("calling Start() for %s", c.Name)
-	errc := make(chan error)
+	glog.Infof("entering Start() for %s", c.Name)
+	defer glog.Infof("leaving Start() for %s", c.Name)
 	req := containerOpRequest{
 		op:       containerOpStart,
-		response: errc,
+		response: make(chan error),
 	}
 	c.ops <- req
 	return <-req.response
 }
 
 func (c *Container) Stop() error {
-	errc := make(chan error)
+	glog.Infof("calling Stop() for %s", c.Name)
 	req := containerOpRequest{
 		op:       containerOpStop,
-		response: errc,
+		response: make(chan error),
 	}
 	c.ops <- req
 	return <-req.response

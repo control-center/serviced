@@ -104,6 +104,7 @@ func (m *Manager) processStart() error {
 	return nil
 }
 
+// load a docker image fron a tar export
 func loadImage(tarball, dockerAddress string) error {
 
 	if file, err := os.Open(tarball); err != nil {
@@ -118,6 +119,7 @@ func loadImage(tarball, dockerAddress string) error {
 	return nil
 }
 
+// load all the images defined in the registered services
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.containers {
@@ -182,21 +184,24 @@ func (m *Manager) loop() {
 					// start containers in parallel
 					for _, c := range m.containers {
 						running[c.Name] = c
-						go func(con *Container) {
+						go func(con *Container, respc chan containerStartResponse) {
 							glog.Infof("calling start on %s", con.Name)
-							started <- containerStartResponse{
+							resp := containerStartResponse{
 								name: con.Name,
 								err:  con.Start(),
 							}
-						}(c)
+							respc <- resp
+						}(c, started)
 					}
 
 					// wait for containers to respond to start
 					var returnErr error
 					for _, _ = range m.containers {
-						if res := <-started; err != nil {
+						res := <-started
+						if res.err != nil {
 							returnErr = res.err
 						}
+						glog.Infof("%s started with %s", res.name, res.err)
 					}
 					request.response <- returnErr
 				}
@@ -205,8 +210,15 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerNotRunning
 					continue
 				}
+				responses := make(chan error, len(running))
 				for _, c := range running {
-					c.Stop()
+					go func(con *Container) {
+						responses <- con.Stop()
+					}(c)
+				}
+				runningCount := len(running)
+				for i := 0; i < runningCount; i++ {
+					<-responses
 				}
 				running = nil
 				request.response <- nil

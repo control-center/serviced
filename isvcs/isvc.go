@@ -24,6 +24,12 @@ func Init() {
 	if err := Mgr.Register(zookeeper); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	if err := Mgr.Register(logstash); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(opentsdb); err != nil {
+		glog.Fatalf("%s", err)
+	}
 }
 
 func localDir(p string) string {

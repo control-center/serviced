@@ -13,7 +13,7 @@ func init() {
 			Name:    "opentsdb",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: `/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
+			Command: `cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf`,
 			Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
 			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
 		})

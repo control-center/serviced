@@ -10,7 +10,7 @@ func init() {
 	var err error
 	logstash, err = NewContainer(
 		ContainerDescription{
-			Name:    "logstash_master",
+			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
 			Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
