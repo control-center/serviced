@@ -384,6 +384,32 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 	return err
 }
 
+// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
+func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) error {
+	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
+	id := strings.TrimSpace(serviceId)
+	if id == "" {
+		return errors.New("empty serviceId not allowed")
+	}
+
+	var err error
+	var service dao.Service
+	for {
+		err = this.GetService(id, &service)
+		if err == nil {
+			id = service.ParentServiceId
+			if id == "" {
+				*tenantId = service.Id
+				return nil
+			}
+		} else {
+			return err
+		}
+	}
+
+	return err
+}
+
 //
 func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", service)
@@ -581,9 +607,9 @@ func (this *ControlPlaneDao) GetResourcePools(request dao.EntityRequest, pools *
 		return err
 	}
 	var total = len(result.Hits.Hits)
-	var pool dao.ResourcePool
 	resourcePools = make(map[string]*dao.ResourcePool)
 	for i := 0; i < total; i += 1 {
+		var pool dao.ResourcePool
 		err := json.Unmarshal(result.Hits.Hits[i].Source, &pool)
 		if err != nil {
 			return err

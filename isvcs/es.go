@@ -52,6 +52,7 @@ func elasticsearchHealthCheck() error {
 		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
 			if buffer, err := os.Open(schemaFile); err != nil {
 				glog.Fatalf("problem reading %s", err)
+				return err
 			} else {
 				http.Post("http://localhost:9200/controlplane", "application/json", buffer)
 				buffer.Close()
