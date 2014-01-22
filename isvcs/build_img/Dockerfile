@@ -18,3 +18,4 @@ ENV HBASE_HOME /opt/hbase-0.94.14
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 
 RUN apt-get -y install maven
+RUN apt-get -y install python-virtualenv

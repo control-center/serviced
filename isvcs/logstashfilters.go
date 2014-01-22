@@ -1,7 +1,7 @@
 package isvcs
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/zenoss/serviced/dao"
 	"io/ioutil"
 	"strings"
@@ -34,34 +34,34 @@ func WriteConfigurationFile(templates map[string]*dao.ServiceTemplate) error {
 
 func getFilterDefinitions(services []dao.ServiceDefinition) map[string]string {
 	filterDefs := make(map[string]string)
-	for _, service := range services {
-		for name, value := range service.LogFilters {
-			filterDefs[name] = value
-		}
+	//for _, service := range services {
+	//	for name, value := range service.LogFilters {
+	//		filterDefs[name] = value
+	//	}
 
-		if len(service.Services) > 0 {
-			subFilterDefs := getFilterDefinitions(service.Services)
-			for name, value := range subFilterDefs {
-				filterDefs[name] = value
-			}
-		}
-	}
+	//	if len(service.Services) > 0 {
+	//		subFilterDefs := getFilterDefinitions(service.Services)
+	//		for name, value := range subFilterDefs {
+	//			filterDefs[name] = value
+	//		}
+	//	}
+	//}
 	return filterDefs
 }
 
 func getFilters(services []dao.ServiceDefinition, filterDefs map[string]string) string {
 	filters := ""
-	for _, service := range services {
-		for _, config := range service.LogConfigs {
-			for _, filtName := range config.Filters {
-				filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
-			}
-		}
-		if len(service.Services) > 0 {
-			subFilts := getFilters(service.Services, filterDefs)
-			filters += subFilts
-		}
-	}
+	//for _, service := range services {
+	//	for _, config := range service.LogConfigs {
+	//		for _, filtName := range config.Filters {
+	//			filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
+	//		}
+	//	}
+	//	if len(service.Services) > 0 {
+	//		subFilts := getFilters(service.Services, filterDefs)
+	//		filters += subFilts
+	//	}
+	//}
 	return filters
 }
 

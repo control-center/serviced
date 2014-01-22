@@ -1047,6 +1047,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (s *ControlPl
 		return
 	}
 
+	err = isvcs.CeleryContainer.Run()
+	if err != nil {
+		glog.Fatalf("Could not start celery container: %s", err)
+		return
+	}
+
 	if len(zookeepers) == 0 {
 		isvcs.ZookeeperContainer.Run()
 		s.zookeepers = []string{"127.0.0.1:2181"}

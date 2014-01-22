@@ -1,6 +1,6 @@
 .PHONY: buildgo buildimage
 
-COMPONENT_NAMES    := es zk opentsdb logstash query consumer
+COMPONENT_NAMES    := es zk opentsdb logstash query consumer celery
 HERE               := $(shell pwd)
 UID                := $(shell id -u)
 BUILD_DIR          := build
