@@ -418,9 +418,17 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
+	//get this service's tenantId for env injection
+	var tenantId string
+	err = client.GetTenantId(service.Id, &tenantId)
+	if err != nil {
+		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
+	}
+
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
