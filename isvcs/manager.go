@@ -82,11 +82,11 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 	if client, err := newDockerClient(m.dockerAddress); err != nil {
 		return false, err
 	} else {
+		repoTag := repo + ":" + tag
 		if images, err := client.ListImages(false); err != nil {
 			return false, err
 		} else {
 			for _, image := range images {
-				repoTag := repo + ":" + tag
 				for _, tagi := range image.RepoTags {
 					if tagi == repoTag {
 						return true, nil
