@@ -112,7 +112,7 @@ func (m *Manager) allImagesExist() error {
 	return nil
 }
 
-// loadImage() loads a docker image fron a tar export
+// loadImage() loads a docker image from a tar export
 func loadImage(tarball, dockerAddress string) error {
 
 	if file, err := os.Open(tarball); err != nil {
