@@ -38,6 +38,9 @@ func Init() {
 	if err := Mgr.Register(opentsdb); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	if err := Mgr.Register(celery); err != nil {
+		glog.Fatalf("%s", err)
+	}
 }
 
 func localDir(p string) string {
