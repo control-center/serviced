@@ -222,7 +222,8 @@ func (m *Manager) loop() {
 						res := <-started
 						if res.err != nil {
 							returnErr = res.err
-							glog.Errorf("%s started with %s", res.name, res.err)
+							glog.Errorf("%s failed with %s", res.name, res.err)
+							delete(running, res.name)
 						} else {
 							glog.Infof("%s started", res.name)
 						}
