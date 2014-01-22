@@ -1,31 +1,37 @@
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
 package isvcs
 
 import (
-	"fmt"
 	"github.com/zenoss/glog"
-	"net/http"
-	"time"
 )
 
-type OpenTsdbISvc struct {
-	ISvc
-}
-
-var OpenTsdbContainer OpenTsdbISvc
+var opentsdb *Container
 
 func init() {
-	OpenTsdbContainer = OpenTsdbISvc{
-		NewISvc(
-			"opentsdb",
-			"zctrl/isvcs",
-			"v1",
-			`/bin/bash -c "cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf"`,
-			[]int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
-			[]string{"/opt/zenoss/var/hbase"},
-		),
+	var err error
+	opentsdb, err = NewContainer(
+		ContainerDescription{
+			Name:    "opentsdb",
+			Repo:    IMAGE_REPO,
+			Tag:     IMAGE_TAG,
+			Command: `cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf`,
+			Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
+			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
+		})
+	if err != nil {
+		glog.Fatal("Error initializing opentsdb container: %s", err)
 	}
+
 }
 
+/*
 func (c *OpenTsdbISvc) Run() error {
 	c.ISvc.Run()
 
@@ -44,3 +50,4 @@ func (c *OpenTsdbISvc) Run() error {
 	}
 	return nil
 }
+*/
