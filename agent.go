@@ -30,6 +30,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"runtime"
+	"path"
 )
 
 /*
@@ -319,6 +321,46 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 }
 
+func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
+	f, err := ioutil.TempFile("", prefix)
+	if err != nil {
+		glog.Errorf("Could not generate tempfile for config %s %s", id, filename)
+		return f, err
+	}
+	_, err = f.WriteString(content)
+	if err != nil {
+		glog.Errorf("Could not write out config file %s %s", id, filename)
+		return f, err
+	}
+
+	return f, nil
+}
+
+func chownConfFile(f *os.File, id string, filename string, owner string) (bool) {
+	if len(owner) != 0 {
+		parts := strings.Split(owner, ":")
+		if len(parts) != 2 {
+			glog.Errorf("Unsupported owner specification, only %%d:%%d supported for now: %s, %s", id, filename)
+			return false
+		}
+		uid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			glog.Warningf("Malformed UID: %s %s: %s", id, filename, err)
+			return false
+		}
+		gid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			glog.Warningf("Malformed GID: %s %s: %s", id, filename, err)
+			return false
+		}
+		err = f.Chown(uid, gid)
+		if err != nil {
+			glog.Warningf("Could not chown config file: %s %s: %s", id, filename, err)
+		}
+	}
+	return true
+}
+
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
@@ -368,38 +410,79 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	configFiles := ""
 	for filename, config := range service.ConfigFiles {
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := ioutil.TempFile("", prefix)
-		if err != nil {
-			glog.Errorf("Could not generate tempfile for config %s %s", service.Id, filename)
-			return false, err
-		}
-		_, err = f.WriteString(config.Content)
-		if err != nil {
-			glog.Errorf("Could not write out config file %s %s", service.Id, filename)
-			return false, err
-		}
-		if len(config.Owner) != 0 {
-			parts := strings.Split(config.Owner, ":")
-			if len(parts) != 2 {
-				glog.Errorf("Unsupported owner specification, only %%d:%%d supported for now: %s, %s", service.Id, filename)
-				continue
-			}
-			uid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				glog.Warningf("Malformed UID: %s %s: %s", service.Id, filename, err)
-				continue
-			}
-			gid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				glog.Warningf("Malformed GID: %s %s: %s", service.Id, filename, err)
-				continue
-			}
-			err = f.Chown(uid, gid)
-			if err != nil {
-				glog.Warningf("Could not chown config file: %s %s: %s", service.Id, filename, err)
-			}
-		}
+		f, err := writeConfFile(prefix, service.Id, filename, config.Content)
+ 		if err != nil {
+ 			return false, err
+ 		}
+
+		fileChowned := chownConfFile(f, service.Id, filename, config.Owner)
+		if fileChowned == false {
+			continue
+ 		}
+
+		// everything worked!
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
+	}
+
+	// if this container is going to produce any logs, bind mount the following files:
+	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
+	logstashForwarderMount := ""
+	if len(service.LogConfigs) > 0 {		
+		logstashForwarderLogConf :=
+				"      {\n" +
+				"         \"paths\": [ \"" + service.LogConfigs[0].Path + "\" ],\n" +
+				"         \"fields\": { \"type\": \"" + service.LogConfigs[0].Type + "\" }\n" +
+				"      }"
+		for _, logConfig := range service.LogConfigs[1:] {
+			logstashForwarderLogConf = logstashForwarderLogConf + ",\n" +
+				"      {\n" +
+				"         \"paths\": [ \"" + logConfig.Path + "\" ],\n" +
+				"         \"fields\": { \"type\": \"" + logConfig.Type + "\" }\n" +
+				"      }"
+		}
+
+		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash/"
+		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
+        containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
+
+        logstashForwarderShipperConf := 
+        "{\n" +
+		"   \"network\": {\n" +
+		"      \"servers\": [ \"" + containerDefaultGatewayAndLogstashForwarderPort + "\" ],\n" +
+		"      \"ssl certificate\": \"" + containerSSLCertificatePath + "\",\n" +
+		"      \"ssl key\": \"" + containerSSLKeyPath + "\",\n" +
+		"      \"ssl ca\": \"" + containerSSLCertificatePath + "\",\n" +
+		"      \"timeout\": 15\n" +
+		"   },\n" +
+		"   \"files\": [\n" +
+		logstashForwarderLogConf + "\n" +
+		"   ]\n" +
+		"}\n"
+		glog.Info("logstashForwarderShipperConf: ", logstashForwarderShipperConf)
+
+		filename := service.Name + "_logstash_forwarder_conf"
+		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
+		f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
+		if err != nil {
+			return false, err
+		}
+
+		logstashPath := resourcesDir() + "/logstash"
+		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
+        hostLogstashForwarderConfPath := f.Name()
+		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
+        hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
+		
+		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
+		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
+		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
+		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
+		
+		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
+		glog.Info(" ^^^^^^^^^^ logstashForwarderMount: ", logstashForwarderMount)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -431,8 +514,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
-
+	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)
@@ -700,4 +783,22 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	}
 	*host = *hostInfo
 	return nil
+}
+
+// returns serviced home
+func serviceDHome() string {
+	return os.Getenv("SERVICED_HOME")
+}
+
+func localDir(p string) string {
+	homeDir := ServiceDHome()
+	if len(homeDir) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = path.Join(path.Dir(filename), "isvcs")
+	}
+	return path.Join(homeDir, p)
+}
+
+func resourcesDir() string {
+	return localDir("resources")
 }

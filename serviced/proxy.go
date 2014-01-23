@@ -99,6 +99,19 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}(config.Command)
 
+    go func() {
+    	containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash/"
+		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		glog.Info("*************************************** TRYING TO RUN: " + containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath)
+		myCmd := exec.Command("bash", "-c", containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath)
+		myErr := myCmd.Run()
+		if myErr != nil {
+			glog.Errorf("Problem running service: %v", myErr)
+			glog.Flush()
+		}
+	}()
+
 	go func() {
 		for {
 			func() {
