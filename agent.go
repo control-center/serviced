@@ -706,7 +706,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-// Lists every internal service that we wish to expose to the containers running on this agent
+// getInternalServiceEndpoints lists every internal service that we wish to expose to the containers running on this agent
 func (a *HostAgent) getInternalServiceEndpoints() map[string]dao.ApplicationEndpoint {
 	// master is of the form host:port, we just need the host
 	master := strings.Split(a.master, ":")[0]
