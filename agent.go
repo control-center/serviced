@@ -461,7 +461,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 				logstashForwarderLogConf + "\n" +
 				"   ]\n" +
 				"}\n"
-		glog.Info("logstashForwarderShipperConf: ", logstashForwarderShipperConf)
 
 		filename := service.Name + "_logstash_forwarder_conf"
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
@@ -482,7 +481,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
 
 		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
-		glog.Info(" ^^^^^^^^^^ logstashForwarderMount: ", logstashForwarderMount)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -778,6 +776,7 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 }
 
 // *********************************************************************
+// ***** FIXME *********************************************************
 // ***** The following three functions are also defined in isvc.go *****
 // returns serviced home
 func serviceDHome() string {
