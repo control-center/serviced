@@ -1,12 +1,13 @@
 package main
 
 import (
+    "github.com/gorilla/websocket"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+    "github.com/zenoss/serviced/shell"
 
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,37 +17,48 @@ import (
 	"time"
 )
 
-// Handler for bash -c exec command
-func handler(w http.ResponseWriter, r *http.Request) {
-	type ShellRequest struct {
-		Command string
-	}
-	type ShellResponse struct {
-		Stdin, Stdout, Stderr, Code string
-	}
+type hub struct {
+    // Registered connections.
+    connections map[*shell.WebsocketShell]bool
 
-	var req ShellRequest
-	var res ShellResponse
+    // Register requests from the connections
+    register chan *shell.WebsocketShell
 
-	decoder := json.NewDecoder(r.Body)
-	encoder := json.NewEncoder(w)
-	if err := decoder.Decode(&req); err != nil || req.Command == "" {
-		fmt.Fprintf(w, "Unable to parse param 'command': %s\n", err)
-		return
-	}
+    // Unregister requests from the connections
+    unregister chan *shell.WebsocketShell
+}
 
-	// Execute the command
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("bash", "-c", req.Command)
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		res.Code = fmt.Sprintf("%s", err)
-	}
+func (h *hub) run() {
+    for {
+        select {
+        case c := <-h.register:
+            h.connections[c] = true
+        case c := <-h.unregister:
+            delete(h.connections, c)
+            c.Close()
+        }
+    }
+}
 
-	res.Stdin = req.Command
-	res.Stdout = stdout.String()
-	res.Stderr = stderr.String()
-	encoder.Encode(&res)
+var h = hub{
+    register: make(chan *shell.WebsocketShell),
+    unregister: make(chan *shell.WebsocketShell),
+    connections: make(map[*shell.WebsocketShell]bool),
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+    ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+    if _, ok := err.(websocket.HandshakeError); ok {
+        http.Error(w, "Not a websocket handshake", 400)
+        return
+    } else if err != nil {
+        return
+    }
+    c := shell.Connect(ws)
+    h.register <- c
+    defer func() { h.unregister <- c }()
+    go c.Writer()
+    c.Reader()
 }
 
 // Start a service proxy.

@@ -3,10 +3,10 @@ package shell
 import (
 	"github.com/gorilla/websocket"
 
-    "bytes"
-    "fmt"
-    "io"
-    "strings"
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
 	"time"
 )
 
@@ -18,31 +18,31 @@ const (
 	SIGNAL = "SIGNAL"
 )
 
-type Process interface {
-    Stdin() io.Writer
-    Stdout() io.Reader
-    Stderr() io.Reader
-    Resize(cols, rows *int) error
-    Wait() error
-    Kill(s *int) error
-    Close()
+type process interface {
+	Stdin() io.Writer
+	Stdout() io.Reader
+	Stderr() io.Reader
+	Resize(cols, rows *int) error
+	Wait() error
+	Kill(s *int) error
+	Close()
 }
 
-type Request struct {
+type request struct {
 	Action string
-    Argv []string
-    Signal *int
+	Argv   []string
+	Signal *int
 
-    TermName string
-    TermCwd string
-    TermCols *int
-    TermRows *int
-    TermUid *int
-    TermGid *int
-    TermEnv map[string]string
+	TermName string
+	TermCwd  string
+	TermCols *int
+	TermRows *int
+	TermUid  *int
+	TermGid  *int
+	TermEnv  map[string]string
 }
 
-type Response struct {
+type response struct {
 	Timestamp                     int64
 	Stdin, Stdout, Stderr, Result string
 }
@@ -52,84 +52,102 @@ type WebsocketShell struct {
 	ws *websocket.Conn
 
 	// The shell connection
-	process Process
+	proc process
 
 	// Buffered channel of outbound messages
-	send chan Response
+	send chan response
 }
 
-func (wss *WebsocketShell) reader() {
+func Connect(ws *websocket.Conn) *WebsocketShell {
+	return &WebsocketShell{
+		ws:   ws,
+		send: make(chan response),
+	}
+}
+
+func (wss *WebsocketShell) Close() {
+	close(wss.send)
+}
+
+func (wss *WebsocketShell) Reader() {
 	for {
-		var req Request
+		var req request
 		if err := wss.ws.ReadJSON(&req); err != nil {
 			break
 		}
 		if req.Action == "" {
-			wss.send <- Response{Timestamp: time.Now().Unix(), Result: "required field 'Action'"}
+			wss.send <- response{Timestamp: time.Now().Unix(), Result: "required field 'Action'"}
 			continue
 		}
-        if len(req.Argv) == 0 {
-            wss.send <- Response{Timestamp: time.Now().Unix(), Result: "required field 'Argv'"}
-            continue
-        }
 
-        var (
-            name, file, cwd string
-            args []string
-            env map[string]string
-            cols, rows, uid, gid *int
-            signal *int
-        )
-        name = req.TermName
-        cwd = req.TermCwd
-        env = req.TermEnv
-        cols = req.TermCols
-        rows = req.TermRows
-        uid = req.TermUid
-        gid = req.TermGid
-        signal = req.Signal
-        file = req.Argv[0]
-        if len(req.Argv) > 1 {
-            args = req.Argv[1:]
-        }
+		var (
+			name, file, cwd      string
+			args                 []string
+			env                  map[string]string
+			cols, rows, uid, gid *int
+			signal               *int
+		)
+		name = req.TermName
+		cwd = req.TermCwd
+		env = req.TermEnv
+		cols = req.TermCols
+		rows = req.TermRows
+		uid = req.TermUid
+		gid = req.TermGid
+		signal = req.Signal
 
-		if wss.process == nil {
+		if len(req.Argv) > 0 {
+			file = req.Argv[0]
+			if len(req.Argv) > 1 {
+				args = req.Argv[1:]
+			}
+		}
+
+		if wss.proc == nil {
 			switch req.Action {
 			case FORK:
-                if term, err := CreateTerminal(name, file, args, env, cwd, cols, rows, uid, gid); err != nil {
+				if len(req.Argv) == 0 {
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
+					continue
+				}
+				if term, err := CreateTerminal(name, file, args, env, cwd, cols, rows, uid, gid); err != nil {
 					// LOGME: fmt.Sprint(err)
-					wss.send <- Response{Timestamp: time.Now().Unix(), Result: "unable to fork pty"}
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to fork pty"}
 				} else {
-					wss.process = term
+					wss.proc = term
 				}
 			case OPEN:
 				if term, err := OpenTerminal(cols, rows); err != nil {
 					// LOGME: fmt.Sprint(err)
-					wss.send <- Response{Timestamp: time.Now().Unix(), Result: "unable to open pty"}
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to open pty"}
 				} else {
-					wss.process = term
+					wss.proc = term
 				}
 			case EXEC:
+				if len(req.Argv) == 0 {
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
+					continue
+				}
 				if cmd, err := CreateCommand(file, args); err != nil {
 					// LOGME: fmt.Sprint(err)
-					wss.send <- Response{Timestamp: time.Now().Unix(), Result: "unable to run exec"}
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to run exec"}
 				} else {
-					wss.process = cmd
+					wss.proc = cmd
 				}
 			default:
 				// LOGME: no running processes
-				wss.send <- Response{Timestamp: time.Now().Unix(), Result: "no running process"}
+				wss.send <- response{Timestamp: time.Now().Unix(), Result: "no running process"}
 				continue
 			}
 			go wss.respond()
 		} else {
 			switch req.Action {
 			case RESIZE:
-				if err := wss.process.Resize(cols, rows); err != nil {
+				if err := wss.proc.Resize(cols, rows); err != nil {
 					// LOGME: fmt.Sprint(err)
 				}
 			case SIGNAL:
-				if err := wss.process.Kill(signal); err != nil {
+				if err := wss.proc.Kill(signal); err != nil {
 					// LOGME: fmt.Sprint(err)
 				}
 			case EXEC:
@@ -145,7 +163,7 @@ func (wss *WebsocketShell) reader() {
 	wss.ws.Close()
 }
 
-func (wss *WebsocketShell) writer() {
+func (wss *WebsocketShell) Writer() {
 	for response := range wss.send {
 		if err := wss.ws.WriteJSON(response); err != nil {
 			break
@@ -156,11 +174,11 @@ func (wss *WebsocketShell) writer() {
 }
 
 func (wss *WebsocketShell) tx(input string) error {
-	if _, err := wss.process.Stdin().Write([]byte(input)); err != nil {
-		wss.send <- Response{Timestamp: time.Now().Unix(), Result: "message failed to send"}
+	if _, err := wss.proc.Stdin().Write([]byte(input)); err != nil {
+		wss.send <- response{Timestamp: time.Now().Unix(), Result: "message failed to send"}
 		return err
 	}
-	wss.send <- Response{Timestamp: time.Now().Unix(), Stdin: input}
+	wss.send <- response{Timestamp: time.Now().Unix(), Stdin: input}
 	// LOGME: >> {input}
 	return nil
 }
@@ -172,15 +190,15 @@ func (wss *WebsocketShell) respond() {
 		stdoutErr, stderrErr chan error
 		stdoutBuf, stderrBuf bytes.Buffer
 	)
-	stdoutMsg, stdoutErr = pipe(wss.process.Stdout())
-	stderrMsg, stderrErr = pipe(wss.process.Stderr())
+	stdoutMsg, stdoutErr = pipe(wss.proc.Stdout())
+	stderrMsg, stderrErr = pipe(wss.proc.Stderr())
 	defer func() {
 		close(stdoutMsg)
 		close(stdoutErr)
 		close(stderrMsg)
 		close(stderrErr)
-		wss.process.Close()
-		wss.process = nil
+		wss.proc.Close()
+		wss.proc = nil
 	}()
 
 	for {
@@ -188,67 +206,67 @@ func (wss *WebsocketShell) respond() {
 		case m := <-stdoutMsg:
 			stdoutBuf.WriteByte(m)
 			if m == '\n' {
-				wss.send <- Response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
+				wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
 				// LOGME: stdoutBuf.String()
 				stdoutBuf.Reset()
 			}
 		case e := <-stdoutErr:
 			if e == io.EOF {
 				if stdoutBuf.Len() > 0 {
-					wss.send <- Response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
+					wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
 					// LOGME: stdoutBuf.String()
 					stdoutBuf.Reset()
 				}
 				if eof {
-					if err := wss.process.Wait(); err != nil {
-						wss.send <- Response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
+					if err := wss.proc.Wait(); err != nil {
+						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
 						// LOGME: stdoutBuf.String()
 					} else {
-						wss.send <- Response{Timestamp: time.Now().Unix(), Result: "0"}
+						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
 						// LOGME: received code 0
 					}
 					return
 				}
 				eof = true
 			} else {
-				wss.send <- Response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
+				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
 				// LOGME: connection closed unexpectedly
 				return
 			}
 		case m := <-stderrMsg:
 			stderrBuf.WriteByte(m)
 			if m == '\n' {
-				wss.send <- Response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
+				wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
 				// LOGME: stdoutBuf.String()
 				stderrBuf.Reset()
 			}
 		case e := <-stderrErr:
 			if e == io.EOF {
 				if stderrBuf.Len() > 0 {
-					wss.send <- Response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
+					wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
 					// LOGME: stdoutBuf.String()
 					stderrBuf.Reset()
 				}
 				if eof {
-					if err := wss.process.Wait(); err != nil {
-						wss.send <- Response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
+					if err := wss.proc.Wait(); err != nil {
+						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
 						// LOGME: stdoutBuf.String()
 					} else {
-						wss.send <- Response{Timestamp: time.Now().Unix(), Result: "0"}
+						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
 						// LOGME: received code 0
 					}
 					return
 				}
 				eof = true
 			} else {
-				wss.send <- Response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
+				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
 				// LOGME: connection closed unexpectedly
 				return
 			}
 		case <-time.After(1 * time.Second):
 			// Hanging process; dump whatever is on the pipes
 			var (
-				response Response
+				response response
 				submit   bool = false
 			)
 			if stdoutBuf.Len() > 0 {
