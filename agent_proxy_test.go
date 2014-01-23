@@ -18,13 +18,11 @@ import (
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
 
-var testManager *isvcs.Manager
-
 func createTestService() {
-	testManager = isvcs.NewManager("unix:///var/run/docker.sock", "/tmp", "/tmp/volumes")
+	isvcs.Mgr = isvcs.NewManager("unix:///var/run/docker.sock", "/tmp", "/tmp/volumes")
+	isvcs.Mgr.Wipe()
 }
 
 func TestGetServiceEndpoints(t *testing.T) {
 	createTestService()
-	testManager.Wipe()
 }
