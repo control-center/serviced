@@ -1132,8 +1132,7 @@ func (s *ControlPlaneDao) reloadLogstashContainer() error {
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
-	err = isvcs.Mgr.Notify("restart logstash")
-	if err != nil {
+	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
 		glog.Fatalf("Could not start logstash container: %s", err)
 		return err
 	}
