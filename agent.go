@@ -442,7 +442,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 
 		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash/"
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
 		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
 		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
