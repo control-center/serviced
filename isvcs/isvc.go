@@ -10,8 +10,10 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 
+	"fmt"
+	"os"
+	"os/user"
 	"path"
 	"runtime"
 )
@@ -24,7 +26,14 @@ const (
 )
 
 func Init() {
-	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir())
+	var volumesDir string
+	if user, err := user.Current(); err == nil {
+		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+	} else {
+		volumesDir = "/tmp/serviced/isvcs_volumes"
+	}
+
+	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
 
 	if err := Mgr.Register(elasticsearch); err != nil {
 		glog.Fatalf("%s", err)
@@ -41,7 +50,7 @@ func Init() {
 }
 
 func localDir(p string) string {
-	homeDir := serviced.ServiceDHome()
+	homeDir := os.Getenv("SERVICED_HOME")
 	if len(homeDir) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
 		homeDir = path.Dir(filename)
