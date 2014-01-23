@@ -785,6 +785,8 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	return nil
 }
 
+// *********************************************************************
+// ***** The following three functions are also defined in isvc.go *****
 // returns serviced home
 func serviceDHome() string {
 	return os.Getenv("SERVICED_HOME")
@@ -802,3 +804,4 @@ func localDir(p string) string {
 func resourcesDir() string {
 	return localDir("resources")
 }
+// *********************************************************************

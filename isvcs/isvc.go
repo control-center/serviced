@@ -40,6 +40,9 @@ func Init() {
 	}
 }
 
+// **********************************************************************
+// ***** The following three functions are also defined in agent.go *****
+// returns serviced home
 func localDir(p string) string {
 	homeDir := serviced.ServiceDHome()
 	if len(homeDir) == 0 {
@@ -56,3 +59,4 @@ func imagesDir() string {
 func resourcesDir() string {
 	return localDir("resources")
 }
+// **********************************************************************
