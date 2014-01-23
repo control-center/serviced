@@ -19,6 +19,7 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"time"
 )
 
 type containerOp int
@@ -129,11 +130,10 @@ func (c *Container) loop() {
 
 			}
 		case exitErr := <-exitChan:
-			docker := exec.Command("docker", "logs", c.Name)
-			output, _ := docker.CombinedOutput()
-			glog.Errorf("isvc:%s, %s", c.Name, string(output))
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
-			glog.Fatalf("iscv:%s, process exited: %s", cmd.ProcessState.Exited())
+			c.stop()                // stop the container, if it's not stoppped
+			c.rm()                  // remove it if it was not already removed
+			cmd, exitChan = c.run() // run the actual container
 		}
 	}
 }
@@ -226,9 +226,28 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
 
 	glog.V(1).Infof("Executing docker %s", args)
-	cmd := exec.Command("docker", args...)
+	var cmd *exec.Cmd
+	tries := 5
+	for {
+		var err error
+		if tries > 0 {
+			cmd = exec.Command("docker", args...)
+			if err := cmd.Start(); err != nil {
+				glog.Errorf("Could not start: %s", c.Name)
+				c.stop()
+				c.rm()
+				time.Sleep(time.Second * 1)
+			} else {
+				break
+			}
+		} else {
+			exitChan <- err
+			return cmd, exitChan
+		}
+		tries = -1
+	}
 	go func() {
-		exitChan <- cmd.Run()
+		exitChan <- cmd.Wait()
 	}()
 	return cmd, exitChan
 }
