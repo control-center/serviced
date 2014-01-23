@@ -2,7 +2,6 @@ package serviced
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -91,6 +90,4 @@ func TestParseContainerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem unmarshaling test state: ", err)
 	}
-	fmt.Printf("%s", testState)
-
 }

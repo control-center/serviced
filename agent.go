@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
 *
 * This content is made available according to terms specified in
 * License.zenoss under the directory where your Zenoss product is installed.
@@ -206,7 +206,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
-		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
+		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
 		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
@@ -512,6 +512,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
@@ -763,16 +765,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			continue
 		}
 	}
-}
-
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
-	}
-	defer controlClient.Close()
-	return controlClient.GetServiceEndpoints(serviceId, response)
 }
 
 // Create a Host object from the host this function is running on.
