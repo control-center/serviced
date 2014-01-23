@@ -23,6 +23,7 @@ var err error
 
 func init() {
 	isvcs.Init()
+	isvcs.Mgr.Wipe()
 	controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
