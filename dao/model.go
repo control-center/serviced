@@ -246,6 +246,16 @@ type RunningService struct {
 	ParentServiceId string
 }
 
+type ScheduledTask struct {
+	Id            string
+	Name          string
+	Schedule      string
+	LastRun       time.Time
+	TotalRunCount int
+	ServiceId     string
+	Command       string
+}
+
 // Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}

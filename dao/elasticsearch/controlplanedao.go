@@ -115,12 +115,14 @@ var (
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
+	newScheduledTask          func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "scheduledtask")
 
 	//model index functions
-	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
-	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
-	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
-	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
+	indexHost          func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
+	indexService       func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
+	indexServiceState  func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
+	indexResourcePool  func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
+	indexScheduledTask func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "scheduledtask")
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
@@ -128,6 +130,7 @@ var (
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
+	deleteScheduledTask          func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "scheduledtask")
 
 	//model get functions
 	getHost                   func(string, interface{}) error = getSource("controlplane", "host")
@@ -135,6 +138,7 @@ var (
 	getServiceState           func(string, interface{}) error = getSource("controlplane", "servicestate")
 	getResourcePool           func(string, interface{}) error = getSource("controlplane", "resourcepool")
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
+	getScheduledTask          func(string, interface{}) error = getSource("controlplane", "scheduledtask")
 
 	//model search functions, using uri based query
 	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
@@ -202,6 +206,21 @@ func toServices(result *core.SearchResult) ([]*dao.Service, error) {
 	}
 
 	return services, err
+}
+
+// convert search result of json tasks to dao.ScheduledTask array
+func toScheduledTasks(result *core.SearchResult) ([]*dao.ScheduledTask, error) {
+	total := len(result.Hits.Hits)
+	tasks := make([]*dao.ScheduledTask, total)
+	for _, hit := range result.Hits.Hits {
+		task := &dao.ScheduledTask{}
+		err := json.Unmarshal(hit.Source, task)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
 }
 
 // query for hosts using uri
@@ -1010,6 +1029,66 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 	}
 	*templates = templatemap
 	return nil
+}
+
+func (this *ControlPlaneDao) AddScheduledTask(scheduledTask dao.ScheduledTask, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.AddScheduledTask: %+v", scheduledTask)
+	id := strings.TrimSpace(scheduledTask.Id)
+	if id == "" {
+		return errors.New("empty ScheduledTask.Id not allowed")
+	}
+	scheduledTask.Id = id
+	response, err := newScheduledTask(id, scheduledTask)
+	glog.V(2).Infof("ControlPlaneDao.AddScheduledTask response: %+v", response)
+	if response.Ok {
+		return nil
+	}
+	return err
+}
+
+func (this *ControlPlaneDao) GetScheduledTasks(unused *int, tasks *map[string]*dao.ScheduledTask) error {
+	glog.V(2).Infof("ControlPlaneDao.GetScheduledTasks")
+	query := search.Query().Search("_exists_:Id")
+	search_result, err := search.Search("controlplane").Type("scheduledtask").Size("1000").Query(query).Result()
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetScheduledTasks: err=%s", err)
+		return err
+	}
+	result, err := toScheduledTasks(search_result)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetScheduledTasks: err=%s", err)
+		return err
+	}
+	taskmap := make(map[string]*dao.ScheduledTask)
+	for _, task := range result {
+		taskmap[task.Id] = task
+	}
+	*tasks = taskmap
+	return nil
+}
+
+func (this *ControlPlaneDao) UpdateScheduledTask(scheduledTask dao.ScheduledTask, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.UpdateScheduledTask: %+v", scheduledTask)
+
+	id := strings.TrimSpace(scheduledTask.Id)
+	if id == "" {
+		return errors.New("empty ScheduledTask.Id not allowed")
+	}
+
+	scheduledTask.Id = id
+	response, err := indexScheduledTask(id, scheduledTask)
+	glog.V(2).Infof("ControlPlaneDao.UpdateScheduledTask response: %+v", response)
+	if response.Ok {
+		return nil
+	}
+	return err
+}
+
+func (this *ControlPlaneDao) RemoveScheduledTask(id string, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.RemoveScheduledTask: %s", id)
+	response, err := deleteScheduledTask(id)
+	glog.V(2).Infof("ControlPlaneDao.RemoveScheduledTask response: %+v", response)
+	return err
 }
 
 func (this *ControlPlaneDao) StartShell(service dao.Service, unused *int) error {

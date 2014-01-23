@@ -465,3 +465,26 @@ func TestDao_TestingComplete(t *testing.T) {
 	controlPlaneDao.RemoveHost("0", &unused)
 	controlPlaneDao.RemoveHost("1", &unused)
 }
+
+func TestDao_NewScheduledTask(t *testing.T) {
+	task := dao.ScheduledTask{}
+	controlPlaneDao.RemoveScheduledTask("default", &unused)
+	err := controlPlaneDao.AddScheduledTask(task, &unused)
+	if err == nil {
+		t.Errorf("Expected failure to create task %-v", task)
+		t.Fail()
+	}
+
+	task.Id = "default"
+	err = controlPlaneDao.AddScheduledTask(task, &unused)
+	if err != nil {
+		t.Errorf("Failure creating task %-v with error: %s", task, err)
+		t.Fail()
+	}
+
+	err = controlPlaneDao.AddScheduledTask(task, &unused)
+	if err == nil {
+		t.Errorf("Expected error creating redundant task %-v", task)
+		t.Fail()
+	}
+}

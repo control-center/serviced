@@ -191,6 +191,22 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
 }
 
+func (s *ControlClient) AddScheduledTask(scheduledTask dao.ScheduledTask, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.AddScheduledTask", scheduledTask, unused)
+}
+
+func (s *ControlClient) GetScheduledTasks(unused *int, tasks *map[string]*dao.ScheduledTask) error {
+	return s.rpcClient.Call("ControlPlane.GetScheduledTasks", unused, tasks)
+}
+
+func (s *ControlClient) UpdateScheduledTask(scheduledTask dao.ScheduledTask, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.UpdateScheduledTask", scheduledTask, unused)
+}
+
+func (s *ControlClient) RemoveScheduledTask(scheduledTaskId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveScheduledTask", scheduledTaskId, unused)
+}
+
 func (s *ControlClient) StartShell(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
 }
