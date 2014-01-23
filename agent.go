@@ -25,13 +25,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
-	"runtime"
-	"path"
 )
 
 /*
@@ -336,7 +336,7 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 	return f, nil
 }
 
-func chownConfFile(f *os.File, id string, filename string, owner string) (bool) {
+func chownConfFile(f *os.File, id string, filename string, owner string) bool {
 	if len(owner) != 0 {
 		parts := strings.Split(owner, ":")
 		if len(parts) != 2 {
@@ -411,14 +411,14 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	for filename, config := range service.ConfigFiles {
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
 		f, err := writeConfFile(prefix, service.Id, filename, config.Content)
- 		if err != nil {
- 			return false, err
- 		}
+		if err != nil {
+			return false, err
+		}
 
 		fileChowned := chownConfFile(f, service.Id, filename, config.Owner)
 		if fileChowned == false {
 			continue
- 		}
+		}
 
 		// everything worked!
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
@@ -427,9 +427,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// if this container is going to produce any logs, bind mount the following files:
 	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
 	logstashForwarderMount := ""
-	if len(service.LogConfigs) > 0 {		
+	if len(service.LogConfigs) > 0 {
 		logstashForwarderLogConf :=
-				"      {\n" +
+			"      {\n" +
 				"         \"paths\": [ \"" + service.LogConfigs[0].Path + "\" ],\n" +
 				"         \"fields\": { \"type\": \"" + service.LogConfigs[0].Type + "\" }\n" +
 				"      }"
@@ -446,21 +446,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
 		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
-        containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
+		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
 
-        logstashForwarderShipperConf := 
-        "{\n" +
-		"   \"network\": {\n" +
-		"      \"servers\": [ \"" + containerDefaultGatewayAndLogstashForwarderPort + "\" ],\n" +
-		"      \"ssl certificate\": \"" + containerSSLCertificatePath + "\",\n" +
-		"      \"ssl key\": \"" + containerSSLKeyPath + "\",\n" +
-		"      \"ssl ca\": \"" + containerSSLCertificatePath + "\",\n" +
-		"      \"timeout\": 15\n" +
-		"   },\n" +
-		"   \"files\": [\n" +
-		logstashForwarderLogConf + "\n" +
-		"   ]\n" +
-		"}\n"
+		logstashForwarderShipperConf :=
+			"{\n" +
+				"   \"network\": {\n" +
+				"      \"servers\": [ \"" + containerDefaultGatewayAndLogstashForwarderPort + "\" ],\n" +
+				"      \"ssl certificate\": \"" + containerSSLCertificatePath + "\",\n" +
+				"      \"ssl key\": \"" + containerSSLKeyPath + "\",\n" +
+				"      \"ssl ca\": \"" + containerSSLCertificatePath + "\",\n" +
+				"      \"timeout\": 15\n" +
+				"   },\n" +
+				"   \"files\": [\n" +
+				logstashForwarderLogConf + "\n" +
+				"   ]\n" +
+				"}\n"
 		glog.Info("logstashForwarderShipperConf: ", logstashForwarderShipperConf)
 
 		filename := service.Name + "_logstash_forwarder_conf"
@@ -472,15 +472,15 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 		logstashPath := resourcesDir() + "/logstash"
 		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
-        hostLogstashForwarderConfPath := f.Name()
+		hostLogstashForwarderConfPath := f.Name()
 		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
-        hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
-		
+		hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
+
 		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
 		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
 		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
 		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
-		
+
 		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
 		glog.Info(" ^^^^^^^^^^ logstashForwarderMount: ", logstashForwarderMount)
 	}
@@ -804,4 +804,5 @@ func localDir(p string) string {
 func resourcesDir() string {
 	return localDir("resources")
 }
+
 // *********************************************************************
