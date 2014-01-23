@@ -1,11 +1,14 @@
 package tests
 
-import "time"
-import "testing"
-import "github.com/zenoss/glog"
-import "github.com/zenoss/serviced/dao"
-import "github.com/zenoss/serviced/isvcs"
-import "github.com/zenoss/serviced/dao/elasticsearch"
+import (
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/isvcs"
+
+	"testing"
+	"time"
+)
 
 var startup_testcases = []struct {
 	service  dao.Service
@@ -127,34 +130,38 @@ var endpoint_testcases = []struct {
 }
 
 var addresses []string
-var cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses)
+var cp *elasticsearch.ControlPlaneDao
 
 func init() {
 	var unused int
+	var err error
+	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
+	isvcs.Mgr.Wipe()
+	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses); err != nil {
+		glog.Fatalf("could not start NewControlSvc(): %s", err)
+	}
+
 	if err == nil {
-		err = isvcs.ElasticSearchContainer.Run()
-		if err == nil {
-			for _, testcase := range startup_testcases {
-				var id string
-				cp.RemoveService(testcase.service.Id, &unused)
-				if err = cp.AddService(testcase.service, &id); err != nil {
-					glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
-				}
+		for _, testcase := range startup_testcases {
+			var id string
+			cp.RemoveService(testcase.service.Id, &unused)
+			if err = cp.AddService(testcase.service, &id); err != nil {
+				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
 			}
-			for _, testcase := range endpoint_testcases {
-				var id string
-				cp.RemoveService(testcase.service.Id, &unused)
-				if err = cp.AddService(testcase.service, &id); err != nil {
-					glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
-				}
+		}
+		for _, testcase := range endpoint_testcases {
+			var id string
+			cp.RemoveService(testcase.service.Id, &unused)
+			if err = cp.AddService(testcase.service, &id); err != nil {
+				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
 			}
-		} else {
-			glog.Fatalf("Could not start es container: %s", err)
 		}
 	}
 }
 
 func TestEvaluateStartupTemplate(t *testing.T) {
+	var err error
 	for _, testcase := range startup_testcases {
 		glog.Infof("Service.Startup before: %s", testcase.service.Startup)
 		err = testcase.service.EvaluateStartupTemplate(cp)
@@ -167,6 +174,7 @@ func TestEvaluateStartupTemplate(t *testing.T) {
 }
 
 func TestEvaluateEndpointTemplate(t *testing.T) {
+	var err error
 	for _, testcase := range endpoint_testcases {
 		if len(testcase.service.Endpoints) > 0 {
 			glog.Infof("Service.Endpoint[0].Application: %s", testcase.service.Endpoints[0].Application)

@@ -10,6 +10,7 @@ package elasticsearch
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/isvcs"
 	"strconv"
 	"testing"
 )
@@ -17,9 +18,14 @@ import (
 var unused int
 var id string
 var addresses []string
-var controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
+var controlPlaneDao *ControlPlaneDao
+var err error
 
 func init() {
+	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
+	isvcs.Mgr.Wipe()
+	controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {

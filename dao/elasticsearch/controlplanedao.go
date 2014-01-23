@@ -1122,13 +1122,17 @@ func NewControlSvc(hostName string, port int, zookeepers []string) (*ControlPlan
 // This method depends on the elasticsearch container being up and running.
 func (s *ControlPlaneDao) reloadLogstashContainer() error {
 	var templatesMap map[string]*dao.ServiceTemplate
-	err := s.GetServiceTemplates(0, &templatesMap)
-	if err != nil {
+	if err := s.GetServiceTemplates(0, &templatesMap); err != nil {
+		return err
+	}
+
+	// FIXME: eventually this file should live in the DFS or the config should
+	// live in zookeeper to allow the agents to get to this
+	if err := dao.WriteConfigurationFile(templatesMap); err != nil {
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
-	err = isvcs.Mgr.Notify(templatesMap)
-	if err != nil {
+	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
 		glog.Fatalf("Could not start logstash container: %s", err)
 		return err
 	}
