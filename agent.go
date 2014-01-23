@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/glog"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -684,12 +685,58 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return controlClient.GetServiceEndpoints(serviceId, response)
 }
 
-// Create a Host object from the host this function is running on.
+// GetInfo creates a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
 	}
 	*host = *hostInfo
+	return nil
+}
+
+//SendHostIps handles the details of sending HostIPResources
+type SendHostIps func(ips []dao.HostIPResource, unused interface{}) error
+
+/**
+RegisterResources registers resources on the host such as IP addresses with the control plane master
+*/
+func (a *HostAgent) RegisterIPResources() error {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return err
+	}
+	defer controlClient.Close()
+
+	return registerIps(a.hostId, controlClient.RegisterHostIps)
+}
+
+func registerIps(hostId string, sendFn SendHostIps) error {
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		glog.Error("Problem reading interfaces: ", err)
+		return err
+	}
+	hostIps := make([]dao.HostIPResource, 0)
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
+			return err
+		}
+		for _, addr := range addrs {
+			//send address to Master
+			//TODO need id of this host
+			hostIp := dao.HostIPResource{}
+			hostIp.HostId = hostId
+			hostIp.IPAddress = addr.String()
+			hostIp.InterfaceName = iface.Name
+			hostIps = append(hostIps, hostIp)
+			glog.V(4).Info("%v\n", hostIps)
+		}
+	}
+	sendFn(hostIps, nil)
 	return nil
 }

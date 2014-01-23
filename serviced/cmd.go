@@ -139,6 +139,9 @@ func startServer() {
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
+
+		go agent.RegisterIPResources()
+
 		go func() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)

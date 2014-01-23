@@ -113,16 +113,16 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		}
 	}
 
-	//check IpResources
-	if len(a.IpResources) != len(b.IpResources){
+	//check AddressResources
+	if len(a.AddressResources) != len(b.AddressResources){
 		return false, fmt.Sprintf("Number of IP resources differ between %s [%s] and %s [%s]",
 			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
 	}
-	sort.Sort(AddressResourceConfigByPort(a.IpResources))
-	sort.Sort(AddressResourceConfigByPort(b.IpResources))
-	if !reflect.DeepEqual(a.IpResources, b.IpResources){
-		return false, fmt.Sprintf("IP resource port differ between %s %v and %s %v",
-			a.Name, a.IpResources, b.Name, b.IpResources)
+	sort.Sort(AddressResourceConfigByPort(a.AddressResources))
+	sort.Sort(AddressResourceConfigByPort(b.AddressResources))
+	if !reflect.DeepEqual(a.AddressResources, b.AddressResources){
+		return false, fmt.Sprintf("Address resource port differ between %s %v and %s %v",
+			a.Name, a.AddressResources, b.Name, b.AddressResources)
 	}
 
 

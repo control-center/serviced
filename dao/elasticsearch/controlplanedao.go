@@ -103,6 +103,7 @@ var (
 
 	//model index functions
 	newHost                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
+	newHostIP                 func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "hostIP")
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
@@ -116,6 +117,7 @@ var (
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
+	deleteHostIP                 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "hostIP")
 	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
@@ -1011,6 +1013,61 @@ func (this *ControlPlaneDao) Get(service dao.Service, file *string) error {
 
 func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 	// TODO: implment stub
+	return nil
+}
+
+// GetHostIPs gets the ips for a host if any, empty ips if none. Error if hostid does not exist
+func (this *ControlPlaneDao) GetHostIps(hostId string, ips *[]dao.HostIPResource) error {
+	resultIPs := make([]dao.HostIPResource, 0, 16)
+	//TODO make sure host exists and get IPs
+	ips = &resultIPs
+	return nil
+}
+
+func (this *ControlPlaneDao) RegisterHostIps(ips []dao.HostIPResource, unused interface{}) error {
+	glog.V(2).Infof("ControlPlaneDao.RegisterHostIps: %+v", ips)
+
+	//verify all ips are for the same host
+	hostId :=""
+	for _, ip := range ips{
+		if hostId == ""{
+			hostId = ip.HostId
+		}else if ip.HostId != hostId{
+			glog.Error("ControlPlaneDao.RegisterHostIps: all ips not for the same host")
+			return errors.New("IPs should all have same host id")
+		}
+	}
+
+	var hostIPs []dao.HostIPResource
+	err := this.GetHostIps(hostId, &hostIPs)
+	if err != nil	{
+		glog.Errorf("Error looking up host IPs for %s", hostId)
+		return err
+	}
+
+	// TODO for now delete existing host ips
+	// in the future we need to merge and remove
+	for _, ip := range hostIPs{
+		deleteHostIP(ip.Id)
+	}
+
+	host := dao.Host{}
+	this.GetHost(hostId, &host)
+	if err != nil{
+			glog.Errorf("Error looking up host %s", hostId)
+			return err
+		}
+
+	poolId := host.PoolId
+	//TODO these need to be merged with the stored ips
+	for _, ip := range ips {
+		ip.PoolId = poolId
+		ip.Id, _ = dao.NewUuid()
+		_, err := newHostIP(hostId, ip)
+		if err != nil{
+			return err
+		}
+	}
 	return nil
 }
 

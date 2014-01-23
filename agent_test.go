@@ -3,6 +3,8 @@ package serviced
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zenoss/serviced/dao"
+	"net"
 	"testing"
 )
 
@@ -93,4 +95,34 @@ func TestParseContainerState(t *testing.T) {
 	}
 	fmt.Printf("%s", testState)
 
+}
+
+func TestRegisterIPResources(t *testing.T) {
+
+	ipResult := make([]dao.HostIPResource, 0)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		t.Fatalf("Error readin addresses %v", err)
+	}
+	fn := func(ips []dao.HostIPResource, unused interface{}) error {
+		ipResult = append(ipResult, ips...)
+		return nil
+	}
+	registerIps("testId", fn)
+
+	if len(addrs) != len(ipResult) {
+		t.Fatalf("IP addresse length differed %v and %v", addrs, ipResult)
+	}
+	//make a lookup map (set) of result IPs
+	resultIps := make(map[string]bool)
+	for _, ip := range ipResult {
+		resultIps[ip.IPAddress] = true
+	}
+	//now see if IPs match IPs from std lib
+	for _, addr := range addrs {
+		_, ok := resultIps[addr.String()]
+		if !ok {
+			t.Fatalf("IP %v not find in %v", addr, ipResult)
+		}
+	}
 }

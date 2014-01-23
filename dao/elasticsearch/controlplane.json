@@ -105,6 +105,21 @@
         "TemplateId":      {"type": "string", "index":"not_analyzed"},
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
       }
-    }
+    },
+      "hostip": {
+        "properties": {
+          "Id" :            {"type": "string", "index":"not_analyzed"},
+          "HostId":         {"type": "string", "index":"not_analyzed"},
+          "PoolId":         {"type": "string", "index":"not_analyzed"},
+          "State" :         {"type": "state", "index":"not_analyzed"},
+          "IP" :            {"type": "state", "index":"not_analyzed"},
+          "InterfaceName" : {"type": "state", "index":"not_analyzed"},
+          "Ports":   {
+              "ServiceId":       {"type": "string", "index":"not_analyzed"},
+              "Port":       {"type": "string", "index":"not_analyzed"}
+          }
+        }
+      }
+
   }
 }
