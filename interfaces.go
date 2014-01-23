@@ -83,6 +83,13 @@ type ContainerState struct {
 // The API for a service proxy.
 type LoadBalancer interface {
 	GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error
+
+	// GetProxySnapshotQuiece blocks until there is a snapshot request
+	GetProxySnapshotQuiece(serviceId string, snapshotId *string) error
+
+	// AckProxySnapshotQuiece is called by clients when the snapshot command has
+	// shown the service is quieced; the agent returns a response when the snapshot is complete
+	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
 }
 
 // The Agent interface is the API for a serviced agent.

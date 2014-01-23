@@ -10,7 +10,6 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 )
 
 var logstash *Container
@@ -34,12 +33,11 @@ func init() {
 
 func notifyLogstashConfigChange(c *Container, value interface{}) error {
 
-	if templates, ok := value.(map[string]*dao.ServiceTemplate); ok {
-		if err := WriteConfigurationFile(templates); err != nil {
-			return err
+	if message, ok := value.(string); ok {
+		if message == "restart logstash" {
+			c.Stop()
+			return c.Start()
 		}
-		c.Stop()
-		return c.Start()
 	}
 	return nil
 }

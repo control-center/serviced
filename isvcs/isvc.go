@@ -10,8 +10,8 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 
+	"os"
 	"path"
 	"runtime"
 )
@@ -41,7 +41,7 @@ func Init() {
 }
 
 func localDir(p string) string {
-	homeDir := serviced.ServiceDHome()
+	homeDir := os.Getenv("SERVICED_HOME")
 	if len(homeDir) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
 		homeDir = path.Dir(filename)

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
 *
 * This content is made available according to terms specified in
 * License.zenoss under the directory where your Zenoss product is installed.
@@ -680,16 +680,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			continue
 		}
 	}
-}
-
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
-	}
-	defer controlClient.Close()
-	return controlClient.GetServiceEndpoints(serviceId, response)
 }
 
 // Create a Host object from the host this function is running on.
