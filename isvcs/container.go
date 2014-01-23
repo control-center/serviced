@@ -228,8 +228,8 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	glog.V(1).Infof("Executing docker %s", args)
 	var cmd *exec.Cmd
 	tries := 5
+	var err error
 	for {
-		var err error
 		if tries > 0 {
 			cmd = exec.Command("docker", args...)
 			if err := cmd.Start(); err != nil {
