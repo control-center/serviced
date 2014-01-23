@@ -11,7 +11,9 @@ package isvcs
 import (
 	"github.com/zenoss/glog"
 
+	"fmt"
 	"os"
+	"os/user"
 	"path"
 	"runtime"
 )
@@ -24,7 +26,14 @@ const (
 )
 
 func Init() {
-	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir())
+	var volumesDir string
+	if user, err := user.Current(); err == nil {
+		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+	} else {
+		volumesDir = "/tmp/serviced/isvcs_volumes"
+	}
+
+	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
 
 	if err := Mgr.Register(elasticsearch); err != nil {
 		glog.Fatalf("%s", err)

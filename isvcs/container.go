@@ -36,18 +36,11 @@ type containerOpRequest struct {
 var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
-var volumesDir string
 
 func init() {
 	ErrNotRunning = errors.New("container: not running")
 	ErrRunning = errors.New("container: already running")
 	ErrBadContainerSpec = errors.New("container: bad container specification")
-
-	if user, err := user.Current(); err != nil {
-		volumesDir = "/tmp/serviced/isvcs_volumes"
-	} else {
-		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
-	}
 }
 
 type ContainerDescription struct {
@@ -60,6 +53,7 @@ type ContainerDescription struct {
 	HealthCheck   func() error                        // A function to verify that the service is healthy
 	Configuration interface{}                         // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
+	VolumesDir    string                              // directory to store volume data
 }
 
 type Container struct {
@@ -77,6 +71,20 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 	}
 	go c.loop()
 	return &c, nil
+}
+
+func (c *Container) SetVolumesDir(volumesDir string) {
+	c.VolumesDir = volumesDir
+}
+
+func (c *Container) getVolumesDir() string {
+	if len(c.VolumesDir) > 0 {
+		return c.VolumesDir
+	}
+	if user, err := user.Current(); err == nil {
+		return fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+	}
+	return "/tmp/serviced/isvcs_volumes"
 }
 
 // loop maintains the state of the container; it handles requests to start() &
@@ -203,7 +211,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {
-		hostDir := path.Join(volumesDir, c.Name, name)
+		hostDir := path.Join(c.getVolumesDir(), c.Name, name)
 		if exists, _ := isDir(hostDir); !exists {
 			if err := os.MkdirAll(hostDir, 0777); err != nil {
 				glog.Errorf("could not create %s on host: %s", hostDir, err)

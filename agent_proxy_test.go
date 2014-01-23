@@ -21,9 +21,10 @@ var _ LoadBalancer = &HostAgent{}
 var testManager *isvcs.Manager
 
 func createTestService() {
-	testManager = isvcs.NewManager("unix:///var/run/docker.sock", "/tmp")
+	testManager = isvcs.NewManager("unix:///var/run/docker.sock", "/tmp", "/tmp/volumes")
 }
 
 func TestGetServiceEndpoints(t *testing.T) {
-
+	createTestService()
+	testManager.Wipe()
 }
