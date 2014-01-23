@@ -204,7 +204,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
-		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
+		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
 		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
@@ -689,7 +689,37 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 		return
 	}
 	defer controlClient.Close()
-	return controlClient.GetServiceEndpoints(serviceId, response)
+
+	err = controlClient.GetServiceEndpoints(serviceId, response)
+	if err != nil {
+		return err
+	}
+	endpoints := *response
+	// add our internal services
+	for key, endpoint := range a.getInternalServiceEndpoints() {
+		if _, ok := (endpoints)[key]; ok {
+			endpoints[key] = append(endpoints[key], &endpoint)
+		}
+		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+		endpoints[key] = append(endpoints[key], &endpoint)
+	}
+	return nil
+}
+
+// getInternalServiceEndpoints lists every internal service that we wish to expose to the containers running on this agent
+func (a *HostAgent) getInternalServiceEndpoints() map[string]dao.ApplicationEndpoint {
+	// master is of the form host:port, we just need the host
+	master := strings.Split(a.master, ":")[0]
+	return map[string]dao.ApplicationEndpoint{
+		"tcp:8787": dao.ApplicationEndpoint{
+			"controlplane",
+			8787,
+			8787,
+			master,
+			"127.0.0.1",
+			"tcp",
+		},
+	}
 }
 
 // Create a Host object from the host this function is running on.
