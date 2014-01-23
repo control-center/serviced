@@ -19,6 +19,7 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"time"
 )
 
 type containerOp int
@@ -36,18 +37,11 @@ type containerOpRequest struct {
 var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
-var volumesDir string
 
 func init() {
 	ErrNotRunning = errors.New("container: not running")
 	ErrRunning = errors.New("container: already running")
 	ErrBadContainerSpec = errors.New("container: bad container specification")
-
-	if user, err := user.Current(); err != nil {
-		volumesDir = "/tmp/serviced/isvcs_volumes"
-	} else {
-		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
-	}
 }
 
 type ContainerDescription struct {
@@ -60,6 +54,7 @@ type ContainerDescription struct {
 	HealthCheck   func() error                        // A function to verify that the service is healthy
 	Configuration interface{}                         // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
+	volumesDir    string                              // directory to store volume data
 }
 
 type Container struct {
@@ -77,6 +72,20 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 	}
 	go c.loop()
 	return &c, nil
+}
+
+func (c *Container) SetVolumesDir(volumesDir string) {
+	c.volumesDir = volumesDir
+}
+
+func (c *Container) VolumesDir() string {
+	if len(c.volumesDir) > 0 {
+		return c.volumesDir
+	}
+	if user, err := user.Current(); err == nil {
+		return fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+	}
+	return "/tmp/serviced/isvcs_volumes"
 }
 
 // loop maintains the state of the container; it handles requests to start() &
@@ -121,11 +130,10 @@ func (c *Container) loop() {
 
 			}
 		case exitErr := <-exitChan:
-			docker := exec.Command("docker", "logs", c.Name)
-			output, _ := docker.CombinedOutput()
-			glog.Errorf("isvc:%s, %s", c.Name, string(output))
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
-			glog.Fatalf("iscv:%s, process exited: %s", cmd.ProcessState.Exited())
+			c.stop()                // stop the container, if it's not stoppped
+			c.rm()                  // remove it if it was not already removed
+			cmd, exitChan = c.run() // run the actual container
 		}
 	}
 }
@@ -203,7 +211,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {
-		hostDir := path.Join(volumesDir, c.Name, name)
+		hostDir := path.Join(c.VolumesDir(), c.Name, name)
 		if exists, _ := isDir(hostDir); !exists {
 			if err := os.MkdirAll(hostDir, 0777); err != nil {
 				glog.Errorf("could not create %s on host: %s", hostDir, err)
@@ -218,9 +226,28 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
 
 	glog.V(1).Infof("Executing docker %s", args)
-	cmd := exec.Command("docker", args...)
+	var cmd *exec.Cmd
+	tries := 5
+	var err error
+	for {
+		if tries > 0 {
+			cmd = exec.Command("docker", args...)
+			if err := cmd.Start(); err != nil {
+				glog.Errorf("Could not start: %s", c.Name)
+				c.stop()
+				c.rm()
+				time.Sleep(time.Second * 1)
+			} else {
+				break
+			}
+		} else {
+			exitChan <- err
+			return cmd, exitChan
+		}
+		tries = -1
+	}
 	go func() {
-		exitChan <- cmd.Run()
+		exitChan <- cmd.Wait()
 	}()
 	return cmd, exitChan
 }

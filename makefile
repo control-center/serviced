@@ -46,7 +46,7 @@ dockerbuild: docker_ok
 	zenoss/serviced-build /bin/bash \
 	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
-test: build docker_ok
+test: build_binary docker_ok
 	go test
 	cd dao && make test
 	cd web && go test
