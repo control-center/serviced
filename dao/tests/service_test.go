@@ -136,6 +136,7 @@ func init() {
 	var unused int
 	var err error
 	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	isvcs.Mgr.Wipe()
 	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)

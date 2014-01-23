@@ -23,6 +23,7 @@ var err error
 
 func init() {
 	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	isvcs.Mgr.Wipe()
 	controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
 	if err != nil {

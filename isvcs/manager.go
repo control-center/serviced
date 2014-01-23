@@ -101,6 +101,11 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 	return false, nil
 }
 
+// SetVolumesDir sets the volumes dir for *Manager
+func (m *Manager) SetVolumesDir(dir string) {
+	m.volumesDir = dir
+}
+
 // checks for the existence of all the container images
 func (m *Manager) allImagesExist() error {
 	for _, c := range m.containers {
@@ -187,6 +192,17 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+				responses := make(chan error, len(running))
+				for _, c := range running {
+					go func(con *Container) {
+						responses <- con.Stop()
+					}(c)
+				}
+				runningCount := len(running)
+				for i := 0; i < runningCount; i++ {
+					<-responses
+				}
+				running = nil
 				request.response <- m.wipe()
 
 			case managerOpNotify:
