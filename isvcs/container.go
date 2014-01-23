@@ -54,7 +54,7 @@ type ContainerDescription struct {
 	HealthCheck   func() error                        // A function to verify that the service is healthy
 	Configuration interface{}                         // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
-	VolumesDir    string                              // directory to store volume data
+	volumesDir    string                              // directory to store volume data
 }
 
 type Container struct {
@@ -75,12 +75,12 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 }
 
 func (c *Container) SetVolumesDir(volumesDir string) {
-	c.VolumesDir = volumesDir
+	c.volumesDir = volumesDir
 }
 
-func (c *Container) getVolumesDir() string {
-	if len(c.VolumesDir) > 0 {
-		return c.VolumesDir
+func (c *Container) VolumesDir() string {
+	if len(c.volumesDir) > 0 {
+		return c.volumesDir
 	}
 	if user, err := user.Current(); err == nil {
 		return fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
@@ -211,7 +211,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {
-		hostDir := path.Join(c.getVolumesDir(), c.Name, name)
+		hostDir := path.Join(c.VolumesDir(), c.Name, name)
 		if exists, _ := isDir(hostDir); !exists {
 			if err := os.MkdirAll(hostDir, 0777); err != nil {
 				glog.Errorf("could not create %s on host: %s", hostDir, err)
