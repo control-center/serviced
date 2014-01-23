@@ -204,7 +204,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
-		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
+		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
 		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
@@ -429,6 +429,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
