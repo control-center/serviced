@@ -16,6 +16,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/fs/btrfs"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -320,6 +321,13 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 }
 
+func getSubvolume(varPath, poolId, tenantId string) (volume *btrfs.Volume, err error) {
+	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
+	btrfs.NewVolume(baseDir, poolId)
+	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
+	return btrfs.NewVolume(baseDir, tenantId)
+}
+
 // Start a service instance and update the CP with the state.
 func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
@@ -329,6 +337,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		return false, err
 	}
 	defer client.Close()
+
+	//get this service's tenantId for env injection
+	var tenantId string
+	err = client.GetTenantId(service.Id, &tenantId)
+	if err != nil {
+		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
+	}
 
 	portOps := ""
 	if service.Endpoints != nil {
@@ -341,18 +356,27 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	volumeOpts := ""
+	if len(tenantId) == 0 && len(service.Volumes) > 0 {
+		// FIXME: find a better way of handling this error condition
+		glog.Fatal("Could not get tenant ID and need to mound a volume")
+	}
 	for _, volume := range service.Volumes {
 
-		resourcePath, _ := filepath.Abs(path.Join(a.varPath, "volumes", service.PoolId, volume.ResourcePath))
-		if err = os.MkdirAll(resourcePath, 0770); err != nil {
-			return false, err
-		}
+		btrfsVolume, err := getSubvolume(a.varPath, service.PoolId, tenantId)
+		if err != nil {
+			glog.Fatal("Could not create subvolume: %s", err)
+		} else {
 
-		if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
-			glog.Errorf("Error creating resource path: %v", err)
-			return false, err
+			resourcePath := path.Join(btrfsVolume.Dir(), volume.ResourcePath)
+			if err = os.MkdirAll(resourcePath, 0770); err != nil {
+				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
+			}
+
+			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
+				glog.Fatalf("Error creating resource path: %v", err)
+			}
+			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		}
-		volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 	}
 
 	dir, binary, err := ExecPath()
@@ -419,13 +443,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		} else {
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
 		}
-	}
-
-	//get this service's tenantId for env injection
-	var tenantId string
-	err = client.GetTenantId(service.Id, &tenantId)
-	if err != nil {
-		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
 	}
 
 	// add arguments for environment variables

@@ -164,10 +164,13 @@ type ControlPlane interface {
 	ShowCommands(service Service, unused *int) error
 
 	// Rollback DFS and service image
-	Rollback(service Service, unused *int) error
+	Rollback(serviceId string, unused *int) error
 
 	// Commit DFS and service image
-	Commit(service Service, unused *int) error
+	Snapshot(serviceId string, label *string) error
+
+	// List available snapshots
+	Snapshots(serviceId string, labels *[]string) error
 
 	// Download a file from a container
 	Get(service Service, file *string) error
