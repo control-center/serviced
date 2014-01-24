@@ -35,15 +35,15 @@ type PoolHost struct {
 }
 
 type HostIPs struct {
-	Id			  string
-	HostId        string
-	PoolId        string
-	IPs           []HostIPResource
+	Id     string
+	HostId string
+	PoolId string
+	IPs    []HostIPResource
 }
 
 type AssignedPort struct {
-	Port        int
-	ServiceId   string
+	Port      int
+	ServiceId string
 }
 
 type HostIPResource struct {

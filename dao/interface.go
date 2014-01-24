@@ -176,6 +176,5 @@ type ControlPlane interface {
 	Send(service Service, files *[]string) error
 
 	// RegisterHostIPs registers the IP addresses for a host
-	RegisterHostIPs( ips HostIPs, unused *int) error
-
+	RegisterHostIPs(ips HostIPs, unused *int) error
 }

@@ -2,9 +2,9 @@ package dao
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"testing"
-	"reflect"
 )
 
 var testSvc *ServiceDefinition
@@ -45,12 +45,12 @@ func init() {
 				},
 				AddressResources: []AddressResourceConfig{
 					AddressResourceConfig{
-					Port: 9000,
-					Protocol: TCP,
+						Port:     9000,
+						Protocol: TCP,
 					},
 					AddressResourceConfig{
-					Port: 8000,
-					Protocol: UDP,
+						Port:     8000,
+						Protocol: UDP,
 					},
 				},
 			},
@@ -114,17 +114,16 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 	}
 
 	//check AddressResources
-	if len(a.AddressResources) != len(b.AddressResources){
+	if len(a.AddressResources) != len(b.AddressResources) {
 		return false, fmt.Sprintf("Number of IP resources differ between %s [%s] and %s [%s]",
 			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
 	}
 	sort.Sort(AddressResourceConfigByPort(a.AddressResources))
 	sort.Sort(AddressResourceConfigByPort(b.AddressResources))
-	if !reflect.DeepEqual(a.AddressResources, b.AddressResources){
+	if !reflect.DeepEqual(a.AddressResources, b.AddressResources) {
 		return false, fmt.Sprintf("Address resource port differ between %s %v and %s %v",
 			a.Name, a.AddressResources, b.Name, b.AddressResources)
 	}
-
 
 	// check config files
 	if len(a.ConfigFiles) != len(b.ConfigFiles) {
