@@ -61,12 +61,12 @@ func init() {
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 
-	varPathDefault := "/tmp/serviced"
+	varPathDefault := path.Join(os.TempDir(), "serviced")
 	if len(os.Getenv("SERVICED_HOME")) > 0 {
 		varPathDefault = path.Join(os.Getenv("SERVICED_HOME"), "var")
 	} else {
 		if user, err := user.Current(); err == nil {
-			varPathDefault = fmt.Sprintf("/tmp/serviced-%s/var", user.Username)
+			varPathDefault = path.Join(os.TempDir() + "-" + user.Username, "var")
 		}
 	}
 	flag.StringVar(&options.varPath, "varPath", varPathDefault, "path to store serviced data")
