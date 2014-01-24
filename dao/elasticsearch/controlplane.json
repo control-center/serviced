@@ -65,6 +65,14 @@
             "Purpose" :             {"type": "string", "index":"not_analyzed"},
             "PortNumber" :          {"type": "long",   "index":"not_analyzed"}
           }
+        },
+        "Tasks": {
+          "properties": {
+            "Schedule" :       {"type": "string", "index":"not_analyzed"},
+            "Command" :        {"type": "string", "index":"not_analyzed"},
+            "LastRunAt" :      {"type": "date", "format" : "dateOptionalTime"},
+            "TotalRunCount" :  {"type": "long",   "index":"not_analyzed"}
+          }
         }
       }
     },
