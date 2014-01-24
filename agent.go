@@ -342,16 +342,17 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	volumeOpts := ""
 	for _, volume := range service.Volumes {
-		fileMode := os.FileMode(volume.Permission)
 
 		resourcePath, _ := filepath.Abs(path.Join(a.varPath, "volumes", service.PoolId, volume.ResourcePath))
-		err := CreateDirectory(resourcePath, volume.Owner, fileMode)
-		if err == nil {
-			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
-		} else {
+		if err = os.MkdirAll(resourcePath, 0770); err != nil {
+			return false, err
+		}
+
+		if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
 			glog.Errorf("Error creating resource path: %v", err)
 			return false, err
 		}
+		volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 	}
 
 	dir, binary, err := ExecPath()

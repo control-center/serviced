@@ -147,7 +147,7 @@ type VolumeExport struct {
 type VolumeImport struct {
 	Name          string //Name of volume to import
 	Owner         string //Path Owner
-	Permission    uint32 //Path Umask
+	Permission    string //Path Umask
 	ResourcePath  string //Path under exported path
 	ContainerPath string //Container bind-mount path
 }
@@ -155,7 +155,7 @@ type VolumeImport struct {
 // volume import defines a file system directory underneath an export directory
 type Volume struct {
 	Owner         string //Resource Path Owner
-	Permission    uint32 //Resource Path Umask
+	Permission    string //Resource Path permissions, eg what you pass to chmod
 	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
 	ContainerPath string //Container bind-mount path
 }

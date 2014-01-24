@@ -62,11 +62,11 @@ func init() {
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
 
 	varPathDefault := "/tmp/serviced"
-	if len(os.Getenv("SERVICED_HOME")) == 0 {
+	if len(os.Getenv("SERVICED_HOME")) > 0 {
 		varPathDefault = path.Join(os.Getenv("SERVICED_HOME"), "var")
 	} else {
 		if user, err := user.Current(); err == nil {
-			varPathDefault = fmt.Sprintf("/tmp/serviced-%s", user.Username)
+			varPathDefault = fmt.Sprintf("/tmp/serviced-%s/var", user.Username)
 		}
 	}
 	flag.StringVar(&options.varPath, "varPath", varPathDefault, "path to store serviced data")
