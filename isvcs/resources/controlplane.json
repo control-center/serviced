@@ -65,6 +65,15 @@
             "Purpose" :             {"type": "string", "index":"not_analyzed"},
             "PortNumber" :          {"type": "long",   "index":"not_analyzed"}
           }
+        },
+        "Tasks": {
+          "properties": {
+            "Name" :           {"type": "string", "index":"not_analyzed"},
+            "Schedule" :       {"type": "string", "index":"not_analyzed"},
+            "Command" :        {"type": "string", "index":"not_analyzed"},
+            "LastRunAt" :      {"type": "date", "format" : "dateOptionalTime"},
+            "TotalRunCount" :  {"type": "long",   "index":"not_analyzed"}
+          }
         }
       }
     },
@@ -104,17 +113,6 @@
         "ServiceId":       {"type": "string", "index":"not_analyzed"},
         "TemplateId":      {"type": "string", "index":"not_analyzed"},
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
-      }
-    },
-    "scheduledtask": {
-      "properties": {
-        "Id" :             {"type": "string", "index":"not_analyzed"},
-        "Name" :           {"type": "string", "index":"not_analyzed"},
-        "Schedule":        {"type": "string", "index":"not_analyzed"},
-        "LastRun":         {"type": "date", "format": "dateOptionalTime"},
-        "TotalRunCount":   {"type": "long", "index": "not_analyzed"},
-        "ServiceId":       {"type": "string", "index":"not_analyzed"},
-        "Command":         {"type": "string", "index":"not_analyzed"}
       }
     }
   }
