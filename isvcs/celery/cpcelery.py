@@ -1,9 +1,11 @@
 from __future__ import absolute_import
 import time
+import datetime
 
 from celery import Celery
 
 app = Celery("cpcelery", broker="redis://", backend="redis://")
+
 
 app.conf.update(
     CELERY_TASK_SERIALIZER='json',
@@ -13,7 +15,7 @@ app.conf.update(
 )
 
 @app.task
-def serviced_shell(cmd):
-    with open('/opt/celery/var/int(time.time())', 'w') as f:
-        f.write(str(cmd))
+def serviced_shell(service_id, command):
+    with open('/opt/celery/var/%d' % int(time.time()), 'w') as f:
+        f.write(service_id + " " + command)
 

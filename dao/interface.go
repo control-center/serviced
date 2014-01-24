@@ -152,21 +152,6 @@ type ControlPlane interface {
 	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
-	// ScheduledTask CRUD
-
-	// Add a scheduled task
-	AddScheduledTask(scheduledTask ScheduledTask, unused *int) error
-
-	// Get a list of scheduled tasks
-	GetScheduledTasks(unused *int, tasks *map[string]*ScheduledTask) error
-
-	// Update a scheduled task
-	UpdateScheduledTask(scheduledTask ScheduledTask, unused *int) error
-
-	// Remove a scheduled task
-	RemoveScheduledTask(scheduledTaskId string, unused *int) error
-
-	//---------------------------------------------------------------------------
 	// Service CRUD
 
 	// Start an interative shell in a service container

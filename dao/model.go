@@ -132,6 +132,7 @@ type ServiceEndpoint struct {
 
 // A scheduled task
 type Task struct {
+	Name          string
 	Schedule      string
 	Command       string
 	LastRunAt     time.Time
@@ -254,16 +255,6 @@ type RunningService struct {
 	PoolId          string
 	DesiredState    int
 	ParentServiceId string
-}
-
-type ScheduledTask struct {
-	Id            string
-	Name          string
-	Schedule      string
-	LastRun       time.Time
-	TotalRunCount int
-	ServiceId     string
-	Command       string
 }
 
 // Create a new Service.
