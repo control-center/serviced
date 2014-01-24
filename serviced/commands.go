@@ -103,6 +103,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
 		{"snapshot", "Snapshot a service"},
+		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
 		{"get", "Download a file from a container image"},
 		{"recv", "Receive a file for a container image"},
@@ -700,6 +701,25 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 
 	var unused int
 	err := controlPlane.Rollback(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	}
+	return err
+}
+
+func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {
+	cmd := Subcmd("delete-snapshot", "SNAPSHOT_ID", "Removes the specified snapshot")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var unused int
+	err := controlPlane.DeleteSnapshot(cmd.Arg(0), &unused)
 	if err != nil {
 		glog.Errorf("Received an error: %s", err)
 	}

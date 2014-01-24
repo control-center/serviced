@@ -211,6 +211,10 @@ func (s *ControlClient) Snapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }
 
+func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused)
+}
+
 func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshots", serviceId, labels)
 }
