@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
 *
 * This content is made available according to terms specified in
 * License.zenoss under the directory where your Zenoss product is installed.
@@ -205,7 +205,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
-		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
+		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
 		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
@@ -419,9 +419,19 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
+	//get this service's tenantId for env injection
+	var tenantId string
+	err = client.GetTenantId(service.Id, &tenantId)
+	if err != nil {
+		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
+	}
+
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
@@ -557,7 +567,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	var attached bool
 
 	for {
-
 		var hss zzk.HostServiceState
 		hssStats, zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
 		if err != nil {
@@ -675,16 +684,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	}
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
-	}
-	defer controlClient.Close()
-	return controlClient.GetServiceEndpoints(serviceId, response)
-}
-
 // GetInfo creates a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
@@ -695,8 +694,8 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	return nil
 }
 
-//SendHostIps handles the details of sending HostIPResources
-type SendHostIps func(ips []dao.HostIPResource, unused interface{}) error
+//SendHostIPs handles the details of sending HostIPResources
+type SendHostIPs func(ips dao.HostIPs, unused *int) error
 
 /**
 RegisterResources registers resources on the host such as IP addresses with the control plane master
@@ -709,17 +708,17 @@ func (a *HostAgent) RegisterIPResources() error {
 	}
 	defer controlClient.Close()
 
-	return registerIps(a.hostId, controlClient.RegisterHostIps)
+	return registerIPs(a.hostId, controlClient.RegisterHostIPs)
 }
 
-func registerIps(hostId string, sendFn SendHostIps) error {
+func registerIPs(hostId string, sendFn SendHostIPs) error {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
 		return err
 	}
-	hostIps := make([]dao.HostIPResource, 0)
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
@@ -730,13 +729,19 @@ func registerIps(hostId string, sendFn SendHostIps) error {
 			//send address to Master
 			//TODO need id of this host
 			hostIp := dao.HostIPResource{}
-			hostIp.HostId = hostId
 			hostIp.IPAddress = addr.String()
 			hostIp.InterfaceName = iface.Name
-			hostIps = append(hostIps, hostIp)
-			glog.V(4).Info("%v\n", hostIps)
+			hostIPResources = append(hostIPResources, hostIp)
+			glog.V(4).Infof("%v", hostIp)
 		}
 	}
-	sendFn(hostIps, nil)
+	var unused int
+	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
+	hostIps := dao.HostIPs{}
+	hostIps.HostId = hostId
+	hostIps.IPs = hostIPResources
+	if err := sendFn(hostIps, &unused); err != nil {
+		glog.Errorf("Error registering IPs %v", err)
+	}
 	return nil
 }

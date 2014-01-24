@@ -15,7 +15,7 @@ filter {
 }
 output {
 	stdout { debug => true}
-	elasticsearch {
+	elasticsearch_http {
 		host => "172.17.42.1"
 	}
 }

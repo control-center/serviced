@@ -1,13 +1,33 @@
-package isvcs
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
+package dao
 
 import (
 	"fmt"
-	"github.com/zenoss/serviced/dao"
 	"io/ioutil"
+	"os"
+	"path"
+	"runtime"
 	"strings"
 )
 
-func WriteConfigurationFile(templates map[string]*dao.ServiceTemplate) error {
+func resourcesDir() string {
+	homeDir := os.Getenv("SERVICED_HOME")
+	if len(homeDir) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = path.Dir(filename) + "/../isvcs/"
+
+	}
+	return path.Clean(path.Join(homeDir, "resources"))
+}
+
+func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
 	filterDefs := make(map[string]string)
@@ -32,7 +52,7 @@ func WriteConfigurationFile(templates map[string]*dao.ServiceTemplate) error {
 	return nil
 }
 
-func getFilterDefinitions(services []dao.ServiceDefinition) map[string]string {
+func getFilterDefinitions(services []ServiceDefinition) map[string]string {
 	filterDefs := make(map[string]string)
 	for _, service := range services {
 		for name, value := range service.LogFilters {
@@ -49,7 +69,7 @@ func getFilterDefinitions(services []dao.ServiceDefinition) map[string]string {
 	return filterDefs
 }
 
-func getFilters(services []dao.ServiceDefinition, filterDefs map[string]string) string {
+func getFilters(services []ServiceDefinition, filterDefs map[string]string) string {
 	filters := ""
 	for _, service := range services {
 		for _, config := range service.LogConfigs {

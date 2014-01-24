@@ -20,6 +20,11 @@ build_binary:
 	go get github.com/zenoss/serviced/serviced
 	cd serviced && go build
 	cd isvcs && make
+	cd dao && make
+
+go:
+	cd serviced && go build
+
 
 pkgs:
 	cd pkg && make rpm && make deb
@@ -29,7 +34,7 @@ dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run -rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/bash -c "mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp && rm -f /go/src/github.com/zenoss/serviced/pkg/build/*.{rpm,deb}"
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
 	echo "Using dock-in-docker cache dir $(dockercache)"
 	mkdir -p $(dockercache)
 	time docker run -rm \
@@ -41,10 +46,10 @@ dockerbuild: docker_ok
 	zenoss/serviced-build /bin/bash \
 	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
-test: build docker_ok
+test: build_binary docker_ok
 	go test
+	cd dao && make test
 	cd web && go test
-	cd dao && go test
 	cd serviced && go test
 
 docker_ok:
@@ -56,6 +61,7 @@ docker_ok:
 	fi
 
 clean:
+	cd dao && make clean
 	go get github.com/zenoss/serviced/serviced # make sure dependencies exist
 	cd serviced && go clean -r # this cleans all dependencies
 	docker run -rm \

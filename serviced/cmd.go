@@ -96,6 +96,9 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
+
+	isvcs.Init()
+
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
 		glog.Fatalf("Could not determine docker version: %s", err)
@@ -146,14 +149,12 @@ func startServer() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)
 			<-signalChan
-			isvcs.LogstashContainer.Stop()
 			glog.V(0).Info("Shutting down due to interrupt")
 			err = agent.Shutdown()
 			if err != nil {
 				glog.V(1).Infof("Agent shutdown with error: %v", err)
-				os.Exit(1)
 			}
-			glog.V(1).Info("Agent shutdown cleanly")
+			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
 	}

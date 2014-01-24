@@ -48,6 +48,9 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
+	//for a service, get it's tenant Id
+	GetTenantId(serviceId string, tenantId *string) error
+
 	// Add a new service
 	AddService(service Service, serviceId *string) error
 

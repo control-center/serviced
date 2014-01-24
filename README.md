@@ -76,7 +76,12 @@ GOROOT=/usr/local/go
 PATH="$PATH:$GOROOT/bin"
 ```
 
-You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make.
+You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make below.  You may also need these steps when running from stock ubuntu 12.04.
+```sudo apt-get install git
+sudo apt-get install mercurial
+sudo apt-get install libpam0g-dev
+sudo chmod o+rw /var/run/docker.sock
+```
 
 On Ubuntu install the following:
 

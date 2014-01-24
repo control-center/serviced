@@ -1,48 +1,55 @@
-package isvcs
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
+package dao
 
 import (
 	"fmt"
-	"github.com/zenoss/serviced/dao"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func getTestingService() dao.ServiceDefinition {
-	service := dao.ServiceDefinition{
+func getTestingService() ServiceDefinition {
+	service := ServiceDefinition{
 		Name:        "testsvc",
 		Description: "Top level service. This directory is part of a unit test.",
 		LogFilters: map[string]string{
 			"Pepe": "My Test Filter",
 		},
-		Services: []dao.ServiceDefinition{
-			dao.ServiceDefinition{
+		Services: []ServiceDefinition{
+			ServiceDefinition{
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageId: "ubuntu",
 				LogFilters: map[string]string{
 					"Pepe2": "My Second Filter",
 				},
-				ConfigFiles: map[string]dao.ConfigFile{
-					"/etc/my.cnf": dao.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+				ConfigFiles: map[string]ConfigFile{
+					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []dao.ServiceEndpoint{
-					dao.ServiceEndpoint{
+				Endpoints: []ServiceEndpoint{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
-					dao.ServiceEndpoint{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
 					},
 				},
-				LogConfigs: []dao.LogConfig{
-					dao.LogConfig{
+				LogConfigs: []LogConfig{
+					LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 						Filters: []string{
@@ -51,20 +58,20 @@ func getTestingService() dao.ServiceDefinition {
 					},
 				},
 			},
-			dao.ServiceDefinition{
+			ServiceDefinition{
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageId: "ubuntu",
-				Endpoints: []dao.ServiceEndpoint{
-					dao.ServiceEndpoint{
+				Endpoints: []ServiceEndpoint{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
 					},
 				},
-				LogConfigs: []dao.LogConfig{
-					dao.LogConfig{
+				LogConfigs: []LogConfig{
+					LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
@@ -77,7 +84,7 @@ func getTestingService() dao.ServiceDefinition {
 }
 
 func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
-	services := make([]dao.ServiceDefinition, 1)
+	services := make([]ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 
@@ -93,7 +100,7 @@ func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 }
 
 func TestConstructingFilterString(t *testing.T) {
-	services := make([]dao.ServiceDefinition, 1)
+	services := make([]ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 	filters := getFilters(services, filterDefs)
