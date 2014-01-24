@@ -29,6 +29,7 @@ const (
 	managerOpExit                               // exit the loop of the manager
 	managerOpRegisterContainer                  // register a given container
 	managerOpInit                               // make sure manager is ready to run containers
+	managerOpWipe                               // wipe all data associated with volumes
 )
 
 var ErrManagerUnknownOp error
@@ -54,15 +55,17 @@ type managerRequest struct {
 type Manager struct {
 	dockerAddress string              // the docker endpoint address to talk to
 	imagesDir     string              // local directory where images could be loaded from
+	volumesDir    string              // local directory where volumes are stored
 	requests      chan managerRequest // the main loops request channel
 	containers    map[string]*Container
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
-func NewManager(dockerAddress, imagesDir string) *Manager {
+func NewManager(dockerAddress, imagesDir, volumesDir string) *Manager {
 	manager := &Manager{
 		dockerAddress: dockerAddress,
 		imagesDir:     imagesDir,
+		volumesDir:    volumesDir,
 		requests:      make(chan managerRequest),
 		containers:    make(map[string]*Container),
 	}
@@ -98,6 +101,11 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 	return false, nil
 }
 
+// SetVolumesDir sets the volumes dir for *Manager
+func (m *Manager) SetVolumesDir(dir string) {
+	m.volumesDir = dir
+}
+
 // checks for the existence of all the container images
 func (m *Manager) allImagesExist() error {
 	for _, c := range m.containers {
@@ -125,6 +133,16 @@ func loadImage(tarball, dockerAddress string) error {
 		return cmd.Run()
 	}
 	return nil
+}
+
+// wipe() removes the data directory associate with the manager
+func (m *Manager) wipe() error {
+
+	// remove volumeDir by running a container as root
+	// FIXME: detect if already root and avoid running docker
+	cmd := exec.Command("docker", "-H", m.dockerAddress,
+		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
+	return cmd.Run()
 }
 
 // loadImages() loads all the images defined in the registered services
@@ -169,6 +187,24 @@ func (m *Manager) loop() {
 		select {
 		case request := <-m.requests:
 			switch request.op {
+			case managerOpWipe:
+				if running != nil {
+					request.response <- ErrManagerRunning
+					continue
+				}
+				responses := make(chan error, len(running))
+				for _, c := range running {
+					go func(con *Container) {
+						responses <- con.Stop()
+					}(c)
+				}
+				runningCount := len(running)
+				for i := 0; i < runningCount; i++ {
+					<-responses
+				}
+				running = nil
+				request.response <- m.wipe()
+
 			case managerOpNotify:
 				var retErr error
 				for _, c := range running {
@@ -208,6 +244,7 @@ func (m *Manager) loop() {
 						running[c.Name] = c
 						go func(con *Container, respc chan containerStartResponse) {
 							glog.Infof("calling start on %s", con.Name)
+							c.SetVolumesDir(m.volumesDir)
 							resp := containerStartResponse{
 								name: con.Name,
 								err:  con.Start(),
@@ -288,6 +325,13 @@ func (m *Manager) Register(c *Container) error {
 	}
 	m.requests <- request
 	return <-request.response
+}
+
+// Wipe() removes the data directory associated with the Manager
+func (m *Manager) Wipe() error {
+	glog.V(2).Infof("manager sending wipe request")
+	defer glog.V(2).Infof("received wipe response")
+	return m.makeRequest(managerOpWipe)
 }
 
 // Stop() stops all the containers currently registered to the *Manager
