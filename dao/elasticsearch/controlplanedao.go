@@ -879,7 +879,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
-	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
+	svc.Volumes = sd.Volumes
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
 
@@ -891,18 +891,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
 		return err
-	}
-
-	//for each export, create directory and add path into export map
-	for _, volumeExport := range sd.VolumeExports {
-		resourcePath := svc.Id + "/" + volumeExport.Path
-		exportedVolumes[volumeExport.Name] = resourcePath
-	}
-
-	//for each import, create directory and configure service paths
-	for i, volumeImport := range sd.VolumeImports {
-		resourcePath := exportedVolumes[volumeImport.Name] + "/" + volumeImport.ResourcePath
-		svc.Volumes[i] = dao.Volume{volumeImport.Owner, volumeImport.Permission, resourcePath, volumeImport.ContainerPath}
 	}
 
 	var serviceId string

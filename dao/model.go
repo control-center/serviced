@@ -137,21 +137,6 @@ type ServiceExport struct {
 	External    string //external port number
 }
 
-// volume export defines a file system directory to logically organize volume imports
-type VolumeExport struct {
-	Name string //Name of volume to export
-	Path string //Resource Pool Path
-}
-
-// volume import defines a file system directory underneath an export directory
-type VolumeImport struct {
-	Name          string //Name of volume to import
-	Owner         string //Path Owner
-	Permission    string //Path Umask
-	ResourcePath  string //Path under exported path
-	ContainerPath string //Container bind-mount path
-}
-
 // volume import defines a file system directory underneath an export directory
 type Volume struct {
 	Owner         string //Resource Path Owner
@@ -183,21 +168,20 @@ type ConfigFile struct {
 }
 
 type ServiceDefinition struct {
-	Name          string                 // Name of the defined service
-	Command       string                 // Command which runs the service
-	Description   string                 // Description of the service
-	Tags          []string               // Searchable service tags
-	ImageId       string                 // Docker image hosting the service
-	Instances     MinMax                 // Constraints on the number of instances
-	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
-	ConfigFiles   map[string]ConfigFile  // Config file templates
-	Context       map[string]interface{} // Context information for the service
-	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
-	Services      []ServiceDefinition    // Supporting subservices
-	LogFilters    map[string]string      // map of log filter name to log filter definitions
-	VolumeExports []VolumeExport
-	VolumeImports []VolumeImport
-	LogConfigs    []LogConfig
+	Name        string                 // Name of the defined service
+	Command     string                 // Command which runs the service
+	Description string                 // Description of the service
+	Tags        []string               // Searchable service tags
+	ImageId     string                 // Docker image hosting the service
+	Instances   MinMax                 // Constraints on the number of instances
+	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles map[string]ConfigFile  // Config file templates
+	Context     map[string]interface{} // Context information for the service
+	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
+	Services    []ServiceDefinition    // Supporting subservices
+	LogFilters  map[string]string      // map of log filter name to log filter definitions
+	Volumes     []Volume               // list of volumes to bind into containers
+	LogConfigs  []LogConfig
 }
 
 type LogConfig struct {

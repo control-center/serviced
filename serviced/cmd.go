@@ -110,6 +110,7 @@ func compareVersion(a, b []int) int {
 func startServer() {
 
 	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {

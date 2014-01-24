@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"runtime"
 )
 
@@ -28,9 +29,9 @@ const (
 func Init() {
 	var volumesDir string
 	if user, err := user.Current(); err == nil {
-		volumesDir = fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+		volumesDir = fmt.Sprintf("/tmp/serviced-%s/var/isvcs", user.Username)
 	} else {
-		volumesDir = "/tmp/serviced/isvcs_volumes"
+		volumesDir = "/tmp/serviced/var/isvcs"
 	}
 
 	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
@@ -63,5 +64,9 @@ func imagesDir() string {
 }
 
 func resourcesDir() string {
-	return localDir("resources")
+	path, err := filepath.EvalSymlinks(localDir("resources"))
+	if err != nil {
+		glog.Fatalf("Could not evaluate %s, not following symlinks: %s", localDir("resources"), err)
+	}
+	return path
 }
