@@ -34,21 +34,19 @@ type PoolHost struct {
 	HostIp string
 }
 
-//type HostIPs struct {
-//	HostId        string
-//	PoolId        string
-//	State         string
-//	IPs           []HostIPResource
-//}
+type HostIPs struct {
+	Id			  string
+	HostId        string
+	PoolId        string
+	IPs           []HostIPResource
+}
+
 type AssignedPort struct {
 	Port        int
 	ServiceId   string
 }
 
 type HostIPResource struct {
-	Id			  string
-	HostId        string
-	PoolId        string
 	State         string
 	IPAddress     string
 	InterfaceName string

@@ -175,7 +175,7 @@ type ControlPlane interface {
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
 
-	// RegisterHostIps registers the IP addresses for a host
-	RegisterHostIps( ips []HostIPResource, unused interface{}) error
+	// RegisterHostIPs registers the IP addresses for a host
+	RegisterHostIPs( ips HostIPs, unused *int) error
 
 }

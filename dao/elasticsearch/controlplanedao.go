@@ -32,6 +32,20 @@ import (
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
+// NotFoundError is a typed error.
+type NotFoundError struct {
+	s string
+}
+
+func (e *NotFoundError) Error() string {
+	return e.s
+}
+
+// New returns an error that formats as the given text.
+func NewNotFoundError(text string) error {
+	return &NotFoundError{text}
+}
+
 // closure for geting a model
 func getSource(index string, _type string) func(string, interface{}) error {
 	return func(id string, source interface{}) error {
@@ -111,7 +125,7 @@ var (
 
 	//model index functions
 	newHost                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
-	newHostIP                 func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "hostIP")
+	newHostIPs                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "hostips")
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
@@ -119,13 +133,13 @@ var (
 
 	//model index functions
 	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
+	indexHostIPs      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "hostips")
 	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
 	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
 	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
-	deleteHostIP                 func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "hostIP")
 	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
@@ -140,6 +154,7 @@ var (
 
 	//model search functions, using uri based query
 	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
+	searchHostIPsUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "hostips")
 	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
 	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
@@ -168,6 +183,24 @@ func toHosts(result *core.SearchResult) ([]*dao.Host, error) {
 	}
 
 	return hosts, err
+}
+
+// convert search result of json host to dao.Host array
+func toHostIPs(result *core.SearchResult) ([]*dao.HostIPs, error) {
+	var err error = nil
+	var total = len(result.Hits.Hits)
+	var hostIPs []*dao.HostIPs = make([]*dao.HostIPs, total)
+	for i := 0; i < total; i += 1 {
+		var hostIP dao.HostIPs
+		err = json.Unmarshal(result.Hits.Hits[i].Source, &hostIP)
+		if err == nil {
+			hostIPs[i] = &hostIP
+		} else {
+			return nil, err
+		}
+	}
+
+	return hostIPs, err
 }
 
 // convert search result of json host to dao.Host array
@@ -211,6 +244,15 @@ func (this *ControlPlaneDao) queryHosts(query string) ([]*dao.Host, error) {
 	result, err := searchHostUri(query)
 	if err == nil {
 		return toHosts(&result)
+	}
+	return nil, err
+}
+
+// queryHostIPs query for host ips
+func (this *ControlPlaneDao) queryHostHostIPs(query string) ([]*dao.HostIPs, error) {
+	result, err := searchHostIPsUri(query)
+	if err == nil {
+		return toHostIPs(&result)
 	}
 	return nil, err
 }
@@ -1051,57 +1093,70 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 }
 
 // GetHostIPs gets the ips for a host if any, empty ips if none. Error if hostid does not exist
-func (this *ControlPlaneDao) GetHostIps(hostId string, ips *[]dao.HostIPResource) error {
-	resultIPs := make([]dao.HostIPResource, 0, 16)
-	//TODO make sure host exists and get IPs
-	ips = &resultIPs
+func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) error {
+
+	//TODO got to be a better way since hostExists doesn't seem to work
+	//	exists, err := hostExists(hostId)
+	host := dao.Host{}
+	err := this.GetHost(hostId, &host)
+	exists := host.Id != ""
+	if !exists || err != nil {
+		glog.Errorf("host not found: error %v", err)
+		return errors.New(fmt.Sprintf("Host %v not found: error %v", hostId, err))
+	}
+	query := fmt.Sprintf("HostId:%s", hostId)
+	results, err := this.queryHostHostIPs(query)
+	if err != nil {
+		return err
+	} else if len(results) > 1 {
+		msg := fmt.Sprintf("Found more than one HostIPs record for %v", hostId)
+		return errors.New(msg)
+	} else if len(results) == 1 {
+		*hostIPs = *results[0]
+	}
 	return nil
 }
 
-func (this *ControlPlaneDao) RegisterHostIps(ips []dao.HostIPResource, unused interface{}) error {
+func (this *ControlPlaneDao) RegisterHostIPs(ips dao.HostIPs, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RegisterHostIps: %+v", ips)
 
-	//verify all ips are for the same host
-	hostId :=""
-	for _, ip := range ips{
-		if hostId == ""{
-			hostId = ip.HostId
-		}else if ip.HostId != hostId{
-			glog.Error("ControlPlaneDao.RegisterHostIps: all ips not for the same host")
-			return errors.New("IPs should all have same host id")
-		}
-	}
-
-	var hostIPs []dao.HostIPResource
-	err := this.GetHostIps(hostId, &hostIPs)
-	if err != nil	{
-		glog.Errorf("Error looking up host IPs for %s", hostId)
+	hostId := ips.HostId
+	create := false
+	hostIPs := dao.HostIPs{}
+	err := this.GetHostIPs(hostId, &hostIPs)
+	if err != nil {
+		glog.Errorf("Error looking up host IPs for %v", hostId)
 		return err
+	} else if hostIPs.Id == "" {
+		//creating/saving a new HostIps object
+		host := dao.Host{}
+		this.GetHost(hostId, &host)
+		if err != nil {
+			glog.Errorf("Error looking up host %v: %v", hostId, err)
+			return err
+		}
+
+		hostIPs.Id, err = dao.NewUuid()
+		if err != nil {
+			glog.Errorf("Error creating UUID %v", err)
+			return err
+		}
+		hostIPs.PoolId = host.PoolId
+		hostIPs.HostId = host.Id
+		hostIPs.IPs = make([]dao.HostIPResource, 0, len(ips.IPs))
+		create = true
 	}
 
-	// TODO for now delete existing host ips
+	// TODO for now replace existing host ips
 	// in the future we need to merge and remove
-	for _, ip := range hostIPs{
-		deleteHostIP(ip.Id)
+	hostIPs.IPs = ips.IPs
+	// need to save/create
+	if create {
+		newHostIPs(hostIPs.Id, hostIPs)
+	} else {
+		indexHostIPs(hostIPs.Id, hostIPs)
 	}
 
-	host := dao.Host{}
-	this.GetHost(hostId, &host)
-	if err != nil{
-			glog.Errorf("Error looking up host %s", hostId)
-			return err
-		}
-
-	poolId := host.PoolId
-	//TODO these need to be merged with the stored ips
-	for _, ip := range ips {
-		ip.PoolId = poolId
-		ip.Id, _ = dao.NewUuid()
-		_, err := newHostIP(hostId, ip)
-		if err != nil{
-			return err
-		}
-	}
 	return nil
 }
 

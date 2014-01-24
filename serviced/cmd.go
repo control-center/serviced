@@ -143,8 +143,6 @@ func startServer() {
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
 
-		go agent.RegisterIPResources()
-
 		go func() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)
@@ -157,6 +155,9 @@ func startServer() {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
+
+		go agent.RegisterIPResources()
+
 	}
 	rpc.HandleHTTP()
 

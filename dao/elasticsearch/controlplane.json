@@ -106,21 +106,25 @@
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
       }
     },
-      "hostip": {
-        "properties": {
-          "Id" :            {"type": "string", "index":"not_analyzed"},
-          "HostId":         {"type": "string", "index":"not_analyzed"},
-          "PoolId":         {"type": "string", "index":"not_analyzed"},
-          "State" :         {"type": "string", "index":"not_analyzed"},
-          "IP" :            {"type": "string", "index":"not_analyzed"},
-          "InterfaceName" : {"type": "string", "index":"not_analyzed"},
-          "Ports":{
-            "properties": {
-              "ServiceId":  {"type": "string", "index":"not_analyzed"},
-              "Port":       {"type": "string", "index":"not_analyzed"}
+    "hostips": {
+      "properties": {
+        "Id" :            {"type": "string", "index":"not_analyzed"}
+        "HostId":         {"type": "string", "index":"not_analyzed"},
+        "PoolId":         {"type": "string", "index":"not_analyzed"},
+        "IPs" :{
+          "properties":{
+            "IP" : {"type": "string", "index":"not_analyzed"},
+            "InterfaceName" : {"type": "string", "index":"not_analyzed"},
+            "State" : {"type": "string", "index":"not_analyzed"},
+            "Ports":{
+              "properties": {
+                "ServiceId":  {"type": "string", "index":"not_analyzed"},
+                "Port":       {"type": "string", "index":"not_analyzed"}
+              }
             }
           }
         }
       }
+    }
   }
 }
