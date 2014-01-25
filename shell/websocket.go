@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"strings"
 	"time"
 )
@@ -72,8 +73,12 @@ func (wss *WebsocketShell) Close() {
 func (wss *WebsocketShell) Reader() {
 	for {
 		var req request
-		if err := wss.ws.ReadJSON(&req); err != nil {
+		if err := wss.ws.ReadJSON(&req); err == io.EOF {
 			break
+		} else if err != nil {
+			wss.send <- response{Timestamp: time.Now().Unix(), Result: "error parsing JSON"}
+			log.Printf("Error parsing JSON: %s\n", err)
+			continue
 		}
 		if req.Action == "" {
 			wss.send <- response{Timestamp: time.Now().Unix(), Result: "required field 'Action'"}
@@ -106,19 +111,19 @@ func (wss *WebsocketShell) Reader() {
 		if wss.proc == nil {
 			switch req.Action {
 			case FORK:
-				if len(req.Argv) == 0 {
-					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
-					continue
-				}
+				log.Printf("spawning a new terminal %s\n", file)
 				if term, err := CreateTerminal(name, file, args, env, cwd, cols, rows, uid, gid); err != nil {
 					// LOGME: fmt.Sprint(err)
+					log.Printf("unable to fork pty: %s\n", err)
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to fork pty"}
 				} else {
 					wss.proc = term
 				}
 			case OPEN:
+				log.Printf("opening a terminal\n")
 				if term, err := OpenTerminal(cols, rows); err != nil {
 					// LOGME: fmt.Sprint(err)
+					log.Println(err)
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to open pty"}
 				} else {
 					wss.proc = term
@@ -128,14 +133,17 @@ func (wss *WebsocketShell) Reader() {
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
 					continue
 				}
+				log.Printf("running exec: %s", strings.Join(req.Argv, " "))
 				if cmd, err := CreateCommand(file, args); err != nil {
 					// LOGME: fmt.Sprint(err)
+					log.Println(err)
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to run exec"}
 				} else {
 					wss.proc = cmd
 				}
 			default:
 				// LOGME: no running processes
+				log.Println("no running process")
 				wss.send <- response{Timestamp: time.Now().Unix(), Result: "no running process"}
 				continue
 			}
@@ -143,23 +151,29 @@ func (wss *WebsocketShell) Reader() {
 		} else {
 			switch req.Action {
 			case RESIZE:
+				log.Println("resizing terminal: %s x %s", cols, rows)
 				if err := wss.proc.Resize(cols, rows); err != nil {
 					// LOGME: fmt.Sprint(err)
+					log.Println(err)
 				}
 			case SIGNAL:
+				log.Println("sending signal %d", *signal)
 				if err := wss.proc.Kill(signal); err != nil {
 					// LOGME: fmt.Sprint(err)
+					log.Println(err)
 				}
 			case EXEC:
+				log.Println("sending: %s", strings.Join(req.Argv, " "))
 				if err := wss.tx(strings.Join(req.Argv, " ")); err != nil {
 					// LOGME: message failed to send
+					log.Println("message failed to send")
 				}
 			default:
 				// LOGME: invalid action, ignoring
+				log.Println("invalid action received")
 			}
 		}
 	}
-	// LOGME: closing websocket connection
 	wss.ws.Close()
 }
 
@@ -170,6 +184,7 @@ func (wss *WebsocketShell) Writer() {
 		}
 	}
 	// LOGME: closing websocket connection
+	log.Println("Closing websocket connection")
 	wss.ws.Close()
 }
 
@@ -180,6 +195,7 @@ func (wss *WebsocketShell) tx(input string) error {
 	}
 	wss.send <- response{Timestamp: time.Now().Unix(), Stdin: input}
 	// LOGME: >> {input}
+	fmt.Printf(">> %s\n", input)
 	return nil
 }
 
@@ -208,6 +224,7 @@ func (wss *WebsocketShell) respond() {
 			if m == '\n' {
 				wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
 				// LOGME: stdoutBuf.String()
+				fmt.Print(stdoutBuf.String())
 				stdoutBuf.Reset()
 			}
 		case e := <-stdoutErr:
@@ -215,15 +232,18 @@ func (wss *WebsocketShell) respond() {
 				if stdoutBuf.Len() > 0 {
 					wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
 					// LOGME: stdoutBuf.String()
+					fmt.Print(stdoutBuf.String())
 					stdoutBuf.Reset()
 				}
 				if eof {
 					if err := wss.proc.Wait(); err != nil {
 						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
-						// LOGME: stdoutBuf.String()
+						// LOGME: err
+						fmt.Printf(">> %s <<\n", err)
 					} else {
 						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
 						// LOGME: received code 0
+						fmt.Printf(">> received code 0 <<\n")
 					}
 					return
 				}
@@ -231,29 +251,34 @@ func (wss *WebsocketShell) respond() {
 			} else {
 				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
 				// LOGME: connection closed unexpectedly
+				log.Printf("connection closed unexpectedly: %s\n", e)
 				return
 			}
 		case m := <-stderrMsg:
 			stderrBuf.WriteByte(m)
 			if m == '\n' {
 				wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
-				// LOGME: stdoutBuf.String()
+				// LOGME: stderrBuf.String()
+				fmt.Print(stderrBuf.String())
 				stderrBuf.Reset()
 			}
 		case e := <-stderrErr:
 			if e == io.EOF {
 				if stderrBuf.Len() > 0 {
 					wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
-					// LOGME: stdoutBuf.String()
+					// LOGME: stderrBuf.String()
+					fmt.Print(stderrBuf.String())
 					stderrBuf.Reset()
 				}
 				if eof {
 					if err := wss.proc.Wait(); err != nil {
 						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
-						// LOGME: stdoutBuf.String()
+						// LOGME: err
+						fmt.Printf(">> %s <<\n", err)
 					} else {
 						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
 						// LOGME: received code 0
+						fmt.Printf(">> received code 0 <<\n")
 					}
 					return
 				}
@@ -261,6 +286,7 @@ func (wss *WebsocketShell) respond() {
 			} else {
 				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
 				// LOGME: connection closed unexpectedly
+				log.Println("connection closed unexpectedly")
 				return
 			}
 		case <-time.After(1 * time.Second):
@@ -272,12 +298,14 @@ func (wss *WebsocketShell) respond() {
 			if stdoutBuf.Len() > 0 {
 				response.Stdout = stdoutBuf.String()
 				// LOGME: stdoutBuf.String()
+				fmt.Print(stdoutBuf.String())
 				stdoutBuf.Reset()
 				submit = true
 			}
 			if stderrBuf.Len() > 0 {
 				response.Stderr = stderrBuf.String()
 				// LOGME: stderrBuf.String()
+				fmt.Print(stderrBuf.String())
 				stderrBuf.Reset()
 				submit = true
 			}

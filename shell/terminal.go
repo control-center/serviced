@@ -16,11 +16,12 @@ type Terminal struct {
 	readable, writeable bool
 	stdin               io.Writer
 	stdout              io.Reader
+	err                 error
 }
 
 func CreateTerminal(name, file string, args []string, env map[string]string, cwd string, cols, rows, uid, gid *int) (*Terminal, error) {
 	// convert environ to map
-	var environ map[string]string
+	var environ = make(map[string]string)
 	for _, e := range os.Environ() {
 		kv := strings.Split(e, "=")
 		environ[kv[0]] = kv[1]
@@ -28,7 +29,8 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 
 	// set defaults
 	if file == "" {
-		file = "sh"
+		file = "/bin/sh"
+		args = []string{"sh"}
 	}
 	if cols == nil || *cols == 0 {
 		cols = new(int)
@@ -36,7 +38,7 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 	}
 	if rows == nil || *rows == 0 {
 		rows = new(int)
-		*rows = 80
+		*rows = 24
 	}
 	if uid == nil {
 		uid = new(int)
@@ -102,6 +104,13 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 	if err := term.fork(file, args, envv, cwd, *cols, *rows, *uid, *gid); err != nil {
 		return nil, err
 	}
+
+	go func() {
+		_, err := syscall.Wait4(term.pid, nil, 0, nil)
+		term.err = err
+		term.readable = false
+	}()
+
 	return &term, nil
 }
 
@@ -149,7 +158,16 @@ func (t *Terminal) Stderr() io.Reader {
 }
 
 func (t *Terminal) Read(data []byte) (int, error) {
-	return syscall.Read(t.fd, data)
+	d := data
+
+	for {
+		n, err := syscall.Read(t.fd, d)
+		if n == len(d) || err != io.EOF || !t.readable {
+			return n, err
+		} else {
+			d = d[n:]
+		}
+	}
 }
 
 func (t *Terminal) Write(data []byte) (int, error) {
@@ -171,7 +189,9 @@ func (t *Terminal) Resize(cols, rows *int) error {
 }
 
 func (t *Terminal) Wait() error {
-	return nil
+	for t.readable {
+	}
+	return t.err
 }
 
 func (t *Terminal) Kill(signal *int) error {
@@ -187,6 +207,13 @@ func (t *Terminal) Kill(signal *int) error {
 func (t *Terminal) Close() {
 	t.readable = false
 	t.writeable = false
+
+	if t.master > 0 && t.slave > 0 {
+		syscall.Close(t.master)
+		syscall.Close(t.slave)
+	} else {
+		syscall.Close(t.fd)
+	}
 }
 
 func (t *Terminal) GetProcess() string {

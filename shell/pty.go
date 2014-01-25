@@ -119,10 +119,6 @@ func (t *pty) fork(file string, args, env []string, cwd string, cols, rows, uid,
 
 		syscall.Exec(file, args, env)
 		panic("exec failed")
-	default:
-		if err := syscall.SetNonblock(t.fd, true); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -146,11 +142,11 @@ func (t *pty) open(cols, rows int) error {
 	t.slave = int(slave)
 	t.pty = C.GoString(&name[0])
 
-	if err := syscall.SetNonblock(t.fd, true); err != nil {
+	if err := syscall.SetNonblock(t.master, true); err != nil {
 		return err
 	}
 
-	if err := syscall.SetNonblock(t.pid, true); err != nil {
+	if err := syscall.SetNonblock(t.slave, true); err != nil {
 		return err
 	}
 	return nil
