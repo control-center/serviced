@@ -163,6 +163,9 @@ func (t *Terminal) Read(data []byte) (int, error) {
 	for {
 		n, err := syscall.Read(t.fd, d)
 		if n == len(d) || err != io.EOF || !t.readable {
+			if err != nil && !t.readable {
+				err = io.EOF
+			}
 			return n, err
 		} else {
 			d = d[n:]
