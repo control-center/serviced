@@ -111,6 +111,7 @@ type Service struct {
 	DesiredState    int
 	Launch          string
 	Endpoints       []ServiceEndpoint
+	Tasks           []Task
 	ParentServiceId string
 	Volumes         []Volume
 	CreatedAt       time.Time
@@ -127,6 +128,15 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
+}
+
+// A scheduled task
+type Task struct {
+	Name          string
+	Schedule      string
+	Command       string
+	LastRunAt     time.Time
+	TotalRunCount int
 }
 
 //export definition
@@ -179,6 +189,7 @@ type ServiceDefinition struct {
 	Context     map[string]interface{} // Context information for the service
 	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
 	Services    []ServiceDefinition    // Supporting subservices
+	Tasks       []Task                 // Scheduled tasks for celery to find
 	LogFilters  map[string]string      // map of log filter name to log filter definitions
 	Volumes     []Volume               // list of volumes to bind into containers
 	LogConfigs  []LogConfig

@@ -16,8 +16,8 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/fs/btrfs"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/volume/btrfs"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -880,6 +880,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Launch = sd.Launch
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = sd.Endpoints
+	svc.Tasks = sd.Tasks
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
