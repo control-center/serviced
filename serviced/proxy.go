@@ -100,9 +100,12 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}(config.Command)
 
 	go func() {
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash/"
+		// *********************************************************************************************
+		// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
 		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		// *********************************************************************************************
 		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
 		glog.V(0).Info("About to execute: ", cmdString)
 		myCmd := exec.Command("bash", "-c", cmdString)

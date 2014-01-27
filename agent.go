@@ -321,6 +321,15 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 }
 
+/*
+writeConfFile is responsible for writing contents out to a file
+Input string prefix  : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
+Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string filename: zenmodeler_logstash_forwarder_conf
+Input string content : the content that you wish to write to a file
+Output *os.File  f   : file handler to the file that you've just opened and written the content to
+Example name of file that is written: /tmp/cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_592084261
+*/
 func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
 	f, err := ioutil.TempFile("", prefix)
 	if err != nil {
@@ -336,11 +345,19 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 	return f, nil
 }
 
+/*
+chownConfFile is responsible for changing the owner of a file
+Input *os.File f     : file handler to a file that has already been opened
+Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string filename: zenmodeler_logstash_forwarder_conf
+Input string owner   : the content that you wish to write to a file
+Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
+*/
 func chownConfFile(f *os.File, id string, filename string, owner string) bool {
 	if len(owner) != 0 {
 		parts := strings.Split(owner, ":")
 		if len(parts) != 2 {
-			glog.Errorf("Unsupported owner specification, only %%d:%%d supported for now: %s, %s", id, filename)
+			glog.Errorf("Unsupported owner specification: %s, only %%d:%%d supported for now: %s, %s", owner, id, filename)
 			return false
 		}
 		uid, err := strconv.Atoi(parts[0])
@@ -426,41 +443,48 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	// if this container is going to produce any logs, bind mount the following files:
 	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
+	// FIX ME: consider moving this functionality to its own function...
 	logstashForwarderMount := ""
 	if len(service.LogConfigs) > 0 {
-		logstashForwarderLogConf :=
-			"      {\n" +
-				"         \"paths\": [ \"" + service.LogConfigs[0].Path + "\" ],\n" +
-				"         \"fields\": { \"type\": \"" + service.LogConfigs[0].Type + "\" }\n" +
-				"      }"
+		logstashForwarderLogConf := `
+        {
+        	"paths": [ "%s" ],
+        	"fields": { "type": "%s" }
+        }`
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
 		for _, logConfig := range service.LogConfigs[1:] {
-			logstashForwarderLogConf = logstashForwarderLogConf + ",\n" +
-				"      {\n" +
-				"         \"paths\": [ \"" + logConfig.Path + "\" ],\n" +
-				"         \"fields\": { \"type\": \"" + logConfig.Type + "\" }\n" +
-				"      }"
+			logstashForwarderLogConf = logstashForwarderLogConf + `,
+				{
+					"paths": [ "%s" ],
+					"fields": { "type": "%s" }
+				}`
+			logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, logConfig.Type)
 		}
 
 		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
+		// *********************************************************************************************
+		// ***** FIX ME the following 3 variables are defined in serviced/proxy.go as well! ************
 		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
 		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		// *********************************************************************************************
 		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
 		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
 
-		logstashForwarderShipperConf :=
-			"{\n" +
-				"   \"network\": {\n" +
-				"      \"servers\": [ \"" + containerDefaultGatewayAndLogstashForwarderPort + "\" ],\n" +
-				"      \"ssl certificate\": \"" + containerSSLCertificatePath + "\",\n" +
-				"      \"ssl key\": \"" + containerSSLKeyPath + "\",\n" +
-				"      \"ssl ca\": \"" + containerSSLCertificatePath + "\",\n" +
-				"      \"timeout\": 15\n" +
-				"   },\n" +
-				"   \"files\": [\n" +
-				logstashForwarderLogConf + "\n" +
-				"   ]\n" +
-				"}\n"
+		logstashForwarderShipperConf := `
+			{
+				"network": {
+			    	"servers": [ "%s" ],
+					"ssl certificate": "%s",
+					"ssl key": "%s",
+					"ssl ca": "%s",
+			    	"timeout": 15
+			   	},
+			   	"files": [
+					%s
+			   	]
+			}`
+		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
 
 		filename := service.Name + "_logstash_forwarder_conf"
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
