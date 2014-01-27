@@ -9,6 +9,7 @@
 package serviced
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 
 	"bufio"
@@ -322,4 +323,34 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 		}
 	}
 	return &httputil.ReverseProxy{Director: director}
+}
+
+// createVolumeDir() creates a directory on the running host using the user ids
+// found within the specified image. For example, it can create a directory owned
+// by the mysql user (as seen by the container) despite there being no mysql user
+// on the host system
+func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
+
+	// FIXME: this relies on the underlying container to have /bin/sh that supports
+	// some advanced shell options. This should be rewriten so that serviced injects itself in the
+	// container and performs the operations using only go!
+	docker := exec.Command("docker", "run", "-rm",
+		"-v", hostPath+":/tmp",
+		imageSpec,
+		"/bin/sh", "-c",
+		fmt.Sprintf(`
+chown %s /tmp && \
+chmod %s /tmp && \
+shopt -s nullglob && \
+shopt -s dotglob && \
+files=(/tmp/*) && \
+if [ ${#files[@]} -eq 0 ]; then 
+    cp -rp %s/* /tmp/
+fi
+`, userSpec, permissionSpec, containerSpec))
+	output, err := docker.CombinedOutput()
+	if err != nil {
+		glog.Errorf("could not create host volume: %s", string(output))
+	}
+	return err
 }

@@ -101,8 +101,10 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
-		{"rollback", "Rollback the DFS and container image"},
-		{"commit", "Commit the DFS and container image"},
+		{"rollback", "Rollback a service to a particular snapshot"},
+		{"snapshot", "Snapshot a service"},
+		{"delete-snapshot", "Snapshot a service"},
+		{"snapshots", "Show snapshots for a service"},
 		{"get", "Download a file from a container image"},
 		{"recv", "Receive a file for a container image"},
 	} {
@@ -687,41 +689,85 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {
-	cmd := Subcmd("rollback", "SERVICEID IMAGEID", "Reverts the container's DFS and image to a specified snapshot")
+	cmd := Subcmd("rollback", "SNAPSHOT_ID", "Reverts the container's DFS and image to a specified snapshot")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) != 2 {
+	if len(cmd.Args()) != 1 {
 		cmd.Usage()
 		return nil
 	}
 	controlPlane := getClient()
 
 	var unused int
-	var service dao.Service
-	service.Id = cmd.Arg(0)
-	service.ImageId = cmd.Arg(1)
-	err := controlPlane.Rollback(service, &unused)
+	err := controlPlane.Rollback(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	}
 	return err
 }
 
-func (cli *ServicedCli) CmdCommit(args ...string) error {
-	cmd := Subcmd("commit", "SERVICEID IMAGEID", "Commits the container's DFS and image to a specified snapshot")
+func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {
+	cmd := Subcmd("delete-snapshot", "SNAPSHOT_ID", "Removes the specified snapshot")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) != 2 {
+	if len(cmd.Args()) != 1 {
 		cmd.Usage()
 		return nil
 	}
 	controlPlane := getClient()
 
 	var unused int
-	var service dao.Service
-	service.Id = cmd.Arg(0)
-	service.ImageId = cmd.Arg(1)
-	err := controlPlane.Commit(service, &unused)
+	err := controlPlane.DeleteSnapshot(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	}
 	return err
+}
+
+func (cli *ServicedCli) CmdSnapshot(args ...string) error {
+	cmd := Subcmd("snapshot", "SERVICEID", "Snapshots the container's DFS and image")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var snapshotId string
+	if err := controlPlane.Snapshot(cmd.Arg(0), &snapshotId); err != nil {
+		glog.Errorf("Received an error: %s", err)
+		return err
+	} else {
+		fmt.Printf("%s\n", snapshotId)
+	}
+	return nil
+}
+
+func (cli *ServicedCli) CmdSnapshots(args ...string) error {
+	cmd := Subcmd("snapshot", "SERVICEID", "Snapshots the container's DFS and image")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var snapshotIds []string
+	if err := controlPlane.Snapshots(cmd.Arg(0), &snapshotIds); err != nil {
+		glog.Errorf("Received an error: %s", err)
+		return err
+	} else {
+		for _, snapshotId := range snapshotIds {
+			fmt.Printf("%s\n", snapshotId)
+		}
+	}
+	return nil
 }
 
 func (cli *ServicedCli) CmdGet(args ...string) error {

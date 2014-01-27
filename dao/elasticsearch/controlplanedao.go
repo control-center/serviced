@@ -17,13 +17,17 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/volume/btrfs"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -880,7 +884,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.ParentServiceId = parent
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
-	svc.Volumes = make([]dao.Volume, len(sd.VolumeImports))
+	svc.Volumes = sd.Volumes
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
 
@@ -892,18 +896,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
 		return err
-	}
-
-	//for each export, create directory and add path into export map
-	for _, volumeExport := range sd.VolumeExports {
-		resourcePath := svc.Id + "/" + volumeExport.Path
-		exportedVolumes[volumeExport.Name] = resourcePath
-	}
-
-	//for each import, create directory and configure service paths
-	for i, volumeImport := range sd.VolumeImports {
-		resourcePath := exportedVolumes[volumeImport.Name] + "/" + volumeImport.ResourcePath
-		svc.Volumes[i] = dao.Volume{volumeImport.Owner, volumeImport.Permission, resourcePath, volumeImport.ContainerPath}
 	}
 
 	var serviceId string
@@ -1028,13 +1020,145 @@ func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) erro
 	return nil
 }
 
-func (this *ControlPlaneDao) Rollback(service dao.Service, unused *int) error {
-	// TODO: implement stub
+func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
+	var tenantId string
+	parts := strings.Split(snapshotId, "_")
+	if len(parts) != 2 {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot malformed snapshot Id: %s", snapshotId)
+		return errors.New("malformed snapshotId")
+	}
+	serviceId := parts[0]
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	var service dao.Service
+	err := this.GetService(tenantId, &service)
+	glog.V(2).Infof("Getting service instance: %s", tenantId)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// delete snapshot
+	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
+		return err
+	} else {
+		glog.V(2).Infof("deleting snapshot %s", snapshotId)
+		if err := volume.RemoveSnapshot(snapshotId); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func (this *ControlPlaneDao) Commit(service dao.Service, unused *int) error {
-	// TODO: implement stub
+func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
+
+	var tenantId string
+	parts := strings.Split(snapshotId, "_")
+	if len(parts) != 2 {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot malformed snapshot Id: %s", snapshotId)
+		return errors.New("malformed snapshotId")
+	}
+	serviceId := parts[0]
+	label := parts[1]
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	this.StopService(tenantId, unused)
+	time.Sleep(time.Second * 5) // wait for shutdown
+
+	var service dao.Service
+	err := this.GetService(tenantId, &service)
+	glog.V(2).Infof("Getting service instance: %s", tenantId)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	}
+	// rollback
+	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	} else {
+		glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
+		if err := volume.Rollback(snapshotId); err != nil {
+			return err
+		}
+	}
+	unusedStr := ""
+	return this.StartService(tenantId, &unusedStr)
+}
+
+func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+	var service dao.Service
+	err := this.GetService(tenantId, &service)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// create a
+	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	} else {
+		if snaplabel, err := volume.Snapshot(); err != nil {
+			return err
+		} else {
+			*label = snaplabel
+		}
+	}
+	return nil
+}
+
+func getSubvolume(poolId, tenantId string) (volume *btrfs.Volume, err error) {
+	baseDir, _ := filepath.Abs(path.Join(varPath(), "volumes", poolId))
+	return btrfs.NewVolume(baseDir, tenantId)
+}
+
+func varPath() string {
+	if len(os.Getenv("SERVICED_HOME")) > 0 {
+		return path.Join(os.Getenv("SERVICED_HOME"), "var")
+	}
+	return "/tmp/serviced/var"
+}
+
+func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {
+
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
+		return err
+	}
+	var service dao.Service
+	err := this.GetService(tenantId, &service)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// create a
+	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
+		return err
+	} else {
+		if snaplabels, err := volume.Snapshots(); err != nil {
+			return err
+		} else {
+			glog.Info("Got snap labels %v", snaplabels)
+			*labels = make([]string, len(snaplabels))
+			*labels = snaplabels
+		}
+	}
 	return nil
 }
 

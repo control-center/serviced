@@ -63,5 +63,6 @@ func zkHealthCheck() error {
 		}
 		time.Sleep(time.Millisecond * 1000)
 	}
+	glog.Info("zookeeper container started, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 	return nil
 }
