@@ -132,6 +132,26 @@
       </tbody>
     </table>
 
+    <table class="table tabl-striped table-bordered table-hover">
+        <thead>
+            <tr>
+                <th>Schedule</th>
+                <th>Command</th>
+                <th>Last Run</th>
+                <th>Total Run Count</th>
+            </tr>
+        </thead>
+        <tbody>
+        <tr ng-repeat="task in services.current.Tasks">
+            <td style="font-family:monospace">{{ task.Schedule }}</td>
+            <td>{{ task.Command }}</td>
+            <td>{{ task.LastRunAt }}</td>
+            <td>{{ task.TotalRunCount }}</td>
+        </tr>          
+        </tbody>
+        </table>
+
+
     <div ng-include="'/static/partials/edit-config.html'"></div>
     <div ng-include="'/static/partials/view-log.html'"></div>
     <div ng-include="'/static/partials/add-service.html'"></div>

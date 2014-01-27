@@ -8,13 +8,13 @@
 
 .PHONY: buildgo buildimage
 
-COMPONENT_NAMES    := es zk opentsdb logstash query consumer
+COMPONENT_NAMES    := es zk opentsdb logstash query consumer celery
 HERE               := $(shell pwd)
 UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := zenoss/isvcs_build
 REPO               := zctrl/isvcs
-TAG                := v1
+TAG                := v2
 REPO_DIR           := images
 REPO_EXISTS        := .repo_tag_exists
 BUILD_REPO_EXISTS  := .build_repo_exists
