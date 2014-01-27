@@ -3,7 +3,6 @@ package shell
 import (
 	"github.com/gorilla/websocket"
 
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -13,18 +12,19 @@ import (
 
 const (
 	FORK   = "FORK"
-	OPEN   = "OPEN"
 	EXEC   = "EXEC"
 	RESIZE = "RESIZE"
 	SIGNAL = "SIGNAL"
 )
 
 type process interface {
-	Stdin() io.Writer
-	Stdout() io.Reader
-	Stderr() io.Reader
+	Reader(size int)
+	Writer(data []byte) (int, error)
+	Stdout() chan string
+	Stderr() chan string
+	Exited() chan bool
+	Error() error
 	Resize(cols, rows *int) error
-	Wait() error
 	Kill(s *int) error
 	Close()
 }
@@ -119,15 +119,6 @@ func (wss *WebsocketShell) Reader() {
 				} else {
 					wss.proc = term
 				}
-			case OPEN:
-				log.Printf("opening a terminal\n")
-				if term, err := OpenTerminal(cols, rows); err != nil {
-					// LOGME: fmt.Sprint(err)
-					log.Println(err)
-					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to open pty"}
-				} else {
-					wss.proc = term
-				}
 			case EXEC:
 				if len(req.Argv) == 0 {
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
@@ -189,7 +180,7 @@ func (wss *WebsocketShell) Writer() {
 }
 
 func (wss *WebsocketShell) tx(input string) error {
-	if _, err := wss.proc.Stdin().Write([]byte(input)); err != nil {
+	if _, err := wss.proc.Writer([]byte(input)); err != nil {
 		wss.send <- response{Timestamp: time.Now().Unix(), Result: "message failed to send"}
 		return err
 	}
@@ -200,140 +191,31 @@ func (wss *WebsocketShell) tx(input string) error {
 }
 
 func (wss *WebsocketShell) respond() {
-	var (
-		eof                  bool
-		stdoutMsg, stderrMsg chan byte
-		stdoutErr, stderrErr chan error
-		stdoutBuf, stderrBuf bytes.Buffer
-	)
-	stdoutMsg, stdoutErr = pipe(wss.proc.Stdout())
-	stderrMsg, stderrErr = pipe(wss.proc.Stderr())
+	go wss.proc.Reader(8192)
+
+	stdout := wss.proc.Stdout()
+	stderr := wss.proc.Stderr()
+	done := wss.proc.Exited()
+
 	defer func() {
-		close(stdoutMsg)
-		close(stdoutErr)
-		close(stderrMsg)
-		close(stderrErr)
 		wss.proc.Close()
 		wss.proc = nil
 	}()
 
 	for {
+		now := time.Now().Unix()
 		select {
-		case m := <-stdoutMsg:
-			stdoutBuf.WriteByte(m)
-			if m == '\n' {
-				wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
-				// LOGME: stdoutBuf.String()
-				fmt.Print(stdoutBuf.String())
-				stdoutBuf.Reset()
-			}
-		case e := <-stdoutErr:
-			if e == io.EOF {
-				if stdoutBuf.Len() > 0 {
-					wss.send <- response{Timestamp: time.Now().Unix(), Stdout: stdoutBuf.String()}
-					// LOGME: stdoutBuf.String()
-					fmt.Print(stdoutBuf.String())
-					stdoutBuf.Reset()
-				}
-				if eof {
-					if err := wss.proc.Wait(); err != nil {
-						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
-						// LOGME: err
-						fmt.Printf(">> %s <<\n", err)
-					} else {
-						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
-						// LOGME: received code 0
-						fmt.Printf(">> received code 0 <<\n")
-					}
-					return
-				}
-				eof = true
+		case m := <-stdout:
+			wss.send <- response{Timestamp: now, Stdout: string(m)}
+		case m := <-stderr:
+			wss.send <- response{Timestamp: now, Stderr: string(m)}
+		case <-done:
+			if err := wss.proc.Error(); err != nil {
+				wss.send <- response{Timestamp: now, Result: fmt.Sprint(err)}
 			} else {
-				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
-				// LOGME: connection closed unexpectedly
-				log.Printf("connection closed unexpectedly: %s\n", e)
-				return
+				wss.send <- response{Timestamp: now, Result: "0"}
 			}
-		case m := <-stderrMsg:
-			stderrBuf.WriteByte(m)
-			if m == '\n' {
-				wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
-				// LOGME: stderrBuf.String()
-				fmt.Print(stderrBuf.String())
-				stderrBuf.Reset()
-			}
-		case e := <-stderrErr:
-			if e == io.EOF {
-				if stderrBuf.Len() > 0 {
-					wss.send <- response{Timestamp: time.Now().Unix(), Stderr: stderrBuf.String()}
-					// LOGME: stderrBuf.String()
-					fmt.Print(stderrBuf.String())
-					stderrBuf.Reset()
-				}
-				if eof {
-					if err := wss.proc.Wait(); err != nil {
-						wss.send <- response{Timestamp: time.Now().Unix(), Result: fmt.Sprint(err)}
-						// LOGME: err
-						fmt.Printf(">> %s <<\n", err)
-					} else {
-						wss.send <- response{Timestamp: time.Now().Unix(), Result: "0"}
-						// LOGME: received code 0
-						fmt.Printf(">> received code 0 <<\n")
-					}
-					return
-				}
-				eof = true
-			} else {
-				wss.send <- response{Timestamp: time.Now().Unix(), Result: "connection closed unexpectedly"}
-				// LOGME: connection closed unexpectedly
-				log.Println("connection closed unexpectedly")
-				return
-			}
-		case <-time.After(1 * time.Second):
-			// Hanging process; dump whatever is on the pipes
-			var (
-				response response
-				submit   bool = false
-			)
-			if stdoutBuf.Len() > 0 {
-				response.Stdout = stdoutBuf.String()
-				// LOGME: stdoutBuf.String()
-				fmt.Print(stdoutBuf.String())
-				stdoutBuf.Reset()
-				submit = true
-			}
-			if stderrBuf.Len() > 0 {
-				response.Stderr = stderrBuf.String()
-				// LOGME: stderrBuf.String()
-				fmt.Print(stderrBuf.String())
-				stderrBuf.Reset()
-				submit = true
-			}
-			if submit {
-				wss.send <- response
-			}
-		}
-	}
-}
-
-func pipe(reader io.Reader) (chan byte, chan error) {
-	bchan := make(chan byte, 1024)
-	echan := make(chan error)
-	go func() {
-		if reader == nil {
-			echan <- io.EOF
 			return
 		}
-		for {
-			buffer := make([]byte, 1)
-			n, err := reader.Read(buffer)
-			if n > 0 {
-				bchan <- buffer[0]
-			} else {
-				echan <- err
-				return
-			}
-		}
-	}()
-	return bchan, echan
+	}
 }

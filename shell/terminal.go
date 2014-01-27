@@ -14,9 +14,11 @@ type Terminal struct {
 	file, name          string
 	cols, rows          int
 	readable, writeable bool
-	stdin               io.Writer
-	stdout              io.Reader
-	err                 error
+
+	stdoutChan chan string
+	stderrChan chan string
+	done       chan bool
+	err        error
 }
 
 func CreateTerminal(name, file string, args []string, env map[string]string, cwd string, cols, rows, uid, gid *int) (*Terminal, error) {
@@ -90,91 +92,63 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 
 	// fork
 	term := Terminal{
-		pty:       pty{},
-		file:      file,
-		name:      name,
-		cols:      *cols,
-		rows:      *rows,
-		readable:  true,
-		writeable: true,
+		pty:        pty{},
+		file:       file,
+		name:       name,
+		cols:       *cols,
+		rows:       *rows,
+		readable:   true,
+		writeable:  true,
+		stdoutChan: make(chan string),
+		stderrChan: make(chan string),
+		done:       make(chan bool),
 	}
-	term.stdin = &term
-	term.stdout = &term
-
 	if err := term.fork(file, args, envv, cwd, *cols, *rows, *uid, *gid); err != nil {
 		return nil, err
 	}
-
-	go func() {
-		_, err := syscall.Wait4(term.pid, nil, 0, nil)
-		term.err = err
-		term.readable = false
-	}()
-
 	return &term, nil
 }
 
-func OpenTerminal(cols, rows *int) (*Terminal, error) {
-	// set defaults
-	if cols == nil || *cols == 0 {
-		cols = new(int)
-		*cols = 80
-	}
-	if rows == nil || *rows == 0 {
-		rows = new(int)
-		*rows = 24
-	}
-
-	// open
-	term := Terminal{
-		pty:       pty{pid: -1},
-		file:      os.Args[0],
-		name:      os.Getenv("TERM"),
-		cols:      *cols,
-		rows:      *rows,
-		readable:  true,
-		writeable: true,
-	}
-	term.stdin = &term
-	term.stdout = &term
-
-	if err := term.open(*cols, *rows); err != nil {
-		return nil, err
-	}
-	term.fd = term.master
-	return &term, nil
-}
-
-func (t *Terminal) Stdin() io.Writer {
-	return t.stdin
-}
-
-func (t *Terminal) Stdout() io.Reader {
-	return t.stdout
-}
-
-func (t *Terminal) Stderr() io.Reader {
-	return nil
-}
-
-func (t *Terminal) Read(data []byte) (int, error) {
-	d := data
-
+func (t *Terminal) Reader(size int) {
 	for {
-		n, err := syscall.Read(t.fd, d)
-		if n == len(d) || err != io.EOF || !t.readable {
-			if err != nil && !t.readable {
-				err = io.EOF
+		data := make([]byte, size)
+		n, e := syscall.Read(t.fd, data)
+		switch e {
+		case nil, io.EOF:
+			if n > 0 {
+				t.stdoutChan <- string(data[:n])
 			}
-			return n, err
-		} else {
-			d = d[n:]
+		case syscall.EIO:
+			_, err := syscall.Wait4(t.pid, nil, 0, nil)
+			t.err = err
+			t.done <- true
+			break
+		default:
+			t.err = e
+			t.done <- true
+			break
 		}
 	}
 }
 
-func (t *Terminal) Write(data []byte) (int, error) {
+func (t *Terminal) Writer(data []byte) (int, error) {
 	return syscall.Write(t.fd, data)
+}
+
+func (t *Terminal) Stdout() chan string {
+	return t.stdoutChan
+}
+
+func (t *Terminal) Stderr() chan string {
+	return t.stderrChan
+}
+
+func (t *Terminal) Exited() chan bool {
+	return t.done
+}
+
+func (t *Terminal) Error() error {
+	return t.err
 }
 
 func (t *Terminal) Resize(cols, rows *int) error {
@@ -191,12 +165,6 @@ func (t *Terminal) Resize(cols, rows *int) error {
 	return t.resize(*cols, *rows)
 }
 
-func (t *Terminal) Wait() error {
-	for t.readable {
-	}
-	return t.err
-}
-
 func (t *Terminal) Kill(signal *int) error {
 	var s syscall.Signal
 	if signal == nil {
@@ -210,13 +178,9 @@ func (t *Terminal) Kill(signal *int) error {
 func (t *Terminal) Close() {
 	t.readable = false
 	t.writeable = false
-
-	if t.master > 0 && t.slave > 0 {
-		syscall.Close(t.master)
-		syscall.Close(t.slave)
-	} else {
-		syscall.Close(t.fd)
-	}
+	close(t.stdoutChan)
+	close(t.stderrChan)
+	syscall.Close(t.fd)
 }
 
 func (t *Terminal) GetProcess() string {
