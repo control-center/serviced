@@ -698,17 +698,25 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 type SendHostIPs func(ips dao.HostIPs, unused *int) error
 
 /**
-RegisterResources registers resources on the host such as IP addresses with the control plane master
+RegisterResources registers resources on the host such as IP addresses with the control plane master.
+The duration parameter is how often to register with the master
 */
-func (a *HostAgent) RegisterIPResources() error {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return err
-	}
-	defer controlClient.Close()
+func (a *HostAgent) RegisterIPResources(duration time.Duration) {
+	tc := time.Tick(d)
+	for t := range tc {
+		func() {
+			controlClient, err := NewControlClient(a.master)
+			if err != nil {
+				glog.Errorf("Could not start ControlPlane client %v", err)
+			}
+			defer controlClient.Close()
+			err := registerIPs(a.hostId, controlClient.RegisterHostIPs)
+			if err != nil {
+				glog.Errorf("Error registering resources %v", err)
+			}
 
-	return registerIPs(a.hostId, controlClient.RegisterHostIPs)
+		}()
+	}
 }
 
 func registerIPs(hostId string, sendFn SendHostIPs) error {

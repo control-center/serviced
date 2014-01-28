@@ -140,6 +140,7 @@ var (
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
+	deleteHostIPs                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "hostips")
 	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
@@ -572,7 +573,7 @@ func (this *ControlPlaneDao) GetHost(id string, host *dao.Host) error {
 	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s", id)
 	request := dao.Host{}
 	err := getHost(id, &request)
-	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
+	glog.Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
 	*host = request
 	return err
 }
@@ -1096,16 +1097,17 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) error {
 
 	//TODO got to be a better way since hostExists doesn't seem to work
-	//	exists, err := hostExists(hostId)
-	host := dao.Host{}
-	err := this.GetHost(hostId, &host)
-	exists := host.Id != ""
+	exists, err := hostExists(hostId)
+//	host := dao.Host{}
+//	err := this.GetHost(hostId, &host)
+//	exists := host.Id != ""
 	if !exists || err != nil {
-		glog.Errorf("host not found: error %v", err)
-		return errors.New(fmt.Sprintf("Host %v not found: error %v", hostId, err))
+		msg := fmt.Sprintf("Host not found for id %v; error: %v", hostId,  err)
+		glog.Error(msg)
+		return errors.New(msg)
 	}
 	query := fmt.Sprintf("HostId:%s", hostId)
-	results, err := this.queryHostHostIPs(query)
+		results, err := this.queryHostHostIPs(query)
 	if err != nil {
 		return err
 	} else if len(results) > 1 {
@@ -1113,6 +1115,8 @@ func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) err
 		return errors.New(msg)
 	} else if len(results) == 1 {
 		*hostIPs = *results[0]
+	} else{
+		*hostIPs = dao.HostIPs{}
 	}
 	return nil
 }
@@ -1143,21 +1147,49 @@ func (this *ControlPlaneDao) RegisterHostIPs(ips dao.HostIPs, unused *int) error
 		}
 		hostIPs.PoolId = host.PoolId
 		hostIPs.HostId = host.Id
-		hostIPs.IPs = make([]dao.HostIPResource, 0, len(ips.IPs))
+		hostIPs.IPs = make([]dao.HostIPResource, 0)
 		create = true
 	}
 
-	// TODO for now replace existing host ips
-	// in the future we need to merge and remove
-	hostIPs.IPs = ips.IPs
+	//we need to merge and remove
+	hostIPs.IPs = *mergedIPs(&hostIPs.IPs, &ips.IPs)
 	// need to save/create
 	if create {
-		newHostIPs(hostIPs.Id, hostIPs)
+		_, err = newHostIPs(hostIPs.Id, hostIPs)
 	} else {
-		indexHostIPs(hostIPs.Id, hostIPs)
+		_, err = indexHostIPs(hostIPs.Id, hostIPs)
 	}
 
-	return nil
+	return err
+}
+
+// mergedIPs returns a pointer to a slice with union of currentIPs and newIPs, with IPs from currentIPs with a state
+// of "deleted" if not found in new IPs
+func mergedIPs(currentIPs *[]dao.HostIPResource, newIPs *[]dao.HostIPResource) *[]dao.HostIPResource {
+
+	merged := make([]dao.HostIPResource, 0)
+
+	newMap := make(map[string]struct{})
+	for _, ip := range *newIPs {
+		newMap[ip.IPAddress] = struct{}{}
+	}
+
+	currentMap := make(map[string]struct{})
+	for _, ip := range *currentIPs {
+		currentMap[ip.IPAddress] = struct{}{}
+		if _, found := newMap[ip.IPAddress]; !found {
+			//The IP is not present in new IPs, mark deleted
+			ip.State = "deleted"
+		}
+		merged = append(merged, ip)
+	}
+	for _, ip := range *newIPs {
+		if _, found := currentMap[ip.IPAddress]; !found {
+			merged = append(merged, ip)
+		}
+	}
+
+	return &merged
 }
 
 // Create a elastic search control plane data access object
