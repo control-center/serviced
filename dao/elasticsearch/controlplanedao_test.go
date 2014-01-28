@@ -18,10 +18,14 @@ import (
 var unused int
 var id string
 var addresses []string
-var controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
+var controlPlaneDao *ControlPlaneDao
+var err error
 
 func init() {
-	err := isvcs.ElasticSearchContainer.Run()
+	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
+	isvcs.Mgr.Wipe()
+	controlPlaneDao, err = NewControlSvc("localhost", 9200, addresses)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -400,6 +404,56 @@ func TestDao_StartService(t *testing.T) {
 	controlPlaneDao.GetService("02", &service)
 	if service.DesiredState != dao.SVC_RUN {
 		t.Errorf("Service: 02 not requested to run: %+v", service)
+		t.Fail()
+	}
+}
+
+func TestDao_GetTenantId(t *testing.T) {
+	controlPlaneDao.RemoveService("0", &unused)
+	controlPlaneDao.RemoveService("01", &unused)
+	controlPlaneDao.RemoveService("011", &unused)
+
+	var err error
+	var tenantId string
+	err = controlPlaneDao.GetTenantId("0", &tenantId)
+	if err == nil {
+		t.Errorf("Expected failure for getting tenantId for 0")
+		t.Fail()
+	}
+
+	s0, _ := dao.NewService()
+	s0.Id = "0"
+
+	s01, _ := dao.NewService()
+	s01.Id = "01"
+	s01.ParentServiceId = "0"
+
+	s011, _ := dao.NewService()
+	s011.Id = "011"
+	s011.ParentServiceId = "01"
+
+	controlPlaneDao.AddService(*s0, &id)
+	controlPlaneDao.AddService(*s01, &id)
+	controlPlaneDao.AddService(*s011, &id)
+
+	tenantId = ""
+	err = controlPlaneDao.GetTenantId("0", &tenantId)
+	if err != nil || tenantId != "0" {
+		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
+		t.Fail()
+	}
+
+	tenantId = ""
+	err = controlPlaneDao.GetTenantId("01", &tenantId)
+	if err != nil || tenantId != "0" {
+		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
+		t.Fail()
+	}
+
+	tenantId = ""
+	err = controlPlaneDao.GetTenantId("011", &tenantId)
+	if err != nil || tenantId != "0" {
+		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
 		t.Fail()
 	}
 }
