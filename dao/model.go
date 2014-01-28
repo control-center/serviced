@@ -130,6 +130,7 @@ type Service struct {
 	DesiredState     int
 	Launch           string
 	Endpoints        []ServiceEndpoint
+	Tasks            []Task
 	ParentServiceId  string
 	Volumes          []Volume
 	CreatedAt        time.Time
@@ -147,6 +148,15 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
+}
+
+// A scheduled task
+type Task struct {
+	Name          string
+	Schedule      string
+	Command       string
+	LastRunAt     time.Time
+	TotalRunCount int
 }
 
 //export definition
@@ -214,6 +224,7 @@ type ServiceDefinition struct {
 	Context          map[string]interface{} // Context information for the service
 	Endpoints        []ServiceEndpoint      // Comms endpoints used by the service
 	Services         []ServiceDefinition    // Supporting subservices
+	Tasks            []Task                 // Scheduled tasks for celery to find
 	LogFilters       map[string]string      // map of log filter name to log filter definitions
 	VolumeExports    []VolumeExport
 	VolumeImports    []VolumeImport
@@ -239,7 +250,6 @@ type AddressResourceConfig struct {
 	Port     int
 	Protocol string
 }
-
 type LogConfig struct {
 	Path    string   // The location on the container's filesystem of the log, can be a directory
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be

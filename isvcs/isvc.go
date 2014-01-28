@@ -22,7 +22,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zctrl/isvcs"
-	IMAGE_TAG  = "v1"
+	IMAGE_TAG  = "v2"
 )
 
 func Init() {
@@ -45,6 +45,9 @@ func Init() {
 		glog.Fatalf("%s", err)
 	}
 	if err := Mgr.Register(opentsdb); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(celery); err != nil {
 		glog.Fatalf("%s", err)
 	}
 }
