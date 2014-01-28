@@ -122,7 +122,7 @@ func (c *Command) Reader(size int) {
 				c.done <- true
 				return
 			}
-		case <-time.After(1 * time.Second):
+		case <-time.After(250 * time.Millisecond):
 			// Hanging process; dump whatever is on the pipes
 			if stdoutBuf.Len() > 0 {
 				c.stdoutChan <- stdoutBuf.String()

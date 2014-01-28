@@ -77,7 +77,6 @@ func (wss *WebsocketShell) Reader() {
 			break
 		} else if err != nil {
 			wss.send <- response{Timestamp: time.Now().Unix(), Result: "error parsing JSON"}
-			log.Printf("Error parsing JSON: %s\n", err)
 			continue
 		}
 		if req.Action == "" {
@@ -111,30 +110,22 @@ func (wss *WebsocketShell) Reader() {
 		if wss.proc == nil {
 			switch req.Action {
 			case FORK:
-				log.Printf("spawning a new terminal %s\n", file)
 				if term, err := CreateTerminal(name, file, args, env, cwd, cols, rows, uid, gid); err != nil {
-					// LOGME: fmt.Sprint(err)
-					log.Printf("unable to fork pty: %s\n", err)
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to fork pty"}
 				} else {
 					wss.proc = term
 				}
 			case EXEC:
 				if len(req.Argv) == 0 {
-					wss.send <- response{Timestamp: time.Now().Unix(), Result: "missing required field 'Argv'"}
+					wss.send <- response{Timestamp: time.Now().Unix(), Result: "required field 'Argv'"}
 					continue
 				}
-				log.Printf("running exec: %s", strings.Join(req.Argv, " "))
 				if cmd, err := CreateCommand(file, args); err != nil {
-					// LOGME: fmt.Sprint(err)
-					log.Println(err)
 					wss.send <- response{Timestamp: time.Now().Unix(), Result: "unable to run exec"}
 				} else {
 					wss.proc = cmd
 				}
 			default:
-				// LOGME: no running processes
-				log.Println("no running process")
 				wss.send <- response{Timestamp: time.Now().Unix(), Result: "no running process"}
 				continue
 			}
@@ -142,26 +133,11 @@ func (wss *WebsocketShell) Reader() {
 		} else {
 			switch req.Action {
 			case RESIZE:
-				log.Println("resizing terminal: %s x %s", cols, rows)
-				if err := wss.proc.Resize(cols, rows); err != nil {
-					// LOGME: fmt.Sprint(err)
-					log.Println(err)
-				}
+				wss.proc.Resize(cols, rows)
 			case SIGNAL:
-				log.Println("sending signal %d", *signal)
-				if err := wss.proc.Kill(signal); err != nil {
-					// LOGME: fmt.Sprint(err)
-					log.Println(err)
-				}
+				wss.proc.Kill(signal)
 			case EXEC:
-				log.Println("sending: %s", strings.Join(req.Argv, " "))
-				if err := wss.tx(strings.Join(req.Argv, " ")); err != nil {
-					// LOGME: message failed to send
-					log.Println("message failed to send")
-				}
-			default:
-				// LOGME: invalid action, ignoring
-				log.Println("invalid action received")
+				wss.tx(strings.Join(req.Argv, " "))
 			}
 		}
 	}
@@ -180,13 +156,15 @@ func (wss *WebsocketShell) Writer() {
 }
 
 func (wss *WebsocketShell) tx(input string) error {
+	var r = response{Stdin: input}
 	if _, err := wss.proc.Writer([]byte(input)); err != nil {
-		wss.send <- response{Timestamp: time.Now().Unix(), Result: "message failed to send"}
+		r.Timestamp = time.Now().Unix()
+		r.Result = "message failed to send"
+		wss.send <- r
 		return err
 	}
-	wss.send <- response{Timestamp: time.Now().Unix(), Stdin: input}
-	// LOGME: >> {input}
-	fmt.Printf(">> %s\n", input)
+	r.Timestamp = time.Now().Unix()
+	wss.send <- r
 	return nil
 }
 
@@ -206,9 +184,9 @@ func (wss *WebsocketShell) respond() {
 		now := time.Now().Unix()
 		select {
 		case m := <-stdout:
-			wss.send <- response{Timestamp: now, Stdout: string(m)}
+			wss.send <- response{Timestamp: now, Stdout: m}
 		case m := <-stderr:
-			wss.send <- response{Timestamp: now, Stderr: string(m)}
+			wss.send <- response{Timestamp: now, Stderr: m}
 		case <-done:
 			if err := wss.proc.Error(); err != nil {
 				wss.send <- response{Timestamp: now, Result: fmt.Sprint(err)}
