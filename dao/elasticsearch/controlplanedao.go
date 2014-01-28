@@ -17,7 +17,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/volume/btrfs"
+	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -1111,18 +1111,26 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
 		return err
 	} else {
-		if snaplabel, err := volume.Snapshot(); err != nil {
+		snapLabel := snapShotName(volume.Name())
+		if err := volume.Snapshot(snapLabel); err != nil {
 			return err
 		} else {
-			*label = snaplabel
+			*label = snapLabel
 		}
 	}
 	return nil
 }
 
-func getSubvolume(poolId, tenantId string) (volume *btrfs.Volume, err error) {
+func snapShotName(volumeName string) string {
+	format := "20060102-150405"
+	loc := time.Now()
+	utc := loc.UTC()
+	return volumeName + "_" + utc.Format(format)
+}
+
+func getSubvolume(poolId, tenantId string) (vol volume.Volume, err error) {
 	baseDir, _ := filepath.Abs(path.Join(varPath(), "volumes", poolId))
-	return btrfs.NewVolume(baseDir, tenantId)
+	return volume.New(baseDir, tenantId)
 }
 
 func varPath() string {

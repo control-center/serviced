@@ -66,7 +66,7 @@ func init() {
 		varPathDefault = path.Join(os.Getenv("SERVICED_HOME"), "var")
 	} else {
 		if user, err := user.Current(); err == nil {
-			varPathDefault = path.Join(os.TempDir() + "-" + user.Username, "var")
+			varPathDefault = path.Join(os.TempDir(), "serviced-"+user.Username, "var")
 		}
 	}
 	flag.StringVar(&options.varPath, "varPath", varPathDefault, "path to store serviced data")

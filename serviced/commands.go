@@ -655,10 +655,13 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 	dir, err = os.Getwd()
-	pwdVolume := fmt.Sprintf("%s:/home/zenoss", dir)
-	shellcmd := "cd /home/zenoss && "
-	for _, a := range cmd.Args()[1:] {
-		shellcmd += a + " "
+	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
+	shellcmd := "su -"
+	if len(cmd.Args()) > 1 {
+		shellcmd = ""
+		for _, a := range cmd.Args()[1:] {
+			shellcmd += a + " "
+		}
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
 	cmdString := fmt.Sprintf("docker run -i -t -e COMMAND='%s' -v %s -v %s %s %s", service.Startup, servicedVolume, pwdVolume, service.ImageId, proxyCmd)

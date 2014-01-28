@@ -1,24 +1,21 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2014, all rights reserved.
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 
-package btrfs
+package volume
 
 import (
 	"github.com/zenoss/glog"
 
 	"errors"
-	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"os/user"
 	"path"
 	"strings"
-	"time"
 )
 
-type Volume struct {
+type BtrfsVolume struct {
 	baseDir string
 	name    string
 }
@@ -42,11 +39,9 @@ func init() {
 	// verify that btrfs is in the path
 	if user, err := user.Current(); err == nil {
 		if user.Uid != "0" {
-			if err := exec.Command("sudo", "-n", "btrfs", "help").Run(); err != nil {
-				glog.Info("Btrfs not supported on this system: %s", err)
-				glog.Errorf("could not execute sudo -n btrfs help, btrfs support will be disabled: %s", err)
+			if err := exec.Command("sudo", "-n", "btrfs", "help").Run(); err == nil {
+				useSudo = true
 			}
-			useSudo = true
 		}
 	}
 	BtrfsCmd = execBtrfsCmd
@@ -75,25 +70,9 @@ func Supported(path string) (supported bool, err error) {
 	return supported, err
 }
 
-// isDir() checks if the given dir is a directory. If any error is encoutered
-// it is returned and directory is set to false.
-func isDir(dirName string) (dir bool, err error) {
-	if lstat, err := os.Lstat(dirName); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	} else {
-		if !lstat.IsDir() {
-			return false, errors.New("baseDir is not a directory")
-		}
-	}
-	return true, nil
-}
-
 // NewVolume() create a BTRFS volume admin object. If a subvolume does not exist
 // it is created.
-func NewVolume(baseDir, name string) (*Volume, error) {
+func NewVolume(baseDir, name string) (Volume, error) {
 	if baseIsDir, err := isDir(baseDir); err != nil || baseIsDir == false {
 		return nil, err
 	}
@@ -105,28 +84,32 @@ func NewVolume(baseDir, name string) (*Volume, error) {
 			return nil, errors.New("could not create subvolume")
 		}
 	}
-	v := &Volume{
+	v := &BtrfsVolume{
 		baseDir: baseDir,
 		name:    name,
 	}
 	return v, nil
 }
 
-func (v *Volume) Dir() string {
-	return path.Join(v.baseDir, v.name)
+func (v *BtrfsVolume) New(baseDir, name string) (Volume, error) {
+	return NewVolume(baseDir, name)
 }
-func (v *Volume) snapshotName(baseDir string) string {
-	return path.Join(baseDir, fmt.Sprintf("%s_%d", v.name, time.Now().UnixNano()))
+
+func (v *BtrfsVolume) Name() (name string) {
+	return v.name
+}
+
+func (v *BtrfsVolume) Dir() string {
+	return path.Join(v.baseDir, v.name)
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
-func (v *Volume) Snapshot() (label string, err error) {
-	name := v.snapshotName("")
-	return name, BtrfsCmd("subvolume", "snapshot", "-r", v.Dir(), path.Join(v.baseDir, name)).Run()
+func (v *BtrfsVolume) Snapshot(label string) (err error) {
+	return BtrfsCmd("subvolume", "snapshot", "-r", v.Dir(), path.Join(v.baseDir, label)).Run()
 }
 
 // Snapshots() returns the current snapshots on the volume
-func (v *Volume) Snapshots() (labels []string, err error) {
+func (v *BtrfsVolume) Snapshots() (labels []string, err error) {
 	labels = make([]string, 0)
 	glog.Info("about to execute subvolume list command")
 	if output, err := BtrfsCmd("subvolume", "list", "-apucr", v.baseDir).CombinedOutput(); err != nil {
@@ -154,7 +137,7 @@ func (v *Volume) Snapshots() (labels []string, err error) {
 	return labels, err
 }
 
-func (v *Volume) RemoveSnapshot(label string) error {
+func (v *BtrfsVolume) RemoveSnapshot(label string) error {
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -166,7 +149,7 @@ func (v *Volume) RemoveSnapshot(label string) error {
 }
 
 // Rollback() rolls back the volume to the given snapshot
-func (v *Volume) Rollback(label string) (err error) {
+func (v *BtrfsVolume) Rollback(label string) (err error) {
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -187,7 +170,7 @@ func (v *Volume) Rollback(label string) (err error) {
 }
 
 // snapshotExists() rolls back the volume to the given snapshot
-func (v *Volume) snapshotExists(label string) (exists bool, err error) {
+func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	if snapshots, err := v.Snapshots(); err != nil {
 		return false, errors.New("could not get current snapshot list: " + err.Error())
 	} else {
@@ -200,6 +183,6 @@ func (v *Volume) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
-func (v *Volume) BaseDir() string {
+func (v *BtrfsVolume) BaseDir() string {
 	return v.baseDir
 }

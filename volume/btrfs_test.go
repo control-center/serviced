@@ -1,8 +1,8 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2014, all rights reserved.
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 
-package btrfs
+package volume
 
 import (
 	"github.com/zenoss/glog"
@@ -16,18 +16,18 @@ import (
 	"testing"
 )
 
-var testVolumePath = "/var/lib/serviced"
+var btrfsTestVolumePath = "/var/lib/serviced"
 
 const btrfsTestVolumePathEnv = "SERVICED_BTRFS_TEST_VOLUME_PATH"
 
 func init() {
 	testVolumePathEnv := os.Getenv(btrfsTestVolumePathEnv)
 	if len(testVolumePathEnv) > 0 {
-		testVolumePath = testVolumePathEnv
+		btrfsTestVolumePath = testVolumePathEnv
 	}
 }
 
-func TestVolumes(t *testing.T) {
+func TestBtrfsVolume(t *testing.T) {
 
 	if user, err := user.Current(); err != nil {
 		panic(err)
@@ -38,18 +38,18 @@ func TestVolumes(t *testing.T) {
 	}
 
 	if _, err := exec.LookPath("btrfs"); err != nil {
-		t.Skip("Skipping BTRFS tests because the btrfs-tools we not found in the path")
+		t.Skip("Skipping BTRFS tests because btrfs-tools were not found in the path")
 	}
 
 	glog.Infof("Using '%s' as btrfs test volume, use env '%s' to override.",
-		testVolumePath, btrfsTestVolumePathEnv)
+		btrfsTestVolumePath, btrfsTestVolumePathEnv)
 
-	if err := os.MkdirAll(testVolumePath, 0775); err != nil {
-		log.Printf("Could not create test volume path: %s : %s", testVolumePath, err)
+	if err := os.MkdirAll(btrfsTestVolumePath, 0775); err != nil {
+		log.Printf("Could not create test volume path: %s : %s", btrfsTestVolumePath, err)
 		t.FailNow()
 	}
 
-	if v, err := NewVolume(testVolumePath, "unittest"); err != nil {
+	if v, err := NewVolume(btrfsTestVolumePath, "unittest"); err != nil {
 		log.Printf("Could not create volume object :%s", err)
 		t.FailNow()
 	} else {
@@ -62,8 +62,8 @@ func TestVolumes(t *testing.T) {
 			t.FailNow()
 		}
 
-		label, err := v.Snapshot()
-		if err != nil {
+		label := "foo"
+		if err := v.Snapshot("foo"); err != nil {
 			log.Printf("Could not snapshot: %s", err)
 			t.FailNow()
 		}
@@ -73,7 +73,7 @@ func TestVolumes(t *testing.T) {
 			t.FailNow()
 		}
 
-		snapshots, err := v.Snapshots()
+		snapshots, _ := v.Snapshots()
 		log.Printf("Found %v", snapshots)
 
 		log.Printf("About to rollback %s", label)
