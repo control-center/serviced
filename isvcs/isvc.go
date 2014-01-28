@@ -53,6 +53,10 @@ func Init() {
 	}
 }
 
+// **********************************************************************
+// ***** The following three functions are also defined in agent.go *****
+// ***** FIXME **********************************************************
+// returns serviced home
 func localDir(p string) string {
 	homeDir := os.Getenv("SERVICED_HOME")
 	if len(homeDir) == 0 {
@@ -73,3 +77,5 @@ func resourcesDir() string {
 	}
 	return path
 }
+
+// **********************************************************************
