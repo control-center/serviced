@@ -16,7 +16,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/volume/btrfs"
+	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"

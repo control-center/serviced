@@ -5,15 +5,51 @@
 package btrfs
 
 import (
+	"github.com/zenoss/glog"
+
 	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
+	"os/user"
 	"reflect"
 	"testing"
 )
 
+var testVolumePath = "/var/lib/serviced"
+
+const btrfsTestVolumePathEnv = "SERVICED_BTRFS_TEST_VOLUME_PATH"
+
+func init() {
+	testVolumePathEnv := os.Getenv(btrfsTestVolumePathEnv)
+	if len(testVolumePathEnv) > 0 {
+		testVolumePath = testVolumePathEnv
+	}
+}
+
 func TestVolumes(t *testing.T) {
 
-	if v, err := NewVolume("/var/lib/serviced", "unittest"); err != nil {
+	if user, err := user.Current(); err != nil {
+		panic(err)
+	} else {
+		if user.Uid != "0" {
+			t.Skip("Skipping BTRFS tests because we are not running as root")
+		}
+	}
+
+	if _, err := exec.LookPath("btrfs"); err != nil {
+		t.Skip("Skipping BTRFS tests because the btrfs-tools we not found in the path")
+	}
+
+	glog.Infof("Using '%s' as btrfs test volume, use env '%s' to override.",
+		testVolumePath, btrfsTestVolumePathEnv)
+
+	if err := os.MkdirAll(testVolumePath, 0775); err != nil {
+		log.Printf("Could not create test volume path: %s : %s", testVolumePath, err)
+		t.FailNow()
+	}
+
+	if v, err := NewVolume(testVolumePath, "unittest"); err != nil {
 		log.Printf("Could not create volume object :%s", err)
 		t.FailNow()
 	} else {

@@ -43,7 +43,8 @@ func init() {
 	if user, err := user.Current(); err == nil {
 		if user.Uid != "0" {
 			if err := exec.Command("sudo", "-n", "btrfs", "help").Run(); err != nil {
-				glog.Fatalf("could not execute sudo -n btrfs help: %s", err)
+				glog.Info("Btrfs not supported on this system: %s", err)
+				glog.Errorf("could not execute sudo -n btrfs help, btrfs support will be disabled: %s", err)
 			}
 			useSudo = true
 		}
@@ -52,28 +53,55 @@ func init() {
 }
 
 func execBtrfsCmd(args ...string) (cmd MockableCmd) {
+	var myargs []string
 	if useSudo {
-		myargs := []string{"-n", " "}
-		myargs = append(myargs, args...)
-		return exec.Command("sudo", myargs...)
+		myargs = append([]string{"sudo", "-n", "btrfs"}, args...)
+	} else {
+		myargs = append([]string{"btrfs"}, args...)
 	}
-	return exec.Command("btrfs", args...)
+	glog.Infof("About to execute: %v", myargs)
+	return exec.Command(myargs[0], myargs[1:]...)
+}
+
+// Supported() checks if the given path supports BTRFS. If any is encountered
+// it is returned and supported will be set to false.
+func Supported(path string) (supported bool, err error) {
+	if supported, err = isDir(path); err != nil || supported == false {
+		return supported, err
+	}
+	if _, err = exec.LookPath("btrfs"); err == nil {
+		supported = true
+	}
+	return supported, err
+}
+
+// isDir() checks if the given dir is a directory. If any error is encoutered
+// it is returned and directory is set to false.
+func isDir(dirName string) (dir bool, err error) {
+	if lstat, err := os.Lstat(dirName); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	} else {
+		if !lstat.IsDir() {
+			return false, errors.New("baseDir is not a directory")
+		}
+	}
+	return true, nil
 }
 
 // NewVolume() create a BTRFS volume admin object. If a subvolume does not exist
 // it is created.
 func NewVolume(baseDir, name string) (*Volume, error) {
-	if lstat, err := os.Lstat(baseDir); err != nil {
+	if baseIsDir, err := isDir(baseDir); err != nil || baseIsDir == false {
 		return nil, err
-	} else {
-		if !lstat.IsDir() {
-			return nil, errors.New("baseDir is not a directory")
-		}
 	}
 
 	volumeDir := path.Join(baseDir, name)
 	if cmd := BtrfsCmd("subvolume", "list", "-apuc", volumeDir); cmd.Run() != nil {
 		if err := BtrfsCmd("subvolume", "create", volumeDir).Run(); err != nil {
+			glog.Errorf("Could not create volume at: %s", volumeDir)
 			return nil, errors.New("could not create subvolume")
 		}
 	}
@@ -158,7 +186,7 @@ func (v *Volume) Rollback(label string) (err error) {
 	return BtrfsCmd("subvolume", "snapshot", path.Join(v.baseDir, label), v.Dir()).Run()
 }
 
-// Rollback() rolls back the volume to the given snapshot
+// snapshotExists() rolls back the volume to the given snapshot
 func (v *Volume) snapshotExists(label string) (exists bool, err error) {
 	if snapshots, err := v.Snapshots(); err != nil {
 		return false, errors.New("could not get current snapshot list: " + err.Error())
@@ -174,17 +202,4 @@ func (v *Volume) snapshotExists(label string) (exists bool, err error) {
 
 func (v *Volume) BaseDir() string {
 	return v.baseDir
-}
-
-// check if the given path is a directory
-func isDir(path string) (bool, error) {
-	stat, err := os.Stat(path)
-	if err == nil {
-		return stat.IsDir(), nil
-	} else {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-	}
-	return false, err
 }
