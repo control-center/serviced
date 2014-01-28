@@ -702,20 +702,23 @@ RegisterResources registers resources on the host such as IP addresses with the 
 The duration parameter is how often to register with the master
 */
 func (a *HostAgent) RegisterIPResources(duration time.Duration) {
+	registerFn := func() {
+		controlClient, err := NewControlClient(a.master)
+		if err != nil {
+			glog.Errorf("Could not start ControlPlane client %v", err)
+		}
+		defer controlClient.Close()
+		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
+		if err != nil {
+			glog.Errorf("Error registering resources %v", err)
+		}
+	}
+	//do it the first time
+	registerFn()
 	tc := time.Tick(duration)
-	for _  = range tc {
-		func() {
-			controlClient, err := NewControlClient(a.master)
-			if err != nil {
-				glog.Errorf("Could not start ControlPlane client %v", err)
-			}
-			defer controlClient.Close()
-			err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
-			if err != nil {
-				glog.Errorf("Error registering resources %v", err)
-			}
-
-		}()
+	//run in timed loop
+	for _ = range tc {
+		registerFn()
 	}
 }
 
@@ -735,12 +738,10 @@ func registerIPs(hostId string, sendFn SendHostIPs) error {
 		}
 		for _, addr := range addrs {
 			//send address to Master
-			//TODO need id of this host
 			hostIp := dao.HostIPResource{}
 			hostIp.IPAddress = addr.String()
 			hostIp.InterfaceName = iface.Name
 			hostIPResources = append(hostIPResources, hostIp)
-			glog.V(4).Infof("%v", hostIp)
 		}
 	}
 	var unused int
