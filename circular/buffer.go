@@ -7,7 +7,8 @@ package circular
 // A Buffer is a fixed size buffer with Read and Write methods. When more than
 // the allotted amount of data is written, the buffer will only retain the last
 // size bytes of unread data. The zero value for Buffer is a buffer of size 0;
-// all writes are discarded and there is never any data to read.
+// all writes are discarded and there is never any data to read. This implementation
+// is not thread-safe.
 type Buffer struct {
 	size   int    // desired maxinum size of buffer
 	start  int    // the current read position
@@ -47,7 +48,7 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 		p[i] = b.readbyte()
 		n += 1
 	}
-	return n, err
+	return n, nil
 }
 
 // writebyte() writes bbyte to the buffer

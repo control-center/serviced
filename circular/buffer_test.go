@@ -9,6 +9,7 @@ import (
 )
 
 // TODO: Write a performance benchmark to show improvements to impl.
+// TODO: Write test to read from empty buffer, read from full buffer, etc
 
 func TestBuffer(t *testing.T) {
 

@@ -751,7 +751,7 @@ func (cli *ServicedCli) CmdSnapshot(args ...string) error {
 }
 
 func (cli *ServicedCli) CmdSnapshots(args ...string) error {
-	cmd := Subcmd("snapshot", "SERVICEID", "Snapshots the container's DFS and image")
+	cmd := Subcmd("snapshot", "SERVICEID", "Lists snapshots for the given service")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

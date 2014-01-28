@@ -1070,6 +1070,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	}
 
 	this.StopService(tenantId, unused)
+	// TODO: Wait for real event that confirms shutdown
 	time.Sleep(time.Second * 5) // wait for shutdown
 
 	var service dao.Service
@@ -1129,7 +1130,10 @@ func snapShotName(volumeName string) string {
 }
 
 func getSubvolume(poolId, tenantId string) (vol volume.Volume, err error) {
-	baseDir, _ := filepath.Abs(path.Join(varPath(), "volumes", poolId))
+	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
+	if err != nil {
+		return nil, err
+	}
 	return volume.New(baseDir, tenantId)
 }
 
@@ -1154,7 +1158,6 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 		return err
 	}
 
-	// create a
 	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err

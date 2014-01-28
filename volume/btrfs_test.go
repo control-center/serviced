@@ -49,13 +49,13 @@ func TestBtrfsVolume(t *testing.T) {
 		t.FailNow()
 	}
 
-	if v, err := NewVolume(btrfsTestVolumePath, "unittest"); err != nil {
+	if v, err := NewBtrfsVolume(btrfsTestVolumePath, "unittest"); err != nil {
 		log.Printf("Could not create volume object :%s", err)
 		t.FailNow()
 	} else {
 		testFile := "/var/lib/serviced/unittest/test.txt"
 		testData := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-		testData2 := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+		testData2 := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 		if err := ioutil.WriteFile(testFile, testData, 0664); err != nil {
 			log.Printf("Could not write out test file: %s", err)

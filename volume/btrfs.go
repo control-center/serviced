@@ -58,21 +58,9 @@ func execBtrfsCmd(args ...string) (cmd MockableCmd) {
 	return exec.Command(myargs[0], myargs[1:]...)
 }
 
-// Supported() checks if the given path supports BTRFS. If any is encountered
-// it is returned and supported will be set to false.
-func Supported(path string) (supported bool, err error) {
-	if supported, err = isDir(path); err != nil || supported == false {
-		return supported, err
-	}
-	if _, err = exec.LookPath("btrfs"); err == nil {
-		supported = true
-	}
-	return supported, err
-}
-
 // NewVolume() create a BTRFS volume admin object. If a subvolume does not exist
 // it is created.
-func NewVolume(baseDir, name string) (Volume, error) {
+func NewBtrfsVolume(baseDir, name string) (Volume, error) {
 	if baseIsDir, err := isDir(baseDir); err != nil || baseIsDir == false {
 		return nil, err
 	}
@@ -92,7 +80,7 @@ func NewVolume(baseDir, name string) (Volume, error) {
 }
 
 func (v *BtrfsVolume) New(baseDir, name string) (Volume, error) {
-	return NewVolume(baseDir, name)
+	return NewBtrfsVolume(baseDir, name)
 }
 
 func (v *BtrfsVolume) Name() (name string) {

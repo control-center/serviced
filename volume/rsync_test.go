@@ -36,11 +36,7 @@ func TestRsyncVolume(t *testing.T) {
 	glog.Infof("Using '%s' as rsync test volume, use env '%s' to override.",
 		rsyncTestVolumePath, rsyncTestVolumePathEnv)
 
-	if output, err := exec.Command("rm", "-Rf", path.Join(rsyncTestVolumePath, "unittest")).CombinedOutput(); err != nil {
-		log.Printf("Could not delete previous test volume: %s", string(output))
-	}
-
-	if output, err := exec.Command("rm", "-Rf", path.Join(rsyncTestVolumePath, "foo")).CombinedOutput(); err != nil {
+	if output, err := exec.Command("sh", "rm", "-Rf", path.Join(rsyncTestVolumePath, "unittest*")).CombinedOutput(); err != nil {
 		log.Printf("Could not delete previous test volume: %s", string(output))
 	}
 
@@ -54,15 +50,15 @@ func TestRsyncVolume(t *testing.T) {
 		t.FailNow()
 	} else {
 		testFile := path.Join(rsyncTestVolumePath, "unittest", "test.txt")
-		testData := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-		testData2 := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+		testData := []byte("testData\n")
+		testData2 := []byte("testData2\n")
 
 		if err := ioutil.WriteFile(testFile, testData, 0664); err != nil {
 			log.Printf("Could not write out test file: %s", err)
 			t.FailNow()
 		}
 
-		label := "foo"
+		label := "unittest_foo"
 		if err := v.Snapshot(label); err != nil {
 			log.Printf("Could not snapshot: %s", err)
 			t.FailNow()

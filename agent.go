@@ -520,15 +520,18 @@ type stateResult struct {
 }
 
 func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
-	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
-	for _, childName := range children {
-		if processing[childName] == nil {
-			glog.V(2).Info("Agent starting goroutine to watch ", childName)
-			childChannel := make(chan int, 1)
-			processing[childName] = childChannel
-			go a.processServiceState(conn, childChannel, ssDone, childName)
+	return
+	/*
+		glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
+		for _, childName := range children {
+			if processing[childName] == nil {
+				glog.V(2).Info("Agent starting goroutine to watch ", childName)
+				childChannel := make(chan int, 1)
+				processing[childName] = childChannel
+				go a.processServiceState(conn, childChannel, ssDone, childName)
+			}
 		}
-	}
+	*/
 }
 
 func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResult) (err error) {

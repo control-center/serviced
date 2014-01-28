@@ -50,6 +50,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 		return err
 	}
 	rsync := exec.Command("rsync", "-a", v.Dir()+"/", dest+"/")
+	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
 		return err
@@ -77,7 +78,15 @@ func (v *RsyncVolume) Snapshots() (labels []string, err error) {
 }
 
 func (v *RsyncVolume) RemoveSnapshot(label string) error {
+	parts := strings.Split(label, "_")
+	if len(parts) != 2 {
+		return errors.New("malformed label")
+	}
+	if parts[0] != v.name {
+		return errors.New("label refers to some other volume")
+	}
 	sh := exec.Command("rm", "-Rf", path.Join(v.BaseDir(), label))
+	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {
 		glog.Errorf("could not remove snapshot: %s", string(output))
@@ -95,6 +104,7 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 		return err
 	}
 	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", v.Dir()+"/")
+	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
 		return err
