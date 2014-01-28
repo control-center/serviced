@@ -702,15 +702,15 @@ RegisterResources registers resources on the host such as IP addresses with the 
 The duration parameter is how often to register with the master
 */
 func (a *HostAgent) RegisterIPResources(duration time.Duration) {
-	tc := time.Tick(d)
-	for t := range tc {
+	tc := time.Tick(duration)
+	for _  = range tc {
 		func() {
 			controlClient, err := NewControlClient(a.master)
 			if err != nil {
 				glog.Errorf("Could not start ControlPlane client %v", err)
 			}
 			defer controlClient.Close()
-			err := registerIPs(a.hostId, controlClient.RegisterHostIPs)
+			err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
 			if err != nil {
 				glog.Errorf("Error registering resources %v", err)
 			}
