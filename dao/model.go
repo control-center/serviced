@@ -34,6 +34,9 @@ type PoolHost struct {
 	HostIp string
 }
 
+/*
+ HostIPs contains information about IPs on a host.
+ */
 type HostIPs struct {
 	Id     string
 	HostId string
@@ -41,13 +44,21 @@ type HostIPs struct {
 	IPs    []HostIPResource
 }
 
+/*
+AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a
+HostIPResource
+ */
 type AssignedPort struct {
 	Port      int
 	ServiceId string
 }
 
+/*
+HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been
+assigned to Services
+ */
 type HostIPResource struct {
-	State         string
+	State         string  //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
 	Ports         []AssignedPort
@@ -245,7 +256,7 @@ const (
 	UDP = "udp"
 )
 
-//AddressResourceConfig defines an external facing port
+//AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
 	Port     int
 	Protocol string

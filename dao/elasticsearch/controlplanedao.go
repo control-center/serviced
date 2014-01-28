@@ -573,7 +573,7 @@ func (this *ControlPlaneDao) GetHost(id string, host *dao.Host) error {
 	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s", id)
 	request := dao.Host{}
 	err := getHost(id, &request)
-	glog.Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
+	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
 	*host = request
 	return err
 }
@@ -1096,19 +1096,14 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 
 // GetHostIPs gets the ips for a host if any, empty ips if none. Error if hostid does not exist
 func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) error {
-
-	//TODO got to be a better way since hostExists doesn't seem to work
 	exists, err := hostExists(hostId)
-//	host := dao.Host{}
-//	err := this.GetHost(hostId, &host)
-//	exists := host.Id != ""
 	if !exists || err != nil {
-		msg := fmt.Sprintf("Host not found for id %v; error: %v", hostId,  err)
+		msg := fmt.Sprintf("Host not found for id %v; error: %v", hostId, err)
 		glog.Error(msg)
 		return errors.New(msg)
 	}
 	query := fmt.Sprintf("HostId:%s", hostId)
-		results, err := this.queryHostHostIPs(query)
+	results, err := this.queryHostHostIPs(query)
 	if err != nil {
 		return err
 	} else if len(results) > 1 {
@@ -1116,12 +1111,16 @@ func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) err
 		return errors.New(msg)
 	} else if len(results) == 1 {
 		*hostIPs = *results[0]
-	} else{
+	} else {
 		*hostIPs = dao.HostIPs{}
 	}
 	return nil
 }
 
+/*
+ RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
+ been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
+*/
 func (this *ControlPlaneDao) RegisterHostIPs(ips dao.HostIPs, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RegisterHostIps: %+v", ips)
 

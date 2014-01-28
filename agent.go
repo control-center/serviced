@@ -722,6 +722,10 @@ func (a *HostAgent) RegisterIPResources(duration time.Duration) {
 	}
 }
 
+/*
+registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
+and the function used to send the found IPs
+*/
 func registerIPs(hostId string, sendFn SendHostIPs) error {
 
 	interfaces, err := net.Interfaces()
