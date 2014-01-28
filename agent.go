@@ -350,7 +350,7 @@ chownConfFile is responsible for changing the owner of a file
 Input *os.File f     : file handler to a file that has already been opened
 Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
-Input string owner   : the content that you wish to write to a file
+Input string owner   : the owner that the file should be owned by
 Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
 */
 func chownConfFile(f *os.File, id string, filename string, owner string) bool {
