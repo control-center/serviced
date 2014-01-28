@@ -363,7 +363,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	volumeOpts := ""
 	if len(tenantId) == 0 && len(service.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
-		glog.Fatal("Could not get tenant ID and need to mound a volume")
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, service.Id)
 	}
 	for _, volume := range service.Volumes {
 
