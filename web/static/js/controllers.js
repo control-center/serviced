@@ -780,6 +780,12 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.name = "hostdetails";
     $scope.params = $routeParams;
 
+    $scope.visualization = zenoss.visualization;
+    $scope.visualization.url = 'http://' + $location.host() + ':8787';
+    $scope.visualization.urlPath = '/metrics/static/performance/query/';
+    $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
+    $scope.visualization.debug = true;
+
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' }
     ];
@@ -791,6 +797,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Name', name: 'running_tbl_running' },
         { id: 'StartedAt', name: 'running_tbl_start' },
         { id: 'View', name: 'running_tbl_actions' }
+    ]);
+
+    $scope.graph = buildTable('Name', [
+        { id: 'CPU', name: 'graph_tbl_cpu'},
+        { id: 'Memory', name: 'graph_tbl_mem'}
     ]);
 
     $scope.viewConfig = function(running) {
@@ -822,7 +833,97 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
-    })
+    });
+
+    $scope.cpuconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "color": "#aec7e8",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "system",
+                "legend": "CPU (System)",
+                "metric": "system",
+                "name": "CPU (System)",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            },
+            {
+                "aggregator": "avg",
+                "color": "#98df8a",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "user",
+                "legend": "CPU (User)",
+                "metric": "user",
+                "name": "CPU (User)",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            }
+        ],
+        "downsample": "5m-avg",
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "2d-ago"
+        },
+        "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
+    $scope.memconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "color": "#aec7e8",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "pgfault",
+                "legend": "Page Faults",
+                "metric": "pgfault",
+                "name": "Page Faults",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            }
+        ],
+        "downsample": "5m-avg",
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "2d-ago"
+        },
+        "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
+    $scope.drawn = {};
+
+    $scope.viz = function(id, config) {
+        console.log(arguments);
+        if (!$scope.drawn[id]) {
+            zenoss.visualization.chart.create(id, config);
+            $scope.drawn[id] = true;
+        }
+    }
+
+    $scope.blarg = function() {
+        console.log(arguments);
+    }
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
