@@ -1098,20 +1098,25 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) error {
 	exists, err := hostExists(hostId)
 	if !exists || err != nil {
-		msg := fmt.Sprintf("Host not found for id %v; error: %v", hostId, err)
-		glog.Error(msg)
-		return errors.New(msg)
+		err = fmt.Errorf("Host not found for id %v; error: %v", hostId, err)
+		glog.Error(err)
+		return err
 	}
 	query := fmt.Sprintf("HostId:%s", hostId)
 	results, err := this.queryHostHostIPs(query)
 	if err != nil {
 		return err
-	} else if len(results) > 1 {
-		msg := fmt.Sprintf("Found more than one HostIPs record for %v", hostId)
-		return errors.New(msg)
-	} else if len(results) == 1 {
+	}
+	l := len(results)
+	switch {
+	case l > 1:
+		{
+			msg := fmt.Sprintf("Found more than one HostIPs record for %v", hostId)
+			return errors.New(msg)
+		}
+	case l == 1:
 		*hostIPs = *results[0]
-	} else {
+	default:
 		*hostIPs = dao.HostIPs{}
 	}
 	return nil
@@ -1180,6 +1185,8 @@ func mergedIPs(currentIPs *[]dao.HostIPResource, newIPs *[]dao.HostIPResource) *
 		if _, found := newMap[ip.IPAddress]; !found {
 			//The IP is not present in new IPs, mark deleted
 			ip.State = "deleted"
+		} else {
+			ip.State = "valid"
 		}
 		merged = append(merged, ip)
 	}

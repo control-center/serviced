@@ -811,6 +811,7 @@ func (a *HostAgent) RegisterIPResources(duration time.Duration) {
 		controlClient, err := NewControlClient(a.master)
 		if err != nil {
 			glog.Errorf("Could not start ControlPlane client %v", err)
+			return
 		}
 		defer controlClient.Close()
 		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
@@ -884,4 +885,4 @@ func resourcesDir() string {
 	return localDir("resources")
 }
 
-// *********************************************************************	
+// *********************************************************************

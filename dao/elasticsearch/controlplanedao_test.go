@@ -685,14 +685,20 @@ func TestDaoRegisterHostIPsMerge(t *testing.T) {
 
 	ips := dao.HostIPs{}
 	ips.HostId = HOSTID
-	ips.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}}}
+	ips.IPs = []dao.HostIPResource{
+		dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}},
+		dao.HostIPResource{"deleted", "testip1", "ifname", []dao.AssignedPort{}},
+	}
 
 	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	ips.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip2", "ifname2", []dao.AssignedPort{}}}
+	ips.IPs = []dao.HostIPResource{
+		dao.HostIPResource{"valid", "testip2", "ifname2", []dao.AssignedPort{}},
+		dao.HostIPResource{"valid", "testip1", "ifname", []dao.AssignedPort{}},
+	}
 	err = controlPlaneDao.RegisterHostIPs(ips, &unused)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -704,32 +710,49 @@ func TestDaoRegisterHostIPsMerge(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if len(ips.IPs) != 2 {
-		t.Errorf("Expected 2 HostIPResources, found: %v", len(ips.IPs))
+	if len(ips.IPs) != 3 {
+		t.Errorf("Expected 3 HostIPResources, found: %v", len(ips.IPs))
 	}
 	for _, ipResource := range ips.IPs {
-		if ipResource.IPAddress == "testip" {
-			if ipResource.State != "deleted" {
-				t.Errorf("Unexpected state: %v", ipResource.State)
-			}
+		addr := ipResource.IPAddress
+		switch addr {
+		case "testip":
+			{
+				if ipResource.State != "deleted" {
+					t.Errorf("Unexpected state: %v", ipResource.State)
+				}
 
-			if ipResource.InterfaceName != "ifname" {
-				t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
+				if ipResource.InterfaceName != "ifname" {
+					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
+				}
 			}
-		} else if ipResource.IPAddress == "testip2" {
-			if ipResource.State != "valid" {
-				t.Errorf("Unexpected state: %v", ipResource.State)
-			}
+		case "testip1":
+			{
+				if ipResource.State != "valid" {
+					t.Errorf("Unexpected state: %v", ipResource.State)
+				}
 
-			if ipResource.InterfaceName != "ifname2" {
-				t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
+				if ipResource.InterfaceName != "ifname" {
+					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
+				}
 			}
-		} else {
-			t.Errorf("Unexpected IP resource %v", ipResource)
+		case "testip2":
+			{
+				if ipResource.State != "valid" {
+					t.Errorf("Unexpected state: %v", ipResource.State)
+				}
+
+				if ipResource.InterfaceName != "ifname2" {
+					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
+				}
+			}
+		default:
+			{
+				t.Errorf("Unexpected IP resource %v", ipResource)
+			}
 		}
 
 	}
-
 }
 
 func TestDao_TestingComplete(t *testing.T) {
