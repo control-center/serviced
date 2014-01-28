@@ -71,7 +71,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
-    go h.run()
+	go h.run()
 	http.HandleFunc("/exec", handler)
 	go http.ListenAndServe(":50000", nil)
 
@@ -98,6 +98,23 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			time.Sleep(time.Minute)
 		}
 	}(config.Command)
+
+	go func() {
+		// *********************************************************************************************
+		// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
+		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		// *********************************************************************************************
+		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+		glog.V(0).Info("About to execute: ", cmdString)
+		myCmd := exec.Command("bash", "-c", cmdString)
+		myErr := myCmd.Run()
+		if myErr != nil {
+			glog.Errorf("Problem running service: %v", myErr)
+			glog.Flush()
+		}
+	}()
 
 	go func() {
 		for {
