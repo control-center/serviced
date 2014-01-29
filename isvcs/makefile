@@ -25,7 +25,7 @@ all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar
 
 $(REPO_DIR)/$(REPO)/$(TAG).tar: $(REPO_EXISTS)
 	mkdir -p $(REPO_DIR)/$(REPO)
-	docker save $(REPO) > $(EXPORTED_FILE)
+	#docker save $(REPO) > $(EXPORTED_FILE)
 
 buildgo:
 	go build
