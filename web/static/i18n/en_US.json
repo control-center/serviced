@@ -44,7 +44,7 @@
 		"label_host_pool":"Resource Pool",
 		"label_host_memory":"Memory",
 		"label_host_cores":"CPU Cores",
-        "label_host_graphs":"Graphs",
+		"label_host_graphs":"Graphs",
 		"label_host_and_port":"Host and port",
 		"label_host_parent":"Pool Id",
 		"label_hosts":"HOSTS",
