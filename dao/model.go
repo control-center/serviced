@@ -36,7 +36,7 @@ type PoolHost struct {
 
 /*
  HostIPs contains information about IPs on a host.
- */
+*/
 type HostIPs struct {
 	Id     string
 	HostId string
@@ -47,7 +47,7 @@ type HostIPs struct {
 /*
 AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a
 HostIPResource
- */
+*/
 type AssignedPort struct {
 	Port      int
 	ServiceId string
@@ -56,9 +56,9 @@ type AssignedPort struct {
 /*
 HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been
 assigned to Services
- */
+*/
 type HostIPResource struct {
-	State         string  //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
+	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
 	Ports         []AssignedPort
@@ -223,8 +223,6 @@ type ServiceDefinition struct {
 	Tasks            []Task                 // Scheduled tasks for celery to find
 	LogFilters       map[string]string      // map of log filter name to log filter definitions
 	Volumes          []Volume               // list of volumes to bind into containers
-	VolumeExports    []VolumeExport
-	VolumeImports    []VolumeImport
 	LogConfigs       []LogConfig
 	AddressResources []AddressResourceConfig // Configuration for external facing IP
 }
