@@ -183,7 +183,7 @@ func (c *Container) rm() error {
 		return err
 	} else {
 		for _, id := range *ids {
-			client.RemoveContainer(id)
+            client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil
