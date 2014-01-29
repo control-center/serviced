@@ -784,7 +784,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.visualization.url = 'http://' + $location.host() + ':8787';
     $scope.visualization.urlPath = '/metrics/static/performance/query/';
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
-    $scope.visualization.debug = true;
+    $scope.visualization.debug = false;
 
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' }
