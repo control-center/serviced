@@ -914,15 +914,10 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.drawn = {};
 
     $scope.viz = function(id, config) {
-        console.log(arguments);
         if (!$scope.drawn[id]) {
             zenoss.visualization.chart.create(id, config);
             $scope.drawn[id] = true;
         }
-    }
-
-    $scope.blarg = function() {
-        console.log(arguments);
     }
 }
 
