@@ -10,6 +10,13 @@ from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
 from pyes import TermQuery, ES
 
+
+REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
+# Go directly to container gateway to hit CP elastic isvc. This will only
+# be true while we can guarantee isvcs running on the same box.
+ELASTIC_URL = 'http://172.17.42.1:9200'  
+
+
 app = Celery("cpcelery", broker="redis://", backend="redis://")
 
 
@@ -53,15 +60,20 @@ class ControlPlaneScheduleEntry(ScheduleEntry):
         return result
 
     def save(self):
-        # Object may not be synchronized, so only
-        # change the fields we care about.
+        # Object may not be synchronized, so only change the fields we care
+        # about. Get a new copy of the service.
         meta = self.svc_model._meta
         svc = meta.connection.get(meta.index, meta.type, meta.id)
         for task in svc.Tasks:
+            # Iterate. Only way to get our task, sadly. Pretty cheap tho.
             if task.Name == self.name:
+                # Store date format we know everybody can parse in Elastic
+                # (Everybody is us, Elastic and control plane model)
                 task.LastRunAt = self.last_run_at.isoformat() + 'Z'
                 task.TotalRunCount = self.total_run_count
+                # Save the service with our changes
                 svc.save()
+                # Use the new model with potentially updated info
                 self.task_model = task
                 self.svc_model = svc
                 return
@@ -85,8 +97,11 @@ class ControlPlaneScheduler(Scheduler):
 
     def __init__(self, *args, **kwargs):
         self._dirty = set()
-        time.sleep(30) # TODO: Not this
-        self._elastic = ES('http://172.17.42.1:9200', max_retries=100)
+        # We have to wait for the elastic container to start or things go
+        # sideways.
+        # TODO: Check status properly somehow (straight HTTP request, perhaps)
+        time.sleep(30)
+        self._elastic = ES(ELASTIC_URL, max_retries=100)
         self._finalize = Finalize(self, self.sync, exitpriority=5)
         super(ControlPlaneScheduler, self).__init__(*args, **kwargs)
 
@@ -95,11 +110,20 @@ class ControlPlaneScheduler(Scheduler):
         self.update_from_dict(self.app.conf.CELERYBEAT_SCHEDULE)
 
     def reserve(self, entry):
+        """
+        This is called when a new instance of a task is scheduled to run. Hook
+        in here so we can avoid saving updates to tasks that have none.
+        """
         new_entry = Scheduler.reserve(self, entry)
+        # Add to a list of what has changed. Store by name since the entry
+        # itself may be a different instance by the time we get to it.
         self._dirty.add(new_entry.name)
         return new_entry
 
     def update_from_dict(self, dict_):
+        """
+        Copied from django-celery scheduler.
+        """
         s = {}
         for name, entry in dict_.items():
             try:
@@ -111,6 +135,9 @@ class ControlPlaneScheduler(Scheduler):
         self.schedule.update(s)
 
     def all_as_schedule(self):
+        """
+        Get the current schedule comprising entries built from Elastic data.
+        """
         self.logger.debug("ControlPlaneScheduler: Fetching database schedule")
         entries = {}
         for svc in self._elastic.search(TermQuery("_type", "service")):
@@ -121,19 +148,21 @@ class ControlPlaneScheduler(Scheduler):
 
     @property
     def schedule(self):
-        update = False
-        if not self._initial_read:
-            self._initial_read = True
-
+        """
+        """
         self.sync()
         self._schedule = self.all_as_schedule()
         return self._schedule
 
     def sync(self):
+        """
+        Save off whatever tasks have been updated with run time and count.
+        """
         while self._dirty:
             name = self._dirty.pop()
             self._schedule[name].save()
 
     @property
     def info(self):
-        return ''
+        return '    . db -> {elastic_url}'.format(elastic_url=ELASTIC_URL)
+
