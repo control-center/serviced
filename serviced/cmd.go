@@ -139,7 +139,7 @@ func startServer() {
 		rpc.RegisterName("ControlPlane", master)
 
 		// TODO: Make bind port for web server optional?
-		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers)
+		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats)
 		go cpserver.Serve()
 	}
 	if options.agent {

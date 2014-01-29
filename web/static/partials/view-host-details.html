@@ -31,7 +31,7 @@
       </div>
     </div>
 
-    <table class="table table-striped table-bordered table-hover side-flush">
+    <table ng-if=collectingStats class="table table-striped table-bordered table-hover side-flush">
       <thead>
         <tr>
             <th ng-repeat="header in graph.headers">{{header.name|translate}}</th>
@@ -39,10 +39,10 @@
       </thead>
       <tbody>
         <td>
-            <div id="cpuchart" style="height: 640px">{{viz('cpuchart', cpuconfig)}}</div>
+            <div id="cpuchart">{{viz('cpuchart', cpuconfig)}}</div>
         </td>
         <td>
-            <div id="memchart" style="height: 640px">{{viz('memchart', memconfig)}}</div>
+            <div id="memchart">{{viz('memchart', memconfig)}}</div>
         </td>
       </tbody>
     </table>
