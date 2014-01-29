@@ -34,22 +34,24 @@ import (
 
 // Store the command line options
 var options struct {
-	port        string
-	listen      string
-	master      bool
-	agent       bool
-	muxPort     int
-	tls         bool
-	keyPEMFile  string
-	certPEMFile string
-	varPath     string // Directory to store data, eg isvcs & service volumes
-	zookeepers  ListOpts
-	repstats    bool
-	statshost   string
-	statsperiod int
-	mcusername  string
-	mcpasswd    string
-	mount       ListOpts
+	port           string
+	listen         string
+	master         bool
+	agent          bool
+	muxPort        int
+	tls            bool
+	keyPEMFile     string
+	certPEMFile    string
+	varPath        string // Directory to store data, eg isvcs & service volumes
+	resourcePath   string
+	zookeepers     ListOpts
+	repstats       bool
+	statshost      string
+	statsperiod    int
+	mcusername     string
+	mcpasswd       string
+	mount          ListOpts
+	resourceperiod int
 }
 
 // Setup flag options (static block)
@@ -78,6 +80,7 @@ func init() {
 	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
+	flag.IntVar(&options.resourceperiod, "resourceperiod", 360, "Period (minutes) for for registering host resources")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
@@ -155,6 +158,7 @@ func startServer() {
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
+
 		go func() {
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, os.Interrupt)
@@ -167,6 +171,10 @@ func startServer() {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
+
+		resourceDuration := time.Duration(options.resourceperiod) * time.Minute
+		go agent.RegisterIPResources(resourceDuration)
+
 	}
 	rpc.HandleHTTP()
 
