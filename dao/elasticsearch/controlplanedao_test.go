@@ -553,9 +553,6 @@ func TestDaoGetHostIPsNoIPs(t *testing.T) {
 	if hostIPs.PoolId != "" {
 		t.Errorf("Expected uninitialzed poolid, got %v", hostIPs.PoolId)
 	}
-	if hostIPs.PoolId != "" {
-		t.Errorf("Expected uninitialzed id, got %v", hostIPs.Id)
-	}
 	if len(hostIPs.IPs) != 0 {
 		t.Errorf("Expected %v IPs, got %v", 0, len(hostIPs.IPs))
 	}
@@ -619,28 +616,31 @@ func TestDaoRegisterHostIPsNoHost(t *testing.T) {
 	}
 }
 
+func removeHostIPs(hostId string) {
+	hostIPs := dao.HostIPs{}
+	err = controlPlaneDao.GetHostIPs(hostId, &hostIPs)
+	glog.Infof("Getting HostIPs id: %v: %v, %v", hostIPs.Id, hostIPs, err)
+	if err == nil && hostIPs.Id != "" {
+		x, err := deleteHostIPs(hostIPs.Id)
+		glog.Infof("Deleting HostIPs %v: %v: %v", hostIPs, err, x)
+	}
+}
+
 func TestDaoRegisterHostIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-	//remove any registered
-	defer func() {
-		hostIPs := dao.HostIPs{}
-		err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
-		if err != nil {
-			if hostIPs.Id != "" {
-				deleteHostIPs(hostIPs.Id)
-			}
-		}
-	}()
 
 	ips := dao.HostIPs{}
 	ips.HostId = HOSTID
 	ips.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}}}
 
 	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
+	//remove any registered
+	defer removeHostIPs(HOSTID)
+
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -672,16 +672,6 @@ func TestDaoRegisterHostIPsMerge(t *testing.T) {
 	host.Id = HOSTID
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-	//remove any registered
-	defer func() {
-		hostIPs := dao.HostIPs{}
-		err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
-		if err != nil {
-			if hostIPs.Id != "" {
-				deleteHostIPs(hostIPs.Id)
-			}
-		}
-	}()
 
 	ips := dao.HostIPs{}
 	ips.HostId = HOSTID
@@ -691,6 +681,8 @@ func TestDaoRegisterHostIPsMerge(t *testing.T) {
 	}
 
 	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
+	//remove any registered
+	defer removeHostIPs(HOSTID)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
