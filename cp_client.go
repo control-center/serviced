@@ -218,3 +218,7 @@ func (s *ControlClient) Get(service dao.Service, file *string) error {
 func (s *ControlClient) Send(service dao.Service, files *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
+
+func (s *ControlClient) RegisterHostIPs(ips dao.HostIPs, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RegisterHostIPs", ips, unused)
+}

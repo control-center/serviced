@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/glog"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -671,7 +672,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	var attached bool
 
 	for {
-
 		var hss zzk.HostServiceState
 		hssStats, zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
 		if err != nil {
@@ -789,7 +789,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	}
 }
 
-// Create a Host object from the host this function is running on.
+// GetInfo creates a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
@@ -799,6 +799,71 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	return nil
 }
 
+//SendHostIPs handles the details of sending HostIPResources
+type SendHostIPs func(ips dao.HostIPs, unused *int) error
+
+/**
+RegisterResources registers resources on the host such as IP addresses with the control plane master.
+The duration parameter is how often to register with the master
+*/
+func (a *HostAgent) RegisterIPResources(duration time.Duration) {
+	registerFn := func() {
+		controlClient, err := NewControlClient(a.master)
+		if err != nil {
+			glog.Errorf("Could not start ControlPlane client %v", err)
+			return
+		}
+		defer controlClient.Close()
+		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
+		if err != nil {
+			glog.Errorf("Error registering resources %v", err)
+		}
+	}
+	//do it the first time
+	registerFn()
+	tc := time.Tick(duration)
+	//run in timed loop
+	for _ = range tc {
+		registerFn()
+	}
+}
+
+/*
+registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
+and the function used to send the found IPs
+*/
+func registerIPs(hostId string, sendFn SendHostIPs) error {
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		glog.Error("Problem reading interfaces: ", err)
+		return err
+	}
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
+			return err
+		}
+		for _, addr := range addrs {
+			//send address to Master
+			hostIp := dao.HostIPResource{}
+			hostIp.IPAddress = addr.String()
+			hostIp.InterfaceName = iface.Name
+			hostIPResources = append(hostIPResources, hostIp)
+		}
+	}
+	var unused int
+	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
+	hostIps := dao.HostIPs{}
+	hostIps.HostId = hostId
+	hostIps.IPs = hostIPResources
+	if err := sendFn(hostIps, &unused); err != nil {
+		glog.Errorf("Error registering IPs %v", err)
+	}
+	return nil
+}
 // *********************************************************************
 // ***** FIXME *********************************************************
 // ***** The following three functions are also defined in isvc.go *****

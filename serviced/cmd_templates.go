@@ -21,11 +21,10 @@ import (
 	"os"
 	"strings"
 
-/*
-	clientlib "github.com/zenoss/serviced/client"
-	"github.com/zenoss/serviced/proxy"
-*/
-)
+	/*
+		clientlib "github.com/zenoss/serviced/client"
+		"github.com/zenoss/serviced/proxy"
+	*/)
 
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
