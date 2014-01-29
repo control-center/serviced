@@ -132,7 +132,7 @@ class ControlPlaneScheduler(Scheduler):
                 self.logger.error(
                     "Couldn't add entry %r to database schedule: %r. "
                     "Contents: %r" % (name, exc, entry))
-        self.schedule.update(s)
+        self._schedule.update(s)
 
     def all_as_schedule(self):
         """
