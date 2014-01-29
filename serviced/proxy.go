@@ -1,12 +1,12 @@
 package main
 
 import (
-    "github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-    "github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/shell"
 
 	"fmt"
 	"net"
@@ -18,47 +18,47 @@ import (
 )
 
 type hub struct {
-    // Registered connections.
-    connections map[*shell.WebsocketShell]bool
+	// Registered connections.
+	connections map[*shell.WebsocketShell]bool
 
-    // Register requests from the connections
-    register chan *shell.WebsocketShell
+	// Register requests from the connections
+	register chan *shell.WebsocketShell
 
-    // Unregister requests from the connections
-    unregister chan *shell.WebsocketShell
+	// Unregister requests from the connections
+	unregister chan *shell.WebsocketShell
 }
 
 func (h *hub) run() {
-    for {
-        select {
-        case c := <-h.register:
-            h.connections[c] = true
-        case c := <-h.unregister:
-            delete(h.connections, c)
-            c.Close()
-        }
-    }
+	for {
+		select {
+		case c := <-h.register:
+			h.connections[c] = true
+		case c := <-h.unregister:
+			delete(h.connections, c)
+			c.Close()
+		}
+	}
 }
 
 var h = hub{
-    register: make(chan *shell.WebsocketShell),
-    unregister: make(chan *shell.WebsocketShell),
-    connections: make(map[*shell.WebsocketShell]bool),
+	register:    make(chan *shell.WebsocketShell),
+	unregister:  make(chan *shell.WebsocketShell),
+	connections: make(map[*shell.WebsocketShell]bool),
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-    ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-    if _, ok := err.(websocket.HandshakeError); ok {
-        http.Error(w, "Not a websocket handshake", 400)
-        return
-    } else if err != nil {
-        return
-    }
-    c := shell.Connect(ws)
-    h.register <- c
-    defer func() { h.unregister <- c }()
-    go c.Writer()
-    c.Reader()
+	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", 400)
+		return
+	} else if err != nil {
+		return
+	}
+	c := shell.Connect(ws)
+	h.register <- c
+	defer func() { h.unregister <- c }()
+	go c.Writer()
+	c.Reader()
 }
 
 // Start a service proxy.

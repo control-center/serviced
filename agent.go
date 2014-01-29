@@ -1,10 +1,6 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -14,7 +10,9 @@ package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -43,11 +41,15 @@ import (
  3: trace level info
 */
 
+const (
+	circularBufferSize = 1000
+)
+
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
-	resourcePath    string   // directory to bind mount docker volumes
+	varPath         string   // directory to store serviced  data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -60,11 +62,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, resourcePath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, varPath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
-	agent.resourcePath = resourcePath
+	agent.varPath = varPath
 	agent.mount = mount
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
@@ -201,7 +203,7 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	cmd := exec.Command("docker", "inspect", dockerId)
 	output, err := cmd.Output()
 	if err != nil {
-		glog.Errorln("problem getting docker state")
+		glog.V(2).Infof("problem getting docker state: %s", dockerId)
 		return containerState, err
 	}
 	var containerStates []ContainerState
@@ -216,12 +218,18 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	return containerStates[0], err
 }
 
-func dumpOut(tmpName string) {
-	out, err := ioutil.ReadFile(tmpName)
-	if err != nil {
-		glog.V(1).Infof("Unable to read file %s", tmpName)
+func dumpOut(stdout, stderr io.Reader, size int) {
+	dumpBuffer(stdout, size, "stdout")
+	dumpBuffer(stderr, size, "stderr")
+}
+
+func dumpBuffer(reader io.Reader, size int, name string) {
+
+	buffer := make([]byte, size)
+	if n, err := reader.Read(buffer); err != nil {
+		glog.V(1).Infof("Unable to read %s of dump", name)
 	} else {
-		glog.V(0).Infof("Process out:\n%s", out)
+		glog.V(0).Infof("Process %s:\n%s", name, string(buffer[:n]))
 	}
 
 }
@@ -229,97 +237,102 @@ func dumpOut(tmpName string) {
 func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
 	a.dockerRemove(serviceState.Id)
 
-	tmpName := os.TempDir() + "/" + serviceState.Id + ".log"
 	defer func() {
-		err := os.Remove(tmpName)
-		if err != nil {
-			glog.V(1).Infof("Unable to remove tmp file %s: %v", err)
-		}
 		procFinished <- 1
 	}()
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
+	// save the last circularBufferSize bytes from each container run
+	lastStdout := circular.NewBuffer(circularBufferSize)
+	lastStderr := circular.NewBuffer(circularBufferSize)
+
+	if stdout, err := cmd.StdoutPipe(); err != nil {
 		glog.Errorf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
 		return
+	} else {
+		go io.Copy(lastStdout, stdout)
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
+	if stderr, err := cmd.StderrPipe(); err != nil {
 		glog.Errorf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
 		return
+	} else {
+		go io.Copy(lastStderr, stderr)
 	}
 
-	tmpLog, err := os.Create(tmpName)
-	if err != nil {
-		glog.Errorf("Unable to create temp file %s", tmpName)
-		return
-	}
-
-	err = cmd.Start()
-
-	go io.Copy(tmpLog, stdout)
-	go io.Copy(tmpLog, stderr)
-
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		glog.Errorf("Problem starting command '%s %s': %v", cmd.Path, cmd.Args, err)
-		dumpOut(tmpName)
+		dumpOut(lastStdout, lastStderr, circularBufferSize)
 		return
 	}
-
-	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
 	// We are name the container the same as its service state ID, so use that as an alias
 	dockerId := serviceState.Id
 	serviceState.DockerId = dockerId
-	containerState, err := getDockerState(dockerId)
-	if err != nil {
-		glog.Errorf("Problem getting service state :%v", err)
-		a.dockerTerminate(dockerId)
-		dumpOut(tmpName)
-		return
+
+	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
+
+	var containerState ContainerState
+	var err error
+	for i := 0; i < 30; i++ {
+		if containerState, err = getDockerState(dockerId); err != nil {
+			time.Sleep(3 * time.Second) // Sleep to give docker a chance to start
+			glog.V(2).Infof("Problem getting service state for %s :%v", serviceState.Id, err)
+			a.dockerTerminate(dockerId)
+			dumpOut(lastStdout, lastStderr, circularBufferSize)
+		} else {
+			break
+		}
 	}
 
-	err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+	if err != nil {
+		return
+	}
+	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
 		ss.DockerId = containerState.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = containerState.NetworkSettings.IPAddress
 		ss.PortMapping = containerState.NetworkSettings.Ports
-	})
-	if err != nil {
+	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
-	}
+	} else {
 
-	glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
+		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
-	err = cmd.Wait()
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				statusCode := status.ExitStatus()
-				switch {
-				case statusCode == 137:
-					glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+		if err := cmd.Wait(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					statusCode := status.ExitStatus()
+					switch {
+					case statusCode == 137:
+						glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
 
-				case statusCode == 2:
-					glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+					case statusCode == 2:
+						glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
 
-				default:
-					glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-					dumpOut(tmpName)
+					default:
+						glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
+						dumpOut(lastStdout, lastStderr, circularBufferSize)
+					}
 				}
+			} else {
+				glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 			}
 		} else {
-			glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
+			glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
 		}
-	} else {
-		glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
-	}
 
-	err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id)
-	if err != nil {
-		glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
+		if err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id); err != nil {
+			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
+		}
+
 	}
+}
+
+func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err error) {
+	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
+	volume.New(baseDir, poolId)
+	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
+	return volume.New(baseDir, tenantId)
 }
 
 /*
@@ -389,6 +402,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	defer client.Close()
 
+	//get this service's tenantId for env injection
+	var tenantId string
+	err = client.GetTenantId(service.Id, &tenantId)
+	if err != nil {
+		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
+	}
+
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
@@ -400,15 +420,26 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	volumeOpts := ""
+	if len(tenantId) == 0 && len(service.Volumes) > 0 {
+		// FIXME: find a better way of handling this error condition
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, service.Id)
+	}
 	for _, volume := range service.Volumes {
-		fileMode := os.FileMode(volume.Permission)
-		resourcePath, _ := filepath.Abs(a.resourcePath + "/" + volume.ResourcePath)
-		err := CreateDirectory(resourcePath, volume.Owner, fileMode)
-		if err == nil {
-			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
+
+		btrfsVolume, err := getSubvolume(a.varPath, service.PoolId, tenantId)
+		if err != nil {
+			glog.Fatal("Could not create subvolume: %s", err)
 		} else {
-			glog.Errorf("Error creating resource path: %v", err)
-			return false, err
+
+			resourcePath := path.Join(btrfsVolume.Dir(), volume.ResourcePath)
+			if err = os.MkdirAll(resourcePath, 0770); err != nil {
+				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
+			}
+
+			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
+				glog.Fatalf("Error creating resource path: %v", err)
+			}
+			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		}
 	}
 
@@ -524,13 +555,6 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
-	//get this service's tenantId for env injection
-	var tenantId string
-	err = client.GetTenantId(service.Id, &tenantId)
-	if err != nil {
-		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
-	}
-
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
@@ -601,15 +625,18 @@ type stateResult struct {
 }
 
 func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
-	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
-	for _, childName := range children {
-		if processing[childName] == nil {
-			glog.V(2).Info("Agent starting goroutine to watch ", childName)
-			childChannel := make(chan int, 1)
-			processing[childName] = childChannel
-			go a.processServiceState(conn, childChannel, ssDone, childName)
+	return
+	/*
+		glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
+		for _, childName := range children {
+			if processing[childName] == nil {
+				glog.V(2).Info("Agent starting goroutine to watch ", childName)
+				childChannel := make(chan int, 1)
+				processing[childName] = childChannel
+				go a.processServiceState(conn, childChannel, ssDone, childName)
+			}
 		}
-	}
+	*/
 }
 
 func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResult) (err error) {

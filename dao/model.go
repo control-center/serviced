@@ -36,7 +36,7 @@ type PoolHost struct {
 
 /*
  HostIPs contains information about IPs on a host.
- */
+*/
 type HostIPs struct {
 	Id     string
 	HostId string
@@ -47,7 +47,7 @@ type HostIPs struct {
 /*
 AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a
 HostIPResource
- */
+*/
 type AssignedPort struct {
 	Port      int
 	ServiceId string
@@ -56,9 +56,9 @@ type AssignedPort struct {
 /*
 HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been
 assigned to Services
- */
+*/
 type HostIPResource struct {
-	State         string  //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
+	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
 	Ports         []AssignedPort
@@ -178,25 +178,10 @@ type ServiceExport struct {
 	External    string //external port number
 }
 
-// volume export defines a file system directory to logically organize volume imports
-type VolumeExport struct {
-	Name string //Name of volume to export
-	Path string //Resource Pool Path
-}
-
-// volume import defines a file system directory underneath an export directory
-type VolumeImport struct {
-	Name          string //Name of volume to import
-	Owner         string //Path Owner
-	Permission    uint32 //Path Umask
-	ResourcePath  string //Path under exported path
-	ContainerPath string //Container bind-mount path
-}
-
 // volume import defines a file system directory underneath an export directory
 type Volume struct {
 	Owner         string //Resource Path Owner
-	Permission    uint32 //Resource Path Umask
+	Permission    string //Resource Path permissions, eg what you pass to chmod
 	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
 	ContainerPath string //Container bind-mount path
 }
@@ -237,8 +222,7 @@ type ServiceDefinition struct {
 	Services         []ServiceDefinition    // Supporting subservices
 	Tasks            []Task                 // Scheduled tasks for celery to find
 	LogFilters       map[string]string      // map of log filter name to log filter definitions
-	VolumeExports    []VolumeExport
-	VolumeImports    []VolumeImport
+	Volumes          []Volume               // list of volumes to bind into containers
 	LogConfigs       []LogConfig
 	AddressResources []AddressResourceConfig // Configuration for external facing IP
 }
