@@ -47,11 +47,6 @@
 		{
 			"ImportPath": "github.com/zenoss/glog",
 			"Rev": "776492278b0bca8f9bad17bfdfd27b8e189c5d28"
-		},
-		{
-			"ImportPath": "github.com/zenoss/serviced",
-			"Comment": "0.1-602-gbe5294f",
-			"Rev": "be5294fabaf63a240b3423266329a0f7d95c6c6c"
-		}
+		}		
 	]
 }
