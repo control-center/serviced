@@ -624,6 +624,9 @@ type stateResult struct {
 	err error
 }
 
+// startMissingChildren accepts a zookeeper connection (conn) and a slice of service instance ids (children),
+// a map of channels to signal running children stop, and a stateResult channel for children to signal when
+// they shutdown
 func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
 	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
 	for _, childName := range children {
