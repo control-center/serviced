@@ -17,8 +17,7 @@ install:
 	go install github.com/serviced/serviced
 
 build_binary:
-	go get github.com/zenoss/serviced/serviced
-	cd serviced && go build
+	cd serviced && ./godep restore && go build
 	cd isvcs && make
 	cd dao && make
 
