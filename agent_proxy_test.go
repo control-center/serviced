@@ -10,7 +10,7 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/dao"
 
 	"testing"
 )
@@ -18,11 +18,51 @@ import (
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
 
-func createTestService() {
-	isvcs.Mgr = isvcs.NewManager("unix:///var/run/docker.sock", "/tmp", "/tmp/volumes")
-	isvcs.Mgr.Wipe()
-}
+func TestAddControlPlaneEndpoints(t *testing.T) {
+	agent := &HostAgent{}
+	agent.master = "127.0.0.1:0"
+	endpoints := make(map[string][]*dao.ApplicationEndpoint)
 
-func TestGetServiceEndpoints(t *testing.T) {
-	createTestService()
+	consumer_endpoint := dao.ApplicationEndpoint{}
+	consumer_endpoint.ServiceId = "controlplane_consumer"
+	consumer_endpoint.ContainerIp = "127.0.0.1"
+	consumer_endpoint.ContainerPort = 8444
+	consumer_endpoint.HostPort = 8443
+	consumer_endpoint.HostIp = "127.0.0.1"
+	consumer_endpoint.Protocol = "tcp"
+
+	controlplane_endpoint := dao.ApplicationEndpoint{}
+	controlplane_endpoint.ServiceId = "controlplane"
+	controlplane_endpoint.ContainerIp = "127.0.0.1"
+	controlplane_endpoint.ContainerPort = 8787
+	controlplane_endpoint.HostPort = 8787
+	controlplane_endpoint.HostIp = "127.0.0.1"
+	controlplane_endpoint.Protocol = "tcp"
+
+	agent.addContolPlaneEndpoint(endpoints)
+	agent.addContolPlaneConsumerEndpoint(endpoints)
+
+	if _, ok := endpoints["tcp:8444"]; !ok {
+		t.Fatalf(" mapping failed missing key[\"tcp:8444\"]")
+	}
+
+	if _, ok := endpoints["tcp:8787"]; !ok {
+		t.Fatalf(" mapping failed missing key[\"tcp:8787\"]")
+	}
+
+	if len(endpoints["tcp:8444"]) != 1 {
+		t.Fatalf(" mapping failed len(\"tcp:8444\"])=%d expected 1", len(endpoints["tcp:8444"]))
+	}
+
+	if len(endpoints["tcp:8787"]) != 1 {
+		t.Fatalf(" mapping failed len(\"tcp:8787\"])=%d expected 1", len(endpoints["tcp:8787"]))
+	}
+
+	if *endpoints["tcp:8444"][0] != consumer_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8444"][0], consumer_endpoint)
+	}
+
+	if *endpoints["tcp:8787"][0] != controlplane_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8787"][0], controlplane_endpoint)
+	}
 }
