@@ -57,6 +57,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
     }]).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
+    factory('statsService', StatsService).
     filter('treeFilter', function() {
         /*
          * @param items The array from ng-repeat
@@ -773,7 +774,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     refreshHosts($scope, resourcesService, false, hostCallback);
 }
 
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -832,6 +833,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     refreshHosts($scope, resourcesService, true, function() {
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
+        }
+    });
+
+    statsService.is_collecting(function(status) {
+        if (status == 200) {
+            $scope.collectingStats = true;
+        } else {
+            $scope.collectingStats = false;
         }
     });
 
@@ -915,8 +924,13 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viz = function(id, config) {
         if (!$scope.drawn[id]) {
-            zenoss.visualization.chart.create(id, config);
-            $scope.drawn[id] = true;
+            try {
+                zenoss.visualization.chart.create(id, config);
+                $scope.drawn[id] = true;
+            }
+            catch (x) {
+                return "Not collecting stats, graphs unavailable"
+            }
         }
     }
 }
@@ -1910,6 +1924,27 @@ function AuthService($cookies, $cookieStore, $location) {
     };
 }
 
+function StatsService($http, $location) {
+    return {
+        /*
+         * Get the list of services currently running on a particular host.
+         *
+         * @param {string} hostId The ID of the host to retrieve running services for.
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        is_collecting: function(callback) {
+            $http.get('/stats').
+                success(function(data, status) {
+                    console.log('serviced is collecting stats');
+                    callback(status);
+                }).
+                error(function(data, status) {
+                    console.log('serviced is not collecting stats');
+                    callback(status);
+                });
+        }
+    }
+}
 /*
  * Starting at some root node, recurse through children,
  * building a flattened array where each node has a depth

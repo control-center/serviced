@@ -14,10 +14,11 @@ type ServiceConfig struct {
 	bindPort   string
 	agentPort  string
 	zookeepers []string
+	stats      bool
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers}
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool) *ServiceConfig {
+	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats}
 	if len(cfg.bindPort) == 0 {
 		cfg.bindPort = ":8787"
 	}
@@ -40,6 +41,7 @@ func (this *ServiceConfig) Serve() {
 	routes := []rest.Route{
 		rest.Route{"GET", "/", MainPage},
 		rest.Route{"GET", "/test", TestPage},
+		rest.Route{"GET", "/stats", this.IsCollectingStats()},
 		// Hosts
 		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
@@ -124,6 +126,18 @@ func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerF
 		}
 		defer client.Close()
 		realfunc(w, r, client)
+	}
+}
+
+func (this *ServiceConfig) IsCollectingStats() HandlerFunc {
+	if this.stats {
+		return func(w *rest.ResponseWriter, r *rest.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+	} else {
+		return func(w *rest.ResponseWriter, r *rest.Request) {
+			w.WriteHeader(http.StatusNotImplemented)
+		}
 	}
 }
 
