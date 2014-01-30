@@ -85,7 +85,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go h.run()
 	http.HandleFunc("/exec", wsHandler)
-	http.ListenAndServe(":50000", nil)
+	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 
