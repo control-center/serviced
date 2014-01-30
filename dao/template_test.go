@@ -35,22 +35,16 @@ func init() {
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
+						AddressConfig:   AddressResourceConfig{
+							Port:     8081,
+							Protocol: TCP,
+						},
 					},
 				},
 				LogConfigs: []LogConfig{
 					LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
-					},
-				},
-				AddressResources: []AddressResourceConfig{
-					AddressResourceConfig{
-						Port:     9000,
-						Protocol: TCP,
-					},
-					AddressResourceConfig{
-						Port:     8000,
-						Protocol: UDP,
 					},
 				},
 			},
@@ -64,6 +58,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
+						VHost:       "testhost",
 					},
 				},
 				LogConfigs: []LogConfig{
