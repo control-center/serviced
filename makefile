@@ -17,7 +17,7 @@ install:
 	go install github.com/serviced/serviced
 
 build_binary:
-	cd serviced && ./godep restore && go build
+	cd serviced && make
 	cd isvcs && make
 	cd dao && make
 
@@ -61,6 +61,7 @@ docker_ok:
 
 clean:
 	cd dao && make clean
+	cd isvcs && make clean
 	go get github.com/zenoss/serviced/serviced # make sure dependencies exist
 	cd serviced && go clean -r # this cleans all dependencies
 	docker run -rm \
