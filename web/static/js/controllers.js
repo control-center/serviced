@@ -57,6 +57,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
     }]).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
+    factory('statsService', StatsService).
     filter('treeFilter', function() {
         /*
          * @param items The array from ng-repeat
@@ -773,12 +774,18 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout,
     refreshHosts($scope, resourcesService, false, hostCallback);
 }
 
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "hostdetails";
     $scope.params = $routeParams;
+
+    $scope.visualization = zenoss.visualization;
+    $scope.visualization.url = 'http://' + $location.host() + ':8787';
+    $scope.visualization.urlPath = '/metrics/static/performance/query/';
+    $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
+    $scope.visualization.debug = false;
 
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' }
@@ -791,6 +798,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Name', name: 'running_tbl_running' },
         { id: 'StartedAt', name: 'running_tbl_start' },
         { id: 'View', name: 'running_tbl_actions' }
+    ]);
+
+    $scope.graph = buildTable('Name', [
+        { id: 'CPU', name: 'graph_tbl_cpu'},
+        { id: 'Memory', name: 'graph_tbl_mem'}
     ]);
 
     $scope.viewConfig = function(running) {
@@ -822,7 +834,105 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
-    })
+    });
+
+    statsService.is_collecting(function(status) {
+        if (status == 200) {
+            $scope.collectingStats = true;
+        } else {
+            $scope.collectingStats = false;
+        }
+    });
+
+    $scope.cpuconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "color": "#aec7e8",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "system",
+                "legend": "CPU (System)",
+                "metric": "system",
+                "name": "CPU (System)",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            },
+            {
+                "aggregator": "avg",
+                "color": "#98df8a",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "user",
+                "legend": "CPU (User)",
+                "metric": "user",
+                "name": "CPU (User)",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            }
+        ],
+        "downsample": "5m-avg",
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "2d-ago"
+        },
+        "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
+    $scope.memconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "color": "#aec7e8",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "pgfault",
+                "legend": "Page Faults",
+                "metric": "pgfault",
+                "name": "Page Faults",
+                "rate": true,
+                "rateOptions": {},
+                "type": "line"
+            }
+        ],
+        "downsample": "5m-avg",
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "2d-ago"
+        },
+        "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
+    $scope.drawn = {};
+
+    $scope.viz = function(id, config) {
+        if (!$scope.drawn[id]) {
+            try {
+                zenoss.visualization.chart.create(id, config);
+                $scope.drawn[id] = true;
+            }
+            catch (x) {
+                return "Not collecting stats, graphs unavailable"
+            }
+        }
+    }
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
@@ -1814,6 +1924,27 @@ function AuthService($cookies, $cookieStore, $location) {
     };
 }
 
+function StatsService($http, $location) {
+    return {
+        /*
+         * Get the list of services currently running on a particular host.
+         *
+         * @param {string} hostId The ID of the host to retrieve running services for.
+         * @param {function} callback Running services are passed to callback on success.
+         */
+        is_collecting: function(callback) {
+            $http.get('/stats').
+                success(function(data, status) {
+                    console.log('serviced is collecting stats');
+                    callback(status);
+                }).
+                error(function(data, status) {
+                    console.log('serviced is not collecting stats');
+                    callback(status);
+                });
+        }
+    }
+}
 /*
  * Starting at some root node, recurse through children,
  * building a flattened array where each node has a depth

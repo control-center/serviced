@@ -244,7 +244,7 @@ func (m *Manager) loop() {
 						running[c.Name] = c
 						go func(con *Container, respc chan containerStartResponse) {
 							glog.Infof("calling start on %s", con.Name)
-							c.SetVolumesDir(m.volumesDir)
+							con.SetVolumesDir(m.volumesDir)
 							resp := containerStartResponse{
 								name: con.Name,
 								err:  con.Start(),

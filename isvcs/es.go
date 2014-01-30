@@ -69,5 +69,6 @@ func elasticsearchHealthCheck() error {
 		}
 		time.Sleep(time.Millisecond * 1000)
 	}
+	glog.Info("elasticsearch container started, browser at http://localhost:9200/_plugin/head/")
 	return nil
 }

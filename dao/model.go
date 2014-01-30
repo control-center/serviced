@@ -173,25 +173,10 @@ type ServiceExport struct {
 	External    string //external port number
 }
 
-// volume export defines a file system directory to logically organize volume imports
-type VolumeExport struct {
-	Name string //Name of volume to export
-	Path string //Resource Pool Path
-}
-
-// volume import defines a file system directory underneath an export directory
-type VolumeImport struct {
-	Name          string //Name of volume to import
-	Owner         string //Path Owner
-	Permission    uint32 //Path Umask
-	ResourcePath  string //Path under exported path
-	ContainerPath string //Container bind-mount path
-}
-
 // volume import defines a file system directory underneath an export directory
 type Volume struct {
 	Owner         string //Resource Path Owner
-	Permission    uint32 //Resource Path Umask
+	Permission    string //Resource Path permissions, eg what you pass to chmod
 	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
 	ContainerPath string //Container bind-mount path
 }
@@ -232,8 +217,7 @@ type ServiceDefinition struct {
 	Services         []ServiceDefinition    // Supporting subservices
 	Tasks            []Task                 // Scheduled tasks for celery to find
 	LogFilters       map[string]string      // map of log filter name to log filter definitions
-	VolumeExports    []VolumeExport
-	VolumeImports    []VolumeImport
+	Volumes          []Volume               // list of volumes to bind into containers
 	LogConfigs       []LogConfig
 }
 

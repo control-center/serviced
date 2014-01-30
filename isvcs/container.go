@@ -83,9 +83,9 @@ func (c *Container) VolumesDir() string {
 		return c.volumesDir
 	}
 	if user, err := user.Current(); err == nil {
-		return fmt.Sprintf("/tmp/serviced-%s/isvcs_volumes", user.Username)
+		return fmt.Sprintf("/tmp/serviced-%s/var/isvcs", user.Username)
 	}
-	return "/tmp/serviced/isvcs_volumes"
+	return "/tmp/serviced/var/isvcs"
 }
 
 // loop maintains the state of the container; it handles requests to start() &
@@ -183,7 +183,7 @@ func (c *Container) rm() error {
 		return err
 	} else {
 		for _, id := range *ids {
-			client.RemoveContainer(id)
+            client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil

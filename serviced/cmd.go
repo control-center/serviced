@@ -27,6 +27,8 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
+	"os/user"
+	"path"
 	"time"
 )
 
@@ -40,6 +42,7 @@ var options struct {
 	tls            bool
 	keyPEMFile     string
 	certPEMFile    string
+	varPath        string // Directory to store data, eg isvcs & service volumes
 	resourcePath   string
 	zookeepers     ListOpts
 	repstats       bool
@@ -59,7 +62,17 @@ func init() {
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
-	flag.StringVar(&options.resourcePath, "resourcePath", ".", "path to bind-mount and create service volumes")
+
+	varPathDefault := path.Join(os.TempDir(), "serviced")
+	if len(os.Getenv("SERVICED_HOME")) > 0 {
+		varPathDefault = path.Join(os.Getenv("SERVICED_HOME"), "var")
+	} else {
+		if user, err := user.Current(); err == nil {
+			varPathDefault = path.Join(os.TempDir(), "serviced-"+user.Username, "var")
+		}
+	}
+	flag.StringVar(&options.varPath, "varPath", varPathDefault, "path to store serviced data")
+
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
@@ -100,6 +113,7 @@ func compareVersion(a, b []int) int {
 func startServer() {
 
 	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
@@ -125,7 +139,7 @@ func startServer() {
 		rpc.RegisterName("ControlPlane", master)
 
 		// TODO: Make bind port for web server optional?
-		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers)
+		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats)
 		go cpserver.Serve()
 	}
 	if options.agent {
@@ -137,7 +151,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.resourcePath, options.mount, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

@@ -118,7 +118,7 @@
     },
     "hostips": {
       "properties": {
-        "Id" :            {"type": "string", "index":"not_analyzed"}
+        "Id" :            {"type": "string", "index":"not_analyzed"},
         "HostId":         {"type": "string", "index":"not_analyzed"},
         "PoolId":         {"type": "string", "index":"not_analyzed"},
         "IPs" :{
