@@ -51,7 +51,7 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-// getInternalServiceEndpoints lists every internal service that we wish to expose to the containers running on this agent
+// addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8787"
 	endpoint := dao.ApplicationEndpoint{}
@@ -64,6 +64,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
+// addContolPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
@@ -76,6 +77,7 @@ func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.A
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
+// addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
 func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]*dao.ApplicationEndpoint) {
 	if _, ok := endpoints[key]; !ok {
 		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
