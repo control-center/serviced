@@ -17,7 +17,7 @@ install:
 	go install github.com/serviced/serviced
 
 build_binary:
-	cd serviced && ./godep restore && go build
+	cd serviced && make
 	cd isvcs && make
 	cd dao && make
 
