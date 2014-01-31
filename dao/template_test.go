@@ -2,7 +2,6 @@ package dao
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 )
@@ -58,7 +57,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
-						VHost:       "testhost",
+						VHost:       []string{"testhost"},
 					},
 				},
 				LogConfigs: []LogConfig{
@@ -106,18 +105,6 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		if identical != true {
 			return identical, msg
 		}
-	}
-
-	//check AddressResources
-	if len(a.AddressResources) != len(b.AddressResources) {
-		return false, fmt.Sprintf("Number of IP resources differ between %s [%s] and %s [%s]",
-			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
-	}
-	sort.Sort(AddressResourceConfigByPort(a.AddressResources))
-	sort.Sort(AddressResourceConfigByPort(b.AddressResources))
-	if !reflect.DeepEqual(a.AddressResources, b.AddressResources) {
-		return false, fmt.Sprintf("Address resource port differ between %s %v and %s %v",
-			a.Name, a.AddressResources, b.Name, b.AddressResources)
 	}
 
 	// check config files
