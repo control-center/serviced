@@ -13,33 +13,45 @@ package main
 
 //svc "github.com/zenoss/serviced/svc"
 import (
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
-	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/web"
-	agent "github.com/zenoss/serviced/agent"
 
 	"flag"
+	"fmt"
 	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
+	"os/signal"
+	"os/user"
+	"path"
 	"time"
 )
 
 // Store the command line options
 var options struct {
-	port              string
-	listen            string
-	master            bool
-	agent             bool
-	connection_string string
-	muxPort           int
-	tls               bool
-	keyPEMFile        string
-	certPEMFile       string
-	zookeepers        ListOpts
+	port           string
+	listen         string
+	master         bool
+	agent          bool
+	muxPort        int
+	tls            bool
+	keyPEMFile     string
+	certPEMFile    string
+	varPath        string // Directory to store data, eg isvcs & service volumes
+	resourcePath   string
+	zookeepers     ListOpts
+	repstats       bool
+	statshost      string
+	statsperiod    int
+	mcusername     string
+	mcpasswd       string
+	mount          ListOpts
+	resourceperiod int
 }
 
 // Setup flag options (static block)
@@ -50,42 +62,88 @@ func init() {
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
 	flag.BoolVar(&options.tls, "tls", true, "enable TLS")
+
+	varPathDefault := path.Join(os.TempDir(), "serviced")
+	if len(os.Getenv("SERVICED_HOME")) > 0 {
+		varPathDefault = path.Join(os.Getenv("SERVICED_HOME"), "var")
+	} else {
+		if user, err := user.Current(); err == nil {
+			varPathDefault = path.Join(os.TempDir(), "serviced-"+user.Username, "var")
+		}
+	}
+	flag.StringVar(&options.varPath, "varPath", varPathDefault, "path to store serviced data")
+
 	flag.StringVar(&options.keyPEMFile, "keyfile", "", "path to private key file (defaults to compiled in private key)")
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
+	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
+	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
+	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
+	flag.IntVar(&options.resourceperiod, "resourceperiod", 360, "Period (minutes) for for registering host resources")
+	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
+	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
+	options.mount = make(ListOpts, 0)
+	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 
-	conStr := os.Getenv("CP_PROD_DB")
-	if len(conStr) == 0 {
-		conStr = "mysql://root@127.0.0.1:3306/cp"
-	} else {
-		glog.Infoln("Using connection string from env var CP_PROD_DB")
-	}
-	flag.StringVar(&options.connection_string, "connection-string", conStr, "Database connection uri")
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
 }
 
+func compareVersion(a, b []int) int {
+	astr := ""
+	for _, s := range a {
+		astr += fmt.Sprintf("%12d", s)
+	}
+	bstr := ""
+	for _, s := range b {
+		bstr += fmt.Sprintf("%12d", s)
+	}
+	if astr > bstr {
+		return -1
+	}
+	if astr < bstr {
+		return 1
+	}
+	return 0
+}
+
 // Start the agent or master services on this host.
 func startServer() {
 
+	isvcs.Init()
+	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
+
+	dockerVersion, err := serviced.GetDockerVersion()
+	if err != nil {
+		glog.Fatalf("Could not determine docker version: %s", err)
+	}
+
+	atLeast := []int{0, 7, 5}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 {
+		glog.Fatal("serviced needs at least docker 0.7.5")
+	}
+
 	if options.master {
 		var master dao.ControlPlane
-    var err error
-    master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
+		var err error
+		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlane service")
+		glog.V(0).Infoln("registering ControlPlane service")
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
-		go web.Serve()
+
+		// TODO: Make bind port for web server optional?
+		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats)
+		go cpserver.Serve()
 	}
 	if options.agent {
-		mux := proxy.TCPMux{}
+		mux := serviced.TCPMux{}
 
 		mux.CertPEMFile = options.certPEMFile
 		mux.KeyPEMFile = options.keyPEMFile
@@ -93,15 +151,41 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := agent.NewHostAgent(options.port, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
 		// register the API
-		glog.Infoln("registering ControlPlaneAgent service")
+		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		rpc.RegisterName("ControlPlaneAgent", agent)
+
+		go func() {
+			signalChan := make(chan os.Signal, 10)
+			signal.Notify(signalChan, os.Interrupt)
+			<-signalChan
+			glog.V(0).Info("Shutting down due to interrupt")
+			err = agent.Shutdown()
+			if err != nil {
+				glog.V(1).Infof("Agent shutdown with error: %v", err)
+			}
+			isvcs.Mgr.Stop()
+			os.Exit(0)
+		}()
+
+		resourceDuration := time.Duration(options.resourceperiod) * time.Minute
+		go agent.RegisterIPResources(resourceDuration)
+
 	}
 	rpc.HandleHTTP()
+
+	if options.repstats {
+		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
+		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
+
+		glog.V(1).Infoln("Staring containter statistics reporter")
+		statsduration := time.Duration(options.statsperiod) * time.Minute
+		go sr.Report(statsduration)
+	}
 
 	l, err := net.Listen("tcp", options.listen)
 	if err != nil {
@@ -109,7 +193,7 @@ func startServer() {
 		time.Sleep(time.Second * 1000)
 	}
 
-	glog.Infof("Listening on %s", l.Addr().String())
+	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	http.Serve(l, nil) // start the server
 }
 

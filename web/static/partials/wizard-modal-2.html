@@ -1,7 +1,7 @@
-  <p>Select the applications to install:</p>
+  <p>{{'content_wizard_select_apps'|translate}}</p>
   <div ng-class="install.templateSelectedFormDiv()">
 
-    <label class="control-label">You must select at least 1 template.</label>
+    <label class="control-label">{{'label_wizard_select_app'|translate}}</label>
     <div ng-repeat="template in install.templateData" 
          ng-class="install.templateClass(template)">
       <label>
@@ -12,5 +12,9 @@
         {{template.Name}}
       </label>
     </div>
+	<label for="deploymentId">
+		{{'deployed_tbl_deployment_id'|translate}}		
+	</label>
+	<input ng-model="install.deploymentId" name="deploymentId" id="deploymentId" />
   </div>
 

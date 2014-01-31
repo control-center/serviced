@@ -1,146 +1,81 @@
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
 package isvcs
 
 import (
 	"github.com/zenoss/glog"
 
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
-	"strings"
+	"os/user"
+	"path"
+	"path/filepath"
+	"runtime"
 )
 
-type ISvc struct {
-	Name       string
-	Dockerfile string
-	Tag        string
-	Ports      []int
-}
+var Mgr *Manager
 
-func (s *ISvc) exists() (bool, error) {
+const (
+	IMAGE_REPO = "zctrl/isvcs"
+	IMAGE_TAG  = "v2"
+)
 
-	cmd := exec.Command("docker", "images", s.Tag)
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return strings.Contains(string(output), s.Tag), nil
-}
-
-func (s *ISvc) create() error {
-	exists, err := s.exists()
-	if err != nil || exists {
-		return err
-	}
-	glog.Infof("Creating temp directory for building image: %s", s.Tag)
-	tdir, err := ioutil.TempDir("", "isvc_")
-	if err != nil {
-		return err
-	}
-	dockerfile := tdir + "/Dockerfile"
-	ioutil.WriteFile(dockerfile, []byte(s.Dockerfile), 0660)
-	glog.Infof("building %s with dockerfile in %s", s.Tag, dockerfile)
-	cmd := exec.Command("docker", "build", "-t", s.Tag, tdir)
-	output, returnErr := cmd.CombinedOutput()
-	if returnErr != nil {
-		glog.Errorf("Problem running docker build: %s", string(output))
-	}
-	err = os.RemoveAll(tdir)
-	if err != nil {
-		glog.Warningf("Failed to cleanup directory :%s ", err)
-	}
-	return returnErr
-}
-
-func (s *ISvc) Running() (bool, error) {
-	cmd := exec.Command("docker", "ps")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return strings.Contains(string(output), s.Tag+":latest"), nil
-}
-
-func (s *ISvc) Run() error {
-
-	err := s.create()
-	if err != nil {
-		return err
-	}
-
-	running, err := s.Running()
-	if err != nil || running {
-		return err
-	}
-
-	containerId, err := s.getContainerId()
-	if err != nil && !IsSvcNotFoundErr(err) {
-		return err
-	}
-
-	var cmd *exec.Cmd
-	if containerId != "" {
-		cmd = exec.Command("docker", "start", containerId)
+func Init() {
+	var volumesDir string
+	if user, err := user.Current(); err == nil {
+		volumesDir = fmt.Sprintf("/tmp/serviced-%s/var/isvcs", user.Username)
 	} else {
-		args := make([]string, len(s.Ports) * 2 + 3)
-		glog.Errorf("About to build.")
-		args[0] = "run"
-		args[1] = "-d"
-		for i, port := range(s.Ports) {
-			args[2 + i] = "-p"
-			args[2 + i + 1] = fmt.Sprintf("%d:%d", port, port)
-		}
-		args[len(s.Ports) * 2 + 2] = s.Tag
-		cmd = exec.Command("docker", args...)
+		volumesDir = "/tmp/serviced/var/isvcs"
 	}
-	glog.Infof("Running docker cmd: %v", cmd)
-	return cmd.Run()
+
+	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
+
+	if err := Mgr.Register(elasticsearch); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(zookeeper); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(logstash); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(opentsdb); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(celery); err != nil {
+		glog.Fatalf("%s", err)
+	}
 }
 
-func (s *ISvc) Stop() error {
-	containerId, err := s.getContainerId()
+// **********************************************************************
+// ***** The following three functions are also defined in agent.go *****
+// ***** FIXME **********************************************************
+// returns serviced home
+func localDir(p string) string {
+	homeDir := os.Getenv("SERVICED_HOME")
+	if len(homeDir) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = path.Dir(filename)
+	}
+	return path.Join(homeDir, p)
+}
+
+func imagesDir() string {
+	return localDir("images")
+}
+
+func resourcesDir() string {
+	path, err := filepath.EvalSymlinks(localDir("resources"))
 	if err != nil {
-		return err
+		glog.Fatalf("Could not evaluate %s, not following symlinks: %s", localDir("resources"), err)
 	}
-	cmd := exec.Command("docker", "stop", containerId)
-	return cmd.Run()
+	return path
 }
 
-func (s *ISvc) Kill() error {
-	containerId, err := s.getContainerId()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("docker", "kill", containerId)
-	return cmd.Run()
-}
-
-var SvcNotFoundErr error
-var IsSvcNotFoundErr func(error) bool
-
-const msgSvcNotFoundErr = "svc not found"
-
-func init() {
-	SvcNotFoundErr = fmt.Errorf(msgSvcNotFoundErr)
-	IsSvcNotFoundErr = func(err error) bool {
-		if err == nil {
-			return false
-		}
-		return err.Error() == msgSvcNotFoundErr
-	}
-}
-
-func (s *ISvc) getContainerId() (string, error) {
-	cmd := exec.Command("docker", "ps", "-a")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	for _, line := range strings.Split(string(output), "\n") {
-		if strings.Contains(line, s.Tag+":latest") {
-			fields := strings.Fields(line)
-			return fields[0], nil
-		}
-	}
-	return "", SvcNotFoundErr
-}
+// **********************************************************************

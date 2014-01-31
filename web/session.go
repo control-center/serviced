@@ -4,10 +4,10 @@ import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
 
-	"encoding/base64"
-	"net/http"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"net/http"
 	"time"
 )
 
@@ -15,10 +15,10 @@ const SessionCookie = "ZCPToken"
 const UsernameCookie = "ZUsername"
 
 type Session struct {
-	Id string
-	User string
+	Id       string
+	User     string
 	creation time.Time
-	access time.Time
+	access   time.Time
 }
 
 var sessions map[string]*Session
@@ -28,13 +28,13 @@ func init() {
 	go purgeOldSessions()
 }
 
-
 func purgeOldSessions() {
 	for {
 		time.Sleep(time.Second * 60)
 		if len(sessions) == 0 {
-			continue;
+			continue
 		}
+		glog.V(1).Info("Searching for expired sessions")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
 		toDel := []string{}
 		for key, value := range sessions {
@@ -43,7 +43,7 @@ func purgeOldSessions() {
 			}
 		}
 		for _, key := range toDel {
-			glog.Infof("Deleting session %s (exceeded max age)", key)
+			glog.V(0).Infof("Deleting session %s (exceeded max age)", key)
 			delete(sessions, key)
 		}
 	}
@@ -55,14 +55,16 @@ func purgeOldSessions() {
 func LoginOk(r *rest.Request) bool {
 	cookie, err := r.Request.Cookie(SessionCookie)
 	if err != nil {
+		glog.V(1).Info("Error getting cookie ", err)
 		return false
 	}
 	session, err := findSession(cookie.Value)
 	if err != nil {
-		glog.Infof("Unable to find session %s", cookie.Value)
+		glog.V(1).Info("Unable to find session ", cookie.Value)
 		return false
 	}
 	session.access = time.Now()
+	glog.V(2).Infof("Session %s used", session.Id)
 	return true
 }
 
@@ -72,18 +74,18 @@ func LoginOk(r *rest.Request) bool {
 func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 	cookie, err := r.Request.Cookie(SessionCookie)
 	if err != nil {
-		glog.Infoln("Unable to read session cookie")
+		glog.V(1).Info("Unable to read session cookie")
 	} else {
 		delete(sessions, cookie.Value)
-		glog.Infof("Deleted session %s", cookie.Value)
+		glog.V(1).Infof("Deleted session %s for explicit logout", cookie.Value)
 	}
-	
+
 	http.SetCookie(
 		w.ResponseWriter,
-		&http.Cookie {
-			Name:SessionCookie,
-			Value:"",
-			Path:"/",
+		&http.Cookie{
+			Name:   SessionCookie,
+			Value:  "",
+			Path:   "/",
 			MaxAge: -1,
 		})
 
@@ -97,11 +99,11 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	creds := Login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
+		glog.V(1).Info("Unable to decode login payload ", err)
 		RestBadRequest(w)
 		return
 	}
-	
-	// TODO: Fix hardcoded credentials
+
 	if validateLogin(&creds) {
 		session, err := createSession(creds.Username)
 		if err != nil {
@@ -109,21 +111,21 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		sessions[session.Id] = session
-		glog.Infof("Session ID: %s", session.Id)
+		glog.V(1).Info("Created authenticated session: ", session.Id)
 		http.SetCookie(
 			w.ResponseWriter,
-			&http.Cookie {
-				Name:SessionCookie,
-				Value:session.Id,
-				Path:"/",
+			&http.Cookie{
+				Name:   SessionCookie,
+				Value:  session.Id,
+				Path:   "/",
 				MaxAge: 0,
 			})
 		http.SetCookie(
 			w.ResponseWriter,
-			&http.Cookie {
-				Name:UsernameCookie,
-				Value:creds.Username,
-				Path:"/",
+			&http.Cookie{
+				Name:   UsernameCookie,
+				Value:  creds.Username,
+				Path:   "/",
 				MaxAge: 0,
 			})
 
@@ -133,12 +135,12 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	}
 }
 
-func createSession(user string) (*Session, error){
+func createSession(user string) (*Session, error) {
 	sid, err := randomSessionId()
 	if err != nil {
 		return nil, err
 	}
-	return &Session{ sid, user, time.Now(), time.Now() }, nil
+	return &Session{sid, user, time.Now(), time.Now()}, nil
 }
 
 func findSession(sid string) (*Session, error) {
@@ -172,4 +174,3 @@ func randomStr() (string, error) {
 
 	return base64.StdEncoding.EncodeToString(sid), nil
 }
-

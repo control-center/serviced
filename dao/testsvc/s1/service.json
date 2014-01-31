@@ -1,0 +1,27 @@
+{
+          "Command": "/usr/bin/python -m SimpleHTTPServer",
+          "Endpoints": [{
+              "Application": "www",
+              "PortNumber": 8080,
+              "Protocol": "tcp",
+              "Purpose": "export"
+            },{
+              "Application": "websvc",
+              "PortNumber": 8081,
+              "Protocol": "tcp",
+              "Porpose": "import"
+            }
+          ],
+          "ImageId": "ubuntu",
+          "Instances": {
+            "min": 1
+          },
+          "ConfigFiles": {
+            "/etc/my.cnf":  { "Filename": "/etc/my.cnf", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
+          },
+          "LogConfigs":[ {
+            "path": "/tmp/foo",
+            "type": "foo"
+          }],
+         "AddressResources":[{"Port":9000, "Protocol": "tcp"}, {"Port":8000, "Protocol":"udp"}]
+}

@@ -37,16 +37,18 @@ describe('LoginControl', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         ctrl = $controller('LoginControl', { $scope: $scope });
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
     }));
 
     afterEach(function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
     });
- 
+
     it('Sets some labels', function() {
         expect($scope.brand_label).not.toBeUndefined();
         expect($scope.login_button_text).not.toBeUndefined();
+        $httpBackend.flush();
     });
 
     it('Sets path on successful login', function() {
@@ -79,8 +81,8 @@ describe('DeployedAppsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('DeployedAppsControl', { 
-            $scope: $scope, 
+        ctrl = $controller('DeployedAppsControl', {
+            $scope: $scope,
             resourcesService: resourcesService
         });
     }));
@@ -126,7 +128,7 @@ describe('SubServiceControl', function() {
 
     it('Provides service logs', function() {
         $scope.editService = {};
-        $scope.viewLog({Id: 'fake123'});
+        $scope.viewLog({Id: 'fake123', ServiceId: 'fake1'});
         expect($scope.editService.log).toBe(fake_service_logs().Detail);
     });
 
@@ -150,8 +152,8 @@ describe('HostsControl', function() {
         var $controller = $injector.get('$controller');
         $location = $injector.get('$location');
         resourcesService = fake_resources_service();
-        ctrl = $controller('HostsControl', { 
-            $scope: $scope, 
+        ctrl = $controller('HostsControl', {
+            $scope: $scope,
             resourcesService: resourcesService
         });
     }));
@@ -245,8 +247,8 @@ describe('DeployWizard', function() {
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
         var $controller = $injector.get('$controller');
-        ctrl = $controller('DeployWizard', { 
-            $scope: $scope, 
+        ctrl = $controller('DeployWizard', {
+            $scope: $scope,
             resourcesService: fake_resources_service()
         });
     }));
@@ -276,6 +278,7 @@ describe('DeployWizard', function() {
         // the next page.
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
+        $scope.install.deploymentId = "test";
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
@@ -284,6 +287,7 @@ describe('DeployWizard', function() {
     it('Provides a \'wizard_previous\' function', function() {
         var template = $scope.install.templateData[0];
         $scope.install.selected[template.Id] = true;
+        $scope.install.deploymentId = "test";
         expect($scope.step_page).toBe($scope.steps[0].content);
         $scope.wizard_next();
         expect($scope.step_page).toBe($scope.steps[1].content);
@@ -329,10 +333,13 @@ describe('NavbarControl', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         authService = fake_auth_service();
-        ctrl = $controller('NavbarControl', { 
+        ctrl = $controller('NavbarControl', {
             $scope: $scope,
             authService: authService
         });
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
+        $httpBackend.when('GET', '/static/partials/main.html').respond({});
+        $httpBackend.when('GET', '/static/partials/login.html').respond({});
     }));
 
     afterEach(function() {
@@ -343,13 +350,15 @@ describe('NavbarControl', function() {
     it('Provides some navlinks', function() {
         expect($scope.navlinks).not.toBeUndefined();
         // 2 or more navlinks please.
-        expect($scope.navlinks.length).toBeGreaterThan(1); 
+        expect($scope.navlinks.length).toBeGreaterThan(1);
+        $httpBackend.flush();
     });
 
     it('Provides brand details', function() {
         expect($scope.brand).not.toBeUndefined();
         expect($scope.brand.url).not.toBeUndefined();
         expect($scope.brand.label).not.toBeUndefined();
+        $httpBackend.flush();
     });
 
     it('Provides a \'logout\' function', function() {
@@ -376,6 +385,7 @@ describe('ResourcesService', function() {
         $location = $injector.get('$location');
         $httpBackend = $injector.get('$httpBackend');
         resourcesService = $injector.get('resourcesService');
+        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
     }));
 
     afterEach(function() {
@@ -505,12 +515,12 @@ describe('ResourcesService', function() {
 
         var resp = null;
         resourcesService.deploy_app_template(deployDef, function(data) {
-            resp = data
+            resp = data;
         });
         $httpBackend.flush();
         expect(resp.Detail).toBe('Deployed');
     });
-    
+
     it('Can retrieve and cache resource pools', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.
@@ -772,9 +782,9 @@ describe('unauthorized', function() {
 
 describe('next_url', function() {
     it('Finds a link with name \'Next\'', function() {
-        var result = next_url({ foo: 'bar', Links: [ 
-            { Name: 'Baz', Url: '/something' }, 
-            { Name: 'Next', Url: '/expected' }, 
+        var result = next_url({ foo: 'bar', Links: [
+            { Name: 'Baz', Url: '/something' },
+            { Name: 'Next', Url: '/expected' },
             { Name: 'Other', Url: '/other' }
         ]});
         expect(result).toBe('/expected');
@@ -834,27 +844,27 @@ describe('updateRunning', function() {
     it('Sets text on service when state is 1', function() {
         var svc = { DesiredState: 1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('started'); // started is current state
-        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+        expect(svc.runningText).toBe('ctl_running_started'); // started is current state
+        expect(svc.notRunningText).toBe('ctl_running_blank'); // stop is action
     });
 
     it('Sets text on service when state is -1', function() {
         var svc = { DesiredState: -1 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('restarting'); // restarting is current state
-        expect(svc.notRunningText).toBe('\xA0'); // stop is action
+        expect(svc.runningText).toBe('ctl_running_restarting'); // restarting is current state
+        expect(svc.notRunningText).toBe('ctl_running_blank'); // stop is action
     });
 
     it('Sets text on service when state is 0 or other', function() {
         var svc = { DesiredState: 0 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('\xA0'); // start is action
-        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+        expect(svc.runningText).toBe('ctl_running_blank'); // start is action
+        expect(svc.notRunningText).toBe('ctl_running_stopped'); // stopped is current state
 
         svc = { DesiredState: -99 };
         updateRunning(svc);
-        expect(svc.runningText).toBe('\xA0'); // start is action
-        expect(svc.notRunningText).toBe('stopped'); // stopped is current state
+        expect(svc.runningText).toBe('ctl_running_blank'); // blank
+        expect(svc.notRunningText).toBe('ctl_running_stopped'); // stopped is current state
 
     });
 });
@@ -908,7 +918,7 @@ describe('flattenSubservices', function() {
         var tree = {
             id: 'top',
             children: [
-                { 
+                {
                     id: 'middle1',
                     children: [
                         { id: 'leaf1' },
@@ -922,7 +932,7 @@ describe('flattenSubservices', function() {
             ]
         }
         var result = flattenTree(0, tree);
-        var expected = [ 
+        var expected = [
 //            { depth: 0, id: 'top' }, // Excludes depth: 0
             { zendepth: 1, id: 'middle1' },
             { zendepth: 2, id: 'leaf1' },
@@ -1015,7 +1025,7 @@ function fake_resources_service() {
        get_service_logs: function(serviceId, callback) {
            callback(fake_service_logs());
        },
-       get_service_state_logs: function(serviceStateId, callback) {
+       get_service_state_logs: function(serviceId, serviceStateId, callback) {
            callback(fake_service_logs());
        },
        get_running_services_for_service: function(serviceId, callback) {
@@ -1092,7 +1102,7 @@ function fake_pools() {
             MemoryLimit: 0,
             Priority: 0
         },
-        "foo": { 
+        "foo": {
             Id: "foo",
             ParentId: "default",
             CoreLimit: 2,

@@ -2,12 +2,23 @@
 *.o
 *.a
 *.so
+*.swp
 *~
 \#*
+.repo_tag_exists
+.build_repo_exists
 
 # Folders
 _obj
 _test
+pkg/build/
+pkg/pkgroot/
+pkg/serviced-0.1.0-1.x86_64.rpm
+pkg/serviced_0.1.0_amd64.deb
+isvcs/images/
+
+# emacs tags file
+TAGS
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -20,10 +31,13 @@ _cgo_gotypes.go
 _cgo_export.*
 
 _testmain.go
-
+isvcs/resources/logstash/logstash.conf
+isvcs/build/*.tar.gz
 *.exe
 
 # re-add some potentially excluded items
 !angular*/
 !bootstrap*/
 !d3*/
+
+*.iml

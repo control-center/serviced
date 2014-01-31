@@ -11,20 +11,20 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
-	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
-	"io/ioutil"
 
-/*
-	clientlib "github.com/zenoss/serviced/client"
-	"github.com/zenoss/serviced/proxy"
-*/
-)
+	/*
+		clientlib "github.com/zenoss/serviced/client"
+		"github.com/zenoss/serviced/proxy"
+	*/)
 
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
@@ -118,13 +118,12 @@ func validTemplate(t *dao.ServiceTemplate) error {
 // Add a service template to the control plane.
 func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
-	cmd := Subcmd("add-template", "filename", "Add a template. Use - for standard input.")
+	cmd := Subcmd("add-template", "[INPUT]", "Add a template. Use - for standard input. "+
+		"[INPUT] is either a json file or template directory.")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 	var serviceTemplate dao.ServiceTemplate
-	var unused int
-
 	if len(cmd.Args()) != 1 {
 		cmd.Usage()
 		return nil
@@ -138,14 +137,30 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 			glog.Fatalf("Could not read ServiceTemplate from stdin: %s", err)
 		}
 	} else {
-		// Read the argument as a file
-		templateStr, err := ioutil.ReadFile(cmd.Arg(0))
+		// is the input a file or directory
+		nodeinfo, err := os.Stat(cmd.Arg(0))
 		if err != nil {
-			glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
+			glog.Fatalf("Could not ServiceTemplate from %s: %s", cmd.Arg(0), err)
 		}
-		err = json.Unmarshal(templateStr, &serviceTemplate)
-		if err != nil {
-			glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
+
+		if nodeinfo.IsDir() {
+			sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+			if err != nil {
+				glog.Fatalf("Could not read template from directory %s: %s", nodeinfo.Name(), err)
+			}
+			serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
+			serviceTemplate.Services[0] = *sdefinition
+			serviceTemplate.Name = sdefinition.Name
+		} else {
+			// Read the argument as a file
+			templateStr, err := ioutil.ReadFile(cmd.Arg(0))
+			if err != nil {
+				glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
+			}
+			err = json.Unmarshal(templateStr, &serviceTemplate)
+			if err != nil {
+				glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
+			}
 		}
 
 	}
@@ -154,11 +169,12 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 		return err
 	} else {
 		c := getClient()
-		err = c.AddServiceTemplate(serviceTemplate, &unused)
+		var templateId string
+		err = c.AddServiceTemplate(serviceTemplate, &templateId)
 		if err != nil {
 			glog.Fatalf("Could not read add service template:  %s", err)
 		}
-		fmt.Println("OK")
+		fmt.Println(templateId)
 	}
 
 	return nil
@@ -189,12 +205,12 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 // Deploy a service template into the given pool
 func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 
-	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID", "Deploy TEMPLATE_ID into POOL_ID")
+	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID DEPLOYMENT_ID", "Deploy TEMPLATE_ID into POOL_ID with a new id DEPLOYMENT_ID")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 
-	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0)}
+	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0), cmd.Arg(2)}
 
 	var unused int
 	if err := getClient().DeployTemplate(deployreq, &unused); err != nil {

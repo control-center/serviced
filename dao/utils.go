@@ -1,7 +1,9 @@
 package dao
 
-import "fmt"
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 var urandomFilename = "/dev/urandom"
 
@@ -17,4 +19,3 @@ func NewUuid() (string, error) {
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 	return uuid, err
 }
-

@@ -13,7 +13,7 @@
 
 NAME=serviced
 VERSION=0.1.0
-PKG_VERSION=$(VERSION)
+PKG_VERSION=`if [ -z "$(BUILD_NUMBER)" ]; then echo "$(VERSION)"; else echo $(VERSION)-$(BUILD_NUMBER); fi`
 MAINTAINER="Zenoss CM <cm@zenoss.com>"
 
 define DESCRIPTION
@@ -30,7 +30,7 @@ INSTALL_DIR=/usr/local/serviced
 all: desc
 
 desc:
-	echo "Usage: make deb or make rpm. Both options package $(NAME)-$(VERSION)."
+	echo "Usage: make deb or make rpm. Both options package $(NAME)-$(PKG_VERSION)."
 
 # Clean staged files and produced packages
 clean:
@@ -43,16 +43,10 @@ clean:
 pkgroot:
 	mkdir -p pkgroot
 
-# Location for Go sources
-export GOPATH=$(abspath build)/gopath
-
 # Build serviced binary
 build:
-	mkdir build
-	mkdir -p $$GOPATH/pkg
-	mkdir -p $$GOPATH/src/github.com/zenoss
-	rsync -a .. $$GOPATH/src/github.com/zenoss/serviced --exclude pkg
-	cd $$GOPATH/src/github.com/zenoss/serviced && make
+	mkdir -p build/tmp
+	cd ../ && make build_binary
 
 # Stage serviced files
 stage: build pkgroot
@@ -61,7 +55,7 @@ stage: build pkgroot
 
 	# Stage binary
 	mkdir -p pkgroot$(INSTALL_DIR)/bin
-	cp $$GOPATH/src/github.com/zenoss/serviced/serviced/serviced pkgroot$(INSTALL_DIR)/bin
+	cp ../serviced/serviced pkgroot$(INSTALL_DIR)/bin
 
 	# Stage web files
 	mkdir -p pkgroot$(INSTALL_DIR)/share/web
@@ -69,13 +63,11 @@ stage: build pkgroot
 	# Stage environment default file
 	mkdir -p pkgroot/etc/default
 	cp serviced.default pkgroot/etc/default/serviced
-	cp $$GOPATH/src/github.com/zenoss/serviced/svc/*.sql pkgroot$(INSTALL_DIR)/share/
-	cp $$GOPATH/src/github.com/zenoss/serviced/web/static pkgroot$(INSTALL_DIR)/share/web -R
-	cp $$GOPATH/src/github.com/zenoss/serviced/repos pkgroot$(INSTALL_DIR)/ -R
+	cp ../dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
+	cp ../web/static pkgroot$(INSTALL_DIR)/share/web -R
+	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/ -R
+	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
 
-	# Stage supervisord script
-	#mkdir -p pkgroot/etc/supervisord.d
-	#cp serviced.supervisord pkgroot/etc/supervisord.d/serviced.ini
 
 stage_deb: stage
 	# Stage upstart script
@@ -94,7 +86,6 @@ deb: stage_deb
 		-v $(PKG_VERSION) \
 		-s dir \
 		-d lxc-docker \
-		-d mysql-server \
 		-d make \
 		-t deb \
 		-a x86_64 \

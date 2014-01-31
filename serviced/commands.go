@@ -14,7 +14,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	clientlib "github.com/zenoss/serviced/client"
 
 	"encoding/json"
 	"flag"
@@ -26,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+var empty interface{}
 
 // A type to represent the CLI. All the command will have the same signature.
 // This makes it easy to call them arbitrarily.
@@ -94,8 +95,18 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-service", "Remote a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
+		{"edit-service", "Edit a service"},
 
 		{"proxy", "start a proxy in the foreground"},
+
+		{"show", "Show all available commands"},
+		{"shell", "Starts a shell to run arbitrary system commands from a container"},
+		{"rollback", "Rollback a service to a particular snapshot"},
+		{"snapshot", "Snapshot a service"},
+		{"delete-snapshot", "Snapshot a service"},
+		{"snapshots", "Show snapshots for a service"},
+		{"get", "Download a file from a container image"},
+		{"recv", "Receive a file for a container image"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -129,9 +140,9 @@ func ParseCommands(args ...string) error {
 // Create a client to the control plane.
 func getClient() (c dao.ControlPlane) {
 	// setup the client
-	c, err := clientlib.NewControlClient(options.port)
+	c, err := serviced.NewControlClient(options.port)
 	if err != nil {
-		glog.Fatalf("Could not create acontrol plane client %v", err)
+		glog.Fatalf("Could not create a control plane client %v", err)
 	}
 	return c
 }
@@ -191,9 +202,8 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 	client := getClient()
 
 	var hosts map[string]*dao.Host
-	request := dao.EntityRequest{}
 
-	err := client.GetHosts(request, &hosts)
+	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
 		glog.Fatalf("Could not get hosts %v", err)
 	}
@@ -246,7 +256,7 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := clientlib.NewAgentClient(cmd.Arg(0))
+	client, err := serviced.NewAgentClient(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
@@ -259,16 +269,16 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	parts := strings.Split(cmd.Arg(0), ":")
 	remoteHost.IpAddr = parts[0]
 	remoteHost.PoolId = cmd.Arg(1)
-	glog.Infof("Got host info: %v", remoteHost)
+	glog.V(0).Infof("Got host info: %v", remoteHost)
 
 	controlPlane := getClient()
-	var unused int
 
-	err = controlPlane.AddHost(remoteHost, &unused)
+	var hostId string
+	err = controlPlane.AddHost(remoteHost, &hostId)
 	if err != nil {
 		glog.Fatalf("Could not add host: %v", err)
 	}
-	fmt.Println(remoteHost.Id)
+	fmt.Println(hostId)
 	return err
 }
 
@@ -289,7 +299,7 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not remove host: %v", err)
 	}
-	glog.Infof("Host %s removed.", cmd.Arg(0))
+	glog.V(0).Infof("Host %s removed.", cmd.Arg(0))
 	return err
 }
 
@@ -313,9 +323,8 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-	request := dao.EntityRequest{}
 	var pools map[string]*dao.ResourcePool
-	err := controlPlane.GetResourcePools(request, &pools)
+	err := controlPlane.GetResourcePools(&empty, &pools)
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
 	}
@@ -382,12 +391,12 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 	}
 	pool.MemoryLimit = uint64(memoryLimit)
 	controlPlane := getClient()
-	var unused int
-	err = controlPlane.AddResourcePool(*pool, &unused)
+	var poolId string
+	err = controlPlane.AddResourcePool(*pool, &poolId)
 	if err != nil {
 		glog.Fatalf("Could not add resource pool: %v", err)
 	}
-	fmt.Printf("%s\n", pool.Id)
+	fmt.Printf("%s\n", poolId)
 	return err
 }
 
@@ -407,72 +416,7 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not remove resource pool: %v", err)
 	}
-	glog.Infof("Pool %s removed.\n", cmd.Arg(0))
-	return err
-}
-
-// Print the list of available services.
-func (cli *ServicedCli) CmdServices(args ...string) error {
-	cmd := Subcmd("services", "[CMD]", "Show services")
-
-	var verbose bool
-	cmd.BoolVar(&verbose, "verbose", false, "Show JSON representation for each service")
-
-	var raw bool
-	cmd.BoolVar(&raw, "raw", false, "Don't show the header line")
-
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-
-	controlPlane := getClient()
-	request := dao.EntityRequest{}
-	var services []*dao.Service
-	err := controlPlane.GetServices(request, &services)
-	if err != nil {
-		glog.Fatalf("Could not get services: %v", err)
-	}
-
-	if verbose == false {
-		outfmt := "%-36s %-12.12s %-32.32s %-16.16s %-4d %-24.24s %-12s %-6d %-6s %-16.16s\n"
-
-		if raw == false {
-			fmt.Printf("%-36s %-12s %-32s %-16s %-4s %-24s %-12s %-6s %-6s %-16.16s\n",
-				"SERVICE ID",
-				"NAME",
-				"COMMAND",
-				"DESCRIPTION",
-				"INST",
-				"IMAGE",
-				"POOL",
-				"DSTATE",
-				"LAUNCH",
-				"PARENT")
-		} else {
-			outfmt = "%s|%s|%s|%s|%d|%s|%s|%d|%s|%s\n"
-		}
-
-		for _, s := range services {
-			fmt.Printf(outfmt,
-				s.Id,
-				s.Name,
-				s.Startup,
-				s.Description,
-				s.Instances,
-				s.ImageId,
-				s.PoolId,
-				s.DesiredState,
-				s.Launch,
-				s.ParentServiceId)
-		}
-	} else {
-		servicesJson, err := json.MarshalIndent(services, " ", " ")
-		if err != nil {
-			glog.Fatalf("Problem marshaling services object: %s", err)
-		}
-		fmt.Printf("%s\n", servicesJson)
-	}
-
+	glog.V(0).Infof("Pool %s removed.\n", cmd.Arg(0))
 	return err
 }
 
@@ -523,9 +467,12 @@ func (opts *PortOpts) Set(value string) error {
 func getDefaultGateway() string {
 	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
+	localhost := "127.0.0.1"
+
 	if err != nil {
-		glog.Infof("Could not get default gateway")
-		return "127.0.0.1"
+		glog.V(2).Info("Error checking gateway: ", err)
+		glog.V(1).Info("Could not get default gateway, using ", localhost)
+		return localhost
 	}
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
@@ -533,7 +480,8 @@ func getDefaultGateway() string {
 			return fields[2]
 		}
 	}
-	return "127.0.0.1"
+	glog.V(1).Info("No gateway found, using ", localhost)
+	return localhost
 }
 
 func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
@@ -567,7 +515,7 @@ func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 	for i := 4; i < len(cmd.Args()); i++ {
 		startup = startup + " " + cmd.Arg(i)
 	}
-	glog.Infof("endpoints discovered: %v", flPortOpts)
+	glog.V(1).Info("endpoints discovered: ", flPortOpts)
 	endPoints := make([]dao.ServiceEndpoint, len(flPortOpts)+len(flServicePortOpts))
 	i := 0
 	for _, endpoint := range flPortOpts {
@@ -580,7 +528,7 @@ func ParseAddService(args []string) (*dao.Service, *flag.FlagSet, error) {
 		endPoints[i] = endpoint
 		i++
 	}
-	service.Endpoints = &endPoints
+	service.Endpoints = endPoints
 	service.Startup = startup
 	return service, cmd, nil
 }
@@ -599,9 +547,9 @@ func (cli *ServicedCli) CmdAddService(args ...string) error {
 	controlPlane := getClient()
 
 	service.Instances = 1
-	glog.Infof("Calling AddService.\n")
-	var unused int
-	err = controlPlane.AddService(*service, &unused)
+	glog.V(0).Info("Calling AddService.\n")
+	var serviceId string
+	err = controlPlane.AddService(*service, &serviceId)
 	if err != nil {
 		glog.Fatalf("Could not add services: %v", err)
 	}
@@ -645,7 +593,7 @@ func (cli *ServicedCli) CmdStartService(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not start service: %v", err)
 	}
-	glog.Infof("Sevice scheduled to start on host %s\n", hostId)
+	glog.V(0).Infof("Sevice scheduled to start on host %s\n", hostId)
 	return err
 }
 
@@ -665,15 +613,14 @@ func (cli *ServicedCli) CmdStopService(args ...string) error {
 	if err != nil {
 		glog.Fatalf("Could not stop service: %v", err)
 	}
-	glog.Infoln("Sevice scheduled to stop.")
+	glog.V(0).Infoln("Sevice scheduled to stop.")
 	return err
 }
 
 func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.Service, err error) {
 	// TODO: Replace with RPC call to get single service
 	var services []*dao.Service
-	request := dao.EntityRequest{}
-	err = (*controlPlane).GetServices(request, &services)
+	err = (*controlPlane).GetServices(&empty, &services)
 	if err != nil {
 		return nil, err
 	}
@@ -700,7 +647,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	if service == nil {
 		glog.Fatalf("No such service: %s", serviceId)
 	}
-	glog.Infof("About to start service %s with name %s", service.Id, service.Name)
+	glog.V(0).Infof("About to start service %s with name %s", service.Id, service.Name)
 	dir, binary, err := serviced.ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
@@ -708,17 +655,168 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 	dir, err = os.Getwd()
-	pwdVolume := fmt.Sprintf("%s:/home/zenoss", dir)
-	shellcmd := "cd /home/zenoss && "
-	for _, a := range cmd.Args()[1:] {
-		shellcmd += a + " "
+	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
+	shellcmd := "su -"
+	if len(cmd.Args()) > 1 {
+		shellcmd = ""
+		for _, a := range cmd.Args()[1:] {
+			shellcmd += a + " "
+		}
 	}
 	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
-	cmdString := fmt.Sprintf("docker run -i -t -v %s -v %s %s %s", servicedVolume, pwdVolume, service.ImageId, proxyCmd)
-	glog.Infof("Starting: %s", cmdString)
+	cmdString := fmt.Sprintf("docker run -i -t -e COMMAND='%s' -v %s -v %s %s %s", service.Startup, servicedVolume, pwdVolume, service.ImageId, proxyCmd)
+	glog.V(0).Infof("Starting: %s", cmdString)
 	command := exec.Command("bash", "-c", cmdString)
 	command.Stdout = os.Stdout
 	command.Stdin = os.Stdin
 	command.Stderr = os.Stderr
 	return command.Run()
+}
+
+func (cli *ServicedCli) CmdShow(args ...string) error {
+	cmd := Subcmd("show", "SERVICEID", "Shows the list of available serviced commands for a service container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var unused int
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	err := controlPlane.ShowCommands(service, &unused)
+	return err
+}
+
+func (cli *ServicedCli) CmdRollback(args ...string) error {
+	cmd := Subcmd("rollback", "SNAPSHOT_ID", "Reverts the container's DFS and image to a specified snapshot")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var unused int
+	err := controlPlane.Rollback(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	}
+	return err
+}
+
+func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {
+	cmd := Subcmd("delete-snapshot", "SNAPSHOT_ID", "Removes the specified snapshot")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var unused int
+	err := controlPlane.DeleteSnapshot(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	}
+	return err
+}
+
+func (cli *ServicedCli) CmdSnapshot(args ...string) error {
+	cmd := Subcmd("snapshot", "SERVICEID", "Snapshots the container's DFS and image")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var snapshotId string
+	if err := controlPlane.Snapshot(cmd.Arg(0), &snapshotId); err != nil {
+		glog.Errorf("Received an error: %s", err)
+		return err
+	} else {
+		fmt.Printf("%s\n", snapshotId)
+	}
+	return nil
+}
+
+func (cli *ServicedCli) CmdSnapshots(args ...string) error {
+	cmd := Subcmd("snapshot", "SERVICEID", "Lists snapshots for the given service")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var snapshotIds []string
+	if err := controlPlane.Snapshots(cmd.Arg(0), &snapshotIds); err != nil {
+		glog.Errorf("Received an error: %s", err)
+		return err
+	} else {
+		for _, snapshotId := range snapshotIds {
+			fmt.Printf("%s\n", snapshotId)
+		}
+	}
+	return nil
+}
+
+func (cli *ServicedCli) CmdGet(args ...string) error {
+	cmd := Subcmd("get", "[options] SERVICEID FILE", "Download a file from a container and optional image id")
+
+	var snapshot string
+	cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var file string
+	file = cmd.Arg(1)
+	err := controlPlane.Get(service, &file)
+	return err
+}
+
+func (cli *ServicedCli) CmdRecv(args ...string) error {
+	cmd := Subcmd("recv", "[options] SERVICEID FILE1..FILEN", "Upload a file to a container and optional image id")
+
+	var snapshot string
+	cmd.StringVar(&snapshot, "snapshot", "", "Name of the container image (default: LATEST)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) < 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	var service dao.Service
+	service.Id = cmd.Arg(0)
+	service.ImageId = snapshot
+	var files []string
+	files = cmd.Args()[1:]
+	err := controlPlane.Send(service, &files)
+	return err
 }

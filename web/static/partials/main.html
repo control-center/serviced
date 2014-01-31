@@ -1,11 +1,10 @@
       <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
-      <!-- Main component for a primary marketing message or call to action -->
       <div class="jumbotron">
-        <h2>{{brand_label}}</h2>
-        <p>{{page_content}}</p>
+        <h2>{{brand_label|translate}}</h2>
+        <p>{{page_content|translate}}</p>
         <ul class="list-unstyled">
           <li ng-repeat="link in mainlinks">
-            <a href="{{link.url}}">{{link.label}}</a>
+            <a href="{{link.url}}">{{link.label|translate}}</a>
           </li>
         </ul>
       </div>
