@@ -17,18 +17,6 @@ const (
 	SIGNAL = "SIGNAL"
 )
 
-type process interface {
-	Reader(size int)
-	Writer(data []byte) (int, error)
-	Stdout() chan string
-	Stderr() chan string
-	Exited() chan bool
-	Error() error
-	Resize(cols, rows *int) error
-	Kill(s *int) error
-	Close()
-}
-
 type request struct {
 	Action string
 	Argv   []string
@@ -43,6 +31,19 @@ type request struct {
 	TermEnv  map[string]string
 }
 
+type Reader interface {
+	Reader(size_t int)
+	Write(data []byte) (int, error)
+	StdoutPipe() chan string
+	StderrPipe() chan string
+	ExitedPipe() chan bool
+	Resize(cols, rows *int) error
+	Error() error
+	Signal(sig int) error
+	Kill() error
+	Close()
+}
+
 type response struct {
 	Timestamp                     int64
 	Stdin, Stdout, Stderr, Result string
@@ -53,7 +54,7 @@ type WebsocketShell struct {
 	ws *websocket.Conn
 
 	// The shell connection
-	proc process
+	proc Reader
 
 	// Buffered channel of outbound messages
 	send chan response
@@ -135,7 +136,7 @@ func (wss *WebsocketShell) Reader() {
 			case RESIZE:
 				wss.proc.Resize(cols, rows)
 			case SIGNAL:
-				wss.proc.Kill(signal)
+				wss.proc.Signal(*signal)
 			case EXEC:
 				wss.tx(strings.Join(req.Argv, " "))
 			}
@@ -157,7 +158,7 @@ func (wss *WebsocketShell) Writer() {
 
 func (wss *WebsocketShell) tx(input string) error {
 	var r = response{Stdin: input}
-	if _, err := wss.proc.Writer([]byte(input)); err != nil {
+	if _, err := wss.proc.Write([]byte(input)); err != nil {
 		r.Timestamp = time.Now().Unix()
 		r.Result = "message failed to send"
 		wss.send <- r
@@ -171,9 +172,9 @@ func (wss *WebsocketShell) tx(input string) error {
 func (wss *WebsocketShell) respond() {
 	go wss.proc.Reader(8192)
 
-	stdout := wss.proc.Stdout()
-	stderr := wss.proc.Stderr()
-	done := wss.proc.Exited()
+	stdout := wss.proc.StdoutPipe()
+	stderr := wss.proc.StderrPipe()
+	done := wss.proc.ExitedPipe()
 
 	defer func() {
 		wss.proc.Close()

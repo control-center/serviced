@@ -161,12 +161,12 @@ func (c *Command) Resize(cols, rows *int) error {
 }
 
 func (c *Command) Signal(sig int) error {
-    s := syscall.Signal(sig)
-    return c.cmd.Process.Signal(s)
+	s := syscall.Signal(sig)
+	return c.cmd.Process.Signal(s)
 }
 
 func (c *Command) Kill() error {
-    return c.cmd.Process.Kill()
+	return c.cmd.Process.Kill()
 }
 
 func (c *Command) Close() {

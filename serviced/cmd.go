@@ -182,7 +182,7 @@ func startServer() {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
 		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
 
-		glog.V(1).Infoln("Staring containter statistics reporter")
+		glog.V(1).Infoln("Staring container statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
 	}

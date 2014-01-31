@@ -2,8 +2,10 @@ package dao
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/shell"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"fmt"
 	"strconv"
@@ -354,19 +356,28 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 	return
 }
 
+// This is wrong! I feel guilty. Avoid circular imports.
+func execPath() (string, string, error) {
+	path, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Dir(path), filepath.Base(path), nil
+}
+
 // Starts a container shell
-func (s *Service) Exec(p *Process) (*shell.Runner, error) {
-	var runner shell.Runner
+func (s *Service) Exec(p *Process) error {
+	var runner shell.Reader
 
 	// Bind mount on /serviced
-	dir, bin, err := serviced.ExecPath()
+	dir, bin, err := execPath()
 	if err != nil {
 		return err
 	}
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 
 	// Bind mount the pwd
-	dir, err := os.Getwd()
+	dir, err = os.Getwd()
 	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
 
 	// Get the shell command
@@ -378,10 +389,13 @@ func (s *Service) Exec(p *Process) (*shell.Runner, error) {
 	}
 
 	// Get the proxy Command
-	proxyCmd := fmt.Sprint("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", bin, s.Id, shellCmd)
+	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", bin, s.Id, shellCmd)
 
 	// Get the docker start command
-	docker := os.LookPath("docker")
+	docker, err := exec.LookPath("docker")
+	if err != nil {
+		return err
+	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-e", fmt.Sprintf("COMMAND='%s'", s.Startup)}
 	argv = append(argv, p.Envv...)
 
@@ -390,7 +404,7 @@ func (s *Service) Exec(p *Process) (*shell.Runner, error) {
 	}
 
 	argv = append(argv, s.ImageId, proxyCmd)
-	runner, err = shell.CreateCommand(docker, argv...)
+	runner, err = shell.CreateCommand(docker, argv)
 	if err != nil {
 		return err
 	}
@@ -399,7 +413,7 @@ func (s *Service) Exec(p *Process) (*shell.Runner, error) {
 	return nil
 }
 
-func (p *Process) Send(r shell.Runner) {
+func (p *Process) Send(r shell.Reader) {
 	stdout := r.StdoutPipe()
 	stderr := r.StderrPipe()
 	exited := r.ExitedPipe()
@@ -410,9 +424,9 @@ func (p *Process) Send(r shell.Runner) {
 		select {
 		case i := <-p.Stdin:
 			r.Write([]byte(i))
-		case p.Stdout <- stdout:
-		case p.Stderr <- stderr:
-		case p.Exited <- exited:
+		case p.Stdout <- <-stdout:
+		case p.Stderr <- <-stderr:
+		case p.Exited <- <-exited:
 			p.Error = r.Error()
 			return
 		}
