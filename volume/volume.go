@@ -5,46 +5,84 @@
 package volume
 
 import (
-	"github.com/zenoss/glog"
-
-	"errors"
+	"fmt"
 )
 
-type Volume interface {
-	New(baseDir, name string) (Volume, error)
-	Name() string
-	Dir() string
-	Snapshot(label string) (err error)
-	Snapshots() (labels []string, err error)
-	RemoveSnapshot(label string) error
-	Rollback(label string) (err error)
-	BaseDir() string
+var (
+	drivers = make(map[string]Driver)
+)
+
+type Driver interface {
+	MkVolume(volumeName, root string) (*Volume, error)
+	Name(volumeName string) string
+	Dir(volumeName string) string
+	Snapshot(volumeName, label string) (err error)
+	Snapshots(volumeName string) (labels []string, err error)
+	RemoveSnapshot(volumeName, label string) error
+	Rollback(volumeName, label string) (err error)
+	RootDir(volumeName string) string
 }
 
-var ErrNoSupportedDrivers error
-var SupportedDrivers map[string]Volume
-
-func init() {
-	ErrNoSupportedDrivers = errors.New("no supported drivers found")
-
-	SupportedDrivers = make(map[string]Volume)
-	SupportedDrivers["btrfs"] = &BtrfsVolume{}
-	SupportedDrivers["rsync"] = &RsyncVolume{}
+type Volume struct {
+	driver Driver
+	name   string
 }
 
-func New(baseDir, volumeName string) (volume Volume, err error) {
+func Register(name string, driver Driver) {
+	if driver == nil {
+		panic("volume: Register driver is nil")
+	}
 
-	for name, driver := range SupportedDrivers {
-		glog.V(4).Infof("Detecting if %s is supported on %s", name, baseDir)
-		if volume, err = driver.New(baseDir, name); err == nil {
-			glog.V(4).Infof("%s is supported on %s", name, baseDir)
-			return volume, nil
-		} else {
-			glog.V(4).Infof("%s is NOT supported on %s", name, baseDir)
-		}
+	if _, dup := drivers[name]; dup {
+		panic("volume: Register called twice for driver: " + name)
 	}
-	if volume == nil {
-		err = ErrNoSupportedDrivers
+
+	drivers[name] = driver
+}
+
+func Registered(name string) (Driver, bool) {
+	driver, registered := drivers[name]
+	return driver, registered
+}
+
+func Mount(driverName, volumeName, rootDir string) (*Volume, error) {
+	driver, ok := Registered(driverName)
+	if ok == false {
+		return nil, fmt.Errorf("No such driver: %s", driverName)
 	}
-	return volume, err
+
+	vol, err := driver.MkVolume(volumeName, rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return vol, nil
+}
+
+func (v *Volume) Name() string {
+	return v.driver.Name(v.name)
+}
+
+func (v *Volume) Dir() string {
+	return v.driver.Dir(v.name)
+}
+
+func (v *Volume) Snapshot(label string) error {
+	return v.driver.Snapshot(v.name, label)
+}
+
+func (v *Volume) Snapshots() ([]string, error) {
+	return v.driver.Snapshots(v.name)
+}
+
+func (v *Volume) RemoveSnapshot(label string) error {
+	return v.driver.RemoveSnapshot(v.name, label)
+}
+
+func (v *Volume) Rollback(label string) error {
+	return v.driver.Rollback(v.name, label)
+}
+
+func (v *Volume) RootDir() string {
+	return v.driver.RootDir(v.name)
 }

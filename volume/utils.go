@@ -5,7 +5,7 @@
 package volume
 
 import (
-	"errors"
+    "fmt"
 	"os"
 )
 
@@ -19,7 +19,7 @@ func isDir(dirName string) (dir bool, err error) {
 		return false, err
 	} else {
 		if !lstat.IsDir() {
-			return false, errors.New("baseDir is not a directory")
+			return false, fmt.Errorf("%s is not a directory", dirName)
 		}
 	}
 	return true, nil

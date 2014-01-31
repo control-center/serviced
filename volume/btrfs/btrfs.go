@@ -2,12 +2,13 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package volume
+package btrfs
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/volume"
 
-	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 	"os/user"
@@ -15,9 +16,17 @@ import (
 	"strings"
 )
 
-type BtrfsVolume struct {
-	baseDir string
-	name    string
+const (
+	DriverName = "btrfs"
+)
+
+type BtrfsDriver struct {
+	volumes map[string]VolumeInfo
+	sudoer  bool
+}
+
+type VolumeInfo struct {
+	root string
 }
 
 var useSudo bool // use sudo to execute btrfs commands
@@ -35,7 +44,6 @@ type MockableCmd interface {
 }
 
 func init() {
-
 	// verify that btrfs is in the path
 	if user, err := user.Current(); err == nil {
 		if user.Uid != "0" {
@@ -58,53 +66,68 @@ func execBtrfsCmd(args ...string) (cmd MockableCmd) {
 	return exec.Command(myargs[0], myargs[1:]...)
 }
 
-// NewVolume() create a BTRFS volume admin object. If a subvolume does not exist
-// it is created.
-func NewBtrfsVolume(baseDir, name string) (Volume, error) {
-	if baseIsDir, err := isDir(baseDir); err != nil || baseIsDir == false {
+func New() (*BtrfsDriver, error) {
+	if user, err := user.Current(); err != nil {
 		return nil, err
 	}
 
-	volumeDir := path.Join(baseDir, name)
+	if user.Uid != "0" {
+		err := exec.Command("sudo", "-n", "btrfs", "help").Run()
+		useSudo = err == nil
+	}
+
+	result := &BtrfsDriver{}
+	result.volumes = make(map[string]volume.Volume)
+	result.sudoer = useSudo
+
+	return result, nil
+}
+
+func (d *BtrfsDriver) MkVolume(volumeName, rootDir string) (*Volume, error) {
+	if dirp, err := isDir(baseDir); err != nil || dirp == false {
+		return nil, err
+	}
+
+	volumeDir := path.Join(rootDir, name)
 	if cmd := BtrfsCmd("subvolume", "list", "-apuc", volumeDir); cmd.Run() != nil {
 		if err := BtrfsCmd("subvolume", "create", volumeDir).Run(); err != nil {
 			glog.Errorf("Could not create volume at: %s", volumeDir)
-			return nil, errors.New("could not create subvolume")
+			return nil, fmt.Errorf("could not create subvolume: %s (%v)", name, err)
 		}
 	}
-	v := &BtrfsVolume{
-		baseDir: baseDir,
-		name:    name,
-	}
+
+	v := &Volume{driver: d, name: volumeName}
+	d.volumes[volumeName] = VolumeInfo{root: rootDir}
+
 	return v, nil
 }
 
-func (v *BtrfsVolume) New(baseDir, name string) (Volume, error) {
+func (d *BtrfsDriver) New(baseDir, name string) (Volume, error) {
 	return NewBtrfsVolume(baseDir, name)
 }
 
-func (v *BtrfsVolume) Name() (name string) {
-	return v.name
+func (d *BtrfsDriver) Name() (name string) {
+	return d.name
 }
 
-func (v *BtrfsVolume) Dir() string {
-	return path.Join(v.baseDir, v.name)
+func (d *BtrfsDriver) Dir() string {
+	return path.Join(d.root, d.name)
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
-func (v *BtrfsVolume) Snapshot(label string) (err error) {
-	return BtrfsCmd("subvolume", "snapshot", "-r", v.Dir(), path.Join(v.baseDir, label)).Run()
+func (d *BtrfsDriver) Snapshot(label string) (err error) {
+	return BtrfsCmd("subvolume", "snapshot", "-r", v.Dir(), path.Join(d.root, label)).Run()
 }
 
 // Snapshots() returns the current snapshots on the volume
-func (v *BtrfsVolume) Snapshots() (labels []string, err error) {
+func (d *BtrfsDriver) Snapshots() (labels []string, err error) {
 	labels = make([]string, 0)
 	glog.Info("about to execute subvolume list command")
-	if output, err := BtrfsCmd("subvolume", "list", "-apucr", v.baseDir).CombinedOutput(); err != nil {
+	if output, err := BtrfsCmd("subvolume", "list", "-apucr", d.root).CombinedOutput(); err != nil {
 		glog.Errorf("got an error with subvolume list: %s", string(output))
 		return labels, err
 	} else {
-		glog.Info("btrfs subvolume list:, baseDir: %s", v.baseDir)
+		glog.Info("btrfs subvolume list:, baseDir: %s", d.root)
 		prefixedName := v.name + "_"
 		for _, line := range strings.Split(string(output), "\n") {
 			glog.Infof("btrfs subvolume list: %s", line)
@@ -125,42 +148,42 @@ func (v *BtrfsVolume) Snapshots() (labels []string, err error) {
 	return labels, err
 }
 
-func (v *BtrfsVolume) RemoveSnapshot(label string) error {
-	if exists, err := v.snapshotExists(label); err != nil || !exists {
+func (d *BtrfsDriver) RemoveSnapshot(label string) error {
+	if exists, err := d.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
 			return errors.New("snapshot does not exist")
 		}
 	}
-	return BtrfsCmd("subvolume", "delete", path.Join(v.baseDir, label)).Run()
+	return BtrfsCmd("subvolume", "delete", path.Join(d.root, label)).Run()
 }
 
 // Rollback() rolls back the volume to the given snapshot
-func (v *BtrfsVolume) Rollback(label string) (err error) {
-	if exists, err := v.snapshotExists(label); err != nil || !exists {
+func (d *BtrfsDriver) Rollback(label string) (err error) {
+	if exists, err := d.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
 			return errors.New("snapshot does not exist")
 		}
 	}
-	if dir, err := isDir(v.Dir()); err != nil {
+	if dir, err := isDir(d.Dir()); err != nil {
 		return err
 	} else {
 		if dir {
-			if err := BtrfsCmd("subvolume", "delete", v.Dir()).Run(); err != nil {
+			if err := BtrfsCmd("subvolume", "delete", d.Dir()).Run(); err != nil {
 				return err
 			}
 		}
 	}
-	return BtrfsCmd("subvolume", "snapshot", path.Join(v.baseDir, label), v.Dir()).Run()
+	return BtrfsCmd("subvolume", "snapshot", path.Join(d.root, label), d.Dir()).Run()
 }
 
 // snapshotExists() rolls back the volume to the given snapshot
-func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
-	if snapshots, err := v.Snapshots(); err != nil {
-		return false, errors.New("could not get current snapshot list: " + err.Error())
+func (d *BtrfsDriver) snapshotExists(label string) (exists bool, err error) {
+	if snapshots, err := d.Snapshots(); err != nil {
+		return false, fmt.Errorf("could not get current snapshot list: %v", err)
 	} else {
 		for _, snapLabel := range snapshots {
 			if label == snapLabel {
@@ -171,6 +194,6 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
-func (v *BtrfsVolume) BaseDir() string {
-	return v.baseDir
+func (d *BtrfsDriver) RootDir() string {
+	return d.root
 }
