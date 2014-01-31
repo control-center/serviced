@@ -154,6 +154,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 						}
 						continue
 					}
+
 					addresses := make([]string, len(endpointList))
 					for i, endpoint := range endpointList {
 						addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
@@ -163,6 +164,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					var proxy *serviced.Proxy
 					var ok bool
 					if proxy, ok = proxies[key]; !ok {
+						glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
+
 						// setup a new proxy
 						listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
 						if err != nil {
@@ -178,6 +181,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 							glog.Errorf("Could not build proxy %s", err)
 							continue
 						}
+
+						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
 					}
 					proxy.SetNewAddresses(addresses)

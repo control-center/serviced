@@ -2,6 +2,7 @@
 package shell
 
 /*
+ #cgo CFLAGS: -Wno-error=implicit-function-declaration
  #cgo LDFLAGS: -lutil
 
  #include <string.h>

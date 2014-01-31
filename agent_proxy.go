@@ -32,15 +32,9 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	if err != nil {
 		return err
 	}
-	endpoints := *response
-	// add our internal services
-	for key, endpoint := range a.getInternalServiceEndpoints() {
-		if _, ok := (endpoints)[key]; ok {
-			endpoints[key] = append(endpoints[key], &endpoint)
-		}
-		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
-		endpoints[key] = append(endpoints[key], &endpoint)
-	}
+
+	a.addContolPlaneEndpoint(*response)
+	a.addContolPlaneConsumerEndpoint(*response)
 	return nil
 }
 
@@ -57,18 +51,43 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-// getInternalServiceEndpoints lists every internal service that we wish to expose to the containers running on this agent
-func (a *HostAgent) getInternalServiceEndpoints() map[string]dao.ApplicationEndpoint {
-	// master is of the form host:port, we just need the host
-	master := strings.Split(a.master, ":")[0]
-	return map[string]dao.ApplicationEndpoint{
-		"tcp:8787": dao.ApplicationEndpoint{
-			"controlplane",
-			8787,
-			8787,
-			master,
-			"127.0.0.1",
-			"tcp",
-		},
+// addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
+func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+	key := "tcp:8787"
+	endpoint := dao.ApplicationEndpoint{}
+	endpoint.ServiceId = "controlplane"
+	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ContainerPort = 8787
+	endpoint.HostPort = 8787
+	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.Protocol = "tcp"
+	a.addEndpoint(key, endpoint, endpoints)
+}
+
+// addContolPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
+func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+	key := "tcp:8444"
+	endpoint := dao.ApplicationEndpoint{}
+	endpoint.ServiceId = "controlplane_consumer"
+	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ContainerPort = 8444
+	endpoint.HostPort = 8443
+	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.Protocol = "tcp"
+	a.addEndpoint(key, endpoint, endpoints)
+}
+
+// addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
+func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]*dao.ApplicationEndpoint) {
+	if _, ok := endpoints[key]; !ok {
+		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+	} else {
+		if len(endpoints[key]) > 0 {
+			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceId, key, len(endpoints[key]))
+			for _, ep := range endpoints[key] {
+				glog.Warningf(" %+v", *ep)
+			}
+		}
 	}
+	endpoints[key] = append(endpoints[key], &endpoint)
 }
