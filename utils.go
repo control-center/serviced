@@ -143,7 +143,7 @@ func GetIpAddress() (ip string, err error) {
 	if err != nil || strings.HasPrefix(ip, "127") {
 		ip, err = getIpAddrFromOutGoingConnection()
 		if err == nil && strings.HasPrefix(ip, "127") {
-      return "", fmt.Errorf("unable to identify local ip address")
+			return "", fmt.Errorf("unable to identify local ip address")
 		}
 	}
 
