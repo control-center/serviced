@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func (s ServiceDefinition) String() string {
@@ -94,6 +95,16 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			if err != nil {
 				return nil, err
 			}
+		case subpath.Name() == "FILTERS":
+			if !subpath.IsDir() {
+				return nil, fmt.Errorf(path + "/-FILTERS- must be a directory.")
+			}
+			filters, err := getFiltersFromDirectory(path + "/" + subpath.Name())
+			if err != nil {
+				glog.Errorf("Error fetching filters at "+path, err)
+			} else {
+				svc.LogFilters = filters
+			}
 		case subpath.IsDir():
 			subsvc, err := getServiceDefinition(path + "/" + subpath.Name())
 			if err != nil {
@@ -111,4 +122,35 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 		i += 1
 	}
 	return &svc, err
+}
+
+// this function takes a filter directory and creates a map
+// of filters by looking at the content in that directory.
+// it is assumed the filter name is the name of the file minus
+// the .conf part. So test.conf would be a filter named "test"
+func getFiltersFromDirectory(path string) (filters map[string]string, err error) {
+	filters = make(map[string]string)
+	subpaths, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	for _, subpath := range subpaths {
+		filterName := subpath.Name()
+
+		// make sure it is a valid filter
+		if !strings.HasSuffix(filterName, ".conf") {
+			glog.Warning("Skipping %s because it doesn't have a .conf extension", filterName)
+			continue
+		}
+		// read the contents and add it to our map
+		contents, err := ioutil.ReadFile(path + "/" + filterName)
+		if err != nil {
+			glog.Errorf("Unable to read the file %s, skipping", path+"/"+filterName)
+			continue
+		}
+		filterName = strings.TrimSuffix(filterName, ".conf")
+		filters[filterName] = string(contents)
+	}
+	glog.V(2).Infof("Here are the filters %v from path %s", filters, path)
+	return filters, nil
 }

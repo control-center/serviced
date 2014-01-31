@@ -34,6 +34,36 @@ type PoolHost struct {
 	HostIp string
 }
 
+/*
+ HostIPs contains information about IPs on a host.
+*/
+type HostIPs struct {
+	Id     string
+	HostId string
+	PoolId string
+	IPs    []HostIPResource
+}
+
+/*
+AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a
+HostIPResource
+*/
+type AssignedPort struct {
+	Port      int
+	ServiceId string
+}
+
+/*
+HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been
+assigned to Services
+*/
+type HostIPResource struct {
+	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
+	IPAddress     string
+	InterfaceName string
+	Ports         []AssignedPort
+}
+
 // A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	Id          string // Unique identifier for resource pool, eg "default"
@@ -98,26 +128,28 @@ type ApplicationEndpoint struct {
 
 // A Service that can run in serviced.
 type Service struct {
-	Id              string
-	Name            string
-	Context         string
-	Startup         string
-	Description     string
-	Tags            []string
-	ConfigFiles     map[string]ConfigFile
-	Instances       int
-	ImageId         string
-	PoolId          string
-	DesiredState    int
-	Launch          string
-	Endpoints       []ServiceEndpoint
-	ParentServiceId string
-	Volumes         []Volume
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeploymentId    string
-	DisableImage    bool
-	LogConfigs      []LogConfig
+	Id               string
+	Name             string
+	Context          string
+	Startup          string
+	Description      string
+	Tags             []string
+	ConfigFiles      map[string]ConfigFile
+	Instances        int
+	ImageId          string
+	PoolId           string
+	DesiredState     int
+	Launch           string
+	Endpoints        []ServiceEndpoint
+	Tasks            []Task
+	ParentServiceId  string
+	Volumes          []Volume
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeploymentId     string
+	DisableImage     bool
+	LogConfigs       []LogConfig
+	AddressResources []AddressResourceConfig
 }
 
 // An endpoint that a Service exposes.
@@ -129,6 +161,15 @@ type ServiceEndpoint struct {
 	ApplicationTemplate string
 }
 
+// A scheduled task
+type Task struct {
+	Name          string
+	Schedule      string
+	Command       string
+	LastRunAt     time.Time
+	TotalRunCount int
+}
+
 //export definition
 type ServiceExport struct {
 	Protocol    string //tcp or udp
@@ -137,25 +178,10 @@ type ServiceExport struct {
 	External    string //external port number
 }
 
-// volume export defines a file system directory to logically organize volume imports
-type VolumeExport struct {
-	Name string //Name of volume to export
-	Path string //Resource Pool Path
-}
-
-// volume import defines a file system directory underneath an export directory
-type VolumeImport struct {
-	Name          string //Name of volume to import
-	Owner         string //Path Owner
-	Permission    uint32 //Path Umask
-	ResourcePath  string //Path under exported path
-	ContainerPath string //Container bind-mount path
-}
-
 // volume import defines a file system directory underneath an export directory
 type Volume struct {
 	Owner         string //Resource Path Owner
-	Permission    uint32 //Resource Path Umask
+	Permission    string //Resource Path permissions, eg what you pass to chmod
 	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
 	ContainerPath string //Container bind-mount path
 }
@@ -183,27 +209,46 @@ type ConfigFile struct {
 }
 
 type ServiceDefinition struct {
-	Name          string                 // Name of the defined service
-	Command       string                 // Command which runs the service
-	Description   string                 // Description of the service
-	Tags          []string               // Searchable service tags
-	ImageId       string                 // Docker image hosting the service
-	Instances     MinMax                 // Constraints on the number of instances
-	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
-	ConfigFiles   map[string]ConfigFile  // Config file templates
-	Context       map[string]interface{} // Context information for the service
-	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
-	Services      []ServiceDefinition    // Supporting subservices
-	VolumeExports []VolumeExport
-	VolumeImports []VolumeImport
-	LogConfigs    []LogConfig
+	Name             string                 // Name of the defined service
+	Command          string                 // Command which runs the service
+	Description      string                 // Description of the service
+	Tags             []string               // Searchable service tags
+	ImageId          string                 // Docker image hosting the service
+	Instances        MinMax                 // Constraints on the number of instances
+	Launch           string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles      map[string]ConfigFile  // Config file templates
+	Context          map[string]interface{} // Context information for the service
+	Endpoints        []ServiceEndpoint      // Comms endpoints used by the service
+	Services         []ServiceDefinition    // Supporting subservices
+	Tasks            []Task                 // Scheduled tasks for celery to find
+	LogFilters       map[string]string      // map of log filter name to log filter definitions
+	Volumes          []Volume               // list of volumes to bind into containers
+	LogConfigs       []LogConfig
+	AddressResources []AddressResourceConfig // Configuration for external facing IP
 }
 
+// AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based
+// on the Port field
+type AddressResourceConfigByPort []AddressResourceConfig
+
+func (a AddressResourceConfigByPort) Len() int           { return len(a) }
+func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
+
+const (
+	TCP = "tcp"
+	UDP = "udp"
+)
+
+//AddressResourceConfig defines an external facing port for a service definition
+type AddressResourceConfig struct {
+	Port     int
+	Protocol string
+}
 type LogConfig struct {
-	Path string // The location on the container's filesystem of the log, can be a directory
-	Type string // Arbitrary string that identifies the "types" of logs that come from this source. This will be
-	// available to filter on in the Log file UI
-	Filters string // TODO: Implement Filters somehow
+	Path    string   // The location on the container's filesystem of the log, can be a directory
+	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter
 }
 
 type ServiceDeployment struct {

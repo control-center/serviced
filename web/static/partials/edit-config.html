@@ -3,14 +3,20 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
-        <span class="modal-title">{{'title_edit_config'|translate}}</span>
+        <span class="modal-title">{{'title_edit_config'|translate}} - {{editService.config}}</span>
       </div>
       <div class="modal-body">
-        <textarea ng-model="editService.config"></textarea>
+        <label for="conf_file_owner">{{'label_owner'|translate}}</label>
+          <input type="text" id="conf_file_owner" ng-model="editService.ConfigFiles[editService.config].Owner"></input>
+        </label>
+        <label for="conf_file_perm">{{'label_permissions'|translate}}</label>
+          <input type="number" id="conf_file_perm" ng-model="editService.ConfigFiles[editService.config].Permissions"></input>
+        </label>
+        <textarea ng-model="editService.ConfigFiles[editService.config].Content"></textarea>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="save_config()">{{'btn_save'|translate}}</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="updateService()">{{'btn_save'|translate}}</button>
       </div>
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->

@@ -49,6 +49,26 @@
                  ng-model="services.current.ImageId"></input>
         </div>
 
+        <table class="table table-striped table-bordered table-hover">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Owner</th>
+              <th>Perms</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="configFile in services.current.ConfigFiles">
+               <td>{{ configFile.Filename }}</td>
+               <td>{{ configFile.Owner }}</td>
+               <td>{{ configFile.Permissions }}</td>
+               <td>
+                 <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
+               </td>
+            </trNwq          </tbody>
+        </table>
+
       </div>
       <div class="details-actions">
         <button ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
@@ -111,6 +131,26 @@
         </tr>
       </tbody>
     </table>
+
+    <table class="table tabl-striped table-bordered table-hover">
+        <thead>
+            <tr>
+                <th>Schedule</th>
+                <th>Command</th>
+                <th>Last Run</th>
+                <th>Total Run Count</th>
+            </tr>
+        </thead>
+        <tbody>
+        <tr ng-repeat="task in services.current.Tasks">
+            <td style="font-family:monospace">{{ task.Schedule }}</td>
+            <td>{{ task.Command }}</td>
+            <td>{{ task.LastRunAt }}</td>
+            <td>{{ task.TotalRunCount }}</td>
+        </tr>          
+        </tbody>
+        </table>
+
 
     <div ng-include="'/static/partials/edit-config.html'"></div>
     <div ng-include="'/static/partials/view-log.html'"></div>

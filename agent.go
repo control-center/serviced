@@ -1,10 +1,6 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -14,7 +10,9 @@ package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
@@ -23,9 +21,12 @@ import (
 	"github.com/zenoss/glog"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -40,11 +41,15 @@ import (
  3: trace level info
 */
 
+const (
+	circularBufferSize = 1000
+)
+
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
-	resourcePath    string   // directory to bind mount docker volumes
+	varPath         string   // directory to store serviced  data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -57,11 +62,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, resourcePath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, varPath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
-	agent.resourcePath = resourcePath
+	agent.varPath = varPath
 	agent.mount = mount
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
@@ -198,13 +203,13 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	cmd := exec.Command("docker", "inspect", dockerId)
 	output, err := cmd.Output()
 	if err != nil {
-		glog.Errorln("problem getting docker state")
+		glog.V(2).Infof("problem getting docker state: %s", dockerId)
 		return containerState, err
 	}
 	var containerStates []ContainerState
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
-		glog.Errorf("bad state  happened: %v,   \n\n\n%s", err, string(output))
+		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
 		return containerState, dao.ControlPlaneError{"no state"}
 	}
 	if len(containerStates) < 1 {
@@ -213,12 +218,18 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	return containerStates[0], err
 }
 
-func dumpOut(tmpName string) {
-	out, err := ioutil.ReadFile(tmpName)
-	if err != nil {
-		glog.V(1).Infof("Unable to read file %s", tmpName)
+func dumpOut(stdout, stderr io.Reader, size int) {
+	dumpBuffer(stdout, size, "stdout")
+	dumpBuffer(stderr, size, "stderr")
+}
+
+func dumpBuffer(reader io.Reader, size int, name string) {
+
+	buffer := make([]byte, size)
+	if n, err := reader.Read(buffer); err != nil {
+		glog.V(1).Infof("Unable to read %s of dump", name)
 	} else {
-		glog.V(0).Infof("Process out:\n%s", out)
+		glog.V(0).Infof("Process %s:\n%s", name, string(buffer[:n]))
 	}
 
 }
@@ -226,97 +237,159 @@ func dumpOut(tmpName string) {
 func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
 	a.dockerRemove(serviceState.Id)
 
-	tmpName := os.TempDir() + "/" + serviceState.Id + ".log"
 	defer func() {
-		err := os.Remove(tmpName)
-		if err != nil {
-			glog.V(1).Infof("Unable to remove tmp file %s: %v", err)
-		}
 		procFinished <- 1
 	}()
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
+	// save the last circularBufferSize bytes from each container run
+	lastStdout := circular.NewBuffer(circularBufferSize)
+	lastStderr := circular.NewBuffer(circularBufferSize)
+
+	if stdout, err := cmd.StdoutPipe(); err != nil {
 		glog.Errorf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
 		return
+	} else {
+		go io.Copy(lastStdout, stdout)
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
+	if stderr, err := cmd.StderrPipe(); err != nil {
 		glog.Errorf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
 		return
+	} else {
+		go io.Copy(lastStderr, stderr)
 	}
 
-	tmpLog, err := os.Create(tmpName)
-	if err != nil {
-		glog.Errorf("Unable to create temp file %s", tmpName)
-		return
-	}
-
-	err = cmd.Start()
-
-	go io.Copy(tmpLog, stdout)
-	go io.Copy(tmpLog, stderr)
-
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		glog.Errorf("Problem starting command '%s %s': %v", cmd.Path, cmd.Args, err)
-		dumpOut(tmpName)
+		dumpOut(lastStdout, lastStderr, circularBufferSize)
 		return
 	}
-
-	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
 	// We are name the container the same as its service state ID, so use that as an alias
 	dockerId := serviceState.Id
 	serviceState.DockerId = dockerId
-	containerState, err := getDockerState(dockerId)
-	if err != nil {
-		glog.Errorf("Problem getting service state :%v", err)
-		a.dockerTerminate(dockerId)
-		dumpOut(tmpName)
-		return
+
+	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
+
+	var containerState ContainerState
+	var err error
+	for i := 0; i < 30; i++ {
+		if containerState, err = getDockerState(dockerId); err != nil {
+			time.Sleep(3 * time.Second) // Sleep to give docker a chance to start
+			glog.V(2).Infof("Problem getting service state for %s :%v", serviceState.Id, err)
+			a.dockerTerminate(dockerId)
+			dumpOut(lastStdout, lastStderr, circularBufferSize)
+		} else {
+			break
+		}
 	}
 
-	err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+	if err != nil {
+		return
+	}
+	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
 		ss.DockerId = containerState.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = containerState.NetworkSettings.IPAddress
 		ss.PortMapping = containerState.NetworkSettings.Ports
-	})
-	if err != nil {
+	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
-	}
+	} else {
 
-	glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
+		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
-	err = cmd.Wait()
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				statusCode := status.ExitStatus()
-				switch {
-				case statusCode == 137:
-					glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+		if err := cmd.Wait(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					statusCode := status.ExitStatus()
+					switch {
+					case statusCode == 137:
+						glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
 
-				case statusCode == 2:
-					glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+					case statusCode == 2:
+						glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
 
-				default:
-					glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-					dumpOut(tmpName)
+					default:
+						glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
+						dumpOut(lastStdout, lastStderr, circularBufferSize)
+					}
 				}
+			} else {
+				glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 			}
 		} else {
-			glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
+			glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
 		}
-	} else {
-		glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
+
+		if err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id); err != nil {
+			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
+		}
+
+	}
+}
+
+func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err error) {
+	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
+	volume.New(baseDir, poolId)
+	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
+	return volume.New(baseDir, tenantId)
+}
+
+/*
+writeConfFile is responsible for writing contents out to a file
+Input string prefix  : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
+Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string filename: zenmodeler_logstash_forwarder_conf
+Input string content : the content that you wish to write to a file
+Output *os.File  f   : file handler to the file that you've just opened and written the content to
+Example name of file that is written: /tmp/cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_592084261
+*/
+func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
+	f, err := ioutil.TempFile("", prefix)
+	if err != nil {
+		glog.Errorf("Could not generate tempfile for config %s %s", id, filename)
+		return f, err
+	}
+	_, err = f.WriteString(content)
+	if err != nil {
+		glog.Errorf("Could not write out config file %s %s", id, filename)
+		return f, err
 	}
 
-	err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id)
-	if err != nil {
-		glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
+	return f, nil
+}
+
+/*
+chownConfFile is responsible for changing the owner of a file
+Input *os.File f     : file handler to a file that has already been opened
+Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string filename: zenmodeler_logstash_forwarder_conf
+Input string owner   : update the file's owner to this provided string
+Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
+*/
+func chownConfFile(f *os.File, id string, filename string, owner string) bool {
+	if len(owner) != 0 {
+		parts := strings.Split(owner, ":")
+		if len(parts) != 2 {
+			glog.Errorf("Unsupported owner specification: %s, only %%d:%%d supported for now: %s, %s", owner, id, filename)
+			return false
+		}
+		uid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			glog.Warningf("Malformed UID: %s %s: %s", id, filename, err)
+			return false
+		}
+		gid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			glog.Warningf("Malformed GID: %s %s: %s", id, filename, err)
+			return false
+		}
+		err = f.Chown(uid, gid)
+		if err != nil {
+			glog.Warningf("Could not chown config file: %s %s: %s", id, filename, err)
+		}
 	}
+	return true
 }
 
 // Start a service instance and update the CP with the state.
@@ -329,6 +402,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	defer client.Close()
 
+	//get this service's tenantId for env injection
+	var tenantId string
+	err = client.GetTenantId(service.Id, &tenantId)
+	if err != nil {
+		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
+	}
+
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
@@ -340,15 +420,26 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	volumeOpts := ""
+	if len(tenantId) == 0 && len(service.Volumes) > 0 {
+		// FIXME: find a better way of handling this error condition
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, service.Id)
+	}
 	for _, volume := range service.Volumes {
-		fileMode := os.FileMode(volume.Permission)
-		resourcePath, _ := filepath.Abs(a.resourcePath + "/" + volume.ResourcePath)
-		err := CreateDirectory(resourcePath, volume.Owner, fileMode)
-		if err == nil {
-			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
+
+		btrfsVolume, err := getSubvolume(a.varPath, service.PoolId, tenantId)
+		if err != nil {
+			glog.Fatal("Could not create subvolume: %s", err)
 		} else {
-			glog.Errorf("Error creating resource path: %v", err)
-			return false, err
+
+			resourcePath := path.Join(btrfsVolume.Dir(), volume.ResourcePath)
+			if err = os.MkdirAll(resourcePath, 0770); err != nil {
+				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
+			}
+
+			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
+				glog.Fatalf("Error creating resource path: %v", err)
+			}
+			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		}
 	}
 
@@ -368,38 +459,84 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	configFiles := ""
 	for filename, config := range service.ConfigFiles {
 		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := ioutil.TempFile("", prefix)
+		f, err := writeConfFile(prefix, service.Id, filename, config.Content)
 		if err != nil {
-			glog.Errorf("Could not generate tempfile for config %s %s", service.Id, filename)
 			return false, err
 		}
-		_, err = f.WriteString(config.Content)
-		if err != nil {
-			glog.Errorf("Could not write out config file %s %s", service.Id, filename)
-			return false, err
+
+		fileChowned := chownConfFile(f, service.Id, filename, config.Owner)
+		if fileChowned == false {
+			continue
 		}
-		if len(config.Owner) != 0 {
-			parts := strings.Split(config.Owner, ":")
-			if len(parts) != 2 {
-				glog.Errorf("Unsupported owner specification, only %%d:%%d supported for now: %s, %s", service.Id, filename)
-				continue
-			}
-			uid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				glog.Warningf("Malformed UID: %s %s: %s", service.Id, filename, err)
-				continue
-			}
-			gid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				glog.Warningf("Malformed GID: %s %s: %s", service.Id, filename, err)
-				continue
-			}
-			err = f.Chown(uid, gid)
-			if err != nil {
-				glog.Warningf("Could not chown config file: %s %s: %s", service.Id, filename, err)
-			}
-		}
+
+		// everything worked!
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
+	}
+
+	// if this container is going to produce any logs, bind mount the following files:
+	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
+	// FIX ME: consider moving this functionality to its own function...
+	logstashForwarderMount := ""
+	if len(service.LogConfigs) > 0 {
+		logstashForwarderLogConf := `
+        {
+        	"paths": [ "%s" ],
+        	"fields": { "type": "%s" }
+        }`
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
+		for _, logConfig := range service.LogConfigs[1:] {
+			logstashForwarderLogConf = logstashForwarderLogConf + `,
+				{
+					"paths": [ "%s" ],
+					"fields": { "type": "%s" }
+				}`
+			logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, logConfig.Type)
+		}
+
+		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
+		// *********************************************************************************************
+		// ***** FIX ME the following 3 variables are defined in serviced/proxy.go as well! ************
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
+		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		// *********************************************************************************************
+		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
+		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
+
+		logstashForwarderShipperConf := `
+			{
+				"network": {
+			    	"servers": [ "%s" ],
+					"ssl certificate": "%s",
+					"ssl key": "%s",
+					"ssl ca": "%s",
+			    	"timeout": 15
+			   	},
+			   	"files": [
+					%s
+			   	]
+			}`
+		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
+
+		filename := service.Name + "_logstash_forwarder_conf"
+		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
+		f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
+		if err != nil {
+			return false, err
+		}
+
+		logstashPath := resourcesDir() + "/logstash"
+		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
+		hostLogstashForwarderConfPath := f.Name()
+		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
+		hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
+
+		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
+		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
+		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
+		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
+
+		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -421,10 +558,13 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1"
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
+	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
-
+	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
+	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)
@@ -484,6 +624,9 @@ type stateResult struct {
 	err error
 }
 
+// startMissingChildren accepts a zookeeper connection (conn) and a slice of service instance ids (children),
+// a map of channels to signal running children stop, and a stateResult channel for children to signal when
+// they shutdown
 func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
 	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
 	for _, childName := range children {
@@ -494,6 +637,7 @@ func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, proce
 			go a.processServiceState(conn, childChannel, ssDone, childName)
 		}
 	}
+	return
 }
 
 func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResult) (err error) {
@@ -556,7 +700,6 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	var attached bool
 
 	for {
-
 		var hss zzk.HostServiceState
 		hssStats, zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
 		if err != nil {
@@ -674,17 +817,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 	}
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
-	}
-	defer controlClient.Close()
-	return controlClient.GetServiceEndpoints(serviceId, response)
-}
-
-// Create a Host object from the host this function is running on.
+// GetInfo creates a Host object from the host this function is running on.
 func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
@@ -693,3 +826,92 @@ func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
 	*host = *hostInfo
 	return nil
 }
+
+//SendHostIPs handles the details of sending HostIPResources
+type SendHostIPs func(ips dao.HostIPs, unused *int) error
+
+/**
+RegisterResources registers resources on the host such as IP addresses with the control plane master.
+The duration parameter is how often to register with the master
+*/
+func (a *HostAgent) RegisterIPResources(duration time.Duration) {
+	registerFn := func() {
+		controlClient, err := NewControlClient(a.master)
+		if err != nil {
+			glog.Errorf("Could not start ControlPlane client %v", err)
+			return
+		}
+		defer controlClient.Close()
+		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
+		if err != nil {
+			glog.Errorf("Error registering resources %v", err)
+		}
+	}
+	//do it the first time
+	registerFn()
+	tc := time.Tick(duration)
+	//run in timed loop
+	for _ = range tc {
+		registerFn()
+	}
+}
+
+/*
+registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
+and the function used to send the found IPs
+*/
+func registerIPs(hostId string, sendFn SendHostIPs) error {
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		glog.Error("Problem reading interfaces: ", err)
+		return err
+	}
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
+			return err
+		}
+		for _, addr := range addrs {
+			//send address to Master
+			hostIp := dao.HostIPResource{}
+			hostIp.IPAddress = addr.String()
+			hostIp.InterfaceName = iface.Name
+			hostIPResources = append(hostIPResources, hostIp)
+		}
+	}
+	var unused int
+	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
+	hostIps := dao.HostIPs{}
+	hostIps.HostId = hostId
+	hostIps.IPs = hostIPResources
+	if err := sendFn(hostIps, &unused); err != nil {
+		glog.Errorf("Error registering IPs %v", err)
+	}
+	return nil
+}
+
+// *********************************************************************
+// ***** FIXME *********************************************************
+// ***** The following three functions are also defined in isvc.go *****
+// returns serviced home
+func serviceDHome() string {
+	return os.Getenv("SERVICED_HOME")
+}
+
+func localDir(p string) string {
+	homeDir := ServiceDHome()
+	if len(homeDir) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = path.Join(path.Dir(filename), "isvcs")
+	}
+	return path.Join(homeDir, p)
+}
+
+func resourcesDir() string {
+	return localDir("resources")
+}
+
+// *********************************************************************

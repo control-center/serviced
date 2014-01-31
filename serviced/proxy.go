@@ -1,12 +1,12 @@
 package main
 
 import (
-    "github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-    "github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/shell"
 
 	"fmt"
 	"net"
@@ -18,47 +18,47 @@ import (
 )
 
 type hub struct {
-    // Registered connections.
-    connections map[*shell.WebsocketShell]bool
+	// Registered connections.
+	connections map[*shell.WebsocketShell]bool
 
-    // Register requests from the connections
-    register chan *shell.WebsocketShell
+	// Register requests from the connections
+	register chan *shell.WebsocketShell
 
-    // Unregister requests from the connections
-    unregister chan *shell.WebsocketShell
+	// Unregister requests from the connections
+	unregister chan *shell.WebsocketShell
 }
 
 func (h *hub) run() {
-    for {
-        select {
-        case c := <-h.register:
-            h.connections[c] = true
-        case c := <-h.unregister:
-            delete(h.connections, c)
-            c.Close()
-        }
-    }
+	for {
+		select {
+		case c := <-h.register:
+			h.connections[c] = true
+		case c := <-h.unregister:
+			delete(h.connections, c)
+			c.Close()
+		}
+	}
 }
 
 var h = hub{
-    register: make(chan *shell.WebsocketShell),
-    unregister: make(chan *shell.WebsocketShell),
-    connections: make(map[*shell.WebsocketShell]bool),
+	register:    make(chan *shell.WebsocketShell),
+	unregister:  make(chan *shell.WebsocketShell),
+	connections: make(map[*shell.WebsocketShell]bool),
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-    ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-    if _, ok := err.(websocket.HandshakeError); ok {
-        http.Error(w, "Not a websocket handshake", 400)
-        return
-    } else if err != nil {
-        return
-    }
-    c := shell.Connect(ws)
-    h.register <- c
-    defer func() { h.unregister <- c }()
-    go c.Writer()
-    c.Reader()
+	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", 400)
+		return
+	} else if err != nil {
+		return
+	}
+	c := shell.Connect(ws)
+	h.register <- c
+	defer func() { h.unregister <- c }()
+	go c.Writer()
+	c.Reader()
 }
 
 // Start a service proxy.
@@ -85,7 +85,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go h.run()
 	http.HandleFunc("/exec", wsHandler)
-	http.ListenAndServe(":50000", nil)
+	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
 
@@ -110,6 +110,23 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			time.Sleep(time.Minute)
 		}
 	}(config.Command)
+
+	go func() {
+		// *********************************************************************************************
+		// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
+		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
+		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+		// *********************************************************************************************
+		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+		glog.V(0).Info("About to execute: ", cmdString)
+		myCmd := exec.Command("bash", "-c", cmdString)
+		myErr := myCmd.Run()
+		if myErr != nil {
+			glog.Errorf("Problem running service: %v", myErr)
+			glog.Flush()
+		}
+	}()
 
 	go func() {
 		for {
@@ -137,6 +154,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 						}
 						continue
 					}
+
 					addresses := make([]string, len(endpointList))
 					for i, endpoint := range endpointList {
 						addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
@@ -146,6 +164,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					var proxy *serviced.Proxy
 					var ok bool
 					if proxy, ok = proxies[key]; !ok {
+						glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
+
 						// setup a new proxy
 						listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
 						if err != nil {
@@ -161,6 +181,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 							glog.Errorf("Could not build proxy %s", err)
 							continue
 						}
+
+						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
 					}
 					proxy.SetNewAddresses(addresses)

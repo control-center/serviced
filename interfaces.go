@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
 *
 * This content is made available according to terms specified in
 * License.zenoss under the directory where your Zenoss product is installed.
@@ -83,6 +83,13 @@ type ContainerState struct {
 // The API for a service proxy.
 type LoadBalancer interface {
 	GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error
+
+	// GetProxySnapshotQuiece blocks until there is a snapshot request
+	GetProxySnapshotQuiece(serviceId string, snapshotId *string) error
+
+	// AckProxySnapshotQuiece is called by clients when the snapshot command has
+	// shown the service is quieced; the agent returns a response when the snapshot is complete
+	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
 }
 
 // The Agent interface is the API for a serviced agent.

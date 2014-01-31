@@ -13,7 +13,7 @@ install:
 	go install
 
 build:
-	go get github.com/ant0ine/go-json-rest
+	./godep restore
 	go build
 
 test: build

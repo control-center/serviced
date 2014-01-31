@@ -71,6 +71,10 @@ func (s *ControlClient) GetService(serviceId string, service *dao.Service) (err 
 	return s.rpcClient.Call("ControlPlane.GetService", serviceId, &service)
 }
 
+func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetTenantId", serviceId, tenantId)
+}
+
 func (s *ControlClient) AddService(service dao.Service, serviceId *string) (err error) {
 	return s.rpcClient.Call("ControlPlane.AddService", service, serviceId)
 }
@@ -199,12 +203,20 @@ func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
-func (s *ControlClient) Rollback(service dao.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Rollback", service, unused)
+func (s *ControlClient) Rollback(serviceId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
-func (s *ControlClient) Commit(service dao.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Commit", service, unused)
+func (s *ControlClient) Snapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
+}
+
+func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused)
+}
+
+func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
+	return s.rpcClient.Call("ControlPlane.Snapshots", serviceId, labels)
 }
 
 func (s *ControlClient) Get(service dao.Service, file *string) error {
@@ -213,4 +225,8 @@ func (s *ControlClient) Get(service dao.Service, file *string) error {
 
 func (s *ControlClient) Send(service dao.Service, files *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Send", service, files)
+}
+
+func (s *ControlClient) RegisterHostIPs(ips dao.HostIPs, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RegisterHostIPs", ips, unused)
 }

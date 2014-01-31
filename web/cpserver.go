@@ -7,16 +7,18 @@ import (
 
 	"mime"
 	"net/http"
+	"net/url"
 )
 
 type ServiceConfig struct {
 	bindPort   string
 	agentPort  string
 	zookeepers []string
+	stats      bool
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers}
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool) *ServiceConfig {
+	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats}
 	if len(cfg.bindPort) == 0 {
 		cfg.bindPort = ":8787"
 	}
@@ -36,9 +38,10 @@ func (this *ServiceConfig) Serve() {
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
-	handler.SetRoutes(
+	routes := []rest.Route{
 		rest.Route{"GET", "/", MainPage},
 		rest.Route{"GET", "/test", TestPage},
+		rest.Route{"GET", "/stats", this.IsCollectingStats()},
 		// Hosts
 		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
@@ -75,8 +78,38 @@ func (this *ServiceConfig) Serve() {
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},
 		rest.Route{"GET", "/static*resource", StaticData},
-	)
+	}
+
+	// Hardcoding these target URLs for now.
+	// TODO: When internal services are allowed to run on other hosts, look that up.
+	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
+	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
+
+	handler.SetRoutes(routes...)
+
 	http.ListenAndServe(this.bindPort, &handler)
+}
+
+var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
+
+func routeToInternalServiceProxy(path string, target string, routes []rest.Route) []rest.Route {
+	targetUrl, err := url.Parse(target)
+	if err != nil {
+		glog.Errorf("Unable to parse proxy target URL: %s", target)
+		return routes
+	}
+	// Wrap the normal http.Handler in a rest.HandlerFunc
+	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
+		proxy := serviced.NewReverseProxy(path, targetUrl)
+		proxy.ServeHTTP(w.ResponseWriter, r.Request)
+	}
+	// Add on a glob to match subpaths
+	andsubpath := path + "*x"
+	for _, method := range methods {
+		routes = append(routes, rest.Route{method, path, handlerFunc})
+		routes = append(routes, rest.Route{method, andsubpath, handlerFunc})
+	}
+	return routes
 }
 
 func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
@@ -93,6 +126,18 @@ func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerF
 		}
 		defer client.Close()
 		realfunc(w, r, client)
+	}
+}
+
+func (this *ServiceConfig) IsCollectingStats() HandlerFunc {
+	if this.stats {
+		return func(w *rest.ResponseWriter, r *rest.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+	} else {
+		return func(w *rest.ResponseWriter, r *rest.Request) {
+			w.WriteHeader(http.StatusNotImplemented)
+		}
 	}
 }
 

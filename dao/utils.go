@@ -1,7 +1,9 @@
 package dao
 
-import "os"
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 var urandomFilename = "/dev/urandom"
 

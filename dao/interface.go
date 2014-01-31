@@ -48,6 +48,9 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
+	//for a service, get it's tenant Id
+	GetTenantId(serviceId string, tenantId *string) error
+
 	// Add a new service
 	AddService(service Service, serviceId *string) error
 
@@ -161,14 +164,26 @@ type ControlPlane interface {
 	ShowCommands(service Service, unused *int) error
 
 	// Rollback DFS and service image
-	Rollback(service Service, unused *int) error
+	Rollback(snapshotId string, unused *int) error
 
 	// Commit DFS and service image
-	Commit(service Service, unused *int) error
+	Snapshot(serviceId string, label *string) error
+
+	// Delete a snapshot
+	DeleteSnapshot(snapshotId string, unused *int) error
+
+	// List available snapshots
+	Snapshots(serviceId string, snapshotIds *[]string) error
 
 	// Download a file from a container
 	Get(service Service, file *string) error
 
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
+
+	/*
+	 RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
+	 been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
+	*/
+	RegisterHostIPs(ips HostIPs, unused *int) error
 }
