@@ -119,8 +119,6 @@ func (t *Terminal) Reader(size int) {
 				t.stdoutChan <- string(data[:n])
 			}
 		case syscall.EIO:
-			_, err := syscall.Wait4(t.pid, nil, 0, nil)
-			t.err = err
 			t.done <- true
 			break
 		default:
@@ -131,19 +129,19 @@ func (t *Terminal) Reader(size int) {
 	}
 }
 
-func (t *Terminal) Writer(data []byte) (int, error) {
+func (t *Terminal) Write(data []byte) (int, error) {
 	return syscall.Write(t.fd, data)
 }
 
-func (t *Terminal) Stdout() chan string {
+func (t *Terminal) StdoutPipe() chan string {
 	return t.stdoutChan
 }
 
-func (t *Terminal) Stderr() chan string {
+func (t *Terminal) StderrPipe() chan string {
 	return t.stderrChan
 }
 
-func (t *Terminal) Exited() chan bool {
+func (t *Terminal) ExitedPipe() chan bool {
 	return t.done
 }
 
@@ -165,14 +163,13 @@ func (t *Terminal) Resize(cols, rows *int) error {
 	return t.resize(*cols, *rows)
 }
 
-func (t *Terminal) Kill(signal *int) error {
-	var s syscall.Signal
-	if signal == nil {
-		s = syscall.SIGHUP
-	} else {
-		s = syscall.Signal(*signal)
-	}
-	return syscall.Kill(t.pid, s)
+func (t *Terminal) Signal(sig int) error {
+    s := syscall.Signal(sig)
+    return syscall.Kill(t.pid, s)
+}
+
+func (t *Terminal) Kill() error {
+    return syscall.Kill(t.pid, syscall.SIGHUP)
 }
 
 func (t *Terminal) Close() {

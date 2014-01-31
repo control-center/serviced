@@ -136,19 +136,19 @@ func (c *Command) Reader(size int) {
 	}
 }
 
-func (c *Command) Writer(data []byte) (int, error) {
+func (c *Command) Write(data []byte) (int, error) {
 	return c.stdin.Write(data)
 }
 
-func (c *Command) Stdout() chan string {
+func (c *Command) StdoutPipe() chan string {
 	return c.stdoutChan
 }
 
-func (c *Command) Stderr() chan string {
+func (c *Command) StderrPipe() chan string {
 	return c.stderrChan
 }
 
-func (c *Command) Exited() chan bool {
+func (c *Command) ExitedPipe() chan bool {
 	return c.done
 }
 
@@ -160,14 +160,13 @@ func (c *Command) Resize(cols, rows *int) error {
 	return nil
 }
 
-func (c *Command) Kill(signal *int) error {
-	var s syscall.Signal
-	if signal == nil {
-		s = syscall.SIGKILL
-	} else {
-		s = syscall.Signal(*signal)
-	}
-	return c.cmd.Process.Signal(s)
+func (c *Command) Signal(sig int) error {
+    s := syscall.Signal(sig)
+    return c.cmd.Process.Signal(s)
+}
+
+func (c *Command) Kill() error {
+    return c.cmd.Process.Kill()
 }
 
 func (c *Command) Close() {

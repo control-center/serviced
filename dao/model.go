@@ -2,6 +2,8 @@ package dao
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/shell"
 
 	"fmt"
 	"strconv"
@@ -245,6 +247,21 @@ type AddressResourceConfig struct {
 	Port     int
 	Protocol string
 }
+
+// Defines commands to be run in an object's container
+type Process struct {
+	IsTTY   bool     // Describes the type of connection needed
+	Envv    []string // Environment variables
+	Command string   // Command to run
+	Cols    *int     // Terminal width
+	Rows    *int     // Terminal height
+	Error   error
+	Stdin   chan string
+	Stdout  chan string
+	Stderr  chan string
+	Exited  chan bool
+}
+
 type LogConfig struct {
 	Path    string   // The location on the container's filesystem of the log, can be a directory
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
@@ -335,6 +352,71 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 		}
 	}
 	return
+}
+
+// Starts a container shell
+func (s *Service) Exec(p *Process) (*shell.Runner, error) {
+	var runner shell.Runner
+
+	// Bind mount on /serviced
+	dir, bin, err := serviced.ExecPath()
+	if err != nil {
+		return err
+	}
+	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
+
+	// Bind mount the pwd
+	dir, err := os.Getwd()
+	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
+
+	// Get the shell command
+	var shellCmd string
+	if p.Command != "" {
+		shellCmd = p.Command
+	} else {
+		shellCmd = "su -"
+	}
+
+	// Get the proxy Command
+	proxyCmd := fmt.Sprint("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", bin, s.Id, shellCmd)
+
+	// Get the docker start command
+	docker := os.LookPath("docker")
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-e", fmt.Sprintf("COMMAND='%s'", s.Startup)}
+	argv = append(argv, p.Envv...)
+
+	if p.IsTTY {
+		argv = append(argv, "-t", "-i")
+	}
+
+	argv = append(argv, s.ImageId, proxyCmd)
+	runner, err = shell.CreateCommand(docker, argv...)
+	if err != nil {
+		return err
+	}
+
+	go p.Send(runner)
+	return nil
+}
+
+func (p *Process) Send(r shell.Runner) {
+	stdout := r.StdoutPipe()
+	stderr := r.StderrPipe()
+	exited := r.ExitedPipe()
+
+	go r.Reader(8192)
+	defer r.Close()
+	for {
+		select {
+		case i := <-p.Stdin:
+			r.Write([]byte(i))
+		case p.Stdout <- stdout:
+		case p.Stderr <- stderr:
+		case p.Exited <- exited:
+			p.Error = r.Error()
+			return
+		}
+	}
 }
 
 // Retrieve service container port, 0 failure
