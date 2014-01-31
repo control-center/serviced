@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"syscall"
 	"time"
 )
 
@@ -91,7 +92,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	// continually execute subprocess
 	go func(cmdString string) {
-		defer func() { procexit <- 1 }()
+		defer func() { procexit <- 0 }()
 		for {
 			glog.V(0).Info("About to execute: ", cmdString)
 			cmd := exec.Command("bash", "-c", cmdString)
@@ -102,6 +103,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			if err != nil {
 				glog.Errorf("Problem running service: %v", err)
 				glog.Flush()
+				if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
+					if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+						procexit <- status.ExitStatus()
+					}
+				}
 			}
 			if !proxyOptions.autorestart {
 				break
@@ -111,22 +117,24 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}(config.Command)
 
-	go func() {
-		// *********************************************************************************************
-		// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-		// *********************************************************************************************
-		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
-		glog.V(0).Info("About to execute: ", cmdString)
-		myCmd := exec.Command("bash", "-c", cmdString)
-		myErr := myCmd.Run()
-		if myErr != nil {
-			glog.Errorf("Problem running service: %v", myErr)
-			glog.Flush()
-		}
-	}()
+	if proxyOptions.logstash {
+		go func() {
+			// *********************************************************************************************
+			// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
+			containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
+			containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
+			containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
+			// *********************************************************************************************
+			cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+			glog.V(0).Info("About to execute: ", cmdString)
+			myCmd := exec.Command("bash", "-c", cmdString)
+			myErr := myCmd.Run()
+			if myErr != nil {
+				glog.Errorf("Problem running logstash-forwarder service: %v", myErr)
+				glog.Flush()
+			}
+		}()
+	}
 
 	go func() {
 		for {
@@ -193,10 +201,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}()
 
-	<-procexit // Wait for proc goroutine to exit
+	exitcode := <-procexit // Wait for proc goroutine to exit
 
 	glog.Flush()
-	os.Exit(0)
+	os.Exit(exitcode)
 	return nil
 }
 

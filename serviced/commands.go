@@ -15,6 +15,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -156,6 +157,7 @@ var proxyOptions struct {
 	certPEMFile      string
 	servicedEndpoint string
 	autorestart      bool
+	logstash         bool
 }
 
 var proxyCmd *flag.FlagSet
@@ -171,6 +173,7 @@ func init() {
 	proxyCmd.StringVar(&proxyOptions.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	proxyCmd.StringVar(&proxyOptions.servicedEndpoint, "endpoint", gw+":4979", "serviced endpoint address")
 	proxyCmd.BoolVar(&proxyOptions.autorestart, "autorestart", true, "restart process automatically when it exits")
+	proxyCmd.BoolVar(&proxyOptions.logstash, "logstash", true, "Forward service logs via logstash-forwarder")
 	proxyCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, `
 Usage: proxy [OPTIONS] SERVICE_ID COMMAND
@@ -635,6 +638,9 @@ func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.
 
 func (cli *ServicedCli) CmdShell(args ...string) error {
 	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
+	var istty bool
+	cmd.BoolVar(&istty, "i", false, "Whether to run interactively")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -647,15 +653,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	if service == nil {
 		glog.Fatalf("No such service: %s", serviceId)
 	}
-	glog.V(0).Infof("About to start service %s with name %s", service.Id, service.Name)
-	dir, binary, err := serviced.ExecPath()
-	if err != nil {
-		glog.Errorf("Error getting exec path: %v", err)
-		return err
-	}
-	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
-	dir, err = os.Getwd()
-	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
+
 	shellcmd := "su -"
 	if len(cmd.Args()) > 1 {
 		shellcmd = ""
@@ -663,14 +661,34 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 			shellcmd += a + " "
 		}
 	}
-	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", binary, service.Id, shellcmd)
-	cmdString := fmt.Sprintf("docker run -i -t -e COMMAND='%s' -v %s -v %s %s %s", service.Startup, servicedVolume, pwdVolume, service.ImageId, proxyCmd)
-	glog.V(0).Infof("Starting: %s", cmdString)
-	command := exec.Command("bash", "-c", cmdString)
-	command.Stdout = os.Stdout
-	command.Stdin = os.Stdin
-	command.Stderr = os.Stderr
-	return command.Run()
+
+	p := dao.NewProcess(shellcmd, []string{}, istty)
+	defer close(p.Stdin)
+
+	go service.Exec(p)
+
+	go func() {
+		buf := bufio.NewReader(os.Stdin)
+		for {
+			b, err := buf.ReadByte()
+			if err != nil {
+				// Something errory here
+			}
+			p.Stdin <- string(b)
+		}
+	}()
+
+	for {
+		select {
+		case line := <-p.Stdout:
+			os.Stdout.WriteString(line)
+		case line := <-p.Stderr:
+			os.Stderr.WriteString(line)
+		case <-p.Exited:
+			return p.Error
+		}
+	}
+
 }
 
 func (cli *ServicedCli) CmdShow(args ...string) error {

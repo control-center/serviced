@@ -255,13 +255,23 @@ type Process struct {
 	IsTTY   bool     // Describes the type of connection needed
 	Envv    []string // Environment variables
 	Command string   // Command to run
-	Cols    *int     // Terminal width
-	Rows    *int     // Terminal height
 	Error   error
 	Stdin   chan string
 	Stdout  chan string
 	Stderr  chan string
 	Exited  chan bool
+}
+
+func NewProcess(command string, envv []string, istty bool) *Process {
+	return &Process{
+		IsTTY:   istty,
+		Envv:    envv,
+		Command: command,
+		Stdin:   make(chan string),
+		Stdout:  make(chan string),
+		Stderr:  make(chan string),
+		Exited:  make(chan bool),
+	}
 }
 
 type LogConfig struct {
@@ -389,22 +399,24 @@ func (s *Service) Exec(p *Process) error {
 	}
 
 	// Get the proxy Command
-	proxyCmd := fmt.Sprintf("/serviced/%s -logtostderr=false proxy -autorestart=false %s '%s'", bin, s.Id, shellCmd)
-
+	proxyCmd := []string{fmt.Sprintf("/serviced/%s", bin), "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", s.Id, shellCmd}
 	// Get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return err
 	}
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-e", fmt.Sprintf("COMMAND='%s'", s.Startup)}
+	argv := []string{"run", "-rm", "-v", servicedVolume, "-v", pwdVolume}
 	argv = append(argv, p.Envv...)
 
 	if p.IsTTY {
-		argv = append(argv, "-t", "-i")
+		argv = append(argv, "-i", "-t")
 	}
 
-	argv = append(argv, s.ImageId, proxyCmd)
+	argv = append(argv, s.ImageId)
+	argv = append(argv, proxyCmd...)
+
 	runner, err = shell.CreateCommand(docker, argv)
+
 	if err != nil {
 		return err
 	}
@@ -424,10 +436,13 @@ func (p *Process) Send(r shell.Reader) {
 		select {
 		case i := <-p.Stdin:
 			r.Write([]byte(i))
-		case p.Stdout <- <-stdout:
-		case p.Stderr <- <-stderr:
-		case p.Exited <- <-exited:
+		case m := <-stdout:
+			p.Stdout <- m
+		case m := <-stderr:
+			p.Stderr <- m
+		case m := <-exited:
 			p.Error = r.Error()
+			p.Exited <- m
 			return
 		}
 	}
