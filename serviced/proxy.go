@@ -118,7 +118,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
 		// *********************************************************************************************
-		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+		// make sure we pick up any logfile that was modified within the last three years
+		cmdString := containerLogstashForwarderBinaryPath + " -old-files-hours=26280 -config " + containerLogstashForwarderConfPath
 		glog.V(0).Info("About to execute: ", cmdString)
 		myCmd := exec.Command("bash", "-c", cmdString)
 		myErr := myCmd.Run()
