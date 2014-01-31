@@ -42,7 +42,7 @@ type HostIPs struct {
 	IPs    []HostIPResource
 }
 
-//AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a HostIPResource
+//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AssignedPort struct {
 	Port      int
 	ServiceId string
