@@ -22,5 +22,5 @@
           "LogConfigs":[ {
             "path": "/tmp/foo",
             "type": "foo"
-          }],
+          }]
 }
