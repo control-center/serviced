@@ -152,7 +152,7 @@ type ServiceEndpoint struct {
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig   `TODO get json for nil`
-	VHost               []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+	VHosts               []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 }
 

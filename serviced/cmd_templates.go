@@ -74,7 +74,7 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	return err
 }
 
-func validServiceDefinition(d *dao.ServiceDefinition) error {
+func validServiceDefinition(d *dao.ServiceDefinition, context *validationContext) error {
 	// Instances["min"] and Instances["max"] must be positive
 	if d.Instances.Min < 0 || d.Instances.Max < 0 {
 		return fmt.Errorf("Instances constrains must be positive")
@@ -97,13 +97,35 @@ func validServiceDefinition(d *dao.ServiceDefinition) error {
 			d.Launch = launch
 		}
 	}
-
-	return validServiceDefinitions(&d.Services)
+	for _, se := range d.Endpoints {
+		err := context.validateVHost(se)
+		if err != nil {
+			return err
+		}
+	}
+	return validServiceDefinitions(&d.Services, context)
 }
 
-func validServiceDefinitions(ds *[]dao.ServiceDefinition) error {
+type validationContext struct {
+	vhosts map[string]dao.ServiceEndpoint// only care about key to test for previous definition
+}
+
+func (vc validationContext) validateVHost(se dao.ServiceEndpoint) error {
+	if len(se.VHosts) > 0 {
+		for _, vhost := range se.VHosts {
+			if _, found := vc.vhosts[vhost]; found {
+				return fmt.Errorf("Duplicate Vhost %v found in %v and %v", vhost)
+			} else {
+				vc.vhosts[vhost] = se
+			}
+		}
+	}
+	return nil
+}
+
+func validServiceDefinitions(ds *[]dao.ServiceDefinition, context *validationContext) error {
 	for i, _ := range *ds {
-		if err := validServiceDefinition(&(*ds)[i]); err != nil {
+		if err := validServiceDefinition(&(*ds)[i], context); err != nil {
 			return err
 		}
 	}
@@ -112,7 +134,9 @@ func validServiceDefinitions(ds *[]dao.ServiceDefinition) error {
 }
 
 func validTemplate(t *dao.ServiceTemplate) error {
-	return validServiceDefinitions(&t.Services)
+	context := validationContext{}
+	err := validServiceDefinitions(&t.Services, &context)
+	return err
 }
 
 // Add a service template to the control plane.
