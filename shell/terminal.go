@@ -163,13 +163,12 @@ func (t *Terminal) Resize(cols, rows *int) error {
 	return t.resize(*cols, *rows)
 }
 
-func (t *Terminal) Signal(sig int) error {
-    s := syscall.Signal(sig)
-    return syscall.Kill(t.pid, s)
+func (t *Terminal) Signal(signal syscall.Signal) error {
+	return syscall.Kill(t.pid, signal)
 }
 
 func (t *Terminal) Kill() error {
-    return syscall.Kill(t.pid, syscall.SIGHUP)
+	return syscall.Kill(t.pid, syscall.SIGHUP)
 }
 
 func (t *Terminal) Close() {

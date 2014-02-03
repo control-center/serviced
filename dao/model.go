@@ -260,6 +260,7 @@ type Process struct {
 	Stdout  chan string
 	Stderr  chan string
 	Exited  chan bool
+	Signal  chan syscall.Signal
 }
 
 func NewProcess(command string, envv []string, istty bool) *Process {
@@ -271,6 +272,7 @@ func NewProcess(command string, envv []string, istty bool) *Process {
 		Stdout:  make(chan string),
 		Stderr:  make(chan string),
 		Exited:  make(chan bool),
+		Signal:  make(chan syscall.Signal),
 	}
 }
 
@@ -377,7 +379,7 @@ func execPath() (string, string, error) {
 
 // Starts a container shell
 func (s *Service) Exec(p *Process) error {
-	var runner shell.Reader
+	var runner shell.Runner
 
 	// Bind mount on /serviced
 	dir, bin, err := execPath()
@@ -425,7 +427,7 @@ func (s *Service) Exec(p *Process) error {
 	return nil
 }
 
-func (p *Process) Send(r shell.Reader) {
+func (p *Process) Send(r shell.Runner) {
 	stdout := r.StdoutPipe()
 	stderr := r.StderrPipe()
 	exited := r.ExitedPipe()
@@ -436,6 +438,8 @@ func (p *Process) Send(r shell.Reader) {
 		select {
 		case i := <-p.Stdin:
 			r.Write([]byte(i))
+		case s := <-p.Signal:
+			r.Signal(s)
 		case m := <-stdout:
 			p.Stdout <- m
 		case m := <-stderr:
@@ -446,6 +450,14 @@ func (p *Process) Send(r shell.Reader) {
 			return
 		}
 	}
+}
+
+func (p *Process) Close() {
+	close(p.Stdin)
+	close(p.Stdout)
+	close(p.Stderr)
+	close(p.Exited)
+	close(p.Signal)
 }
 
 // Retrieve service container port, 0 failure

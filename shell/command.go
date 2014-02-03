@@ -156,13 +156,8 @@ func (c *Command) Error() error {
 	return c.err
 }
 
-func (c *Command) Resize(cols, rows *int) error {
-	return nil
-}
-
-func (c *Command) Signal(sig int) error {
-	s := syscall.Signal(sig)
-	return c.cmd.Process.Signal(s)
+func (c *Command) Signal(signal syscall.Signal) error {
+	return c.cmd.Process.Signal(signal)
 }
 
 func (c *Command) Kill() error {
