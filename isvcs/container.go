@@ -9,11 +9,11 @@
 package isvcs
 
 import (
-	"github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/glog"
-
 	"errors"
 	"fmt"
+	"github.com/fsouza/go-dockerclient"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 	"os"
 	"os/exec"
 	"os/user"
@@ -183,7 +183,7 @@ func (c *Container) rm() error {
 		return err
 	} else {
 		for _, id := range *ids {
-            client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+			client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil
@@ -207,7 +207,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// attach resources directory to all containers
-	args = append(args, "-v", resourcesDir()+":"+"/usr/local/serviced/resources")
+	args = append(args, "-v", utils.ResourcesDir()+":"+"/usr/local/serviced/resources")
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {

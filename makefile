@@ -50,6 +50,7 @@ test: build_binary docker_ok
 	cd dao && make test
 	cd web && go test
 	cd serviced && go test
+	cd utils && go test
 
 docker_ok:
 	if docker ps >/dev/null; then \

@@ -9,10 +9,10 @@
 package isvcs
 
 import (
+	"fmt"
 	"github.com/mattbaird/elastigo/cluster"
 	"github.com/zenoss/glog"
-
-	"fmt"
+	"github.com/zenoss/serviced/utils"
 	"net/http"
 	"os"
 	"time"
@@ -46,7 +46,7 @@ func elasticsearchHealthCheck() error {
 	minUptime := time.Second * 2
 	timeout := time.Second * 30
 
-	schemaFile := localDir("resources/controlplane.json")
+	schemaFile := utils.LocalDir("resources/controlplane.json")
 
 	for {
 		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {

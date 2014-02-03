@@ -9,14 +9,10 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
-
 	"fmt"
-	"os"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 	"os/user"
-	"path"
-	"path/filepath"
-	"runtime"
 )
 
 var Mgr *Manager
@@ -53,29 +49,6 @@ func Init() {
 	}
 }
 
-// **********************************************************************
-// ***** The following three functions are also defined in agent.go *****
-// ***** FIXME **********************************************************
-// returns serviced home
-func localDir(p string) string {
-	homeDir := os.Getenv("SERVICED_HOME")
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Dir(filename)
-	}
-	return path.Join(homeDir, p)
-}
-
 func imagesDir() string {
-	return localDir("images")
+	return utils.LocalDir("images")
 }
-
-func resourcesDir() string {
-	path, err := filepath.EvalSymlinks(localDir("resources"))
-	if err != nil {
-		glog.Fatalf("Could not evaluate %s, not following symlinks: %s", localDir("resources"), err)
-	}
-	return path
-}
-
-// **********************************************************************

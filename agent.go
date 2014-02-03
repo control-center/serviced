@@ -1,24 +1,23 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
-// license that can be found in the LICENSE file.
-
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
 package serviced
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/serviced/circular"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/zzk"
-
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/circular"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/utils"
+	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/zzk"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,7 +25,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,7 +47,7 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
-	varPath         string   // directory to store serviced  data
+	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -337,11 +335,11 @@ func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err erro
 
 /*
 writeConfFile is responsible for writing contents out to a file
-Input string prefix  : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string prefix	 : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
 Input string content : the content that you wish to write to a file
-Output *os.File  f   : file handler to the file that you've just opened and written the content to
+Output *os.File	 f	 : file handler to the file that you've just opened and written the content to
 Example name of file that is written: /tmp/cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_592084261
 */
 func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
@@ -361,11 +359,11 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 
 /*
 chownConfFile is responsible for changing the owner of a file
-Input *os.File f     : file handler to a file that has already been opened
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input *os.File f	 : file handler to a file that has already been opened
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
-Input string owner   : update the file's owner to this provided string
-Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
+Input string owner	 : update the file's owner to this provided string
+Output bool			 : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
 */
 func chownConfFile(f *os.File, id string, filename string, owner string) bool {
 	if len(owner) != 0 {
@@ -479,10 +477,10 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	logstashForwarderMount := ""
 	if len(service.LogConfigs) > 0 {
 		logstashForwarderLogConf := `
-        {
-        	"paths": [ "%s" ],
-        	"fields": { "type": "%s" }
-        }`
+		{
+			"paths": [ "%s" ],
+			"fields": { "type": "%s" }
+		}`
 		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
 		for _, logConfig := range service.LogConfigs[1:] {
 			logstashForwarderLogConf = logstashForwarderLogConf + `,
@@ -506,15 +504,15 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		logstashForwarderShipperConf := `
 			{
 				"network": {
-			    	"servers": [ "%s" ],
+					"servers": [ "%s" ],
 					"ssl certificate": "%s",
 					"ssl key": "%s",
 					"ssl ca": "%s",
-			    	"timeout": 15
-			   	},
-			   	"files": [
+					"timeout": 15
+				},
+				"files": [
 					%s
-			   	]
+				]
 			}`
 		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
 
@@ -525,7 +523,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			return false, err
 		}
 
-		logstashPath := resourcesDir() + "/logstash"
+		logstashPath := utils.ResourcesDir() + "/logstash"
 		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
 		hostLogstashForwarderConfPath := f.Name()
 		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
@@ -563,7 +561,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
+	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
@@ -892,26 +890,3 @@ func registerIPs(hostId string, sendFn SendHostIPs) error {
 	}
 	return nil
 }
-
-// *********************************************************************
-// ***** FIXME *********************************************************
-// ***** The following three functions are also defined in isvc.go *****
-// returns serviced home
-func serviceDHome() string {
-	return os.Getenv("SERVICED_HOME")
-}
-
-func localDir(p string) string {
-	homeDir := ServiceDHome()
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Join(path.Dir(filename), "isvcs")
-	}
-	return path.Join(homeDir, p)
-}
-
-func resourcesDir() string {
-	return localDir("resources")
-}
-
-// *********************************************************************

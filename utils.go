@@ -286,11 +286,6 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 	return err
 }
 
-// returns serviced home
-func ServiceDHome() string {
-	return os.Getenv("SERVICED_HOME")
-}
-
 // This code is straight out of net/http/httputil
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
@@ -344,8 +339,8 @@ chmod %s /tmp && \
 shopt -s nullglob && \
 shopt -s dotglob && \
 files=(/tmp/*) && \
-if [ ${#files[@]} -eq 0 ]; then 
-    cp -rp %s/* /tmp/
+if [ ${#files[@]} -eq 0 ]; then
+	cp -rp %s/* /tmp/
 fi
 `, userSpec, permissionSpec, containerSpec))
 	output, err := docker.CombinedOutput()

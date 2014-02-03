@@ -1,3 +1,11 @@
+/*******************************************************************************
+* Copyright (C) Zenoss, Inc. 2014, all rights reserved.
+*
+* This content is made available according to terms specified in
+* License.zenoss under the directory where your Zenoss product is installed.
+*
+*******************************************************************************/
+
 package tests
 
 import (
@@ -5,7 +13,6 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
-
 	"testing"
 	"time"
 )
@@ -29,7 +36,15 @@ var startup_testcases = []struct {
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs:      []dao.LogConfig{},
+		LogConfigs: []dao.LogConfig{
+			dao.LogConfig{
+				Path: "{{.Description}}",
+				Type: "test",
+				Tags: map[string]string{
+					"pepe": "{{.Name}}",
+				},
+			},
+		},
 	}, ""},
 	{dao.Service{
 		Id:              "1",
@@ -158,6 +173,24 @@ func init() {
 				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
 			}
 		}
+	}
+}
+
+//TestEvaluateLogConfigTemplate makes sure that the log config templates can be
+// parsed and evaluated correctly.
+func TestEvaluateLogConfigTemplate(t *testing.T) {
+	testcase := startup_testcases[0]
+	testcase.service.EvaluateLogConfigTemplate(cp)
+	// check the tag
+	result := testcase.service.LogConfigs[0].Tags["pepe"]
+	if result != testcase.service.Name {
+		t.Errorf("Was expecting the log tag pepe to be the service name instead it was %s", result)
+	}
+
+	// check the path
+	result = testcase.service.LogConfigs[0].Path
+	if result != testcase.service.Description {
+		t.Errorf("Was expecting the log path to be the service description instead it was %s", result)
 	}
 }
 
