@@ -14,6 +14,7 @@ type Terminal struct {
 	file, name          string
 	cols, rows          int
 	readable, writeable bool
+	wait                chan error
 
 	stdoutChan chan string
 	stderrChan chan string
@@ -99,6 +100,7 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 		rows:       *rows,
 		readable:   true,
 		writeable:  true,
+		wait:       make(chan error),
 		stdoutChan: make(chan string),
 		stderrChan: make(chan string),
 		done:       make(chan bool),
@@ -106,6 +108,13 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 	if err := term.fork(file, args, envv, cwd, *cols, *rows, *uid, *gid); err != nil {
 		return nil, err
 	}
+
+	go func() {
+		defer close(term.wait)
+		_, err := syscall.Wait4(term.pid, nil, 0, nil)
+		term.wait <- err
+	}()
+
 	return &term, nil
 }
 
@@ -127,6 +136,7 @@ func (t *Terminal) Reader(size int) {
 				t.stdoutChan <- string(data[:n])
 			}
 		case syscall.EIO:
+			t.err = t.Wait()
 			t.done <- true
 			break
 		default:
@@ -135,6 +145,10 @@ func (t *Terminal) Reader(size int) {
 			break
 		}
 	}
+}
+
+func (t *Terminal) Wait() error {
+	return <-t.wait
 }
 
 func (t *Terminal) Write(data []byte) (int, error) {

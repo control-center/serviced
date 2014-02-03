@@ -73,7 +73,7 @@ func (c *Command) Reader(size int) {
 		select {
 		case m := <-stdoutMsg:
 			stdoutBuf.WriteByte(m)
-			if m == '\n' || size < stdoutBuf.Len() {
+			if m == '\n' || size <= stdoutBuf.Len() {
 				c.stdoutChan <- stdoutBuf.String()
 				stdoutBuf.Reset()
 			}
@@ -98,7 +98,7 @@ func (c *Command) Reader(size int) {
 			}
 		case m := <-stderrMsg:
 			stderrBuf.WriteByte(m)
-			if m == '\n' || size < stderrBuf.Len() {
+			if m == '\n' || size <= stderrBuf.Len() {
 				c.stderrChan <- stderrBuf.String()
 				stderrBuf.Reset()
 			}
