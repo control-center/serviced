@@ -6,8 +6,9 @@ package rsync
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/volume"
 
-	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,41 +16,39 @@ import (
 	"strings"
 )
 
-type RsyncVolume struct {
-	baseDir string
-	name    string
+const (
+	DriverName = "rsync"
+)
+
+type RsyncDriver struct {
 }
 
-func (v *RsyncVolume) New(baseDir, name string) (Volume, error) {
+type RsyncConn struct {
+	name string
+	root string
+}
 
-	volume := &RsyncVolume{
-		baseDir: baseDir,
-		name:    name,
-	}
-	if err := os.MkdirAll(volume.Dir(), 0775); err != nil {
+func New() (*RsyncDriver, error) {
+	return &RsyncDriver{}, nil
+}
+
+func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+	conn := &RsyncConn{name: volumeName, root: rootDir}
+	if err := os.MkdirAll(conn.path(), 0775); err != nil {
 		return nil, err
 	}
-	return volume, nil
+	return conn, nil
 }
 
-func (v *RsyncVolume) Dir() string {
-	return path.Join(v.baseDir, v.name)
-}
-
-func (v *RsyncVolume) Name() (name string) {
-	return v.name
-}
-
-func (v *RsyncVolume) Snapshot(label string) (err error) {
-
-	dest := path.Join(v.baseDir, label)
-	if exists, err := isDir(dest); exists || err != nil {
+func (c *RsyncConn) Snapshot(label string) (err error) {
+	dest := path.Join(c.root, label)
+	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
-			return errors.New("snapshot already exists")
+			return fmt.Errorf("snapshot %s already exists", label)
 		}
 		return err
 	}
-	rsync := exec.Command("rsync", "-a", v.Dir()+"/", dest+"/")
+	rsync := exec.Command("rsync", "-a", c.path()+"/", dest+"/")
 	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
@@ -58,10 +57,9 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	return nil
 }
 
-func (v *RsyncVolume) Snapshots() (labels []string, err error) {
-
+func (c *RsyncConn) Snapshots() (labels []string, err error) {
 	var infos []os.FileInfo
-	infos, err = ioutil.ReadDir(v.Dir())
+	infos, err = ioutil.ReadDir(c.path())
 	if err != nil {
 		return nil, err
 	}
@@ -70,40 +68,40 @@ func (v *RsyncVolume) Snapshots() (labels []string, err error) {
 		if !info.IsDir() {
 			continue
 		}
-		if strings.HasPrefix(info.Name(), v.name+"_") {
+		if strings.HasPrefix(info.Name(), c.name+"_") {
 			labels = append(labels, info.Name())
 		}
 	}
 	return labels, nil
 }
 
-func (v *RsyncVolume) RemoveSnapshot(label string) error {
+func (c *RsyncConn) RemoveSnapshot(label string) error {
 	parts := strings.Split(label, "_")
 	if len(parts) != 2 {
-		return errors.New("malformed label")
+		return fmt.Errorf("malformed label: %s", label)
 	}
-	if parts[0] != v.name {
-		return errors.New("label refers to some other volume")
+	if parts[0] != c.name {
+		return fmt.Errorf("label %s refers to some other volume", label)
 	}
-	sh := exec.Command("rm", "-Rf", path.Join(v.BaseDir(), label))
+	sh := exec.Command("rm", "-Rf", path.Join(c.root, label))
 	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {
 		glog.Errorf("could not remove snapshot: %s", string(output))
-		return errors.New("could not remove snapshot")
+		return fmt.Errorf("could not remove snapshot: %s", label)
 	}
 	return nil
 }
 
-func (v *RsyncVolume) Rollback(label string) (err error) {
-	src := path.Join(v.baseDir, label)
-	if exists, err := isDir(src); !exists || err != nil {
+func (c *RsyncConn) Rollback(label string) (err error) {
+	src := path.Join(c.root, label)
+	if exists, err := volume.IsDir(src); !exists || err != nil {
 		if !exists {
-			return errors.New("snapshot does not exists")
+			return fmt.Errorf("snapshot %s does not exist", label)
 		}
 		return err
 	}
-	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", v.Dir()+"/")
+	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", c.path()+"/")
 	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
@@ -112,6 +110,6 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 	return nil
 }
 
-func (v *RsyncVolume) BaseDir() string {
-	return v.baseDir
+func (c *RsyncConn) path() string {
+	return path.Join(c.root, c.name)
 }

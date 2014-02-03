@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/volume"
 
 	"fmt"
-	"io"
 	"os/exec"
 	"os/user"
 	"path"
@@ -21,114 +20,63 @@ const (
 )
 
 type BtrfsDriver struct {
-	volumes map[string]VolumeInfo
-	sudoer  bool
+	sudoer bool
 }
 
-type VolumeInfo struct {
-	root string
-}
-
-var useSudo bool // use sudo to execute btrfs commands
-var BtrfsCmd func(args ...string) MockableCmd
-
-type MockableCmd interface {
-	Run() error
-	Start() error
-	Output() ([]byte, error)
-	CombinedOutput() ([]byte, error)
-	StderrPipe() (io.ReadCloser, error)
-	StdinPipe() (io.WriteCloser, error)
-	StdoutPipe() (io.ReadCloser, error)
-	Wait() error
-}
-
-func init() {
-	// verify that btrfs is in the path
-	if user, err := user.Current(); err == nil {
-		if user.Uid != "0" {
-			if err := exec.Command("sudo", "-n", "btrfs", "help").Run(); err == nil {
-				useSudo = true
-			}
-		}
-	}
-	BtrfsCmd = execBtrfsCmd
-}
-
-func execBtrfsCmd(args ...string) (cmd MockableCmd) {
-	var myargs []string
-	if useSudo {
-		myargs = append([]string{"sudo", "-n", "btrfs"}, args...)
-	} else {
-		myargs = append([]string{"btrfs"}, args...)
-	}
-	glog.Infof("About to execute: %v", myargs)
-	return exec.Command(myargs[0], myargs[1:]...)
+type BtrfsConn struct {
+	sudoer bool
+	name   string
+	root   string
 }
 
 func New() (*BtrfsDriver, error) {
-	if user, err := user.Current(); err != nil {
+	user, err := user.Current()
+	if err != nil {
 		return nil, err
 	}
 
+	result := &BtrfsDriver{}
 	if user.Uid != "0" {
 		err := exec.Command("sudo", "-n", "btrfs", "help").Run()
-		useSudo = err == nil
+		result.sudoer = err == nil
 	}
-
-	result := &BtrfsDriver{}
-	result.volumes = make(map[string]volume.Volume)
-	result.sudoer = useSudo
 
 	return result, nil
 }
 
-func (d *BtrfsDriver) MkVolume(volumeName, rootDir string) (*Volume, error) {
-	if dirp, err := isDir(baseDir); err != nil || dirp == false {
+func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+	if dirp, err := volume.IsDir(rootDir); err != nil || dirp == false {
 		return nil, err
 	}
 
-	volumeDir := path.Join(rootDir, name)
-	if cmd := BtrfsCmd("subvolume", "list", "-apuc", volumeDir); cmd.Run() != nil {
-		if err := BtrfsCmd("subvolume", "create", volumeDir).Run(); err != nil {
-			glog.Errorf("Could not create volume at: %s", volumeDir)
-			return nil, fmt.Errorf("could not create subvolume: %s (%v)", name, err)
+	vdir := path.Join(rootDir, volumeName)
+	if _, err := runcmd(d.sudoer, "subvolume", "list", "-apuc", vdir); err != nil {
+		if _, err = runcmd(d.sudoer, "subvolume", "create", vdir); err != nil {
+			glog.Errorf("Could not create volume at: %s", vdir)
+			return nil, fmt.Errorf("could not create subvolume: %s (%v)", volumeName, err)
 		}
 	}
 
-	v := &Volume{driver: d, name: volumeName}
-	d.volumes[volumeName] = VolumeInfo{root: rootDir}
-
-	return v, nil
-}
-
-func (d *BtrfsDriver) New(baseDir, name string) (Volume, error) {
-	return NewBtrfsVolume(baseDir, name)
-}
-
-func (d *BtrfsDriver) Name() (name string) {
-	return d.name
-}
-
-func (d *BtrfsDriver) Dir() string {
-	return path.Join(d.root, d.name)
+	c := &BtrfsConn{sudoer: d.sudoer, name: volumeName, root: rootDir}
+	return c, nil
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
-func (d *BtrfsDriver) Snapshot(label string) (err error) {
-	return BtrfsCmd("subvolume", "snapshot", "-r", v.Dir(), path.Join(d.root, label)).Run()
+func (c *BtrfsConn) Snapshot(label string) error {
+	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.root, path.Join(c.root, label))
+	return err
 }
 
 // Snapshots() returns the current snapshots on the volume
-func (d *BtrfsDriver) Snapshots() (labels []string, err error) {
-	labels = make([]string, 0)
-	glog.Info("about to execute subvolume list command")
-	if output, err := BtrfsCmd("subvolume", "list", "-apucr", d.root).CombinedOutput(); err != nil {
+func (c *BtrfsConn) Snapshots() ([]string, error) {
+	labels := make([]string, 0)
+	glog.V(4).Info("about to execute subvolume list command")
+	if output, err := runcmd(c.sudoer, "subvolume", "list", "-apucr", c.root); err != nil {
 		glog.Errorf("got an error with subvolume list: %s", string(output))
 		return labels, err
 	} else {
-		glog.Info("btrfs subvolume list:, baseDir: %s", d.root)
-		prefixedName := v.name + "_"
+		glog.Info("btrfs subvolume list:, root: %s", c.root)
+		prefixedName := c.name + "_"
 		for _, line := range strings.Split(string(output), "\n") {
 			glog.Infof("btrfs subvolume list: %s", line)
 			fields := strings.Fields(line)
@@ -145,44 +93,50 @@ func (d *BtrfsDriver) Snapshots() (labels []string, err error) {
 			}
 		}
 	}
-	return labels, err
+	return labels, nil
 }
 
-func (d *BtrfsDriver) RemoveSnapshot(label string) error {
-	if exists, err := d.snapshotExists(label); err != nil || !exists {
+func (c *BtrfsConn) RemoveSnapshot(label string) error {
+	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
-			return errors.New("snapshot does not exist")
+			return fmt.Errorf("snapshot %s does not exist", label)
 		}
 	}
-	return BtrfsCmd("subvolume", "delete", path.Join(d.root, label)).Run()
+	_, err := runcmd(c.sudoer, "subvolume", "delete", path.Join(c.root, label))
+	return err
 }
 
 // Rollback() rolls back the volume to the given snapshot
-func (d *BtrfsDriver) Rollback(label string) (err error) {
-	if exists, err := d.snapshotExists(label); err != nil || !exists {
+func (c *BtrfsConn) Rollback(label string) error {
+	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
-			return errors.New("snapshot does not exist")
+			return fmt.Errorf("snapshot %s does not exist", label)
 		}
 	}
-	if dir, err := isDir(d.Dir()); err != nil {
+
+	vd := path.Join(c.root, c.name)
+	dirp, err := volume.IsDir(vd)
+	if err != nil {
 		return err
-	} else {
-		if dir {
-			if err := BtrfsCmd("subvolume", "delete", d.Dir()).Run(); err != nil {
-				return err
-			}
+	}
+
+	if dirp {
+		if _, err := runcmd(c.sudoer, "subvolume", "delete", vd); err != nil {
+			return err
 		}
 	}
-	return BtrfsCmd("subvolume", "snapshot", path.Join(d.root, label), d.Dir()).Run()
+
+	_, err = runcmd(c.sudoer, "subvolume", "snapshot", path.Join(c.root, label), vd)
+	return err
 }
 
 // snapshotExists() rolls back the volume to the given snapshot
-func (d *BtrfsDriver) snapshotExists(label string) (exists bool, err error) {
-	if snapshots, err := d.Snapshots(); err != nil {
+func (c *BtrfsConn) snapshotExists(label string) (exists bool, err error) {
+	if snapshots, err := c.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
 	} else {
 		for _, snapLabel := range snapshots {
@@ -194,6 +148,11 @@ func (d *BtrfsDriver) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
-func (d *BtrfsDriver) RootDir() string {
-	return d.root
+func runcmd(sudoer bool, args ...string) ([]byte, error) {
+	cmd := append([]string{"btrfs"}, args...)
+	if sudoer {
+		cmd = append([]string{"sudo", "-n"}, cmd...)
+	}
+	glog.V(4).Infof("Executing: %v", cmd)
+	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 }

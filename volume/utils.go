@@ -9,9 +9,9 @@ import (
 	"os"
 )
 
-// isDir() checks if the given dir is a directory. If any error is encoutered
+// IsDir() checks if the given dir is a directory. If any error is encoutered
 // it is returned and directory is set to false.
-func isDir(dirName string) (dir bool, err error) {
+func IsDir(dirName string) (dir bool, err error) {
 	if lstat, err := os.Lstat(dirName); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil

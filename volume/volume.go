@@ -13,19 +13,18 @@ var (
 )
 
 type Driver interface {
-	MkVolume(volumeName, root string) (*Volume, error)
-	Name(volumeName string) string
-	Dir(volumeName string) string
-	Snapshot(volumeName, label string) (err error)
-	Snapshots(volumeName string) (labels []string, err error)
-	RemoveSnapshot(volumeName, label string) error
-	Rollback(volumeName, label string) (err error)
-	RootDir(volumeName string) string
+	Mount(volumeName, root string) (Conn, error)
+}
+
+type Conn interface {
+	Snapshot(label string) (err error)
+	Snapshots() (labels []string, err error)
+	RemoveSnapshot(label string) error
+	Rollback(label string) (err error)
 }
 
 type Volume struct {
-	driver Driver
-	name   string
+	Conn
 }
 
 func Register(name string, driver Driver) {
@@ -51,38 +50,10 @@ func Mount(driverName, volumeName, rootDir string) (*Volume, error) {
 		return nil, fmt.Errorf("No such driver: %s", driverName)
 	}
 
-	vol, err := driver.MkVolume(volumeName, rootDir)
+	conn, err := driver.Mount(volumeName, rootDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return vol, nil
-}
-
-func (v *Volume) Name() string {
-	return v.driver.Name(v.name)
-}
-
-func (v *Volume) Dir() string {
-	return v.driver.Dir(v.name)
-}
-
-func (v *Volume) Snapshot(label string) error {
-	return v.driver.Snapshot(v.name, label)
-}
-
-func (v *Volume) Snapshots() ([]string, error) {
-	return v.driver.Snapshots(v.name)
-}
-
-func (v *Volume) RemoveSnapshot(label string) error {
-	return v.driver.RemoveSnapshot(v.name, label)
-}
-
-func (v *Volume) Rollback(label string) error {
-	return v.driver.Rollback(v.name, label)
-}
-
-func (v *Volume) RootDir() string {
-	return v.driver.RootDir(v.name)
+	return &Volume{conn}, nil
 }
