@@ -136,7 +136,6 @@ func (wss *WebsocketShell) Writer() {
 func (wss *WebsocketShell) respond() {
 
 	defer func() {
-		wss.process.Close()
 		wss.process = nil
 	}()
 

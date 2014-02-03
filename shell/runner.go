@@ -13,5 +13,4 @@ type Runner interface {
 	Error() error
 	Signal(signal syscall.Signal) error
 	Kill() error
-	Close()
 }

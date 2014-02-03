@@ -64,10 +64,9 @@ func (c *Command) Reader(size int) {
 	stderrMsg, stderrErr = pipe(c.stderr, size)
 
 	defer func() {
-		close(stdoutMsg)
-		close(stdoutErr)
-		close(stderrMsg)
-		close(stderrErr)
+		c.stdin.Close()
+		close(c.stdoutChan)
+		close(c.stderrChan)
 	}()
 
 	for {
@@ -164,17 +163,16 @@ func (c *Command) Kill() error {
 	return c.cmd.Process.Kill()
 }
 
-func (c *Command) Close() {
-	c.stdin.Close()
-	close(c.stdoutChan)
-	close(c.stderrChan)
-}
-
 func pipe(reader io.Reader, size int) (chan byte, chan error) {
 	bchan := make(chan byte, size)
 	echan := make(chan error)
 
 	go func() {
+		defer func() {
+			close(bchan)
+			close(echan)
+		}()
+
 		for {
 			buffer := make([]byte, 1)
 			n, err := reader.Read(buffer)

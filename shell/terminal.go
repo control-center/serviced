@@ -110,6 +110,14 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 }
 
 func (t *Terminal) Reader(size int) {
+	defer func() {
+		t.readable = false
+		t.writeable = false
+		close(t.stdoutChan)
+		close(t.stderrChan)
+		syscall.Close(t.fd)
+	}()
+
 	for {
 		data := make([]byte, size)
 		n, e := syscall.Read(t.fd, data)
@@ -169,14 +177,6 @@ func (t *Terminal) Signal(signal syscall.Signal) error {
 
 func (t *Terminal) Kill() error {
 	return syscall.Kill(t.pid, syscall.SIGHUP)
-}
-
-func (t *Terminal) Close() {
-	t.readable = false
-	t.writeable = false
-	close(t.stdoutChan)
-	close(t.stderrChan)
-	syscall.Close(t.fd)
 }
 
 func (t *Terminal) GetProcess() string {

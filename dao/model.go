@@ -264,9 +264,6 @@ func NewProcess(command string, envv []string, istty bool) *Process {
 		Envv:    envv,
 		Command: command,
 		Stdin:   make(chan string),
-		Stdout:  make(chan string),
-		Stderr:  make(chan string),
-		Exited:  make(chan bool),
 		Signal:  make(chan syscall.Signal),
 	}
 }
@@ -418,41 +415,37 @@ func (s *Service) Exec(p *Process) error {
 		return err
 	}
 
+	// @see http://dave.cheney.net/tag/golang-3
+	p.Stdout = runner.StdoutPipe()
+	p.Stderr = runner.StderrPipe()
+	p.Exited = runner.ExitedPipe()
+
 	go p.send(runner)
 	return nil
 }
 
 func (p *Process) send(r shell.Runner) {
-	stdout := r.StdoutPipe()
-	stderr := r.StderrPipe()
 	exited := r.ExitedPipe()
-
 	go r.Reader(8192)
-	defer r.Close()
+
+	defer func() {
+		close(p.Stdin)
+		close(p.Exited)
+		close(p.Signal)
+	}()
+
 	for {
 		select {
 		case i := <-p.Stdin:
 			r.Write([]byte(i))
 		case s := <-p.Signal:
 			r.Signal(s)
-		case m := <-stdout:
-			p.Stdout <- m
-		case m := <-stderr:
-			p.Stderr <- m
 		case m := <-exited:
 			p.Error = r.Error()
 			p.Exited <- m
 			return
 		}
 	}
-}
-
-func (p *Process) Close() {
-	close(p.Stdin)
-	close(p.Stdout)
-	close(p.Stderr)
-	close(p.Exited)
-	close(p.Signal)
 }
 
 // Retrieve service container port, 0 failure
