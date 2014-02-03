@@ -96,7 +96,7 @@ mkdir $GOPATH/src/github.com/zenoss -p
 mkdir $GOPATH/src/github.com/mattbaird -p
 cd $GOPATH/src/github.com/mattbaird
 git clone git@github.com:zenoss/elastigo.git
-cd elasticgo
+cd elastigo
 go build install
 cd $GOPATH/src/github.com/zenoss
 git clone git@github.com:zenoss/serviced.git
