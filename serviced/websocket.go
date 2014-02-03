@@ -91,7 +91,7 @@ func (wss *WebsocketShell) Reader() {
 
 		if wss.process == nil {
 			var service dao.Service
-			if err := wss.cp.getService(req.ServiceId, &service); err != nil {
+			if err := wss.cp.GetService(req.ServiceId, &service); err != nil {
 				result := fmt.Sprintf("cannot access service %s: %v", req.ServiceId, err)
 				wss.send <- response{Result: result}
 			}
