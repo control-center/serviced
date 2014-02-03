@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -125,27 +126,27 @@ type ApplicationEndpoint struct {
 
 // A Service that can run in serviced.
 type Service struct {
-	Id               string
-	Name             string
-	Context          string
-	Startup          string
-	Description      string
-	Tags             []string
-	ConfigFiles      map[string]ConfigFile
-	Instances        int
-	ImageId          string
-	PoolId           string
-	DesiredState     int
-	Launch           string
-	Endpoints        []ServiceEndpoint
-	Tasks            []Task
-	ParentServiceId  string
-	Volumes          []Volume
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	DeploymentId     string
-	DisableImage     bool
-	LogConfigs       []LogConfig
+	Id              string
+	Name            string
+	Context         string
+	Startup         string
+	Description     string
+	Tags            []string
+	ConfigFiles     map[string]ConfigFile
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	Launch          string
+	Endpoints       []ServiceEndpoint
+	Tasks           []Task
+	ParentServiceId string
+	Volumes         []Volume
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeploymentId    string
+	DisableImage    bool
+	LogConfigs      []LogConfig
 }
 
 // An endpoint that a Service exposes.
@@ -155,8 +156,8 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
-	AddressConfig       AddressResourceConfig   `TODO get json for nil`
-	VHost               []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+	AddressConfig       AddressResourceConfig `TODO get json for nil`
+	VHost               []string              // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 }
 
@@ -208,21 +209,21 @@ type ConfigFile struct {
 }
 
 type ServiceDefinition struct {
-	Name             string                 // Name of the defined service
-	Command          string                 // Command which runs the service
-	Description      string                 // Description of the service
-	Tags             []string               // Searchable service tags
-	ImageId          string                 // Docker image hosting the service
-	Instances        MinMax                 // Constraints on the number of instances
-	Launch           string                 // Must be "AUTO", the default, or "MANUAL"
-	ConfigFiles      map[string]ConfigFile  // Config file templates
-	Context          map[string]interface{} // Context information for the service
-	Endpoints        []ServiceEndpoint      // Comms endpoints used by the service
-	Services         []ServiceDefinition    // Supporting subservices
-	Tasks            []Task                 // Scheduled tasks for celery to find
-	LogFilters       map[string]string      // map of log filter name to log filter definitions
-	Volumes          []Volume               // list of volumes to bind into containers
-	LogConfigs       []LogConfig
+	Name        string                 // Name of the defined service
+	Command     string                 // Command which runs the service
+	Description string                 // Description of the service
+	Tags        []string               // Searchable service tags
+	ImageId     string                 // Docker image hosting the service
+	Instances   MinMax                 // Constraints on the number of instances
+	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles map[string]ConfigFile  // Config file templates
+	Context     map[string]interface{} // Context information for the service
+	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
+	Services    []ServiceDefinition    // Supporting subservices
+	Tasks       []Task                 // Scheduled tasks for celery to find
+	LogFilters  map[string]string      // map of log filter name to log filter definitions
+	Volumes     []Volume               // list of volumes to bind into containers
+	LogConfigs  []LogConfig
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
@@ -417,11 +418,11 @@ func (s *Service) Exec(p *Process) error {
 		return err
 	}
 
-	go p.Send(runner)
+	go p.send(runner)
 	return nil
 }
 
-func (p *Process) Send(r shell.Runner) {
+func (p *Process) send(r shell.Runner) {
 	stdout := r.StdoutPipe()
 	stderr := r.StderrPipe()
 	exited := r.ExitedPipe()

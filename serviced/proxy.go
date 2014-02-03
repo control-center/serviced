@@ -6,7 +6,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/shell"
 
 	"fmt"
 	"net"
@@ -20,13 +19,13 @@ import (
 
 type hub struct {
 	// Registered connections.
-	connections map[*shell.WebsocketShell]bool
+	connections map[*WebsocketShell]bool
 
 	// Register requests from the connections
-	register chan *shell.WebsocketShell
+	register chan *WebsocketShell
 
 	// Unregister requests from the connections
-	unregister chan *shell.WebsocketShell
+	unregister chan *WebsocketShell
 }
 
 func (h *hub) run() {
@@ -42,12 +41,19 @@ func (h *hub) run() {
 }
 
 var h = hub{
-	register:    make(chan *shell.WebsocketShell),
-	unregister:  make(chan *shell.WebsocketShell),
-	connections: make(map[*shell.WebsocketShell]bool),
+	register:    make(chan *WebsocketShell),
+	unregister:  make(chan *WebsocketShell),
+	connections: make(map[*WebsocketShell]bool),
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+	client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+		return
+	}
+	defer client.Close()
+
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
@@ -55,7 +61,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
-	c := shell.Connect(ws)
+	c := Connect(client, ws)
 	h.register <- c
 	defer func() { h.unregister <- c }()
 	go c.Writer()

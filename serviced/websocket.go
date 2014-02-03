@@ -1,13 +1,15 @@
-package shell
+package main
 
 import (
+	"github.com/gorilla/websocket"
+
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 
 	"fmt"
 	"io"
 	"log"
 	"syscall"
-	"time"
 )
 
 const (
@@ -17,9 +19,11 @@ const (
 )
 
 type request struct {
-	Action string
-	Cmd    string
-	Signal int
+	Action    string
+	ServiceId string
+	Env       []string
+	Cmd       string
+	Signal    int
 }
 
 type response struct {
@@ -30,18 +34,22 @@ type response struct {
 }
 
 type WebsocketShell struct {
+	// The control plane client
+	cp *serviced.LBClient
+
 	// The websocket connection
 	ws *websocket.Conn
 
 	// The shell connection
-	process dao.Process
+	process *dao.Process
 
 	// Buffered channel of outbound messages
 	send chan response
 }
 
-func Connect(ws *websocket.Conn) *WebsocketShell {
+func Connect(cp *serviced.LBClient, ws *websocket.Conn) *WebsocketShell {
 	return &WebsocketShell{
+		cp:   cp,
 		ws:   ws,
 		send: make(chan response),
 	}
@@ -52,8 +60,6 @@ func (wss *WebsocketShell) Close() {
 }
 
 func (wss *WebsocketShell) Reader() {
-	controlPlane := getClient() //TODO: Make this work
-
 	defer func() {
 		if wss.process != nil {
 			wss.process.Signal <- syscall.SIGKILL
@@ -75,17 +81,17 @@ func (wss *WebsocketShell) Reader() {
 
 		var (
 			serviceId, cmd string
-			env            map[string]string
+			env            []string
 			signal         int
 		)
 		serviceId = req.ServiceId
 		cmd = req.Cmd
-		env = req.TermEnv
+		env = req.Env
 		signal = req.Signal
 
-		if wss.proc == nil {
+		if wss.process == nil {
 			var service dao.Service
-			if err := controlPlane.getService(req.ServiceId, &service); err != nil {
+			if err := wss.cp.getService(req.ServiceId, &service); err != nil {
 				result := fmt.Sprintf("cannot access service %s: %v", req.ServiceId, err)
 				wss.send <- response{Result: result}
 			}
@@ -93,7 +99,7 @@ func (wss *WebsocketShell) Reader() {
 			switch req.Action {
 			case FORK, EXEC:
 				process := dao.NewProcess(req.Cmd, env, true)
-				if err := service.Exec(&process); err != nil {
+				if err := service.Exec(process); err != nil {
 					result := fmt.Sprintf("unable to start container: %v", err)
 					wss.send <- response{Result: result}
 				} else {
@@ -128,7 +134,6 @@ func (wss *WebsocketShell) Writer() {
 }
 
 func (wss *WebsocketShell) respond() {
-	go wss.proc.Reader(8192)
 
 	defer func() {
 		wss.process.Close()
@@ -142,8 +147,8 @@ func (wss *WebsocketShell) respond() {
 		case m := <-wss.process.Stderr:
 			wss.send <- response{Stderr: m}
 		case <-wss.process.Exited:
-			if wss.proc.Error != nil {
-				wss.send <- response{Result: fmt.Sprint(err)}
+			if wss.process.Error != nil {
+				wss.send <- response{Result: fmt.Sprint(wss.process.Error)}
 			} else {
 				wss.send <- response{Result: "0"}
 			}
