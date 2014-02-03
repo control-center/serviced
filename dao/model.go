@@ -38,9 +38,7 @@ type PoolHost struct {
 	HostIp string
 }
 
-/*
- HostIPs contains information about IPs on a host.
-*/
+// HostIPs contains information about IPs on a host.
 type HostIPs struct {
 	Id     string
 	HostId string
@@ -48,19 +46,14 @@ type HostIPs struct {
 	IPs    []HostIPResource
 }
 
-/*
-AssignedPort is used to track Ports that have been asigned to a Service. Only exists in the context of a
-HostIPResource
-*/
+//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AssignedPort struct {
 	Port      int
 	ServiceId string
 }
 
-/*
-HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been
-assigned to Services
-*/
+//HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
+//to Services
 type HostIPResource struct {
 	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
@@ -153,7 +146,6 @@ type Service struct {
 	DeploymentId     string
 	DisableImage     bool
 	LogConfigs       []LogConfig
-	AddressResources []AddressResourceConfig
 }
 
 // An endpoint that a Service exposes.
@@ -163,6 +155,9 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
+	AddressConfig       AddressResourceConfig   `TODO get json for nil`
+	VHost               []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 }
 
 // A scheduled task
@@ -228,17 +223,16 @@ type ServiceDefinition struct {
 	LogFilters       map[string]string      // map of log filter name to log filter definitions
 	Volumes          []Volume               // list of volumes to bind into containers
 	LogConfigs       []LogConfig
-	AddressResources []AddressResourceConfig // Configuration for external facing IP
 }
 
-// AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based
-// on the Port field
+// AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
 type AddressResourceConfigByPort []AddressResourceConfig
 
 func (a AddressResourceConfigByPort) Len() int           { return len(a) }
 func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
 
+//TCP UDP: Constants for AddressResourceConfig port protocols
 const (
 	TCP = "tcp"
 	UDP = "udp"

@@ -12,7 +12,7 @@
 #
 
 NAME=serviced
-VERSION=0.1.0
+VERSION=0.3.70
 PKG_VERSION=`if [ -z "$(BUILD_NUMBER)" ]; then echo "$(VERSION)"; else echo $(VERSION)-$(BUILD_NUMBER); fi`
 MAINTAINER="Zenoss CM <cm@zenoss.com>"
 

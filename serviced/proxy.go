@@ -125,9 +125,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
 			containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
 			// *********************************************************************************************
-			cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+			cmdString := containerLogstashForwarderBinaryPath + " -old-files-hours=26280 -config " + containerLogstashForwarderConfPath
 			glog.V(0).Info("About to execute: ", cmdString)
 			myCmd := exec.Command("bash", "-c", cmdString)
+			myCmd.Stdout = os.Stdout
+			myCmd.Stderr = os.Stderr
 			myErr := myCmd.Run()
 			if myErr != nil {
 				glog.Errorf("Problem running logstash-forwarder service: %v", myErr)
