@@ -15,7 +15,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 	"io"
@@ -471,70 +470,18 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
 	}
 
-	// if this container is going to produce any logs, bind mount the following files:
-	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
-	// FIX ME: consider moving this functionality to its own function...
+	// if this container is going to produce any logs, create the config and get the bind mounts
 	logstashForwarderMount := ""
-	if len(service.LogConfigs) > 0 {
-		logstashForwarderLogConf := `
-		{
-			"paths": [ "%s" ],
-			"fields": { "type": "%s" }
-		}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
-		for _, logConfig := range service.LogConfigs[1:] {
-			logstashForwarderLogConf = logstashForwarderLogConf + `,
-				{
-					"paths": [ "%s" ],
-					"fields": { "type": "%s" }
-				}`
-			logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, logConfig.Type)
-		}
+	if len(service.LogConfigs) != 0 {
 
-		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
-		// *********************************************************************************************
-		// ***** FIX ME the following 3 variables are defined in serviced/proxy.go as well! ************
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-		// *********************************************************************************************
-		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
-		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
-
-		logstashForwarderShipperConf := `
-			{
-				"network": {
-					"servers": [ "%s" ],
-					"ssl certificate": "%s",
-					"ssl key": "%s",
-					"ssl ca": "%s",
-					"timeout": 15
-				},
-				"files": [
-					%s
-				]
-			}`
-		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
-
-		filename := service.Name + "_logstash_forwarder_conf"
-		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
+		// write out the log file config
+		configFileName, err := writeLogstashAgentConfig(service)
 		if err != nil {
 			return false, err
 		}
 
-		logstashPath := utils.ResourcesDir() + "/logstash"
-		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
-		hostLogstashForwarderConfPath := f.Name()
-		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
-		hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
-
-		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
-		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
-		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
-		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
-
-		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
+		// bind mount the conf file and everything we need for logstash-forwarder
+		logstashForwarderMount = getLogstashBindMounts(configFileName)
 	}
 
 	// add arguments to mount requested directory (if requested)
