@@ -265,6 +265,7 @@ func NewProcess(command string, envv []string, istty bool) *Process {
 		Command: command,
 		Stdin:   make(chan string),
 		Signal:  make(chan syscall.Signal),
+		Exited:  make(chan bool),
 	}
 }
 
@@ -418,7 +419,6 @@ func (s *Service) Exec(p *Process) error {
 	// @see http://dave.cheney.net/tag/golang-3
 	p.Stdout = runner.StdoutPipe()
 	p.Stderr = runner.StderrPipe()
-	p.Exited = runner.ExitedPipe()
 
 	go p.send(runner)
 	return nil
