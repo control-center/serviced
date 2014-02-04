@@ -61,7 +61,12 @@ func ExecHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ws.WriteMessage(websocket.TextMessage, []byte("hihihihi"))
+	for {
+		_, msg, _ := ws.ReadMessage()
+		if len(msg) > 0 {
+			fmt.Println(msg)
+		}
+	}
 }
 
 func StreamProcToWebsocket(proc *dao.Process, ws *websocket.Conn) {
@@ -145,19 +150,39 @@ func ProxyCommandOverWS(addr string, clientConn *websocket.Conn) (proc *dao.Proc
 	// side and hooking the streams together, more or less
 
 	// First, read the first packet from the Client which contains the process information
-		var req request
-		if err := clientConn.ReadJSON(&req); err == io.EOF {
+	var req request
+	if err := clientConn.ReadJSON(&req); err != nil {
+		return nil
+	}
+
+	var istty bool
+	switch req.Action {
+	case FORK:
+		istty = true
+	case EXEC:
+		istty = false
+	default:
+		return nil
+	}
+	process := dao.NewProcess(req.ServiceId, req.Cmd, req.Env, istty)
 
 	// Next, have Proxy connect to the Agent and tell it to start the Shell
+	addr = "ws://" + addr
+	agentConn, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		return nil
+	}
 
 	// The Proxy-Agent connection has at this point been upgraded to a
 	// websocket. Have that websocket dump output into our local Process
 	// instance.
+	go StreamWebsocketToProc(process, clientConn)
+	go StreamProcToWebsocket(process, agentConn)
 
 	// Now hook our local Process instance up to the client websocket so the
 	// client is receiving output from the agent, proxied by us
-
-	return nil, nil
+	agentConn.WriteJSON(process)
+	return process
 }
 
 func ProxyCommandOverHTTP(addr string, clientConn *net.Conn) {

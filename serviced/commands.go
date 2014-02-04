@@ -662,7 +662,7 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		}
 	}
 
-	p := dao.NewProcess(shellcmd, []string{}, istty)
+	p := dao.NewProcess(serviceId, shellcmd, nil, istty)
 	defer close(p.Stdin)
 
 	go service.Exec(p)

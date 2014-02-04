@@ -247,25 +247,27 @@ type AddressResourceConfig struct {
 
 // Defines commands to be run in an object's container
 type Process struct {
-	IsTTY   bool                // Describes the type of connection needed
-	Envv    []string            // Environment variables
-	Command string              // Command to run
-	Error   error               `json:"-"`
-	Stdin   chan string         `json:"-"`
-	Stdout  chan string         `json:"-"`
-	Stderr  chan string         `json:"-"`
-	Exited  chan bool           `json:"-"`
-	Signal  chan syscall.Signal `json:"-"`
+	ServiceId string              // The service id of the container to start
+	IsTTY     bool                // Describes the type of connection needed
+	Envv      []string            // Environment variables
+	Command   string              // Command to run
+	Error     error               `json:"-"`
+	Stdin     chan string         `json:"-"`
+	Stdout    chan string         `json:"-"`
+	Stderr    chan string         `json:"-"`
+	Exited    chan bool           `json:"-"`
+	Signal    chan syscall.Signal `json:"-"`
 }
 
-func NewProcess(command string, envv []string, istty bool) *Process {
+func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
 	return &Process{
-		IsTTY:   istty,
-		Envv:    envv,
-		Command: command,
-		Stdin:   make(chan string),
-		Signal:  make(chan syscall.Signal),
-		Exited:  make(chan bool),
+		ServiceId: serviceId,
+		IsTTY:     istty,
+		Envv:      envv,
+		Command:   command,
+		Stdin:     make(chan string),
+		Signal:    make(chan syscall.Signal),
+		Exited:    make(chan bool),
 	}
 }
 
