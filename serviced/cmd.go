@@ -117,6 +117,10 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
+	l, err := net.Listen("tcp", options.listen)
+	if err != nil {
+		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
+	}
 
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
@@ -182,6 +186,7 @@ func startServer() {
 		go agent.RegisterIPResources(resourceDuration)
 
 	}
+
 	rpc.HandleHTTP()
 
 	if options.repstats {
@@ -191,12 +196,6 @@ func startServer() {
 		glog.V(1).Infoln("Staring containter statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
-	}
-
-	l, err := net.Listen("tcp", options.listen)
-	if err != nil {
-		glog.Warningf("Could not bind to port %v", err)
-		time.Sleep(time.Second * 1000)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
