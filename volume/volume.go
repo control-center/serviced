@@ -17,6 +17,8 @@ type Driver interface {
 }
 
 type Conn interface {
+	Name() string
+	Path() string
 	Snapshot(label string) (err error)
 	Snapshots() (labels []string, err error)
 	RemoveSnapshot(label string) error

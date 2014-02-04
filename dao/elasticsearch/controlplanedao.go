@@ -1175,12 +1175,12 @@ func snapShotName(volumeName string) string {
 	return volumeName + "_" + utc.Format(format)
 }
 
-func getSubvolume(poolId, tenantId string) (vol volume.Volume, err error) {
+func getSubvolume(poolId, tenantId string) (*volume.Volume, error) {
 	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
 	if err != nil {
 		return nil, err
 	}
-	return volume.New(baseDir, tenantId)
+	return volume.Mount("btrfs", tenantId, baseDir)
 }
 
 func varPath() string {

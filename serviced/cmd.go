@@ -17,6 +17,9 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/volume"
+	_ "github.com/zenoss/serviced/volume/btrfs"
+	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -52,6 +55,7 @@ var options struct {
 	mcpasswd       string
 	mount          ListOpts
 	resourceperiod int
+	vfs            string
 }
 
 // Setup flag options (static block)
@@ -85,6 +89,7 @@ func init() {
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -125,6 +130,10 @@ func startServer() {
 		glog.Fatal("serviced needs at least docker 0.7.5")
 	}
 
+	if _, ok := volume.Registered(options.vfs); !ok {
+		glog.Fatalf("no driver registered for %s", options.vfs)
+	}
+
 	if options.master {
 		var master dao.ControlPlane
 		var err error
@@ -151,7 +160,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

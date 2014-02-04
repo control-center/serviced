@@ -28,16 +28,34 @@ type RsyncConn struct {
 	root string
 }
 
+func init() {
+	rsyncdriver, err := New()
+	if err != nil {
+		glog.Errorf("Can't create rsync driver", err)
+		return
+	}
+
+	volume.Register(DriverName, rsyncdriver)
+}
+
 func New() (*RsyncDriver, error) {
 	return &RsyncDriver{}, nil
 }
 
 func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	conn := &RsyncConn{name: volumeName, root: rootDir}
-	if err := os.MkdirAll(conn.path(), 0775); err != nil {
+	if err := os.MkdirAll(conn.Path(), 0775); err != nil {
 		return nil, err
 	}
 	return conn, nil
+}
+
+func (c *RsyncConn) Name() string {
+	return c.name
+}
+
+func (c *RsyncConn) Path() string {
+	return path.Join(c.root, c.name)
 }
 
 func (c *RsyncConn) Snapshot(label string) (err error) {
@@ -48,7 +66,7 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 		}
 		return err
 	}
-	rsync := exec.Command("rsync", "-a", c.path()+"/", dest+"/")
+	rsync := exec.Command("rsync", "-a", c.Path()+"/", dest+"/")
 	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
@@ -59,7 +77,7 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 
 func (c *RsyncConn) Snapshots() (labels []string, err error) {
 	var infos []os.FileInfo
-	infos, err = ioutil.ReadDir(c.path())
+	infos, err = ioutil.ReadDir(c.Path())
 	if err != nil {
 		return nil, err
 	}
@@ -101,15 +119,11 @@ func (c *RsyncConn) Rollback(label string) (err error) {
 		}
 		return err
 	}
-	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", c.path()+"/")
+	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", c.Path()+"/")
 	glog.V(4).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
 		return err
 	}
 	return nil
-}
-
-func (c *RsyncConn) path() string {
-	return path.Join(c.root, c.name)
 }

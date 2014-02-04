@@ -29,6 +29,16 @@ type BtrfsConn struct {
 	root   string
 }
 
+func init() {
+	btrfsdriver, err := New()
+	if err != nil {
+		glog.Errorf("Can't create btrfs driver", err)
+		return
+	}
+
+	volume.Register(DriverName, btrfsdriver)
+}
+
 func New() (*BtrfsDriver, error) {
 	user, err := user.Current()
 	if err != nil {
@@ -59,6 +69,14 @@ func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 
 	c := &BtrfsConn{sudoer: d.sudoer, name: volumeName, root: rootDir}
 	return c, nil
+}
+
+func (c *BtrfsConn) Name() string {
+	return c.name
+}
+
+func (c *BtrfsConn) Path() string {
+	return path.Join(c.root, c.name)
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
