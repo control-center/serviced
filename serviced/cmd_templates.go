@@ -12,14 +12,11 @@ package main
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	/*
 		clientlib "github.com/zenoss/serviced/client"
@@ -74,71 +71,6 @@ func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	return err
 }
 
-func validServiceDefinition(d *dao.ServiceDefinition, context *validationContext) error {
-	// Instances["min"] and Instances["max"] must be positive
-	if d.Instances.Min < 0 || d.Instances.Max < 0 {
-		return fmt.Errorf("Instances constrains must be positive")
-	}
-
-	// If "min" and "max" are both declared Instances["min"] < Instances["max"]
-	if d.Instances.Max != 0 && d.Instances.Min > d.Instances.Max {
-		return fmt.Errorf("Minimum instances larger than maximum instances")
-	}
-
-	// Launch must be empty, "auto", or "manual", if it's empty default it to "AUTO"
-	if d.Launch == "" {
-		d.Launch = serviced.AUTO
-	} else {
-		launch := strings.Trim(strings.ToLower(d.Launch), " ")
-		if launch != serviced.AUTO && launch != serviced.MANUAL {
-			return fmt.Errorf("Invalid launch setting (%s)", d.Launch)
-		} else {
-			// trim and lower the value of Launch
-			d.Launch = launch
-		}
-	}
-	for _, se := range d.Endpoints {
-		err := context.validateVHost(se)
-		if err != nil {
-			return err
-		}
-	}
-	return validServiceDefinitions(&d.Services, context)
-}
-
-type validationContext struct {
-	vhosts map[string]dao.ServiceEndpoint// only care about key to test for previous definition
-}
-
-func (vc validationContext) validateVHost(se dao.ServiceEndpoint) error {
-	if len(se.VHosts) > 0 {
-		for _, vhost := range se.VHosts {
-			if _, found := vc.vhosts[vhost]; found {
-				return fmt.Errorf("Duplicate Vhost %v found in %v and %v", vhost)
-			} else {
-				vc.vhosts[vhost] = se
-			}
-		}
-	}
-	return nil
-}
-
-func validServiceDefinitions(ds *[]dao.ServiceDefinition, context *validationContext) error {
-	for i, _ := range *ds {
-		if err := validServiceDefinition(&(*ds)[i], context); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validTemplate(t *dao.ServiceTemplate) error {
-	context := validationContext{}
-	err := validServiceDefinitions(&t.Services, &context)
-	return err
-}
-
 // Add a service template to the control plane.
 func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
@@ -189,7 +121,7 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
 	}
 
-	if err := validTemplate(&serviceTemplate); err != nil {
+	if err := serviceTemplate.Validate(); err != nil {
 		return err
 	} else {
 		c := getClient()

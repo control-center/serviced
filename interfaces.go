@@ -18,13 +18,6 @@ import (
 // Network protocol type.
 type ProtocolType string
 
-const (
-	AUTO   string = "auto"
-	MANUAL string = "manual"
-	TCP    string = "tcp"
-	UDP    string = "udp"
-)
-
 // A user defined string that describes an exposed application endpoint.
 type ApplicationType string
 

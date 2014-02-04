@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"github.com/zenoss/serviced/commons"
 )
 
 var testSvc *ServiceDefinition
@@ -36,7 +37,7 @@ func init() {
 						Purpose:     "import",
 						AddressConfig:   AddressResourceConfig{
 							Port:     8081,
-							Protocol: TCP,
+							Protocol: commons.TCP,
 						},
 					},
 				},
@@ -57,7 +58,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
-						VHost:       []string{"testhost"},
+						VHosts:       []string{"testhost"},
 					},
 				},
 				LogConfigs: []LogConfig{
