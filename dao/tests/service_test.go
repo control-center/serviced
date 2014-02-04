@@ -14,7 +14,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
-	
+
 	"testing"
 	"time"
 )
@@ -50,6 +50,10 @@ var startup_testcases = []struct {
 				},
 			},
 		},
+		Snapshot: dao.SnapshotCommands{
+			Pause:  "",
+			Resume: "",
+		},
 	}, ""},
 	{dao.Service{
 		Id:              "1",
@@ -67,6 +71,7 @@ var startup_testcases = []struct {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []dao.LogConfig{},
+		Snapshot:        dao.SnapshotCommands{},
 	}, ""},
 	{dao.Service{
 		Id:              "2",
@@ -84,6 +89,7 @@ var startup_testcases = []struct {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []dao.LogConfig{},
+		Snapshot:        dao.SnapshotCommands{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
 	{dao.Service{
 		Id:              "3",
@@ -101,6 +107,7 @@ var startup_testcases = []struct {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []dao.LogConfig{},
+		Snapshot:        dao.SnapshotCommands{},
 	}, "/bin/sh ls -l ."},
 }
 

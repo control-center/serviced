@@ -119,6 +119,12 @@ type ApplicationEndpoint struct {
 	Protocol      string
 }
 
+// Snapshot commands
+type SnapshotCommands struct {
+	Pause  string // bash command to pause the volume  (quiesce)
+	Resume string // bash command to resume the volume (unquiesce)
+}
+
 // A Service that can run in serviced.
 type Service struct {
 	Id              string
@@ -142,6 +148,7 @@ type Service struct {
 	DeploymentId    string
 	DisableImage    bool
 	LogConfigs      []LogConfig
+	Snapshot        SnapshotCommands
 }
 
 // An endpoint that a Service exposes.
@@ -219,6 +226,7 @@ type ServiceDefinition struct {
 	LogFilters  map[string]string      // map of log filter name to log filter definitions
 	Volumes     []Volume               // list of volumes to bind into containers
 	LogConfigs  []LogConfig
+	Snapshot    SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field

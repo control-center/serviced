@@ -48,6 +48,10 @@ func init() {
 						Type: "foo",
 					},
 				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
+				},
 			},
 			ServiceDefinition{
 				Name:    "s2",
@@ -67,6 +71,10 @@ func init() {
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
+				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 		},
@@ -121,6 +129,14 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		if confFile != b.ConfigFiles[filename] {
 			return false, fmt.Sprintf("ConfigFile mismatch %s, a: %v, b: %v", filename, confFile, b.ConfigFiles[filename])
 		}
+	}
+
+	// check snapshot
+	if a.Snapshot.Pause != b.Snapshot.Pause {
+		return false, fmt.Sprintf("Snapshot pause commands are not equal %s != %s", a.Snapshot.Pause, b.Snapshot.Pause)
+	}
+	if a.Snapshot.Resume != b.Snapshot.Resume {
+		return false, fmt.Sprintf("Snapshot resume commands are not equal %s != %s", a.Snapshot.Resume, b.Snapshot.Resume)
 	}
 
 	return true, ""
