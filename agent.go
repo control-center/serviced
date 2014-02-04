@@ -9,15 +9,16 @@
 package serviced
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"

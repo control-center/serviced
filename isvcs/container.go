@@ -10,11 +10,12 @@
 package isvcs
 
 import (
-	"errors"
-	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
+
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/user"

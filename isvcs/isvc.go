@@ -10,9 +10,10 @@
 package isvcs
 
 import (
-	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
+
+	"fmt"
 	"os/user"
 )
 

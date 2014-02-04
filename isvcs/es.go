@@ -10,10 +10,11 @@
 package isvcs
 
 import (
-	"fmt"
 	"github.com/mattbaird/elastigo/cluster"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
+
+	"fmt"
 	"net/http"
 	"os"
 	"time"
