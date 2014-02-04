@@ -177,6 +177,13 @@ func startServer() {
 			os.Exit(0)
 		}()
 
+		// TODO: Integrate this server into the rpc server, or something.
+		// Currently its only use is for command execution.
+		go func() {
+			http.HandleFunc("/", ExecHandler)
+			http.ListenAndServe(":50001", nil)
+		}()
+
 		resourceDuration := time.Duration(options.resourceperiod) * time.Minute
 		go agent.RegisterIPResources(resourceDuration)
 

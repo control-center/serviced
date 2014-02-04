@@ -1,7 +1,6 @@
 package serviced
 
 import (
-	"github.com/gorilla/websocket"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"net/rpc"
@@ -15,12 +14,6 @@ type LBClient struct {
 
 // assert that this implemenents the Agent interface
 var _ LoadBalancer = &LBClient{}
-
-type ExecRequest struct {
-	Process   *dao.Process
-	ServiceId string
-	AgentConn *websocket.Conn `json:"-"`
-}
 
 // Create a new AgentClient.
 func NewLBClient(addr string) (s *LBClient, err error) {
@@ -52,9 +45,4 @@ func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) 
 func (a *LBClient) AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error {
 	glog.V(4).Infof("ControlPlaneAgent.AckProxySnapshotQuiece()")
 	return a.rpcClient.Call("ControlPlaneAgent.AckProxySnapshotQuiece", snapshotId, unused)
-}
-
-func (a *LBClient) ExecAsService(execReq ExecRequest, unused *interface{}) error {
-	a.rpcClient.Call("ControlPlaneAgent.ExecAsService", ExecRequest, unused)
-	return nil
 }

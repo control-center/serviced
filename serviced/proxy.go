@@ -65,13 +65,17 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Make the
+	ProxyCommandOverWS(proxyOptions.servicedEndpoint, ws)
+	// TODO: Store the return value of the above func so people can reconnect
+	// to it. It's a Process.
 
-	c := ConnectExecRequestToServicedAgent(client, ws)
-	h.register <- c
-	defer func() { h.unregister <- c }()
-	go c.Writer()
-	c.Reader()
+	//h.register <- c
+	//defer func() { h.unregister <- c }()
+	//go c.Writer()
+	//c.Reader()
+}
+
+func httpHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start a service proxy.
@@ -98,6 +102,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	go h.run()
 	http.HandleFunc("/exec", wsHandler)
+	http.HandleFunc("/exechttp", httpHandler)
 	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
