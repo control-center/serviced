@@ -23,7 +23,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zctrl/isvcs"
-	IMAGE_TAG  = "v3"
+	IMAGE_TAG  = "v4"
 )
 
 func Init() {

@@ -155,7 +155,7 @@ func (m *Manager) loadImages() error {
 			if exists {
 				continue
 			}
-			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar")
+			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar.gz")
 			glog.Infof("Looking for %s", localTar)
 			if _, exists := loadedImages[localTar]; exists {
 				continue
