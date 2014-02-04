@@ -66,6 +66,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ProxyCommandOverWS(proxyOptions.servicedEndpoint, ws)
+	for {
+		time.Sleep(10)
+	}
+
 	// TODO: Store the return value of the above func so people can reconnect
 	// to it. It's a Process.
 

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"github.com/gorilla/websocket"
+	"os"
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
@@ -12,6 +15,7 @@ import (
 	"io"
 	"log"
 	"syscall"
+	"time"
 )
 
 const (
@@ -132,9 +136,23 @@ func ExecHandler(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
+	defer ws.Close()
 
+	WriteToFile("I gots a connection!!!!!")
+
+	ws.WriteJSON(response{Stdout: "Stdout"})
+	ws.WriteJSON(response{Stderr: "Stderr"})
+	ws.WriteJSON(response{Result: "0"})
+
+<<<<<<< HEAD
 	defer ws.Close()
 	ws.WriteJSON(response{Result: "0"})
+=======
+	for {
+		time.Sleep(10)
+	}
+
+>>>>>>> 91ad16b349e388e27cb54d917bc4848c3b40f1ff
 }
 
 func StreamProcToWebsocket(proc *dao.Process, ws *websocket.Conn) {
@@ -190,6 +208,17 @@ func StreamWebsocketToProc(proc *dao.Process, ws *websocket.Conn) {
 				ws.WriteJSON(response{Result: "error parsing JSON"})
 				continue
 			}
+			switch {
+			case len(resp.Stdout) > 0:
+				proc.Stdout <- resp.Stdout
+			case len(resp.Stderr) > 0:
+				proc.Stderr <- resp.Stderr
+			case len(resp.Result) > 0:
+				proc.Error = errors.New(resp.Result)
+				proc.Exited <- true
+			default:
+				WriteToFile("SHIT GOT BROKE " + fmt.Sprint(resp))
+			}
 		}
 	}()
 
@@ -202,6 +231,14 @@ func StreamWebsocketToProc(proc *dao.Process, ws *websocket.Conn) {
 			ws.WriteJSON(request{Signal: int(m), Action: SIGNAL})
 		}
 	}
+}
+
+func WriteToFile(msg string) {
+	f, _ := os.Create("/opt/zenoss/log/servicedproxy.log")
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	w.Write([]byte(msg + "\n"))
 }
 
 func Connect(cp *serviced.LBClient, ws *websocket.Conn) *WebsocketShell {
@@ -218,10 +255,12 @@ func ProxyCommandOverWS(addr string, clientConn *websocket.Conn) (proc *dao.Proc
 	// side and hooking the streams together, more or less
 
 	// First, read the first packet from the Client which contains the process information
+	WriteToFile("Beginning of func")
 	var req request
 	if err := clientConn.ReadJSON(&req); err != nil {
 		return nil
 	}
+	WriteToFile("I got a request")
 
 	var istty bool
 	switch req.Action {
@@ -233,23 +272,32 @@ func ProxyCommandOverWS(addr string, clientConn *websocket.Conn) (proc *dao.Proc
 		return nil
 	}
 	process := dao.NewProcess(req.ServiceId, req.Cmd, req.Env, istty)
+	WriteToFile("Made a process")
 
 	// Next, have Proxy connect to the Agent and tell it to start the Shell
 	addr = "ws://" + addr
+	WriteToFile("About to dial " + addr)
 	agentConn, _, err := websocket.DefaultDialer.Dial(addr, nil)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		return nil
 	}
+	WriteToFile("Dialed!")
 
 	// The Proxy-Agent connection has at this point been upgraded to a
 	// websocket. Have that websocket dump output into our local Process
 	// instance.
-	go StreamWebsocketToProc(process, clientConn)
-	go StreamProcToWebsocket(process, agentConn)
+	WriteToFile("Streaming like a mofo")
 
 	// Now hook our local Process instance up to the client websocket so the
 	// client is receiving output from the agent, proxied by us
-	agentConn.WriteJSON(process)
+	WriteToFile("About to write some json")
+	e := agentConn.WriteJSON(process)
+	if e != nil {
+		WriteToFile(fmt.Sprint(e))
+	}
+	go StreamWebsocketToProc(process, clientConn)
+	go StreamProcToWebsocket(process, agentConn)
+
 	return process
 }
 
