@@ -47,6 +47,8 @@ var h = hub{
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Create a client to talk to the serviced agent
 	client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
@@ -54,6 +56,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 
+	// Upgrade the incoming connection to a websocket
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
@@ -61,7 +64,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
-	c := Connect(client, ws)
+
+	// Make the
+
+	c := ConnectExecRequestToServicedAgent(client, ws)
 	h.register <- c
 	defer func() { h.unregister <- c }()
 	go c.Writer()

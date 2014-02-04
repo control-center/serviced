@@ -38,6 +38,10 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
+func (a *HostAgent) ExecAsService(execReq ExecRequest, unused *interface{}) error {
+	return nil
+}
+
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
 func (a *HostAgent) GetProxySnapshotQuiece(serviceId string, snapshotId *string) error {
 	glog.Errorf("GetProxySnapshotQuiece() Unimplemented")

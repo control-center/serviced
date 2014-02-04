@@ -47,12 +47,100 @@ type WebsocketShell struct {
 	send chan response
 }
 
+func StreamProcToWebsocket(proc *dao.Process, ws *websocket.Conn) {
+	// Websocket in (request) to proc in
+	go func() {
+		var req request
+		if err := ws.ReadJSON(&req); err == io.EOF {
+			break
+		} else if err != nil {
+			ws.send <- response{Result: "error parsing JSON"}
+			continue
+		}
+		if req.Action == "" {
+			ws.send <- response{Result: "required field 'Action'"}
+			continue
+		}
+		switch req.Action {
+		case SIGNAL:
+			process.Signal <- syscall.Signal(req.Signal)
+		case EXEC:
+			process.Stdin <- req.Cmd
+		}
+	}()
+	// Proc out to websocket out
+	for {
+		select {
+		case m := <-proc.Stdout:
+			ws.send <- response{Stdout: m}
+		case m := <-proc.Stderr:
+			ws.send <- response{Stderr: m}
+		case <-proc.Exited:
+			if proc.Error != nil {
+				ws.send <- response{Result: fmt.Sprint(proc.Error)}
+			} else {
+				ws.send <- response{Result: "0"}
+			}
+			return
+		}
+	}
+}
+
+func StreamWebsocketToProc(proc *dao.Process, ws *websocket.Conn) {
+
+	// Websocket out to proc out
+	go func() {
+		var resp response
+		if err := ws.ReadJSON(&resp); err == io.EOF {
+			break
+		} else if err != nil {
+			wss.send <- response{Result: "error parsing JSON"}
+			continue
+		}
+		switch req.Action {
+		case SIGNAL:
+			wss.process.Signal <- syscall.Signal(signal)
+		case EXEC:
+			wss.process.Stdin <- req.Cmd
+		}
+	}()
+
+	// Proc in to websocket in
+	for {
+		select {
+		case m := <-proc.Stdin:
+			ws.send <- req{Cmd: m, Action: EXEC} // We never send FORK in this direction, trust me
+		case m := <-proc.Signal:
+			ws.send <- response{Signal: m, Action: SIGNAL}
+		}
+	}
+}
+
 func Connect(cp *serviced.LBClient, ws *websocket.Conn) *WebsocketShell {
 	return &WebsocketShell{
 		cp:   cp,
 		ws:   ws,
 		send: make(chan response),
 	}
+}
+
+func ConnectExecRequestToServicedAgent(cp *serviced.LBClient, clientConn *websocket.Conn) {
+	// Client <--ws--> Proxy <--rpc/ws--> Agent <--os--> Shell
+	// This code executes in Proxy, creating the two connections on either
+	// side and hooking the streams together, more or less
+
+	// First, read the first packet from the Client which contains the process information
+
+	// Next, have Proxy connect to the Agent and tell it to start the Shell
+	execReq := &serviced.ExecRequest{}
+	agentConn := cp.ExecAsService(&execReq, nil)
+
+	// The Proxy-Agent connection has at this point been upgraded to a
+	// websocket. Have that websocket dump output into our local Process
+	// instance.
+
+	// Now hook our local Process instance up to the client websocket so the
+	// client is receiving output from the agent, proxied by us
 }
 
 func (wss *WebsocketShell) Close() {
@@ -90,21 +178,23 @@ func (wss *WebsocketShell) Reader() {
 		signal = req.Signal
 
 		if wss.process == nil {
-			var service dao.Service
-			if err := wss.cp.GetService(req.ServiceId, &service); err != nil {
-				result := fmt.Sprintf("cannot access service %s: %v", req.ServiceId, err)
-				wss.send <- response{Result: result}
-			}
 
 			switch req.Action {
 			case FORK, EXEC:
 				process := dao.NewProcess(req.Cmd, env, true)
-				if err := service.Exec(process); err != nil {
-					result := fmt.Sprintf("unable to start container: %v", err)
-					wss.send <- response{Result: result}
-				} else {
-					wss.process = process
-				}
+				wss.process = process
+
+				wss.cp.ExecAsService(&ExecRequest{
+					Process:   process,
+					ServiceId: serviceId,
+				}, nil)
+
+				//		if err := service.Exec(process); err != nil {
+				//			result := fmt.Sprintf("unable to start container: %v", err)
+				//			wss.send <- response{Result: result}
+				//		} else {
+				//			wss.process = process
+				//		}
 			default:
 				wss.send <- response{Result: "no running process"}
 				continue

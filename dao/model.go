@@ -247,15 +247,15 @@ type AddressResourceConfig struct {
 
 // Defines commands to be run in an object's container
 type Process struct {
-	IsTTY   bool     // Describes the type of connection needed
-	Envv    []string // Environment variables
-	Command string   // Command to run
-	Error   error
-	Stdin   chan string
-	Stdout  chan string
-	Stderr  chan string
-	Exited  chan bool
-	Signal  chan syscall.Signal
+	IsTTY   bool                // Describes the type of connection needed
+	Envv    []string            // Environment variables
+	Command string              // Command to run
+	Error   error               `json:"-"`
+	Stdin   chan string         `json:"-"`
+	Stdout  chan string         `json:"-"`
+	Stderr  chan string         `json:"-"`
+	Exited  chan bool           `json:"-"`
+	Signal  chan syscall.Signal `json:"-"`
 }
 
 func NewProcess(command string, envv []string, istty bool) *Process {
