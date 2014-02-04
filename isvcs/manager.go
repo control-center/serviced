@@ -121,13 +121,13 @@ func (m *Manager) allImagesExist() error {
 }
 
 // loadImage() loads a docker image from a tar export
-func loadImage(tarball, dockerAddress string) error {
+func loadImage(tarball, dockerAddress, repoTag string) error {
 
 	if file, err := os.Open(tarball); err != nil {
 		return err
 	} else {
 		defer file.Close()
-		cmd := exec.Command("docker", "-H", dockerAddress, "load")
+		cmd := exec.Command("docker", "-H", dockerAddress, "import", "-", repoTag)
 		cmd.Stdin = file
 		glog.Infof("Loading docker image")
 		return cmd.Run()
@@ -161,7 +161,7 @@ func (m *Manager) loadImages() error {
 				continue
 			}
 			if _, err := os.Stat(localTar); err == nil {
-				if err := loadImage(localTar, m.dockerAddress); err != nil {
+				if err := loadImage(localTar, m.dockerAddress, c.Repo+":"+c.Tag); err != nil {
 					return err
 				}
 				loadedImages[localTar] = true
