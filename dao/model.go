@@ -151,8 +151,8 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
-	AddressConfig       AddressResourceConfig `TODO get json for nil`
-	VHost               []string              // VHost is used to request named vhost for this endpoint. Should be the name of a
+	AddressConfig       AddressResourceConfig
+	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 }
 
@@ -227,12 +227,6 @@ type AddressResourceConfigByPort []AddressResourceConfig
 func (a AddressResourceConfigByPort) Len() int           { return len(a) }
 func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
-
-//TCP UDP: Constants for AddressResourceConfig port protocols
-const (
-	TCP = "tcp"
-	UDP = "udp"
-)
 
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {

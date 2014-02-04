@@ -57,7 +57,12 @@ var options struct {
 
 // Setup flag options (static block)
 func init() {
-	flag.StringVar(&options.port, "port", "127.0.0.1:4979", "port for remote serviced (example.com:8080)")
+	ip, err := serviced.GetIpAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	flag.StringVar(&options.port, "port", ip+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")

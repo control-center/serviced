@@ -14,7 +14,7 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 default: build_binary
 
 install:
-	go install github.com/serviced/serviced
+	go install github.com/zenoss/serviced/serviced
 
 build_binary:
 	cd serviced && make
@@ -62,7 +62,7 @@ docker_ok:
 
 clean:
 	cd dao && make clean
-	cd serviced && ./godep restore && go clean -r # this cleans all dependencies
+	cd serviced && ./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	docker run -rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
