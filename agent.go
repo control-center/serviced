@@ -91,6 +91,10 @@ func NewHostAgent(master string, varPath string, mount []string, zookeepers []st
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *dao.Service, cp dao.ControlPlane) error {
+	err := s.EvaluateLogConfigTemplate(cp)
+	if err != nil {
+		return err
+	}
 	return s.EvaluateStartupTemplate(cp)
 }
 

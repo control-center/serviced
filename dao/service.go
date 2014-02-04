@@ -119,10 +119,10 @@ func (service *Service) EvaluateLogConfigTemplate(cp ControlPlane) (err error) {
 		}
 
 		// Tags
-		for key, value := range logConfig.Tags {
-			result = service.evaluateTemplate(cp, value)
+		for j, tag := range logConfig.LogTags {
+			result = service.evaluateTemplate(cp, tag.Value)
 			if result != "" {
-				service.LogConfigs[i].Tags[key] = result
+				service.LogConfigs[i].LogTags[j].Value = result
 			}
 		}
 	}

@@ -40,8 +40,11 @@ var startup_testcases = []struct {
 			dao.LogConfig{
 				Path: "{{.Description}}",
 				Type: "test",
-				Tags: map[string]string{
-					"pepe": "{{.Name}}",
+				LogTags: []dao.LogTag{
+					dao.LogTag{
+						Name:  "pepe",
+						Value: "{{.Name}}",
+					},
 				},
 			},
 		},
@@ -182,7 +185,7 @@ func TestEvaluateLogConfigTemplate(t *testing.T) {
 	testcase := startup_testcases[0]
 	testcase.service.EvaluateLogConfigTemplate(cp)
 	// check the tag
-	result := testcase.service.LogConfigs[0].Tags["pepe"]
+	result := testcase.service.LogConfigs[0].LogTags[0].Value
 	if result != testcase.service.Name {
 		t.Errorf("Was expecting the log tag pepe to be the service name instead it was %s", result)
 	}

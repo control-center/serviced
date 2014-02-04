@@ -24,13 +24,24 @@ const (
 	LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 )
 
-func formatTagsForConfFile(tags *map[string]string) string {
-	if len(*tags) == 0 {
+//createFields makes the map of tags for the logstash config including the type
+func createFields(logConfig *dao.LogConfig) map[string]string {
+	fields := make(map[string]string)
+	fields["type"] = logConfig.Type
+	for _, tag := range logConfig.LogTags {
+		fields[tag.Name] = tag.Value
+	}
+	return fields
+}
+
+//formatTagsForConfFile takes the set of tags for a LogConfig and return json representing the tags
+func formatTagsForConfFile(tags map[string]string) string {
+	if len(tags) == 0 {
 		return ""
 	}
-	result, err := json.Marshal(*tags)
+	result, err := json.Marshal(tags)
 	if err != nil {
-		glog.Warningf("Unable to unmarhsal %s because of %s", *tags, err)
+		glog.Warningf("Unable to unmarhsal %s because of %s", tags, err)
 		return ""
 	}
 	return string(result)
@@ -40,21 +51,21 @@ func formatTagsForConfFile(tags *map[string]string) string {
 // the filename of the newly created file is returned
 func writeLogstashAgentConfig(service *dao.Service) (string, error) {
 
-	service.LogConfigs[0].Tags["type"] = service.LogConfigs[0].Type
+	// generate the json config.
+	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
 	logstashForwarderLogConf := `
 		{
 			"paths": [ "%s" ],
 			"fields": %s
 		}`
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(&service.LogConfigs[0].Tags))
+	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(&service.LogConfigs[0])))
 	for _, logConfig := range service.LogConfigs[1:] {
-		logConfig.Tags["type"] = logConfig.Type
 		logstashForwarderLogConf = logstashForwarderLogConf + `,
 				{
 					"paths": [ "%s" ],
 					"fields": %s
 				}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(&logConfig.Tags))
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(&logConfig)))
 	}
 
 	logstashForwarderShipperConf := `
@@ -71,7 +82,6 @@ func writeLogstashAgentConfig(service *dao.Service) (string, error) {
 				]
 			}`
 	logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf,
-		// TODO: Don't hard code this and in fact the whole thing won't work at all
 		"172.17.42.1:5043",
 		LOGSTASH_CONTAINER_DIRECTORY+"/logstash-forwarder.crt",
 		LOGSTASH_CONTAINER_DIRECTORY+"/logstash-forwarder.key",

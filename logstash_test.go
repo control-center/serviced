@@ -50,15 +50,21 @@ func getTestService() dao.Service {
 			dao.LogConfig{
 				Path: "/path/to/log/file",
 				Type: "test",
-				Tags: map[string]string{
-					"pepe": "foobar",
+				LogTags: []dao.LogTag{
+					dao.LogTag{
+						Name:  "pepe",
+						Value: "foobar",
+					},
 				},
 			},
 			dao.LogConfig{
 				Path: "/path/to/second/log/file",
 				Type: "test2",
-				Tags: map[string]string{
-					"test": "tags",
+				LogTags: []dao.LogTag{
+					dao.LogTag{
+						Name:  "pepe",
+						Value: "foobar",
+					},
 				},
 			},
 		},
@@ -120,5 +126,34 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 	// make sure path to logfile is present
 	if !strings.Contains(string(contents), "path/to/log/file") {
 		t.Errorf("The logfile path was not in the configuration", string(contents), err)
+	}
+}
+
+func TestDontWriteToNilMap(t *testing.T) {
+	service := dao.Service{
+		Id:              "0",
+		Name:            "Zenoss",
+		Context:         "",
+		Startup:         "",
+		Description:     "Zenoss 5.x",
+		Instances:       0,
+		ImageId:         "",
+		PoolId:          "",
+		DesiredState:    0,
+		Launch:          "auto",
+		Endpoints:       []dao.ServiceEndpoint{},
+		ParentServiceId: "",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		LogConfigs: []dao.LogConfig{
+			dao.LogConfig{
+				Path: "/path/to/log/file",
+				Type: "test",
+			},
+		},
+	}
+	_, err := writeLogstashAgentConfig(&service)
+	if err != nil {
+		t.Errorf("Writing with empty tags produced an error %s", err)
 	}
 }

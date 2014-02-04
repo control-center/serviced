@@ -242,10 +242,15 @@ type AddressResourceConfig struct {
 
 // LogConfig represents the configuration for a logfile for a service.
 type LogConfig struct {
-	Path    string            // The location on the container's filesystem of the log, can be a directory
-	Type    string            // Arbitrary string that identifies the "types" of logs that come from this source. This will be
-	Filters []string          // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
-	Tags    map[string]string // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
+	Path    string   // The location on the container's filesystem of the log, can be a directory
+	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
+	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
+	LogTags []LogTag // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
+}
+
+type LogTag struct {
+	Name  string
+	Value string
 }
 
 type ServiceDeployment struct {
