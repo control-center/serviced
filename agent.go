@@ -10,6 +10,7 @@ package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
@@ -18,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/glog"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,7 +48,7 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
-	varPath         string   // directory to store serviced  data
+	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -94,6 +93,10 @@ func NewHostAgent(master string, varPath string, mount []string, zookeepers []st
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *dao.Service, cp dao.ControlPlane) error {
+	err := s.EvaluateLogConfigTemplate(cp)
+	if err != nil {
+		return err
+	}
 	return s.EvaluateStartupTemplate(cp)
 }
 
@@ -337,11 +340,11 @@ func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err erro
 
 /*
 writeConfFile is responsible for writing contents out to a file
-Input string prefix  : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string prefix	 : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
 Input string content : the content that you wish to write to a file
-Output *os.File  f   : file handler to the file that you've just opened and written the content to
+Output *os.File	 f	 : file handler to the file that you've just opened and written the content to
 Example name of file that is written: /tmp/cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_592084261
 */
 func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
@@ -361,11 +364,11 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 
 /*
 chownConfFile is responsible for changing the owner of a file
-Input *os.File f     : file handler to a file that has already been opened
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input *os.File f	 : file handler to a file that has already been opened
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
-Input string owner   : update the file's owner to this provided string
-Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
+Input string owner	 : update the file's owner to this provided string
+Output bool			 : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
 */
 func chownConfFile(f *os.File, id string, filename string, owner string) bool {
 	if len(owner) != 0 {
@@ -473,70 +476,18 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
 	}
 
-	// if this container is going to produce any logs, bind mount the following files:
-	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
-	// FIX ME: consider moving this functionality to its own function...
+	// if this container is going to produce any logs, create the config and get the bind mounts
 	logstashForwarderMount := ""
-	if len(service.LogConfigs) > 0 {
-		logstashForwarderLogConf := `
-        {
-        	"paths": [ "%s" ],
-        	"fields": { "type": "%s" }
-        }`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
-		for _, logConfig := range service.LogConfigs[1:] {
-			logstashForwarderLogConf = logstashForwarderLogConf + `,
-				{
-					"paths": [ "%s" ],
-					"fields": { "type": "%s" }
-				}`
-			logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, logConfig.Type)
-		}
+	if len(service.LogConfigs) != 0 {
 
-		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
-		// *********************************************************************************************
-		// ***** FIX ME the following 3 variables are defined in serviced/proxy.go as well! ************
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-		// *********************************************************************************************
-		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
-		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
-
-		logstashForwarderShipperConf := `
-			{
-				"network": {
-			    	"servers": [ "%s" ],
-					"ssl certificate": "%s",
-					"ssl key": "%s",
-					"ssl ca": "%s",
-			    	"timeout": 15
-			   	},
-			   	"files": [
-					%s
-			   	]
-			}`
-		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
-
-		filename := service.Name + "_logstash_forwarder_conf"
-		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
+		// write out the log file config
+		configFileName, err := writeLogstashAgentConfig(service)
 		if err != nil {
 			return false, err
 		}
 
-		logstashPath := resourcesDir() + "/logstash"
-		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
-		hostLogstashForwarderConfPath := f.Name()
-		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
-		hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
-
-		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
-		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
-		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
-		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
-
-		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
+		// bind mount the conf file and everything we need for logstash-forwarder
+		logstashForwarderMount = getLogstashBindMounts(configFileName)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -563,7 +514,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
+	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
@@ -892,26 +843,3 @@ func registerIPs(hostId string, sendFn SendHostIPs) error {
 	}
 	return nil
 }
-
-// *********************************************************************
-// ***** FIXME *********************************************************
-// ***** The following three functions are also defined in isvc.go *****
-// returns serviced home
-func serviceDHome() string {
-	return os.Getenv("SERVICED_HOME")
-}
-
-func localDir(p string) string {
-	homeDir := ServiceDHome()
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Join(path.Dir(filename), "isvcs")
-	}
-	return path.Join(homeDir, p)
-}
-
-func resourcesDir() string {
-	return localDir("resources")
-}
-
-// *********************************************************************

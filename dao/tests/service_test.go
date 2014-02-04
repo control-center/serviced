@@ -1,3 +1,12 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
+
 package tests
 
 import (
@@ -5,7 +14,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
-
+	
 	"testing"
 	"time"
 )
@@ -29,7 +38,18 @@ var startup_testcases = []struct {
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs:      []dao.LogConfig{},
+		LogConfigs: []dao.LogConfig{
+			dao.LogConfig{
+				Path: "{{.Description}}",
+				Type: "test",
+				LogTags: []dao.LogTag{
+					dao.LogTag{
+						Name:  "pepe",
+						Value: "{{.Name}}",
+					},
+				},
+			},
+		},
 	}, ""},
 	{dao.Service{
 		Id:              "1",
@@ -158,6 +178,24 @@ func init() {
 				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
 			}
 		}
+	}
+}
+
+//TestEvaluateLogConfigTemplate makes sure that the log config templates can be
+// parsed and evaluated correctly.
+func TestEvaluateLogConfigTemplate(t *testing.T) {
+	testcase := startup_testcases[0]
+	testcase.service.EvaluateLogConfigTemplate(cp)
+	// check the tag
+	result := testcase.service.LogConfigs[0].LogTags[0].Value
+	if result != testcase.service.Name {
+		t.Errorf("Was expecting the log tag pepe to be the service name instead it was %s", result)
+	}
+
+	// check the path
+	result = testcase.service.LogConfigs[0].Path
+	if result != testcase.service.Description {
+		t.Errorf("Was expecting the log path to be the service description instead it was %s", result)
 	}
 }
 
