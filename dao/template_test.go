@@ -1,10 +1,11 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/commons"
+
 	"fmt"
 	"sort"
 	"testing"
-	"github.com/zenoss/serviced/commons"
 )
 
 var testSvc *ServiceDefinition
@@ -35,7 +36,7 @@ func init() {
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
-						AddressConfig:   AddressResourceConfig{
+						AddressConfig: AddressResourceConfig{
 							Port:     8081,
 							Protocol: commons.TCP,
 						},
@@ -58,7 +59,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
-						VHosts:       []string{"testhost"},
+						VHosts:      []string{"testhost"},
 					},
 				},
 				LogConfigs: []LogConfig{

@@ -9,16 +9,17 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/commons"
+
 	"fmt"
 	"strings"
-	"github.com/zenoss/serviced/commons"
 )
 
 // Validate ensure that a ServiceTemplate has valid values
 func (t *ServiceTemplate) Validate() error {
-	//TODO check name, description, config files.
+	//TODO: check name, description, config files.
 	context := validationContext{make(map[string]ServiceEndpoint)}
-	//TODO do servicedefinition names need to be unique?
+	//TODO: do servicedefinition names need to be unique?
 	err := validServiceDefinitions(&t.Services, &context)
 	return err
 }
@@ -58,7 +59,7 @@ func (d *ServiceDefinition) validate(context *validationContext) error {
 		}
 
 	}
-	//TODO validate LogConfigs
+	//TODO: validate LogConfigs
 
 	return validServiceDefinitions(&d.Services, context)
 }
@@ -81,7 +82,7 @@ func (sd *ServiceDefinition) normalizeLaunch() error {
 }
 
 func (se ServiceEndpoint) validate() error {
-	//TODO validate more ServiceEndpoint fields
+	//TODO: validate more ServiceEndpoint fields
 	return se.AddressConfig.normalize()
 }
 
@@ -93,7 +94,7 @@ func (arc AddressResourceConfig) normalize() error {
 			return fmt.Errorf("AddressResourceConfig: Invalid port number %v", arc.Port)
 		}
 		testProto := strings.Trim(strings.ToLower(arc.Protocol), " ")
-		if testProto != commons.TCP && testProto != commons.UDP{
+		if testProto != commons.TCP && testProto != commons.UDP {
 			return fmt.Errorf("AddressResourceConfig: Protocol must be one of %v or %v; found %v", commons.TCP, commons.UDP, testProto)
 		}
 		//use the sanitized version
