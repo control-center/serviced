@@ -35,6 +35,81 @@ type response struct {
 	Result string
 }
 
+type Stream interface {
+	ClientHandler(w http.ResponseWriter, r *http.Request)
+	AgentHandler(w http.ResponseWriter, r *http.Request)
+	StreamClient()
+	StreamAgent()
+}
+
+type WebsocketStream struct {
+	client  *websocket.Conn
+	agent   *websocket.Conn
+	process *dao.Process
+}
+
+func (s *WebsocketStream) ClientHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+func (s *WebsocketStream) AgentHandler(w http.ResponseWriter, r *http.Request) {
+	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024) // TODO: Make buffer size configurable?
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", 400)
+		return
+	}
+
+	s.agent = ws
+	s.StreamAgent()
+}
+
+func (s *WebsocketStream) StreamAgent() {
+	// Writer
+	go func() {
+		for {
+			select {
+			case m := <-proc.Stdin:
+				s.agent.WriteJSON(request{Action: EXEC, Cmd: m})
+			case s := <-proc.Signal:
+				s.agent.WriteJSON(request{Action: SIGNAL, Signal: int(s)})
+			}
+		}
+	}()
+
+	// Reader
+	for {
+		var res response
+		if err := s.agent.ReadJSON(&response); err == io.EOF {
+			break
+		} else if err != nil {
+			// Bad read send message
+		}
+
+		if res.Stdout != "" {
+			proc.Stdout <- res.Stdout
+		}
+
+		if res.Stderr != "" {
+			proc.Stderr <- res.Stderr
+		}
+
+		if res.Result != "" {
+			proc.Error = errors.New(res.Result)
+			proc.Exited <- true
+			break
+		}
+	}
+	s.agent.Close()
+}
+
+func (s *WebsocketStream) StreamClient() {
+}
+
+type HttpStream struct {
+	client  *http.Conn
+	agent   *websocket.Conn
+	process *dao.Process
+}
+
 type WebsocketShell struct {
 	// The control plane client
 	cp *serviced.LBClient
@@ -51,9 +126,6 @@ type WebsocketShell struct {
 
 func ExecHandler(w http.ResponseWriter, r *http.Request) {
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if ws != nil {
-		defer ws.Close()
-	}
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
 		return
@@ -61,12 +133,8 @@ func ExecHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for {
-		_, msg, _ := ws.ReadMessage()
-		if len(msg) > 0 {
-			fmt.Println(msg)
-		}
-	}
+	defer ws.Close()
+	ws.WriteJSON(response{Result: "0"})
 }
 
 func StreamProcToWebsocket(proc *dao.Process, ws *websocket.Conn) {
