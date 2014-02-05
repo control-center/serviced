@@ -69,6 +69,7 @@ type WebsocketProcessStream struct {
 	agent   *websocket.Conn
 	process *dao.Process
 	addr    string
+	exited  chan bool
 }
 
 type HttpProcessStream struct {
@@ -87,7 +88,7 @@ type HTTPProcessHandler struct {
 
 // Implement http.Handler
 func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stream := &WebsocketProcessStream{addr: h.addr}
+	stream := &WebsocketProcessStream{addr: h.addr, exited: make(chan bool)}
 	defer stream.Close()
 
 	// Create a client and wait for the process packet
@@ -146,13 +147,8 @@ func (s *WebsocketProcessStream) StreamAgent() {
 }
 
 func (s *WebsocketProcessStream) Wait() {
-	// TODO: This is stupid. Wire up a channel instead of polling.
-	for {
-		time.Sleep(10)
-		if s.process.Result != "" {
-			return
-		}
-	}
+	<-s.exited
+	return
 }
 
 func (s *WebsocketProcessStream) Close() {
@@ -196,6 +192,7 @@ func (s *WebsocketProcessStream) forwardFromAgent() {
 		if res.Result != "" {
 			s.process.Error = errors.New(res.Result)
 			s.process.Exited <- true
+			s.exited <- true
 			break
 		}
 	}
