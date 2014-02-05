@@ -1,8 +1,6 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/dao"
-
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -98,21 +96,20 @@ func TestParseContainerState(t *testing.T) {
 
 func TestRegisterIPResources(t *testing.T) {
 
-	var ipResult dao.HostIPs
-
-	fn := func(ips dao.HostIPs, unused *int) error {
-		ipResult = ips
-		return nil
-	}
-
-	err := registerIPs("testId", fn, "123")
+	ips, err := getIPResources("123")
 	if err == nil || err.Error() != "IP address 123 not valid for this host" {
 		t.Errorf("Unexpected error %v", err)
 	}
+	if len(ips) != 0 {
+		t.Errorf("Unexpected result %v", ips)
+	}
 
-	err = registerIPs("testId", fn, "127.0.0.1")
+	ips, err = getIPResources("127.0.0.1")
 	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
 		t.Errorf("Unexpected error %v", err)
+	}
+	if len(ips) != 0 {
+		t.Errorf("Unexpected result %v", ips)
 	}
 
 	ip, err := GetIpAddress()
@@ -122,9 +119,12 @@ func TestRegisterIPResources(t *testing.T) {
 
 	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip), fmt.Sprintf("   %v   ", ip)}
 	for _, validIP := range validIPs {
-		err = registerIPs("testId", fn, validIP)
+		ips, err = getIPResources(validIP)
 		if err != nil {
 			t.Errorf("Unexpected error %v", err)
+		}
+		if len(ips) != 1 {
+			t.Errorf("Unexpected result %v", ips)
 		}
 	}
 }

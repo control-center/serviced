@@ -33,6 +33,6 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 }
 
 // Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(unused int, host *dao.Host) error {
-	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", unused, host)
+func (a *AgentClient) GetInfo(ips []string, host *dao.Host) error {
+	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
 }

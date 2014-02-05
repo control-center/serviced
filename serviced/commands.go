@@ -262,7 +262,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	}
 
 	var remoteHost dao.Host
-	err = client.GetInfo(0, &remoteHost)
+	//TODO: get user supplied IPs from command line
+	err = client.GetInfo([]string{}, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}

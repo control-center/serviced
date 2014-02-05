@@ -177,10 +177,6 @@ func startServer() {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
-
-		//TODO: allow more ip address to register via command line options
-		go agent.RegisterIPResources(agentIP)
-
 	}
 	rpc.HandleHTTP()
 

@@ -11,8 +11,8 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
+	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -187,7 +187,8 @@ func TestDao_UpdateHost(t *testing.T) {
 	controlPlaneDao.GetHost("default", &result)
 	result.CreatedAt = host.CreatedAt
 	result.UpdatedAt = host.UpdatedAt
-	if *host != result {
+
+	if !reflect.DeepEqual(*host, result) {
 		t.Errorf("%+v != %+v", result, host)
 		t.Fail()
 	}
@@ -205,7 +206,7 @@ func TestDao_GetHost(t *testing.T) {
 	result.CreatedAt = host.CreatedAt
 	result.UpdatedAt = host.UpdatedAt
 	if err == nil {
-		if *host != result {
+		if !reflect.DeepEqual(*host, result) {
 			t.Errorf("Unexpected Host: expected=%+v, actual=%+v", host, result)
 		}
 	} else {
@@ -239,7 +240,7 @@ func TestDao_GetHosts(t *testing.T) {
 	if err == nil && len(hosts) == 1 {
 		hosts["default"].CreatedAt = host.CreatedAt
 		hosts["default"].UpdatedAt = host.UpdatedAt
-		if *hosts["default"] != *host {
+		if !reflect.DeepEqual(*hosts["default"], *host) {
 			t.Errorf("expected [%+v] actual=%s", host, hosts)
 			t.Fail()
 		}
@@ -483,21 +484,7 @@ func testDaoHostExists(t *testing.T) {
 
 }
 
-func TestDaoGetHostIPsNoHost(t *testing.T) {
-	//Test not found
-	hostIPs := dao.HostIPs{}
-	err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
-	if err == nil {
-		t.Error("Expected not found error")
-	}
-	if !strings.HasPrefix(err.Error(), "Host not found for id "+HOSTID) {
-		t.Errorf("Unexpected error: %v", err)
-	}
-}
-
-func TestDaoGetHostIPsNotFound(t *testing.T) {
-	hostIPs := dao.HostIPs{}
-
+func TestDaoGetHostNoIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
@@ -508,20 +495,23 @@ func TestDaoGetHostIPsNotFound(t *testing.T) {
 		return
 	}
 
-	err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
+	resultHost := dao.Host{}
+	err = controlPlaneDao.GetHost(HOSTID, &resultHost)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
+		return
 	}
-	if hostIPs.Id != "" {
-		t.Errorf("Expected uninitialzed id, got %v", hostIPs.Id)
+	if len(resultHost.IPs) != 0 {
+		t.Errorf("Expected %v IPs, got %v", 0, len(resultHost.IPs))
 	}
+
 }
 
-func TestDaoGetHostIPsNoIPs(t *testing.T) {
-	hostIPs := dao.HostIPs{}
+func TestDaoGetHostWithIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
 	if err != nil {
@@ -529,221 +519,14 @@ func TestDaoGetHostIPsNoIPs(t *testing.T) {
 		return
 	}
 
-	//store a HostIPs object
-	hostIPs.Id = HOSTIPSID
-	hostIPs.HostId = HOSTID
-	_, err = newHostIPs(hostIPs.Id, hostIPs)
-	defer deleteHostIPs(HOSTIPSID)
-	if err != nil {
-		t.Errorf("Error creating newHostIPs")
-		return
-	}
-
-	err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
+	resultHost := dao.Host{}
+	err = controlPlaneDao.GetHost(HOSTID, &resultHost)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 		return
 	}
-	if hostIPs.Id != HOSTIPSID {
-		t.Errorf("Expected host ips id %v , got %v", HOSTIPSID, hostIPs.Id)
-	}
-	if hostIPs.HostId != HOSTID {
-		t.Errorf("Expected host id %v, got %v", HOSTID, hostIPs.Id)
-	}
-	if hostIPs.PoolId != "" {
-		t.Errorf("Expected uninitialzed poolid, got %v", hostIPs.PoolId)
-	}
-	if len(hostIPs.IPs) != 0 {
-		t.Errorf("Expected %v IPs, got %v", 0, len(hostIPs.IPs))
-	}
-
-}
-
-func TestDaoGetHostIPsWithIPs(t *testing.T) {
-	hostIPs := dao.HostIPs{}
-	//Add host to test scenario where host exists but no IP resource registered
-	host := dao.Host{}
-	host.Id = HOSTID
-	err = controlPlaneDao.AddHost(host, &id)
-	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		return
-	}
-
-	//store a HostIPs object
-	hostIPs.Id = HOSTIPSID
-	hostIPs.HostId = HOSTID
-	hostIPs.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}}}
-	_, err = newHostIPs(hostIPs.Id, hostIPs)
-	defer deleteHostIPs(HOSTIPSID)
-	if err != nil {
-		t.Errorf("Error creating newHostIPs")
-		return
-	}
-
-	err = controlPlaneDao.GetHostIPs(HOSTID, &hostIPs)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		return
-	}
-	if hostIPs.Id != HOSTIPSID {
-		t.Errorf("Expected host ips id %v , got %v", HOSTIPSID, hostIPs.Id)
-	}
-	if hostIPs.HostId != HOSTID {
-		t.Errorf("Expected host id %v, got %v", HOSTID, hostIPs.Id)
-	}
-	if hostIPs.PoolId != "" {
-		t.Errorf("Expected uninitialzed poolid, got %v", hostIPs.PoolId)
-	}
-	if hostIPs.PoolId != "" {
-		t.Errorf("Expected uninitialzed id, got %v", hostIPs.Id)
-	}
-	if len(hostIPs.IPs) != 1 {
-		t.Errorf("Expected %v IPs, got %v", 1, len(hostIPs.IPs))
-	}
-
-}
-
-func TestDaoRegisterHostIPsNoHost(t *testing.T) {
-	ips := dao.HostIPs{}
-	ips.HostId = HOSTID
-	ips.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}}}
-
-	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
-	if !strings.HasPrefix(err.Error(), "Host not found for id "+HOSTID) {
-		t.Errorf("Unexpected error: %v", err)
-	}
-}
-
-func removeHostIPs(hostId string) {
-	hostIPs := dao.HostIPs{}
-	err = controlPlaneDao.GetHostIPs(hostId, &hostIPs)
-	glog.Infof("Getting HostIPs id: %v: %v, %v", hostIPs.Id, hostIPs, err)
-	if err == nil && hostIPs.Id != "" {
-		x, err := deleteHostIPs(hostIPs.Id)
-		glog.Infof("Deleting HostIPs %v: %v: %v", hostIPs, err, x)
-	}
-}
-
-func TestDaoRegisterHostIPs(t *testing.T) {
-	//Add host to test scenario where host exists but no IP resource registered
-	host := dao.Host{}
-	host.Id = HOSTID
-	err = controlPlaneDao.AddHost(host, &id)
-	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-
-	ips := dao.HostIPs{}
-	ips.HostId = HOSTID
-	ips.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}}}
-
-	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
-	//remove any registered
-	defer removeHostIPs(HOSTID)
-
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	//verify registration
-	ips = dao.HostIPs{}
-	controlPlaneDao.GetHostIPs(HOSTID, &ips)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(ips.IPs) != 1 {
-		t.Errorf("Expected 1 HostIPResource, found: %v", len(ips.IPs))
-	}
-	ipResource := ips.IPs[0]
-	if ipResource.State != "valid" {
-		t.Errorf("Unexpected state: %v", ipResource.State)
-	}
-	if ipResource.IPAddress != "testip" {
-		t.Errorf("Unexpected IPAddress: %v", ipResource.IPAddress)
-	}
-	if ipResource.InterfaceName != "ifname" {
-		t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
-	}
-
-}
-func TestDaoRegisterHostIPsMerge(t *testing.T) {
-	//Add host to test scenario where host exists but no IP resource registered
-	host := dao.Host{}
-	host.Id = HOSTID
-	err = controlPlaneDao.AddHost(host, &id)
-	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-
-	ips := dao.HostIPs{}
-	ips.HostId = HOSTID
-	ips.IPs = []dao.HostIPResource{
-		dao.HostIPResource{"valid", "testip", "ifname", []dao.AssignedPort{}},
-		dao.HostIPResource{"deleted", "testip1", "ifname", []dao.AssignedPort{}},
-	}
-
-	err := controlPlaneDao.RegisterHostIPs(ips, &unused)
-	//remove any registered
-	defer removeHostIPs(HOSTID)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	ips.IPs = []dao.HostIPResource{
-		dao.HostIPResource{"valid", "testip2", "ifname2", []dao.AssignedPort{}},
-		dao.HostIPResource{"valid", "testip1", "ifname", []dao.AssignedPort{}},
-	}
-	err = controlPlaneDao.RegisterHostIPs(ips, &unused)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	//verify registration
-	ips = dao.HostIPs{}
-	controlPlaneDao.GetHostIPs(HOSTID, &ips)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(ips.IPs) != 3 {
-		t.Errorf("Expected 3 HostIPResources, found: %v", len(ips.IPs))
-	}
-	for _, ipResource := range ips.IPs {
-		addr := ipResource.IPAddress
-		switch addr {
-		case "testip":
-			{
-				if ipResource.State != "deleted" {
-					t.Errorf("Unexpected state: %v", ipResource.State)
-				}
-
-				if ipResource.InterfaceName != "ifname" {
-					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
-				}
-			}
-		case "testip1":
-			{
-				if ipResource.State != "valid" {
-					t.Errorf("Unexpected state: %v", ipResource.State)
-				}
-
-				if ipResource.InterfaceName != "ifname" {
-					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
-				}
-			}
-		case "testip2":
-			{
-				if ipResource.State != "valid" {
-					t.Errorf("Unexpected state: %v", ipResource.State)
-				}
-
-				if ipResource.InterfaceName != "ifname2" {
-					t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
-				}
-			}
-		default:
-			{
-				t.Errorf("Unexpected IP resource %v", ipResource)
-			}
-		}
-
+	if len(resultHost.IPs) != 1 {
+		t.Errorf("Expected %v IPs, got %v", 1, len(resultHost.IPs))
 	}
 }
 
@@ -761,6 +544,4 @@ func TestDao_TestingComplete(t *testing.T) {
 	controlPlaneDao.RemoveHost("1", &unused)
 	controlPlaneDao.RemoveHost("existsTest", &unused)
 	controlPlaneDao.RemoveHost(HOSTID, &unused)
-
-	deleteHostIPs(HOSTIPSID)
 }

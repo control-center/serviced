@@ -180,10 +180,4 @@ type ControlPlane interface {
 
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
-
-	/*
-	 RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
-	 been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
-	*/
-	RegisterHostIPs(ips HostIPs, unused *int) error
 }

@@ -34,18 +34,20 @@ type PoolHost struct {
 	HostIp string
 }
 
-// HostIPs contains information about IPs on a host.
-type HostIPs struct {
-	Id     string
-	HostId string
-	PoolId string
-	IPs    []HostIPResource
-}
-
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AssignedPort struct {
 	Port      int
 	ServiceId string
+}
+
+//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
+type PortAssignment struct {
+	AssignmentType string //Static of Virtual
+	HostId         string //Host id if type is Static
+	PoolId         string //Pool id if type is Virtual
+	IPAddr         string //Used to associate to resource in Pool or Host
+	Port           int    //Actual assigned port
+	ServiceId      string //Service using this assignment
 }
 
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
@@ -54,7 +56,6 @@ type HostIPResource struct {
 	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
-	Ports         []AssignedPort
 }
 
 // A collection of computing resources with optional quotas.
@@ -94,6 +95,7 @@ type Host struct {
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	IPs            []HostIPResource // The static IP resourceavailable for services to use
 }
 
 // Create a new host.
