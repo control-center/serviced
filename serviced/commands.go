@@ -469,8 +469,8 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 
 	sort.Sort(ByInterfaceName(PoolIPResources))
 
-	// print the interface info (name, IP, state)
-	outfmt := "%-16s %-30s %-16s\n"
+	// print the interface info (name, IP)
+	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
 	for _, hostIPResource := range PoolIPResources {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
