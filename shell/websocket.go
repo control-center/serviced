@@ -140,7 +140,11 @@ func (p *Process) send(r Runner) {
 		case s := <-p.Signal:
 			r.Signal(s)
 		case m := <-exited:
-			p.Error = r.Error()
+			if e := r.Error(); e == nil {
+				p.Error = errors.New("0")
+			} else {
+				p.Error = e
+			}
 			p.Exited <- m
 			p.whenDone <- true
 			return
