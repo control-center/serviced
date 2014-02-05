@@ -52,9 +52,6 @@ func WriteToFile(msg ...interface{}) {
 // Describes streams from an agent-executed process to a client
 type ProcessStream interface {
 
-	// Get a reference to the incoming connection
-	GetIncomingConn() *net.Conn
-
 	// Initiate client-side communication and create Process
 	StreamClient(http.ResponseWriter, *http.Request, chan *dao.Process)
 
@@ -68,17 +65,32 @@ type ProcessStream interface {
 	Close()
 }
 
-type WebsocketProcessStream struct {
-	client  *websocket.Conn
+type baseProcessStream struct {
 	agent   *websocket.Conn
 	process *dao.Process
 	addr    string
 }
 
-type HttpProcessStream struct {
-	client  *net.Conn
-	agent   *websocket.Conn
-	process *dao.Process
+type WebsocketProcessStream struct {
+	*baseProcessStream
+	client *websocket.Conn
+}
+
+type HTTPProcessStream struct {
+	*baseProcessStream
+	client *net.Conn
+}
+
+func NewWebsocketProcessStream(addr string) *WebsocketProcessStream {
+	return &WebsocketProcessStream{
+		baseProcessStream: &baseProcessStream{addr: addr},
+	}
+}
+
+func NewHTTPProcessStream(addr string) *HTTPProcessStream {
+	return &HTTPProcessStream{
+		baseProcessStream: &baseProcessStream{addr: addr},
+	}
 }
 
 type WebsocketProcessHandler struct {
@@ -94,7 +106,7 @@ type HTTPProcessHandler struct {
 
 // Implement http.Handler
 func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stream := &WebsocketProcessStream{addr: h.addr}
+	stream := NewWebsocketProcessStream(h.addr)
 	defer stream.Close()
 
 	// Create a client and wait for the process packet
@@ -114,6 +126,16 @@ func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	// Wait for the process to die
 	stream.Wait()
+}
+
+func (h *HTTPProcessHandler) Close() {
+
+}
+
+func (h *HTTPProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	stream := NewHTTPProcessStream(h.addr)
+	defer stream.Close()
+
 }
 
 // Read the first packet from the client and deserialize to Process
@@ -156,7 +178,7 @@ func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Req
 	forwardToClient(s.client, s.process)
 }
 
-func (s *WebsocketProcessStream) StreamAgent() {
+func (s *baseProcessStream) StreamAgent() {
 	// TODO: Proper ws scheme validation
 	ws, _, _ := websocket.DefaultDialer.Dial("ws://"+s.addr, nil)
 	s.agent = ws
@@ -177,7 +199,7 @@ func (s *WebsocketProcessStream) StreamAgent() {
 	s.forwardFromAgent()
 }
 
-func (s *WebsocketProcessStream) Wait() {
+func (s *baseProcessStream) Wait() {
 	for {
 		if s.process != nil {
 			s.process.Wait()
@@ -187,7 +209,7 @@ func (s *WebsocketProcessStream) Wait() {
 	}
 }
 
-func (s *WebsocketProcessStream) Close() {
+func (s *baseProcessStream) Close() {
 	// TODO: See if we need to do anything else. Close ws conns?
 	if s.process != nil {
 		s.process.Signal <- syscall.SIGKILL
@@ -195,7 +217,7 @@ func (s *WebsocketProcessStream) Close() {
 }
 
 // Wire up the Process to the agent connection
-func (s *WebsocketProcessStream) forwardFromAgent() {
+func (s *baseProcessStream) forwardFromAgent() {
 	defer s.agent.Close()
 	// Writer
 	go func() {
@@ -284,6 +306,7 @@ func forwardToClient(ws *websocket.Conn, proc *dao.Process) {
 
 }
 
+// This is the handler on the agent that receives the connection from the proxy
 func (h *OSProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Establish the websocket connection with proxy
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
