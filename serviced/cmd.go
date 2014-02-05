@@ -17,6 +17,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -180,7 +181,7 @@ func startServer() {
 		// TODO: Integrate this server into the rpc server, or something.
 		// Currently its only use is for command execution.
 		go func() {
-			http.Handle("/", &OSProcessHandler{})
+			http.Handle("/", &shell.OSProcessHandler{})
 			http.ListenAndServe(":50001", nil)
 		}()
 

@@ -3,12 +3,9 @@ package dao
 import (
 	"fmt"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/shell"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
 )
 
@@ -244,36 +241,6 @@ type AddressResourceConfig struct {
 	Protocol string
 }
 
-// Defines commands to be run in an object's container
-type Process struct {
-	ServiceId string              // The service id of the container to start
-	IsTTY     bool                // Describes the type of connection needed
-	Envv      []string            // Environment variables
-	Command   string              // Command to run
-	Error     error               `json:"-"`
-	Stdin     chan string         `json:"-"`
-	Stdout    chan string         `json:"-"`
-	Stderr    chan string         `json:"-"`
-	Exited    chan bool           `json:"-"`
-	Signal    chan syscall.Signal `json:"-"`
-	whenDone  chan bool
-}
-
-func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
-	return &Process{
-		ServiceId: serviceId,
-		IsTTY:     istty,
-		Envv:      envv,
-		Command:   command,
-		Stdin:     make(chan string),
-		Stdout:    make(chan string),
-		Stderr:    make(chan string),
-		Signal:    make(chan syscall.Signal),
-		Exited:    make(chan bool),
-		whenDone:  make(chan bool),
-	}
-}
-
 type LogConfig struct {
 	Path    string   // The location on the container's filesystem of the log, can be a directory
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
@@ -373,89 +340,6 @@ func execPath() (string, string, error) {
 		return "", "", err
 	}
 	return filepath.Dir(path), filepath.Base(path), nil
-}
-
-// Starts a container shell
-func (s *Service) Exec(p *Process) error {
-	var runner shell.Runner
-
-	// Bind mount on /serviced
-	dir, bin, err := execPath()
-	if err != nil {
-		return err
-	}
-	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
-
-	// Bind mount the pwd
-	dir, err = os.Getwd()
-	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
-
-	// Get the shell command
-	var shellCmd string
-	if p.Command != "" {
-		shellCmd = p.Command
-	} else {
-		shellCmd = "su -"
-	}
-
-	// Get the proxy Command
-	proxyCmd := []string{fmt.Sprintf("/serviced/%s", bin), "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", s.Id, shellCmd}
-	// Get the docker start command
-	docker, err := exec.LookPath("docker")
-	if err != nil {
-		return err
-	}
-	argv := []string{"run", "-rm", "-v", servicedVolume, "-v", pwdVolume}
-	argv = append(argv, p.Envv...)
-
-	if p.IsTTY {
-		argv = append(argv, "-i", "-t")
-	}
-
-	argv = append(argv, s.ImageId)
-	argv = append(argv, proxyCmd...)
-
-	runner, err = shell.CreateCommand(docker, argv)
-
-	if err != nil {
-		return err
-	}
-
-	// @see http://dave.cheney.net/tag/golang-3
-	p.Stdout = runner.StdoutPipe()
-	p.Stderr = runner.StderrPipe()
-
-	go p.send(runner)
-	return nil
-}
-
-func (p *Process) send(r shell.Runner) {
-	exited := r.ExitedPipe()
-	go r.Reader(8192)
-
-	defer func() {
-		close(p.Stdin)
-		close(p.Exited)
-		close(p.Signal)
-	}()
-
-	for {
-		select {
-		case i := <-p.Stdin:
-			r.Write([]byte(i))
-		case s := <-p.Signal:
-			r.Signal(s)
-		case m := <-exited:
-			p.Error = r.Error()
-			p.Exited <- m
-			p.whenDone <- true
-			return
-		}
-	}
-}
-
-func (p *Process) Wait() {
-	<-p.whenDone
 }
 
 // Retrieve service container port, 0 failure
