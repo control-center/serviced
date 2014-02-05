@@ -65,7 +65,7 @@ stage: build pkgroot
 	cp serviced.default pkgroot/etc/default/serviced
 	cp ../dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
 	cp ../web/static pkgroot$(INSTALL_DIR)/share/web -R
-	mkdir pkgroot$(INSTALL_DIR)/isvcs
+	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
 	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
 
