@@ -63,8 +63,7 @@ With $GOROOT set and $GOROOT/bin in your $PATH, create a development workspace.
 ```bash
 export GOPATH=~/mygo
 export PATH="$PATH:$GOPATH/bin"
-mkdir $GOPATH/pkg -p
-mkdir $GOPATH/bin -p
+mkdir $GOPATH/{bin,pkg,src} -p
 mkdir $GOPATH/src/github.com/zenoss -p
 cd $GOPATH/src/github.com/zenoss 
 git clone git@github.com:zenoss/serviced.git
