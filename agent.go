@@ -782,7 +782,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 	if err != nil {
 		return err
 	}
-	host.IPs = hostIPs
+	hostInfo.IPs = hostIPs
 	*host = *hostInfo
 	return nil
 }

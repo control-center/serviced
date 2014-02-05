@@ -56,6 +56,10 @@ func (s *ControlClient) UpdateHost(host dao.Host, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateHost", host, unused)
 }
 
+func (s *ControlClient) GetHost(hostId string, host *dao.Host) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetHost", hostId, host)
+}
+
 func (s *ControlClient) RemoveHost(hostId string, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.RemoveHost", hostId, unused)
 }

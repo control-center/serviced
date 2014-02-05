@@ -1,6 +1,8 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/dao"
+
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -92,6 +94,36 @@ func TestParseContainerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem unmarshaling test state: ", err)
 	}
+}
+
+func TestGetInfo(t *testing.T) {
+
+	ip, err := GetIpAddress()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	agent := HostAgent{}
+	host := dao.Host{}
+	err = agent.GetInfo([]string{}, &host)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if len(host.IPs) != 1 {
+		t.Errorf("Unexpected result %v", host.IPs)
+	}
+	if host.IpAddr != ip {
+		t.Errorf("Expected ip %v, got %v", ip, host.IPs)
+	}
+	if host.IPs[0].IPAddress != ip {
+		t.Errorf("Expected ip %v, got %v", ip, host.IPs)
+	}
+
+	err = agent.GetInfo([]string{"127.0.0.1"}, &host)
+	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
+		t.Errorf("Unexpected error %v", err)
+	}
+
 }
 
 func TestRegisterIPResources(t *testing.T) {

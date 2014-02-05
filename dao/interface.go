@@ -38,9 +38,8 @@ type ControlPlane interface {
 	// Remove a Host from serviced
 	RemoveHost(hostId string, unused *int) error
 
-	//TODO Does this belong here?
-	// Get Host for a registered host
-	//GetHost(hostId int, host *Host) error
+	// Get Host by id
+	GetHost(hostId string, host *Host) error
 
 	// Get a list of registered hosts
 	GetHosts(request EntityRequest, hosts *map[string]*Host) error

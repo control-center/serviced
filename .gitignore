@@ -41,3 +41,5 @@ isvcs/build/*.tar.gz
 !d3*/
 
 *.iml
+
+.repo_tag_exists*

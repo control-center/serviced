@@ -511,7 +511,7 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{"valid", "testip", "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testip", "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
 	if err != nil {

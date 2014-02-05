@@ -53,7 +53,6 @@ type PortAssignment struct {
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
-	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
 }
