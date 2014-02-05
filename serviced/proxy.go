@@ -112,15 +112,13 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}(config.Command)
 
 	go func() {
-		// *********************************************************************************************
-		// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-		// *********************************************************************************************
-		cmdString := containerLogstashForwarderBinaryPath + " -config " + containerLogstashForwarderConfPath
+		// make sure we pick up any logfile that was modified within the last three years
+		// TODO: Either expose the 3 years as configurable or get rid of if we can find another way around the stale file problem
+		cmdString := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder " + " -old-files-hours=26280 -config " + serviced.LOGSTASH_CONTAINER_CONFIG
 		glog.V(0).Info("About to execute: ", cmdString)
 		myCmd := exec.Command("bash", "-c", cmdString)
+		myCmd.Stdout = os.Stdout
+		myCmd.Stderr = os.Stderr
 		myErr := myCmd.Run()
 		if myErr != nil {
 			glog.Errorf("Problem running service: %v", myErr)

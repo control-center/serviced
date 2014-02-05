@@ -7,12 +7,16 @@
               "Purpose": "export"
             }
           ],
+          "ImageId": "ubuntu",
+          "Instances": {
+            "min": 1
+          },
           "LogConfigs":[ {
             "path": "/tmp/foo",
             "type": "foo"
           }],
-          "ImageId": "ubuntu",
-          "Instances": {
-            "min": 1
+          "Snapshot": {
+            "Pause": "echo pause",
+            "Resume": "echo resume"
           }
 }

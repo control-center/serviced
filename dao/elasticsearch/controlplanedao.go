@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package elasticsearch
 
@@ -756,6 +757,11 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	if err != nil {
 		return err
 	}
+	if len(result) == 0 {
+		errorMessage := fmt.Sprintf("Illegal poolId:%s was not found", id)
+		return errors.New(errorMessage)
+	}
+
 	var response []*dao.PoolHost = make([]*dao.PoolHost, len(result))
 	for i := 0; i < len(result); i += 1 {
 		poolHost := dao.PoolHost{result[i].Id, result[i].PoolId, result[i].IpAddr}
@@ -932,7 +938,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Volumes = sd.Volumes
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
-	svc.AddressResources = sd.AddressResources
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {

@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package main
 
@@ -60,7 +61,12 @@ var options struct {
 
 // Setup flag options (static block)
 func init() {
-	flag.StringVar(&options.port, "port", "127.0.0.1:4979", "port for remote serviced (example.com:8080)")
+	ip, err := serviced.GetIpAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	flag.StringVar(&options.port, "port", ip+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
@@ -116,6 +122,10 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
+	l, err := net.Listen("tcp", options.listen)
+	if err != nil {
+		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
+	}
 
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
@@ -185,6 +195,7 @@ func startServer() {
 		go agent.RegisterIPResources(resourceDuration)
 
 	}
+
 	rpc.HandleHTTP()
 
 	if options.repstats {
@@ -194,12 +205,6 @@ func startServer() {
 		glog.V(1).Infoln("Staring containter statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
-	}
-
-	l, err := net.Listen("tcp", options.listen)
-	if err != nil {
-		glog.Warningf("Could not bind to port %v", err)
-		time.Sleep(time.Second * 1000)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())

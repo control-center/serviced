@@ -1,8 +1,9 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/commons"
+
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 )
@@ -35,6 +36,10 @@ func init() {
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
+						AddressConfig: AddressResourceConfig{
+							Port:     8081,
+							Protocol: commons.TCP,
+						},
 					},
 				},
 				LogConfigs: []LogConfig{
@@ -43,15 +48,9 @@ func init() {
 						Type: "foo",
 					},
 				},
-				AddressResources: []AddressResourceConfig{
-					AddressResourceConfig{
-						Port:     9000,
-						Protocol: TCP,
-					},
-					AddressResourceConfig{
-						Port:     8000,
-						Protocol: UDP,
-					},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 			ServiceDefinition{
@@ -64,6 +63,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
+						VHosts:      []string{"testhost"},
 					},
 				},
 				LogConfigs: []LogConfig{
@@ -71,6 +71,10 @@ func init() {
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
+				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 		},
@@ -113,18 +117,6 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		}
 	}
 
-	//check AddressResources
-	if len(a.AddressResources) != len(b.AddressResources) {
-		return false, fmt.Sprintf("Number of IP resources differ between %s [%s] and %s [%s]",
-			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
-	}
-	sort.Sort(AddressResourceConfigByPort(a.AddressResources))
-	sort.Sort(AddressResourceConfigByPort(b.AddressResources))
-	if !reflect.DeepEqual(a.AddressResources, b.AddressResources) {
-		return false, fmt.Sprintf("Address resource port differ between %s %v and %s %v",
-			a.Name, a.AddressResources, b.Name, b.AddressResources)
-	}
-
 	// check config files
 	if len(a.ConfigFiles) != len(b.ConfigFiles) {
 		return false, fmt.Sprintf("%s has %d configs, %s has %d configs",
@@ -137,6 +129,14 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		if confFile != b.ConfigFiles[filename] {
 			return false, fmt.Sprintf("ConfigFile mismatch %s, a: %v, b: %v", filename, confFile, b.ConfigFiles[filename])
 		}
+	}
+
+	// check snapshot
+	if a.Snapshot.Pause != b.Snapshot.Pause {
+		return false, fmt.Sprintf("Snapshot pause commands are not equal %s != %s", a.Snapshot.Pause, b.Snapshot.Pause)
+	}
+	if a.Snapshot.Resume != b.Snapshot.Resume {
+		return false, fmt.Sprintf("Snapshot resume commands are not equal %s != %s", a.Snapshot.Resume, b.Snapshot.Resume)
 	}
 
 	return true, ""

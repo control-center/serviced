@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package serviced
 
@@ -14,6 +15,7 @@ import (
 
 	"bufio"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -134,12 +136,45 @@ func routeCmd() (routes []RouteEntry, err error) {
 }
 
 // Get the IP bound to the hostname of the current host
-func getIpAddr() (ip string, err error) {
+// This function first attempts to find the ip from the hostname,
+// if it's a loopback interface the ip address is found from making an outgoing
+// connection.
+func GetIpAddress() (ip string, err error) {
+	ip, err = getIpAddrFromHostname()
+	if err != nil || strings.HasPrefix(ip, "127") {
+		ip, err = getIpAddrFromOutGoingConnection()
+		if err == nil && strings.HasPrefix(ip, "127") {
+			return "", fmt.Errorf("unable to identify local ip address")
+		}
+	}
+
+	return ip, err
+}
+
+// Get the IP bound to the hostname of the current host
+func getIpAddrFromHostname() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()
 	if err != nil {
 		return ip, err
 	}
 	return strings.TrimSpace(string(output)), err
+}
+
+// Get the IP bound to the hostname of the current host
+func getIpAddrFromOutGoingConnection() (ip string, err error) {
+	addr, err := net.ResolveUDPAddr("udp4", "8.8.8.8:53")
+	if err != nil {
+		return "", err
+	}
+
+	conn, err := net.DialUDP("udp4", nil, addr)
+	if err != nil {
+		return "", err
+	}
+
+	localAddr := conn.LocalAddr()
+	parts := strings.Split(localAddr.String(), ":")
+	return parts[0], nil
 }
 
 // Create a new Host struct from the running host's values. The resource pool id
@@ -161,7 +196,7 @@ func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 		return nil, err
 	}
 
-	host.IpAddr, err = getIpAddr()
+	host.IpAddr, err = GetIpAddress()
 	if err != nil {
 		return host, err
 	}
@@ -286,11 +321,6 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 	return err
 }
 
-// returns serviced home
-func ServiceDHome() string {
-	return os.Getenv("SERVICED_HOME")
-}
-
 // This code is straight out of net/http/httputil
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
@@ -344,8 +374,8 @@ chmod %s /tmp && \
 shopt -s nullglob && \
 shopt -s dotglob && \
 files=(/tmp/*) && \
-if [ ${#files[@]} -eq 0 ]; then 
-    cp -rp %s/* /tmp/
+if [ ${#files[@]} -eq 0 ]; then
+	cp -rp %s/* /tmp/
 fi
 `, userSpec, permissionSpec, containerSpec))
 	output, err := docker.CombinedOutput()

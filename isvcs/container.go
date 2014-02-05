@@ -1,16 +1,18 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
 import (
 	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 
 	"errors"
 	"fmt"
@@ -183,7 +185,7 @@ func (c *Container) rm() error {
 		return err
 	} else {
 		for _, id := range *ids {
-            client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+			client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil
@@ -207,7 +209,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// attach resources directory to all containers
-	args = append(args, "-v", resourcesDir()+":"+"/usr/local/serviced/resources")
+	args = append(args, "-v", utils.ResourcesDir()+":"+"/usr/local/serviced/resources")
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {
