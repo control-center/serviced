@@ -13,13 +13,12 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 
 default: build_binary
 
-install:
+install: build_binary
 	go install github.com/zenoss/serviced/serviced
 
 build_binary:
 	cd serviced && make
 	cd isvcs && make
-	cd dao && make
 
 go:
 	cd serviced && go build
