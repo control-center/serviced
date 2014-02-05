@@ -22,5 +22,9 @@
           "LogConfigs":[ {
             "path": "/tmp/foo",
             "type": "foo"
-          }]
+          }],
+          "Snapshot": {
+            "Pause": "echo pause",
+            "Resume": "echo resume"
+          }
 }
