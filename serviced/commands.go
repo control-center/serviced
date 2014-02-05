@@ -424,7 +424,7 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 }
 
 // ByInterfaceName implements sort.Interface for []dao.HostIPResource
-// This is used to display the interface information sorted 
+// This is used to display the interface information sorted
 type ByInterfaceName []dao.HostIPResource
 
 func (a ByInterfaceName) Len() int      { return len(a) }
