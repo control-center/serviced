@@ -834,25 +834,16 @@ type SendHostIPs func(ips dao.HostIPs, unused *int) error
 RegisterResources registers resources on the host such as IP addresses with the control plane master.
 The duration parameter is how often to register with the master
 */
-func (a *HostAgent) RegisterIPResources(duration time.Duration) {
-	registerFn := func() {
-		controlClient, err := NewControlClient(a.master)
-		if err != nil {
-			glog.Errorf("Could not start ControlPlane client %v", err)
-			return
-		}
-		defer controlClient.Close()
-		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
-		if err != nil {
-			glog.Errorf("Error registering resources %v", err)
-		}
+func (a *HostAgent) RegisterIPResources(ipaddress ...string) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Fatalf("Could not start ControlPlane client %v", err)
+		return
 	}
-	//do it the first time
-	registerFn()
-	tc := time.Tick(duration)
-	//run in timed loop
-	for _ = range tc {
-		registerFn()
+	defer controlClient.Close()
+	err = registerIPs(a.hostId, controlClient.RegisterHostIPs, ipaddress...)
+	if err != nil {
+		glog.Fatalf("Error registering resources %v", err)
 	}
 }
 
@@ -860,35 +851,63 @@ func (a *HostAgent) RegisterIPResources(duration time.Duration) {
 registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
 and the function used to send the found IPs
 */
-func registerIPs(hostId string, sendFn SendHostIPs) error {
+func registerIPs(hostId string, sendFn SendHostIPs, ipaddress ...string) error {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
 		return err
 	}
-	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+	//make a  of all ipaddresses to interface
+	ips := make(map[string]net.Interface)
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
+			glog.Error("Problem reading interfaces: ", err)
 			return err
 		}
-		for _, addr := range addrs {
-			//send address to Master
-			hostIp := dao.HostIPResource{}
-			hostIp.IPAddress = addr.String()
-			hostIp.InterfaceName = iface.Name
-			hostIPResources = append(hostIPResources, hostIp)
+		for _, ip := range addrs {
+			normalIP := strings.SplitN(ip.String(), "/", 2)[0]
+			normalIP = strings.Trim(strings.ToLower(normalIP), " ")
+
+			ips[normalIP] = iface
 		}
 	}
+
+	glog.V(4).Infof("Interfaces on this host %v", ips)
+
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+
+	validate := func(iface net.Interface, ip string) error {
+		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
+			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
+		}
+		return nil
+	}
+
+	for _, ipaddr := range ipaddress {
+		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
+		iface, found := ips[normalIP]
+		if !found {
+			return fmt.Errorf("IP address %v not valid for this host", ipaddr)
+		}
+		err = validate(iface, normalIP)
+		if err != nil {
+			return err
+		}
+		hostIp := dao.HostIPResource{}
+		hostIp.IPAddress = ipaddr
+		hostIp.InterfaceName = iface.Name
+		hostIPResources = append(hostIPResources, hostIp)
+	}
 	var unused int
+
 	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
 	hostIps := dao.HostIPs{}
 	hostIps.HostId = hostId
 	hostIps.IPs = hostIPResources
 	if err := sendFn(hostIps, &unused); err != nil {
-		glog.Errorf("Error registering IPs %v", err)
+		return fmt.Errorf("Error registering IPs %v", err)
 	}
 	return nil
 }
