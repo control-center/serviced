@@ -20,9 +20,9 @@ type Conn interface {
 	Name() string
 	Path() string
 	Snapshot(label string) (err error)
-	Snapshots() (labels []string, err error)
+	Snapshots() ([]string, error)
 	RemoveSnapshot(label string) error
-	Rollback(label string) (err error)
+	Rollback(label string) error
 }
 
 type Volume struct {
