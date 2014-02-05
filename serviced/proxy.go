@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
-
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
@@ -17,70 +15,34 @@ import (
 	"time"
 )
 
-type hub struct {
-	// Registered connections.
-	connections map[*WebsocketShell]bool
-
-	// Register requests from the connections
-	register chan *WebsocketShell
-
-	// Unregister requests from the connections
-	unregister chan *WebsocketShell
-}
-
-func (h *hub) run() {
-	for {
-		select {
-		case c := <-h.register:
-			h.connections[c] = true
-		case c := <-h.unregister:
-			delete(h.connections, c)
-			c.Close()
-		}
-	}
-}
-
-var h = hub{
-	register:    make(chan *WebsocketShell),
-	unregister:  make(chan *WebsocketShell),
-	connections: make(map[*WebsocketShell]bool),
-}
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-
-	// Create a client to talk to the serviced agent
-	client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
-		return
-	}
-	defer client.Close()
-
-	// Upgrade the incoming connection to a websocket
-	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if _, ok := err.(websocket.HandshakeError); ok {
-		http.Error(w, "Not a websocket handshake", 400)
-		return
-	} else if err != nil {
-		return
-	}
-
-	ProxyCommandOverWS(proxyOptions.servicedEndpoint, ws)
-	for {
-		time.Sleep(10)
-	}
-
-	// TODO: Store the return value of the above func so people can reconnect
-	// to it. It's a Process.
-
-	//h.register <- c
-	//defer func() { h.unregister <- c }()
-	//go c.Writer()
-	//c.Reader()
-}
-
-func httpHandler(w http.ResponseWriter, r *http.Request) {
-}
+//type hub struct {
+//	// Registered connections.
+//	connections map[*WebsocketShell]bool
+//
+//	// Register requests from the connections
+//	register chan *WebsocketShell
+//
+//	// Unregister requests from the connections
+//	unregister chan *WebsocketShell
+//}
+//
+//func (h *hub) run() {
+//	for {
+//		select {
+//		case c := <-h.register:
+//			h.connections[c] = true
+//		case c := <-h.unregister:
+//			delete(h.connections, c)
+//			c.Close()
+//		}
+//	}
+//}
+//
+//var h = hub{
+//	register:    make(chan *WebsocketShell),
+//	unregister:  make(chan *WebsocketShell),
+//	connections: make(map[*WebsocketShell]bool),
+//}
 
 // Start a service proxy.
 func (cli *ServicedCli) CmdProxy(args ...string) error {
@@ -104,9 +66,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
-	go h.run()
-	http.HandleFunc("/exec", wsHandler)
-	http.HandleFunc("/exechttp", httpHandler)
+	//go h.run()
+	http.Handle("/exec", &WebsocketProcessHandler{
+		addr: proxyOptions.servicedEndpoint,
+	})
+	//http.Handle("/exechttp", httpHandler)
 	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
