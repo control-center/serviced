@@ -54,6 +54,7 @@ type Process struct {
 	Exited    chan bool           `json:"-"`
 	Signal    chan syscall.Signal `json:"-"`
 	whenDone  chan bool
+	done      bool
 }
 
 func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
@@ -68,6 +69,7 @@ func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
 		Signal:    make(chan syscall.Signal),
 		Exited:    make(chan bool),
 		whenDone:  make(chan bool),
+		done:      false,
 	}
 }
 
@@ -126,34 +128,32 @@ func Exec(p *Process, s *dao.Service) error {
 }
 
 func (p *Process) send(r Runner) {
-	exited := r.ExitedPipe()
 	go r.Reader(8192)
-
-	defer func() {
-		close(p.Stdin)
+	go func() {
+		for {
+			select {
+			case m := <-p.Stdin:
+				r.Write([]byte(m))
+			case s := <-p.Signal:
+				r.Signal(s)
+			}
+		}
 	}()
 
-	for {
-		select {
-		case i := <-p.Stdin:
-			r.Write([]byte(i))
-		case s := <-p.Signal:
-			r.Signal(s)
-		case m := <-exited:
-			if e := r.Error(); e == nil {
-				p.Error = errors.New("0")
-			} else {
-				p.Error = e
-			}
-			p.Exited <- m
-			p.whenDone <- true
-			return
-		}
+	<-r.ExitedPipe()
+	if e := r.Error(); e != nil {
+		p.Error = e
+	} else {
+		p.Error = errors.New("0")
 	}
+	p.Exited <- true
+	p.whenDone <- true
 }
 
 func (p *Process) Wait() {
-	<-p.whenDone
+	if !p.done {
+		p.done = <-p.whenDone
+	}
 }
 
 // Describes streams from an agent-executed process to a client
