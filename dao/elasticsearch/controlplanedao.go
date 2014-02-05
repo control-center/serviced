@@ -757,6 +757,11 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	if err != nil {
 		return err
 	}
+	if len(result) == 0 {
+		errorMessage := fmt.Sprintf("Illegal poolId:%s was not found", id)
+		return errors.New(errorMessage)
+	}
+
 	var response []*dao.PoolHost = make([]*dao.PoolHost, len(result))
 	for i := 0; i < len(result); i += 1 {
 		poolHost := dao.PoolHost{result[i].Id, result[i].PoolId, result[i].IpAddr}
