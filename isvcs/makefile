@@ -21,6 +21,7 @@ BUILD_REPO_EXISTS  := .build_repo_exists
 EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname).tar.gz)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
+GZIP               := $(shell which pigz || which gzip)
 
 all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 
@@ -28,7 +29,7 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
 	mkdir -p $(REPO_DIR)/$(REPO)
 	rm -f $(EXPORT_CONTAINER_ID)
 	docker run -cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
-	docker export `cat $(EXPORT_CONTAINER_ID)` | gzip > $(EXPORTED_FILE)
+	docker export `cat $(EXPORT_CONTAINER_ID)` | $(GZIP) > $(EXPORTED_FILE)
 	rm -f $(EXPORT_CONTAINER_ID)
 
 buildgo:
