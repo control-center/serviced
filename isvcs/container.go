@@ -12,10 +12,12 @@ package isvcs
 import (
 	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/utils"
 
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -231,9 +233,22 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	var cmd *exec.Cmd
 	tries := 5
 	var err error
+	const bufferSize = 1000
+	lastStdout := circular.NewBuffer(bufferSize)
+	lastStderr := circular.NewBuffer(bufferSize)
 	for {
 		if tries > 0 {
 			cmd = exec.Command("docker", args...)
+			if stdout, err := cmd.StdoutPipe(); err != nil {
+				glog.Fatal("Could not open stdout pipe for launching isvc %s: %s", c.Name, err)
+			} else {
+				go io.Copy(lastStdout, stdout)
+			}
+			if stderr, err := cmd.StderrPipe(); err != nil {
+				glog.Fatal("Could not open stderr pipe for launching isvc %s: %s", c.Name, err)
+			} else {
+				go io.Copy(lastStderr, stderr)
+			}
 			if err := cmd.Start(); err != nil {
 				glog.Errorf("Could not start: %s", c.Name)
 				c.stop()
@@ -250,6 +265,13 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 	go func() {
 		exitChan <- cmd.Wait()
+		results := make([]byte, bufferSize)
+		if n, err := lastStdout.Read(results); err == nil && n > 0 {
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
+		}
+		if n, err := lastStderr.Read(results); err == nil && n > 0 {
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
+		}
 	}()
 	return cmd, exitChan
 }
