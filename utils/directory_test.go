@@ -37,7 +37,7 @@ func TestResourcesDir(t *testing.T) {
 
 	os.Setenv("SERVICED_HOME", "test")
 	testDir := ResourcesDir()
-	if testDir != "test/isvcs/resources" {
+	if testDir != "test/resources" {
 		t.Errorf("Resources directory was an unexpected value  %s", testDir)
 	}
 }
