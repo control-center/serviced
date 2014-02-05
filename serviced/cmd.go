@@ -147,7 +147,7 @@ func startServer() {
 	if options.master {
 		var master dao.ControlPlane
 		var err error
-		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
+		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers, options.varPath, options.vfs)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
