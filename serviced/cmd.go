@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package main
 
@@ -117,6 +118,10 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
+	l, err := net.Listen("tcp", options.listen)
+	if err != nil {
+		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
+	}
 
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
@@ -178,6 +183,7 @@ func startServer() {
 			os.Exit(0)
 		}()
 	}
+
 	rpc.HandleHTTP()
 
 	if options.repstats {
@@ -187,12 +193,6 @@ func startServer() {
 		glog.V(1).Infoln("Staring containter statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
-	}
-
-	l, err := net.Listen("tcp", options.listen)
-	if err != nil {
-		glog.Warningf("Could not bind to port %v", err)
-		time.Sleep(time.Second * 1000)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())

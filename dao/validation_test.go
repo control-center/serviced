@@ -48,6 +48,10 @@ func init() {
 						Type: "foo",
 					},
 				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
+				},
 			},
 			ServiceDefinition{
 				Name:    "s2",
@@ -67,6 +71,10 @@ func init() {
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
+				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 		},

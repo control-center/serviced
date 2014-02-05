@@ -7,6 +7,8 @@ RUN apt-get upgrade -y
 
 RUN apt-get install -y -q openjdk-7-jre-headless gnuplot-nox supervisor make
 RUN apt-get install -y -q redis-server
+RUN apt-get clean
+RUN rm /tmp/* -Rf
 
 ADD supervisor.conf /opt/zenoss/etc/supervisor.conf
 ADD consumer.tar.gz /

@@ -13,42 +13,19 @@ depends on docker.
 1. Follow the instruction at http://www.docker.io/ , to install 
    it on every host that serviced will run on. Ensure docker is running.
 
-2. Next, follow the instructions in the dev section to create the serviced 
-   binary at $GOPATH/github.com/zenoss/serviced/serviced. 
+2. Install a generated package from 
+    http://jenkins.zendev.org/view/Control%20Plane/job/serviced_rpm . Or follow
+   the steps below in the dev section to a source build.
 
-3. Copy serviced binary to a location in your path.
-
-4. One instance of serviced will be the "master".
-
-5. Download and install elastic search.  Location is irrelvant
-   http://www.elasticsearch.org/download/
+3. Start the service. On ubuntu,
 ```bash
-wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.5.tar.gz
-tar xzf elasticsearch-0.90.5.tar.gz
-cd elasticsearch-0.90.5
-./bin/elasticsearch
+start serviced
 ```
+   There will be some delay the first time serviced is started before it is ready
+   for user requests. You can track the output of serviced at 
+   /var/log/upstart/serviced.log.
 
-6.  Install elasticsearch document models
-```bash
-cd $GOPATH/src/github.com/zenoss/serviced/dao/elasticsearch
-curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
-```
-
-7. Start the master serviced. It can also act as an agent. 
-```bash
-serviced -agent -master
-```
-
-8. Register the agent to the control plane. For example, to register host foo that
-   is running serviced on port 4979:
-```bash
-serviced add-host foo:4979
-```
-
-After all the agents are registered, serviced should be working properly. It's time
-to define some services.
-
+4. Browse the UI at http://localhost:8787
 
 Usage
 -----
@@ -65,52 +42,39 @@ by first creating a pool:
 serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
 ```
 
-
-
 Dev Environment
 ---------------
 Serviced is written in go. To install go, download go v1.2 from http://golang.org.
-Untar the distribution to /usr/local/go. Ensure the following is in your environment
+Untar the distribution to /usr/local/go. If you use a different location for go, you
+must set GOROOT. See the http://www.golang.org for more information. Ensure that 
+$GOROOT/bin is in you path.
+
+Add your development user to the "docker" group.
 ```bash
-GOROOT=/usr/local/go
-PATH="$PATH:$GOROOT/bin"
+sudo usermod -G docker -a $USER
+```
+Ubuntu 13.x is the typical development environment. There are additional dependencies 
+your install will need.
+```bash
+sudo apt-get install git mercurial libpam0g-dev
 ```
 
-You may need to add your username to the docker group in /etc/group and relogin if you get permission errors when running make below.  You may also need these steps when running from stock ubuntu 12.04.
-```sudo apt-get install git
-sudo apt-get install mercurial
-sudo apt-get install libpam0g-dev
-sudo chmod o+rw /var/run/docker.sock
-```
-
-On Ubuntu install the following:
-
-```apt-get install libpam0g-dev```
-
-Setup a dev environment.
+With $GOROOT set and $GOROOT/bin in your $PATH, create a development workspace.
 ```bash
 export GOPATH=~/mygo
-export GOBIN=~/mygo/bin
-mkdir $GOPATH/pkg -p
+export PATH="$PATH:$GOPATH/bin"
+mkdir $GOPATH/{bin,pkg,src} -p
 mkdir $GOPATH/src/github.com/zenoss -p
-mkdir $GOPATH/src/github.com/mattbaird -p
-cd $GOPATH/src/github.com/mattbaird
-git clone git@github.com:zenoss/elastigo.git
-cd elastigo
-go build install
-cd $GOPATH/src/github.com/zenoss
+cd $GOPATH/src/github.com/zenoss 
 git clone git@github.com:zenoss/serviced.git
-cd $GOPATH/src/github.com/zenoss/serviced
-make
+cd serviced
+make install
 ```
 
-Purging the elastic search store.
+After this, a binary should exist at $GOPATH/bin/serviced & 
+$GOPATH/src/github.com/zenoss/serviced/serviced. You can run the server with
+
 ```bash
-curl -XDELETE http://localhost:9200/controlplane
+serviced -agent -master
 ```
 
-Creating the elastic search data model.
-```bash
-cd dao/elasticsearch
-curl -XPUT http://localhost:9200/controlplane -d @controlplane.json
-```
