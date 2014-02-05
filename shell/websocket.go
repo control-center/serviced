@@ -1,8 +1,6 @@
 package shell
 
 import (
-	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -231,8 +229,7 @@ func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *HTTPProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stream := NewHTTPProcessStream(h.Addr)
-
+	//stream := NewHTTPProcessStream(h.Addr)
 }
 
 // Read the first packet from the client and deserialize to Process
@@ -334,8 +331,6 @@ func (s *baseProcessStream) forwardFromAgent() {
 		} else if err != nil {
 			// Bad read send message
 		}
-
-		d, _ := json.Marshal(res)
 
 		if res.Stdout != "" {
 			s.process.Stdout <- res.Stdout
