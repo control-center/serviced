@@ -369,12 +369,12 @@ func forwardToClient(ws *websocket.Conn, proc *Process) {
 				// Bad read send message
 			}
 
-			if req.Cmd != "" {
-				proc.Stdin <- req.Cmd
-			}
-
-			if req.Signal != 0 {
+			switch req.Action {
+			// TODO: Defend against invalid requests?
+			case SIGNAL:
 				proc.Signal <- syscall.Signal(req.Signal)
+			case EXEC:
+				proc.Stdin <- req.Cmd
 			}
 		}
 	}()
