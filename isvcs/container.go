@@ -267,10 +267,10 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 		exitChan <- cmd.Wait()
 		results := make([]byte, bufferSize)
 		if n, err := lastStdout.Read(results); err == nil && n > 0 {
-			glog.V(1).Info("Stdout exited isvc %s: %s", c.Name, string(results))
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
 		}
 		if n, err := lastStderr.Read(results); err == nil && n > 0 {
-			glog.V(1).Info("Stdout exited isvc %s: %s", c.Name, string(results))
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
 		}
 	}()
 	return cmd, exitChan
