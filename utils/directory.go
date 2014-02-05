@@ -34,9 +34,5 @@ func LocalDir(p string) string {
 
 // ResourcesDir points to internal services resources directory
 func ResourcesDir() string {
-	homeDir := ServiceDHome()
-	if len(homeDir) > 0 {
-		return path.Join(homeDir, "resources")
-	}
 	return LocalDir("isvcs/resources")
 }

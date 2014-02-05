@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"time"
 )
 
@@ -48,7 +49,7 @@ func elasticsearchHealthCheck() error {
 	minUptime := time.Second * 2
 	timeout := time.Second * 30
 
-	schemaFile := utils.LocalDir("resources/controlplane.json")
+	schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
 
 	for {
 		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
