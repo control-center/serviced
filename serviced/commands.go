@@ -663,9 +663,10 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 
 	p := dao.NewProcess(serviceId, shellcmd, nil, istty)
-	defer close(p.Stdin)
 
-	go service.Exec(p)
+	if err := service.Exec(p); err != nil {
+		return err
+	}
 
 	go func() {
 		buf := bufio.NewReader(os.Stdin)

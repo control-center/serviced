@@ -1,13 +1,12 @@
 package dao
 
 import (
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/shell"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"fmt"
 	"strconv"
 	"syscall"
 	"time"
@@ -257,6 +256,7 @@ type Process struct {
 	Stderr    chan string         `json:"-"`
 	Exited    chan bool           `json:"-"`
 	Signal    chan syscall.Signal `json:"-"`
+	whenDone  chan bool
 }
 
 func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
@@ -266,8 +266,11 @@ func NewProcess(serviceId, command string, envv []string, istty bool) *Process {
 		Envv:      envv,
 		Command:   command,
 		Stdin:     make(chan string),
+		Stdout:    make(chan string),
+		Stderr:    make(chan string),
 		Signal:    make(chan syscall.Signal),
 		Exited:    make(chan bool),
+		whenDone:  make(chan bool),
 	}
 }
 
@@ -445,9 +448,14 @@ func (p *Process) send(r shell.Runner) {
 		case m := <-exited:
 			p.Error = r.Error()
 			p.Exited <- m
+			p.whenDone <- true
 			return
 		}
 	}
+}
+
+func (p *Process) Wait() {
+	<-p.whenDone
 }
 
 // Retrieve service container port, 0 failure

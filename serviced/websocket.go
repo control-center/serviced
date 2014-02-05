@@ -2,18 +2,19 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
-	"github.com/gorilla/websocket"
-	"os"
-
-	"github.com/zenoss/serviced/dao"
-	"net"
-	"net/http"
-
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/websocket"
+
+	"github.com/zenoss/serviced/dao"
 )
 
 const (
@@ -40,16 +41,19 @@ type response struct {
 }
 
 // Shitty log func for debugging
-func WriteToFile(msg string) {
+func WriteToFile(msg ...interface{}) {
 	f, _ := os.Create("/opt/zenoss/log/servicedproxy.log")
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	w.Write([]byte(msg + "\n"))
+	w.Write([]byte(fmt.Sprintf(msg[0].(string)+"\n", msg[1:]...)))
 }
 
 // Describes streams from an agent-executed process to a client
 type ProcessStream interface {
+
+	// Get a reference to the incoming connection
+	GetIncomingConn() *net.Conn
 
 	// Initiate client-side communication and create Process
 	StreamClient(http.ResponseWriter, *http.Request, chan *dao.Process)
@@ -69,7 +73,6 @@ type WebsocketProcessStream struct {
 	agent   *websocket.Conn
 	process *dao.Process
 	addr    string
-	exited  chan bool
 }
 
 type HttpProcessStream struct {
@@ -82,35 +85,45 @@ type WebsocketProcessHandler struct {
 	addr string
 }
 
+type OSProcessHandler struct {
+}
+
 type HTTPProcessHandler struct {
 	addr string
 }
 
 // Implement http.Handler
 func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stream := &WebsocketProcessStream{addr: h.addr, exited: make(chan bool)}
+	stream := &WebsocketProcessStream{addr: h.addr}
 	defer stream.Close()
 
 	// Create a client and wait for the process packet
-	pc := make(chan *dao.Process)
-	go stream.StreamClient(w, r, pc)
-	// Wait for the process to come from the client
-	stream.process = <-pc
+	pc := make(chan bool)
 
-	// Now that we have the process, connect to the agent
-	go stream.StreamAgent()
+	// Set up everything to start the connection to agent once a process is
+	// defined.
+	go func() {
+		<-pc
+		// Now that we have the process, connect to the agent
+		stream.StreamAgent()
+	}()
+
+	// Now start pulling from the client until we receive a process, then
+	// hook it all up
+	go stream.StreamClient(w, r, pc)
 
 	// Wait for the process to die
 	stream.Wait()
 }
 
 // Read the first packet from the client and deserialize to Process
-func (s *WebsocketProcessStream) readProcessPacket() *dao.Process {
+func readProcessPacket(ws *websocket.Conn) *dao.Process {
 	var (
 		req   request
 		istty bool
 	)
-	if err := s.client.ReadJSON(&req); err != nil {
+	if err := ws.ReadJSON(&req); err != nil {
+		WriteToFile("Error! %s", err)
 		return nil
 	}
 	switch req.Action {
@@ -119,12 +132,17 @@ func (s *WebsocketProcessStream) readProcessPacket() *dao.Process {
 	case EXEC:
 		istty = false
 	default:
+		WriteToFile("req.Action was %s", req.Action)
 		return nil
 	}
-	return dao.NewProcess(req.ServiceId, req.Cmd, req.Env, istty)
+	proc := dao.NewProcess(req.ServiceId, req.Cmd, req.Env, istty)
+	if proc.Envv == nil {
+		proc.Envv = []string{}
+	}
+	return proc
 }
 
-func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Request, pc chan *dao.Process) {
+func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Request, pc chan bool) {
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
@@ -133,22 +151,40 @@ func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Req
 		return
 	}
 	s.client = ws
-	s.process = s.readProcessPacket()
-	pc <- s.process
-	s.forwardToClient()
+	s.process = readProcessPacket(ws)
+	pc <- true
+	forwardToClient(s.client, s.process)
 }
 
 func (s *WebsocketProcessStream) StreamAgent() {
 	// TODO: Proper ws scheme validation
 	ws, _, _ := websocket.DefaultDialer.Dial("ws://"+s.addr, nil)
 	s.agent = ws
-	s.agent.WriteJSON(s.process)
+
+	action := "EXEC"
+	if s.process.IsTTY {
+		action = "FORK"
+	}
+
+	// Recreate the request from the process and send it up the pipe
+	s.agent.WriteJSON(request{
+		Cmd:       s.process.Command,
+		Action:    action,
+		ServiceId: s.process.ServiceId,
+		Env:       s.process.Envv,
+	})
+
 	s.forwardFromAgent()
 }
 
 func (s *WebsocketProcessStream) Wait() {
-	<-s.exited
-	return
+	for {
+		if s.process != nil {
+			s.process.Wait()
+			return
+		}
+		time.Sleep(10)
+	}
 }
 
 func (s *WebsocketProcessStream) Close() {
@@ -160,6 +196,7 @@ func (s *WebsocketProcessStream) Close() {
 
 // Wire up the Process to the agent connection
 func (s *WebsocketProcessStream) forwardFromAgent() {
+	defer s.agent.Close()
 	// Writer
 	go func() {
 		for {
@@ -172,6 +209,7 @@ func (s *WebsocketProcessStream) forwardFromAgent() {
 		}
 	}()
 
+	WriteToFile("Forwarding from agent")
 	// Reader
 	for {
 		var res response
@@ -181,8 +219,14 @@ func (s *WebsocketProcessStream) forwardFromAgent() {
 			// Bad read send message
 		}
 
+		d, _ := json.Marshal(res)
+
+		WriteToFile(fmt.Sprintf("Got some shiz %s", d))
+
 		if res.Stdout != "" {
+			WriteToFile("Writing some stdout: " + res.Stdout)
 			s.process.Stdout <- res.Stdout
+			WriteToFile("Wrote some stdout")
 		}
 
 		if res.Stderr != "" {
@@ -192,54 +236,56 @@ func (s *WebsocketProcessStream) forwardFromAgent() {
 		if res.Result != "" {
 			s.process.Error = errors.New(res.Result)
 			s.process.Exited <- true
-			s.exited <- true
 			break
 		}
 	}
-	s.agent.Close()
 }
 
 // Wire up the Process to the client connection
-func (s *WebsocketProcessStream) forwardToClient() {
-	defer s.client.Close()
+func forwardToClient(ws *websocket.Conn, proc *dao.Process) {
+	defer ws.Close()
 
 	// Reader
 	go func() {
 		for {
 			var req request
-			if err := s.client.ReadJSON(&req); err == io.EOF {
+			if err := ws.ReadJSON(&req); err == io.EOF {
 				break
 			} else if err != nil {
 				// Bad read send message
 			}
 
 			if req.Cmd != "" {
-				s.process.Stdin <- req.Cmd
+				proc.Stdin <- req.Cmd
 			}
 
 			if req.Signal != 0 {
-				s.process.Signal <- syscall.Signal(req.Signal)
+				proc.Signal <- syscall.Signal(req.Signal)
 			}
 		}
 	}()
 
+	WriteToFile("Forwarding to client")
 	// Writer
 	for {
 		select {
-		case m := <-s.process.Stdout:
-			s.client.WriteJSON(response{Stdout: m})
-		case m := <-s.process.Stderr:
-			s.client.WriteJSON(response{Stderr: m})
-		case <-s.process.Exited:
-			s.client.WriteJSON(response{Result: fmt.Sprint(s.process.Error)})
+		case m := <-proc.Stdout:
+			WriteToFile("Proc got stdout in channel")
+			ws.WriteJSON(response{Stdout: m})
+		case m := <-proc.Stderr:
+			WriteToFile("Proc got stderr in channel")
+			ws.WriteJSON(response{Stderr: m})
+		case <-proc.Exited:
+			WriteToFile("Proc got exited in channel")
+			ws.WriteJSON(response{Result: fmt.Sprint(proc.Error)})
 			break
 		}
 	}
 
 }
 
-// Agent-side websocket handler.
-func ExecHandler(w http.ResponseWriter, r *http.Request) {
+func (h *OSProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Establish the websocket connection with proxy
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
@@ -249,12 +295,25 @@ func ExecHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	WriteToFile("I gots a connection!!!!!")
+	// Read the process off the websocket
+	proc := readProcessPacket(ws)
+	WriteToFile("Got a process: %s", proc)
 
-	ws.WriteJSON(response{Stdout: "Stdout"})
-	ws.WriteJSON(response{Stderr: "Stderr"})
-	ws.WriteJSON(response{Result: "0"})
+	// Make it go
+	controlplane := getClient()
+	service := dao.Service{}
+	controlplane.GetService(proc.ServiceId, &service)
 
-	defer ws.Close()
-	ws.WriteJSON(response{Result: "0"})
+	WriteToFile("Got a service! %s", service)
+
+	if err := service.Exec(proc); err != nil {
+		WriteToFile("BROKEN %s", err)
+	}
+
+	// Wire it up
+	go forwardToClient(ws, proc)
+
+	proc.Wait()
+	WriteToFile("DUNZO")
+
 }

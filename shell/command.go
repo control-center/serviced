@@ -41,14 +41,14 @@ func CreateCommand(file string, argv []string) (*Command, error) {
 		c.stderr = stderr
 	}
 
+	c.stdoutChan = make(chan string)
+	c.stderrChan = make(chan string)
+	c.done = make(chan bool)
+
 	// start
 	if err := c.cmd.Start(); err != nil {
 		return nil, err
 	}
-
-	c.stdoutChan = make(chan string)
-	c.stderrChan = make(chan string)
-	c.done = make(chan bool)
 
 	return c, nil
 }
