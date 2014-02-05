@@ -107,7 +107,6 @@ type HTTPProcessHandler struct {
 // Implement http.Handler
 func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stream := NewWebsocketProcessStream(h.addr)
-	defer stream.Close()
 
 	// Create a client and wait for the process packet
 	pc := make(chan bool)
@@ -134,8 +133,6 @@ func (h *HTTPProcessHandler) Close() {
 
 func (h *HTTPProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stream := NewHTTPProcessStream(h.addr)
-	defer stream.Close()
-
 }
 
 // Read the first packet from the client and deserialize to Process
@@ -145,7 +142,6 @@ func readProcessPacket(ws *websocket.Conn) *dao.Process {
 		istty bool
 	)
 	if err := ws.ReadJSON(&req); err != nil {
-		WriteToFile("Error! %s", err)
 		return nil
 	}
 	switch req.Action {
@@ -154,7 +150,6 @@ func readProcessPacket(ws *websocket.Conn) *dao.Process {
 	case EXEC:
 		istty = false
 	default:
-		WriteToFile("req.Action was %s", req.Action)
 		return nil
 	}
 	proc := dao.NewProcess(req.ServiceId, req.Cmd, req.Env, istty)
@@ -209,13 +204,6 @@ func (s *baseProcessStream) Wait() {
 	}
 }
 
-func (s *baseProcessStream) Close() {
-	// TODO: See if we need to do anything else. Close ws conns?
-	if s.process != nil {
-		s.process.Signal <- syscall.SIGKILL
-	}
-}
-
 // Wire up the Process to the agent connection
 func (s *baseProcessStream) forwardFromAgent() {
 	defer s.agent.Close()
@@ -231,7 +219,6 @@ func (s *baseProcessStream) forwardFromAgent() {
 		}
 	}()
 
-	WriteToFile("Forwarding from agent")
 	// Reader
 	for {
 		var res response
@@ -243,12 +230,8 @@ func (s *baseProcessStream) forwardFromAgent() {
 
 		d, _ := json.Marshal(res)
 
-		WriteToFile(fmt.Sprintf("Got some shiz %s", d))
-
 		if res.Stdout != "" {
-			WriteToFile("Writing some stdout: " + res.Stdout)
 			s.process.Stdout <- res.Stdout
-			WriteToFile("Wrote some stdout")
 		}
 
 		if res.Stderr != "" {
@@ -265,7 +248,10 @@ func (s *baseProcessStream) forwardFromAgent() {
 
 // Wire up the Process to the client connection
 func forwardToClient(ws *websocket.Conn, proc *dao.Process) {
-	defer ws.Close()
+	defer func() {
+		ws.Close()
+		proc.Signal <- syscall.SYSKILL // Does nothing if process exited
+	}
 
 	// Reader
 	go func() {
@@ -287,18 +273,14 @@ func forwardToClient(ws *websocket.Conn, proc *dao.Process) {
 		}
 	}()
 
-	WriteToFile("Forwarding to client")
 	// Writer
 	for {
 		select {
 		case m := <-proc.Stdout:
-			WriteToFile("Proc got stdout in channel")
 			ws.WriteJSON(response{Stdout: m})
 		case m := <-proc.Stderr:
-			WriteToFile("Proc got stderr in channel")
 			ws.WriteJSON(response{Stderr: m})
 		case <-proc.Exited:
-			WriteToFile("Proc got exited in channel")
 			ws.WriteJSON(response{Result: fmt.Sprint(proc.Error)})
 			break
 		}
@@ -320,23 +302,18 @@ func (h *OSProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Read the process off the websocket
 	proc := readProcessPacket(ws)
-	WriteToFile("Got a process: %s", proc)
 
 	// Make it go
 	controlplane := getClient()
 	service := dao.Service{}
 	controlplane.GetService(proc.ServiceId, &service)
 
-	WriteToFile("Got a service! %s", service)
-
 	if err := service.Exec(proc); err != nil {
-		WriteToFile("BROKEN %s", err)
 	}
 
 	// Wire it up
 	go forwardToClient(ws, proc)
 
 	proc.Wait()
-	WriteToFile("DUNZO")
 
 }
