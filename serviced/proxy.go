@@ -4,6 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/shell"
 
 	"fmt"
 	"net"
@@ -67,8 +68,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	}
 
 	//go h.run()
-	http.Handle("/exec", &WebsocketProcessHandler{
-		addr: proxyOptions.servicedEndpoint,
+	http.Handle("/exec", &shell.WebsocketProcessHandler{
+		Addr: proxyOptions.servicedEndpoint,
 	})
 	//http.Handle("/exechttp", httpHandler)
 	go http.ListenAndServe(":50000", nil)

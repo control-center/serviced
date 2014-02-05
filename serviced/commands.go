@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/shell"
 
 	"bufio"
 	"encoding/json"
@@ -662,9 +663,9 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		}
 	}
 
-	p := dao.NewProcess(serviceId, shellcmd, nil, istty)
+	p := shell.NewProcess(serviceId, shellcmd, nil, istty)
 
-	if err := service.Exec(p); err != nil {
+	if err := shell.Exec(p, service); err != nil {
 		return err
 	}
 

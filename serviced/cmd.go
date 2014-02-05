@@ -181,7 +181,7 @@ func startServer() {
 		// TODO: Integrate this server into the rpc server, or something.
 		// Currently its only use is for command execution.
 		go func() {
-			http.Handle("/", &shell.OSProcessHandler{})
+			http.Handle("/", &shell.OSProcessHandler{Port: options.port})
 			http.ListenAndServe(":50001", nil)
 		}()
 
