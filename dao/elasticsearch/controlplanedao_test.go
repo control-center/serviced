@@ -9,6 +9,7 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
 	"strconv"
@@ -480,7 +481,44 @@ func testDaoHostExists(t *testing.T) {
 	if !found || err != nil {
 		t.Errorf("Found %v; error: %v", found, err)
 	}
+}
 
+func TestDaoValidServiceForDeployment(t *testing.T) {
+	testService := dao.Service{
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+			},
+		},
+	}
+	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	if err != nil {
+		t.Error("Services failed validation for deployment: ", err)
+	}
+}
+
+func TestDaoInvalidServiceForDeployment(t *testing.T) {
+	testService := dao.Service{
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+				AddressConfig: dao.AddressResourceConfig{
+					Port:     8081,
+					Protocol: commons.TCP,
+				},
+			},
+		},
+	}
+	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	if err == nil {
+		t.Error("Services should have failed validation for deployment...")
+	}
 }
 
 func TestDaoGetHostIPsNoHost(t *testing.T) {
@@ -556,7 +594,6 @@ func TestDaoGetHostIPsNoIPs(t *testing.T) {
 	if len(hostIPs.IPs) != 0 {
 		t.Errorf("Expected %v IPs, got %v", 0, len(hostIPs.IPs))
 	}
-
 }
 
 func TestDaoGetHostIPsWithIPs(t *testing.T) {
@@ -602,7 +639,6 @@ func TestDaoGetHostIPsWithIPs(t *testing.T) {
 	if len(hostIPs.IPs) != 1 {
 		t.Errorf("Expected %v IPs, got %v", 1, len(hostIPs.IPs))
 	}
-
 }
 
 func TestDaoRegisterHostIPsNoHost(t *testing.T) {
@@ -664,8 +700,8 @@ func TestDaoRegisterHostIPs(t *testing.T) {
 	if ipResource.InterfaceName != "ifname" {
 		t.Errorf("Unexpected InterfaceName: %v", ipResource.InterfaceName)
 	}
-
 }
+
 func TestDaoRegisterHostIPsMerge(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
@@ -743,7 +779,6 @@ func TestDaoRegisterHostIPsMerge(t *testing.T) {
 				t.Errorf("Unexpected IP resource %v", ipResource)
 			}
 		}
-
 	}
 }
 
