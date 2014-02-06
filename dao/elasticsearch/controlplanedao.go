@@ -910,6 +910,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Volumes = sd.Volumes
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
+	svc.Snapshot = sd.Snapshot
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1130,9 +1131,22 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
+	// add snapshot state znode to zookeeper
+	if err := this.zkDao.AddSnapshot(&service); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot AddSnapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// TODO: call quiesce pause for services with 'Snapshot' definition
+
+	// TODO: move this functionality to a method called by the CP agent when the container volume is quiesced
+
 	// create a snapshot
 	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	} else if volume == nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v volume=%+v", serviceId, volume)
 		return err
 	} else {
 		snapLabel := snapShotName(volume.Name())
@@ -1142,6 +1156,10 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 			*label = snapLabel
 		}
 	}
+
+	// TODO: call quiesce resume for services with 'Snapshot' definition
+
+	glog.V(2).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
 	return nil
 }
 

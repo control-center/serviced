@@ -11,6 +11,9 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
+	_ "github.com/zenoss/serviced/volume"
+	_ "github.com/zenoss/serviced/volume/btrfs"
+	_ "github.com/zenoss/serviced/volume/rsync"
 	"reflect"
 	"strconv"
 	"testing"
@@ -528,6 +531,24 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	if len(resultHost.IPs) != 1 {
 		t.Errorf("Expected %v IPs, got %v", 1, len(resultHost.IPs))
 	}
+}
+
+func TestDao_NewSnapshot(t *testing.T) {
+	service := dao.Service{}
+	controlPlaneDao.RemoveService("default", &unused)
+	service.Id = "default"
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Errorf("Failure creating service %-v with error: %s", service, err)
+		t.Fail()
+	}
+
+	err = controlPlaneDao.Snapshot(service.Id, &id)
+	if err != nil {
+		t.Errorf("Failure creating snapshot %-v with error: %s", service, err)
+		t.Fail()
+	}
+
 }
 
 func TestDao_TestingComplete(t *testing.T) {

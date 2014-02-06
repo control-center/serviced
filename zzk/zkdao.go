@@ -50,6 +50,40 @@ func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) er
 	return TerminateHostService(conn, hostId, serviceStateId)
 }
 
+func (this *ZkDao) AddSnapshot(service *dao.Service) error {
+	glog.V(2).Infof("Create new snapshot snapshot znode for service %+v", service)
+
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	return AddSnapshot(conn, service)
+}
+
+func AddSnapshot(conn *zk.Conn, service *dao.Service) error {
+	glog.V(2).Infof("Creating new snapshot znode")
+
+	snapshotPath := SnapshotPath()
+	sBytes, err := json.Marshal(service)
+	if err != nil {
+		glog.Errorf("Unable to marshal snapshot znode data for %s", snapshotPath)
+		return err
+	}
+	_, err = conn.Create(snapshotPath, sBytes, 0, zk.WorldACL(zk.PermAll))
+	if err != nil {
+		glog.Errorf("Unable to create snapshot znode for %s: %v", snapshotPath, err)
+	}
+
+	glog.V(2).Infof("Successfully created snapshot znode %s", snapshotPath)
+	return err
+}
+
+func SnapshotPath() string {
+	return SNAPSHOT_PATH
+}
+
 func (this *ZkDao) AddService(service *dao.Service) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
@@ -332,7 +366,7 @@ func RemoveService(conn *zk.Conn, id string) error {
 
 		case <-time.After(30 * time.Second):
 			glog.V(0).Infof("Gave up deleting %s with %d children", servicePath, len(children))
-			return errors.New("Timed out waiting for children to die for " + servicePath) 
+			return errors.New("Timed out waiting for children to die for " + servicePath)
 		}
 	}
 	if err != nil {
