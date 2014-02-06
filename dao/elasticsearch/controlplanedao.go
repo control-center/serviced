@@ -774,6 +774,29 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	return nil
 }
 
+// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
+func validAddressResourceConfig(arc dao.AddressResourceConfig) error {
+	if arc.Port != 0 || arc.Protocol != "" {
+		msg := fmt.Sprintf("AddressConfig with no assignment. Port: %d Protocol: %s", arc.Port, arc.Protocol)
+		return errors.New(msg)
+	}
+	return nil
+}
+
+// determine whether the services are ready for deployment
+func (this *ControlPlaneDao) ValidateServicesForDeployment(service dao.Service) error {
+	// ensure all endpoints with AddressConfig have assigned IPs
+	for _, endPoint := range service.Endpoints {
+		err := validAddressResourceConfig(endPoint.AddressConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	// add additional validation checks to the services
+	return nil
+}
+
 func (this *ControlPlaneDao) StartService(serviceId string, unused *string) error {
 	//get the original service
 	service := dao.Service{}
@@ -781,6 +804,14 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 	if err != nil {
 		return err
 	}
+
+	// validate the service is ready to start
+	err = this.ValidateServicesForDeployment(service)
+	if err != nil {
+		glog.Errorf("Services failed validation for deployment")
+		return err
+	}
+
 	//start this service
 	var unusedInt int
 	service.DesiredState = dao.SVC_RUN
