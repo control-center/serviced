@@ -77,7 +77,7 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 
 func (c *RsyncConn) Snapshots() (labels []string, err error) {
 	var infos []os.FileInfo
-	infos, err = ioutil.ReadDir(c.Path())
+	infos, err = ioutil.ReadDir(c.root)
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,7 @@ func TestRsyncVolume(t *testing.T) {
 	glog.Infof("Using '%s' as rsync test volume, use env '%s' to override.",
 		rsyncTestVolumePath, rsyncTestVolumePathEnv)
 
-	if output, err := exec.Command("sh", "rm", "-Rf", path.Join(rsyncTestVolumePath, "unittest*")).CombinedOutput(); err != nil {
+	if output, err := exec.Command("sh", "-c", "rm", "-Rf", path.Join(rsyncTestVolumePath, "unittest*")).CombinedOutput(); err != nil {
 		log.Printf("Could not delete previous test volume: %s", string(output))
 	}
 
@@ -76,6 +76,9 @@ func TestRsyncVolume(t *testing.T) {
 
 		snapshots, _ := c.Snapshots()
 		log.Printf("Found %v", snapshots)
+		if len(snapshots) != 1 || snapshots[0] != label {
+			t.Fatalf("Found %v, expected %s", snapshots, label)
+		}
 
 		log.Printf("About to rollback %s", label)
 		if err := c.Rollback(label); err != nil {
