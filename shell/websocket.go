@@ -1,9 +1,11 @@
 package shell
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -233,18 +235,36 @@ func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *HTTPProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//stream := NewHTTPProcessStream(h.Addr)
+	// First, get the Process from the POST body, failing if invalid
+	data, _ := ioutil.ReadAll(r.Body)
+	req := &request{}
+	err := json.Unmarshal(data, req)
+	if err != nil {
+		http.Error(w, "Invalid process descriptor", http.StatusBadRequest)
+		return
+	}
+	proc := reqToProcess(req)
+	if proc == nil {
+		http.Error(w, "Invalid process descriptor", http.StatusBadRequest)
+		return
+	}
+
+	// Create the stream
+	stream := NewHTTPProcessStream(h.Addr)
+	stream.process = proc
+
+	// Start up the agent stream
+	go stream.StreamAgent()
+
+	// Start forwarding things to the HTTP client
+	go stream.StreamClient(w, r)
+
+	// Wait for the process to die
+	stream.Wait()
 }
 
-// Read the first packet from the client and deserialize to Process
-func readProcessPacket(ws *websocket.Conn) *Process {
-	var (
-		req   request
-		istty bool
-	)
-	if err := ws.ReadJSON(&req); err != nil {
-		return nil
-	}
+func reqToProcess(req *request) *Process {
+	var istty bool
 	switch req.Action {
 	case FORK:
 		istty = true
@@ -258,6 +278,16 @@ func readProcessPacket(ws *websocket.Conn) *Process {
 		proc.Envv = []string{}
 	}
 	return proc
+
+}
+
+// Read the first packet from the client and deserialize to Process
+func readProcessPacket(ws *websocket.Conn) *Process {
+	req := &request{}
+	if err := ws.ReadJSON(req); err != nil {
+		return nil
+	}
+	return reqToProcess(req)
 }
 
 func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Request, pc chan bool) {
@@ -272,6 +302,24 @@ func (s *WebsocketProcessStream) StreamClient(w http.ResponseWriter, r *http.Req
 	s.process = readProcessPacket(ws)
 	pc <- true
 	forwardToClient(s.client, s.process)
+}
+
+func (s *HTTPProcessStream) StreamClient(w http.ResponseWriter, r *http.Request) {
+	// Writer
+	for {
+		select {
+		case m := <-s.process.Stdout:
+			fmt.Fprint(w, m)
+			w.(http.Flusher).Flush()
+		case m := <-s.process.Stderr:
+			fmt.Fprint(w, m)
+			w.(http.Flusher).Flush()
+		case <-s.process.Exited:
+			fmt.Fprintf(w, "\nProcess exited: %q\n", s.process.Error)
+			w.(http.Flusher).Flush()
+			return
+		}
+	}
 }
 
 func (s *baseProcessStream) StreamAgent() {

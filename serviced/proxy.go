@@ -71,7 +71,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	http.Handle("/exec", &shell.WebsocketProcessHandler{
 		Addr: proxyOptions.servicedEndpoint,
 	})
-	//http.Handle("/exechttp", httpHandler)
+	http.Handle("/exechttp", &shell.HTTPProcessHandler{
+		Addr: proxyOptions.servicedEndpoint,
+	})
 	go http.ListenAndServe(":50000", nil)
 
 	procexit := make(chan int)
