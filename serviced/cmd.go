@@ -136,8 +136,9 @@ func startServer() {
 	}
 
 	atLeast := []int{0, 7, 5}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker 0.7.5")
+	atMost := []int{0, 7, 6}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
+		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.7.6")
 	}
 
 	if _, ok := volume.Registered(options.vfs); !ok {
