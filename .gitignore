@@ -5,8 +5,8 @@
 *.swp
 *~
 \#*
-.repo_tag_exists
-.build_repo_exists
+.repo_tag_exists*
+.build_repo_exists*
 
 # Folders
 _obj
