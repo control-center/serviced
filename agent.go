@@ -335,7 +335,9 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 func getSubvolume(varPath, poolId, tenantId, fs string) (*volume.Volume, error) {
 	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
-	volume.Mount(fs, poolId, baseDir)
+	if _, err := volume.Mount(fs, poolId, baseDir); err != nil {
+		return nil, err
+	}
 	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
 	return volume.Mount(fs, tenantId, baseDir)
 }
@@ -435,6 +437,10 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		if err != nil {
 			glog.Fatal("Could not create subvolume: %s", err)
 		} else {
+
+			glog.Infof("sv: %v", sv)
+			glog.Infof("Path: %s", sv.Path())
+			glog.Infof("RP: %s", volume.ResourcePath)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {

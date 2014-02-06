@@ -1218,7 +1218,7 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 		if snaplabels, err := volume.Snapshots(); err != nil {
 			return err
 		} else {
-			glog.Info("Got snap labels %v", snaplabels)
+			glog.Infof("Got snap labels %v", snaplabels)
 			*labels = make([]string, len(snaplabels))
 			*labels = snaplabels
 		}
