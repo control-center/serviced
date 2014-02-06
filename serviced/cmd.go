@@ -59,14 +59,17 @@ var options struct {
 	vfs            string
 }
 
+var agentIP string
+
 // Setup flag options (static block)
 func init() {
-	ip, err := serviced.GetIpAddress()
+	var err error
+	agentIP, err = serviced.GetIpAddress()
 	if err != nil {
 		panic(err)
 	}
 
-	flag.StringVar(&options.port, "port", ip+":4979", "port for remote serviced (example.com:8080)")
+	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
@@ -90,7 +93,6 @@ func init() {
 	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
-	flag.IntVar(&options.resourceperiod, "resourceperiod", 360, "Period (minutes) for for registering host resources")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
@@ -191,10 +193,6 @@ func startServer() {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
-
-		resourceDuration := time.Duration(options.resourceperiod) * time.Minute
-		go agent.RegisterIPResources(resourceDuration)
-
 	}
 
 	rpc.HandleHTTP()

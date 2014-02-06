@@ -25,7 +25,20 @@
         "Memory":         {"type": "long", "index":"not_analyzed"},
         "PrivateNetwork": {"type": "string", "index":"not_analyzed"},
         "CreatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"}
+        "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
+        "IPs" :{
+          "properties":{
+            "IP" : {"type": "string", "index":"not_analyzed"},
+            "InterfaceName" : {"type": "string", "index":"not_analyzed"},
+            "State" : {"type": "string", "index":"not_analyzed"},
+            "Ports":{
+              "properties": {
+                "ServiceId":  {"type": "string", "index":"not_analyzed"},
+                "Port":       {"type": "string", "index":"not_analyzed"}
+              }
+            }
+          }
+        }
       }
     },
     "service": {
@@ -114,26 +127,6 @@
         "ServiceId":       {"type": "string", "index":"not_analyzed"},
         "TemplateId":      {"type": "string", "index":"not_analyzed"},
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
-      }
-    },
-    "hostips": {
-      "properties": {
-        "Id" :            {"type": "string", "index":"not_analyzed"},
-        "HostId":         {"type": "string", "index":"not_analyzed"},
-        "PoolId":         {"type": "string", "index":"not_analyzed"},
-        "IPs" :{
-          "properties":{
-            "IP" : {"type": "string", "index":"not_analyzed"},
-            "InterfaceName" : {"type": "string", "index":"not_analyzed"},
-            "State" : {"type": "string", "index":"not_analyzed"},
-            "Ports":{
-              "properties": {
-                "ServiceId":  {"type": "string", "index":"not_analyzed"},
-                "Port":       {"type": "string", "index":"not_analyzed"}
-              }
-            }
-          }
-        }
       }
     }
   }

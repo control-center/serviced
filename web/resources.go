@@ -487,7 +487,8 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.Contr
 		return
 	}
 
-	err = remoteClient.GetInfo(0, &payload)
+	//TODO: get user supplied IPs from UI
+	err = remoteClient.GetInfo([]string{}, &payload)
 	if err != nil {
 		glog.Errorf("Unable to get remote host info: %v", err)
 		RestBadRequest(w)

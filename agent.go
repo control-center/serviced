@@ -777,77 +777,73 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 }
 
 // GetInfo creates a Host object from the host this function is running on.
-func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
+func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
 	}
+	if len(ips) == 0 {
+		// use the default IP of the host if specific IPs have not been requested
+		ips = append(ips, hostInfo.IpAddr)
+	}
+	hostIPs, err := getIPResources(ips...)
+	if err != nil {
+		return err
+	}
+	hostInfo.IPs = hostIPs
 	*host = *hostInfo
 	return nil
 }
 
-//SendHostIPs handles the details of sending HostIPResources
-type SendHostIPs func(ips dao.HostIPs, unused *int) error
-
-/**
-RegisterResources registers resources on the host such as IP addresses with the control plane master.
-The duration parameter is how often to register with the master
-*/
-func (a *HostAgent) RegisterIPResources(duration time.Duration) {
-	registerFn := func() {
-		controlClient, err := NewControlClient(a.master)
-		if err != nil {
-			glog.Errorf("Could not start ControlPlane client %v", err)
-			return
-		}
-		defer controlClient.Close()
-		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
-		if err != nil {
-			glog.Errorf("Error registering resources %v", err)
-		}
-	}
-	//do it the first time
-	registerFn()
-	tc := time.Tick(duration)
-	//run in timed loop
-	for _ = range tc {
-		registerFn()
-	}
-}
-
-/*
-registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
-and the function used to send the found IPs
-*/
-func registerIPs(hostId string, sendFn SendHostIPs) error {
+// getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
+func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
-		return err
+		return []dao.HostIPResource{}, err
 	}
-	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+	//make a  of all ipaddresses to interface
+	ips := make(map[string]net.Interface)
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
-			return err
+			glog.Error("Problem reading interfaces: ", err)
+			return []dao.HostIPResource{}, err
 		}
-		for _, addr := range addrs {
-			//send address to Master
-			hostIp := dao.HostIPResource{}
-			hostIp.IPAddress = addr.String()
-			hostIp.InterfaceName = iface.Name
-			hostIPResources = append(hostIPResources, hostIp)
+		for _, ip := range addrs {
+			normalIP := strings.SplitN(ip.String(), "/", 2)[0]
+			normalIP = strings.Trim(strings.ToLower(normalIP), " ")
+
+			ips[normalIP] = iface
 		}
 	}
-	var unused int
-	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
-	hostIps := dao.HostIPs{}
-	hostIps.HostId = hostId
-	hostIps.IPs = hostIPResources
-	if err := sendFn(hostIps, &unused); err != nil {
-		glog.Errorf("Error registering IPs %v", err)
+
+	glog.V(4).Infof("Interfaces on this host %v", ips)
+
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+
+	validate := func(iface net.Interface, ip string) error {
+		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
+			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
+		}
+		return nil
 	}
-	return nil
+
+	for _, ipaddr := range ipaddress {
+		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
+		iface, found := ips[normalIP]
+		if !found {
+			return []dao.HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
+		}
+		err = validate(iface, normalIP)
+		if err != nil {
+			return []dao.HostIPResource{}, err
+		}
+		hostIp := dao.HostIPResource{}
+		hostIp.IPAddress = ipaddr
+		hostIp.InterfaceName = iface.Name
+		hostIPResources = append(hostIPResources, hostIp)
+	}
+	return hostIPResources, nil
 }

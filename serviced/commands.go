@@ -264,7 +264,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	}
 
 	var remoteHost dao.Host
-	err = client.GetInfo(0, &remoteHost)
+	//TODO: get user supplied IPs from command line
+	err = client.GetInfo([]string{}, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}
@@ -423,17 +424,14 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 }
 
 // ByInterfaceName implements sort.Interface for []dao.HostIPResource
-// This is used to display the interface information sorted 
-type ByInterfaceNameThenState []dao.HostIPResource
+// This is used to display the interface information sorted
+type ByInterfaceName []dao.HostIPResource
 
-func (a ByInterfaceNameThenState) Len() int      { return len(a) }
-func (a ByInterfaceNameThenState) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByInterfaceName) Len() int      { return len(a) }
+func (a ByInterfaceName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 // sort on InterfaceName first, then sort by State
-func (a ByInterfaceNameThenState) Less(i, j int) bool {
-	if a[i].InterfaceName == a[j].InterfaceName {
-		return a[i].State < a[j].State
-	}
+func (a ByInterfaceName) Less(i, j int) bool {
 	return a[i].InterfaceName < a[j].InterfaceName
 }
 
@@ -459,25 +457,23 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	PoolIPResources := []dao.HostIPResource{}
 	for _, poolHost := range poolHosts {
 		// retrieve the IPs of the hosts contained in the requested pool
-		hostIPs := dao.HostIPs{}
-		err = controlPlane.GetHostIPs(poolHost.HostId, &hostIPs)
+		host := dao.Host{}
+		err = controlPlane.GetHost(poolHost.HostId, &host)
 		if err != nil {
 			glog.Fatalf("Could not IP addresses for host %s: %v", poolHost.HostId, err)
 		}
 
 		//aggregate all the IPResources from all the hosts in the requested pool
-		for _, hostIPResource := range hostIPs.IPs {
-			PoolIPResources = append(PoolIPResources, hostIPResource)
-		}
+		PoolIPResources = append(PoolIPResources, host.IPs...)
 	}
 
-	sort.Sort(ByInterfaceNameThenState(PoolIPResources))
+	sort.Sort(ByInterfaceName(PoolIPResources))
 
-	// print the interface info (name, IP, state)
-	outfmt := "%-16s %-30s %-16s\n"
-	fmt.Printf(outfmt, "Interface Name", "IP Address", "State")
+	// print the interface info (name, IP)
+	outfmt := "%-16s %-30s\n"
+	fmt.Printf(outfmt, "Interface Name", "IP Address")
 	for _, hostIPResource := range PoolIPResources {
-		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress, hostIPResource.State)
+		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 
 	return nil
