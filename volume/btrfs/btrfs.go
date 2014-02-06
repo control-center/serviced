@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/volume"
 
 	"fmt"
+	"os"
 	"os/exec"
 	"os/user"
 	"path"
@@ -56,7 +57,10 @@ func New() (*BtrfsDriver, error) {
 
 func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	if dirp, err := volume.IsDir(rootDir); err != nil || dirp == false {
-		return nil, err
+		if err := os.MkdirAll(rootDir, 0775); err != nil {
+			glog.Errorf("Volume root cannot be created: %s", rootDir)
+			return nil, err
+		}
 	}
 
 	vdir := path.Join(rootDir, volumeName)
@@ -81,7 +85,7 @@ func (c *BtrfsConn) Path() string {
 
 // Snapshot performs a readonly snapshot on the subvolume
 func (c *BtrfsConn) Snapshot(label string) error {
-	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.root, path.Join(c.root, label))
+	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.Path(), path.Join(c.root, label))
 	return err
 }
 

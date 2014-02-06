@@ -5,6 +5,8 @@
 package volume
 
 import (
+	"github.com/zenoss/glog"
+
 	"fmt"
 )
 
@@ -54,6 +56,7 @@ func Mount(driverName, volumeName, rootDir string) (*Volume, error) {
 
 	conn, err := driver.Mount(volumeName, rootDir)
 	if err != nil {
+		glog.Errorf("Error mounting :%s", err)
 		return nil, err
 	}
 

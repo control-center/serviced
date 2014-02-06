@@ -67,8 +67,8 @@ func TestBtrfsVolume(t *testing.T) {
 			t.FailNow()
 		}
 
-		label := "foo"
-		if err := c.Snapshot("foo"); err != nil {
+		label := "unittest_foo"
+		if err := c.Snapshot(label); err != nil {
 			log.Printf("Could not snapshot: %s", err)
 			t.FailNow()
 		}
