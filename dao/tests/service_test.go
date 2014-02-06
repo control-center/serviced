@@ -166,7 +166,7 @@ func init() {
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	isvcs.Mgr.Wipe()
 	time.Sleep(time.Second * 5)
-	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses); err != nil {
+	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses, "/tmp", "rsync"); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)
 	}
 

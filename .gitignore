@@ -5,8 +5,8 @@
 *.swp
 *~
 \#*
-.repo_tag_exists
-.build_repo_exists
+.repo_tag_exists*
+.build_repo_exists*
 
 # Folders
 _obj
@@ -41,5 +41,3 @@ isvcs/build/*.tar.gz
 !d3*/
 
 *.iml
-
-.repo_tag_exists*

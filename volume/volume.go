@@ -5,46 +5,57 @@
 package volume
 
 import (
-	"github.com/zenoss/glog"
-
-	"errors"
+	"fmt"
 )
 
-type Volume interface {
-	New(baseDir, name string) (Volume, error)
+var (
+	drivers = make(map[string]Driver)
+)
+
+type Driver interface {
+	Mount(volumeName, root string) (Conn, error)
+}
+
+type Conn interface {
 	Name() string
-	Dir() string
+	Path() string
 	Snapshot(label string) (err error)
-	Snapshots() (labels []string, err error)
+	Snapshots() ([]string, error)
 	RemoveSnapshot(label string) error
-	Rollback(label string) (err error)
-	BaseDir() string
+	Rollback(label string) error
 }
 
-var ErrNoSupportedDrivers error
-var SupportedDrivers map[string]Volume
-
-func init() {
-	ErrNoSupportedDrivers = errors.New("no supported drivers found")
-
-	SupportedDrivers = make(map[string]Volume)
-	SupportedDrivers["btrfs"] = &BtrfsVolume{}
-	SupportedDrivers["rsync"] = &RsyncVolume{}
+type Volume struct {
+	Conn
 }
 
-func New(baseDir, volumeName string) (volume Volume, err error) {
+func Register(name string, driver Driver) {
+	if driver == nil {
+		panic("volume: Register driver is nil")
+	}
 
-	for name, driver := range SupportedDrivers {
-		glog.V(4).Infof("Detecting if %s is supported on %s", name, baseDir)
-		if volume, err = driver.New(baseDir, name); err == nil {
-			glog.V(4).Infof("%s is supported on %s", name, baseDir)
-			return volume, nil
-		} else {
-			glog.V(4).Infof("%s is NOT supported on %s", name, baseDir)
-		}
+	if _, dup := drivers[name]; dup {
+		panic("volume: Register called twice for driver: " + name)
 	}
-	if volume == nil {
-		err = ErrNoSupportedDrivers
+
+	drivers[name] = driver
+}
+
+func Registered(name string) (Driver, bool) {
+	driver, registered := drivers[name]
+	return driver, registered
+}
+
+func Mount(driverName, volumeName, rootDir string) (*Volume, error) {
+	driver, ok := Registered(driverName)
+	if ok == false {
+		return nil, fmt.Errorf("No such driver: %s", driverName)
 	}
-	return volume, err
+
+	conn, err := driver.Mount(volumeName, rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Volume{conn}, nil
 }

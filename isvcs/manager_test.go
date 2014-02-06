@@ -10,12 +10,14 @@
 package isvcs
 
 import (
+	"github.com/zenoss/serviced/utils"
+
 	"testing"
 	"time"
 )
 
 func TestManager(t *testing.T) {
-	testManager := NewManager("unix:///var/run/docker.sock", "/tmp")
+	testManager := NewManager("unix:///var/run/docker.sock", utils.LocalDir("images"), "/tmp")
 
 	if err := testManager.Stop(); err != ErrManagerNotRunning {
 		t.Logf("expected an error got %s", err)

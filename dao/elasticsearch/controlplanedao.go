@@ -165,6 +165,8 @@ var (
 type ControlPlaneDao struct {
 	hostName   string
 	port       int
+	varpath    string
+	vfs        string
 	zookeepers []string
 	zkDao      *zzk.ZkDao
 }
@@ -1063,7 +1065,7 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) erro
 	}
 
 	// delete snapshot
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1102,7 +1104,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 		return err
 	}
 	// rollback
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1128,8 +1130,8 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	// create a
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	// create a snapshot
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1150,12 +1152,12 @@ func snapShotName(volumeName string) string {
 	return volumeName + "_" + utc.Format(format)
 }
 
-func getSubvolume(poolId, tenantId string) (vol volume.Volume, err error) {
+func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
 	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
 	if err != nil {
 		return nil, err
 	}
-	return volume.New(baseDir, tenantId)
+	return volume.Mount(vfs, tenantId, baseDir)
 }
 
 func varPath() string {
@@ -1179,7 +1181,7 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 		return err
 	}
 
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1209,7 +1211,7 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
-	return &ControlPlaneDao{hostName, port, nil, nil}, nil
+	return &ControlPlaneDao{hostName, port, "", "", nil, nil}, nil
 }
 
 // hostId retreives the system's unique id, on linux this maps
@@ -1241,36 +1243,41 @@ func createDefaultPool(s *ControlPlaneDao) error {
 	return nil
 }
 
-func NewControlSvc(hostName string, port int, zookeepers []string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	if s, err := NewControlPlaneDao(hostName, port); err != nil {
+	s, err := NewControlPlaneDao(hostName, port)
+	if err != nil {
 		return nil, err
-	} else {
-		if err := isvcs.Mgr.Start(); err != nil {
-			return nil, err
-		}
-
-		if len(zookeepers) == 0 {
-			s.zookeepers = []string{"127.0.0.1:2181"}
-		} else {
-			s.zookeepers = zookeepers
-		}
-		s.zkDao = &zzk.ZkDao{s.zookeepers}
-
-		if err := createDefaultPool(s); err != nil {
-			return nil, err
-		}
-
-		if hid, err := hostId(); err != nil {
-			return nil, err
-		} else {
-			go s.handleScheduler(hid)
-		}
-
-		return s, nil
 	}
+
+	if err = isvcs.Mgr.Start(); err != nil {
+		return nil, err
+	}
+
+	s.varpath = varpath
+	s.vfs = vfs
+
+	if len(zookeepers) == 0 {
+		s.zookeepers = []string{"127.0.0.1:2181"}
+	} else {
+		s.zookeepers = zookeepers
+	}
+	s.zkDao = &zzk.ZkDao{s.zookeepers}
+
+	if err = createDefaultPool(s); err != nil {
+		return nil, err
+	}
+
+	hid, err := hostId()
+	if err != nil {
+		return nil, err
+	}
+
+	go s.handleScheduler(hid)
+
+	return s, nil
 }
 
 // Anytime the available service definitions are modified
