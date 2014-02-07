@@ -14,6 +14,7 @@ import (
 	_ "github.com/zenoss/serviced/volume"
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
+	"github.com/zenoss/serviced/zzk"
 	"reflect"
 	"strconv"
 	"testing"
@@ -535,8 +536,8 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 
 func TestDao_NewSnapshot(t *testing.T) {
 	service := dao.Service{}
-	controlPlaneDao.RemoveService("default", &unused)
 	service.Id = "default"
+	controlPlaneDao.RemoveService(service.Id, &unused)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", service, err)
@@ -548,7 +549,34 @@ func TestDao_NewSnapshot(t *testing.T) {
 		t.Errorf("Failure creating snapshot %-v with error: %s", service, err)
 		t.Fail()
 	}
+}
 
+func TestDao_SnapshotState(t *testing.T) {
+	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
+	expectedState := ""
+
+	glog.V(0).Infof("TestDao_NewSnapshot")
+	expectedState = "INIT"
+	if err := zkDao.AddSnapshotState(expectedState); err != nil {
+		t.Errorf("Failure AddSnapshotState error: %s", err)
+		t.Fail()
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Errorf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+		t.Fail()
+	}
+
+	expectedState = "PAUSE"
+	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
+		t.Errorf("Failure UpdateSnapshotState error: %s", err)
+		t.Fail()
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Errorf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+		t.Fail()
+	}
 }
 
 func TestDao_TestingComplete(t *testing.T) {

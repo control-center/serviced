@@ -1131,13 +1131,17 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	// add snapshot state znode to zookeeper
-	if err := this.zkDao.AddSnapshot(&service); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot AddSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
+	// TODO: simplest case - do everything here
+
+	// TODO: update snapshot state znode in zookeeper with PAUSE
+	// if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
+	//  glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+	// 	return err
+	// }
 
 	// TODO: call quiesce pause for services with 'Snapshot' definition
+	// lxc-attach -n serviceid-mysql quiesce-mysql.sh pause
+	// lxc-attach -n serviceid-rabbitmq quiesce-rabbitmq.sh pause
 
 	// TODO: move this functionality to a method called by the CP agent when the container volume is quiesced
 
@@ -1157,7 +1161,15 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		}
 	}
 
+	// TODO: update snapshot state znode in zookeeper with RESUME
+	// if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
+	//  glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+	// 	return err
+	// }
+
 	// TODO: call quiesce resume for services with 'Snapshot' definition
+	// lxc-attach -n serviceid-mysql quiesce-mysql.sh resume
+	// lxc-attach -n serviceid-rabbitmq quiesce-rabbitmq.sh resume
 
 	glog.V(2).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
 	return nil

@@ -50,40 +50,6 @@ func (this *ZkDao) TerminateHostService(hostId string, serviceStateId string) er
 	return TerminateHostService(conn, hostId, serviceStateId)
 }
 
-func (this *ZkDao) AddSnapshot(service *dao.Service) error {
-	glog.V(2).Infof("Create new snapshot snapshot znode for service %+v", service)
-
-	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddSnapshot(conn, service)
-}
-
-func AddSnapshot(conn *zk.Conn, service *dao.Service) error {
-	glog.V(2).Infof("Creating new snapshot znode")
-
-	snapshotPath := SnapshotPath()
-	sBytes, err := json.Marshal(service)
-	if err != nil {
-		glog.Errorf("Unable to marshal snapshot znode data for %s", snapshotPath)
-		return err
-	}
-	_, err = conn.Create(snapshotPath, sBytes, 0, zk.WorldACL(zk.PermAll))
-	if err != nil {
-		glog.Errorf("Unable to create snapshot znode for %s: %v", snapshotPath, err)
-	}
-
-	glog.V(2).Infof("Successfully created snapshot znode %s", snapshotPath)
-	return err
-}
-
-func SnapshotPath() string {
-	return SNAPSHOT_PATH
-}
-
 func (this *ZkDao) AddService(service *dao.Service) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
@@ -665,4 +631,77 @@ func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
 	rs.DesiredState = s.DesiredState
 	rs.ParentServiceId = s.ParentServiceId
 	return rs
+}
+
+// Snapshot
+func SnapshotStatePath() string {
+	return SNAPSHOT_PATH
+}
+
+func (this *ZkDao) AddSnapshotState(snapshotState string) error {
+	glog.V(2).Infof("Create new snapshot state znode")
+
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	return AddSnapshotState(conn, snapshotState)
+}
+
+func AddSnapshotState(conn *zk.Conn, snapshotState string) error {
+	glog.V(2).Infof("Creating new snapshot state znode")
+
+	snapshotPath := SnapshotStatePath()
+	sBytes, err := json.Marshal(snapshotState)
+	if err != nil {
+		glog.Errorf("Unable to marshal snapshot state znode data for %s", snapshotPath)
+		return err
+	}
+	_, err = conn.Create(snapshotPath, sBytes, 0, zk.WorldACL(zk.PermAll))
+	if err != nil {
+		glog.Errorf("Unable to create snapshot state znode for %s: %v", snapshotPath, err)
+	}
+
+	glog.V(2).Infof("Successfully created snapshot state znode %s", snapshotPath)
+	return err
+}
+
+func (this *ZkDao) GetSnapshotState(snapshotState *string) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return GetSnapshotState(conn, snapshotState)
+}
+
+func GetSnapshotState(conn *zk.Conn, snapshotState *string) error {
+	snapshotStateNode, _, err := conn.Get(SnapshotStatePath())
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(snapshotStateNode, snapshotState)
+}
+
+func (this *ZkDao) UpdateSnapshotState(state string) error {
+	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ssBytes, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+
+	snapshotStatePath := SnapshotStatePath()
+	_, stats, err := conn.Get(snapshotStatePath)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Set(snapshotStatePath, ssBytes, stats.Version)
+	return err
 }
