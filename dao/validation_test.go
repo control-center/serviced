@@ -197,21 +197,16 @@ func TestNormalizeAddressResourcConfigPorts(t *testing.T) {
 		t.Error("Expected error for 0 port value")
 	}
 
-	arc.Port = -1
+	//explicit set to 0
+	arc.Port = 0
 	err = arc.normalize()
-	if err == nil || err.Error() != "AddressResourceConfig: Invalid port number -1" {
-		t.Error("Expected error for -1 port value")
+	if err == nil || err.Error() != "AddressResourceConfig: Invalid port number 0" {
+		t.Error("Expected error for 0 port value")
 	}
 
-	arc.Port = 65536
-	err = arc.normalize()
-	if err == nil || err.Error() != "AddressResourceConfig: Invalid port number 65536" {
-		t.Error("Expected error for 65536 port value")
-	}
-
-	//test valid ports
-	for i := 1; i <= 65535; i = i + 1 {
-		arc.Port = i
+	//test valid ports 1-65535
+	for i, _ := range make([]interface{}, 65535) {
+		arc.Port = uint16(i + 1) // index is 0 based
 		err = arc.normalize()
 		if err != nil {
 			t.Errorf("Unexpected error normalizing AddressResourceConfig %v", err)

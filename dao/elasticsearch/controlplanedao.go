@@ -134,6 +134,7 @@ var (
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
+	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
 
 	//model index functions
 	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
@@ -147,6 +148,7 @@ var (
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
+	deleteAddressAssignment      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
 
 	//model get functions
 	getHost                   func(string, interface{}) error = getSource("controlplane", "host")
@@ -156,10 +158,11 @@ var (
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
 
 	//model search functions, using uri based query
-	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
-	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
-	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
-	searchResourcePoolUri func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
+	searchHostUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
+	searchServiceUri        func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
+	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
+	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
+	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
 )
 
 type ControlPlaneDao struct {
@@ -875,12 +878,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-	// determine the desired state
-	ds := dao.SVC_RUN
-
-	if sd.Launch == "MANUAL" {
-		ds = dao.SVC_STOP
-	}
+	// Always deploy in stopped state, starting is a separate step
+	ds := dao.SVC_STOP
 
 	exportedVolumes := make(map[string]string)
 	for k, v := range volumes {
@@ -1000,6 +999,18 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	}
 	go this.reloadLogstashContainer()
 	return nil
+}
+
+func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unused interface{}) error {
+	return nil
+}
+
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments []dao.AddressAssignment) error {
+	return nil
+}
+
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (dao.AddressAssignment, error) {
+	return dao.AddressAssignment{}, nil
 }
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {

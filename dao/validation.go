@@ -49,15 +49,23 @@ func (d *ServiceDefinition) validate(context *validationContext) error {
 	}
 
 	//validate endpoint config
+w	//	names := make(map[string]interface{})
 	for _, se := range d.Endpoints {
-		err := se.validate()
+		err = se.validate()
 		if err == nil {
 			err = context.validateVHost(se)
 		}
 		if err != nil {
 			return fmt.Errorf("Service Definition %v: %v", d.Name, err)
 		}
-
+		// TODO: uncomment to unique enable endpoint name validation
+		/*
+			trimName := strings.Trim(se.Name, "")
+			if _, found := names[trimName]; found {
+				return fmt.Errorf("Service Definition %v: Endpoint name not unique in service definition %v", d.Name, trimName)
+			}
+			names[trimName] = struct{}
+		*/
 	}
 	//TODO: validate LogConfigs
 
@@ -82,16 +90,30 @@ func (sd *ServiceDefinition) normalizeLaunch() error {
 }
 
 func (se ServiceEndpoint) validate() error {
-	//TODO: validate more ServiceEndpoint fields
-	return se.AddressConfig.normalize()
+	err := portValidation(se.PortNumber)
+	if err != nil {
+		trimName := strings.Trim(se.Name, "")
+		if "" == trimName {
+			return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
+		}
+		err = se.AddressConfig.normalize()
+	}
+	return err
+}
+
+func portValidation(port uint16) error {
+	if port == 0 {
+		return fmt.Errorf("Invalid port number %v", port)
+	}
+	return nil
 }
 
 func (arc AddressResourceConfig) normalize() error {
 	//check if protocol set or port not 0
-	if arc.Protocol != "" || arc.Port > 0 || arc.Port < 0 {
+	if arc.Protocol != "" || arc.Port > 0 {
 		//some setting, now lets make sure they are valid
-		if arc.Port > 65535 || arc.Port < 1 {
-			return fmt.Errorf("AddressResourceConfig: Invalid port number %v", arc.Port)
+		if err := portValidation(arc.Port); err != nil {
+			return fmt.Errorf("AddressResourceConfig: %v", err)
 		}
 		testProto := strings.Trim(strings.ToLower(arc.Protocol), " ")
 		if testProto != commons.TCP && testProto != commons.UDP {
