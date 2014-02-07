@@ -1121,7 +1121,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 func (this *ControlPlaneDao) callQuiescePause() error {
 	// TODO: update snapshot state znode in zookeeper with PAUSE
 	if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
-		glog.V(0).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
+		glog.V(3).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
 		return err
 	}
 
@@ -1144,9 +1144,14 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("quiesce paused service - output:%s", string(output))
+			glog.V(2).Infof("quiesce paused service - output:%s", string(output))
 		}
 	}
+
+	// TODO: deficiency of this algorithm is that if one service fails to pause,
+	//       all paused services will stay paused
+	//       Perhaps one way to fix it is to call resume for all paused services
+	//       if any of them fail to pause
 
 	return nil
 }
@@ -1164,12 +1169,17 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
-				glog.Errorf("Unable to pause service %+v with cmd %+v because: %v", service, cmd, err)
+				glog.Errorf("Unable to resume service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("quiesce resume service - output:%+v", output)
+			glog.V(2).Infof("quiesce resume service - output:%+v", output)
 		}
 	}
+
+	// TODO: deficiency of this algorithm is that if one service fails to resume,
+	//       all remaining paused services will stay paused
+	//       Perhaps one way to fix it is to call resume for all paused services
+	//       if any of them fail to resume
 
 	// TODO: update snapshot state znode in zookeeper with RESUME
 	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
