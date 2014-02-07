@@ -50,6 +50,7 @@ type HostAgent struct {
 	hostId          string   // the hostID of the current host
 	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
+	vfs             string   // driver for container volumes
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
@@ -61,12 +62,13 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, varPath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
 	agent.varPath = varPath
 	agent.mount = mount
+	agent.vfs = vfs
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
 		defaultZK := "127.0.0.1:2181"
@@ -331,11 +333,13 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 }
 
-func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err error) {
+func getSubvolume(varPath, poolId, tenantId, fs string) (*volume.Volume, error) {
 	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
-	volume.New(baseDir, poolId)
+	if _, err := volume.Mount(fs, poolId, baseDir); err != nil {
+		return nil, err
+	}
 	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
-	return volume.New(baseDir, tenantId)
+	return volume.Mount(fs, tenantId, baseDir)
 }
 
 /*
@@ -429,12 +433,16 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	for _, volume := range service.Volumes {
 
-		btrfsVolume, err := getSubvolume(a.varPath, service.PoolId, tenantId)
+		sv, err := getSubvolume(a.varPath, service.PoolId, tenantId, a.vfs)
 		if err != nil {
 			glog.Fatal("Could not create subvolume: %s", err)
 		} else {
 
-			resourcePath := path.Join(btrfsVolume.Dir(), volume.ResourcePath)
+			glog.Infof("sv: %v", sv)
+			glog.Infof("Path: %s", sv.Path())
+			glog.Infof("RP: %s", volume.ResourcePath)
+
+			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
 			}

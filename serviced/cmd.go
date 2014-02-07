@@ -18,6 +18,9 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/volume"
+	_ "github.com/zenoss/serviced/volume/btrfs"
+	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -35,23 +38,25 @@ import (
 
 // Store the command line options
 var options struct {
-	port         string
-	listen       string
-	master       bool
-	agent        bool
-	muxPort      int
-	tls          bool
-	keyPEMFile   string
-	certPEMFile  string
-	varPath      string // Directory to store data, eg isvcs & service volumes
-	resourcePath string
-	zookeepers   ListOpts
-	repstats     bool
-	statshost    string
-	statsperiod  int
-	mcusername   string
-	mcpasswd     string
-	mount        ListOpts
+	port           string
+	listen         string
+	master         bool
+	agent          bool
+	muxPort        int
+	tls            bool
+	keyPEMFile     string
+	certPEMFile    string
+	varPath        string // Directory to store data, eg isvcs & service volumes
+	resourcePath   string
+	zookeepers     ListOpts
+	repstats       bool
+	statshost      string
+	statsperiod    int
+	mcusername     string
+	mcpasswd       string
+	mount          ListOpts
+	resourceperiod int
+	vfs            string
 }
 
 var agentIP string
@@ -92,6 +97,7 @@ func init() {
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -132,14 +138,19 @@ func startServer() {
 	}
 
 	atLeast := []int{0, 7, 5}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker 0.7.5")
+	atMost := []int{0, 7, 6}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
+		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.7.6")
+	}
+
+	if _, ok := volume.Registered(options.vfs); !ok {
+		glog.Fatalf("no driver registered for %s", options.vfs)
 	}
 
 	if options.master {
 		var master dao.ControlPlane
 		var err error
-		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
+		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers, options.varPath, options.vfs)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
@@ -162,7 +173,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
