@@ -49,7 +49,7 @@ func (d *ServiceDefinition) validate(context *validationContext) error {
 	}
 
 	//validate endpoint config
-w	//	names := make(map[string]interface{})
+	//	names := make(map[string]interface{})
 	for _, se := range d.Endpoints {
 		err = se.validate()
 		if err == nil {
@@ -155,5 +155,9 @@ func (vc validationContext) validateVHost(se ServiceEndpoint) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (a *AddressAssignment) Validate() error {
 	return nil
 }

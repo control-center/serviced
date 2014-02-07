@@ -228,6 +228,24 @@ func toServices(result *core.SearchResult) ([]*dao.Service, error) {
 	return services, err
 }
 
+// convert search result of json host to dao.Host array
+func toAddressAssignments(result *core.SearchResult) (*[]dao.AddressAssignment, error) {
+	var err error = nil
+	var total = len(result.Hits.Hits)
+	var addressAssignments = make([]dao.AddressAssignment, total)
+	for i := 0; i < total; i += 1 {
+		var addressAssignment dao.AddressAssignment
+		err = json.Unmarshal(result.Hits.Hits[i].Source, &addressAssignment)
+		if err == nil {
+			addressAssignments[i] = addressAssignment
+		} else {
+			return nil, err
+		}
+	}
+
+	return &addressAssignments, err
+}
+
 // query for hosts using uri
 func (this *ControlPlaneDao) queryHosts(query string) ([]*dao.Host, error) {
 	result, err := searchHostUri(query)
@@ -1034,19 +1052,63 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return nil
 }
 
-// AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not alread exist
+// AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
 func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unused interface{}) error {
-	return nil
+	err := assignment.Validate()
+	if err != nil {
+		return err
+	}
+	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
+	if err != nil {
+		return err
+	}
+	if existing.Id != "" {
+		return fmt.Errorf("Address Assignment alread exists")
+	}
+	assignment.Id, err = dao.NewUuid()
+	if err != nil {
+		return err
+	}
+	_, err = newAddressAssignment(assignment.Id, &assignment)
+	return err
 }
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments []dao.AddressAssignment) error {
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]dao.AddressAssignment) error {
+	query := fmt.Sprintf("ServiceId:%s", serviceId)
+	results, err := this.queryAddressAssignments(query)
+	if err != nil {
+		return err
+	}
+	*assignments = *results
 	return nil
 }
 
+// queryAddressAssignments query for host ips
+func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.AddressAssignment, error) {
+	result, err := searchAddressAssignment(query)
+	if err != nil {
+		return nil, err
+	}
+	return toAddressAssignments(&result)
+}
+
 // getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment struct will be uninitialized
-func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (dao.AddressAssignment, error) {
-	return dao.AddressAssignment{}, nil
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
+	//TODO: this can probably be done w/ a query
+	assignments := []dao.AddressAssignment{}
+	assignment := dao.AddressAssignment{}
+	err := this.GetServiceAddressAssignments(serviceId, &assignments)
+	if err != nil {
+		return &assignment, err
+	}
+
+	for _, result := range assignments {
+		if result.EndpointName == endpointName {
+			return &result, nil
+		}
+	}
+	return &assignment, nil
 }
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {

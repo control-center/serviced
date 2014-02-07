@@ -36,6 +36,7 @@ type PoolHost struct {
 
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AddressAssignment struct {
+	Id             string //Generated id
 	AssignmentType string //Static of Virtual
 	HostId         string //Host id if type is Static
 	PoolId         string //Pool id if type is Virtual
