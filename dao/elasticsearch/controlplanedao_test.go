@@ -543,14 +543,12 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Snapshot.Resume = "STATE=resumed echo quiesce $STATE"
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Errorf("Failure creating service %-v with error: %s", service, err)
-		t.Fail()
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
 	}
 
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
-		t.Errorf("Failure creating snapshot for service %-v with error: %s", service, err)
-		t.Fail()
+		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
 	}
 }
 
@@ -562,24 +560,20 @@ func TestDao_SnapshotState(t *testing.T) {
 	glog.V(0).Infof("TestDao_NewSnapshot")
 	expectedState = "INIT"
 	if err := zkDao.AddSnapshotState(expectedState); err != nil {
-		t.Errorf("Failure AddSnapshotState error: %s", err)
-		t.Fail()
+		t.Fatalf("Failure AddSnapshotState error: %s", err)
 	}
 
 	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Errorf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
-		t.Fail()
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
 	}
 
 	expectedState = "PAUSE"
 	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
-		t.Errorf("Failure UpdateSnapshotState error: %s", err)
-		t.Fail()
+		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
 	}
 
 	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Errorf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
-		t.Fail()
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
 	}
 }
 
