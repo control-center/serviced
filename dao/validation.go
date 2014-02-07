@@ -11,6 +11,7 @@ package dao
 import (
 	"github.com/zenoss/serviced/commons"
 
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -159,5 +160,35 @@ func (vc validationContext) validateVHost(se ServiceEndpoint) error {
 }
 
 func (a *AddressAssignment) Validate() error {
+	if a.ServiceId == "" {
+		return errors.New("ServiceId must be set")
+	}
+	if a.EndpointName == "" {
+		return errors.New("EndpointName must be set")
+	}
+	if a.IPAddr == "" {
+		return errors.New("IPAddr must be set")
+	}
+	if a.Port == 0 {
+		return errors.New("Port must be set")
+	}
+	switch a.AssignmentType {
+	case "static":
+		{
+			if a.HostId == "" {
+				return errors.New("HostId must be set for static assignments")
+			}
+		}
+	case "virtual":
+		{
+			if a.PoolId == "" {
+				return errors.New("PoolId must be set for virtual assignments")
+			}
+
+		}
+	default:
+		return fmt.Errorf("Assignment type must be static of virtual, found %v", a.AssignmentType)
+	}
+
 	return nil
 }

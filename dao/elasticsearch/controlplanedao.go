@@ -1058,6 +1058,32 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 	if err != nil {
 		return err
 	}
+
+	switch assignment.AssignmentType {
+	case "static":
+		{
+			//check host and IP exist
+			host := dao.NewHost()
+			err = this.GetHost(assignment.HostId, host)
+			if err != nil {
+				return err
+			}
+			found := false
+			for _, ip := range host.IPs {
+				if ip.IPAddress == assignment.IPAddr {
+					found = true
+				}
+			}
+			if !found {
+				return fmt.Errorf("Requested static IP is not available: %v", assignment.IPAddr)
+			}
+		}
+	case "virtual":
+		{
+			// TODO: need to check if virtual IP exists
+		}
+	}
+
 	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
 	if err != nil {
 		return err
