@@ -1120,10 +1120,10 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 
 func (this *ControlPlaneDao) callQuiescePause() error {
 	// TODO: update snapshot state znode in zookeeper with PAUSE
-	// if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
-	//  glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-	// 	return err
-	// }
+	if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
+		glog.V(0).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
+		return err
+	}
 
 	// assuming lxc-attach is setuid for docker group
 	//   sudo chgrp docker /usr/bin/lxc-attach
@@ -1137,14 +1137,14 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 	}
 	for _, service := range servicesList {
 		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(0).Infof("DEBUG: quiesce pause  service: %+v", service)
+			glog.V(2).Infof("quiesce pause  service: %+v", service)
 			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Pause)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("DEBUG: quiesce paused service - output:%s", string(output))
+			glog.V(0).Infof("quiesce paused service - output:%s", string(output))
 		}
 	}
 
@@ -1160,22 +1160,22 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 	}
 	for _, service := range servicesList {
 		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(0).Infof("DEBUG: quiesce resume service: %+v", service)
+			glog.V(2).Infof("quiesce resume service: %+v", service)
 			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				glog.Errorf("Unable to pause service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("DEBUG: quiesce resume service - output:%+v", output)
+			glog.V(0).Infof("quiesce resume service - output:%+v", output)
 		}
 	}
 
 	// TODO: update snapshot state znode in zookeeper with RESUME
-	// if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
-	//  glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-	// 	return err
-	// }
+	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.callQuiesceResume err=%s", err)
+		return err
+	}
 
 	return nil
 }

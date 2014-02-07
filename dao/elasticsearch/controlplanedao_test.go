@@ -539,8 +539,8 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Id = "default"
 	controlPlaneDao.RemoveService(service.Id, &unused)
 
-	service.Snapshot.Pause = "bash -c 'echo -n paused:; hostname; TZ=HST date'"
-	service.Snapshot.Resume = "bash -c 'echo -n resumed:; hostname; TZ=HST date'"
+	service.Snapshot.Pause = "STATE=paused echo quiesce $STATE"
+	service.Snapshot.Resume = "STATE=resumed echo quiesce $STATE"
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", service, err)
@@ -549,7 +549,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
-		t.Errorf("Failure creating snapshot %-v with error: %s", service, err)
+		t.Errorf("Failure creating snapshot for service %-v with error: %s", service, err)
 		t.Fail()
 	}
 }
@@ -557,6 +557,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 func TestDao_SnapshotState(t *testing.T) {
 	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
 	expectedState := ""
+	zkDao.RemoveSnapshotState()
 
 	glog.V(0).Infof("TestDao_NewSnapshot")
 	expectedState = "INIT"

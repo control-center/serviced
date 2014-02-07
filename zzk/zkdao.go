@@ -685,23 +685,76 @@ func GetSnapshotState(conn *zk.Conn, snapshotState *string) error {
 	return json.Unmarshal(snapshotStateNode, snapshotState)
 }
 
-func (this *ZkDao) UpdateSnapshotState(state string) error {
+func (this *ZkDao) UpdateSnapshotState(snapshotState string) error {
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	ssBytes, err := json.Marshal(state)
+	ssBytes, err := json.Marshal(snapshotState)
 	if err != nil {
 		return err
 	}
 
 	snapshotStatePath := SnapshotStatePath()
+	exists, _, _, err := conn.ExistsW(snapshotStatePath)
+	if err != nil {
+		if err == zk.ErrNoNode {
+			return AddSnapshotState(conn, snapshotState)
+		}
+	}
+	if !exists {
+		return AddSnapshotState(conn, snapshotState)
+	}
+
 	_, stats, err := conn.Get(snapshotStatePath)
 	if err != nil {
 		return err
 	}
 	_, err = conn.Set(snapshotStatePath, ssBytes, stats.Version)
 	return err
+}
+
+func (z *ZkDao) RemoveSnapshotState() error {
+	conn, _, err := zk.Connect(z.Zookeepers, time.Second*10)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	return RemoveSnapshotState(conn)
+}
+
+func LoadSnapshotState(conn *zk.Conn, serviceId string, s *dao.Service) (*zk.Stat, error) {
+	sBytes, ssStat, err := conn.Get(ServicePath(serviceId))
+	if err != nil {
+		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
+		return nil, err
+	}
+	err = json.Unmarshal(sBytes, &s)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
+		return nil, err
+	}
+	return ssStat, nil
+}
+
+func RemoveSnapshotState(conn *zk.Conn) error {
+	snapshotStatePath := SnapshotStatePath()
+
+	_, stats, err := conn.Get(snapshotStatePath)
+	if err != nil {
+		glog.Errorf("Unable to retrieve snapshot state error:%v", err)
+		return err
+	}
+
+	err = conn.Delete(snapshotStatePath, stats.Version)
+	if err != nil {
+		glog.Errorf("Unable to delete snapshot state %s error:%v", snapshotStatePath, err)
+		return err
+	}
+	glog.V(1).Infof("SnapshotState %s removed", snapshotStatePath)
+
+	return nil
 }
