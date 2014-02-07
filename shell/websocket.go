@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/websocket"
 
 	"github.com/zenoss/glog"
@@ -211,6 +212,10 @@ type HTTPProcessHandler struct {
 	Addr string
 }
 
+type SocketIOProcessHandler struct {
+	server *socketio.SocketIOServer
+}
+
 // Implement http.Handler
 func (h *WebsocketProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stream := NewWebsocketProcessStream(h.Addr)
@@ -333,12 +338,13 @@ func (s *baseProcessStream) StreamAgent() {
 	}
 
 	// Recreate the request from the process and send it up the pipe
-	s.agent.WriteJSON(request{
+	req := request{
 		Cmd:       s.process.Command,
 		Action:    action,
 		ServiceId: s.process.ServiceId,
 		Env:       s.process.Envv,
-	})
+	}
+	s.agent.WriteJSON(req)
 
 	s.forwardFromAgent()
 }
@@ -444,6 +450,11 @@ func forwardToClient(ws *websocket.Conn, proc *Process) {
 
 // This is the handler on the agent that receives the connection from the proxy
 func (h *OSProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		service  *dao.Service
+		empty    interface{}
+		services []*dao.Service
+	)
 	// Establish the websocket connection with proxy
 	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
@@ -462,10 +473,17 @@ func (h *OSProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client %v", err)
 	}
-	service := &dao.Service{}
-	controlplane.GetService(proc.ServiceId, service)
+
+	err = (*controlplane).GetServices(&empty, &services)
+	for _, svc := range services {
+		if svc.Id == proc.ServiceId || svc.Name == proc.ServiceId {
+			service = svc
+			break
+		}
+	}
 
 	if err := Exec(proc, service); err != nil {
+		// TODO: Something errory
 	}
 
 	// Wire it up

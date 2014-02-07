@@ -76,6 +76,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	})
 	go http.ListenAndServe(":50000", nil)
 
+	sio := shell.NewSocketIOServer(proxyOptions.servicedEndpoint)
+	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
+	go http.ListenAndServe(":50002", sio)
+
 	procexit := make(chan int)
 
 	// continually execute subprocess
