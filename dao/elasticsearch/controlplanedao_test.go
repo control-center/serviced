@@ -538,6 +538,9 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service := dao.Service{}
 	service.Id = "default"
 	controlPlaneDao.RemoveService(service.Id, &unused)
+
+	service.Snapshot.Pause = "echo quiesce paused"
+	service.Snapshot.Resume = "echo quiesce resumed"
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", service, err)
