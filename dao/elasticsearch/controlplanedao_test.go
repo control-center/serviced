@@ -539,8 +539,8 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Id = "default"
 	controlPlaneDao.RemoveService(service.Id, &unused)
 
-	service.Snapshot.Pause = "echo quiesce paused"
-	service.Snapshot.Resume = "echo quiesce resumed"
+	service.Snapshot.Pause = "bash -c 'echo -n paused:; hostname; TZ=HST date'"
+	service.Snapshot.Resume = "bash -c 'echo -n resumed:; hostname; TZ=HST date'"
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", service, err)

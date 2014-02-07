@@ -1125,6 +1125,10 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 	// 	return err
 	// }
 
+	// assuming lxc-attach is setuid for docker group
+	//   sudo chgrp docker /usr/bin/lxc-attach
+	//   sudo chmod u+s /usr/bin/lxc-attach
+
 	var request dao.EntityRequest
 	var servicesList []*dao.Service
 	err = this.GetServices(request, &servicesList)
@@ -1133,14 +1137,14 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 	}
 	for _, service := range servicesList {
 		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(0).Infof("DEBUG: quiesce pause   service: %+v", service)
+			glog.V(0).Infof("DEBUG: quiesce pause  service: %+v", service)
 			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Pause)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("DEBUG: quiesce paused service: %+v  output:%s", service, string(output))
+			glog.V(0).Infof("DEBUG: quiesce paused service - output:%s", string(output))
 		}
 	}
 
@@ -1156,14 +1160,14 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 	}
 	for _, service := range servicesList {
 		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(0).Infof("DEBUG: quiesce resume  service: %+v", service)
-			cmd := exec.Command("/bin/echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
+			glog.V(0).Infof("DEBUG: quiesce resume service: %+v", service)
+			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				glog.Errorf("Unable to pause service %+v with cmd %+v because: %v", service, cmd, err)
 				return err
 			}
-			glog.V(0).Infof("DEBUG: quiesce resumed service: %+v  output:%+v", service, output)
+			glog.V(0).Infof("DEBUG: quiesce resume service - output:%+v", output)
 		}
 	}
 
