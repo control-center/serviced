@@ -1034,14 +1034,17 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return nil
 }
 
+// AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not alread exist
 func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unused interface{}) error {
 	return nil
 }
 
+// GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
 func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments []dao.AddressAssignment) error {
 	return nil
 }
 
+// getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment struct will be uninitialized
 func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (dao.AddressAssignment, error) {
 	return dao.AddressAssignment{}, nil
 }
