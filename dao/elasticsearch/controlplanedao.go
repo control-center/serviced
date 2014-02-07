@@ -1075,6 +1075,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 			for _, ip := range host.IPs {
 				if ip.IPAddress == assignment.IPAddr {
 					found = true
+					break
 				}
 			}
 			if !found {
@@ -1085,6 +1086,27 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 		{
 			// TODO: need to check if virtual IP exists
 		}
+	}
+
+	//check service and endpoint exists
+	if found, err := serviceExists(assignment.ServiceId); !found || err != nil {
+		return fmt.Errorf("Service not found: %v %v", assignment.HostId, err)
+	}
+	service := dao.Service{}
+	//TODO: checking for endpoint can probably be done in a query
+	this.GetService(assignment.ServiceId, &service)
+	if err != nil{
+		return err
+	}
+	found := false
+	for _, endpoint:= range service.Endpoints{
+		if assignment.EndpointName == endpoint.Name{
+			found = true
+			break
+		}
+	}
+	if !found{
+		return fmt.Errorf("Endpoint %v not found on service %v", assignment.EndpointName, assignment.ServiceId)
 	}
 
 	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
