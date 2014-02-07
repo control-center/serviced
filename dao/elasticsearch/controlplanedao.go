@@ -1063,6 +1063,9 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 	case "static":
 		{
 			//check host and IP exist
+			if found, err := hostExists(assignment.HostId); !found || err != nil {
+				return fmt.Errorf("Host not found: %v %v", assignment.HostId, err)
+			}
 			host := dao.NewHost()
 			err = this.GetHost(assignment.HostId, host)
 			if err != nil {
