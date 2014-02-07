@@ -1191,6 +1191,9 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 }
 
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
+	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
+	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
+
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
@@ -1234,7 +1237,6 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	glog.V(2).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
 	return nil
 }
 
