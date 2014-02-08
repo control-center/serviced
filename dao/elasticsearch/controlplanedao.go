@@ -1130,8 +1130,7 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 
 	var request dao.EntityRequest
 	var servicesList []*dao.Service
-	err = this.GetServices(request, &servicesList)
-	if err != nil {
+	if err := this.GetServices(request, &servicesList); err != nil {
 		return err
 	}
 	for _, service := range servicesList {
@@ -1163,8 +1162,7 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 
 	var request dao.EntityRequest
 	var servicesList []*dao.Service
-	err = this.GetServices(request, &servicesList)
-	if err != nil {
+	if err := this.GetServices(request, &servicesList); err != nil {
 		return err
 	}
 	for _, service := range servicesList {
