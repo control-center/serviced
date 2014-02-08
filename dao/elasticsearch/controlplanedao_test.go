@@ -8,6 +8,7 @@
 package elasticsearch
 
 import (
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
@@ -595,11 +596,27 @@ func TestDao_NewSnapshot(t *testing.T) {
 	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
 
 	service := dao.Service{}
-	service.Id = "default"
+	service.Id = "service-without-quiesce"
 	controlPlaneDao.RemoveService(service.Id, &unused)
+	// snapshot should work for services without Snapshot Pause/Resume
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+	}
 
-	service.Snapshot.Pause = "STATE=paused echo quiesce $STATE"
-	service.Snapshot.Resume = "STATE=resumed echo quiesce $STATE"
+	service.Id = "service1-quiesce"
+	controlPlaneDao.RemoveService(service.Id, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+	}
+
+	service.Id = "service2-quiesce"
+	controlPlaneDao.RemoveService(service.Id, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
 		t.Fatalf("Failure creating service %-v with error: %s", service, err)
