@@ -534,7 +534,66 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	}
 }
 
+func TestDao_SnapshotState(t *testing.T) {
+	glog.V(0).Infof("TestDao_SnapshotState started")
+	defer glog.V(0).Infof("TestDao_SnapshotState finished")
+
+	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
+	zkDao.RemoveSnapshotState()
+	defer zkDao.RemoveSnapshotState() // cleanup when exitting this function
+
+	// calling RemoveSnapshotState a 2nd time should not be an error
+	if err := zkDao.RemoveSnapshotState(); err != nil {
+		t.Fatalf("Failure RemoveSnapshotStte error: %s", err)
+	}
+
+	expectedState := ""
+
+	// create /snapshots
+	expectedState = "INIT"
+	if err := zkDao.AddSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// calling addSnapshotState a 2nd time should not be an error
+	expectedState = "ADDSNAP2"
+	if err := zkDao.AddSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// update /snapshots with "PAUSE"
+	expectedState = "PAUSE"
+	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// update /snapshots with "RESUME"
+	expectedState = "RESUME"
+	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+}
+
 func TestDao_NewSnapshot(t *testing.T) {
+	glog.V(0).Infof("TestDao_NewSnapshot started")
+	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
+
 	service := dao.Service{}
 	service.Id = "default"
 	controlPlaneDao.RemoveService(service.Id, &unused)
@@ -549,31 +608,6 @@ func TestDao_NewSnapshot(t *testing.T) {
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
-	}
-}
-
-func TestDao_SnapshotState(t *testing.T) {
-	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
-	expectedState := ""
-	zkDao.RemoveSnapshotState()
-
-	glog.V(0).Infof("TestDao_NewSnapshot")
-	expectedState = "INIT"
-	if err := zkDao.AddSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure AddSnapshotState error: %s", err)
-	}
-
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
-	}
-
-	expectedState = "PAUSE"
-	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
-	}
-
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
 	}
 }
 

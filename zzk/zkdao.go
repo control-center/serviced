@@ -633,14 +633,12 @@ func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
 	return rs
 }
 
-// Snapshot
+// Snapshot section start
 func SnapshotStatePath() string {
 	return SNAPSHOT_PATH
 }
 
 func (this *ZkDao) AddSnapshotState(snapshotState string) error {
-	glog.V(2).Infof("Create new snapshot state znode")
-
 	conn, _, err := zk.Connect(this.Zookeepers, time.Second*10)
 	if err != nil {
 		return err
@@ -651,21 +649,34 @@ func (this *ZkDao) AddSnapshotState(snapshotState string) error {
 }
 
 func AddSnapshotState(conn *zk.Conn, snapshotState string) error {
-	glog.V(2).Infof("Creating new snapshot state znode")
-
-	snapshotPath := SnapshotStatePath()
+	snapshotStatePath := SnapshotStatePath()
 	sBytes, err := json.Marshal(snapshotState)
 	if err != nil {
-		glog.Errorf("Unable to marshal snapshot state znode data for %s", snapshotPath)
+		glog.Errorf("Unable to marshal data at SnapshotState znode:%s containing:%s", snapshotStatePath, snapshotState)
 		return err
 	}
-	_, err = conn.Create(snapshotPath, sBytes, 0, zk.WorldACL(zk.PermAll))
+
+	_, err = conn.Create(snapshotStatePath, sBytes, 0, zk.WorldACL(zk.PermAll))
 	if err != nil {
-		glog.Errorf("Unable to create snapshot state znode for %s: %v", snapshotPath, err)
+		if err == zk.ErrNodeExists {
+			_, stats, err := conn.Get(snapshotStatePath)
+			if err != nil {
+				glog.Errorf("Unable to retrieve SnapshotState znode:%s error:%v", snapshotStatePath, err)
+				return err
+			}
+
+			_, err = conn.Set(snapshotStatePath, sBytes, stats.Version)
+			if err != nil {
+				glog.Errorf("Unable to set data for SnapshotState znode:%s containing:%s error:%v", snapshotStatePath, snapshotState, err)
+				return err
+			}
+		} else {
+			glog.Errorf("Unable to create SnapshotState znode:%s error: %v", snapshotStatePath, err)
+			return err
+		}
 	}
 
-	glog.V(2).Infof("Successfully created snapshot state znode %s", snapshotPath)
-	return err
+	return nil
 }
 
 func (this *ZkDao) GetSnapshotState(snapshotState *string) error {
@@ -692,6 +703,10 @@ func (this *ZkDao) UpdateSnapshotState(snapshotState string) error {
 	}
 	defer conn.Close()
 
+	return UpdateSnapshotState(conn, snapshotState)
+}
+
+func UpdateSnapshotState(conn *zk.Conn, snapshotState string) error {
 	ssBytes, err := json.Marshal(snapshotState)
 	if err != nil {
 		return err
@@ -726,35 +741,25 @@ func (z *ZkDao) RemoveSnapshotState() error {
 	return RemoveSnapshotState(conn)
 }
 
-func LoadSnapshotState(conn *zk.Conn, serviceId string, s *dao.Service) (*zk.Stat, error) {
-	sBytes, ssStat, err := conn.Get(ServicePath(serviceId))
-	if err != nil {
-		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
-		return nil, err
-	}
-	err = json.Unmarshal(sBytes, &s)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
-		return nil, err
-	}
-	return ssStat, nil
-}
-
 func RemoveSnapshotState(conn *zk.Conn) error {
 	snapshotStatePath := SnapshotStatePath()
 
 	_, stats, err := conn.Get(snapshotStatePath)
 	if err != nil {
-		glog.Errorf("Unable to retrieve snapshot state error:%v", err)
+		if err == zk.ErrNoNode {
+			return nil
+		}
+		glog.Errorf("Unable to retrieve SnapshotState znode:%s error:%v", snapshotStatePath, err)
 		return err
 	}
 
 	err = conn.Delete(snapshotStatePath, stats.Version)
 	if err != nil {
-		glog.Errorf("Unable to delete snapshot state %s error:%v", snapshotStatePath, err)
+		glog.Errorf("Unable to delete SnapshotState znode:%s error:%v", snapshotStatePath, err)
 		return err
 	}
-	glog.V(1).Infof("SnapshotState %s removed", snapshotStatePath)
 
 	return nil
 }
+
+// Snapshot section end
