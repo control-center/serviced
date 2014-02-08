@@ -1119,7 +1119,6 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 }
 
 func (this *ControlPlaneDao) callQuiescePause() error {
-	// TODO: update snapshot state znode in zookeeper with PAUSE
 	if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
 		glog.V(3).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
 		return err
@@ -1157,6 +1156,11 @@ func (this *ControlPlaneDao) callQuiescePause() error {
 }
 
 func (this *ControlPlaneDao) callQuiesceResume() error {
+	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.callQuiesceResume err=%s", err)
+		return err
+	}
+
 	var request dao.EntityRequest
 	var servicesList []*dao.Service
 	err = this.GetServices(request, &servicesList)
@@ -1181,12 +1185,6 @@ func (this *ControlPlaneDao) callQuiesceResume() error {
 	//       Perhaps one way to fix it is to call resume for all paused services
 	//       if any of them fail to resume
 
-	// TODO: update snapshot state znode in zookeeper with RESUME
-	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.callQuiesceResume err=%s", err)
-		return err
-	}
-
 	return nil
 }
 
@@ -1206,9 +1204,9 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	// TODO: simplest case - do everything here
+	// simplest case - do everything here
 
-	// TODO: call quiesce pause for services with 'Snapshot' definition
+	// call quiesce pause for services with 'Snapshot' definition
 	if err := this.callQuiescePause(); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
 		return err
@@ -1231,7 +1229,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		}
 	}
 
-	// TODO: call quiesce resume for services with 'Snapshot' definition
+	// call quiesce resume for services with 'Snapshot' definition
 	if err := this.callQuiesceResume(); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
 		return err
