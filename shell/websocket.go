@@ -127,6 +127,7 @@ func Exec(p *Process, s *dao.Service) error {
 	p.Stderr = runner.StderrPipe()
 
 	go p.send(runner)
+
 	return nil
 }
 

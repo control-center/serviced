@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"fmt"
 	"github.com/googollee/go-socket.io"
 )
 
@@ -33,6 +34,8 @@ func onConnect(addr string) func(ns *socketio.NameSpace) {
 	return func(ns *socketio.NameSpace) {
 		servicename := "Zope"
 		cmd := "/bin/bash"
+
+		ns.Emit("data", fmt.Sprintf("Starting %s in new %s container...\n", cmd, servicename))
 
 		stream := NewSocketIOProcessStream(addr)
 		stream.ns = ns

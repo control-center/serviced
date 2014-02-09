@@ -181,8 +181,9 @@ func startServer() {
 		// TODO: Integrate this server into the rpc server, or something.
 		// Currently its only use is for command execution.
 		go func() {
-			http.Handle("/", &shell.OSProcessHandler{Port: options.port})
-			http.ListenAndServe(":50001", nil)
+			sio := shell.NewProcessExecutorServer(options.port)
+			sio.Handle("/", http.FileServer(http.Dir("/home/ian/europa/src/golang/src/github.com/zenoss/serviced/serviced/www/")))
+			http.ListenAndServe(":50000", sio)
 		}()
 
 		resourceDuration := time.Duration(options.resourceperiod) * time.Minute

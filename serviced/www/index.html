@@ -44,7 +44,8 @@
       });
 
       term.on('data', function(data) {
-        socket.emit('data', data);
+        console.log("stdin:", data);
+        socket.emit('stdin', data);
       });
 
       term.on('title', function(title) {
@@ -55,13 +56,24 @@
 
       term.write('\x1b[31mWelcome to term.js!\x1b[m\r\n');
 
-      socket.on('data', function(data) {
+      socket.on('stderr', function(data) {
+        term.write(data);
+      });
+
+      socket.on('stdout', function(data) {
         term.write(data);
       });
 
       socket.on('disconnect', function() {
         term.destroy();
       });
+
+      socket.emit('process', {
+        Command: "/bin/bash",
+        IsTTY: true,
+        ServiceId: "Zope",
+        Envv: []
+      })
     });
   };
 }).call(this);

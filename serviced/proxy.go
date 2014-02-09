@@ -67,18 +67,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
-	//go h.run()
-	http.Handle("/exec", &shell.WebsocketProcessHandler{
-		Addr: proxyOptions.servicedEndpoint,
-	})
-	http.Handle("/exechttp", &shell.HTTPProcessHandler{
-		Addr: proxyOptions.servicedEndpoint,
-	})
-	go http.ListenAndServe(":50000", nil)
-
-	sio := shell.NewSocketIOServer(proxyOptions.servicedEndpoint)
+	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
 	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
-	go http.ListenAndServe(":50002", sio)
+	go http.ListenAndServe(":50000", sio)
 
 	procexit := make(chan int)
 
