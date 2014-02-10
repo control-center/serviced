@@ -1,6 +1,8 @@
 {
 		"action_view_log":"Log",
 		"action_kill":"Kill",
+		"action_terminal":"Shell",
+		"action_attach":"Attach",
 		"action_view_cfg":"Config",
 		"brand_cp":"Control Plane",
 		"brand_zcp":"Zenoss Control Plane",
