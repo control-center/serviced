@@ -1,12 +1,12 @@
 <!doctype html>
-<title>term.js</title>
+<title>Control Plane Shell: Zope</title>
 <!--
   term.js
   Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
 -->
 <style>
   html {
-    background: #555;
+    background: #000;
   }
 
   h1 {
@@ -28,7 +28,6 @@
     background: #f0f0f0;
   }
 </style>
-<h1>zendmd</h1>
 <script src="/socket.io.js"></script>
 <script src="term.js"></script>
 <script>
@@ -54,7 +53,7 @@
 
       term.open(document.body);
 
-      term.write('\x1b[31mWelcome to term.js!\x1b[m\r\n');
+      term.write('\x1b[31mStarting a new Zope container...\x1b[m\r\n');
 
       socket.on('stderr', function(data) {
         term.write(data);
