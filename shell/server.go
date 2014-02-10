@@ -89,6 +89,7 @@ func (p *ProcessInstance) Close() {
 }
 
 func (p *ProcessInstance) closeIncoming() {
+	glog.V(0).Infof("Closing incoming channels")
 	if _, ok := <-p.stdin; ok {
 		close(p.stdin)
 	}
@@ -98,6 +99,7 @@ func (p *ProcessInstance) closeIncoming() {
 }
 
 func (p *ProcessInstance) closeOutgoing() {
+	glog.V(0).Infof("Closing outgoing channels")
 	if _, ok := <-p.stdout; ok {
 		close(p.stdout)
 	}
@@ -128,6 +130,7 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 		select {
 		case m, ok := <-p.stdin:
 			if !ok {
+				glog.V(0).Infof("Setting stdin to nil")
 				p.stdin = nil
 				continue
 			} else {
@@ -299,6 +302,9 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	inst := &ProcessInstance{
 		stdout: runner.StdoutPipe(),
 		stderr: runner.StderrPipe(),
+		stdin:  make(chan string),
+		signal: make(chan int),
+		result: make(chan Result),
 	}
 	glog.Infof("Process instance! %s", inst)
 
@@ -309,9 +315,11 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 func (e *Executor) send(p *ProcessInstance, r Runner) {
 	go r.Reader(8192)
 	go func() {
+		glog.V(0).Infof("Beginning to read from stdin/signal channels")
 		for {
 			select {
 			case m := <-p.stdin:
+				glog.V(0).Infof("Read a byte")
 				r.Write([]byte(m))
 			case s := <-p.signal:
 				r.Signal(syscall.Signal(s))
@@ -320,6 +328,7 @@ func (e *Executor) send(p *ProcessInstance, r Runner) {
 	}()
 
 	<-r.ExitedPipe()
+	glog.V(0).Infof("Exited reading stdin!")
 
 	if e := r.Error(); e != nil {
 		p.result <- Result{1, NORMAL}

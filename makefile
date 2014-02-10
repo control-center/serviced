@@ -14,7 +14,7 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 default: build_binary
 
 install:
-	go install github.com/serviced/serviced
+	go install github.com/zenoss/serviced
 
 build_binary:
 	cd serviced && make
