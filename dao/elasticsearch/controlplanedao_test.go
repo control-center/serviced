@@ -484,7 +484,7 @@ func testDaoHostExists(t *testing.T) {
 	}
 }
 
-func TestDaoValidServiceForDeployment(t *testing.T) {
+func TestDaoValidServiceForStart(t *testing.T) {
 	testService := dao.Service{
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
@@ -495,13 +495,13 @@ func TestDaoValidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService)
 	if err != nil {
 		t.Error("Services failed validation for deployment: ", err)
 	}
 }
 
-func TestDaoInvalidServiceForDeployment(t *testing.T) {
+func TestDaoInvalidServiceForStart(t *testing.T) {
 	testService := dao.Service{
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
@@ -516,9 +516,31 @@ func TestDaoInvalidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService)
 	if err == nil {
 		t.Error("Services should have failed validation for deployment...")
+	}
+}
+
+func TestDaoAssignIPs(t *testing.T) {
+	testService := dao.Service{
+		Id: "0",
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+				AddressConfig: dao.AddressResourceConfig{
+					Port:     8081,
+					Protocol: commons.TCP,
+				},
+			},
+		},
+	}
+	err := controlPlaneDao.AssignIPs("0")
+	if err != nil {
+		t.Error("Assigning IPs failed")
 	}
 }
 

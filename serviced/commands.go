@@ -91,6 +91,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"add-pool", "Add pool"},
 		{"remove-pool", "Remove pool"},
 		{"list-pool-ips", "Show pool IP addresses"},
+		{"auto-assign-ips", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address"},
 
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
@@ -449,7 +450,8 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 
 	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
-	err := controlPlane.GetHostsForResourcePool(cmd.Arg(0), &poolHosts)
+	poolId := cmd.Arg(0)
+	err := controlPlane.GetHostsForResourcePool(poolId, &poolHosts)
 	if err != nil {
 		glog.Fatalf("Could not get hosts for Pool %s: %v", cmd.Arg(0), err)
 	}
@@ -476,6 +478,24 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 
+	return nil
+}
+
+func (cli *ServicedCli) CmdAssignIps(args ...string) error {
+	cmd := Subcmd("auto-assign-ips", "[options] SERVICEID", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	serviceId := cmd.Arg(0)
+	var unused string
+	controlPlane.AssignIPs(serviceId, &unused)
+	
 	return nil
 }
 

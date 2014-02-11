@@ -74,6 +74,9 @@ type ControlPlane interface {
 	// Deploy a service
 	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
+	// Assign IP addresses to all services at and below the provided service
+	AssignIPs(serviceId string, unused *string) (err error)
+
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
 

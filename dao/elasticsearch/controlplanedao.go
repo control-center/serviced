@@ -770,30 +770,138 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	return nil
 }
 
-// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
-func validAddressResourceConfig(arc dao.AddressResourceConfig) error {
-	if arc.Port != 0 || arc.Protocol != "" {
-		msg := fmt.Sprintf("AddressConfig with no assignment. Port: %d Protocol: %s", arc.Port, arc.Protocol)
-		return errors.New(msg)
+func (this *ControlPlaneDao) needsAnIP(endpoints []dao.ServiceEndpoint) bool {
+	// ensure all endpoints with AddressConfig have assigned IPs
+	for _, endPoint := range endpoints {
+		if endPoint.AddressConfig.Port != 0 || endPoint.AddressConfig.Protocol != "" {
+			return true
+		}
 	}
-	return nil
+	return false
 }
 
 // determine whether the services are ready for deployment
-func (this *ControlPlaneDao) ValidateServicesForDeployment(service dao.Service) error {
+func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
-	for _, endPoint := range service.Endpoints {
-		err := validAddressResourceConfig(endPoint.AddressConfig)
-		if err != nil {
-			return err
-		}
+	serviceNeedsAnIPAddress := this.needsAnIP(service.Endpoints)
+	// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
+	if serviceNeedsAnIPAddress {
+		// FIXME --- update error statement to be awesome
+		msg := fmt.Sprintf("Service ID %s contains AddressConfig with no assignment.", service.Id)
+		return errors.New(msg)
 	}
 
 	// add additional validation checks to the services
 	return nil
 }
 
+// Show pool IP address information
+func (this *ControlPlaneDao) RetrievePoolIps(poolId string, PoolIPResources []dao.HostIPResource) error {
+	// retrieve all the hosts that are in the requested pool
+	var poolHosts []*dao.PoolHost
+	err := this.GetHostsForResourcePool(poolId, &poolHosts)
+	if err != nil {
+		glog.Fatalf("Could not get hosts for Pool %s: %v", poolId, err)
+	}
+
+	for _, poolHost := range poolHosts {
+		// retrieve the IPs of the hosts contained in the requested pool
+		host := dao.Host{}
+		err = this.GetHost(poolHost.HostId, &host)
+		if err != nil {
+			glog.Fatalf("Could not IP addresses for host %s: %v", poolHost.HostId, err)
+		}
+
+		//aggregate all the IPResources from all the hosts in the requested pool
+		PoolIPResources = append(PoolIPResources, host.IPs...)
+	}
+
+	//sort.Sort(ByInterfaceName(PoolIPResources))
+
+	// print the interface info (name, IP)
+	outfmt := "%-16s %-30s\n"
+	fmt.Printf(outfmt, "Interface Name", "IP Address")
+	for _, hostIPResource := range PoolIPResources {
+		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+	}
+
+	return nil
+}
+
+// used in the walkServices function
+type visit func(service dao.Service) error
+
+// assign IP addresses
+func (this *ControlPlaneDao) AssignIPs(serviceId string, unused *string) error {
+	service := dao.Service{}
+	err := this.GetService(serviceId, &service)
+	if err != nil {
+		return err
+	}
+	
+	PoolIPResources := []dao.HostIPResource{}
+	this.RetrievePoolIps(service.PoolId, PoolIPResources)
+	
+	visitor := func(service dao.Service) error {
+		// if this service is in need of an IP address, assign it an IP address
+		serviceNeedsAnIPAddress := this.needsAnIP(service.Endpoints)
+		if serviceNeedsAnIPAddress {
+			glog.Info(" ********** ASSIGN AN IP!!!")
+			// print the interface info (name, IP)
+			outfmt := "%-16s %-30s\n"
+			fmt.Printf(outfmt, "Interface Name", "IP Address")
+			for _, hostIPResource := range PoolIPResources {
+				fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+			}
+		}
+		return nil
+	}
+
+	// traverse all the services
+	return this.walkServices(serviceId, visitor)
+}
+
+// validate the provided service
+func (this *ControlPlaneDao) ValidateService(serviceId string, unused *string) error {
+	visitor := func(service dao.Service) error {
+		// validate the service is ready to start
+		err := this.ValidateServicesForStarting(service)
+		if err != nil {
+			glog.Errorf("Services failed validation for starting")
+			return err
+		}
+		return nil;
+	}
+
+	// traverse all the services
+	return this.walkServices(serviceId, visitor)
+}
+
+// start the provided service
 func (this *ControlPlaneDao) StartService(serviceId string, unused *string) error {
+	// this will traverse all the services
+	err := this.ValidateService(serviceId, unused)
+	if err != nil {
+		return err
+	}
+
+	visitor := func(service dao.Service) error{
+		//start this service
+		var unusedInt int
+		service.DesiredState = dao.SVC_RUN
+		err = this.UpdateService(service, &unusedInt)
+		if err != nil {
+			return err
+		}
+		return nil;
+	}
+
+	// traverse all the services
+	return this.walkServices(serviceId, visitor)
+}
+
+// traverse all the services (including the children of the provided service)
+func (this *ControlPlaneDao) walkServices(serviceId string, visitFn visit) error {
 	//get the original service
 	service := dao.Service{}
 	err := this.GetService(serviceId, &service)
@@ -801,20 +909,12 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 		return err
 	}
 
-	// validate the service is ready to start
-	err = this.ValidateServicesForDeployment(service)
-	if err != nil {
-		glog.Errorf("Services failed validation for deployment")
-		return err
-	}
-
-	//start this service
-	var unusedInt int
-	service.DesiredState = dao.SVC_RUN
-	err = this.UpdateService(service, &unusedInt)
+	// do what you requested to do while visiting this node
+	err = visitFn(service)
 	if err != nil {
 		return err
 	}
+	
 	//start all child services
 	var query = fmt.Sprintf("ParentServiceId:%s", serviceId)
 	subServices, err := this.queryServices(query, "100")
@@ -822,7 +922,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 		return err
 	}
 	for _, service := range subServices {
-		err = this.StartService(service.Id, unused)
+		err = this.walkServices(service.Id, visitFn)
 		if err != nil {
 			return err
 		}
