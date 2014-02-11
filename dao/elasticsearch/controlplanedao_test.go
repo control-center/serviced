@@ -28,6 +28,7 @@ const (
 )
 
 var unused int
+var unusedStr string
 var id string
 var addresses []string
 var controlPlaneDao *ControlPlaneDao
@@ -502,7 +503,7 @@ func TestDaoValidServiceForStart(t *testing.T) {
 	}
 	err := controlPlaneDao.ValidateServicesForStarting(testService)
 	if err != nil {
-		t.Error("Services failed validation for deployment: ", err)
+		t.Error("Services failed validation for starting: ", err)
 	}
 }
 
@@ -523,13 +524,21 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 	}
 	err := controlPlaneDao.ValidateServicesForStarting(testService)
 	if err == nil {
-		t.Error("Services should have failed validation for deployment...")
+		t.Error("Services should have failed validation for starting...")
 	}
 }
 
 func TestDaoAssignIPs(t *testing.T) {
+	/*assignIPsPool, _ := dao.NewResourcePool("assignIPsID0")
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}*/
+
 	testService := dao.Service{
-		Id: "0",
+		Id:		"assignIPsID0",
+		PoolId:	"default",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
 				Protocol:    "tcp",
@@ -543,10 +552,19 @@ func TestDaoAssignIPs(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.AssignIPs("0")
+
+	err = controlPlaneDao.AddService(testService, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
+	}
+
+	err := controlPlaneDao.AssignIPs(testService.Id, &unusedStr)
 	if err != nil {
 		t.Error("Assigning IPs failed")
 	}
+
+	defer controlPlaneDao.RemoveService(testService.Id, &unused)
+	//defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
 }
 
 func TestDaoGetHostNoIPs(t *testing.T) {
