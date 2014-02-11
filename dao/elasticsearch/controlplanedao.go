@@ -1057,8 +1057,25 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return nil
 }
 
+// RemoveAddressAssignemnt Removes an AddressAssignment by id
+func (this *ControlPlaneDao) RemoveAddressAssignment(id string, unused interface{}) error {
+	aas, err := this.queryAddressAssignments(fmt.Sprintf("Id:%s", id))
+	if err != nil {
+		return err
+	}
+	if len(*aas) == 0 {
+		return fmt.Errorf("No AddressAssignment with id %v", id)
+	}
+	_, err = deleteAddressAssignment(id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
-func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unused interface{}) error {
+// id param contains id of newly created assignment if successful
+func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id *string) error {
 	err := assignment.Validate()
 	if err != nil {
 		return err
@@ -1075,7 +1092,10 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 	case "virtual":
 		{
 			// TODO: need to check if virtual IP exists
+			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
 		}
+	default:
+		return fmt.Errorf("Invalid assignment type %v", assignment.AssignmentType)
 	}
 
 	//check service and endpoint exists
@@ -1083,7 +1103,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 		return err
 	}
 
-	//check for existing assignements to this endpoint
+	//check for existing assignments to this endpoint
 	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
 	if err != nil {
 		return err
@@ -1096,7 +1116,11 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, unu
 		return err
 	}
 	_, err = newAddressAssignment(assignment.Id, &assignment)
-	return err
+	if err != nil{
+		return err
+	}
+	*id = assignment.Id
+	return nil
 }
 
 func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
@@ -1155,7 +1179,7 @@ func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assi
 	return nil
 }
 
-// queryAddressAssignments query for host ips
+// queryAddressAssignments query for host ips; returns empty array if no results for query
 func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.AddressAssignment, error) {
 	result, err := searchAddressAssignment(query)
 	if err != nil {

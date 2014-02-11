@@ -568,6 +568,66 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	}
 }
 
+func TestRemoveAddressAssignment(t *testing.T) {
+	//test removing address when not present
+	err = controlPlaneDao.RemoveAddressAssignment("fake", struct{}{})
+	if err == nil {
+		t.Errorf("Eexpected error removing address %v", err)
+	}
+}
+
+func TestAssignAddress(t *testing.T) {
+	aa := dao.AddressAssignment{}
+	aid := ""
+	err := controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	//set up host with IP
+	hostid := "TestHost"
+	ip := "testip"
+	endpoint := "default"
+	serviceId := ""
+	host := dao.Host{}
+	host.Id = hostid
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{ip, "ifname"}}
+	err = controlPlaneDao.AddHost(host, &id)
+	if err != nil {
+		t.Errorf("Unexpected error adding host: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveHost(hostid, &unused)
+
+	//set up service with endpoing
+	service, _ := dao.NewService()
+	ep := dao.ServiceEndpoint{}
+	ep.Name = endpoint
+	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
+	service.Endpoints = []dao.ServiceEndpoint{ep}
+	controlPlaneDao.AddService(*service, &serviceId)
+	if err != nil {
+		t.Errorf("Unexpected error adding service: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveService(serviceId, &unused)
+
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err != nil {
+		t.Errorf("Unexpected error adding address %v", err)
+		return
+	}
+	//test removing address
+	err = controlPlaneDao.RemoveAddressAssignment(aid, &struct{}{})
+	if err != nil {
+		t.Errorf("Unexpected error removing address %v", err)
+		return
+	}
+
+}
+
 func TestDao_TestingComplete(t *testing.T) {
 	controlPlaneDao.RemoveService("default", &unused)
 	controlPlaneDao.RemoveService("0", &unused)
