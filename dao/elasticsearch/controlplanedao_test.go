@@ -8,10 +8,15 @@
 package elasticsearch
 
 import (
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
+	_ "github.com/zenoss/serviced/volume"
+	_ "github.com/zenoss/serviced/volume/btrfs"
+	_ "github.com/zenoss/serviced/volume/rsync"
+	"github.com/zenoss/serviced/zzk"
 	"reflect"
 	"strconv"
 	"strings"
@@ -651,7 +656,99 @@ func TestAssignAddress(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error removing address %v", err)
 	}
+}
 
+func TestDao_SnapshotState(t *testing.T) {
+	glog.V(0).Infof("TestDao_SnapshotState started")
+	defer glog.V(0).Infof("TestDao_SnapshotState finished")
+
+	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
+	zkDao.RemoveSnapshotState()
+	defer zkDao.RemoveSnapshotState() // cleanup when exitting this function
+
+	// calling RemoveSnapshotState a 2nd time should not be an error
+	if err := zkDao.RemoveSnapshotState(); err != nil {
+		t.Fatalf("Failure RemoveSnapshotStte error: %s", err)
+	}
+
+	expectedState := ""
+
+	// create /snapshots
+	expectedState = "INIT"
+	if err := zkDao.AddSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// calling addSnapshotState a 2nd time should not be an error
+	expectedState = "ADDSNAP2"
+	if err := zkDao.AddSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// update /snapshots with "PAUSE"
+	expectedState = "PAUSE"
+	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+
+	// update /snapshots with "RESUME"
+	expectedState = "RESUME"
+	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
+		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
+	}
+
+	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
+		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	}
+}
+
+func TestDao_NewSnapshot(t *testing.T) {
+	glog.V(0).Infof("TestDao_NewSnapshot started")
+	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
+
+	service := dao.Service{}
+	service.Id = "service-without-quiesce"
+	controlPlaneDao.RemoveService(service.Id, &unused)
+	// snapshot should work for services without Snapshot Pause/Resume
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+	}
+
+	service.Id = "service1-quiesce"
+	controlPlaneDao.RemoveService(service.Id, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+	}
+
+	service.Id = "service2-quiesce"
+	controlPlaneDao.RemoveService(service.Id, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
+	err = controlPlaneDao.AddService(service, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+	}
+
+	err = controlPlaneDao.Snapshot(service.Id, &id)
+	if err != nil {
+		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
+	}
 }
 
 func TestDao_TestingComplete(t *testing.T) {
