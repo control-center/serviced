@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/isvcs"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -599,7 +600,7 @@ func TestAssignAddress(t *testing.T) {
 	}
 	defer controlPlaneDao.RemoveHost(hostid, &unused)
 
-	//set up service with endpoing
+	//set up service with endpoint
 	service, _ := dao.NewService()
 	ep := dao.ServiceEndpoint{}
 	ep.Name = endpoint
@@ -612,6 +613,23 @@ func TestAssignAddress(t *testing.T) {
 	}
 	defer controlPlaneDao.RemoveService(serviceId, &unused)
 
+	//test for bad service id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test for bad endpoint id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	// Valid assignment
 	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
 	aid = ""
 	err = controlPlaneDao.AssignAddress(aa, &aid)
@@ -619,11 +637,19 @@ func TestAssignAddress(t *testing.T) {
 		t.Errorf("Unexpected error adding address %v", err)
 		return
 	}
+
+	// try to reassign; should fail
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	other_aid := ""
+	err = controlPlaneDao.AssignAddress(aa, &other_aid)
+	if err == nil || "Address Assignment already exists" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
 	//test removing address
 	err = controlPlaneDao.RemoveAddressAssignment(aid, &struct{}{})
 	if err != nil {
 		t.Errorf("Unexpected error removing address %v", err)
-		return
 	}
 
 }

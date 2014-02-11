@@ -1095,6 +1095,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
 		}
 	default:
+		//Validate above should handle this but left here for completenes
 		return fmt.Errorf("Invalid assignment type %v", assignment.AssignmentType)
 	}
 
@@ -1109,7 +1110,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 		return err
 	}
 	if existing.Id != "" {
-		return fmt.Errorf("Address Assignment alread exists")
+		return fmt.Errorf("Address Assignment already exists")
 	}
 	assignment.Id, err = dao.NewUuid()
 	if err != nil {
