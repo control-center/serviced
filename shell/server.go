@@ -251,7 +251,7 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client %v", err)
 	}
-	glog.Infof("Connected to the control plane at port :%s", port)
+	glog.Infof("Connected to the control plane at %s", port)
 
 	err = (*cp).GetServices(&empty, &services)
 	for _, svc := range services {
@@ -261,6 +261,9 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 		}
 	}
 
+	if service == nil {
+		glog.Fatalf("Unable to find service %s", cfg.ServiceId)
+	}
 	glog.Infof("Found service %s", cfg.ServiceId)
 
 	// Bind mount on /serviced
@@ -301,9 +304,10 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	argv = append(argv, service.ImageId)
 	argv = append(argv, proxycmd...)
 
+	glog.Infof("%s %s", docker, argv)
 	runner, err = CreateCommand(docker, argv)
 	if err != nil {
-		glog.Fatalf("Unable to run command: %v", err)
+		glog.Fatalf("Unable to run command {%s %s} %v", docker, argv, err)
 	}
 
 	// Wire it up
