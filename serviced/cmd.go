@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package main
 
@@ -18,6 +19,9 @@ import (
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/volume"
+	_ "github.com/zenoss/serviced/volume/btrfs"
+	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 
 	"flag"
@@ -53,16 +57,20 @@ var options struct {
 	mcpasswd       string
 	mount          ListOpts
 	resourceperiod int
+	vfs            string
 }
+
+var agentIP string
 
 // Setup flag options (static block)
 func init() {
-	ip, err := serviced.GetIpAddress()
+	var err error
+	agentIP, err = serviced.GetIpAddress()
 	if err != nil {
 		panic(err)
 	}
 
-	flag.StringVar(&options.port, "port", ip+":4979", "port for remote serviced (example.com:8080)")
+	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
@@ -86,11 +94,11 @@ func init() {
 	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
-	flag.IntVar(&options.resourceperiod, "resourceperiod", 360, "Period (minutes) for for registering host resources")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -117,6 +125,10 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
+	l, err := net.Listen("tcp", options.listen)
+	if err != nil {
+		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
+	}
 
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
@@ -127,14 +139,19 @@ func startServer() {
 	}
 
 	atLeast := []int{0, 7, 5}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker 0.7.5")
+	atMost := []int{0, 7, 6}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
+		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.7.6")
+	}
+
+	if _, ok := volume.Registered(options.vfs); !ok {
+		glog.Fatalf("no driver registered for %s", options.vfs)
 	}
 
 	if options.master {
 		var master dao.ControlPlane
 		var err error
-		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers)
+		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers, options.varPath, options.vfs)
 
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane service: %v", err)
@@ -157,7 +174,7 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
@@ -190,6 +207,7 @@ func startServer() {
 		go agent.RegisterIPResources(resourceDuration)
 
 	}
+
 	rpc.HandleHTTP()
 
 	if options.repstats {
@@ -199,12 +217,6 @@ func startServer() {
 		glog.V(1).Infoln("Staring container statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
-	}
-
-	l, err := net.Listen("tcp", options.listen)
-	if err != nil {
-		glog.Warningf("Could not bind to port %v", err)
-		time.Sleep(time.Second * 1000)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())

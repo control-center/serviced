@@ -1,0 +1,44 @@
+# websequencediagrams.com
+# http://cmrepo.zenoss.loc:1086/
+
+title Snapshot Sequence for Simplest case
+
+participant CLI
+participant CLI_Agent
+participant Zookeeper
+participant LBAgent
+participant Proxy
+
+
+note left of Proxy: container starts proxy
+LBAgent->Zookeeper: start watch for pause request
+note left of LBAgent: block watch for pause request
+
+
+CLI->CLI_Agent: snapshot request with SERVICE_ID
+note right of CLI_Agent: traverse services tree and finds root service.
+CLI_Agent->Zookeeper: place snapshot pause request as root service info into /snapshots
+note right of CLI_Agent: block watch for pause result
+
+
+Zookeeper->LBAgent: new pause request
+LBAgent->Proxy: lxc-attach quiesce pause
+note right of LBAgent: interprets exit status
+LBAgent->Zookeeper: pause result ok or failure
+note left of LBAgent: block watch for resume request
+
+Zookeeper->CLI_Agent: pause result
+note right of CLI_Agent: snapshot volume
+CLI_Agent->Zookeeper: resume request
+note right of CLI_Agent: block watch for resume result
+
+
+Zookeeper->LBAgent: resume request
+LBAgent->Proxy: lxc-attach quiesce resume
+note right of LBAgent: interprets exit status
+LBAgent->Zookeeper: resume result ok or failure
+
+
+Zookeeper->CLI_Agent: resume result
+CLI_Agent->CLI: snapshot result
+

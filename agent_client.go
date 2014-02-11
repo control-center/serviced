@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package serviced
 
@@ -33,6 +34,6 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 }
 
 // Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(unused int, host *dao.Host) error {
-	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", unused, host)
+func (a *AgentClient) GetInfo(ips []string, host *dao.Host) error {
+	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
 }

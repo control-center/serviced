@@ -35,27 +35,27 @@ type PoolHost struct {
 	HostIp string
 }
 
-// HostIPs contains information about IPs on a host.
-type HostIPs struct {
-	Id     string
-	HostId string
-	PoolId string
-	IPs    []HostIPResource
-}
-
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AssignedPort struct {
 	Port      int
 	ServiceId string
 }
 
+//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
+type PortAssignment struct {
+	AssignmentType string //Static of Virtual
+	HostId         string //Host id if type is Static
+	PoolId         string //Pool id if type is Virtual
+	IPAddr         string //Used to associate to resource in Pool or Host
+	Port           int    //Actual assigned port
+	ServiceId      string //Service using this assignment
+}
+
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
-	State         string //State of the IP [valid|deleted]. deleted if IP is no longer on a Host
 	IPAddress     string
 	InterfaceName string
-	Ports         []AssignedPort
 }
 
 // A collection of computing resources with optional quotas.
@@ -95,6 +95,7 @@ type Host struct {
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	IPs            []HostIPResource // The static IP resourceavailable for services to use
 }
 
 // Create a new host.
@@ -120,6 +121,12 @@ type ApplicationEndpoint struct {
 	Protocol      string
 }
 
+// Snapshot commands
+type SnapshotCommands struct {
+	Pause  string // bash command to pause the volume  (quiesce)
+	Resume string // bash command to resume the volume (unquiesce)
+}
+
 // A Service that can run in serviced.
 type Service struct {
 	Id              string
@@ -143,6 +150,7 @@ type Service struct {
 	DeploymentId    string
 	DisableImage    bool
 	LogConfigs      []LogConfig
+	Snapshot        SnapshotCommands
 }
 
 // An endpoint that a Service exposes.
@@ -152,8 +160,8 @@ type ServiceEndpoint struct {
 	PortNumber          uint16
 	Application         string
 	ApplicationTemplate string
-	AddressConfig       AddressResourceConfig `TODO get json for nil`
-	VHost               []string              // VHost is used to request named vhost for this endpoint. Should be the name of a
+	AddressConfig       AddressResourceConfig
+	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 }
 
@@ -220,6 +228,7 @@ type ServiceDefinition struct {
 	LogFilters  map[string]string      // map of log filter name to log filter definitions
 	Volumes     []Volume               // list of volumes to bind into containers
 	LogConfigs  []LogConfig
+	Snapshot    SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
@@ -229,22 +238,23 @@ func (a AddressResourceConfigByPort) Len() int           { return len(a) }
 func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
 
-//TCP UDP: Constants for AddressResourceConfig port protocols
-const (
-	TCP = "tcp"
-	UDP = "udp"
-)
-
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
 	Port     int
 	Protocol string
 }
 
+// LogConfig represents the configuration for a logfile for a service.
 type LogConfig struct {
 	Path    string   // The location on the container's filesystem of the log, can be a directory
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
-	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter
+	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
+	LogTags []LogTag // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
+}
+
+type LogTag struct {
+	Name  string
+	Value string
 }
 
 type ServiceDeployment struct {

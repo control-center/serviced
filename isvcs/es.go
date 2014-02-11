@@ -1,20 +1,23 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
 import (
 	"github.com/mattbaird/elastigo/cluster"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"time"
 )
 
@@ -46,7 +49,7 @@ func elasticsearchHealthCheck() error {
 	minUptime := time.Second * 2
 	timeout := time.Second * 30
 
-	schemaFile := localDir("resources/controlplane.json")
+	schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
 
 	for {
 		if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {

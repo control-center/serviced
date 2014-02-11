@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/commons"
+
 	"fmt"
 	"sort"
 	"testing"
@@ -34,9 +36,9 @@ func init() {
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
-						AddressConfig:   AddressResourceConfig{
+						AddressConfig: AddressResourceConfig{
 							Port:     8081,
-							Protocol: TCP,
+							Protocol: commons.TCP,
 						},
 					},
 				},
@@ -45,6 +47,10 @@ func init() {
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
+				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 			ServiceDefinition{
@@ -57,7 +63,7 @@ func init() {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
-						VHost:       []string{"testhost"},
+						VHosts:      []string{"testhost"},
 					},
 				},
 				LogConfigs: []LogConfig{
@@ -65,6 +71,10 @@ func init() {
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
+				},
+				Snapshot: SnapshotCommands{
+					Pause:  "echo pause",
+					Resume: "echo resume",
 				},
 			},
 		},
@@ -119,6 +129,14 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		if confFile != b.ConfigFiles[filename] {
 			return false, fmt.Sprintf("ConfigFile mismatch %s, a: %v, b: %v", filename, confFile, b.ConfigFiles[filename])
 		}
+	}
+
+	// check snapshot
+	if a.Snapshot.Pause != b.Snapshot.Pause {
+		return false, fmt.Sprintf("Snapshot pause commands are not equal %s != %s", a.Snapshot.Pause, b.Snapshot.Pause)
+	}
+	if a.Snapshot.Resume != b.Snapshot.Resume {
+		return false, fmt.Sprintf("Snapshot resume commands are not equal %s != %s", a.Snapshot.Resume, b.Snapshot.Resume)
 	}
 
 	return true, ""

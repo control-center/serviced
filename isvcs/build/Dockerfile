@@ -7,6 +7,9 @@ RUN apt-get upgrade -y
 
 RUN apt-get install -y -q openjdk-7-jre-headless gnuplot-nox supervisor make
 RUN apt-get install -y -q redis-server
+RUN apt-get clean
+RUN rm /tmp/* -Rf
+RUN mkdir /usr/local/serviced/resources -p # this is mounted in to every isvcs container
 
 ADD supervisor.conf /opt/zenoss/etc/supervisor.conf
 ADD consumer.tar.gz /

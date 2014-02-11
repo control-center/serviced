@@ -10,6 +10,7 @@ package serviced
 
 import (
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
@@ -18,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/glog"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,8 +48,9 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
-	varPath         string   // directory to store serviced  data
+	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
+	vfs             string   // driver for container volumes
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
@@ -62,12 +62,13 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, varPath string, mount []string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
 	agent.varPath = varPath
 	agent.mount = mount
+	agent.vfs = vfs
 	agent.zookeepers = zookeepers
 	if len(agent.zookeepers) == 0 {
 		defaultZK := "127.0.0.1:2181"
@@ -94,6 +95,10 @@ func NewHostAgent(master string, varPath string, mount []string, zookeepers []st
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *dao.Service, cp dao.ControlPlane) error {
+	err := s.EvaluateLogConfigTemplate(cp)
+	if err != nil {
+		return err
+	}
 	return s.EvaluateStartupTemplate(cp)
 }
 
@@ -328,20 +333,22 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	}
 }
 
-func getSubvolume(varPath, poolId, tenantId string) (vol volume.Volume, err error) {
+func getSubvolume(varPath, poolId, tenantId, fs string) (*volume.Volume, error) {
 	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
-	volume.New(baseDir, poolId)
+	if _, err := volume.Mount(fs, poolId, baseDir); err != nil {
+		return nil, err
+	}
 	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolId))
-	return volume.New(baseDir, tenantId)
+	return volume.Mount(fs, tenantId, baseDir)
 }
 
 /*
 writeConfFile is responsible for writing contents out to a file
-Input string prefix  : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input string prefix	 : cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
 Input string content : the content that you wish to write to a file
-Output *os.File  f   : file handler to the file that you've just opened and written the content to
+Output *os.File	 f	 : file handler to the file that you've just opened and written the content to
 Example name of file that is written: /tmp/cp_cd67c62b-e462-5137-2cd8-38732db4abd9_zenmodeler_logstash_forwarder_conf_592084261
 */
 func writeConfFile(prefix string, id string, filename string, content string) (*os.File, error) {
@@ -361,11 +368,11 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 
 /*
 chownConfFile is responsible for changing the owner of a file
-Input *os.File f     : file handler to a file that has already been opened
-Input string id      : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
+Input *os.File f	 : file handler to a file that has already been opened
+Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
 Input string filename: zenmodeler_logstash_forwarder_conf
-Input string owner   : update the file's owner to this provided string
-Output bool          : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
+Input string owner	 : update the file's owner to this provided string
+Output bool			 : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
 */
 func chownConfFile(f *os.File, id string, filename string, owner string) bool {
 	if len(owner) != 0 {
@@ -426,12 +433,16 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	for _, volume := range service.Volumes {
 
-		btrfsVolume, err := getSubvolume(a.varPath, service.PoolId, tenantId)
+		sv, err := getSubvolume(a.varPath, service.PoolId, tenantId, a.vfs)
 		if err != nil {
 			glog.Fatal("Could not create subvolume: %s", err)
 		} else {
 
-			resourcePath := path.Join(btrfsVolume.Dir(), volume.ResourcePath)
+			glog.Infof("sv: %v", sv)
+			glog.Infof("Path: %s", sv.Path())
+			glog.Infof("RP: %s", volume.ResourcePath)
+
+			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
 			}
@@ -473,70 +484,18 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		configFiles += fmt.Sprintf(" -v %s:%s ", f.Name(), filename)
 	}
 
-	// if this container is going to produce any logs, bind mount the following files:
-	// logstash-forwarder, sslCertificate, sslKey, logstash-forwarder conf
-	// FIX ME: consider moving this functionality to its own function...
+	// if this container is going to produce any logs, create the config and get the bind mounts
 	logstashForwarderMount := ""
-	if len(service.LogConfigs) > 0 {
-		logstashForwarderLogConf := `
-        {
-        	"paths": [ "%s" ],
-        	"fields": { "type": "%s" }
-        }`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, service.LogConfigs[0].Type)
-		for _, logConfig := range service.LogConfigs[1:] {
-			logstashForwarderLogConf = logstashForwarderLogConf + `,
-				{
-					"paths": [ "%s" ],
-					"fields": { "type": "%s" }
-				}`
-			logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, logConfig.Type)
-		}
+	if len(service.LogConfigs) != 0 {
 
-		containerDefaultGatewayAndLogstashForwarderPort := "172.17.42.1:5043"
-		// *********************************************************************************************
-		// ***** FIX ME the following 3 variables are defined in serviced/proxy.go as well! ************
-		containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-		containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-		containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-		// *********************************************************************************************
-		containerSSLCertificatePath := containerLogstashForwarderDir + "/logstash-forwarder.crt"
-		containerSSLKeyPath := containerLogstashForwarderDir + "/logstash-forwarder.key"
-
-		logstashForwarderShipperConf := `
-			{
-				"network": {
-			    	"servers": [ "%s" ],
-					"ssl certificate": "%s",
-					"ssl key": "%s",
-					"ssl ca": "%s",
-			    	"timeout": 15
-			   	},
-			   	"files": [
-					%s
-			   	]
-			}`
-		logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf, containerDefaultGatewayAndLogstashForwarderPort, containerSSLCertificatePath, containerSSLKeyPath, containerSSLCertificatePath, logstashForwarderLogConf)
-
-		filename := service.Name + "_logstash_forwarder_conf"
-		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
+		// write out the log file config
+		configFileName, err := writeLogstashAgentConfig(service)
 		if err != nil {
 			return false, err
 		}
 
-		logstashPath := resourcesDir() + "/logstash"
-		hostLogstashForwarderPath := logstashPath + "/logstash-forwarder"
-		hostLogstashForwarderConfPath := f.Name()
-		hostSSLCertificatePath := logstashPath + "/logstash-forwarder.crt"
-		hostSSLKeyPath := logstashPath + "/logstash-forwarder.key"
-
-		logstashForwarderBinaryMount := " -v " + hostLogstashForwarderPath + ":" + containerLogstashForwarderBinaryPath
-		logstashForwarderConfFileMount := " -v " + hostLogstashForwarderConfPath + ":" + containerLogstashForwarderConfPath
-		sslCertificateMount := " -v " + hostSSLCertificatePath + ":" + containerSSLCertificatePath
-		sslKeyMount := " -v " + hostSSLKeyPath + ":" + containerSSLKeyPath
-
-		logstashForwarderMount = logstashForwarderBinaryMount + sslCertificateMount + sslKeyMount + logstashForwarderConfFileMount
+		// bind mount the conf file and everything we need for logstash-forwarder
+		logstashForwarderMount = getLogstashBindMounts(configFileName)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -563,7 +522,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//                                   01           02 03    04 05 06 07 08 09 10   01       02               03                    04             05              06                      07          08           09               10
+	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
 	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
@@ -818,100 +777,73 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 }
 
 // GetInfo creates a Host object from the host this function is running on.
-func (a *HostAgent) GetInfo(unused int, host *dao.Host) error {
+func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 	hostInfo, err := CurrentContextAsHost("UNKNOWN")
 	if err != nil {
 		return err
 	}
+	if len(ips) == 0 {
+		// use the default IP of the host if specific IPs have not been requested
+		ips = append(ips, hostInfo.IpAddr)
+	}
+	hostIPs, err := getIPResources(ips...)
+	if err != nil {
+		return err
+	}
+	hostInfo.IPs = hostIPs
 	*host = *hostInfo
 	return nil
 }
 
-//SendHostIPs handles the details of sending HostIPResources
-type SendHostIPs func(ips dao.HostIPs, unused *int) error
-
-/**
-RegisterResources registers resources on the host such as IP addresses with the control plane master.
-The duration parameter is how often to register with the master
-*/
-func (a *HostAgent) RegisterIPResources(duration time.Duration) {
-	registerFn := func() {
-		controlClient, err := NewControlClient(a.master)
-		if err != nil {
-			glog.Errorf("Could not start ControlPlane client %v", err)
-			return
-		}
-		defer controlClient.Close()
-		err = registerIPs(a.hostId, controlClient.RegisterHostIPs)
-		if err != nil {
-			glog.Errorf("Error registering resources %v", err)
-		}
-	}
-	//do it the first time
-	registerFn()
-	tc := time.Tick(duration)
-	//run in timed loop
-	for _ = range tc {
-		registerFn()
-	}
-}
-
-/*
-registerIPs does the actual work of determining the IPs on the host. Parameters are the hostId for this host
-and the function used to send the found IPs
-*/
-func registerIPs(hostId string, sendFn SendHostIPs) error {
+// getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
+func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
-		return err
+		return []dao.HostIPResource{}, err
 	}
-	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+	//make a  of all ipaddresses to interface
+	ips := make(map[string]net.Interface)
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			glog.Errorf("Problem reading address for interface %s: %s", iface.Name, err)
-			return err
+			glog.Error("Problem reading interfaces: ", err)
+			return []dao.HostIPResource{}, err
 		}
-		for _, addr := range addrs {
-			//send address to Master
-			hostIp := dao.HostIPResource{}
-			hostIp.IPAddress = addr.String()
-			hostIp.InterfaceName = iface.Name
-			hostIPResources = append(hostIPResources, hostIp)
+		for _, ip := range addrs {
+			normalIP := strings.SplitN(ip.String(), "/", 2)[0]
+			normalIP = strings.Trim(strings.ToLower(normalIP), " ")
+
+			ips[normalIP] = iface
 		}
 	}
-	var unused int
-	glog.V(4).Infof("Agent registering IPs %v", hostIPResources)
-	hostIps := dao.HostIPs{}
-	hostIps.HostId = hostId
-	hostIps.IPs = hostIPResources
-	if err := sendFn(hostIps, &unused); err != nil {
-		glog.Errorf("Error registering IPs %v", err)
+
+	glog.V(4).Infof("Interfaces on this host %v", ips)
+
+	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
+
+	validate := func(iface net.Interface, ip string) error {
+		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
+			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
+		}
+		return nil
 	}
-	return nil
-}
 
-// *********************************************************************
-// ***** FIXME *********************************************************
-// ***** The following three functions are also defined in isvc.go *****
-// returns serviced home
-func serviceDHome() string {
-	return os.Getenv("SERVICED_HOME")
-}
-
-func localDir(p string) string {
-	homeDir := ServiceDHome()
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Join(path.Dir(filename), "isvcs")
+	for _, ipaddr := range ipaddress {
+		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
+		iface, found := ips[normalIP]
+		if !found {
+			return []dao.HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
+		}
+		err = validate(iface, normalIP)
+		if err != nil {
+			return []dao.HostIPResource{}, err
+		}
+		hostIp := dao.HostIPResource{}
+		hostIp.IPAddress = ipaddr
+		hostIp.InterfaceName = iface.Name
+		hostIPResources = append(hostIPResources, hostIp)
 	}
-	return path.Join(homeDir, p)
+	return hostIPResources, nil
 }
-
-func resourcesDir() string {
-	return localDir("resources")
-}
-
-// *********************************************************************

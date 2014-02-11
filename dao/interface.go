@@ -38,9 +38,8 @@ type ControlPlane interface {
 	// Remove a Host from serviced
 	RemoveHost(hostId string, unused *int) error
 
-	//TODO Does this belong here?
-	// Get Host for a registered host
-	//GetHost(hostId int, host *Host) error
+	// Get Host by id
+	GetHost(hostId string, host *Host) error
 
 	// Get a list of registered hosts
 	GetHosts(request EntityRequest, hosts *map[string]*Host) error
@@ -180,10 +179,4 @@ type ControlPlane interface {
 
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
-
-	/*
-	 RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
-	 been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
-	*/
-	RegisterHostIPs(ips HostIPs, unused *int) error
 }

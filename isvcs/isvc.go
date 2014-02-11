@@ -1,29 +1,27 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
-	"os"
 	"os/user"
-	"path"
-	"path/filepath"
-	"runtime"
 )
 
 var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zctrl/isvcs"
-	IMAGE_TAG  = "v2"
+	IMAGE_TAG  = "v5"
 )
 
 func Init() {
@@ -53,29 +51,6 @@ func Init() {
 	}
 }
 
-// **********************************************************************
-// ***** The following three functions are also defined in agent.go *****
-// ***** FIXME **********************************************************
-// returns serviced home
-func localDir(p string) string {
-	homeDir := os.Getenv("SERVICED_HOME")
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Dir(filename)
-	}
-	return path.Join(homeDir, p)
-}
-
 func imagesDir() string {
-	return localDir("images")
+	return utils.LocalDir("images")
 }
-
-func resourcesDir() string {
-	path, err := filepath.EvalSymlinks(localDir("resources"))
-	if err != nil {
-		glog.Fatalf("Could not evaluate %s, not following symlinks: %s", localDir("resources"), err)
-	}
-	return path
-}
-
-// **********************************************************************

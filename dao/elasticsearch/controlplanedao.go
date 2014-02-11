@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package elasticsearch
 
@@ -129,7 +130,6 @@ var (
 
 	//model index functions
 	newHost                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
-	newHostIPs                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "hostips")
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
@@ -137,14 +137,12 @@ var (
 
 	//model index functions
 	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
-	indexHostIPs      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "hostips")
 	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
 	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
 	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
-	deleteHostIPs                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "hostips")
 	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
@@ -159,7 +157,6 @@ var (
 
 	//model search functions, using uri based query
 	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
-	searchHostIPsUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "hostips")
 	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
 	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
@@ -168,6 +165,8 @@ var (
 type ControlPlaneDao struct {
 	hostName   string
 	port       int
+	varpath    string
+	vfs        string
 	zookeepers []string
 	zkDao      *zzk.ZkDao
 }
@@ -188,24 +187,6 @@ func toHosts(result *core.SearchResult) ([]*dao.Host, error) {
 	}
 
 	return hosts, err
-}
-
-// convert search result of json host to dao.Host array
-func toHostIPs(result *core.SearchResult) ([]*dao.HostIPs, error) {
-	var err error = nil
-	var total = len(result.Hits.Hits)
-	var hostIPs []*dao.HostIPs = make([]*dao.HostIPs, total)
-	for i := 0; i < total; i += 1 {
-		var hostIP dao.HostIPs
-		err = json.Unmarshal(result.Hits.Hits[i].Source, &hostIP)
-		if err == nil {
-			hostIPs[i] = &hostIP
-		} else {
-			return nil, err
-		}
-	}
-
-	return hostIPs, err
 }
 
 // convert search result of json host to dao.Host array
@@ -249,15 +230,6 @@ func (this *ControlPlaneDao) queryHosts(query string) ([]*dao.Host, error) {
 	result, err := searchHostUri(query)
 	if err == nil {
 		return toHosts(&result)
-	}
-	return nil, err
-}
-
-// queryHostIPs query for host ips
-func (this *ControlPlaneDao) queryHostHostIPs(query string) ([]*dao.HostIPs, error) {
-	result, err := searchHostIPsUri(query)
-	if err == nil {
-		return toHostIPs(&result)
 	}
 	return nil, err
 }
@@ -413,6 +385,7 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 		return errors.New("empty Host.Id not allowed")
 	}
 
+	//TODO: shouldn't all this validation be in the UpdateHost method as well?
 	ipAddr, err := net.ResolveIPAddr("ip4", host.IpAddr)
 	if err != nil {
 		glog.Errorf("Could not resolve: %s to an ip4 address: %s", host.IpAddr, err)
@@ -756,6 +729,11 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	if err != nil {
 		return err
 	}
+	if len(result) == 0 {
+		errorMessage := fmt.Sprintf("Illegal poolId:%s was not found", id)
+		return errors.New(errorMessage)
+	}
+
 	var response []*dao.PoolHost = make([]*dao.PoolHost, len(result))
 	for i := 0; i < len(result); i += 1 {
 		poolHost := dao.PoolHost{result[i].Id, result[i].PoolId, result[i].IpAddr}
@@ -766,6 +744,29 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	return nil
 }
 
+// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
+func validAddressResourceConfig(arc dao.AddressResourceConfig) error {
+	if arc.Port != 0 || arc.Protocol != "" {
+		msg := fmt.Sprintf("AddressConfig with no assignment. Port: %d Protocol: %s", arc.Port, arc.Protocol)
+		return errors.New(msg)
+	}
+	return nil
+}
+
+// determine whether the services are ready for deployment
+func (this *ControlPlaneDao) ValidateServicesForDeployment(service dao.Service) error {
+	// ensure all endpoints with AddressConfig have assigned IPs
+	for _, endPoint := range service.Endpoints {
+		err := validAddressResourceConfig(endPoint.AddressConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	// add additional validation checks to the services
+	return nil
+}
+
 func (this *ControlPlaneDao) StartService(serviceId string, unused *string) error {
 	//get the original service
 	service := dao.Service{}
@@ -773,6 +774,14 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 	if err != nil {
 		return err
 	}
+
+	// validate the service is ready to start
+	err = this.ValidateServicesForDeployment(service)
+	if err != nil {
+		glog.Errorf("Services failed validation for deployment")
+		return err
+	}
+
 	//start this service
 	var unusedInt int
 	service.DesiredState = dao.SVC_RUN
@@ -932,6 +941,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Volumes = sd.Volumes
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
+	svc.Snapshot = sd.Snapshot
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1087,7 +1097,7 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) erro
 	}
 
 	// delete snapshot
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1126,7 +1136,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 		return err
 	}
 	// rollback
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -1139,7 +1149,78 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	return this.StartService(tenantId, &unusedStr)
 }
 
+func (this *ControlPlaneDao) callQuiescePause() error {
+	if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
+		glog.V(3).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
+		return err
+	}
+
+	// assuming lxc-attach is setuid for docker group
+	//   sudo chgrp docker /usr/bin/lxc-attach
+	//   sudo chmod u+s /usr/bin/lxc-attach
+
+	var request dao.EntityRequest
+	var servicesList []*dao.Service
+	if err := this.GetServices(request, &servicesList); err != nil {
+		return err
+	}
+	for _, service := range servicesList {
+		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
+			glog.V(2).Infof("quiesce pause  service: %+v", service)
+			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Pause)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
+				return err
+			}
+			glog.V(2).Infof("quiesce paused service - output:%s", string(output))
+		}
+	}
+
+	// TODO: deficiency of this algorithm is that if one service fails to pause,
+	//       all paused services will stay paused
+	//       Perhaps one way to fix it is to call resume for all paused services
+	//       if any of them fail to pause
+
+	return nil
+}
+
+func (this *ControlPlaneDao) callQuiesceResume() error {
+	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.callQuiesceResume err=%s", err)
+		return err
+	}
+
+	var request dao.EntityRequest
+	var servicesList []*dao.Service
+	if err := this.GetServices(request, &servicesList); err != nil {
+		return err
+	}
+	for _, service := range servicesList {
+		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
+			glog.V(2).Infof("quiesce resume service: %+v", service)
+			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				glog.Errorf("Unable to resume service %+v with cmd %+v because: %v", service, cmd, err)
+				return err
+			}
+			glog.V(2).Infof("quiesce resume service - output:%+v", output)
+		}
+	}
+
+	// TODO: deficiency of this algorithm is that if one service fails to resume,
+	//       all remaining paused services will stay paused
+	//       Perhaps one way to fix it is to call resume for all paused services
+	//       if any of them fail to resume
+
+	return nil
+}
+
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
+	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
+	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
+
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
@@ -1152,9 +1233,21 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	// create a
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	// simplest case - do everything here
+
+	// call quiesce pause for services with 'Snapshot' definition
+	if err := this.callQuiescePause(); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// TODO: move "create a snapshot" functionality to a method called by the CP agent when the container volume is quiesced
+	// create a snapshot
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	} else if volume == nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v volume=%+v", serviceId, volume)
 		return err
 	} else {
 		snapLabel := snapShotName(volume.Name())
@@ -1164,6 +1257,13 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 			*label = snapLabel
 		}
 	}
+
+	// call quiesce resume for services with 'Snapshot' definition
+	if err := this.callQuiesceResume(); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -1174,12 +1274,12 @@ func snapShotName(volumeName string) string {
 	return volumeName + "_" + utc.Format(format)
 }
 
-func getSubvolume(poolId, tenantId string) (vol volume.Volume, err error) {
+func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
 	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
 	if err != nil {
 		return nil, err
 	}
-	return volume.New(baseDir, tenantId)
+	return volume.Mount(vfs, tenantId, baseDir)
 }
 
 func varPath() string {
@@ -1203,14 +1303,14 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 		return err
 	}
 
-	if volume, err := getSubvolume(service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err
 	} else {
 		if snaplabels, err := volume.Snapshots(); err != nil {
 			return err
 		} else {
-			glog.Info("Got snap labels %v", snaplabels)
+			glog.Infof("Got snap labels %v", snaplabels)
 			*labels = make([]string, len(snaplabels))
 			*labels = snaplabels
 		}
@@ -1228,117 +1328,12 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 	return nil
 }
 
-// GetHostIPs gets the ips for a host if any, empty ips if none. Error if hostid does not exist
-func (this *ControlPlaneDao) GetHostIPs(hostId string, hostIPs *dao.HostIPs) error {
-	exists, err := hostExists(hostId)
-	if !exists || err != nil {
-		err = fmt.Errorf("Host not found for id %v; error: %v", hostId, err)
-		glog.Error(err)
-		return err
-	}
-	query := fmt.Sprintf("HostId:%s", hostId)
-	results, err := this.queryHostHostIPs(query)
-	if err != nil {
-		return err
-	}
-	l := len(results)
-	switch {
-	case l > 1:
-		{
-			msg := fmt.Sprintf("Found more than one HostIPs record for %v", hostId)
-			return errors.New(msg)
-		}
-	case l == 1:
-		*hostIPs = *results[0]
-	default:
-		*hostIPs = dao.HostIPs{}
-	}
-	return nil
-}
-
-/*
- RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
- been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
-*/
-func (this *ControlPlaneDao) RegisterHostIPs(ips dao.HostIPs, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.RegisterHostIps: %+v", ips)
-
-	hostId := ips.HostId
-	create := false
-	hostIPs := dao.HostIPs{}
-	err := this.GetHostIPs(hostId, &hostIPs)
-	if err != nil {
-		glog.Errorf("Error looking up host IPs for %v", hostId)
-		return err
-	} else if hostIPs.Id == "" {
-		//creating/saving a new HostIps object
-		host := dao.Host{}
-		this.GetHost(hostId, &host)
-		if err != nil {
-			glog.Errorf("Error looking up host %v: %v", hostId, err)
-			return err
-		}
-
-		hostIPs.Id, err = dao.NewUuid()
-		if err != nil {
-			glog.Errorf("Error creating UUID %v", err)
-			return err
-		}
-		hostIPs.PoolId = host.PoolId
-		hostIPs.HostId = host.Id
-		hostIPs.IPs = make([]dao.HostIPResource, 0)
-		create = true
-	}
-
-	//we need to merge and remove
-	hostIPs.IPs = *mergedIPs(&hostIPs.IPs, &ips.IPs)
-	// need to save/create
-	if create {
-		_, err = newHostIPs(hostIPs.Id, hostIPs)
-	} else {
-		_, err = indexHostIPs(hostIPs.Id, hostIPs)
-	}
-
-	return err
-}
-
-// mergedIPs returns a pointer to a slice with union of currentIPs and newIPs, with IPs from currentIPs with a state
-// of "deleted" if not found in new IPs
-func mergedIPs(currentIPs *[]dao.HostIPResource, newIPs *[]dao.HostIPResource) *[]dao.HostIPResource {
-
-	merged := make([]dao.HostIPResource, 0)
-
-	newMap := make(map[string]struct{})
-	for _, ip := range *newIPs {
-		newMap[ip.IPAddress] = struct{}{}
-	}
-
-	currentMap := make(map[string]struct{})
-	for _, ip := range *currentIPs {
-		currentMap[ip.IPAddress] = struct{}{}
-		if _, found := newMap[ip.IPAddress]; !found {
-			//The IP is not present in new IPs, mark deleted
-			ip.State = "deleted"
-		} else {
-			ip.State = "valid"
-		}
-		merged = append(merged, ip)
-	}
-	for _, ip := range *newIPs {
-		if _, found := currentMap[ip.IPAddress]; !found {
-			merged = append(merged, ip)
-		}
-	}
-
-	return &merged
-}
-
 // Create a elastic search control plane data access object
 func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
-	return &ControlPlaneDao{hostName, port, nil, nil}, nil
+	return &ControlPlaneDao{hostName, port, "", "", nil, nil}, nil
 }
 
 // hostId retreives the system's unique id, on linux this maps
@@ -1370,36 +1365,41 @@ func createDefaultPool(s *ControlPlaneDao) error {
 	return nil
 }
 
-func NewControlSvc(hostName string, port int, zookeepers []string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	if s, err := NewControlPlaneDao(hostName, port); err != nil {
+	s, err := NewControlPlaneDao(hostName, port)
+	if err != nil {
 		return nil, err
-	} else {
-		if err := isvcs.Mgr.Start(); err != nil {
-			return nil, err
-		}
-
-		if len(zookeepers) == 0 {
-			s.zookeepers = []string{"127.0.0.1:2181"}
-		} else {
-			s.zookeepers = zookeepers
-		}
-		s.zkDao = &zzk.ZkDao{s.zookeepers}
-
-		if err := createDefaultPool(s); err != nil {
-			return nil, err
-		}
-
-		if hid, err := hostId(); err != nil {
-			return nil, err
-		} else {
-			go s.handleScheduler(hid)
-		}
-
-		return s, nil
 	}
+
+	if err = isvcs.Mgr.Start(); err != nil {
+		return nil, err
+	}
+
+	s.varpath = varpath
+	s.vfs = vfs
+
+	if len(zookeepers) == 0 {
+		s.zookeepers = []string{"127.0.0.1:2181"}
+	} else {
+		s.zookeepers = zookeepers
+	}
+	s.zkDao = &zzk.ZkDao{s.zookeepers}
+
+	if err = createDefaultPool(s); err != nil {
+		return nil, err
+	}
+
+	hid, err := hostId()
+	if err != nil {
+		return nil, err
+	}
+
+	go s.handleScheduler(hid)
+
+	return s, nil
 }
 
 // Anytime the available service definitions are modified

@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 // Serviced is a PaaS runtime based on docker. The serviced package exposes the
 // interfaces for the key parts of this runtime.
@@ -12,18 +13,12 @@ package serviced
 
 import (
 	"github.com/zenoss/serviced/dao"
+
 	"time"
 )
 
 // Network protocol type.
 type ProtocolType string
-
-const (
-	AUTO   string = "auto"
-	MANUAL string = "manual"
-	TCP    string = "tcp"
-	UDP    string = "udp"
-)
 
 // A user defined string that describes an exposed application endpoint.
 type ApplicationType string
@@ -92,7 +87,10 @@ type LoadBalancer interface {
 	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
 }
 
-// The Agent interface is the API for a serviced agent.
+// The Agent interface is the API for a serviced agent.  Get the host information from an agent.
+// The ips argument is a list of IPs whose information should be included with the Host struct. If any of the IPs are
+// not valid on the host and error will be returned.  If the ips argument is empty a default IP will be chosen and returned
+// with thoe Host info
 type Agent interface {
-	GetInfo(unused int, host *dao.Host) error
+	GetInfo(ips []string, host *dao.Host) error
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package volume
+package btrfs
 
 import (
 	"github.com/zenoss/glog"
@@ -49,7 +49,12 @@ func TestBtrfsVolume(t *testing.T) {
 		t.FailNow()
 	}
 
-	if v, err := NewBtrfsVolume(btrfsTestVolumePath, "unittest"); err != nil {
+	btrfsd, err := New()
+	if err != nil {
+		t.Fatal("Unable to create btrfs driver: %v", err)
+	}
+
+	if c, err := btrfsd.Mount("unittest", btrfsTestVolumePath); err != nil {
 		log.Printf("Could not create volume object :%s", err)
 		t.FailNow()
 	} else {
@@ -62,8 +67,8 @@ func TestBtrfsVolume(t *testing.T) {
 			t.FailNow()
 		}
 
-		label := "foo"
-		if err := v.Snapshot("foo"); err != nil {
+		label := "unittest_foo"
+		if err := c.Snapshot(label); err != nil {
 			log.Printf("Could not snapshot: %s", err)
 			t.FailNow()
 		}
@@ -73,11 +78,11 @@ func TestBtrfsVolume(t *testing.T) {
 			t.FailNow()
 		}
 
-		snapshots, _ := v.Snapshots()
+		snapshots, _ := c.Snapshots()
 		log.Printf("Found %v", snapshots)
 
 		log.Printf("About to rollback %s", label)
-		if err := v.Rollback(label); err != nil {
+		if err := c.Rollback(label); err != nil {
 			log.Printf("Could not roll back: %s", err)
 			t.FailNow()
 		}
@@ -94,7 +99,7 @@ func TestBtrfsVolume(t *testing.T) {
 		}
 
 		log.Printf("About to remove snapshot %s", label)
-		if err := v.RemoveSnapshot(label); err != nil {
+		if err := c.RemoveSnapshot(label); err != nil {
 			log.Printf("Could not remove %s: %s", label, err)
 			t.FailNow()
 		}

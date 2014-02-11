@@ -67,20 +67,70 @@ func context(cp ControlPlane) func(s Service) (ctx map[string]interface{}, err e
 	}
 }
 
+// EvaluateStartupTemplate parses and evaluates the StartUp string of a service.
 func (service *Service) EvaluateStartupTemplate(cp ControlPlane) (err error) {
+
+	result := service.evaluateTemplate(cp, service.Startup)
+	if result != "" {
+		service.Startup = result
+	}
+
+	return
+}
+
+// evaluateTemplate takes a control plane client and template string and evaluates
+// the template using the service as the context. If the template is invalid or there is an error
+// then an empty string is returned.
+func (service *Service) evaluateTemplate(cp ControlPlane, serviceTemplate string) string {
 	functions := template.FuncMap{
 		"parent":  parent(cp),
 		"context": context(cp),
 	}
-	t := template.Must(template.New(service.Name).Funcs(functions).Parse(service.Startup))
+	// parse the template
+	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
 
+	// evaluate it
 	var buffer bytes.Buffer
-	if err = t.Execute(&buffer, service); err == nil {
-		service.Startup = buffer.String()
+	err := t.Execute(&buffer, service)
+	if err == nil {
+		return buffer.String()
+	}
+
+	// something went wrong, warn them
+	glog.Warning("Evaluating template %s produced the following error %s ", serviceTemplate, err)
+	return ""
+}
+
+// EvaluateLogConfigTemplate parses and evals the Path, Type and all the values for the tags of the log
+// configs. This happens for each LogConfig on the service.
+func (service *Service) EvaluateLogConfigTemplate(cp ControlPlane) (err error) {
+	// evaluate the template for the LogConfig as well as the tags
+
+	for i, logConfig := range service.LogConfigs {
+		// Path
+		result := service.evaluateTemplate(cp, logConfig.Path)
+		if result != "" {
+			service.LogConfigs[i].Path = result
+		}
+		// Type
+		result = service.evaluateTemplate(cp, logConfig.Type)
+		if result != "" {
+			service.LogConfigs[i].Type = result
+		}
+
+		// Tags
+		for j, tag := range logConfig.LogTags {
+			result = service.evaluateTemplate(cp, tag.Value)
+			if result != "" {
+				service.LogConfigs[i].LogTags[j].Value = result
+			}
+		}
 	}
 	return
 }
 
+// EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
+// of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(cp ControlPlane) (err error) {
 	functions := template.FuncMap{
 		"parent":  parent(cp),

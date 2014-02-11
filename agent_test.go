@@ -1,9 +1,11 @@
 package serviced
 
 import (
-	"encoding/json"
 	"github.com/zenoss/serviced/dao"
-	"net"
+
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -94,37 +96,67 @@ func TestParseContainerState(t *testing.T) {
 	}
 }
 
+func TestGetInfo(t *testing.T) {
+
+	ip, err := GetIpAddress()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	agent := HostAgent{}
+	host := dao.Host{}
+	err = agent.GetInfo([]string{}, &host)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if len(host.IPs) != 1 {
+		t.Errorf("Unexpected result %v", host.IPs)
+	}
+	if host.IpAddr != ip {
+		t.Errorf("Expected ip %v, got %v", ip, host.IPs)
+	}
+	if host.IPs[0].IPAddress != ip {
+		t.Errorf("Expected ip %v, got %v", ip, host.IPs)
+	}
+
+	err = agent.GetInfo([]string{"127.0.0.1"}, &host)
+	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
+		t.Errorf("Unexpected error %v", err)
+	}
+
+}
+
 func TestRegisterIPResources(t *testing.T) {
 
-	var ipResult dao.HostIPs
-	addrs, err := net.InterfaceAddrs()
+	ips, err := getIPResources("123")
+	if err == nil || err.Error() != "IP address 123 not valid for this host" {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if len(ips) != 0 {
+		t.Errorf("Unexpected result %v", ips)
+	}
+
+	ips, err = getIPResources("127.0.0.1")
+	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if len(ips) != 0 {
+		t.Errorf("Unexpected result %v", ips)
+	}
+
+	ip, err := GetIpAddress()
 	if err != nil {
-		t.Fatalf("Error readin addresses %v", err)
-	}
-	fn := func(ips dao.HostIPs, unused *int) error {
-		ipResult = ips
-		return nil
-	}
-	registerIPs("testId", fn)
-
-	if len(addrs) != len(ipResult.IPs) {
-		t.Fatalf("IP addresse length differed %v and %v", addrs, ipResult.IPs)
+		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if ipResult.HostId != "testId" {
-		t.Fatalf("Expected host id %v, got %v", ipResult.HostId, "testId")
-	}
-
-	//make a lookup map (set) of result IPs
-	resultIps := make(map[string]bool)
-	for _, ip := range ipResult.IPs {
-		resultIps[ip.IPAddress] = true
-	}
-	//now see if IPs match IPs from std lib
-	for _, addr := range addrs {
-		_, ok := resultIps[addr.String()]
-		if !ok {
-			t.Fatalf("IP %v not find in %v", addr, ipResult)
+	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip), fmt.Sprintf("   %v   ", ip)}
+	for _, validIP := range validIPs {
+		ips, err = getIPResources(validIP)
+		if err != nil {
+			t.Errorf("Unexpected error %v", err)
+		}
+		if len(ips) != 1 {
+			t.Errorf("Unexpected result %v", ips)
 		}
 	}
 }
