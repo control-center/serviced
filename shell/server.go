@@ -19,6 +19,7 @@ var empty interface{}
 
 const (
 	PROCESSKEY string = "process"
+	MAXBUFFER  int    = 8192
 )
 
 func NewProcessForwarderServer(addr string) *ProcessServer {
@@ -79,7 +80,7 @@ func onForwarderDisconnect(ns *socketio.NameSpace) {
 func onExecutorDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
 	// Client disconnected, so kill the process
-	inst.signal <- int(syscall.SIGKILL)
+	inst.Signal <- int(syscall.SIGKILL)
 	inst.closeIncoming()
 }
 
@@ -90,35 +91,35 @@ func (p *ProcessInstance) Close() {
 
 func (p *ProcessInstance) closeIncoming() {
 	glog.V(0).Infof("Closing incoming channels")
-	if _, ok := <-p.stdin; ok {
-		close(p.stdin)
+	if _, ok := <-p.Stdin; ok {
+		close(p.Stdin)
 	}
-	if _, ok := <-p.signal; ok {
-		close(p.signal)
+	if _, ok := <-p.Signal; ok {
+		close(p.Signal)
 	}
 }
 
 func (p *ProcessInstance) closeOutgoing() {
 	glog.V(0).Infof("Closing outgoing channels")
-	if _, ok := <-p.stdout; ok {
-		close(p.stdout)
+	if _, ok := <-p.Stdout; ok {
+		close(p.Stdout)
 	}
-	if _, ok := <-p.stderr; ok {
-		close(p.stderr)
+	if _, ok := <-p.Stderr; ok {
+		close(p.Stderr)
 	}
-	if _, ok := <-p.result; ok {
-		close(p.result)
+	if _, ok := <-p.Result; ok {
+		close(p.Result)
 	}
 }
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 	ns.On("signal", func(n *socketio.NameSpace, signal int) {
-		p.signal <- signal
+		p.Signal <- signal
 	})
 
 	ns.On("stdin", func(n *socketio.NameSpace, stdin string) {
 		glog.Infof("Received stdin: %s", stdin)
-		p.stdin <- stdin
+		p.Stdin <- stdin
 	})
 
 	glog.V(0).Info("Hooked up incoming events!")
@@ -126,19 +127,19 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up input channels!")
-	for p.stdin != nil || p.signal != nil {
+	for p.Stdin != nil || p.Signal != nil {
 		select {
-		case m, ok := <-p.stdin:
+		case m, ok := <-p.Stdin:
 			if !ok {
 				glog.V(0).Infof("Setting stdin to nil")
-				p.stdin = nil
+				p.Stdin = nil
 				continue
 			} else {
 				ns.Emit("stdin", m)
 			}
-		case m, ok := <-p.signal:
+		case m, ok := <-p.Signal:
 			if !ok {
-				p.signal = nil
+				p.Signal = nil
 				continue
 			} else {
 				ns.Emit("signal", m)
@@ -150,17 +151,17 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	ns.On("stdout", func(n *socketio.NameSpace, stdout string) {
 		glog.Infof("Process received stdout: %s", stdout)
-		p.stdout <- stdout
+		p.Stdout <- stdout
 	})
 
 	ns.On("stderr", func(n *socketio.NameSpace, stderr string) {
 		glog.Infof("Process received stderr: %s", stderr)
-		p.stderr <- stderr
+		p.Stderr <- stderr
 	})
 
 	ns.On("result", func(n *socketio.NameSpace, result Result) {
 		glog.Infof("Process received stderr: %s", result)
-		p.result <- result
+		p.Result <- result
 	})
 	glog.V(0).Info("Hooked up outgoing events!")
 
@@ -168,27 +169,27 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up output channels!")
-	for p.stdout != nil || p.stderr != nil || p.result != nil {
+	for p.Stdout != nil || p.Stderr != nil || p.Result != nil {
 		select {
-		case m, ok := <-p.stdout:
+		case m, ok := <-p.Stdout:
 			if !ok {
-				p.stdout = nil
+				p.Stdout = nil
 				continue
 			} else {
 				glog.Infof("Emitting stdout: %s", m)
 				ns.Emit("stdout", m)
 			}
-		case m, ok := <-p.stderr:
+		case m, ok := <-p.Stderr:
 			if !ok {
-				p.stderr = nil
+				p.Stderr = nil
 				continue
 			} else {
 				glog.Infof("Emitting stderr: %s", m)
 				ns.Emit("stderr", m)
 			}
-		case m, ok := <-p.result:
+		case m, ok := <-p.Result:
 			if !ok {
-				p.result = nil
+				p.Result = nil
 				continue
 			} else {
 				glog.Infof("Emitting result: %s", m)
@@ -214,11 +215,11 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 
 	ns := client.Of("")
 	proc := &ProcessInstance{
-		stdin:  make(chan string),
-		stdout: make(chan string),
-		stderr: make(chan string),
-		signal: make(chan int),
-		result: make(chan Result),
+		Stdin:  make(chan string),
+		Stdout: make(chan string),
+		Stderr: make(chan string),
+		Signal: make(chan int),
+		Result: make(chan Result),
 	}
 
 	client.On("disconnect", func(ns *socketio.NameSpace) {
@@ -235,6 +236,10 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
+	return StartDocker(cfg, e.port)
+}
+
+func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	var (
 		runner   Runner
 		service  *dao.Service
@@ -242,13 +247,13 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	)
 
 	// Create a control plane client to look up the service
-	controlplane, err := serviced.NewControlClient(e.port)
+	cp, err := serviced.NewControlClient(port)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client %v", err)
 	}
-	glog.Infof("We got us a control plane client!")
+	glog.Infof("Connected to the control plane at port :%s", port)
 
-	err = (*controlplane).GetServices(&empty, &services)
+	err = (*cp).GetServices(&empty, &services)
 	for _, svc := range services {
 		if svc.Id == cfg.ServiceId || svc.Name == cfg.ServiceId {
 			service = svc
@@ -256,7 +261,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 		}
 	}
 
-	glog.Infof("Service found")
+	glog.Infof("Found service %s", cfg.ServiceId)
 
 	// Bind mount on /serviced
 	dir, bin, err := serviced.ExecPath()
@@ -270,17 +275,21 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
 
 	// Get the shell command
-	shellCmd := cfg.Command
+	shellcmd := cfg.Command
 	if cfg.Command == "" {
-		shellCmd = "su -"
+		shellcmd = "su -"
 	}
 
-	// Get the proxy Command
-	proxyCmd := []string{fmt.Sprintf("/serviced/%s", bin), "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", service.Id, shellCmd}
+	// Get the serviced command
+	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
+
+	// Get the proxy command
+	proxycmd := []string{svcdcmd, "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", service.Id, shellcmd}
+
 	// Get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		glog.Fatalf("Docker is not installed: %v", err)
+		glog.Fatalf("Docker not found: %v", err)
 	}
 	argv := []string{"run", "-rm", "-v", servicedVolume, "-v", pwdVolume}
 	argv = append(argv, cfg.Envv...)
@@ -290,49 +299,49 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	}
 
 	argv = append(argv, service.ImageId)
-	argv = append(argv, proxyCmd...)
+	argv = append(argv, proxycmd...)
 
 	runner, err = CreateCommand(docker, argv)
-
 	if err != nil {
 		glog.Fatalf("Unable to run command: %v", err)
 	}
+
 	// Wire it up
-
 	inst := &ProcessInstance{
-		stdout: runner.StdoutPipe(),
-		stderr: runner.StderrPipe(),
-		stdin:  make(chan string),
-		signal: make(chan int),
-		result: make(chan Result),
+		Stdout: runner.StdoutPipe(),
+		Stderr: runner.StderrPipe(),
+		Stdin:  make(chan string),
+		Signal: make(chan int),
+		Result: make(chan Result),
 	}
-	glog.Infof("Process instance! %s", inst)
 
-	go e.send(inst, runner)
-	return inst
-}
-
-func (e *Executor) send(p *ProcessInstance, r Runner) {
-	go r.Reader(8192)
 	go func() {
-		glog.V(0).Infof("Beginning to read from stdin/signal channels")
-		for {
-			select {
-			case m := <-p.stdin:
-				glog.V(0).Infof("Read a byte")
-				r.Write([]byte(m))
-			case s := <-p.signal:
-				r.Signal(syscall.Signal(s))
+		go func() {
+			glog.Infof("Reading from stdin/signal channels")
+			for inst.Stdin != nil || inst.Signal != nil {
+				select {
+				case m, ok := <-inst.Stdin:
+					if ok {
+						runner.Write([]byte(m))
+					} else {
+						inst.Stdin = nil
+					}
+				case s, ok := <-inst.Signal:
+					if ok {
+						runner.Signal(syscall.Signal(s))
+					} else {
+						inst.Signal = nil
+					}
+				}
 			}
+		}()
+
+		if err := runner.Reader(MAXBUFFER); err != nil {
+			inst.Result <- Result{1, err, NORMAL}
+		} else {
+			inst.Result <- Result{0, err, NORMAL}
 		}
 	}()
 
-	<-r.ExitedPipe()
-	glog.V(0).Infof("Exited reading stdin!")
-
-	if e := r.Error(); e != nil {
-		p.result <- Result{1, NORMAL}
-	} else {
-		p.result <- Result{0, NORMAL}
-	}
+	return inst
 }

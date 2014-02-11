@@ -2,6 +2,10 @@
 package shell
 
 import (
+	"io"
+	"os/exec"
+	"syscall"
+
 	"github.com/googollee/go-socket.io"
 )
 
@@ -27,15 +31,16 @@ type ProcessConfig struct {
 
 type Result struct {
 	ExitCode    int
+	Error       error
 	Termination Termination
 }
 
 type ProcessInstance struct {
-	stdin  chan string
-	stdout chan string
-	stderr chan string
-	signal chan int
-	result chan Result
+	Stdin  chan string
+	Stdout chan string
+	Stderr chan string
+	Signal chan int
+	Result chan Result
 }
 
 type ProcessActor interface {
@@ -48,4 +53,23 @@ type Forwarder struct {
 
 type Executor struct {
 	port string
+}
+
+type Runner interface {
+	Reader(size_t int) error
+	Write(data []byte) (int, error)
+	StdoutPipe() chan string
+	StderrPipe() chan string
+	Signal(signal syscall.Signal) error
+	Kill() error
+}
+
+type Command struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout io.ReadCloser
+	stderr io.ReadCloser
+
+	stdoutChan chan string
+	stderrChan chan string
 }

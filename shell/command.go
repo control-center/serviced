@@ -8,17 +8,7 @@ import (
 	"time"
 )
 
-type Command struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
-	stderr io.ReadCloser
-
-	stdoutChan chan string
-	stderrChan chan string
-	done       chan bool
-	err        error
-}
+const IDLE_TIMEOUT = 50 // ms
 
 func CreateCommand(file string, argv []string) (*Command, error) {
 	c := new(Command)
@@ -43,7 +33,6 @@ func CreateCommand(file string, argv []string) (*Command, error) {
 
 	c.stdoutChan = make(chan string)
 	c.stderrChan = make(chan string)
-	c.done = make(chan bool)
 
 	// start
 	if err := c.cmd.Start(); err != nil {
@@ -53,86 +42,31 @@ func CreateCommand(file string, argv []string) (*Command, error) {
 	return c, nil
 }
 
-func (c *Command) Reader(size int) {
-	var (
-		eof                  bool = false
-		stdoutMsg, stderrMsg chan byte
-		stdoutErr, stderrErr chan error
-		stdoutBuf, stderrBuf bytes.Buffer
-	)
-	stdoutMsg, stdoutErr = pipe(c.stdout, size)
-	stderrMsg, stderrErr = pipe(c.stderr, size)
+func (c *Command) Reader(size int) (err error) {
+	sem := make(semaphore, 2)
+	var stdoutErr, stderrErr error
 
-	defer func() {
-		c.stdin.Close()
-		close(c.stdoutChan)
-		close(c.stderrChan)
+	go func() {
+		stdoutErr = pipe(c.stdout, c.stdoutChan, size)
+		sem.Signal()
 	}()
 
-	for {
-		select {
-		case m := <-stdoutMsg:
-			stdoutBuf.WriteByte(m)
-			if m == '\n' || size <= stdoutBuf.Len() {
-				c.stdoutChan <- stdoutBuf.String()
-				stdoutBuf.Reset()
-			}
-		case e := <-stdoutErr:
-			if e == io.EOF {
-				if stdoutBuf.Len() > 0 {
-					c.stdoutChan <- stdoutBuf.String()
-					stdoutBuf.Reset()
-				}
-				if eof {
-					if err := c.cmd.Wait(); err != nil {
-						c.err = err
-					}
-					c.done <- true
-					return
-				}
-				eof = true
-			} else {
-				c.err = e
-				c.done <- true
-				return
-			}
-		case m := <-stderrMsg:
-			stderrBuf.WriteByte(m)
-			if m == '\n' || size <= stderrBuf.Len() {
-				c.stderrChan <- stderrBuf.String()
-				stderrBuf.Reset()
-			}
-		case e := <-stderrErr:
-			if e == io.EOF {
-				if stderrBuf.Len() > 0 {
-					c.stderrChan <- stderrBuf.String()
-					stderrBuf.Reset()
-				}
-				if eof {
-					if err := c.cmd.Wait(); err != nil {
-						c.err = err
-					}
-					c.done <- true
-					return
-				}
-				eof = true
-			} else {
-				c.err = e
-				c.done <- true
-				return
-			}
-		case <-time.After(250 * time.Millisecond):
-			// Hanging process; dump whatever is on the pipes
-			if stdoutBuf.Len() > 0 {
-				c.stdoutChan <- stdoutBuf.String()
-				stdoutBuf.Reset()
-			}
-			if stderrBuf.Len() > 0 {
-				c.stderrChan <- stderrBuf.String()
-				stderrBuf.Reset()
-			}
-		}
+	go func() {
+		stderrErr = pipe(c.stderr, c.stderrChan, size)
+		sem.Signal()
+	}()
+
+	sem.Wait(2)
+
+	if stdoutErr != nil {
+		err = stdoutErr
+	} else if stderrErr != nil {
+		err = stderrErr
+	} else {
+		err = c.cmd.Wait()
 	}
+
+	return
 }
 
 func (c *Command) Write(data []byte) (int, error) {
@@ -147,14 +81,6 @@ func (c *Command) StderrPipe() chan string {
 	return c.stderrChan
 }
 
-func (c *Command) ExitedPipe() chan bool {
-	return c.done
-}
-
-func (c *Command) Error() error {
-	return c.err
-}
-
 func (c *Command) Signal(signal syscall.Signal) error {
 	return c.cmd.Process.Signal(signal)
 }
@@ -163,7 +89,8 @@ func (c *Command) Kill() error {
 	return c.cmd.Process.Kill()
 }
 
-func pipe(reader io.Reader, size int) (chan byte, chan error) {
+func pipe(reader io.Reader, out chan<- string, size int) error {
+	var buffer bytes.Buffer
 	bchan := make(chan byte, size)
 	echan := make(chan error)
 
@@ -184,5 +111,42 @@ func pipe(reader io.Reader, size int) (chan byte, chan error) {
 			}
 		}
 	}()
-	return bchan, echan
+
+	defer close(out)
+	for bchan != nil || echan != nil {
+		select {
+		case b, ok := <-bchan:
+			if !ok {
+				bchan = nil
+				continue
+			}
+			buffer.WriteByte(b)
+			if b == '\n' || buffer.Len() >= size {
+				out <- buffer.String()
+				buffer.Reset()
+			}
+		case e, ok := <-echan:
+			if !ok {
+				echan = nil
+				continue
+			}
+
+			if e == io.EOF {
+				if buffer.Len() > 0 {
+					out <- buffer.String()
+					buffer.Reset()
+				}
+			} else {
+				return e
+			}
+		case <-time.After(IDLE_TIMEOUT * time.Millisecond):
+			if buffer.Len() > 0 {
+				out <- buffer.String()
+				buffer.Reset()
+			}
+		}
+
+	}
+
+	return nil
 }

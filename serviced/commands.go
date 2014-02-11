@@ -641,33 +641,22 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
 	var istty bool
 	cmd.BoolVar(&istty, "i", false, "Whether to run interactively")
-
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	serviceId := cmd.Arg(0)
-	controlPlane := getClient()
-	service, err := getService(&controlPlane, serviceId)
-	if err != nil {
-		glog.Fatalf("Unable to retrieve service: %s", serviceId)
-	}
-	if service == nil {
-		glog.Fatalf("No such service: %s", serviceId)
-	}
 
-	shellcmd := "su -"
+	command := ""
 	if len(cmd.Args()) > 1 {
-		shellcmd = ""
-		for _, a := range cmd.Args()[1:] {
-			shellcmd += a + " "
-		}
+		command = strings.Join(cmd.Args()[1:], " ")
 	}
 
-	p := shell.NewProcess(serviceId, shellcmd, nil, istty)
-
-	if err := shell.Exec(p, service); err != nil {
-		return err
+	config := &shell.ProcessConfig{
+		ServiceId: cmd.Arg(0),
+		IsTTY:     istty,
+		Command:   command,
 	}
+
+	inst := shell.StartDocker(config, options.port)
 
 	go func() {
 		buf := bufio.NewReader(os.Stdin)
@@ -676,21 +665,28 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 			if err != nil {
 				// Something errory here
 			}
-			p.Stdin <- string(b)
+			inst.Stdin <- string(b)
 		}
 	}()
 
-	for {
+	for inst.Stdout != nil || inst.Stderr != nil {
 		select {
-		case line := <-p.Stdout:
-			os.Stdout.WriteString(line)
-		case line := <-p.Stderr:
-			os.Stderr.WriteString(line)
-		case <-p.Exited:
-			return p.Error
+		case line, ok := <-inst.Stdout:
+			if ok {
+				os.Stdout.WriteString(line)
+			} else {
+				inst.Stdout = nil
+			}
+		case line, ok := <-inst.Stderr:
+			if ok {
+				os.Stderr.WriteString(line)
+			} else {
+				inst.Stderr = nil
+			}
 		}
 	}
 
+	return (<-inst.Result).Error
 }
 
 func (cli *ServicedCli) CmdShow(args ...string) error {
