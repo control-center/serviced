@@ -3,7 +3,6 @@ package shell
 
 import (
 	"io"
-	"os/exec"
 	"syscall"
 
 	"github.com/googollee/go-socket.io"
@@ -64,8 +63,18 @@ type Runner interface {
 	Kill() error
 }
 
+type OSRunner interface {
+	StdinPipe() (io.WriteCloser, error)
+	StdoutPipe() (io.ReadCloser, error)
+	StderrPipe() (io.ReadCloser, error)
+	Start() error
+	Wait() error
+	Signal(s syscall.Signal) error
+	Kill() error
+}
+
 type Command struct {
-	cmd    *exec.Cmd
+	cmd    OSRunner
 	stdin  io.WriteCloser
 	stdout io.ReadCloser
 	stderr io.ReadCloser

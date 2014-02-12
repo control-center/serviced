@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-const IDLE_TIMEOUT = 50 // ms
+const IDLE_TIMEOUT = 50 * time.Millisecond
 
 func CreateCommand(file string, argv []string) (*Command, error) {
 	c := new(Command)
-	c.cmd = exec.Command(file, argv...)
+	c.cmd = &cmd{exec.Command(file, argv...)}
 
 	// initialize pipes & channels
 	if stdin, err := c.cmd.StdinPipe(); err != nil {
@@ -46,15 +46,15 @@ func (c *Command) Reader(size int) (err error) {
 	sem := make(semaphore, 2)
 	var stdoutErr, stderrErr error
 
-	go func() {
-		stdoutErr = pipe(c.stdout, c.stdoutChan, size)
+	go func(e *error) {
+		*e = pipe(c.stdout, c.stdoutChan, size)
 		sem.Signal()
-	}()
+	}(&stdoutErr)
 
-	go func() {
-		stderrErr = pipe(c.stderr, c.stderrChan, size)
+	go func(e *error) {
+		*e = pipe(c.stderr, c.stderrChan, size)
 		sem.Signal()
-	}()
+	}(&stderrErr)
 
 	sem.Wait(2)
 
@@ -82,11 +82,11 @@ func (c *Command) StderrPipe() chan string {
 }
 
 func (c *Command) Signal(signal syscall.Signal) error {
-	return c.cmd.Process.Signal(signal)
+	return c.cmd.Signal(signal)
 }
 
 func (c *Command) Kill() error {
-	return c.cmd.Process.Kill()
+	return c.cmd.Kill()
 }
 
 func pipe(reader io.Reader, out chan<- string, size int) error {
@@ -139,7 +139,7 @@ func pipe(reader io.Reader, out chan<- string, size int) error {
 			} else {
 				return e
 			}
-		case <-time.After(IDLE_TIMEOUT * time.Millisecond):
+		case <-time.After(IDLE_TIMEOUT):
 			if buffer.Len() > 0 {
 				out <- buffer.String()
 				buffer.Reset()
