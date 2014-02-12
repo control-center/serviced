@@ -46,15 +46,15 @@ func (c *Command) Reader(size int) (err error) {
 	sem := make(semaphore, 2)
 	var stdoutErr, stderrErr error
 
-	go func(e *error) {
-		*e = pipe(c.stdout, c.stdoutChan, size)
+	go func() {
+		stdoutErr = pipe(c.stdout, c.stdoutChan, size)
 		sem.Signal()
-	}(&stdoutErr)
+	}()
 
-	go func(e *error) {
-		*e = pipe(c.stderr, c.stderrChan, size)
+	go func() {
+		stderrErr = pipe(c.stderr, c.stderrChan, size)
 		sem.Signal()
-	}(&stderrErr)
+	}()
 
 	sem.Wait(2)
 
