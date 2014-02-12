@@ -73,20 +73,17 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 	if proxyOptions.logstash {
 		go func() {
-			// *********************************************************************************************
-			// ***** FIX ME the following 3 variables are defined in agent.go as well! *********************
-			containerLogstashForwarderDir := "/usr/local/serviced/resources/logstash"
-			containerLogstashForwarderBinaryPath := containerLogstashForwarderDir + "/logstash-forwarder"
-			containerLogstashForwarderConfPath := containerLogstashForwarderDir + "/logstash-forwarder.conf"
-			// *********************************************************************************************
-			cmdString := containerLogstashForwarderBinaryPath + " -old-files-hours=26280 -config " + containerLogstashForwarderConfPath
+			// make sure we pick up any logfile that was modified within the
+			// last three years
+			// TODO: Either expose the 3 years a configurable or get rid of it
+			cmdString := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder " + " -old-files-hours=26280 -config " + serviced.LOGSTASH_CONTAINER_CONFIG
 			glog.V(0).Info("About to execute: ", cmdString)
 			myCmd := exec.Command("bash", "-c", cmdString)
 			myCmd.Stdout = os.Stdout
 			myCmd.Stderr = os.Stderr
 			myErr := myCmd.Run()
 			if myErr != nil {
-				glog.Errorf("Problem running logstash-forwarder service: %v", myErr)
+				glog.Errorf("Problem running service: %v", myErr)
 				glog.Flush()
 			}
 		}()
