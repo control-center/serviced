@@ -44,6 +44,7 @@ func CreateCommand(file string, argv []string) (*Command, error) {
 
 func (c *Command) Reader(size int) (err error) {
 	sem := make(semaphore, 2)
+	sem.P(2)
 	var stdoutErr, stderrErr error
 
 	go func() {
