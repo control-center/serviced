@@ -1,9 +1,8 @@
 package dao
 
 import (
-	"github.com/zenoss/glog"
-
 	"fmt"
+	"github.com/zenoss/glog"
 	"strconv"
 	"time"
 )
