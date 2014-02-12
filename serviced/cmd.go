@@ -202,10 +202,6 @@ func startServer() {
 			sio.Handle("/", http.FileServer(http.Dir("/home/zenoss/europa/src/golang/src/github.com/zenoss/serviced/serviced/www/")))
 			http.ListenAndServe(":50000", sio)
 		}()
-
-		resourceDuration := time.Duration(options.resourceperiod) * time.Minute
-		go agent.RegisterIPResources(resourceDuration)
-
 	}
 
 	rpc.HandleHTTP()
