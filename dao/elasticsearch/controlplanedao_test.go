@@ -19,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/zzk"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -570,6 +571,90 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	}
 	if len(resultHost.IPs) != 1 {
 		t.Errorf("Expected %v IPs, got %v", 1, len(resultHost.IPs))
+	}
+}
+
+func TestRemoveAddressAssignment(t *testing.T) {
+	//test removing address when not present
+	err = controlPlaneDao.RemoveAddressAssignment("fake", struct{}{})
+	if err == nil {
+		t.Errorf("Eexpected error removing address %v", err)
+	}
+}
+
+func TestAssignAddress(t *testing.T) {
+	aa := dao.AddressAssignment{}
+	aid := ""
+	err := controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	//set up host with IP
+	hostid := "TestHost"
+	ip := "testip"
+	endpoint := "default"
+	serviceId := ""
+	host := dao.Host{}
+	host.Id = hostid
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{ip, "ifname"}}
+	err = controlPlaneDao.AddHost(host, &id)
+	if err != nil {
+		t.Errorf("Unexpected error adding host: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveHost(hostid, &unused)
+
+	//set up service with endpoint
+	service, _ := dao.NewService()
+	ep := dao.ServiceEndpoint{}
+	ep.Name = endpoint
+	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
+	service.Endpoints = []dao.ServiceEndpoint{ep}
+	controlPlaneDao.AddService(*service, &serviceId)
+	if err != nil {
+		t.Errorf("Unexpected error adding service: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveService(serviceId, &unused)
+
+	//test for bad service id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test for bad endpoint id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	// Valid assignment
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err != nil {
+		t.Errorf("Unexpected error adding address %v", err)
+		return
+	}
+
+	// try to reassign; should fail
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	other_aid := ""
+	err = controlPlaneDao.AssignAddress(aa, &other_aid)
+	if err == nil || "Address Assignment already exists" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test removing address
+	err = controlPlaneDao.RemoveAddressAssignment(aid, &struct{}{})
+	if err != nil {
+		t.Errorf("Unexpected error removing address %v", err)
 	}
 }
 

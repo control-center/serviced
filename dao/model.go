@@ -35,19 +35,15 @@ type PoolHost struct {
 }
 
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type AssignedPort struct {
-	Port      int
-	ServiceId string
-}
-
-//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type PortAssignment struct {
+type AddressAssignment struct {
+	Id             string //Generated id
 	AssignmentType string //Static of Virtual
 	HostId         string //Host id if type is Static
 	PoolId         string //Pool id if type is Virtual
 	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           int    //Actual assigned port
+	Port           uint16 //Actual assigned port
 	ServiceId      string //Service using this assignment
+	EndpointName   string //Endpoint in the service using the assignment
 }
 
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
@@ -154,6 +150,7 @@ type Service struct {
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
+	Name                string // Human readable name of the endpoint. Unique per service definition
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
@@ -239,7 +236,7 @@ func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[
 
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
-	Port     int
+	Port     uint16
 	Protocol string
 }
 

@@ -134,6 +134,7 @@ var (
 	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
+	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
 
 	//model index functions
 	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
@@ -147,6 +148,7 @@ var (
 	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
+	deleteAddressAssignment      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
 
 	//model get functions
 	getHost                   func(string, interface{}) error = getSource("controlplane", "host")
@@ -156,10 +158,11 @@ var (
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
 
 	//model search functions, using uri based query
-	searchHostUri         func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
-	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
-	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
-	searchResourcePoolUri func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
+	searchHostUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
+	searchServiceUri        func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
+	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
+	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
+	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
 )
 
 type ControlPlaneDao struct {
@@ -223,6 +226,24 @@ func toServices(result *core.SearchResult) ([]*dao.Service, error) {
 	}
 
 	return services, err
+}
+
+// convert search result of json host to dao.Host array
+func toAddressAssignments(result *core.SearchResult) (*[]dao.AddressAssignment, error) {
+	var err error = nil
+	var total = len(result.Hits.Hits)
+	var addressAssignments = make([]dao.AddressAssignment, total)
+	for i := 0; i < total; i += 1 {
+		var addressAssignment dao.AddressAssignment
+		err = json.Unmarshal(result.Hits.Hits[i].Source, &addressAssignment)
+		if err == nil {
+			addressAssignments[i] = addressAssignment
+		} else {
+			return nil, err
+		}
+	}
+
+	return &addressAssignments, err
 }
 
 // query for hosts using uri
@@ -508,6 +529,9 @@ func (this *ControlPlaneDao) RemoveResourcePool(id string, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RemoveResourcePool: %s", id)
 	response, err := deleteResourcePool(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveResourcePool response: %+v", response)
+
+	//TODO: remove AddressAssignments with this host
+
 	return err
 }
 
@@ -516,6 +540,7 @@ func (this *ControlPlaneDao) RemoveHost(id string, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RemoveHost: %s", id)
 	response, err := deleteHost(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveHost response: %+v", response)
+	//TODO: remove AddressAssignments with this host
 	return err
 }
 
@@ -529,6 +554,7 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 		return err
 	}
 	this.zkDao.RemoveService(id)
+	//TODO: remove AddressAssignments with this Service
 	return nil
 }
 
@@ -908,12 +934,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-	// determine the desired state
-	ds := dao.SVC_RUN
-
-	if sd.Launch == "MANUAL" {
-		ds = dao.SVC_STOP
-	}
+	// Always deploy in stopped state, starting is a separate step
+	ds := dao.SVC_STOP
 
 	exportedVolumes := make(map[string]string)
 	for k, v := range volumes {
@@ -1034,6 +1056,155 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	}
 	go this.reloadLogstashContainer()
 	return nil
+}
+
+// RemoveAddressAssignemnt Removes an AddressAssignment by id
+func (this *ControlPlaneDao) RemoveAddressAssignment(id string, unused interface{}) error {
+	aas, err := this.queryAddressAssignments(fmt.Sprintf("Id:%s", id))
+	if err != nil {
+		return err
+	}
+	if len(*aas) == 0 {
+		return fmt.Errorf("No AddressAssignment with id %v", id)
+	}
+	_, err = deleteAddressAssignment(id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
+// id param contains id of newly created assignment if successful
+func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id *string) error {
+	err := assignment.Validate()
+	if err != nil {
+		return err
+	}
+
+	switch assignment.AssignmentType {
+	case "static":
+		{
+			//check host and IP exist
+			if err = this.validStaticIp(assignment.HostId, assignment.IPAddr); err != nil {
+				return err
+			}
+		}
+	case "virtual":
+		{
+			// TODO: need to check if virtual IP exists
+			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
+		}
+	default:
+		//Validate above should handle this but left here for completenes
+		return fmt.Errorf("Invalid assignment type %v", assignment.AssignmentType)
+	}
+
+	//check service and endpoint exists
+	if err = this.validEndpoint(assignment.ServiceId, assignment.EndpointName); err != nil {
+		return err
+	}
+
+	//check for existing assignments to this endpoint
+	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
+	if err != nil {
+		return err
+	}
+	if existing.Id != "" {
+		return fmt.Errorf("Address Assignment already exists")
+	}
+	assignment.Id, err = dao.NewUuid()
+	if err != nil {
+		return err
+	}
+	_, err = newAddressAssignment(assignment.Id, &assignment)
+	if err != nil{
+		return err
+	}
+	*id = assignment.Id
+	return nil
+}
+
+func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
+
+	hosts, err := this.queryHosts(fmt.Sprintf("Id:%s", hostId))
+	if err != nil {
+		return err
+	}
+	if len(hosts) != 1 {
+		return fmt.Errorf("Found %v Hosts with id %v", len(hosts), hostId)
+	}
+	host := hosts[0]
+	found := false
+	for _, ip := range host.IPs {
+		if ip.IPAddress == ipAddr {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string) error {
+	services, err := this.queryServices(fmt.Sprintf("Id:%s", serviceId), "1")
+	if err != nil {
+		return err
+	}
+	if len(services) != 1 {
+		return fmt.Errorf("Found %v Services with id %v", len(services), serviceId)
+	}
+	service := services[0]
+	found := false
+	for _, endpoint := range service.Endpoints {
+		if endpointName == endpoint.Name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("Endpoint %v not found on service %v", endpointName, serviceId)
+	}
+	return nil
+}
+
+// GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]dao.AddressAssignment) error {
+	query := fmt.Sprintf("ServiceId:%s", serviceId)
+	results, err := this.queryAddressAssignments(query)
+	if err != nil {
+		return err
+	}
+	*assignments = *results
+	return nil
+}
+
+// queryAddressAssignments query for host ips; returns empty array if no results for query
+func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.AddressAssignment, error) {
+	result, err := searchAddressAssignment(query)
+	if err != nil {
+		return nil, err
+	}
+	return toAddressAssignments(&result)
+}
+
+// getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment struct will be uninitialized
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
+	//TODO: this can probably be done w/ a query
+	assignments := []dao.AddressAssignment{}
+	err := this.GetServiceAddressAssignments(serviceId, &assignments)
+	if err != nil {
+		return &dao.AddressAssignment{}, err
+	}
+
+	for _, result := range assignments {
+		if result.EndpointName == endpointName {
+			return &result, nil
+		}
+	}
+	return &dao.AddressAssignment{}, nil
 }
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {
