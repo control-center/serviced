@@ -32,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sort"
+	"math/rand"
 )
 
 //assert interface
@@ -795,8 +797,20 @@ func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service) er
 	return nil
 }
 
+// ByInterfaceName implements sort.Interface for []dao.HostIPResource
+// This is used to display the interface information sorted
+type ByInterfaceName []dao.HostIPResource
+
+func (a ByInterfaceName) Len() int      { return len(a) }
+func (a ByInterfaceName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+// sort on InterfaceName first, then sort by State
+func (a ByInterfaceName) Less(i, j int) bool {
+	return a[i].InterfaceName < a[j].InterfaceName
+}
+
 // Show pool IP address information
-func (this *ControlPlaneDao) RetrievePoolIps(poolId string, PoolIPResources []dao.HostIPResource) error {
+func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]dao.HostIPResource) error {
 	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
 	err := this.GetHostsForResourcePool(poolId, &poolHosts)
@@ -813,18 +827,13 @@ func (this *ControlPlaneDao) RetrievePoolIps(poolId string, PoolIPResources []da
 		}
 
 		//aggregate all the IPResources from all the hosts in the requested pool
-		PoolIPResources = append(PoolIPResources, host.IPs...)
+		//*poolsHostIPResources = append(*poolsHostIPResources, host.IPs)
+		for _, poolHostIPResource := range host.IPs {
+			*poolsHostIPResources = append(*poolsHostIPResources, poolHostIPResource)
+		}
 	}
 
-	//sort.Sort(ByInterfaceName(PoolIPResources))
-
-	// print the interface info (name, IP)
-	outfmt := "%-16s %-30s\n"
-	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range PoolIPResources {
-		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
-	}
-
+	sort.Sort(ByInterfaceName(*poolsHostIPResources))
 	return nil
 }
 
@@ -840,19 +849,38 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, unused *string) error {
 	}
 	
 	PoolIPResources := []dao.HostIPResource{}
-	this.RetrievePoolIps(service.PoolId, PoolIPResources)
+	this.GetPoolIps(service.PoolId, &PoolIPResources)
+	if len(PoolIPResources) < 1 {
+		msg := fmt.Sprintf("No IP addresses are available in pool %s.", service.PoolId)
+		return errors.New(msg)
+	}
+
+	assignments := []dao.AddressAssignment
+	this.GetServiceAddressAssignments(serviceId, assignments *[]dao.AddressAssignment)
 	
+	rand.Seed(181)
 	visitor := func(service dao.Service) error {
 		// if this service is in need of an IP address, assign it an IP address
 		serviceNeedsAnIPAddress := this.needsAnIP(service.Endpoints)
 		if serviceNeedsAnIPAddress {
 			glog.Info(" ********** ASSIGN AN IP!!!")
-			// print the interface info (name, IP)
-			outfmt := "%-16s %-30s\n"
-			fmt.Printf(outfmt, "Interface Name", "IP Address")
-			for _, hostIPResource := range PoolIPResources {
-				fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+			glog.Info(" ********** Selecting the following IP address: ", PoolIPResources[rand.Intn(len(PoolIPResources))].IPAddress)
+
+			/*
+			type AddressAssignment struct {
+				Id             string //Generated id
+				AssignmentType string //Static or Virtual
+				HostId         string //Host id if type is Static
+				PoolId         string //Pool id if type is Virtual
+				IPAddr         string //Used to associate to resource in Pool or Host
+				Port           uint16 //Actual assigned port
+				ServiceId      string //Service using this assignment
+				EndpointName   string //Endpoint in the service using the assignment
 			}
+
+			GetServiceAddressAssignments(serviceId string, assignments *[]dao.AddressAssignment)
+			AssignAddress(assignment dao.AddressAssignment, unused interface{})
+			*/
 		}
 		return nil
 	}
@@ -1265,7 +1293,7 @@ func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.Addre
 	return toAddressAssignments(&result)
 }
 
-// getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment struct will be uninitialized
+// getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment struct will be uninitialized
 func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
 	//TODO: this can probably be done w/ a query
 	assignments := []dao.AddressAssignment{}

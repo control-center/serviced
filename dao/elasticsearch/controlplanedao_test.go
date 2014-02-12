@@ -528,17 +528,77 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 	}
 }
 
-func TestDaoAssignIPs(t *testing.T) {
-	/*assignIPsPool, _ := dao.NewResourcePool("assignIPsID0")
+func TestDaoGetPoolIps(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.Id)
 	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
 	if err != nil {
 		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
 		t.Fail()
-	}*/
+	}
+
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
+	
+	PoolIPResources := []dao.HostIPResource{}
+	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources)
+	if err != nil {
+		t.Error("GetPoolIps failed")
+	}
+	
+	if PoolIPResources[0].IPAddress != ipAddress1 {
+		t.Error("Unexpected IP address: ", PoolIPResources[0].IPAddress)
+	}
+	if PoolIPResources[1].IPAddress != ipAddress2 {
+		t.Error("Unexpected IP address: ", PoolIPResources[1].IPAddress)
+	}
+
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
+}
+
+func TestDaoAssignIPs(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.Id)
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.IPAddress = "192.168.100.10"
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.IPAddress = "10.50.9.1"
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
 
 	testService := dao.Service{
-		Id:		"assignIPsID0",
-		PoolId:	"default",
+		Id:		"assignIPsServiceID",
+		PoolId:	assignIPsPool.Id,
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
 				Protocol:    "tcp",
@@ -564,7 +624,8 @@ func TestDaoAssignIPs(t *testing.T) {
 	}
 
 	defer controlPlaneDao.RemoveService(testService.Id, &unused)
-	//defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
 }
 
 func TestDaoGetHostNoIPs(t *testing.T) {
@@ -587,7 +648,6 @@ func TestDaoGetHostNoIPs(t *testing.T) {
 	if len(resultHost.IPs) != 0 {
 		t.Errorf("Expected %v IPs, got %v", 0, len(resultHost.IPs))
 	}
-
 }
 
 func TestDaoGetHostWithIPs(t *testing.T) {

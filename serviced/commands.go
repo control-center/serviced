@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -424,18 +423,6 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 	return err
 }
 
-// ByInterfaceName implements sort.Interface for []dao.HostIPResource
-// This is used to display the interface information sorted
-type ByInterfaceName []dao.HostIPResource
-
-func (a ByInterfaceName) Len() int      { return len(a) }
-func (a ByInterfaceName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-// sort on InterfaceName first, then sort by State
-func (a ByInterfaceName) Less(i, j int) bool {
-	return a[i].InterfaceName < a[j].InterfaceName
-}
-
 // Show pool IP address information
 func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	cmd := Subcmd("list-pool-ips", "[options] POOLID ", "List pool IP addresses")
@@ -448,28 +435,14 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	}
 	controlPlane := getClient()
 
-	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
 	poolId := cmd.Arg(0)
-	err := controlPlane.GetHostsForResourcePool(poolId, &poolHosts)
-	if err != nil {
-		glog.Fatalf("Could not get hosts for Pool %s: %v", cmd.Arg(0), err)
-	}
 
 	PoolIPResources := []dao.HostIPResource{}
-	for _, poolHost := range poolHosts {
-		// retrieve the IPs of the hosts contained in the requested pool
-		host := dao.Host{}
-		err = controlPlane.GetHost(poolHost.HostId, &host)
-		if err != nil {
-			glog.Fatalf("Could not IP addresses for host %s: %v", poolHost.HostId, err)
-		}
-
-		//aggregate all the IPResources from all the hosts in the requested pool
-		PoolIPResources = append(PoolIPResources, host.IPs...)
+	err = controlPlane.GetPoolIps(poolId, assignIPsHostIPResources)
+	if err != nil {
+		return err
 	}
-
-	sort.Sort(ByInterfaceName(PoolIPResources))
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
