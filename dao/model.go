@@ -343,15 +343,6 @@ func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
 	return
 }
 
-// This is wrong! I feel guilty. Avoid circular imports.
-func execPath() (string, string, error) {
-	path, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return "", "", err
-	}
-	return filepath.Dir(path), filepath.Base(path), nil
-}
-
 // Retrieve service container port, 0 failure
 func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
 	for _, ep := range ss.Endpoints {

@@ -16,35 +16,6 @@ import (
 	"time"
 )
 
-//type hub struct {
-//	// Registered connections.
-//	connections map[*WebsocketShell]bool
-//
-//	// Register requests from the connections
-//	register chan *WebsocketShell
-//
-//	// Unregister requests from the connections
-//	unregister chan *WebsocketShell
-//}
-//
-//func (h *hub) run() {
-//	for {
-//		select {
-//		case c := <-h.register:
-//			h.connections[c] = true
-//		case c := <-h.unregister:
-//			delete(h.connections, c)
-//			c.Close()
-//		}
-//	}
-//}
-//
-//var h = hub{
-//	register:    make(chan *WebsocketShell),
-//	unregister:  make(chan *WebsocketShell),
-//	connections: make(map[*WebsocketShell]bool),
-//}
-
 // Start a service proxy.
 func (cli *ServicedCli) CmdProxy(args ...string) error {
 
