@@ -112,11 +112,15 @@ func (c *BtrfsConn) Path() string {
 	return path.Join(c.root, c.name)
 }
 
+func (c *BtrfsConn) SnapshotPath(label string) string {
+	return path.Join(c.root, label)
+}
+
 // Snapshot performs a readonly snapshot on the subvolume
 func (c *BtrfsConn) Snapshot(label string) error {
 	c.Lock()
 	defer c.Unlock()
-	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.Path(), path.Join(c.root, label))
+	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.Path(), c.SnapshotPath(label))
 	return err
 }
 
@@ -156,7 +160,7 @@ func (c *BtrfsConn) RemoveSnapshot(label string) error {
 			return fmt.Errorf("snapshot %s does not exist", label)
 		}
 	}
-	_, err := runcmd(c.sudoer, "subvolume", "delete", path.Join(c.root, label))
+	_, err := runcmd(c.sudoer, "subvolume", "delete", c.SnapshotPath(label))
 	return err
 }
 
@@ -203,7 +207,7 @@ func (c *BtrfsConn) Rollback(label string) error {
 		}
 	}
 
-	_, err = runcmd(c.sudoer, "subvolume", "snapshot", path.Join(c.root, label), vd)
+	_, err = runcmd(c.sudoer, "subvolume", "snapshot", c.SnapshotPath(label), vd)
 	return err
 }
 

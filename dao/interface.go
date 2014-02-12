@@ -210,4 +210,10 @@ type ControlPlane interface {
 
 	// Waits for the DFS to be ready
 	ReadyDFS(bool, *int) error
+
+	// Write a tgz file containing all templates and services
+	Backup(backupDirectory string, backupFilePath *string) error
+
+	// Restore templates and services from a tgz file (inverse of Backup)
+	Restore(backupFilePath string, unused *int) error
 }
