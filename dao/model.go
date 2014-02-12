@@ -3,8 +3,6 @@ package dao
 import (
 	"fmt"
 	"github.com/zenoss/glog"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 )
