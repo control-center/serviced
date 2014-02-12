@@ -37,7 +37,7 @@ func init() {
 		},
 	)
 	if err != nil {
-		glog.Fatal("Error initializing zookeeper container: %s", err)
+		glog.Fatal("Error initializing elasticsearch container: %s", err)
 	}
 }
 
@@ -47,7 +47,7 @@ func elasticsearchHealthCheck() error {
 	start := time.Now()
 	lastError := time.Now()
 	minUptime := time.Second * 2
-	timeout := time.Second * 30
+	timeout := time.Second * 60 // TODO: make this configurable in a elasticsearch.json config file
 
 	schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
 
@@ -62,13 +62,13 @@ func elasticsearchHealthCheck() error {
 			}
 		} else {
 			lastError = time.Now()
-			glog.V(2).Infof("Still trying to connect to elastic: %v: %s", err, healthResponse)
+			glog.V(2).Infof("Still trying to connect to elasticsearch container: %v: %s", err, healthResponse)
 		}
 		if time.Since(lastError) > minUptime {
 			break
 		}
 		if time.Since(start) > timeout {
-			return fmt.Errorf("Could not startup elastic search container.")
+			return fmt.Errorf("Could not startup elasticsearch container.  waited timeout:%v", timeout)
 		}
 		time.Sleep(time.Millisecond * 1000)
 	}
