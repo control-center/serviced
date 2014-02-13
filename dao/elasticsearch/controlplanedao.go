@@ -772,25 +772,35 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 	return nil
 }
 
-func (this *ControlPlaneDao) needsAnIP(endpoints []dao.ServiceEndpoint) bool {
-	// ensure all endpoints with AddressConfig have assigned IPs
-	for _, endPoint := range endpoints {
-		if endPoint.AddressConfig.Port != 0 || endPoint.AddressConfig.Protocol != "" {
-			return true
+func (this *ControlPlaneDao) needsAnIP(serviceID string, endpoint dao.ServiceEndpoint) bool {
+	// has nothing defined in the service definition
+	if endpoint.AddressConfig.Port == 0 && endpoint.AddressConfig.Protocol == "" {
+		return false
+	}
+	
+	// check to see if an IP address has already been assigned
+	assignments := []dao.AddressAssignment{}
+	this.GetServiceAddressAssignments(serviceID, &assignments)
+	for _, assignment := range assignments {
+		if assignment.ServiceId == serviceID && assignment.Port == endpoint.AddressConfig.Port {
+			return false
 		}
 	}
-	return false
+
+	return true
 }
 
 // determine whether the services are ready for deployment
 func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
-	serviceNeedsAnIPAddress := this.needsAnIP(service.Endpoints)
-	// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
-	if serviceNeedsAnIPAddress {
-		// FIXME --- update error statement to be awesome
-		msg := fmt.Sprintf("Service ID %s contains AddressConfig with no assignment.", service.Id)
-		return errors.New(msg)
+	for _, endpoint := range service.Endpoints {
+		serviceNeedsAnIPAddress := this.needsAnIP(service.Id, endpoint)
+		// if AddressResourceConfig exists in a service, an IP must be assigned to the endpoint that the AddressResourceConfig belongs to
+		if serviceNeedsAnIPAddress {
+			// FIXME --- update error statement to be awesome
+			msg := fmt.Sprintf("Service ID %s contains AddressConfig with no assignment.", service.Id)
+			return errors.New(msg)
+		}
 	}
 
 	// add additional validation checks to the services
@@ -810,7 +820,7 @@ func (a ByInterfaceName) Less(i, j int) bool {
 }
 
 // Show pool IP address information
-func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]dao.HostIPResource) error {
+func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]dao.HostIPResource, hostIDs *[]string) error {
 	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
 	err := this.GetHostsForResourcePool(poolId, &poolHosts)
@@ -830,6 +840,7 @@ func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]d
 		//*poolsHostIPResources = append(*poolsHostIPResources, host.IPs)
 		for _, poolHostIPResource := range host.IPs {
 			*poolsHostIPResources = append(*poolsHostIPResources, poolHostIPResource)
+			*hostIDs = append(*hostIDs, poolHost.HostId)
 		}
 	}
 
@@ -849,38 +860,55 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, unused *string) error {
 	}
 	
 	PoolIPResources := []dao.HostIPResource{}
-	this.GetPoolIps(service.PoolId, &PoolIPResources)
+	hostIDs := []string{}
+	this.GetPoolIps(service.PoolId, &PoolIPResources, &hostIDs)
 	if len(PoolIPResources) < 1 {
 		msg := fmt.Sprintf("No IP addresses are available in pool %s.", service.PoolId)
 		return errors.New(msg)
 	}
 
-	assignments := []dao.AddressAssignment
-	this.GetServiceAddressAssignments(serviceId, assignments *[]dao.AddressAssignment)
+	assignments := []dao.AddressAssignment{}
+	this.GetServiceAddressAssignments(serviceId, &assignments)
 	
 	rand.Seed(181)
 	visitor := func(service dao.Service) error {
 		// if this service is in need of an IP address, assign it an IP address
-		serviceNeedsAnIPAddress := this.needsAnIP(service.Endpoints)
-		if serviceNeedsAnIPAddress {
-			glog.Info(" ********** ASSIGN AN IP!!!")
-			glog.Info(" ********** Selecting the following IP address: ", PoolIPResources[rand.Intn(len(PoolIPResources))].IPAddress)
+		for _, endpoint := range service.Endpoints {
+			serviceNeedsAnIPAddress := this.needsAnIP(service.Id, endpoint)
+		
+			if serviceNeedsAnIPAddress {
+				//glog.Info(" ********** ASSIGN AN IP!!!")
+				randomIndex := rand.Intn(len(PoolIPResources))
+				randomValidIPAddress := PoolIPResources[randomIndex].IPAddress
 
-			/*
-			type AddressAssignment struct {
-				Id             string //Generated id
-				AssignmentType string //Static or Virtual
-				HostId         string //Host id if type is Static
-				PoolId         string //Pool id if type is Virtual
-				IPAddr         string //Used to associate to resource in Pool or Host
-				Port           uint16 //Actual assigned port
-				ServiceId      string //Service using this assignment
-				EndpointName   string //Endpoint in the service using the assignment
+				//glog.Info(" ********** Selecting the following IP address: ", randomValidIPAddress)
+
+				assignment := dao.AddressAssignment{}
+				assignment.Id = "1"
+				assignment.AssignmentType = "Static"
+				assignment.HostId = hostIDs[randomIndex]
+				assignment.PoolId = service.PoolId
+				assignment.IPAddr = randomValidIPAddress
+				assignment.Port = endpoint.AddressConfig.Port
+				//assignment.Port = endPoint.PortNumber
+				assignment.ServiceId = service.Id
+				assignment.EndpointName = endpoint.Name
+				err = this.AssignAddress(assignment, unused)
+				if err != nil {
+					fmt.Printf("GIGEM")
+					return err
+				}
+
+				assignments := []dao.AddressAssignment{}
+				err = controlPlaneDao.GetServiceAddressAssignments(service.Id, &assignments)
+				if err != nil {
+					fmt.Printf("AGGIES")
+					return err
+				}
+				for _, assignment := range assignments {
+					fmt.Printf("assignment: ", assignment.Id)
+				}
 			}
-
-			GetServiceAddressAssignments(serviceId string, assignments *[]dao.AddressAssignment)
-			AssignAddress(assignment dao.AddressAssignment, unused interface{})
-			*/
 		}
 		return nil
 	}

@@ -556,7 +556,8 @@ func TestDaoGetPoolIps(t *testing.T) {
 	err = controlPlaneDao.AddHost(assignIPsHost, &id)
 	
 	PoolIPResources := []dao.HostIPResource{}
-	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources)
+	hostIDs := []string{}
+	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources, &hostIDs)
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
@@ -620,7 +621,17 @@ func TestDaoAssignIPs(t *testing.T) {
 
 	err := controlPlaneDao.AssignIPs(testService.Id, &unusedStr)
 	if err != nil {
-		t.Error("Assigning IPs failed")
+		t.Error("Assigning IPs failed1")
+	}
+
+	assignments := []dao.AddressAssignment{}
+	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
+	if err != nil {
+		t.Error("AddressAssignment failed: ", err)
+	}
+
+	if len(assignments) != 1 {
+		t.Error("Assigning IPs failed2: %s", len(assignments))
 	}
 
 	defer controlPlaneDao.RemoveService(testService.Id, &unused)

@@ -439,7 +439,8 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	poolId := cmd.Arg(0)
 
 	PoolIPResources := []dao.HostIPResource{}
-	err = controlPlane.GetPoolIps(poolId, assignIPsHostIPResources)
+	hostIDs []string{}
+	err = controlPlane.GetPoolIps(poolId, assignIPsHostIPResources, hostIDs)
 	if err != nil {
 		return err
 	}
