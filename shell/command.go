@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -43,21 +44,21 @@ func CreateCommand(file string, argv []string) (*Command, error) {
 }
 
 func (c *Command) Reader(size int) (err error) {
-	sem := make(semaphore, 2)
-	sem.P(2)
 	var stdoutErr, stderrErr error
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	go func() {
 		stdoutErr = pipe(c.stdout, c.stdoutChan, size)
-		sem.Signal()
+		wg.Done()
 	}()
 
 	go func() {
 		stderrErr = pipe(c.stderr, c.stderrChan, size)
-		sem.Signal()
+		wg.Done()
 	}()
 
-	sem.Wait(2)
+	wg.Wait()
 
 	if stdoutErr != nil {
 		err = stdoutErr

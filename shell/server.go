@@ -114,11 +114,12 @@ func (p *ProcessInstance) closeOutgoing() {
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 	ns.On("signal", func(n *socketio.NameSpace, signal int) {
+		glog.V(4).Infof("received signal %d", signal)
 		p.Signal <- signal
 	})
 
 	ns.On("stdin", func(n *socketio.NameSpace, stdin string) {
-		glog.Infof("Received stdin: %s", stdin)
+		glog.V(4).Infof("Received stdin: %s", stdin)
 		p.Stdin <- stdin
 	})
 
@@ -131,16 +132,13 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 		select {
 		case m, ok := <-p.Stdin:
 			if !ok {
-				glog.V(0).Infof("Setting stdin to nil")
 				p.Stdin = nil
-				continue
 			} else {
 				ns.Emit("stdin", m)
 			}
 		case m, ok := <-p.Signal:
 			if !ok {
 				p.Signal = nil
-				continue
 			} else {
 				ns.Emit("signal", m)
 			}
@@ -150,17 +148,17 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	ns.On("stdout", func(n *socketio.NameSpace, stdout string) {
-		glog.Infof("Process received stdout: %s", stdout)
+		glog.V(4).Infof("Process received stdout: %s", stdout)
 		p.Stdout <- stdout
 	})
 
 	ns.On("stderr", func(n *socketio.NameSpace, stderr string) {
-		glog.Infof("Process received stderr: %s", stderr)
+		glog.V(4).Infof("Process received stderr: %s", stderr)
 		p.Stderr <- stderr
 	})
 
 	ns.On("result", func(n *socketio.NameSpace, result Result) {
-		glog.Infof("Process received stderr: %s", result)
+		glog.V(0).Infof("Process received result: %s", result)
 		p.Result <- result
 	})
 	glog.V(0).Info("Hooked up outgoing events!")
@@ -169,12 +167,11 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up output channels!")
-	for p.Stdout != nil || p.Stderr != nil || p.Result != nil {
+	for p.Stdout != nil || p.Stderr != nil {
 		select {
 		case m, ok := <-p.Stdout:
 			if !ok {
 				p.Stdout = nil
-				continue
 			} else {
 				glog.Infof("Emitting stdout: %s", m)
 				ns.Emit("stdout", m)
@@ -182,21 +179,14 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 		case m, ok := <-p.Stderr:
 			if !ok {
 				p.Stderr = nil
-				continue
 			} else {
 				glog.Infof("Emitting stderr: %s", m)
 				ns.Emit("stderr", m)
 			}
-		case m, ok := <-p.Result:
-			if !ok {
-				p.Result = nil
-				continue
-			} else {
-				glog.Infof("Emitting result: %s", m)
-				ns.Emit("result", m)
-			}
 		}
 	}
+
+	ns.Emit("result", <-p.Result)
 }
 
 func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
