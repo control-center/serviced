@@ -660,11 +660,49 @@ func TestAssignAddress(t *testing.T) {
 }
 
 func TestDao_SnapshotRequest(t *testing.T) {
-	//glog.V(0).Infof("TestDao_SnapshotRequest started")
-	//defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
+	glog.V(0).Infof("TestDao_SnapshotRequest started")
+	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
 
 	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
-	// TODO: add tests for *SnapshotRequest*
+
+	srExpected := dao.SnapshotRequest{Id: "request13",
+		ServiceId: "12345", SnapshotLabel: "foo", SnapshotError: "bar"}
+	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
+		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
+	}
+	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: zk: node already exists")
+	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
+		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
+	}
+
+	srResult := dao.SnapshotRequest{}
+	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
+	}
+	if !reflect.DeepEqual(srExpected, srResult) {
+		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
+	}
+
+	srExpected.ServiceId = "67890"
+	srExpected.SnapshotLabel = "bin"
+	srExpected.SnapshotError = "baz"
+	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {
+		t.Fatalf("Failure updating snapshot request %+v with error: %s", srResult, err)
+	}
+
+	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
+	}
+	if !reflect.DeepEqual(srExpected, srResult) {
+		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
+	}
+
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
+		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
+	}
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
+		t.Fatalf("Failure removing non-existant snapshot request %+v", srExpected)
+	}
 }
 
 func TestDao_NewSnapshot(t *testing.T) {
@@ -684,7 +722,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 	// snapshot should work for services without Snapshot Pause/Resume
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	service.Id = "service1-quiesce"
@@ -693,7 +731,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	service.Id = "service2-quiesce"
@@ -702,24 +740,24 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
-		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
 	if id == "" {
-		t.Fatalf("Failure creating snapshot for service %-v - label is empty", service)
+		t.Fatalf("Failure creating snapshot for service %+v - label is empty", service)
 	}
 	glog.V(0).Infof("successfully created 1st snapshot with label:%s", id)
 
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
-		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
 	if id == "" {
-		t.Fatalf("Failure creating snapshot for service %-v - label is empty", service)
+		t.Fatalf("Failure creating snapshot for service %+v - label is empty", service)
 	}
 	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
 
