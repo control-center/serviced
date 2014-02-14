@@ -91,6 +91,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"remove-pool", "Remove pool"},
 		{"list-pool-ips", "Show pool IP addresses"},
 		{"auto-assign-ips", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address"},
+		{"manual-assign-ips", "Manually assign IP addresses to service's endpoints requiring an explicit IP address"},
 
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
@@ -455,7 +456,7 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	return nil
 }
 
-func (cli *ServicedCli) CmdAssignIps(args ...string) error {
+func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 	cmd := Subcmd("auto-assign-ips", "[options] SERVICEID", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -467,8 +468,31 @@ func (cli *ServicedCli) CmdAssignIps(args ...string) error {
 	controlPlane := getClient()
 
 	serviceId := cmd.Arg(0)
-	var unused string
-	controlPlane.AssignIPs(serviceId, &unused)
+	controlPlane.AssignIPs(serviceId, "")
+	if err != nil {
+		t.Error("AssignIPs failed: %v", err)
+	}
+	
+	return nil
+}
+
+func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
+	cmd := Subcmd("manual-assign-ips", "[options] SERVICEID IPADDRESS", "Manually assign IP addresses to service's endpoints requiring an explicit IP address")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 3 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	serviceId := cmd.Arg(0)
+	setIpAddress := cmd.Arg(1)
+	controlPlane.AssignIPs(serviceId, setIpAddress)
+	if err != nil {
+		t.Error("AssignIPs failed: %v", err)
+	}
 	
 	return nil
 }

@@ -573,7 +573,7 @@ func TestDaoGetPoolIps(t *testing.T) {
 	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
 }
 
-func TestDaoAssignIPs(t *testing.T) {
+func TestDaoAutoAssignIPs(t *testing.T) {
 	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.Id)
 	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
@@ -602,6 +602,7 @@ func TestDaoAssignIPs(t *testing.T) {
 		PoolId:	assignIPsPool.Id,
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
+				Name:        "AssignIPsEndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
@@ -619,19 +620,18 @@ func TestDaoAssignIPs(t *testing.T) {
 		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
 	}
 
-	err := controlPlaneDao.AssignIPs(testService.Id, &unusedStr)
+	err := controlPlaneDao.AssignIPs(testService.Id, "")
 	if err != nil {
-		t.Error("Assigning IPs failed1")
+		t.Error("AssignIPs failed: %v", err)
 	}
 
 	assignments := []dao.AddressAssignment{}
 	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
 	if err != nil {
-		t.Error("AddressAssignment failed: ", err)
+		t.Error("GetServiceAddressAssignments failed: %v", err)
 	}
-
 	if len(assignments) != 1 {
-		t.Error("Assigning IPs failed2: %s", len(assignments))
+		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
 	}
 
 	defer controlPlaneDao.RemoveService(testService.Id, &unused)

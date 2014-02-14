@@ -852,7 +852,7 @@ func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]d
 type visit func(service dao.Service) error
 
 // assign IP addresses
-func (this *ControlPlaneDao) AssignIPs(serviceId string, unused *string) error {
+func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) error {
 	service := dao.Service{}
 	err := this.GetService(serviceId, &service)
 	if err != nil {
@@ -867,42 +867,58 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, unused *string) error {
 		return errors.New(msg)
 	}
 
+	rand.Seed(181)
+	hostIndex := 0
+	if setIpAddress == "" {
+		hostIndex = rand.Intn(len(PoolIPResources))
+		setIpAddress = PoolIPResources[hostIndex].IPAddress
+	} else {
+		validIp := false
+		for poolIPResourceIndex, PoolIPResource := range PoolIPResources {
+			if setIpAddress == PoolIPResource.IPAddress {
+				validIp = true
+				hostIndex = poolIPResourceIndex
+			}
+		}
+		if validIp != true {
+			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", service.PoolId)
+			return errors.New(msg)
+		}
+	}
+
 	assignments := []dao.AddressAssignment{}
 	this.GetServiceAddressAssignments(serviceId, &assignments)
-	
-	rand.Seed(181)
+	if err != nil {
+		fmt.Printf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
+		return err
+	}
+
 	visitor := func(service dao.Service) error {
 		// if this service is in need of an IP address, assign it an IP address
 		for _, endpoint := range service.Endpoints {
 			serviceNeedsAnIPAddress := this.needsAnIP(service.Id, endpoint)
 		
 			if serviceNeedsAnIPAddress {
-				//glog.Info(" ********** ASSIGN AN IP!!!")
-				randomIndex := rand.Intn(len(PoolIPResources))
-				randomValidIPAddress := PoolIPResources[randomIndex].IPAddress
-
-				//glog.Info(" ********** Selecting the following IP address: ", randomValidIPAddress)
-
 				assignment := dao.AddressAssignment{}
-				assignment.Id = "1"
-				assignment.AssignmentType = "Static"
-				assignment.HostId = hostIDs[randomIndex]
+				assignment.Id = "1" // generate a guid
+				assignment.AssignmentType = "static"
+				assignment.HostId = hostIDs[hostIndex]
 				assignment.PoolId = service.PoolId
-				assignment.IPAddr = randomValidIPAddress
+				assignment.IPAddr = setIpAddress
 				assignment.Port = endpoint.AddressConfig.Port
 				//assignment.Port = endPoint.PortNumber
 				assignment.ServiceId = service.Id
 				assignment.EndpointName = endpoint.Name
 				err = this.AssignAddress(assignment, unused)
 				if err != nil {
-					fmt.Printf("GIGEM")
+					fmt.Printf("AssignAddress failed in anonymous function: %v", err)
 					return err
 				}
 
 				assignments := []dao.AddressAssignment{}
 				err = controlPlaneDao.GetServiceAddressAssignments(service.Id, &assignments)
 				if err != nil {
-					fmt.Printf("AGGIES")
+					fmt.Printf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 					return err
 				}
 				for _, assignment := range assignments {
@@ -1282,9 +1298,11 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string) error {
 	services, err := this.queryServices(fmt.Sprintf("Id:%s", serviceId), "1")
 	if err != nil {
+		fmt.Printf("111111111111")
 		return err
 	}
 	if len(services) != 1 {
+		fmt.Printf("22222222222")
 		return fmt.Errorf("Found %v Services with id %v", len(services), serviceId)
 	}
 	service := services[0]
@@ -1296,6 +1314,7 @@ func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string
 		}
 	}
 	if !found {
+		fmt.Printf("333333333333333")
 		return fmt.Errorf("Endpoint %v not found on service %v", endpointName, serviceId)
 	}
 	return nil

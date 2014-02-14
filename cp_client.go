@@ -96,8 +96,8 @@ func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, u
 	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
 }
 
-func (s *ControlClient) AssignIPs(serviceId string, unused *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AssignIPs", serviceId, unused)
+func (s *ControlClient) AssignIPs(serviceId string, setIpAddress string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AssignIPs", serviceId, setIpAddress)
 }
 
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
