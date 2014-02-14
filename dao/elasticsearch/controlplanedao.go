@@ -10,6 +10,8 @@
 package elasticsearch
 
 import (
+	docker "github.com/fsouza/go-dockerclient"
+
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/search"
@@ -32,6 +34,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
 )
 
 //assert interface
@@ -1118,7 +1124,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 		return err
 	}
 	_, err = newAddressAssignment(assignment.Id, &assignment)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	*id = assignment.Id
@@ -1436,6 +1442,69 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	}
 
 	return nil
+}
+
+func (this *ControlPlaneDao) Commit(id string, message string, author string) (err error) {
+	// Start the docker client
+	client, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		glog.Errorf("could not connect to docker client: %v", err)
+		return
+	}
+
+	// Get the container
+	container, err := client.InspectContainer(id)
+	if err != nil {
+		glog.Errorf("could not load container: %v", err)
+		return
+	}
+
+	// Get the tag/repo information
+	images, err := client.ListImages(true)
+	if err != nil {
+		glog.Errorf("could not load images: %v", err)
+		return
+	}
+
+	var image *docker.APIImages
+	for _, i := range images {
+		if i.ID == container.Image {
+			image = &i
+			break
+		}
+	}
+
+	if image == nil {
+		err = errors.New(fmt.Sprintf("image not found: %s", container.Image))
+		glog.Errorf("container using a stale or invalid image: %v", err)
+		return
+	}
+
+	// TODO: Get the service id
+	serviceId := ""
+	label := ""
+
+	// Snapshot the DFS
+	if err = this.Snapshot(serviceId, &label); err != nil {
+		glog.Errorf("failed to snapshot the DFS: %v", err)
+		return
+	}
+
+	// Commit the container to the image
+	newImage, err := client.CommitContainer(CommitContainerOptions{
+		Container:  container.ID,
+		Repository: image.Repository,
+		Tag:        image.Tag,
+		Message:    message,
+		Author:     author,
+	})
+	if err != nil {
+		glog.Errorf("error while trying to commit container image: %v", err)
+		return
+	}
+
+	// TODO: Copy image id to the DFS
+	return
 }
 
 func snapShotName(volumeName string) string {
