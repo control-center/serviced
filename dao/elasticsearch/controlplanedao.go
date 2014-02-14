@@ -1444,7 +1444,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	return nil
 }
 
-func (this *ControlPlaneDao) Commit(id string, message string, author string) (err error) {
+func (this *ControlPlaneDao) Commit(containerId string, label *string) (err error) {
 	// Start the docker client
 	client, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
@@ -1453,7 +1453,7 @@ func (this *ControlPlaneDao) Commit(id string, message string, author string) (e
 	}
 
 	// Get the container
-	container, err := client.InspectContainer(id)
+	container, err := client.InspectContainer(containerId)
 	if err != nil {
 		glog.Errorf("could not load container: %v", err)
 		return
@@ -1476,28 +1476,69 @@ func (this *ControlPlaneDao) Commit(id string, message string, author string) (e
 
 	if image == nil {
 		err = errors.New(fmt.Sprintf("image not found: %s", container.Image))
-		glog.Errorf("container using a stale or invalid image: %v", err)
 		return
 	}
 
-	// TODO: Get the service id
-	serviceId := ""
-	label := ""
+	// Get the service id (very expensive!)
+	var (
+		empty         interface{}
+		allServices   []*dao.Service
+		serviceIds    map[string]bool
+		serviceStates []*dao.ServiceState
+		serviceId     string
+	)
+	if err = this.GetServices(&empty, &allServices); err != nil {
+		glog.Errorf("cannot lookup services: %v", err)
+		return
+	}
+
+	// Find services running with the image id
+	for _, s := range allServices {
+		if s.ImageId == container.Image {
+			serviceIds[s.Id] = true
+		}
+	}
+
+	keys := func(m map[string]bool) []string {
+		out := make([]string, len(m))
+		i := 0
+		for k, _ := range m {
+			out[i] = k
+			i = i + 1
+		}
+		return out
+	}
+
+	// Find the container from the given service id
+	if err = this.zkDao.GetServiceStates(&serviceStates, keys(serviceIds)...); err != nil {
+		glog.Errorf("cannot lookup service states: %v", err)
+		return
+	}
+	for _, state := range serviceStates {
+		if state.DockerId == container.ID {
+			serviceId = state.ServiceId
+			break
+		}
+	}
+	if serviceId == "" {
+		err = errors.New(fmt.Sprintf("could not map container to serviceId: %s", container.ID))
+		return
+	}
 
 	// Snapshot the DFS
-	if err = this.Snapshot(serviceId, &label); err != nil {
+	if err = this.Snapshot(serviceId, label); err != nil {
 		glog.Errorf("failed to snapshot the DFS: %v", err)
 		return
 	}
 
 	// Commit the container to the image
-	newImage, err := client.CommitContainer(CommitContainerOptions{
+	newImage, err := client.CommitContainer(docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: image.Repository,
 		Tag:        image.Tag,
-		Message:    message,
-		Author:     author,
 	})
+	glog.Infof("Commited container (%s)", newImage.ID)
+
 	if err != nil {
 		glog.Errorf("error while trying to commit container image: %v", err)
 		return
