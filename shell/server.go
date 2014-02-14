@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -22,24 +23,22 @@ const (
 	MAXBUFFER  int    = 8192
 )
 
-func NewProcessForwarderServer(addr string) *ProcessServer {
+func NewProcessServer(actor ProcessActor) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Forwarder{addr: addr},
+		actor: actor,
 	}
 	server.sio.On("connect", server.onConnect)
-	server.sio.On("disconnect", onForwarderDisconnect)
+	server.sio.On("disconnect", actor.onDisconnect)
 	return server
 }
 
+func NewProcessForwarderServer(addr string) *ProcessServer {
+	return NewProcessServer(&Forwarder{addr: addr})
+}
+
 func NewProcessExecutorServer(port string) *ProcessServer {
-	server := &ProcessServer{
-		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port},
-	}
-	server.sio.On("connect", server.onConnect)
-	server.sio.On("disconnect", onExecutorDisconnect)
-	return server
+	return NewProcessServer(&Executor{port: port})
 }
 
 func (p *ProcessServer) Handle(pattern string, handler http.Handler) error {
@@ -52,14 +51,6 @@ func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("Received connection")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-
 	ns.On("process", func(ns *socketio.NameSpace, cfg *ProcessConfig) {
 		// Kick it off
 		glog.Infof("Received process packet")
@@ -71,17 +62,6 @@ func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 		go proc.WriteResponse(ns)
 	})
 	glog.Infof("Waiting for process packet")
-}
-
-func onForwarderDisconnect(ns *socketio.NameSpace) {
-	// ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-}
-
-func onExecutorDisconnect(ns *socketio.NameSpace) {
-	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-	// Client disconnected, so kill the process
-	inst.Signal <- int(syscall.SIGKILL)
-	inst.closeIncoming()
 }
 
 func (p *ProcessInstance) Close() {
@@ -136,11 +116,11 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 			} else {
 				ns.Emit("stdin", m)
 			}
-		case m, ok := <-p.Signal:
+		case s, ok := <-p.Signal:
 			if !ok {
 				p.Signal = nil
 			} else {
-				ns.Emit("signal", m)
+				ns.Emit("signal", s)
 			}
 		}
 	}
@@ -190,17 +170,27 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 }
 
 func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
+	// TODO: make me more extensible
+	urlAddr, err := url.Parse(f.addr)
+	if err != nil {
+		glog.Fatalf("Not a valid path: %s (%v)", f.addr, err)
+	}
+
+	host := fmt.Sprintf("http://%s:50000/", strings.Split(urlAddr.Host, ":")[0])
 
 	// Dial the remote ProcessServer
-	host := strings.Split(f.addr, ":")[0]
-	client, err := socketio.Dial(fmt.Sprintf("http://%s:50000/", host))
+	client, err := socketio.Dial(host)
 
 	if err != nil {
 		glog.Fatalf("Unable to contact remote process server: %v", err)
 	}
 
 	client.On("connect", func(ns *socketio.NameSpace) {
-		ns.Emit("process", cfg)
+		if ns.Session.Values[PROCESSKEY] == nil {
+			ns.Emit("process", cfg)
+		} else {
+			glog.Fatalf("Trying to connect to a stale process!")
+		}
 	})
 
 	ns := client.Of("")
@@ -225,8 +215,21 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 	return proc
 }
 
+func (f *Forwarder) onDisconnect(ns *socketio.NameSpace) {
+	// ns.Session.Values[PROCESSKEY].(*ProcessInstance)
+	ns.Session.Values[PROCESSKEY] = nil
+}
+
 func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	return StartDocker(cfg, e.port)
+}
+
+func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
+	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
+	// Client disconnected, so kill the process
+	inst.Signal <- int(syscall.SIGKILL)
+	inst.closeIncoming()
+	ns.Session.Values[PROCESSKEY] = nil
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
