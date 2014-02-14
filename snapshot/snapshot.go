@@ -13,8 +13,32 @@ import (
 	"time"
 )
 
-func runCommandInServiceContainer(serviceId string, command string) (string, error) {
-	cmd := exec.Command("echo", "TODO: ", "lxc-attach", "-n", serviceId, "--", command)
+// getServiceDockerId returns the DockerId for the running container tied to the service
+// Servicestate.DockerId is a one to one relationship to Service.Id
+func getServiceDockerId(cpDao dao.ControlPlane, service *dao.Service) (string, error) {
+	var states []*dao.ServiceState
+	if err := cpDao.GetServiceStates(service.Id, &states); err != nil {
+		return "", err
+	}
+
+	if len(states) > 1 {
+		glog.Warningf("more than one ServiceState found for serviceId:%s ===> states:%+v", service.Id, states)
+	}
+
+	for _, state := range states {
+		// return the DockerId of the first ServiceState
+		if state.DockerId == "" {
+			return "", errors.New(fmt.Sprintf("unable to find DockerId for service:%+v", service))
+		}
+		return state.DockerId, nil
+	}
+
+	return "", errors.New(fmt.Sprintf("unable to find DockerId for service:%+v", service))
+}
+
+// runCommandInServiceContainer runs a command in a running container
+func runCommandInServiceContainer(serviceId string, dockerId string, command string) (string, error) {
+	cmd := exec.Command("lxc-attach", "-n", dockerId, "--", command)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", command, serviceId, err)
@@ -55,9 +79,15 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 			return err
 		}
 		for _, service := range servicesList {
+			dockerId, err := getServiceDockerId(cpDao, service)
+			if err != nil {
+				glog.Warningf("Unable to pause service - not able to get DockerId for service:%+v", service)
+				continue
+			}
+
 			if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-				_, err := runCommandInServiceContainer(string(service.Id), service.Snapshot.Pause)
-				defer runCommandInServiceContainer(string(service.Id), service.Snapshot.Resume)
+				_, err := runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Pause)
+				defer runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Resume)
 				if err != nil {
 					return err
 				}
