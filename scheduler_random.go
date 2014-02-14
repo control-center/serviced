@@ -92,6 +92,10 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn *zk.Conn) {
 				// already performed this request since SnapshotLabel is set
 				continue
 			}
+			if snapshotRequest.SnapshotError != "" {
+				// already performed this request since SnapshotError is set
+				continue
+			}
 
 			glog.V(0).Infof("Leader starting snapshot for request: %+v", snapshotRequest)
 

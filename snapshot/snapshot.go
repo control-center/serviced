@@ -9,65 +9,19 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"os/user"
 	"time"
 )
 
-func callQuiescePause(cpDao dao.ControlPlane) error {
-	// assuming lxc-attach is setuid for docker group
-	//   sudo chgrp docker /usr/bin/lxc-attach
-	//   sudo chmod u+s /usr/bin/lxc-attach
-
-	var request dao.EntityRequest
-	var servicesList []*dao.Service
-	if err := cpDao.GetServices(request, &servicesList); err != nil {
-		return err
+func runCommandInServiceContainer(serviceId string, command string) (string, error) {
+	cmd := exec.Command("echo", "TODO: ", "lxc-attach", "-n", serviceId, "--", command)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", command, serviceId, err)
+		return string(output), err
 	}
-	for _, service := range servicesList {
-		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(2).Infof("quiesce pause  service: %+v", service)
-			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Pause)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
-				return err
-			}
-			glog.V(2).Infof("quiesce paused service - output:%s", string(output))
-		}
-	}
-
-	// TODO: deficiency of this algorithm is that if one service fails to pause,
-	//       all paused services will stay paused
-	//       Perhaps one way to fix it is to call resume for all paused services
-	//       if any of them fail to pause
-
-	return nil
-}
-
-func callQuiesceResume(cpDao dao.ControlPlane) error {
-	var request dao.EntityRequest
-	var servicesList []*dao.Service
-	if err := cpDao.GetServices(request, &servicesList); err != nil {
-		return err
-	}
-	for _, service := range servicesList {
-		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(2).Infof("quiesce resume service: %+v", service)
-			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				glog.Errorf("Unable to resume service %+v with cmd %+v because: %v", service, cmd, err)
-				return err
-			}
-			glog.V(2).Infof("quiesce resume service - output:%+v", output)
-		}
-	}
-
-	// TODO: deficiency of this algorithm is that if one service fails to resume,
-	//       all remaining paused services will stay paused
-	//       Perhaps one way to fix it is to call resume for all paused services
-	//       if any of them fail to resume
-
-	return nil
+	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - output: %s", command, serviceId, string(output))
+	return string(output), nil
 }
 
 // ExecuteSnapshot is called by the Leader to perform the snapshot
@@ -87,10 +41,28 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 
 	// simplest case - do everything here
 
-	// call quiesce pause for services with 'Snapshot' definition
-	if err := callQuiescePause(cpDao); err != nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot service=%+v err=%s", serviceId, err)
+	// call quiesce pause/resume for services with 'Snapshot' definition
+	// only root can run lxc-attach
+	if whoami, err := user.Current(); err != nil {
+		glog.Errorf("Unable to pause service - not able to retrieve user info error: %v", err)
 		return err
+	} else if "root" != whoami.Username {
+		glog.Warningf("Unable to pause service - Username is not root - whoami:%+v", whoami)
+	} else {
+		var request dao.EntityRequest
+		var servicesList []*dao.Service
+		if err := cpDao.GetServices(request, &servicesList); err != nil {
+			return err
+		}
+		for _, service := range servicesList {
+			if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
+				_, err := runCommandInServiceContainer(string(service.Id), service.Snapshot.Pause)
+				defer runCommandInServiceContainer(string(service.Id), service.Snapshot.Resume)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	// create a snapshot
@@ -111,12 +83,7 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 		}
 	}
 
-	// call quiesce resume for services with 'Snapshot' definition
-	if err := callQuiesceResume(cpDao); err != nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
+	glog.V(2).Infof("Successfully created snapshot for service:%s - label:%s", serviceId, label)
 	return nil
 }
 
