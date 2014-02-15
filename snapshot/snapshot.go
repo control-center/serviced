@@ -10,41 +10,43 @@ import (
 	"fmt"
 	"os/exec"
 	"os/user"
+	"strings"
 	"time"
 )
 
 // getServiceDockerId returns the DockerId for the running container tied to the service
-// Servicestate.DockerId is a one to one relationship to Service.Id
-func getServiceDockerId(cpDao dao.ControlPlane, service *dao.Service) (string, error) {
+// assumption: Servicestate.DockerId is a one to one relationship to ServiceId
+func getServiceDockerId(cpDao dao.ControlPlane, serviceId string) (string, error) {
 	var states []*dao.ServiceState
-	if err := cpDao.GetServiceStates(service.Id, &states); err != nil {
+	if err := cpDao.GetServiceStates(serviceId, &states); err != nil {
 		return "", err
 	}
 
 	if len(states) > 1 {
-		glog.Warningf("more than one ServiceState found for serviceId:%s ===> states:%+v", service.Id, states)
+		glog.Warningf("more than one ServiceState found for serviceId:%s numServiceStates:%d", serviceId, len(states))
 	}
 
-	for _, state := range states {
-		// return the DockerId of the first ServiceState
-		if state.DockerId == "" {
-			return "", errors.New(fmt.Sprintf("unable to find DockerId for service:%+v", service))
+	// return the DockerId of the first ServiceState that matches serviceId
+	for i, state := range states {
+		glog.V(3).Infof("DEBUG states[%d]: serviceId:%s state:%+v", i, serviceId, state)
+		if state.DockerId != "" && state.ServiceId == serviceId {
+			return state.DockerId, nil
 		}
-		return state.DockerId, nil
 	}
 
-	return "", errors.New(fmt.Sprintf("unable to find DockerId for service:%+v", service))
+	return "", errors.New(fmt.Sprintf("unable to find DockerId for serviceId:%s", serviceId))
 }
 
 // runCommandInServiceContainer runs a command in a running container
 func runCommandInServiceContainer(serviceId string, dockerId string, command string) (string, error) {
-	cmd := exec.Command("lxc-attach", "-n", dockerId, "--", command)
+	dockerCommand := []string{"lxc-attach", "-n", dockerId, "-e", "--", command}
+	cmd := exec.Command(dockerCommand[0], dockerCommand[1:len(dockerCommand)]...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", command, serviceId, err)
+		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", strings.Join(dockerCommand, " "), serviceId, err)
 		return string(output), err
 	}
-	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - output: %s", command, serviceId, string(output))
+	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - output: %s", strings.Join(dockerCommand, " "), serviceId, string(output))
 	return string(output), nil
 }
 
@@ -65,13 +67,13 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 
 	// simplest case - do everything here
 
-	// call quiesce pause/resume for services with 'Snapshot' definition
+	// call quiesce for services with 'Snapshot.Pause' and 'Snapshot.Resume' definition
 	// only root can run lxc-attach
 	if whoami, err := user.Current(); err != nil {
-		glog.Errorf("Unable to pause service - not able to retrieve user info error: %v", err)
+		glog.Errorf("Unable to snapshot service - not able to retrieve user info error: %v", err)
 		return err
 	} else if "root" != whoami.Username {
-		glog.Warningf("Unable to pause service - Username is not root - whoami:%+v", whoami)
+		glog.Warningf("Unable to pause/resume service - Username is not root - whoami:%+v", whoami)
 	} else {
 		var request dao.EntityRequest
 		var servicesList []*dao.Service
@@ -79,18 +81,20 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 			return err
 		}
 		for _, service := range servicesList {
-			dockerId, err := getServiceDockerId(cpDao, service)
-			if err != nil {
-				glog.Warningf("Unable to pause service - not able to get DockerId for service:%+v", service)
+			if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
 				continue
 			}
 
-			if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-				_, err := runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Pause)
-				defer runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Resume)
-				if err != nil {
-					return err
-				}
+			dockerId, err := getServiceDockerId(cpDao, service.Id)
+			if err != nil {
+				glog.Warningf("Unable to pause service - not able to get DockerId for service.Id:%s service.Name:%s error:%s", service.Id, service.Name, err)
+				continue
+			}
+
+			_, err = runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Pause)
+			defer runCommandInServiceContainer(service.Id, dockerId, service.Snapshot.Resume)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -98,10 +102,10 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 	// create a snapshot
 	var theVolume *volume.Volume
 	if err := cpDao.GetVolume(tenantId, &theVolume); err != nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() service=%+v err=%s", service, err)
 		return err
 	} else if theVolume == nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() volume is nil service=%+v", serviceId)
+		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() volume is nil service=%+v", service)
 		return errors.New(fmt.Sprintf("GetVolume() is nil - tenantId:%s", tenantId))
 	} else {
 		glog.V(2).Infof("snapshot.ExecuteSnapshot service=%+v theVolume=%+v", service, theVolume)
@@ -113,7 +117,7 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 		}
 	}
 
-	glog.V(2).Infof("Successfully created snapshot for service:%s - label:%s", serviceId, label)
+	glog.V(2).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
 	return nil
 }
 
