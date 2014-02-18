@@ -1,5 +1,9 @@
 package dao
 
+import (
+	"github.com/zenoss/serviced/volume"
+)
+
 // A generic ControlPlane error
 type ControlPlaneError struct {
 	Msg string
@@ -179,4 +183,7 @@ type ControlPlane interface {
 
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
+
+	// Get the DFS volume
+	GetVolume(serviceId string, theVolume **volume.Volume) error
 }
