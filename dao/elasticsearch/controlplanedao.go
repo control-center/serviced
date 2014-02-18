@@ -1326,121 +1326,79 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	return this.StartService(tenantId, &unusedStr)
 }
 
-func (this *ControlPlaneDao) callQuiescePause() error {
-	if err := this.zkDao.UpdateSnapshotState("PAUSE"); err != nil {
-		glog.V(3).Infof("ControlPlaneDao.callQuiescePause err=%s", err)
-		return err
-	}
-
-	// assuming lxc-attach is setuid for docker group
-	//   sudo chgrp docker /usr/bin/lxc-attach
-	//   sudo chmod u+s /usr/bin/lxc-attach
-
-	var request dao.EntityRequest
-	var servicesList []*dao.Service
-	if err := this.GetServices(request, &servicesList); err != nil {
-		return err
-	}
-	for _, service := range servicesList {
-		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(2).Infof("quiesce pause  service: %+v", service)
-			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Pause)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				glog.Errorf("Unable to quiesce pause service %+v with cmd %+v because: %v", service, cmd, err)
-				return err
-			}
-			glog.V(2).Infof("quiesce paused service - output:%s", string(output))
-		}
-	}
-
-	// TODO: deficiency of this algorithm is that if one service fails to pause,
-	//       all paused services will stay paused
-	//       Perhaps one way to fix it is to call resume for all paused services
-	//       if any of them fail to pause
-
-	return nil
-}
-
-func (this *ControlPlaneDao) callQuiesceResume() error {
-	if err := this.zkDao.UpdateSnapshotState("RESUME"); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.callQuiesceResume err=%s", err)
-		return err
-	}
-
-	var request dao.EntityRequest
-	var servicesList []*dao.Service
-	if err := this.GetServices(request, &servicesList); err != nil {
-		return err
-	}
-	for _, service := range servicesList {
-		if service.Snapshot.Pause != "" && service.Snapshot.Resume != "" {
-			glog.V(2).Infof("quiesce resume service: %+v", service)
-			cmd := exec.Command("echo", "TODO:", "lxc-attach", "-n", string(service.Id), "--", service.Snapshot.Resume)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				glog.Errorf("Unable to resume service %+v with cmd %+v because: %v", service, cmd, err)
-				return err
-			}
-			glog.V(2).Infof("quiesce resume service - output:%+v", output)
-		}
-	}
-
-	// TODO: deficiency of this algorithm is that if one service fails to resume,
-	//       all remaining paused services will stay paused
-	//       Perhaps one way to fix it is to call resume for all paused services
-	//       if any of them fail to resume
-
-	return nil
-}
-
+// Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
-	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot with label=%s", *label)
+	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot for service=%s", serviceId)
 
+	// request a snapshot by placing request znode in zookeeper - leader will notice
+	snapshotRequest, err := dao.NewSnapshotRequest(serviceId, "")
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao: dao.NewSnapshotRequest err=%s", err)
+		return err
+	}
+	if err := this.zkDao.AddSnapshotRequest(snapshotRequest); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.zkDao.AddSnapshotRequest err=%s", err)
+		return err
+	}
+	// TODO:
+	//  requestId := snapshotRequest.Id
+	//  defer this.zkDao.RemoveSnapshotRequest(requestId)
+
+	glog.V(1).Infof("added snapshot request: %+v", snapshotRequest)
+
+	// wait for completion of snapshot request
+	timeout := 60
+	for i := 0; i < timeout; i++ {
+		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
+		_, _, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+		switch {
+		case err != nil:
+			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", err)
+			return err
+		case snapshotRequest.SnapshotError != "":
+			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", snapshotRequest.SnapshotError)
+			return errors.New(snapshotRequest.SnapshotError)
+		case snapshotRequest.SnapshotLabel != "":
+			*label = snapshotRequest.SnapshotLabel
+			glog.V(1).Infof("completed snapshot request: %+v", snapshotRequest)
+			return nil
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", time.Duration(timeout), snapshotRequest))
+	glog.Error(err)
+	return err
+}
+
+func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume **volume.Volume) error {
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
 	}
+	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v tenantId=%s", serviceId, tenantId)
 	var service dao.Service
-	err := this.GetService(tenantId, &service)
+	if err := this.GetService(tenantId, &service); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
+		return err
+	}
+	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v poolId=%s", service, service.PoolId)
+
+	aVolume, err := getSubvolume(this.vfs, service.PoolId, tenantId)
 	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
 	}
-
-	// simplest case - do everything here
-
-	// call quiesce pause for services with 'Snapshot' definition
-	if err := this.callQuiescePause(); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-		return err
+	if aVolume == nil {
+		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v volume=nil", serviceId)
+		return errors.New("volume is nil")
 	}
 
-	// TODO: move "create a snapshot" functionality to a method called by the CP agent when the container volume is quiesced
-	// create a snapshot
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-		return err
-	} else if volume == nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v volume=%+v", serviceId, volume)
-		return err
-	} else {
-		snapLabel := snapShotName(volume.Name())
-		if err := volume.Snapshot(snapLabel); err != nil {
-			return err
-		} else {
-			*label = snapLabel
-		}
-	}
-
-	// call quiesce resume for services with 'Snapshot' definition
-	if err := this.callQuiesceResume(); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
+	glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v volume2=%+v %v", serviceId, aVolume, aVolume)
+	*theVolume = aVolume
 	return nil
 }
 
@@ -1560,6 +1518,7 @@ func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
+	glog.V(2).Infof("controlplanedao.getSubvolume vfs:%v tenantId:%v baseDir:%v\n", vfs, tenantId, baseDir)
 	return volume.Mount(vfs, tenantId, baseDir)
 }
 

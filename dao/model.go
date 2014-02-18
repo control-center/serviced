@@ -366,3 +366,23 @@ func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) u
 
 	return 0
 }
+
+// An instantiation of a Snapshot request
+type SnapshotRequest struct {
+	Id            string
+	ServiceId     string
+	SnapshotLabel string
+	SnapshotError string
+}
+
+// A new snapshot request instance (SnapshotRequest)
+func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
+	snapshotRequest = &SnapshotRequest{}
+	snapshotRequest.Id, err = NewUuid()
+	if err == nil {
+		snapshotRequest.ServiceId = serviceId
+		snapshotRequest.SnapshotLabel = snapshotLabel
+		snapshotRequest.SnapshotError = ""
+	}
+	return snapshotRequest, err
+}
