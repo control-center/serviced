@@ -778,12 +778,15 @@ func (this *ControlPlaneDao) needsAnIP(serviceID string, endpoint dao.ServiceEnd
 		return false
 	}
 	
+
 	// check to see if an IP address has already been assigned
+	// maybe this is not needed? ... maybe this should be called something else ... 
+	// maybe I should remove the code below and title this "IP uninitialized"?
 	assignments := []dao.AddressAssignment{}
 	this.GetServiceAddressAssignments(serviceID, &assignments)
 	for _, assignment := range assignments {
-		if assignment.ServiceId == serviceID && assignment.Port == endpoint.AddressConfig.Port {
-			return false
+		if assignment.ServiceId == serviceID && assignment.EndpointName == endpoint.AddressConfig.EndpointName {
+			glog.Infof("Assignment %d has already been issued an IP", assignment.Id)
 		}
 	}
 
@@ -909,6 +912,7 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) er
 				//assignment.Port = endPoint.PortNumber
 				assignment.ServiceId = service.Id
 				assignment.EndpointName = endpoint.Name
+				var unused int
 				err = this.AssignAddress(assignment, unused)
 				if err != nil {
 					fmt.Printf("AssignAddress failed in anonymous function: %v", err)
@@ -916,7 +920,7 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) er
 				}
 
 				assignments := []dao.AddressAssignment{}
-				err = controlPlaneDao.GetServiceAddressAssignments(service.Id, &assignments)
+				err = this.GetServiceAddressAssignments(service.Id, &assignments)
 				if err != nil {
 					fmt.Printf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 					return err
