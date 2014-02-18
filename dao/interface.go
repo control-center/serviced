@@ -185,5 +185,5 @@ type ControlPlane interface {
 	Send(service Service, files *[]string) error
 
 	// Get the DFS volume
-	GetVolume(serviceId string, theVolume **volume.Volume) error
+	GetVolume(serviceId string, theVolume *volume.Volume) error
 }
