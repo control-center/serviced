@@ -100,13 +100,10 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 	}
 
 	// create a snapshot
-	var theVolume *volume.Volume
+	var theVolume volume.Volume
 	if err := cpDao.GetVolume(tenantId, &theVolume); err != nil {
 		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() service=%+v err=%s", service, err)
 		return err
-	} else if theVolume == nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() volume is nil service=%+v", service)
-		return errors.New(fmt.Sprintf("GetVolume() is nil - tenantId:%s", tenantId))
 	} else {
 		glog.V(2).Infof("snapshot.ExecuteSnapshot service=%+v theVolume=%+v", service, theVolume)
 		snapLabel := snapShotName(theVolume.Name())
