@@ -39,14 +39,14 @@ func getServiceDockerId(cpDao dao.ControlPlane, serviceId string) (string, error
 
 // runCommandInServiceContainer runs a command in a running container
 func runCommandInServiceContainer(serviceId string, dockerId string, command string) (string, error) {
-	dockerCommand := []string{"lxc-attach", "-n", dockerId, "-e", "--", command}
+	dockerCommand := []string{"lxc-attach", "-n", dockerId, "-e", "--", "/bin/bash", "-c", command}
 	cmd := exec.Command(dockerCommand[0], dockerCommand[1:len(dockerCommand)]...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", strings.Join(dockerCommand, " "), serviceId, err)
+		glog.Errorf("Error running cmd:'%s' for serviceId:%s - ERROR:%s  OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, err, output)
 		return string(output), err
 	}
-	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - output: %s", strings.Join(dockerCommand, " "), serviceId, string(output))
+	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, string(output))
 	return string(output), nil
 }
 
