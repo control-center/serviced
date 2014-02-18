@@ -534,6 +534,10 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         });
     };
 
+    $scope.startTerminal = function(app) {
+      window.open("http://" + window.location.hostname + ":50000")
+    };
+
     var setupNewService = function() {
         $scope.newService = {
             PoolId: 'default',

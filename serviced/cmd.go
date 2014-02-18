@@ -18,6 +18,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/volume"
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
@@ -193,6 +194,18 @@ func startServer() {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
+
+		// TODO: Integrate this server into the rpc server, or something.
+		// Currently its only use is for command execution.
+		go func() {
+			sio := shell.NewProcessExecutorServer(options.port)
+			dir, _, err := serviced.ExecPath()
+			if err != nil {
+				glog.Fatalf("could not find path to serviced, %v", err)
+			}
+			sio.Handle("/", http.FileServer(http.Dir(path.Join(dir, "www"))))
+			http.ListenAndServe(":50000", sio)
+		}()
 	}
 
 	rpc.HandleHTTP()
@@ -201,7 +214,7 @@ func startServer() {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
 		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
 
-		glog.V(1).Infoln("Staring containter statistics reporter")
+		glog.V(1).Infoln("Staring container statistics reporter")
 		statsduration := time.Duration(options.statsperiod) * time.Minute
 		go sr.Report(statsduration)
 	}

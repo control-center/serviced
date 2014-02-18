@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
-
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
@@ -14,52 +12,9 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"syscall"
 	"time"
 )
-
-type hub struct {
-	// Registered connections.
-	connections map[*shell.WebsocketShell]bool
-
-	// Register requests from the connections
-	register chan *shell.WebsocketShell
-
-	// Unregister requests from the connections
-	unregister chan *shell.WebsocketShell
-}
-
-func (h *hub) run() {
-	for {
-		select {
-		case c := <-h.register:
-			h.connections[c] = true
-		case c := <-h.unregister:
-			delete(h.connections, c)
-			c.Close()
-		}
-	}
-}
-
-var h = hub{
-	register:    make(chan *shell.WebsocketShell),
-	unregister:  make(chan *shell.WebsocketShell),
-	connections: make(map[*shell.WebsocketShell]bool),
-}
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if _, ok := err.(websocket.HandshakeError); ok {
-		http.Error(w, "Not a websocket handshake", 400)
-		return
-	} else if err != nil {
-		return
-	}
-	c := shell.Connect(ws)
-	h.register <- c
-	defer func() { h.unregister <- c }()
-	go c.Writer()
-	c.Reader()
-}
 
 // Start a service proxy.
 func (cli *ServicedCli) CmdProxy(args ...string) error {
@@ -83,15 +38,15 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		go config.TCPMux.ListenAndMux()
 	}
 
-	go h.run()
-	http.HandleFunc("/exec", wsHandler)
-	go http.ListenAndServe(":50000", nil)
+	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
+	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
+	go http.ListenAndServe(":50000", sio)
 
 	procexit := make(chan int)
 
 	// continually execute subprocess
 	go func(cmdString string) {
-		defer func() { procexit <- 1 }()
+		defer func() { procexit <- 0 }()
 		for {
 			glog.V(0).Info("About to execute: ", cmdString)
 			cmd := exec.Command("bash", "-c", cmdString)
@@ -102,6 +57,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			if err != nil {
 				glog.Errorf("Problem running service: %v", err)
 				glog.Flush()
+				if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
+					if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+						procexit <- status.ExitStatus()
+					}
+				}
 			}
 			if !proxyOptions.autorestart {
 				break
@@ -111,20 +71,23 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}(config.Command)
 
-	go func() {
-		// make sure we pick up any logfile that was modified within the last three years
-		// TODO: Either expose the 3 years as configurable or get rid of if we can find another way around the stale file problem
-		cmdString := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder " + " -old-files-hours=26280 -config " + serviced.LOGSTASH_CONTAINER_CONFIG
-		glog.V(0).Info("About to execute: ", cmdString)
-		myCmd := exec.Command("bash", "-c", cmdString)
-		myCmd.Stdout = os.Stdout
-		myCmd.Stderr = os.Stderr
-		myErr := myCmd.Run()
-		if myErr != nil {
-			glog.Errorf("Problem running service: %v", myErr)
-			glog.Flush()
-		}
-	}()
+	if proxyOptions.logstash {
+		go func() {
+			// make sure we pick up any logfile that was modified within the
+			// last three years
+			// TODO: Either expose the 3 years a configurable or get rid of it
+			cmdString := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder " + " -old-files-hours=26280 -config " + serviced.LOGSTASH_CONTAINER_CONFIG
+			glog.V(0).Info("About to execute: ", cmdString)
+			myCmd := exec.Command("bash", "-c", cmdString)
+			myCmd.Stdout = os.Stdout
+			myCmd.Stderr = os.Stderr
+			myErr := myCmd.Run()
+			if myErr != nil {
+				glog.Errorf("Problem running service: %v", myErr)
+				glog.Flush()
+			}
+		}()
+	}
 
 	go func() {
 		for {
@@ -191,10 +154,10 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}()
 
-	<-procexit // Wait for proc goroutine to exit
+	exitcode := <-procexit // Wait for proc goroutine to exit
 
 	glog.Flush()
-	os.Exit(0)
+	os.Exit(exitcode)
 	return nil
 }
 

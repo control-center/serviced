@@ -14,6 +14,7 @@ type Terminal struct {
 	file, name          string
 	cols, rows          int
 	readable, writeable bool
+	wait                chan error
 
 	stdoutChan chan string
 	stderrChan chan string
@@ -99,6 +100,7 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 		rows:       *rows,
 		readable:   true,
 		writeable:  true,
+		wait:       make(chan error),
 		stdoutChan: make(chan string),
 		stderrChan: make(chan string),
 		done:       make(chan bool),
@@ -106,10 +108,25 @@ func CreateTerminal(name, file string, args []string, env map[string]string, cwd
 	if err := term.fork(file, args, envv, cwd, *cols, *rows, *uid, *gid); err != nil {
 		return nil, err
 	}
+
+	go func() {
+		defer close(term.wait)
+		_, err := syscall.Wait4(term.pid, nil, 0, nil)
+		term.wait <- err
+	}()
+
 	return &term, nil
 }
 
 func (t *Terminal) Reader(size int) {
+	defer func() {
+		t.readable = false
+		t.writeable = false
+		close(t.stdoutChan)
+		close(t.stderrChan)
+		syscall.Close(t.fd)
+	}()
+
 	for {
 		data := make([]byte, size)
 		n, e := syscall.Read(t.fd, data)
@@ -119,8 +136,7 @@ func (t *Terminal) Reader(size int) {
 				t.stdoutChan <- string(data[:n])
 			}
 		case syscall.EIO:
-			_, err := syscall.Wait4(t.pid, nil, 0, nil)
-			t.err = err
+			t.err = t.Wait()
 			t.done <- true
 			break
 		default:
@@ -131,19 +147,23 @@ func (t *Terminal) Reader(size int) {
 	}
 }
 
-func (t *Terminal) Writer(data []byte) (int, error) {
+func (t *Terminal) Wait() error {
+	return <-t.wait
+}
+
+func (t *Terminal) Write(data []byte) (int, error) {
 	return syscall.Write(t.fd, data)
 }
 
-func (t *Terminal) Stdout() chan string {
+func (t *Terminal) StdoutPipe() chan string {
 	return t.stdoutChan
 }
 
-func (t *Terminal) Stderr() chan string {
+func (t *Terminal) StderrPipe() chan string {
 	return t.stderrChan
 }
 
-func (t *Terminal) Exited() chan bool {
+func (t *Terminal) ExitedPipe() chan bool {
 	return t.done
 }
 
@@ -165,22 +185,12 @@ func (t *Terminal) Resize(cols, rows *int) error {
 	return t.resize(*cols, *rows)
 }
 
-func (t *Terminal) Kill(signal *int) error {
-	var s syscall.Signal
-	if signal == nil {
-		s = syscall.SIGHUP
-	} else {
-		s = syscall.Signal(*signal)
-	}
-	return syscall.Kill(t.pid, s)
+func (t *Terminal) Signal(signal syscall.Signal) error {
+	return syscall.Kill(t.pid, signal)
 }
 
-func (t *Terminal) Close() {
-	t.readable = false
-	t.writeable = false
-	close(t.stdoutChan)
-	close(t.stderrChan)
-	syscall.Close(t.fd)
+func (t *Terminal) Kill() error {
+	return syscall.Kill(t.pid, syscall.SIGHUP)
 }
 
 func (t *Terminal) GetProcess() string {

@@ -1,0 +1,79 @@
+<!doctype html>
+<title>Control Plane Shell: Zope</title>
+<!--
+  term.js
+  Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
+-->
+<style>
+  html {
+    background: #000;
+  }
+
+  h1 {
+    margin-bottom: 20px;
+    font: 20px/1.5 sans-serif;
+  }
+
+  .terminal {
+    float: left;
+    border: #000 solid 5px;
+    font-family: "Monaco", "Liberation Mono", monospace;
+    font-size: 14px;
+    color: #f0f0f0;
+    background: #000;
+  }
+
+  .terminal-cursor {
+    color: #000;
+    background: #f0f0f0;
+  }
+</style>
+<script src="/socket.io.js"></script>
+<script src="term.js"></script>
+<script>
+;(function() {
+  window.onload = function() {
+    var socket = io.connect();
+    socket.on('connect', function() {
+      var term = new Terminal({
+        cols: 80,
+        rows: 24,
+        useStyle: true,
+        screenKeys: true
+      });
+
+      term.on('data', function(data) {
+        console.log("stdin:", data);
+        socket.emit('stdin', data);
+      });
+
+      term.on('title', function(title) {
+        document.title = title;
+      });
+
+      term.open(document.body);
+
+      term.write('\x1b[31mStarting a new Zope container...\x1b[m\r\n');
+
+      socket.on('stderr', function(data) {
+        term.write(data);
+      });
+
+      socket.on('stdout', function(data) {
+        term.write(data);
+      });
+
+      socket.on('disconnect', function() {
+        term.destroy();
+      });
+
+      socket.emit('process', {
+        Command: "/bin/bash",
+        IsTTY: true,
+        ServiceId: "Zope",
+        Envv: []
+      })
+    });
+  };
+}).call(this);
+</script>

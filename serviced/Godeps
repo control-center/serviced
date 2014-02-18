@@ -11,6 +11,10 @@
 			"ImportPath": "github.com/ant0ine/go-json-rest",
 			"Rev": "a6396a924a69ca86f6ea7c5318b2ce8f1da7d3a1"
 		},
+        {
+            "ImportPath": "github.com/googollee/go-socket.io",
+            "Rev": "7a2b443286222187f996ceede5d353469be6853a"
+        },
 		{
 			"ImportPath": "github.com/araddon/gou",
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
