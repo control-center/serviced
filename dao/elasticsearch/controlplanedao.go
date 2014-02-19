@@ -26,13 +26,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -1299,13 +1302,13 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	var tenantId string
 	parts := strings.Split(snapshotId, "_")
 	if len(parts) != 2 {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot malformed snapshot Id: %s", snapshotId)
+		glog.V(2).Infof("ControlPlaneDao.Rollback malformed snapshot Id: %s", snapshotId)
 		return errors.New("malformed snapshotId")
 	}
 	serviceId := parts[0]
 	label := parts[1]
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
 
@@ -1317,7 +1320,8 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
+	volume, err := getSubvolume(this.vfs, service.PoolId, tenantId)
+	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
@@ -1357,10 +1361,9 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	}
 
 	// TODO: Should we try to restore if tagging fails?
-	cmds := make([]*exec.Cmd, len(images))
-	for i, image := range images {
+	for _, image := range images {
 		// docker tag %{image.ID} %{image.Repo}:%{image.Tag}
-		cmd := exec.Command(docker, "tag", image.ID, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		cmd := exec.Command(dockerBin, "tag", image.ID, fmt.Sprintf("%s:%s", image.Repository, image.Tag))
 		if err := cmd.Run(); err != nil {
 			glog.V(2).Infof("ControlPlaneDao.Rollback service=%s", serviceId, err)
 			return err
@@ -1371,6 +1374,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	if err := volume.Rollback(snapshotId); err != nil {
 		return err
 	}
+	var unusedStr string = ""
 
 	return this.StartService(tenantId, &unusedStr)
 }
@@ -1459,31 +1463,33 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 	// Start the docker client
 	client, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
-		glog.Errorf("could not connect to docker client: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
 	// Get the container
 	container, err := client.InspectContainer(containerId)
 	if err != nil {
-		glog.Errorf("could not load container: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	} else if container.State.Running {
-		glog.Fatalf("cannot commit a running container: %s", container.ID)
+		err = errors.New("cannot commit a running container")
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
+		return
 	}
 
 	// Get the tag/repo information
 	images, err := client.ListImages(true)
 	if err != nil {
-		glog.Errorf("could not load images: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
-	var latest []*docker.APIImages
+	var latestImages []*docker.APIImages
 	var image *docker.APIImages
 	for _, i := range images {
 		if i.Tag == DOCKER_LATEST {
-			latest = append(latest, &i)
+			latestImages = append(latestImages, &i)
 			if i.ID == container.Image {
 				image = &i
 			}
@@ -1491,7 +1497,9 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 	}
 
 	if image == nil {
-		glog.Fatalf("cannot commit stale image: %s", container.Image)
+		err = errors.New("cannot commit a stale container")
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
+		return
 	}
 
 	// Get the service id (very expensive!)
@@ -1501,9 +1509,10 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 		serviceIds    map[string]*dao.Service
 		serviceStates []*dao.ServiceState
 		serviceId     string
+		volume        *volume.Volume
 	)
 	if err = this.GetServices(&empty, &allServices); err != nil {
-		glog.Errorf("cannot lookup services: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
@@ -1514,7 +1523,7 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 		}
 	}
 
-	keys := func(m map[string]bool) []string {
+	keys := func(m map[string]*dao.Service) []string {
 		out := make([]string, len(m))
 		i := 0
 		for k, _ := range m {
@@ -1526,7 +1535,7 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 
 	// Find the container from the given service id
 	if err = this.zkDao.GetServiceStates(&serviceStates, keys(serviceIds)...); err != nil {
-		glog.Errorf("cannot lookup service states: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 	for _, state := range serviceStates {
@@ -1537,12 +1546,13 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 	}
 	if serviceId == "" {
 		err = errors.New(fmt.Sprintf("could not map container to serviceId: %s", container.ID))
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
 	// Snapshot the DFS
 	if err = this.Snapshot(serviceId, label); err != nil {
-		glog.Errorf("failed to snapshot the DFS: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
@@ -1552,18 +1562,16 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 		Repository: image.Repository,
 		Tag:        image.Tag,
 	})
-	glog.Infof("Commited container (%s)", newImage.ID)
-
 	if err != nil {
-		glog.Errorf("error while trying to commit container image: %v", err)
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
 	// Copy images to the DFS
-	*image = APIImages{
+	*image = docker.APIImages{
 		ID:          newImage.ID,
 		RepoTags:    image.RepoTags,
-		Created:     newImage.Created,
+		Created:     newImage.Created.Unix(),
 		Size:        newImage.Size,
 		VirtualSize: image.VirtualSize,
 		ParentId:    newImage.Parent,
@@ -1573,23 +1581,30 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 
 	// Get the path to the volume and write the images
 	var tenantId string
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.Errorf("unable to acquire the tenantId, %v", err)
+	if err = this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
-	if volume, err := getSubvolume(this.vfs, serviceIds[serviceId].PoolId, tenantId); err != nil {
-		glog.Errorf("unable to acquire the volume: %v", err)
+	if volume, err = getSubvolume(this.vfs, serviceIds[serviceId].PoolId, tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
 		return
 	}
 
-	snapshots := volume.Snapshots()
+	snapshots, err := volume.Snapshots()
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
+		return
+	}
 	sort.Strings(snapshots)
-	latest := snapshots[len(snapshots)-1]
-	imgcfg := path.Join(v.Path(), latest, DOCKER_IMAGEJSON)
-	if err = ioutil.WriteFile(imgcfg, json.Marshal(latest), 0644); err != nil {
-		glog.Errorf("error while trying to update the DFS: %v", err)
-		return
+	latestSnapshot := snapshots[len(snapshots)-1]
+	config := path.Join(volume.Path(), latestSnapshot, DOCKER_IMAGEJSON)
+	if data, err := json.Marshal(latestImages); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
+		return err
+	} else if err := ioutil.WriteFile(config, data, 0644); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Commit container=%+v err=%s", containerId, err)
+		return err
 	}
 
 	return

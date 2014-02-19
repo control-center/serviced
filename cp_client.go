@@ -209,6 +209,10 @@ func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
+func (s *ControlClient) Commit(containerId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
+}
+
 func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
