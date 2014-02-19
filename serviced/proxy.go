@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/container"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/shell"
 
@@ -89,6 +90,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}()
 	}
 
+	//monitor application endpoints to mux ports
 	go func() {
 		for {
 			func() {
@@ -152,6 +154,35 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 			time.Sleep(time.Second * 10)
 		}
+	}()
+
+	//setup container webserver for any internal service commands
+	go func() {
+		//loop until successfully identifying this container's tenant id
+		var tenantId string
+		for {
+			client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
+			if err == nil {
+				defer client.Close()
+				if err = client.GetTenantId(config.ServiceId, &tenantId); err != nil {
+					glog.Errorf("Failed to get tenant id: %s", err)
+				} else {
+					//success
+					break
+				}
+			} else {
+				glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+			}
+		}
+
+		//build metric redirect url -- assumes 8444 is port mapped
+		metric_redirect := "http://localhost:8444/api/metrics/store"
+		metric_redirect += "?controlplane_tenant_id=" + tenantId
+		metric_redirect += "&controlplane_service_id=" + config.ServiceId
+
+		//build and service the container web controller
+		web_controller, _ := container.NewWebController(":22350", metric_redirect)
+		web_controller.Serve()
 	}()
 
 	exitcode := <-procexit // Wait for proc goroutine to exit

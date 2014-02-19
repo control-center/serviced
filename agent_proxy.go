@@ -39,6 +39,17 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
+// Call the master's to retrieve it's tenant id
+func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return err
+	}
+	defer client.Close()
+	return client.GetTenantId(serviceId, tenantId)
+}
+
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
 func (a *HostAgent) GetProxySnapshotQuiece(serviceId string, snapshotId *string) error {
 	glog.Errorf("GetProxySnapshotQuiece() Unimplemented")
