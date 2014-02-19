@@ -37,7 +37,9 @@ import (
 )
 
 const (
-	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+	DOCKER_ENDPOINT  string = "unix:///var/run/docker.sock"
+	DOCKER_LATEST    string = "LATEST"
+	DOCKER_IMAGEJSON string = "images.json"
 )
 
 //assert interface
@@ -169,6 +171,9 @@ var (
 	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
 	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
+
+	// commit, rollback, snapshot, container lock
+	DFSLock sync.Mutex
 )
 
 type ControlPlaneDao struct {
@@ -1287,6 +1292,9 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) erro
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
+	// Get the DFS Lock
+	DFSLock.Lock()
+	defer DFSLock.Unlock()
 
 	var tenantId string
 	parts := strings.Split(snapshotId, "_")
@@ -1301,10 +1309,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 		return err
 	}
 
-	this.StopService(tenantId, unused)
-	// TODO: Wait for real event that confirms shutdown
-	time.Sleep(time.Second * 5) // wait for shutdown
-
+	// Validate existance of images for this snapshot
 	var service dao.Service
 	err := this.GetService(tenantId, &service)
 	glog.V(2).Infof("Getting service instance: %s", tenantId)
@@ -1312,17 +1317,61 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
-	// rollback
 	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
 		return err
+	}
+
+	var images []docker.APIImages
+	config := path.Join(volume.Path(), snapshotId, DOCKER_IMAGEJSON)
+	if data, err := ioutil.ReadFile(config); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	} else if err := json.Unmarshal(data, images); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	if client, err := docker.NewClient(DOCKER_ENDPOINT); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
 	} else {
-		glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
-		if err := volume.Rollback(snapshotId); err != nil {
+		// Check to see if all the images exist
+		for _, image := range images {
+			if _, err := client.InspectImage(image.ID); err != nil {
+				glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+				return err
+			}
+		}
+	}
+
+	this.StopService(tenantId, unused)
+	// TODO: Wait for real event that confirms shutdown
+	time.Sleep(time.Second * 5) // wait for shutdown
+
+	// Retag with images from snapshot
+	dockerBin, err := exec.LookPath("docker")
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	}
+
+	// TODO: Should we try to restore if tagging fails?
+	cmds := make([]*exec.Cmd, len(images))
+	for i, image := range images {
+		// docker tag %{image.ID} %{image.Repo}:%{image.Tag}
+		cmd := exec.Command(docker, "tag", image.ID, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		if err := cmd.Run(); err != nil {
+			glog.V(2).Infof("ControlPlaneDao.Rollback service=%s", serviceId, err)
 			return err
 		}
 	}
-	unusedStr := ""
+
+	glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
+	if err := volume.Rollback(snapshotId); err != nil {
+		return err
+	}
+
 	return this.StartService(tenantId, &unusedStr)
 }
 
@@ -1403,6 +1452,10 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume **volume.Volu
 }
 
 func (this *ControlPlaneDao) Commit(containerId string, label *string) (err error) {
+	// Get the lock
+	DFSLock.Lock()
+	defer DFSLock.Unlock()
+
 	// Start the docker client
 	client, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
@@ -1415,6 +1468,8 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 	if err != nil {
 		glog.Errorf("could not load container: %v", err)
 		return
+	} else if container.State.Running {
+		glog.Fatalf("cannot commit a running container: %s", container.ID)
 	}
 
 	// Get the tag/repo information
@@ -1424,24 +1479,26 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 		return
 	}
 
+	var latest []*docker.APIImages
 	var image *docker.APIImages
 	for _, i := range images {
-		if i.ID == container.Image {
-			image = &i
-			break
+		if i.Tag == DOCKER_LATEST {
+			latest = append(latest, &i)
+			if i.ID == container.Image {
+				image = &i
+			}
 		}
 	}
 
 	if image == nil {
-		err = errors.New(fmt.Sprintf("image not found: %s", container.Image))
-		return
+		glog.Fatalf("cannot commit stale image: %s", container.Image)
 	}
 
 	// Get the service id (very expensive!)
 	var (
 		empty         interface{}
 		allServices   []*dao.Service
-		serviceIds    map[string]bool
+		serviceIds    map[string]*dao.Service
 		serviceStates []*dao.ServiceState
 		serviceId     string
 	)
@@ -1453,7 +1510,7 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 	// Find services running with the image id
 	for _, s := range allServices {
 		if s.ImageId == container.Image {
-			serviceIds[s.Id] = true
+			serviceIds[s.Id] = s
 		}
 	}
 
@@ -1502,7 +1559,39 @@ func (this *ControlPlaneDao) Commit(containerId string, label *string) (err erro
 		return
 	}
 
-	// TODO: Copy image id to the DFS
+	// Copy images to the DFS
+	*image = APIImages{
+		ID:          newImage.ID,
+		RepoTags:    image.RepoTags,
+		Created:     newImage.Created,
+		Size:        newImage.Size,
+		VirtualSize: image.VirtualSize,
+		ParentId:    newImage.Parent,
+		Repository:  image.Repository,
+		Tag:         image.Tag,
+	}
+
+	// Get the path to the volume and write the images
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.Errorf("unable to acquire the tenantId, %v", err)
+		return
+	}
+
+	if volume, err := getSubvolume(this.vfs, serviceIds[serviceId].PoolId, tenantId); err != nil {
+		glog.Errorf("unable to acquire the volume: %v", err)
+		return
+	}
+
+	snapshots := volume.Snapshots()
+	sort.Strings(snapshots)
+	latest := snapshots[len(snapshots)-1]
+	imgcfg := path.Join(v.Path(), latest, DOCKER_IMAGEJSON)
+	if err = ioutil.WriteFile(imgcfg, json.Marshal(latest), 0644); err != nil {
+		glog.Errorf("error while trying to update the DFS: %v", err)
+		return
+	}
+
 	return
 }
 
