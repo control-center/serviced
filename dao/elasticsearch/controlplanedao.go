@@ -35,7 +35,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -174,9 +173,6 @@ var (
 	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
 	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
-
-	// commit, rollback, snapshot, container lock
-	DFSLock sync.Mutex
 )
 
 type ControlPlaneDao struct {
@@ -1296,8 +1292,8 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) erro
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	// Get the DFS Lock
-	DFSLock.Lock()
-	defer DFSLock.Unlock()
+	dao.DFSLock.Lock()
+	defer dao.DFSLock.Unlock()
 
 	var tenantId string
 	parts := strings.Split(snapshotId, "_")
@@ -1457,8 +1453,8 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 
 func (this *ControlPlaneDao) Commit(containerId string, label *string) (err error) {
 	// Get the lock
-	DFSLock.Lock()
-	defer DFSLock.Unlock()
+	dao.DFSLock.Lock()
+	defer dao.DFSLock.Unlock()
 
 	// Start the docker client
 	client, err := docker.NewClient(DOCKER_ENDPOINT)

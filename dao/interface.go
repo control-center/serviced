@@ -2,7 +2,13 @@ package dao
 
 import (
 	"github.com/zenoss/serviced/volume"
+
+	"sync"
 )
+
+// DFSLock
+// prevents new containers from being created during a snapshot or rollback
+var DFSLock sync.Mutex
 
 // A generic ControlPlane error
 type ControlPlaneError struct {

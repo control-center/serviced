@@ -240,6 +240,10 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
+	// Get the DFS Lock
+	dao.DFSLock.Lock()
+	dao.DFSLock.Unlock()
+
 	var (
 		runner   Runner
 		service  *dao.Service
