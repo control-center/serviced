@@ -439,13 +439,11 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
-
-	var poolHosts []*dao.PoolHost
 	poolId := cmd.Arg(0)
 
-	PoolIPResources := []dao.HostIPResource{}
-	hostIDs []string{}
-	err = controlPlane.GetPoolIps(poolId, assignIPsHostIPResources, hostIDs)
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	hostIDs := []string{}
+	err := controlPlane.GetPoolIps(poolId, &assignIPsHostIPResources, &hostIDs)
 	if err != nil {
 		return err
 	}
@@ -453,7 +451,7 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range PoolIPResources {
+	for _, hostIPResource := range assignIPsHostIPResources {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 
@@ -472,9 +470,10 @@ func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 	controlPlane := getClient()
 
 	serviceId := cmd.Arg(0)
-	controlPlane.AssignIPs(serviceId, "")
+	err := controlPlane.AssignIPs(serviceId, "")
 	if err != nil {
-		t.Error("AssignIPs failed: %v", err)
+		glog.Fatalf("AssignIPs failed: %v", err)
+		return err
 	}
 	
 	return nil
@@ -493,9 +492,10 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 
 	serviceId := cmd.Arg(0)
 	setIpAddress := cmd.Arg(1)
-	controlPlane.AssignIPs(serviceId, setIpAddress)
+	err := controlPlane.AssignIPs(serviceId, setIpAddress)
 	if err != nil {
-		t.Error("AssignIPs failed: %v", err)
+		glog.Fatalf("AssignIPs failed: %v", err)
+		return err
 	}
 	
 	return nil
