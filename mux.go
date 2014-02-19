@@ -1,10 +1,11 @@
 package serviced
 
 import (
+	"github.com/zenoss/glog"
+
 	"bufio"
 	"crypto/tls"
 	"fmt"
-	"github.com/zenoss/glog"
 	"io"
 	"net"
 	"net/textproto"
@@ -72,8 +73,16 @@ func (mux TCPMux) MuxConnection(conn net.Conn) {
 		return
 	}
 
-	go io.Copy(conn, svc)
-	go io.Copy(svc, conn)
+	go func() {
+		io.Copy(conn, svc)
+		conn.Close()
+		svc.Close()
+	}()
+	go func() {
+		io.Copy(svc, conn)
+		conn.Close()
+		svc.Close()
+	}()
 }
 
 // listenAndMux listens for incoming connections and attempts to multiplex them

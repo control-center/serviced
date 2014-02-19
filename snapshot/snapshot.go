@@ -39,14 +39,14 @@ func getServiceDockerId(cpDao dao.ControlPlane, serviceId string) (string, error
 
 // runCommandInServiceContainer runs a command in a running container
 func runCommandInServiceContainer(serviceId string, dockerId string, command string) (string, error) {
-	dockerCommand := []string{"lxc-attach", "-n", dockerId, "-e", "--", command}
+	dockerCommand := []string{"lxc-attach", "-n", dockerId, "-e", "--", "/bin/bash", "-c", command}
 	cmd := exec.Command(dockerCommand[0], dockerCommand[1:len(dockerCommand)]...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running cmd:'%s' for serviceId:%s - error:%s", strings.Join(dockerCommand, " "), serviceId, err)
+		glog.Errorf("Error running cmd:'%s' for serviceId:%s - ERROR:%s  OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, err, output)
 		return string(output), err
 	}
-	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - output: %s", strings.Join(dockerCommand, " "), serviceId, string(output))
+	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, string(output))
 	return string(output), nil
 }
 
@@ -100,13 +100,10 @@ func ExecuteSnapshot(cpDao dao.ControlPlane, serviceId string, label *string) er
 	}
 
 	// create a snapshot
-	var theVolume *volume.Volume
+	var theVolume volume.Volume
 	if err := cpDao.GetVolume(tenantId, &theVolume); err != nil {
 		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() service=%+v err=%s", service, err)
 		return err
-	} else if theVolume == nil {
-		glog.V(2).Infof("snapshot.ExecuteSnapshot cpDao.GetVolume() volume is nil service=%+v", service)
-		return errors.New(fmt.Sprintf("GetVolume() is nil - tenantId:%s", tenantId))
 	} else {
 		glog.V(2).Infof("snapshot.ExecuteSnapshot service=%+v theVolume=%+v", service, theVolume)
 		snapLabel := snapShotName(theVolume.Name())

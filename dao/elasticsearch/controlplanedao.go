@@ -1422,7 +1422,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	return err
 }
 
-func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume **volume.Volume) error {
+func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volume) error {
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
@@ -1447,7 +1447,7 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume **volume.Volu
 	}
 
 	glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v volume2=%+v %v", serviceId, aVolume, aVolume)
-	*theVolume = aVolume
+	*theVolume = *aVolume
 	return nil
 }
 
