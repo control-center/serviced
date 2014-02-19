@@ -39,7 +39,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-// Call the master's to retrieve it's tenant id
+// Call the master's to retrieve its tenant id
 func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
 	client, err := NewControlClient(a.master)
 	if err != nil {

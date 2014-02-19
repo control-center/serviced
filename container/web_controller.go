@@ -24,15 +24,15 @@ func NewWebController(port, metricsRedirectUrl string) (config WebController, er
 
 // Serve configures all http method handlers for the container controller.
 // Then starts the server.  This method blocks.
-func (this *WebController) Serve() {
+func (webController *WebController) Serve() {
 	routes := []rest.Route{
-		rest.Route{"POST", "/api/metrics/store", post_api_metrics_store(this.MetricsRedirectUrl)},
+		rest.Route{"POST", "/api/metrics/store", post_api_metrics_store(webController.MetricsRedirectUrl)},
 	}
 
 	handler := rest.ResourceHandler{}
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(this.Port, &handler)
+	http.ListenAndServe(webController.Port, &handler)
 }
 
 // post_api_metrics_store redirects the post request to the configured address
