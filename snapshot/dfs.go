@@ -45,71 +45,36 @@ func (d *DistributedFileSystem) Unlock() {
 	d.lock.Unlock()
 }
 
-func (d *DistributedFileSystem) Pause(service *dao.Service) error {
-	if service.Snapshot.Pause == "" {
-		return nil
-	}
-
+func (d *DistributedFileSystem) getServiceState(serviceId string, state *dao.ServiceState) error {
 	var states []*dao.ServiceState
-	if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
+	if err := d.client.GetServiceStates(serviceId, &states); err != nil {
 		return err
 	}
-
-	var state *dao.ServiceState
 	for i, s := range states {
-		glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service, s)
-		if s.DockerId != "" && s.ServiceId == service.Id {
+		glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, serviceId, s)
+		if s.DockerId != "" {
 			state = s
-			break
+			return nil
 		}
 	}
-	if state == nil {
-		err := errors.New(fmt.Sprintf("unable to find docker id for service:%+v", service))
-		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
-		return err
-	}
+	return errors.New(fmt.Sprintf("unable to find service state for serviceId: %s", serviceId))
+}
 
-	if output, err := runServiceCommand(service.Id, state.DockerId, service.Snapshot.Pause); err != nil {
+func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceState) error {
+	if output, err := runServiceCommand(state, service.Snapshot.Pause); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
 		return errors.New(errmsg)
 	}
-
 	return nil
 }
 
-func (d *DistributedFileSystem) Resume(service *dao.Service) error {
-	if service.Snapshot.Resume == "" {
-		return nil
-	}
-
-	var states []*dao.ServiceState
-	if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
-		return err
-	}
-
-	var state *dao.ServiceState
-	for i, s := range states {
-		glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service, s)
-		if s.DockerId != "" && s.ServiceId == service.Id {
-			state = s
-			break
-		}
-	}
-	if state == nil {
-		err := errors.New(fmt.Sprintf("unable to find docker id for service:%+v", service))
-		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
-		return err
-	}
-
-	if output, err := runServiceCommand(service.Id, state.DockerId, service.Snapshot.Pause); err != nil {
+func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceState) error {
+	if output, err := runServiceCommand(state, service.Snapshot.Resume); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
 		return errors.New(errmsg)
 	}
-
 	return nil
 }
 
@@ -143,11 +108,21 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 			return err
 		}
 		for _, service := range servicesList {
-			if err := d.Pause(service); err != nil {
+			if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
+				continue
+			}
+
+			var state *dao.ServiceState
+			if err := d.getServiceState(service.Id, state); err != nil {
 				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 				return err
-			} else {
-				defer d.Resume(service)
+			}
+
+			err := d.Pause(service, state)
+			defer d.Resume(service, state)
+			if err != nil {
+				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
+				return err
 			}
 		}
 	}
@@ -187,6 +162,10 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
+	// Get the service id
+	name := strings.Split(container.Name, "_")
+	serviceId := name[0]
+
 	// Get tag & repo information
 	var (
 		latestImages []*docker.APIImages
@@ -212,45 +191,8 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	// Get the service id from the image (very expensive!)
-	var (
-		allservices []*dao.Service
-		service     *dao.Service
-		volume      volume.Volume
-	)
-	if err := d.client.GetServices(unused, &allservices); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
-	}
-
-	for _, s := range allservices {
-		if s.ImageId == image.ID {
-			// Get all the service states for that service id
-			var states []*dao.ServiceState
-			if err := d.client.GetServiceStates(s.Id, &states); err != nil {
-				glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-				return err
-			}
-			// Do these states match my dockerId?
-			for _, state := range states {
-				if dockerId == state.DockerId {
-					service = s
-					break
-				}
-			}
-			if service != nil {
-				break
-			}
-		}
-	}
-	if service == nil {
-		err := errors.New("could not map container to service id")
-		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
-	}
-
 	// Snapshot the DFS
-	if err := d.Snapshot(service.Id, label); err != nil {
+	if err := d.Snapshot(serviceId, label); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return err
 	}
@@ -279,8 +221,12 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	}
 
 	// Get the path to the volume and write the images
-	var tenantId string
-	if err := d.client.GetTenantId(service.Id, &tenantId); err != nil {
+	var (
+		tenantId string
+		volume   volume.Volume
+	)
+
+	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
 	}
@@ -392,19 +338,19 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	return d.client.StartService(tenantId, &unusedStr)
 }
 
-func runServiceCommand(serviceId string, dockerId string, command string) ([]byte, error) {
+func runServiceCommand(state *dao.ServiceState, command string) ([]byte, error) {
 	lxcAttach, err := exec.LookPath("lxc-attach")
 	if err != nil {
 		return []byte{}, err
 	}
-	cmd := exec.Command(lxcAttach, "-n", "dockerId", "-e", "--", "bin/bash", "-c", command)
+	cmd := exec.Command(lxcAttach, "-n", state.DockerId, "-e", "--", "bin/bash", "-c", command)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, serviceId, output, err)
+		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
 		return output, err
 	}
-	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, serviceId, output)
+	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
 	return output, nil
 }
 
