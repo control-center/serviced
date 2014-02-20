@@ -32,9 +32,22 @@ var (
 )
 
 type DistributedFileSystem struct {
-	client  dao.ControlPlane
-	dclient *docker.Client
-	lock    sync.Mutex
+	client       dao.ControlPlane
+	dockerClient *docker.Client
+	lock         sync.Mutex
+}
+
+func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, error) {
+	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
+		return nil, err
+	}
+
+	return &DistributedFileSystem{
+		client:       client,
+		dockerClient: dockerClient,
+	}, nil
 }
 
 func (d *DistributedFileSystem) Lock() {
@@ -152,7 +165,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	defer d.Unlock()
 
 	// Get the container
-	container, err := d.dclient.InspectContainer(dockerId)
+	container, err := d.dockerClient.InspectContainer(dockerId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return err
@@ -172,7 +185,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		image        *docker.APIImages
 	)
 
-	images, err := d.dclient.ListImages(true)
+	images, err := d.dockerClient.ListImages(true)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return err
@@ -198,7 +211,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	}
 
 	// Commit the container to the image
-	newImage, err := d.dclient.CommitContainer(docker.CommitContainerOptions{
+	newImage, err := d.dockerClient.CommitContainer(docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: image.Repository,
 		Tag:        image.Tag,
@@ -302,7 +315,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 
 	// Check to see if all the images exist
 	for _, image := range images {
-		if _, err := d.dclient.InspectImage(image.ID); err != nil {
+		if _, err := d.dockerClient.InspectImage(image.ID); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 			return err
 		}
