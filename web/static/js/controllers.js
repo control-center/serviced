@@ -483,8 +483,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
 
     $scope.snapshotService = function(service) {
         resourcesService.snapshot_service(service.Id, function(label) {
-            console.log('Snapshotted service name:%s label:%s', service.Id, label.Detail);
-            alert('Snapshotted service:' + service.Name + ' LABEL:' + label.Detail);
+            console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
             // TODO: add the snapshot label to some partial view in the UI
         });
     };
