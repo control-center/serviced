@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"time"
 )
 
@@ -41,13 +42,27 @@ func init() {
 	}
 }
 
+// getEnvVarInt() returns the env var as an int value or the defaultValue if env var is unset
+func getEnvVarInt(envVar string, defaultValue int) int {
+	envVarValue := os.Getenv(envVar)
+	if len(envVarValue) > 0 {
+		if value, err := strconv.Atoi(envVarValue); err != nil {
+			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
+			return defaultValue
+		} else {
+			return value
+		}
+	}
+	return defaultValue
+}
+
 // elasticsearchHealthCheck() determines if elasticsearch is healthy
 func elasticsearchHealthCheck() error {
 
 	start := time.Now()
 	lastError := time.Now()
 	minUptime := time.Second * 2
-	timeout := time.Second * 60 // TODO: make this configurable in a elasticsearch.json config file
+	timeout := time.Second * time.Duration(getEnvVarInt("ES_STARTUP_TIMEOUT", 60))
 
 	schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
 
