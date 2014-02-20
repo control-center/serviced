@@ -792,7 +792,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.name = "hostdetails";
     $scope.params = $routeParams;
 
-    $scope.visualization = zenoss.visualization;
+    $scope.visualization = {};          // {} was previously: zenoss.visualization
     $scope.visualization.url = 'http://' + $location.host() + ':8787';
     $scope.visualization.urlPath = '/metrics/static/performance/query/';
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
