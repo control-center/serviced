@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -249,14 +248,12 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	snapshots, err := volume.Snapshots()
+	snapshot, err := volume.LastSnapshot()
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
 	}
-	sort.Strings(snapshots)
-	latestSnapshot := snapshots[len(snapshots)-1]
-	config := path.Join(volume.Path(), latestSnapshot, DOCKER_IMAGEJSON)
+	config := path.Join(volume.Path(), snapshot, DOCKER_IMAGEJSON)
 	if data, err := json.Marshal(latestImages); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
@@ -266,6 +263,11 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	}
 
 	return nil
+}
+
+// Retags containers from the latest snapshot
+func (d *DistributedFileSystem) restore(volume *volume.Volume) {
+	//TODO: make me work!
 }
 
 func (d *DistributedFileSystem) Rollback(snapshotId string) error {
@@ -332,18 +334,20 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	// TODO: Should we try to restore if tagging fails?
 	for _, image := range images {
 		// docker tag %{image.ID} %{image.Repo}:%{image.Tag}
 		cmd := exec.Command(dockerBin, "tag", image.ID, fmt.Sprintf("%s:%s", image.Repository, image.Tag))
 		if err := cmd.Run(); err != nil {
+			// TODO: Restore snapshot tags if tagging fails
 			glog.V(2).Infof("DistributedFileSystem.Rollback service=%s", serviceId, err)
+			d.restore(&volume)
 			return err
 		}
 	}
 
 	glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
 	if err := volume.Rollback(snapshotId); err != nil {
+		d.restore(&volume)
 		return err
 	}
 	var unusedStr string = ""
