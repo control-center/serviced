@@ -807,7 +807,7 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 }
 
 // determine whether the services are ready for deployment
-func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service) error {
+func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service, _ *struct{}) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range service.Endpoints {
 		notNeededAddressAssignmentId := ""
@@ -984,7 +984,7 @@ func (this *ControlPlaneDao) validateService(serviceId string) error {
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
 	visitor := func(service dao.Service) error {
 		// validate the service is ready to start
-		err := this.validateServicesForStarting(service)
+		err := this.ValidateServicesForStarting(service, nil)
 		if err != nil {
 			glog.Errorf("Services failed validation for starting")
 			fmt.Printf("Error: %v", err)

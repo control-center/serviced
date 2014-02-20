@@ -503,7 +503,7 @@ func TestDaoValidServiceForStart(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForStarting(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
 	if err != nil {
 		t.Error("Services failed validation for starting: ", err)
 	}
@@ -524,13 +524,13 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForStarting(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
 	}
 }
 
-func TestDaoGetPoolIps(t *testing.T) {
+func TestDaoGetPoolHostIPInfo(t *testing.T) {
 	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.Id)
 	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
@@ -556,18 +556,18 @@ func TestDaoGetPoolIps(t *testing.T) {
 	assignIPsHost.PoolId = assignIPsPool.Id
 	assignIPsHost.IPs = assignIPsHostIPResources
 	err = controlPlaneDao.AddHost(assignIPsHost, &id)
-	
-	PoolIPResources := []dao.HostIPResource{}
-	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources)
+
+	var poolsHostsIpInfo map[string][]dao.HostIPResource
+	err := controlPlaneDao.GetPoolHostIPInfo(assignIPsPool.Id, &poolsHostsIpInfo)
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
 	
-	if PoolIPResources[0].IPAddress != ipAddress1 {
-		t.Error("Unexpected IP address: ", PoolIPResources[0].IPAddress)
+	if poolsHostsIpInfo[HOSTID][0].IPAddress != ipAddress1 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][0].IPAddress)
 	}
-	if PoolIPResources[1].IPAddress != ipAddress2 {
-		t.Error("Unexpected IP address: ", PoolIPResources[1].IPAddress)
+	if poolsHostsIpInfo[HOSTID][1].IPAddress != ipAddress2 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][1].IPAddress)
 	}
 
 	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
@@ -621,7 +621,8 @@ func TestDaoAutoAssignIPs(t *testing.T) {
 		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
 	}
 
-	err := controlPlaneDao.AssignIPs(testService.Id, "")
+	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
+	err := controlPlaneDao.AssignIPs(assignmentRequest, nil)
 	if err != nil {
 		t.Error("AssignIPs failed: %v", err)
 	}
