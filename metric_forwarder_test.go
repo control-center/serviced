@@ -36,7 +36,7 @@ func metricHandler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
 	response := "{\"echo\":\"" + buf.String() + "\"}"
-	w.Write(bytes.NewBufferString( response).Bytes())
+	w.Write(bytes.NewBufferString(response).Bytes())
 }
 
 // start a metric server
@@ -58,8 +58,8 @@ func TestMetricForwarding(t *testing.T) {
 		defer response.Body.Close()
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(response.Body)
-    expected := "{\"echo\":\"{}\"}"
-    if buf.String() != expected  {
+		expected := "{\"echo\":\"{}\"}"
+		if buf.String() != expected {
 			t.Error("Forwarding Expected ", expected, ", But Got ", buf.String())
 		}
 	} else {
