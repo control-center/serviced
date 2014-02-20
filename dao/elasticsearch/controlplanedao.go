@@ -981,6 +981,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 
 // validate the provided service
 func (this *ControlPlaneDao) validateService(serviceId string) error {
+	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
 	visitor := func(service dao.Service) error {
 		// validate the service is ready to start
 		err := this.validateServicesForStarting(service)
@@ -989,7 +990,7 @@ func (this *ControlPlaneDao) validateService(serviceId string) error {
 			fmt.Printf("Error: %v", err)
 			return err
 		}
-		return nil;
+		return nil
 	}
 
 	// traverse all the services
