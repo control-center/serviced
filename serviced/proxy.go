@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/container"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/shell"
 
@@ -156,7 +155,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}()
 
-	//setup container webserver for any internal service commands
+	//setup container metric forwarder 
 	go func() {
 		//loop until successfully identifying this container's tenant id
 		var tenantId string
@@ -180,9 +179,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		metric_redirect += "?controlplane_tenant_id=" + tenantId
 		metric_redirect += "&controlplane_service_id=" + config.ServiceId
 
-		//build and service the container web controller
-		web_controller, _ := container.NewWebController(":22350", metric_redirect)
-		web_controller.Serve()
+		//build and serve the container metric forwarder
+		forwarder, _ := serviced.NewMetricForwarder(":22350", metric_redirect)
+		forwarder.Serve()
 	}()
 
 	exitcode := <-procexit // Wait for proc goroutine to exit

@@ -1,4 +1,4 @@
-package container
+package serviced
 
 import (
 	"github.com/ant0ine/go-json-rest"
@@ -8,15 +8,15 @@ import (
 	"net/http"
 )
 
-// WebController contains all configuration parameters required to provide a
-// web controller service inside a docker container.
-type WebController struct {
+// MetricForwarder contains all configuration parameters required to provide a
+// forward metrics inside a docker container.
+type MetricForwarder struct {
 	Port               string
 	MetricsRedirectUrl string
 }
 
-// NewWebControllerConfig
-func NewWebController(port, metricsRedirectUrl string) (config WebController, err error) {
+// Create a new metric forwarder at port, all metrics are forwarded to metricsRedirectUrl
+func NewMetricForwarder(port, metricsRedirectUrl string) (config MetricForwarder, err error) {
 	config.Port = port
 	config.MetricsRedirectUrl = metricsRedirectUrl
 	return config, err
@@ -24,15 +24,15 @@ func NewWebController(port, metricsRedirectUrl string) (config WebController, er
 
 // Serve configures all http method handlers for the container controller.
 // Then starts the server.  This method blocks.
-func (webController *WebController) Serve() {
+func (forwarder *MetricForwarder) Serve() {
 	routes := []rest.Route{
-		rest.Route{"POST", "/api/metrics/store", post_api_metrics_store(webController.MetricsRedirectUrl)},
+		rest.Route{"POST", "/api/metrics/store", post_api_metrics_store(forwarder.MetricsRedirectUrl)},
 	}
 
 	handler := rest.ResourceHandler{}
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(webController.Port, &handler)
+	http.ListenAndServe(forwarder.Port, &handler)
 }
 
 // post_api_metrics_store redirects the post request to the configured address
