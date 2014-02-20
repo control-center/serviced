@@ -45,6 +45,12 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 }
 
+type AssignmentRequest struct {
+	ServiceId string
+	IpAddress string
+	AutoAssignment bool
+}
+
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {

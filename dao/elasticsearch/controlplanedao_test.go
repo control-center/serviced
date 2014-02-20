@@ -557,8 +557,7 @@ func TestDaoGetPoolIps(t *testing.T) {
 	err = controlPlaneDao.AddHost(assignIPsHost, &id)
 	
 	PoolIPResources := []dao.HostIPResource{}
-	hostIDs := []string{}
-	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources, &hostIDs)
+	err := controlPlaneDao.GetPoolIps(assignIPsPool.Id, &PoolIPResources)
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
@@ -687,9 +686,9 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 
 func TestRemoveAddressAssignment(t *testing.T) {
 	//test removing address when not present
-	err = controlPlaneDao.RemoveAddressAssignment("fake", struct{}{})
+	err = controlPlaneDao.RemoveAddressAssignment("fake", nil)
 	if err == nil {
-		t.Errorf("Eexpected error removing address %v", err)
+		t.Errorf("Expected error removing address %v", err)
 	}
 }
 
@@ -763,7 +762,7 @@ func TestAssignAddress(t *testing.T) {
 	}
 
 	//test removing address
-	err = controlPlaneDao.RemoveAddressAssignment(aid, &struct{}{})
+	err = controlPlaneDao.RemoveAddressAssignment(aid, nil)
 	if err != nil {
 		t.Errorf("Unexpected error removing address %v", err)
 	}

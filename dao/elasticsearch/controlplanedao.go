@@ -32,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"sort"
 	"math/rand"
 )
 
@@ -789,18 +788,18 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 		this.GetServiceAddressAssignments(serviceID, &assignments)
 		for _, assignment := range assignments {
 			if assignment.ServiceId == serviceID && assignment.EndpointName == endpoint.Name {
-				glog.Infof("Assignment %d has already been issued an IP", assignment.Id)
+				glog.Infof("Assignment %s has already been issued an IP", assignment.Id)
 				*addressAssignmentId = assignment.Id
 
 				// there exists and AddressAssignment for the AddressConfig in question
 				return false
-			} else {
-				// if there exists som AddressConfig that is initialized to anything (port and protocol are not the default values)
-				// and there does NOT exist an AddressAssignment corresponding to this AddressConfig
-				// then this service needs an AddressAssignment!
-				return true
 			}
 		}
+		// if there exists some AddressConfig that is initialized to anything (port and protocol are not the default values)
+		// and there does NOT exist an AddressAssignment corresponding to this AddressConfig
+		// then this service needs an AddressAssignment!
+		glog.Infof("Service: %s endpoint: %s needs an address assignment", serviceID, endpoint.Name)
+		return true
 	}
 
 	// No AddressAssignments are needed
@@ -808,7 +807,7 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 }
 
 // determine whether the services are ready for deployment
-func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service) error {
+func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range service.Endpoints {
 		notNeededAddressAssignmentId := ""
@@ -822,25 +821,15 @@ func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service) er
 	return nil
 }
 
-// ByInterfaceName implements sort.Interface for []dao.HostIPResource
-// This is used to display the interface information sorted
-type ByInterfaceName []dao.HostIPResource
-
-func (a ByInterfaceName) Len() int      { return len(a) }
-func (a ByInterfaceName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-// sort on InterfaceName first, then sort by State
-func (a ByInterfaceName) Less(i, j int) bool {
-	return a[i].InterfaceName < a[j].InterfaceName
-}
-
 // Show pool IP address information
-func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]dao.HostIPResource, hostIDs *[]string) error {
+func (this *ControlPlaneDao) GetPoolHostIPInfo(poolId string, poolsHostsIpInfo *map[string][]dao.HostIPResource) error {
+	*poolsHostsIpInfo = make(map[string][]dao.HostIPResource)
 	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
 	err := this.GetHostsForResourcePool(poolId, &poolHosts)
 	if err != nil {
-		glog.Fatalf("Could not get hosts for Pool %s: %v", poolId, err)
+		fmt.Printf("Could not get hosts for Pool %s: %v", poolId, err)
+		return err
 	}
 
 	for _, poolHost := range poolHosts {
@@ -848,65 +837,98 @@ func (this *ControlPlaneDao) GetPoolIps(poolId string, poolsHostIPResources *[]d
 		host := dao.Host{}
 		err = this.GetHost(poolHost.HostId, &host)
 		if err != nil {
-			glog.Fatalf("Could not IP addresses for host %s: %v", poolHost.HostId, err)
+			glog.Fatalf("Could not get host %s: %v", poolHost.HostId, err)
+			return err
+		}
+		// make room for 8 IPs
+		if _, ok := (*poolsHostsIpInfo)[host.Id]; !ok {
+			(*poolsHostsIpInfo)[host.Id] = make([]dao.HostIPResource, 0)
 		}
 
 		//aggregate all the IPResources from all the hosts in the requested pool
-		//*poolsHostIPResources = append(*poolsHostIPResources, host.IPs)
 		for _, poolHostIPResource := range host.IPs {
-			*poolsHostIPResources = append(*poolsHostIPResources, poolHostIPResource)
-			*hostIDs = append(*hostIDs, poolHost.HostId)
+			if poolHostIPResource.InterfaceName != "" && poolHostIPResource.IPAddress != "" {
+				(*poolsHostsIpInfo)[host.Id] = append((*poolsHostsIpInfo)[host.Id], poolHostIPResource)
+			}
 		}
 	}
 
-	sort.Sort(ByInterfaceName(*poolsHostIPResources))
 	return nil
 }
 
 // used in the walkServices function
 type visit func(service dao.Service) error
 
-// assign IP addresses
-func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) error {
+// assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
+func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	var unusedString string
 
 	service := dao.Service{}
-	err := this.GetService(serviceId, &service)
+	err := this.GetService(assignmentRequest.ServiceId, &service)
 	if err != nil {
 		return err
 	}
 	
-	PoolIPResources := []dao.HostIPResource{}
-	hostIDs := []string{}
-	this.GetPoolIps(service.PoolId, &PoolIPResources, &hostIDs)
-	if len(PoolIPResources) < 1 {
+	//poolsHostsIpInfo := make(map[string][]dao.HostIPResource, 32)
+	var poolsHostsIpInfo map[string][]dao.HostIPResource
+	err = this.GetPoolHostIPInfo(service.PoolId, &poolsHostsIpInfo)
+	if err != nil {
+		fmt.Printf("GetPoolHostIPInfo failed: %v", err)
+		return err
+	}
+	numIpsAvailable := 0
+	for hostId, _ := range poolsHostsIpInfo {
+		numIpsAvailable = numIpsAvailable + len(poolsHostsIpInfo[hostId])
+	}
+	if numIpsAvailable < 1 {
 		msg := fmt.Sprintf("No IP addresses are available in pool %s.", service.PoolId)
 		return errors.New(msg)
 	}
+	glog.Infof("Pool %v contains %s available IPs", numIpsAvailable, service.PoolId)
 
-	rand.Seed(181)
-	hostIndex := 0
+	rand.Seed(15)
+	selectedHostId := ""
 	userProvidedIPAssignment := false
-	if setIpAddress == "" {
-		hostIndex = rand.Intn(len(PoolIPResources))
-		setIpAddress = PoolIPResources[hostIndex].IPAddress
+	
+	// automatic IP selection
+	if assignmentRequest.AutoAssignment {
+		glog.Infof("Automatic IP Address Assignment")
+		// create a slice of the keys ... the keys are hostIds
+	    sliceOfKeys := make([]string, len(poolsHostsIpInfo))
+	    i := 0
+	    for key, _ := range poolsHostsIpInfo {
+	        sliceOfKeys[i] = key
+	        i++
+	    }
+		randomKey := rand.Intn(len(poolsHostsIpInfo))
+		selectedHostId = sliceOfKeys[randomKey]
+		randomHostIP := rand.Intn(len(poolsHostsIpInfo[selectedHostId]))
+		assignmentRequest.IpAddress = poolsHostsIpInfo[selectedHostId][randomHostIP].IPAddress
 	} else {
-		validIp := true
+		// verify that the user provided IP address is available in the pool
+		glog.Infof("Manual IP Address Assignment")
+		validIp := false
 		userProvidedIPAssignment = true
-		for poolIPResourceIndex, PoolIPResource := range PoolIPResources {
-			if setIpAddress == PoolIPResource.IPAddress {
-				validIp = true
-				hostIndex = poolIPResourceIndex
+
+		for hostId, _ := range poolsHostsIpInfo {
+			for _, hostIPResource := range poolsHostsIpInfo[hostId] {
+				if assignmentRequest.IpAddress == hostIPResource.IPAddress {
+					validIp = true
+					selectedHostId = hostId
+					// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
+				}
 			}
 		}
-		if validIp != true {
+
+		if !validIp {
 			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", service.PoolId)
 			return errors.New(msg)
 		}
 	}
+	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
 
 	assignments := []dao.AddressAssignment{}
-	this.GetServiceAddressAssignments(serviceId, &assignments)
+	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
 	if err != nil {
 		fmt.Printf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
@@ -915,41 +937,32 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) er
 	visitor := func(service dao.Service) error {
 		// if this service is in need of an IP address, assign it an IP address
 		for _, endpoint := range service.Endpoints {
-			// if an IP is required ... but has not been assigned yet OR
-			// if a specific IP address is provided by the user
+			// if an address assignment is needed (does not yet exist) OR
+			// if a specific IP address is provided by the user AND an address assignment already exists
 			addressAssignmentId := ""
-			if this.needsAddressAssignment(service.Id, endpoint, &addressAssignmentId) || userProvidedIPAssignment {
-				if userProvidedIPAssignment && addressAssignmentId != "" {
-					err = this.RemoveAddressAssignment(addressAssignmentId, unusedString)
+			addressAssignmentNeeded := this.needsAddressAssignment(service.Id, endpoint, &addressAssignmentId)
+			if addressAssignmentNeeded || (addressAssignmentId != "" && userProvidedIPAssignment) {
+				if addressAssignmentId != "" {
+					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
+					err = this.RemoveAddressAssignment(addressAssignmentId, nil)
 					if err != nil {
-						fmt.Printf("controlPlaneDao.RemoveAddressAssignment failed: %v", err)
+						fmt.Printf("controlPlaneDao.RemoveAddressAssignment failed in AssignIPs anonymous function: %v", err)
 						return err
 					}
 				}
 				assignment := dao.AddressAssignment{}
-				assignment.Id = "1" // generate a guid
 				assignment.AssignmentType = "static"
-				assignment.HostId = hostIDs[hostIndex]
+				assignment.HostId = selectedHostId
 				assignment.PoolId = service.PoolId
-				assignment.IPAddr = setIpAddress
+				assignment.IPAddr = assignmentRequest.IpAddress
 				assignment.Port = endpoint.AddressConfig.Port
-				//assignment.Port = endPoint.PortNumber
 				assignment.ServiceId = service.Id
 				assignment.EndpointName = endpoint.Name
+				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 				err = this.AssignAddress(assignment, &unusedString)
 				if err != nil {
-					fmt.Printf("AssignAddress failed in anonymous function: %v", err)
+					fmt.Printf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
-				}
-
-				assignments := []dao.AddressAssignment{}
-				err = this.GetServiceAddressAssignments(service.Id, &assignments)
-				if err != nil {
-					fmt.Printf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
-					return err
-				}
-				for _, assignment := range assignments {
-					fmt.Printf("assignment: ", assignment.Id)
 				}
 			}
 		}
@@ -957,14 +970,20 @@ func (this *ControlPlaneDao) AssignIPs(serviceId string, setIpAddress string) er
 	}
 
 	// traverse all the services
-	return this.walkServices(serviceId, visitor)
+	err = this.walkServices(assignmentRequest.ServiceId, visitor)
+	if err != nil {
+		return err
+	}
+
+	glog.Infof("All services requiring an explicit IP address have been assigned to: %s", assignmentRequest.IpAddress)
+	return nil
 }
 
 // validate the provided service
-func (this *ControlPlaneDao) ValidateService(serviceId string, unused *string) error {
+func (this *ControlPlaneDao) validateService(serviceId string) error {
 	visitor := func(service dao.Service) error {
 		// validate the service is ready to start
-		err := this.ValidateServicesForStarting(service)
+		err := this.validateServicesForStarting(service)
 		if err != nil {
 			glog.Errorf("Services failed validation for starting")
 			fmt.Printf("Error: %v", err)
@@ -980,7 +999,7 @@ func (this *ControlPlaneDao) ValidateService(serviceId string, unused *string) e
 // start the provided service
 func (this *ControlPlaneDao) StartService(serviceId string, unused *string) error {
 	// this will traverse all the services
-	err := this.ValidateService(serviceId, unused)
+	err := this.validateService(serviceId)
 	if err != nil {
 		return err
 	}
@@ -1259,7 +1278,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 }
 
 // RemoveAddressAssignemnt Removes an AddressAssignment by id
-func (this *ControlPlaneDao) RemoveAddressAssignment(id string, unused interface{}) error {
+func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) error {
 	aas, err := this.queryAddressAssignments(fmt.Sprintf("Id:%s", id))
 	if err != nil {
 		return err

@@ -441,18 +441,24 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	controlPlane := getClient()
 	poolId := cmd.Arg(0)
 
-	assignIPsHostIPResources := []dao.HostIPResource{}
-	hostIDs := []string{}
-	err := controlPlane.GetPoolIps(poolId, &assignIPsHostIPResources, &hostIDs)
+	//assignIPsHostIPResources := []dao.HostIPResource{}
+	// list of maps
+	// dictionary of string to dao.HostIPResource
+	//poolsHostsIpInfo := make(map[string][]dao.HostIPResource, 32)
+	var poolsHostsIpInfo map[string][]dao.HostIPResource
+	err := controlPlane.GetPoolHostIPInfo(poolId, &poolsHostsIpInfo)
 	if err != nil {
+		fmt.Printf("GetPoolHostIPInfo failed: %v", err)
 		return err
 	}
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range assignIPsHostIPResources {
-		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+	for hostId, _ := range poolsHostsIpInfo {
+		for _, hostIPResource := range poolsHostsIpInfo[hostId] {
+			fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+		}
 	}
 
 	return nil
@@ -463,16 +469,17 @@ func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) != 2 {
+	if len(cmd.Args()) != 1 {
 		cmd.Usage()
 		return nil
 	}
 	controlPlane := getClient()
 
 	serviceId := cmd.Arg(0)
-	err := controlPlane.AssignIPs(serviceId, "")
+	assignmentRequest := dao.AssignmentRequest{serviceId, "", true}
+	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
-		glog.Fatalf("AssignIPs failed: %v", err)
+		glog.Fatalf("CmdAutoAssignIps AssignIPs failed: %v", err)
 		return err
 	}
 	
@@ -484,7 +491,7 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) != 3 {
+	if len(cmd.Args()) != 2 {
 		cmd.Usage()
 		return nil
 	}
@@ -492,9 +499,12 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 
 	serviceId := cmd.Arg(0)
 	setIpAddress := cmd.Arg(1)
-	err := controlPlane.AssignIPs(serviceId, setIpAddress)
+	assignmentRequest := dao.AssignmentRequest{serviceId, setIpAddress, false}
+	glog.Infof("Manually setting IP address to: %s", setIpAddress)
+	
+	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
-		glog.Fatalf("AssignIPs failed: %v", err)
+		glog.Fatalf("CmdManualAssignIps AssignIPs failed: %v", err)
 		return err
 	}
 	
