@@ -196,6 +196,11 @@ describe('HostsControl', function() {
 
 });
 
+// HostDetailsControl needs zenoss.visualization
+var zenoss = {
+    visualization: {}
+};
+
 describe('HostDetails', function() {
     var $scope = null;
     var $location = null;
