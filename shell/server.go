@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -34,8 +36,7 @@ func init() {
 func staticRoot() string {
 	if len(webroot) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
-		dir, _, err := serviced.ExecPath()
-		return path.Join(path.Dir(filename), "shell", "static")
+		return path.Join(path.Dir(path.Dir(filename)), "shell", "static")
 	}
 	return webroot
 }

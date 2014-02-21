@@ -199,11 +199,6 @@ func startServer() {
 		// Currently its only use is for command execution.
 		go func() {
 			sio := shell.NewProcessExecutorServer(options.port)
-			dir, _, err := serviced.ExecPath()
-			if err != nil {
-				glog.Fatalf("could not find path to serviced, %v", err)
-			}
-			sio.Handle("/", http.FileServer(http.Dir(path.Join(dir, "www"))))
 			http.ListenAndServe(":50000", sio)
 		}()
 	}
