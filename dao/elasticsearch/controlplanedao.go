@@ -35,12 +35,6 @@ import (
 	"time"
 )
 
-const (
-	DOCKER_ENDPOINT  string = "unix:///var/run/docker.sock"
-	DOCKER_LATEST    string = "LATEST"
-	DOCKER_IMAGEJSON string = "images.json"
-)
-
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
@@ -1436,7 +1430,11 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
-	dao := &ControlPlaneDao{hostName, port, "", "", nil, nil, nil}
+
+	dao := &ControlPlaneDao{
+		hostName: hostName,
+		port:     port,
+	}
 	if dfs, err := dfs.NewDistributedFileSystem(dao); err != nil {
 		return nil, err
 	} else {

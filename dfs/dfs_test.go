@@ -367,6 +367,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
+	// TODO: write tests!
 	// * wait for lock
 	// * error while acquiring the container
 	// * container is still running
@@ -385,6 +386,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestRollback(t *testing.T) {
+	// TODO: write tests!
 	// * wait for lock
 	// * bad snapshot id
 	// * error while acquiring the tenantId

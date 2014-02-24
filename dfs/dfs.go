@@ -40,7 +40,9 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 	if err != nil {
 		return []byte{}, err
 	}
-	cmd := exec.Command(lxcAttach, "-n", state.DockerId, "-e", "--", "bin/bash", "-c", command)
+	argv := []string{"-n", state.DockerId, "-e", "--", "/bin/bash", "-c", command}
+	glog.V(3).Infof("Command: %s %s", lxcAttach, argv)
+	cmd := exec.Command(lxcAttach, argv...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -377,14 +379,18 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 
 	if err := d.retag(&snapshotImages, &volume); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		d.retag(&latestImages, &volume)
+		if err := d.retag(&latestImages, &volume); err != nil {
+			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
+		}
 		return err
 	}
 
 	glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
 	if err := volume.Rollback(snapshotId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		d.retag(&latestImages, &volume)
+		if err := d.retag(&latestImages, &volume); err != nil {
+			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
+		}
 		return err
 	}
 	var unusedStr string = ""
