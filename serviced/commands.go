@@ -106,6 +106,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
+		{"commit", "Commit a container to an image"},
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
@@ -783,6 +784,29 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 		glog.Errorf("Received an error: %s", err)
 	}
 	return err
+}
+
+func (cli *ServicedCli) CmdCommit(args ...string) (err error) {
+	cmd := Subcmd("commit", "DOCKER_ID", "Commits a container and dfs to a new snapshot")
+	err = cmd.Parse(args)
+	if err != nil {
+		return
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return
+	}
+	controlPlane := getClient()
+
+	var label string
+	err = controlPlane.Commit(cmd.Arg(0), &label)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	} else {
+		fmt.Printf("%s\n", label)
+	}
+
+	return
 }
 
 func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {
