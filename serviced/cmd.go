@@ -26,7 +26,6 @@ import (
 
 	"flag"
 	"fmt"
-	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -35,6 +34,8 @@ import (
 	"os/user"
 	"path"
 	"time"
+
+	"github.com/zenoss/glog"
 )
 
 // Store the command line options
@@ -163,6 +164,7 @@ func startServer() {
 
 		// TODO: Make bind port for web server optional?
 		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats)
+		go cpserver.ServeUI()
 		go cpserver.Serve()
 	}
 	if options.agent {
