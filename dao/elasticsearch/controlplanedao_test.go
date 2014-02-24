@@ -30,6 +30,7 @@ const (
 )
 
 var unused int
+var unusedStr string
 var id string
 var addresses []string
 var controlPlaneDao *ControlPlaneDao
@@ -491,7 +492,7 @@ func testDaoHostExists(t *testing.T) {
 	}
 }
 
-func TestDaoValidServiceForDeployment(t *testing.T) {
+func TestDaoValidServiceForStart(t *testing.T) {
 	testService := dao.Service{
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
@@ -502,13 +503,13 @@ func TestDaoValidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
 	if err != nil {
-		t.Error("Services failed validation for deployment: ", err)
+		t.Error("Services failed validation for starting: ", err)
 	}
 }
 
-func TestDaoInvalidServiceForDeployment(t *testing.T) {
+func TestDaoInvalidServiceForStart(t *testing.T) {
 	testService := dao.Service{
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
@@ -523,10 +524,121 @@ func TestDaoInvalidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
 	if err == nil {
-		t.Error("Services should have failed validation for deployment...")
+		t.Error("Services should have failed validation for starting...")
 	}
+}
+
+func TestDaoGetPoolHostIPInfo(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.Id)
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
+
+	var poolsHostsIpInfo map[string][]dao.HostIPResource
+	err := controlPlaneDao.GetPoolHostIPInfo(assignIPsPool.Id, &poolsHostsIpInfo)
+	if err != nil {
+		t.Error("GetPoolIps failed")
+	}
+	
+	if poolsHostsIpInfo[HOSTID][0].IPAddress != ipAddress1 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][0].IPAddress)
+	}
+	if poolsHostsIpInfo[HOSTID][1].IPAddress != ipAddress2 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][1].IPAddress)
+	}
+
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
+}
+
+func TestDaoAutoAssignIPs(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.Id)
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.IPAddress = "192.168.100.10"
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.IPAddress = "10.50.9.1"
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
+
+	testService := dao.Service{
+		Id:		"assignIPsServiceID",
+		PoolId:	assignIPsPool.Id,
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Name:        "AssignIPsEndpointName",
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+				AddressConfig: dao.AddressResourceConfig{
+					Port:     8081,
+					Protocol: commons.TCP,
+				},
+			},
+		},
+	}
+
+	err = controlPlaneDao.AddService(testService, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
+	}
+
+	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
+	err := controlPlaneDao.AssignIPs(assignmentRequest, nil)
+	if err != nil {
+		t.Error("AssignIPs failed: %v", err)
+	}
+
+	assignments := []dao.AddressAssignment{}
+	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
+	if err != nil {
+		t.Error("GetServiceAddressAssignments failed: %v", err)
+	}
+	if len(assignments) != 1 {
+		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
+	}
+
+	defer controlPlaneDao.RemoveService(testService.Id, &unused)
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
 }
 
 func TestDaoGetHostNoIPs(t *testing.T) {
@@ -549,7 +661,6 @@ func TestDaoGetHostNoIPs(t *testing.T) {
 	if len(resultHost.IPs) != 0 {
 		t.Errorf("Expected %v IPs, got %v", 0, len(resultHost.IPs))
 	}
-
 }
 
 func TestDaoGetHostWithIPs(t *testing.T) {
@@ -577,9 +688,9 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 
 func TestRemoveAddressAssignment(t *testing.T) {
 	//test removing address when not present
-	err = controlPlaneDao.RemoveAddressAssignment("fake", struct{}{})
+	err = controlPlaneDao.RemoveAddressAssignment("fake", nil)
 	if err == nil {
-		t.Errorf("Eexpected error removing address %v", err)
+		t.Errorf("Expected error removing address %v", err)
 	}
 }
 
@@ -653,7 +764,7 @@ func TestAssignAddress(t *testing.T) {
 	}
 
 	//test removing address
-	err = controlPlaneDao.RemoveAddressAssignment(aid, &struct{}{})
+	err = controlPlaneDao.RemoveAddressAssignment(aid, nil)
 	if err != nil {
 		t.Errorf("Unexpected error removing address %v", err)
 	}
