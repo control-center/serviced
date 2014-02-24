@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"sort"
 	"strings"
 )
 
@@ -117,16 +116,6 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 		}
 	}
 	return labels, nil
-}
-
-func (c *BtrfsConn) LastSnapshot() (string, error) {
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return "", err
-	}
-
-	sort.Strings(snapshots)
-	return snapshots[len(snapshots)-1], nil
 }
 
 func (c *BtrfsConn) RemoveSnapshot(label string) error {

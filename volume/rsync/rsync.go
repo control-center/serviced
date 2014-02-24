@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"sort"
 	"strings"
 )
 
@@ -92,16 +91,6 @@ func (c *RsyncConn) Snapshots() (labels []string, err error) {
 		}
 	}
 	return labels, nil
-}
-
-func (c *RsyncConn) LastSnapshot() (label string, err error) {
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return "", err
-	}
-
-	sort.Strings(snapshots)
-	return snapshots[len(snapshots)-1], nil
 }
 
 func (c *RsyncConn) RemoveSnapshot(label string) error {

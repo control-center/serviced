@@ -1,4 +1,4 @@
-package snapshot
+package dfs
 
 import (
 	"github.com/zenoss/serviced/dao"
@@ -366,120 +366,33 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 }
 
-/*
 func TestCommit(t *testing.T) {
-	var label string
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
-	if err != nil {
-		t.Fatalf("failed to initialize dfs: %+v", err)
-	}
-
 	// * wait for lock
-	dfs.Commit("containerId", &label)
-
 	// * error while acquiring the container
-	dfs.Commit("containerId", &label)
-
 	// * container is still running
-	dfs.Commit("containerId", &label)
-
 	// * error while acquiring the images
-	dfs.Commit("containerId", &label)
-
 	// * stale image
-	dfs.Commit("containerId", &label)
-
 	// * error while snapshotting the dfs
-	dfs.Commit("containerId", &label)
-
 	// * error while committing the container
-	dfs.Commit("containerId", &label)
-
 	// * error while getting the tenant id
-	dfs.Commit("niltenant", &label)
-
 	// * error while getting the volume
-	dfs.Commit("containerId", &label)
-
-	// * error while getting the snapshots
-	dfs.Commit("containerId", &label)
-
 	// * error while marshalling the images
-	dfs.Commit("containerId", &label)
-
 	// * error while writing the images to file
-	dfs.Commit("containerId", &label)
-
 	// * success
-	dfs.Commit("containerId", &label)
-
 	// ** lock is released
 	// ** label value is populated
 	// ** error is not nil
 }
 
 func TestRollback(t *testing.T) {
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
-	if err != nil {
-		t.Fatalf("failed to initialize dfs: %+v", err)
-	}
-
 	// * wait for lock
-	dfs.Rollback("snapshotId")
-
 	// * bad snapshot id
-	dfs.Rollback("snapshotId")
-
 	// * error while acquiring the tenantId
-	dfs.Rollback("snapshotId")
-
 	// * error while acquiring the service
-	dfs.Rollback("snapshotId")
-
 	// * error while acquiring the volume
-	dfs.Rollback("snapshotId")
-
-	// * error while reading the images file
-	dfs.Rollback("snapshotId")
-
-	// * error while unmarshalling json
-	dfs.Rollback("snapshotId")
-
-	// * error while finding images
-	dfs.Rollback("snapshotId")
-
-	// * error while looking up the docker binary
-	dfs.Rollback("snapshotId")
-
+	// * error while getting the latest images
+	// * error while getting the snapshot images
 	// * error while retagging images
-	dfs.Rollback("snapshotId")
-
 	// * error while running rollback
-	dfs.Rollback("snapshotId")
-
 	// * success
-	dfs.Rollback("snapshotId")
-
 }
-
-func TestPauseResume(t *testing.T) {
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
-	if err != nil {
-		t.Fatalf("failed to initialize dfs: %+v", err)
-	}
-	service := new(dao.Service)
-	state := new(dao.ServiceState)
-
-	// * pause success
-	dfs.Pause(service, state)
-
-	// * pause fail
-	dfs.Pause(service, state)
-
-	// * resume success
-	dfs.Resume(service, state)
-
-	// * resume fail
-	dfs.Resume(service, state)
-
-}*/

@@ -23,7 +23,6 @@ type Conn interface {
 	Path() string
 	Snapshot(label string) (err error)
 	Snapshots() ([]string, error)
-	LastSnapshot() (string, error)
 	RemoveSnapshot(label string) error
 	Rollback(label string) error
 }
