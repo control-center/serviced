@@ -2,11 +2,14 @@ package web
 
 import (
 	"github.com/ant0ine/go-json-rest"
+	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 )
 
@@ -31,7 +34,52 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	return &cfg
 }
 
-func (this *ServiceConfig) Serve() {
+func (sc *ServiceConfig) Serve() {
+	client, err := sc.getClient()
+	if err != nil {
+		glog.Errorf("Unable to get control plane client: %v", err)
+		return
+	}
+
+	uihandler := func(w http.ResponseWriter, r *http.Request) {
+		uiUrl, err := url.Parse("http://127.0.0.1:7878")
+		if err != nil {
+			glog.Errorf("Can't parse UI URL: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui := httputil.NewSingleHostReverseProxy(uiUrl)
+		if ui == nil {
+			glog.Errorf("Can't proxy UI request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui.ServeHTTP(w, r)
+	}
+
+	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.Info(*r)
+		var empty interface{}
+		services := []*dao.Service{}
+		client.GetServices(&empty, &services)
+
+		http.Error(w, "TBI", http.StatusNotImplemented)
+	}
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", vhosthandler).Host("{subdomain}.europa.loc")
+	r.HandleFunc("/{path:.*}", vhosthandler).Host("{subdomain}.europa.loc")
+
+	r.HandleFunc("/{path:.*}", uihandler)
+
+	http.Handle("/", r)
+	http.ListenAndServe(sc.bindPort, nil)
+}
+
+func (this *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
@@ -87,7 +135,7 @@ func (this *ServiceConfig) Serve() {
 
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(this.bindPort, &handler)
+	http.ListenAndServe(":7878", &handler)
 }
 
 var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
@@ -109,6 +157,15 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 		routes = append(routes, rest.Route{method, path, handlerFunc})
 		routes = append(routes, rest.Route{method, andsubpath, handlerFunc})
 	}
+	return routes
+}
+
+func routeToTestVhost(vhost string, routes []rest.Route) []rest.Route {
+	glog.Infof("Create route for: %s", vhost)
+	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
+		glog.Infof("Handling request")
+	}
+	routes = append(routes, rest.Route{"GET", vhost, handlerFunc})
 	return routes
 }
 
