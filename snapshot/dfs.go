@@ -24,11 +24,31 @@ const (
 	DOCKER_ENDPOINT  string = "unix:///var/run/docker.sock"
 	DOCKER_LATEST    string = "latest"
 	DOCKER_IMAGEJSON string = "images.json"
+
+	ERR_STATENOTFOUND string = "Service state not found for serviceId: %s"
 )
 
 var (
 	unused interface{}
+	// stubs
+	getCurrentUser = user.Current
 )
+
+var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, error) {
+	lxcAttach, err := exec.LookPath("lxc-attach")
+	if err != nil {
+		return []byte{}, err
+	}
+	cmd := exec.Command(lxcAttach, "-n", state.DockerId, "-e", "--", "bin/bash", "-c", command)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
+		return output, err
+	}
+	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
+	return output, nil
+}
 
 type DistributedFileSystem struct {
 	client       dao.ControlPlane
@@ -65,11 +85,11 @@ func (d *DistributedFileSystem) getServiceState(serviceId string, state *dao.Ser
 	for i, s := range states {
 		glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, serviceId, s)
 		if s.DockerId != "" {
-			state = s
+			*state = *s
 			return nil
 		}
 	}
-	return errors.New(fmt.Sprintf("unable to find service state for serviceId: %s", serviceId))
+	return errors.New(fmt.Sprintf(ERR_STATENOTFOUND, serviceId))
 }
 
 func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceState) error {
@@ -108,7 +128,7 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 	// call quiesce for services with 'DistributedFileSystem.Pause' and
 	// 'DistributedFileSystem.Resume' definition.  Only root can run
 	// lxc-attach
-	if whoami, err := user.Current(); err != nil {
+	if whoami, err := getCurrentUser(); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 		return err
 	} else if USER_ROOT != whoami.Username {
@@ -124,14 +144,14 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 				continue
 			}
 
-			var state *dao.ServiceState
-			if err := d.getServiceState(service.Id, state); err != nil {
+			var state dao.ServiceState
+			if err := d.getServiceState(service.Id, &state); err != nil {
 				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 				return err
 			}
 
-			err := d.Pause(service, state)
-			defer d.Resume(service, state)
+			err := d.Pause(service, &state)
+			defer d.Resume(service, &state)
 			if err != nil {
 				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 				return err
@@ -353,22 +373,6 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	var unusedStr string = ""
 
 	return d.client.StartService(tenantId, &unusedStr)
-}
-
-func runServiceCommand(state *dao.ServiceState, command string) ([]byte, error) {
-	lxcAttach, err := exec.LookPath("lxc-attach")
-	if err != nil {
-		return []byte{}, err
-	}
-	cmd := exec.Command(lxcAttach, "-n", state.DockerId, "-e", "--", "bin/bash", "-c", command)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
-		return output, err
-	}
-	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
-	return output, nil
 }
 
 func getSnapshotLabel(v *volume.Volume) string {
