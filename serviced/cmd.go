@@ -33,6 +33,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/zenoss/glog"
@@ -40,28 +41,57 @@ import (
 
 // Store the command line options
 var options struct {
-	port           string
-	listen         string
-	master         bool
-	agent          bool
-	muxPort        int
-	tls            bool
-	keyPEMFile     string
-	certPEMFile    string
-	varPath        string // Directory to store data, eg isvcs & service volumes
-	resourcePath   string
-	zookeepers     ListOpts
-	repstats       bool
-	statshost      string
-	statsperiod    int
-	mcusername     string
-	mcpasswd       string
-	mount          ListOpts
-	resourceperiod int
-	vfs            string
+	port             string
+	listen           string
+	master           bool
+	agent            bool
+	muxPort          int
+	tls              bool
+	keyPEMFile       string
+	certPEMFile      string
+	varPath          string // Directory to store data, eg isvcs & service volumes
+	resourcePath     string
+	zookeepers       ListOpts
+	repstats         bool
+	statshost        string
+	statsperiod      int
+	mcusername       string
+	mcpasswd         string
+	mount            ListOpts
+	resourceperiod   int
+	vfs              string
+	esStartupTimeout int
 }
 
 var agentIP string
+
+// getEnvVarInt() returns the env var as an int value or the defaultValue if env var is unset
+func getEnvVarInt(envVar string, defaultValue int) int {
+	envVarValue := os.Getenv(envVar)
+	if len(envVarValue) > 0 {
+		if value, err := strconv.Atoi(envVarValue); err != nil {
+			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
+			return defaultValue
+		} else {
+			return value
+		}
+	}
+	return defaultValue
+}
+
+// ensureMinimumInt sets the env var and command line flag to the given minimum if the value is less than the minimum
+func ensureMinimumInt(envVar string, flagName string, minimum int) {
+	theFlag := flag.Lookup(flagName)
+	value, _ := strconv.Atoi(theFlag.Value.String())
+	if value < minimum {
+		glog.Infof("overriding flag %s:%s with minimum value of %v", flagName, theFlag.Value.String(), minimum)
+		valueStr := strconv.Itoa(minimum)
+		os.Setenv(envVar, valueStr)
+		flag.Set(flagName, valueStr)
+	} else {
+		os.Setenv(envVar, theFlag.Value.String())
+	}
+}
 
 // Setup flag options (static block)
 func init() {
@@ -100,6 +130,8 @@ func init() {
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
+
+	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 60), "time to wait on elasticsearch startup before bailing")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -201,11 +233,6 @@ func startServer() {
 		// Currently its only use is for command execution.
 		go func() {
 			sio := shell.NewProcessExecutorServer(options.port)
-			dir, _, err := serviced.ExecPath()
-			if err != nil {
-				glog.Fatalf("could not find path to serviced, %v", err)
-			}
-			sio.Handle("/", http.FileServer(http.Dir(path.Join(dir, "www"))))
 			http.ListenAndServe(":50000", sio)
 		}()
 	}
@@ -230,6 +257,7 @@ func main() {
 
 	// parse the command line flags
 	flag.Parse()
+	ensureMinimumInt("ES_STARTUP_TIMEOUT", "esStartupTimeout", 30)
 
 	// are we in server mode
 	if (options.master || options.agent) && len(flag.Args()) == 0 {

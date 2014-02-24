@@ -11,6 +11,7 @@ import (
 const SERVICE_PATH = "/services"
 const SCHEDULER_PATH = "/scheduler"
 const SNAPSHOT_PATH = "/snapshots"
+const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
 
 func TimeoutAfter(delay time.Duration) <-chan bool {
 	doneChan := make(chan bool)

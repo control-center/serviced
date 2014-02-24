@@ -1,9 +1,10 @@
 {
-		"action_view_log":"Log",
-		"action_kill":"Kill",
-		"action_terminal":"Shell",
 		"action_attach":"Attach",
+		"action_kill":"Kill",
+		"action_snapshot_service":"Snapshot",
+		"action_terminal":"Shell",
 		"action_view_cfg":"Config",
+		"action_view_log":"Log",
 		"brand_cp":"Control Plane",
 		"brand_zcp":"Zenoss Control Plane",
 		"breadcrumb_deployed":"Deployed Apps",

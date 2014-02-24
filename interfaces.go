@@ -85,6 +85,9 @@ type LoadBalancer interface {
 	// AckProxySnapshotQuiece is called by clients when the snapshot command has
 	// shown the service is quieced; the agent returns a response when the snapshot is complete
 	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
+
+	// GetTenantId retrieves a service's tenant id
+	GetTenantId(serviceId string, tenantId *string) error
 }
 
 // The Agent interface is the API for a serviced agent.  Get the host information from an agent.
