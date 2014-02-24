@@ -13,6 +13,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -55,6 +56,7 @@ type HostAgent struct {
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
 	closing         chan chan error
+	proxyRegistry   proxy.ProxyRegistry
 }
 
 // assert that this implemenents the Agent interface
@@ -88,6 +90,7 @@ func NewHostAgent(master string, varPath string, mount []string, vfs string, zoo
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
 
+	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
 	return agent, err
 }
@@ -290,16 +293,41 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 	if err != nil {
 		return
+		//TODO: should  "cmd" be cleaned up before returning?
 	}
+
+	var sState *dao.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
 		ss.DockerId = containerState.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = containerState.NetworkSettings.IPAddress
 		ss.PortMapping = containerState.NetworkSettings.Ports
+		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+		//TODO: should  "cmd" be cleaned up before returning?
 	} else {
+
+		//start IP resource proxy for each endpoint
+		var service dao.Service
+		if _, err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
+			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
+		} else {
+			for _, endpoint := range service.Endpoints {
+				if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
+					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
+
+					frontEnd := proxy.FrontEnd{proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}}
+					backEnd := proxy.BackEnd{proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}}
+
+					a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
+					defer a.proxyRegistry.RemoveProxy(proxyId)
+
+				}
+			}
+
+		}
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 

@@ -519,6 +519,17 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 	response, err := indexService(id, service)
 	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
 	if response.Ok {
+		//add address assignment info to ZK Service
+		for _, endpoint := range service.Endpoints {
+			assignment, err := this.getEndpointAddressAssignments(service.Id, endpoint.Name)
+			if err != nil {
+				return err
+			}
+			if assignment != nil {
+				//assignment exists
+				endpoint.SetAssignment(&assignment)
+			}
+		}
 		return this.zkDao.UpdateService(&service)
 	}
 	return err
@@ -1110,7 +1121,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 	if err != nil {
 		return err
 	}
-	if existing.Id != "" {
+	if existing != nil {
 		return fmt.Errorf("Address Assignment already exists")
 	}
 	assignment.Id, err = dao.NewUuid()
@@ -1118,7 +1129,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 		return err
 	}
 	_, err = newAddressAssignment(assignment.Id, &assignment)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	*id = assignment.Id
@@ -1190,13 +1201,13 @@ func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.Addre
 	return toAddressAssignments(&result)
 }
 
-// getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment struct will be uninitialized
+// getEndpointAddressAssignments returns the AddressAssignment for the serivce and endpoint, if no assignments the AddressAssignment is nil
 func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
 	//TODO: this can probably be done w/ a query
 	assignments := []dao.AddressAssignment{}
 	err := this.GetServiceAddressAssignments(serviceId, &assignments)
 	if err != nil {
-		return &dao.AddressAssignment{}, err
+		return nil, err
 	}
 
 	for _, result := range assignments {
@@ -1204,7 +1215,7 @@ func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, end
 			return &result, nil
 		}
 	}
-	return &dao.AddressAssignment{}, nil
+	return nil, nil
 }
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {

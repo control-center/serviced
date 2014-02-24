@@ -76,7 +76,7 @@ func (mux TCPMux) MuxConnection(conn net.Conn) {
 	go io.Copy(svc, conn)
 }
 
-// listenAndMux listens for incoming connections and attempts to multiplex them
+// ListenAndMux listens for incoming connections and attempts to multiplex them
 // to the local service that they request via a Zen-Service header in their
 // initial message.
 func (mux *TCPMux) ListenAndMux() {
