@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -23,6 +25,23 @@ const (
 	MAXBUFFER  int    = 8192
 )
 
+var webroot string
+
+func init() {
+	servicedHome := os.Getenv("SERVICED_HOME")
+	if len(servicedHome) > 0 {
+		webroot = servicedHome + "/share/shell/static"
+	}
+}
+
+func staticRoot() string {
+	if len(webroot) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		return path.Join(path.Dir(path.Dir(filename)), "shell", "static")
+	}
+	return webroot
+}
+
 func NewProcessForwarderServer(addr string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
@@ -30,6 +49,7 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onForwarderDisconnect)
+	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 
@@ -40,6 +60,7 @@ func NewProcessExecutorServer(port string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
+	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 

@@ -566,6 +566,21 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
 }
 
+func RestSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var label string
+	err = client.Snapshot(serviceId, &label)
+	if err != nil {
+		glog.Errorf("Unexpected error snapshotting service: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{label, serviceLinks(serviceId)})
+}
+
 func RestGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {

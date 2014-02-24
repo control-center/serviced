@@ -36,8 +36,8 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
 func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
-	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, snapshotId)
+	glog.V(4).Infof("ControlPlaneAgent.GetProxySnapshotQuiece()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetProxySnapshotQuiece", serviceId, snapshotId)
 }
 
 // AckProxySnapshotQuiece is called by clients when the snapshot command has
@@ -45,4 +45,10 @@ func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) 
 func (a *LBClient) AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error {
 	glog.V(4).Infof("ControlPlaneAgent.AckProxySnapshotQuiece()")
 	return a.rpcClient.Call("ControlPlaneAgent.AckProxySnapshotQuiece", snapshotId, unused)
+}
+
+// GetTenantId return's the service's tenant id
+func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetTenantId()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
 }

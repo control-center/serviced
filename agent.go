@@ -229,14 +229,15 @@ func dumpOut(stdout, stderr io.Reader, size int) {
 }
 
 func dumpBuffer(reader io.Reader, size int, name string) {
-
 	buffer := make([]byte, size)
 	if n, err := reader.Read(buffer); err != nil {
 		glog.V(1).Infof("Unable to read %s of dump", name)
 	} else {
-		glog.V(0).Infof("Process %s:\n%s", name, string(buffer[:n]))
+		message := strings.TrimSpace(string(buffer[:n]))
+		if len(message) > 0 {
+			glog.V(0).Infof("Process %s:\n%s", name, message)
+		}
 	}
-
 }
 
 func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
@@ -409,7 +410,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	defer client.Close()
 
-	//get this service's tenantId for env injection
+	//get this service's tenantId for volume mapping
 	var tenantId string
 	err = client.GetTenantId(service.Id, &tenantId)
 	if err != nil {
@@ -515,11 +516,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	// add arguments for environment variables
-	environmentVariables := "-e CONTROLPLANE=1"
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
+	environmentVariables := "-e CONTROLPLANE=1 "
+	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
