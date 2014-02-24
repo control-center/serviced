@@ -203,6 +203,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	for _, i := range images {
 		if i.ID == container.Image {
 			image = &i
+			break
 		}
 	}
 	if image == nil {
