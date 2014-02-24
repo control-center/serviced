@@ -365,7 +365,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	}
 
 	var snapshotImages []docker.APIImages
-	if err := d.getSnapshotImages(snapshotId, &volume, &latestImages); err != nil {
+	if err := d.getSnapshotImages(snapshotId, &volume, &snapshotImages); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
