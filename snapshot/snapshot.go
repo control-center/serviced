@@ -44,7 +44,7 @@ func runCommandInServiceContainer(serviceId string, dockerId string, command str
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Error running cmd:'%s' for serviceId:%s - ERROR:%s  OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, err, output)
-		return string(output), err
+		return string(output), errors.New(err.Error() + "  OUTPUT:" + string(output))
 	}
 	glog.V(0).Infof("Successfully ran cmd:'%s' for serviceId:%s - OUTPUT:%s", strings.Join(dockerCommand, " "), serviceId, string(output))
 	return string(output), nil
