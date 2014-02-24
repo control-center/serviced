@@ -341,7 +341,6 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return errors.New("malformed snapshotId")
 	}
 	serviceId := parts[0]
-	label := parts[1]
 	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
@@ -385,7 +384,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
+	glog.V(2).Infof("performing rollback on %s to %s", tenantId, snapshotId)
 	if err := volume.Rollback(snapshotId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		if err := d.retag(&latestImages, &volume); err != nil {
