@@ -11,4 +11,6 @@ tarball:
 	@chmod a+x /opt/zenoss/bin/metric-consumer-app.sh
 	@ln -s /opt/zenoss/etc/metric-consumer-app/metric-consumer-app_supervisor.conf /opt/zenoss/etc/supervisor
 	@sed -i 's/\(authEnabled:.*\)true/\1false/' /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "httpParameterTags:" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
 	@tar czf $(TARGET)/consumer.tar.gz /opt

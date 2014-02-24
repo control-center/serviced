@@ -137,6 +137,13 @@ describe('SubServiceControl', function() {
         expect($scope.breadcrumbs.length).toBe(2);
         expect($scope.breadcrumbs[1].label).toBe(fake1.Name);
     });
+
+    it('Snapshot service', function() {
+        spyOn(resourcesService,'snapshot_service');
+        $scope.snapshotService({Id: 'fakesvc123', Name: 'Fake Service 123'});
+        expect(resourcesService.snapshot_service).toHaveBeenCalled();
+    });
+
 });
 
 describe('HostsControl', function() {
@@ -195,6 +202,11 @@ describe('HostsControl', function() {
     });
 
 });
+
+// HostDetailsControl needs zenoss.visualization
+var zenoss = {
+    visualization: {}
+};
 
 describe('HostDetails', function() {
     var $scope = null;
@@ -1037,6 +1049,9 @@ function fake_resources_service() {
        add_service: function(service, callback) {
            callback({});
        },
+       snapshot_service: function(serviceId, callback) {
+           callback(fake_snapshot_service());
+       },
        update_service: function(serviceId, service, callback) {
            callback({});
        },
@@ -1323,5 +1338,9 @@ function fake_services_tree() {
         tree[e.Id] = e;
     });
     return tree;
+}
+
+function fake_snapshot_service() {
+    return { Detail: "once upon a time" };
 }
 

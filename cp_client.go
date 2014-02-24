@@ -233,7 +233,7 @@ func (s *ControlClient) Send(service dao.Service, files *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
 
-func (s *ControlClient) GetVolume(serviceId string, volume **volume.Volume) error {
+func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error {
 	// WARNING: it would not make sense to call this from the CLI
 	// since volume is a pointer
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)

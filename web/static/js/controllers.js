@@ -481,6 +481,13 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         });
     };
 
+    $scope.snapshotService = function(service) {
+        resourcesService.snapshot_service(service.Id, function(label) {
+            console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
+            // TODO: add the snapshot label to some partial view in the UI
+        });
+    };
+
     $scope.updateService = function() {
         resourcesService.update_service($scope.services.current.Id, $scope.services.current, function() {
             console.log('Updated %s', $scope.services.current.Id);
@@ -1857,6 +1864,25 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     console.log('Deploying app template failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Snapshot a running service
+         *
+         * @param {string} serviceId ID of the service to snapshot.
+         * @param {function} callback Response passed to callback on success.
+         */
+        snapshot_service: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/snapshot').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Snapshot service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
