@@ -8,13 +8,15 @@ from celery import Celery
 from celery import current_app
 from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
+from celery.utils.log import get_task_logger
 from pyes import TermQuery, ES
-
+from socketIO_client import SocketIO
 
 REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
 # Go directly to container gateway to hit CP elastic isvc. This will only
 # be true while we can guarantee isvcs running on the same box.
-ELASTIC_URL = 'http://172.17.42.1:9200'  
+ELASTIC_HOST = '172.17.42.1'
+ELASTIC_URL = 'http://%s:9200' % ELASTIC_HOST
 
 
 app = Celery("cpcelery", broker="redis://", backend="redis://")
@@ -29,11 +31,41 @@ app.conf.update(
     CELERYBEAT_MAX_LOOP_INTERVAL=5
 )
 
+logger = get_task_logger(__name__)
+
+class ServicedShell:
+    def __init__(self):
+        self.socket = None
+        self.stdout = ""
+        self.stderr = ""
+        self.result = ""
+    def onResult(self, *args):
+        for l in args:
+            self.result += str(l)
+        self.socket.disconnect()
+    def onStdout(self, *args):
+        for l in args:
+            self.stdout += str(l)
+    def onStderr(self, *args):
+        for l in args:
+            self.stderr += str(l)
+    def run(self, service_id, command):        
+        logger.debug("%s Running command: %s\n" % (datetime.datetime.utcnow().isoformat(), command))
+        self.socket = SocketIO(ELASTIC_HOST, 50000)
+        self.socket.on('result', self.onResult)
+        self.socket.on('stdout', self.onStdout)        
+        self.socket.on('stderr', self.onStderr)        
+        self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
+        self.socket.wait()
+        logger.debug('%s Finished waiting for command "%s":\n' % (datetime.datetime.utcnow().isoformat(), command))
+        logger.debug('result:\n%s' % self.result)
+        logger.debug('stdout:\n%s' % self.stdout)
+        logger.debug('stderr:\n%s' % self.stderr)
+
 @app.task
 def serviced_shell(service_id, command):
-    with open('/opt/celery/var/task_output.log', 'a') as f:
-        f.write("%s Running command: %s\n" % (datetime.datetime.utcnow().isoformat(), command))
-
+    s = ServicedShell()
+    s.run(service_id, command)
 
 class ControlPlaneScheduleEntry(ScheduleEntry):
 
