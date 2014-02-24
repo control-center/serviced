@@ -30,6 +30,7 @@ const (
 
 var (
 	unused interface{}
+	Lock   *sync.Mutex = new(sync.Mutex)
 	// stubs
 	getCurrentUser = user.Current
 )
@@ -53,7 +54,6 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 type DistributedFileSystem struct {
 	client       dao.ControlPlane
 	dockerClient *docker.Client
-	lock         sync.Mutex
 }
 
 func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, error) {
@@ -67,14 +67,6 @@ func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, 
 		client:       client,
 		dockerClient: dockerClient,
 	}, nil
-}
-
-func (d *DistributedFileSystem) Lock() {
-	d.lock.Lock()
-}
-
-func (d *DistributedFileSystem) Unlock() {
-	d.lock.Unlock()
 }
 
 func (d *DistributedFileSystem) getServiceState(serviceId string, state *dao.ServiceState) error {
@@ -180,8 +172,8 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 }
 
 func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
-	d.Lock()
-	defer d.Unlock()
+	Lock.Lock()
+	defer Lock.Unlock()
 
 	// Get the container
 	container, err := d.dockerClient.InspectContainer(dockerId)
@@ -332,8 +324,8 @@ func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume
 }
 
 func (d *DistributedFileSystem) Rollback(snapshotId string) error {
-	d.Lock()
-	defer d.Unlock()
+	Lock.Lock()
+	defer Lock.Unlock()
 
 	var (
 		tenantId string

@@ -217,6 +217,10 @@ func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
+func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+}
+
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }

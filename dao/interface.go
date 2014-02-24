@@ -2,13 +2,7 @@ package dao
 
 import (
 	"github.com/zenoss/serviced/volume"
-
-	"sync"
 )
-
-// DFSLock
-// prevents new containers from being created during a snapshot or rollback
-var DFSLock sync.Mutex
 
 // A generic ControlPlane error
 type ControlPlaneError struct {
@@ -177,6 +171,9 @@ type ControlPlane interface {
 
 	// Commit DFS and service image
 	Commit(containerId string, label *string) error
+
+	// Performs a local snapshot from the host
+	LocalSnapshot(serviceId string, label *string) error
 
 	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
