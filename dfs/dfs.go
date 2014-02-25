@@ -324,6 +324,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	defer Lock.Unlock()
 
 	var (
+		services []*dao.Service
 		tenantId string
 		volume   volume.Volume
 	)
@@ -334,6 +335,25 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return errors.New("malformed snapshotId")
 	}
 	serviceId := parts[0]
+
+	// Fail if any services have running instances
+	if err := d.client.GetServices(unused, &services); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+		return err
+	}
+	for _, service := range services {
+		var states []*dao.ServiceState
+		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
+			glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+			return err
+		}
+		if numstates := len(states); numstates > 0 {
+			err := errors.New(fmt.Sprintf("%s has %d running services. Stop all services before rolling back", service.Id, numstates))
+			glog.V(2).Info("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+			return err
+		}
+	}
+
 	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
@@ -365,10 +385,6 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	d.client.StopService(tenantId, nil)
-	// TODO: Wait for real event that confirms shutdown
-	time.Sleep(time.Second * 5) // wait for shutdown
-
 	if err := d.retag(&snapshotImages, &volume); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		if err := d.retag(&latestImages, &volume); err != nil {
@@ -387,7 +403,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	}
 	var unusedStr string = ""
 
-	return d.client.StartService(tenantId, &unusedStr)
+	return nil
 }
 
 func getSnapshotLabel(v *volume.Volume) string {
