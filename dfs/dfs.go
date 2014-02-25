@@ -393,7 +393,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	glog.V(0).Infof("performing rollback on %s to %s", tenantId, snapshotId)
+	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", tenantId, snapshotId)
 	if err := volume.Rollback(snapshotId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		if err := d.retag(&latestImages, &volume); err != nil {
