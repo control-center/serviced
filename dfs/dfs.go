@@ -104,11 +104,6 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 		return err
 	}
 
-	// simplest case - do everything here
-
-	// call quiesce for services with 'DistributedFileSystem.Pause' and
-	// 'DistributedFileSystem.Resume' definition.  Only root can run
-	// lxc-attach
 	if whoami, err := getCurrentUser(); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 		return err
