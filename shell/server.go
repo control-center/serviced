@@ -48,7 +48,8 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onForwarderDisconnect)
-	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 
@@ -59,7 +60,8 @@ func NewProcessExecutorServer(port string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
-	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 
