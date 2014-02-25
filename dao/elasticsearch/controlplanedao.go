@@ -1286,6 +1286,7 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 	return this.dfs.Rollback(snapshotId)
 }
 
+// Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
 	return this.dfs.Snapshot(serviceId, label)
 }
@@ -1366,6 +1367,7 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 	return nil
 }
 
+// Commits a container to an image and saves it on the DFS
 func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
 	return this.dfs.Commit(containerId, label)
 }

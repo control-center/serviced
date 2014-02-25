@@ -58,6 +58,7 @@ type DistributedFileSystem struct {
 	dockerClient *docker.Client
 }
 
+// Initiates a New Distributed Filesystem Object given an implementation of a control plane object
 func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, error) {
 	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
@@ -86,6 +87,7 @@ func (d *DistributedFileSystem) getServiceState(serviceId string, state *dao.Ser
 	return errors.New(fmt.Sprintf(ERR_STATENOTFOUND, serviceId))
 }
 
+// Pauses a running service
 func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Pause); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
@@ -95,6 +97,7 @@ func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceSt
 	return nil
 }
 
+// Resumes a paused service
 func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Resume); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
@@ -104,6 +107,7 @@ func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceS
 	return nil
 }
 
+// Snapshots the DFS
 func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error {
 	var tenantId string
 	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
@@ -173,6 +177,7 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 	return nil
 }
 
+// Commits a container to docker image and updates the DFS
 func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	Lock.Lock()
 	defer Lock.Unlock()
@@ -326,6 +331,7 @@ func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume
 	return nil
 }
 
+// Rolls back the DFS to a specified state and retags the images
 func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	Lock.Lock()
 	defer Lock.Unlock()

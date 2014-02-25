@@ -786,6 +786,7 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 	return err
 }
 
+// Commits a container to a docker image and updates the DFS with a new snapshot
 func (cli *ServicedCli) CmdCommit(args ...string) (err error) {
 	cmd := Subcmd("commit", "DOCKER_ID", "Commits a container and dfs to a new snapshot")
 	err = cmd.Parse(args)
