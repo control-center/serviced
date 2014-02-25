@@ -276,6 +276,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	return nil
 }
 
+// Gets the images from docker and filters those marked as latest
 func (d *DistributedFileSystem) getLatestImages(images *[]docker.APIImages) error {
 	// Get all of the images from docker and find the ones tagged as the latest
 	if allImages, err := d.dockerClient.ListImages(true); err != nil {
