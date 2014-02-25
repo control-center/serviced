@@ -264,6 +264,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
+	// Acquire and release the lock to start a container from the latest image
 	dfs.Lock.Lock()
 	dfs.Lock.Unlock()
 
