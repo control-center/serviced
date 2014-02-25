@@ -59,12 +59,14 @@ stage: build pkgroot
 
 	# Stage web files
 	mkdir -p pkgroot$(INSTALL_DIR)/share/web
+	mkdir -p pkgroot$(INSTALL_DIR)/share/shell
 
 	# Stage environment default file
 	mkdir -p pkgroot/etc/default
 	cp serviced.default pkgroot/etc/default/serviced
 	cp ../dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
 	cp ../web/static pkgroot$(INSTALL_DIR)/share/web -R
+	cp ../shell/static pkgroot$(INSTALL_DIR)/share/shell -R
 	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
 	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
