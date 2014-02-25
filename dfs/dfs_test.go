@@ -109,28 +109,28 @@ func setUp() {
 
 		switch command {
 		case "pause-fail":
-			if MockPauseResume[state.ServiceId] {
+			if MockPauseResume[state.DockerId] {
 				err = errors.New("service already halted")
 			} else {
 				err = errors.New("failed to pause service")
-				MockPauseResume[state.ServiceId] = false
+				MockPauseResume[state.DockerId] = false
 			}
 		case "pause-success":
-			if MockPauseResume[state.ServiceId] {
+			if MockPauseResume[state.DockerId] {
 				err = errors.New("service already halted")
 			} else {
-				MockPauseResume[state.ServiceId] = true
+				MockPauseResume[state.DockerId] = true
 			}
 		case "resume-fail":
-			if MockPauseResume[state.ServiceId] {
+			if MockPauseResume[state.DockerId] {
 				err = errors.New("failed to resume service")
 			} else {
 				err = errors.New("service already running")
-				MockPauseResume[state.ServiceId] = false
+				MockPauseResume[state.DockerId] = false
 			}
 		case "resume-success":
-			if MockPauseResume[state.ServiceId] {
-				MockPauseResume[state.ServiceId] = false
+			if MockPauseResume[state.DockerId] {
+				MockPauseResume[state.DockerId] = false
 			} else {
 				err = errors.New("service already running")
 			}
@@ -249,33 +249,6 @@ func TestSnapshotPauseResume(t *testing.T) {
 	MockServices = services
 	if err = dfs.Snapshot("nilstate-snapshot", &label); err.Error() != dfs.client.GetServiceStates("nilstate-snapshot", nil).Error() {
 		t.Errorf("error not caught while acquiring the service state")
-	}
-
-	// service state not found
-	services = make([]*dao.Service, 1)
-	services[0] = &dao.Service{
-		Id: "notfound-1",
-		Snapshot: dao.SnapshotCommands{
-			Pause:  "command",
-			Resume: "command",
-		},
-	}
-	MockServices = services
-	if err = dfs.Snapshot("nilstate-snapshot", &label); err.Error() != fmt.Sprintf(ERR_STATENOTFOUND, services[0].Id) {
-		t.Errorf("error not caught when looking up the service state for %+v", services)
-	}
-
-	services = make([]*dao.Service, 1)
-	services[0] = &dao.Service{
-		Id: "notfound-2",
-		Snapshot: dao.SnapshotCommands{
-			Pause:  "command",
-			Resume: "command",
-		},
-	}
-	MockServices = services
-	if err = dfs.Snapshot("nilstate-snapshot", &label); err.Error() != fmt.Sprintf(ERR_STATENOTFOUND, services[0].Id) {
-		t.Errorf("error not caught when looking up the service state for %+v", services)
 	}
 
 	// pause fail

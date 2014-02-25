@@ -24,8 +24,6 @@ const (
 	DOCKER_ENDPOINT  string = "unix:///var/run/docker.sock"
 	DOCKER_LATEST    string = "latest"
 	DOCKER_IMAGEJSON string = "images.json"
-
-	ERR_STATENOTFOUND string = "Service state not found for serviceId: %s"
 )
 
 var (
@@ -41,12 +39,12 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 		return []byte{}, err
 	}
 	argv := []string{"-n", state.DockerId, "-e", "--", "/bin/bash", "-c", command}
-	glog.V(3).Infof("Command: %s %s", lxcAttach, argv)
+	glog.V(0).Infof("ServiceId: %s, Command: `%s %s`", state.ServiceId, lxcAttach, argv)
 	cmd := exec.Command(lxcAttach, argv...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
+		glog.Errorf("Error running command: `%s %s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
 		return output, err
 	}
 	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
@@ -70,21 +68,6 @@ func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, 
 		client:       client,
 		dockerClient: dockerClient,
 	}, nil
-}
-
-func (d *DistributedFileSystem) getServiceState(serviceId string, state *dao.ServiceState) error {
-	var states []*dao.ServiceState
-	if err := d.client.GetServiceStates(serviceId, &states); err != nil {
-		return err
-	}
-	for i, s := range states {
-		glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, serviceId, s)
-		if s.DockerId != "" {
-			*state = *s
-			return nil
-		}
-	}
-	return errors.New(fmt.Sprintf(ERR_STATENOTFOUND, serviceId))
 }
 
 // Pauses a running service
@@ -132,27 +115,35 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 	} else if USER_ROOT != whoami.Username {
 		glog.Warningf("Unable to pause/resume service - User is not %s - whoami:%+v", USER_ROOT, whoami)
 	} else {
+
 		var servicesList []*dao.Service
 		if err := d.client.GetServices(unused, &servicesList); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
 			return err
 		}
+
 		for _, service := range servicesList {
 			if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
 				continue
 			}
 
-			var state dao.ServiceState
-			if err := d.getServiceState(service.Id, &state); err != nil {
-				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
+			var states []*dao.ServiceState
+			if err := d.client.GetServiceStates(service.Id, &states); err != nil {
+				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", serviceId, err)
 				return err
 			}
 
-			err := d.Pause(service, &state)
-			defer d.Resume(service, &state)
-			if err != nil {
-				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-				return err
+			// Pause all running service states
+			for i, state := range states {
+				glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, serviceId, state.DockerId)
+				if state.DockerId != "" {
+					err := d.Pause(service, state)
+					defer d.Resume(service, state) // resume service state when snapshot is done
+					if err != nil {
+						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -353,7 +344,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	// Validate existance of images for this snapshot
+	// Validate existence of images for this snapshot
 	var service dao.Service
 	err := d.client.GetService(tenantId, &service)
 	glog.V(2).Infof("Getting service instance: %s", tenantId)
