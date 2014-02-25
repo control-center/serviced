@@ -41,3 +41,4 @@ isvcs/build/*.tar.gz
 !d3*/
 
 *.iml
+*.test

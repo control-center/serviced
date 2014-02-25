@@ -209,10 +209,22 @@ func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
+// Commits a container to an image and updates the DFS
+func (s *ControlClient) Commit(containerId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
+}
+
+// Rollbacks the DFS and updates the docker images
 func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
+// Performs a DFS snapshot locally (via the host)
+func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+}
+
+// Performs a DFS snapshot via the scheduler
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }
