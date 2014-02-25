@@ -44,7 +44,7 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s %s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
+		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
 		return output, err
 	}
 	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
