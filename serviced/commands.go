@@ -483,7 +483,7 @@ func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 		glog.Fatalf("CmdAutoAssignIps AssignIPs failed: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -502,13 +502,13 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 	setIpAddress := cmd.Arg(1)
 	assignmentRequest := dao.AssignmentRequest{serviceId, setIpAddress, false}
 	glog.Infof("Manually setting IP address to: %s", setIpAddress)
-	
+
 	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
 		glog.Fatalf("CmdManualAssignIps AssignIPs failed: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 

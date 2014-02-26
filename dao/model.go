@@ -47,8 +47,8 @@ type AddressAssignment struct {
 
 //AssignmentRequest is used to couple a serviceId to an IpAddress
 type AssignmentRequest struct {
-	ServiceId string
-	IpAddress string
+	ServiceId      string
+	IpAddress      string
 	AutoAssignment bool
 }
 

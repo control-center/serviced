@@ -565,7 +565,7 @@ func TestDaoGetPoolHostIPInfo(t *testing.T) {
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
-	
+
 	if poolsHostsIpInfo[HOSTID][0].IPAddress != ipAddress1 {
 		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][0].IPAddress)
 	}
@@ -602,8 +602,8 @@ func TestDaoAutoAssignIPs(t *testing.T) {
 	err = controlPlaneDao.AddHost(assignIPsHost, &id)
 
 	testService := dao.Service{
-		Id:		"assignIPsServiceID",
-		PoolId:	assignIPsPool.Id,
+		Id:     "assignIPsServiceID",
+		PoolId: assignIPsPool.Id,
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
 				Name:        "AssignIPsEndpointName",

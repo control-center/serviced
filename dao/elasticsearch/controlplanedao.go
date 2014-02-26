@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -33,7 +34,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"math/rand"
 )
 
 //assert interface
@@ -819,7 +819,7 @@ func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service, _ 
 		if err != nil {
 			return err
 		}
-		
+
 		if addressAssignmentNeeded {
 			msg := fmt.Sprintf("Service ID %s does not contain an AddressAssignment.", service.Id)
 			return errors.New(msg)
@@ -877,7 +877,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	if err != nil {
 		return err
 	}
-	
+
 	//poolsHostsIpInfo := make(map[string][]dao.HostIPResource, 32)
 	var poolsHostsIpInfo map[string][]dao.HostIPResource
 	err = this.GetPoolHostIPInfo(service.PoolId, &poolsHostsIpInfo)
@@ -898,17 +898,17 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	rand.Seed(15)
 	selectedHostId := ""
 	userProvidedIPAssignment := false
-	
+
 	// automatic IP selection
 	if assignmentRequest.AutoAssignment {
 		glog.Infof("Automatic IP Address Assignment")
 		// create a slice of the keys ... the keys are hostIds
-	    sliceOfKeys := make([]string, len(poolsHostsIpInfo))
-	    i := 0
-	    for key, _ := range poolsHostsIpInfo {
-	        sliceOfKeys[i] = key
-	        i++
-	    }
+		sliceOfKeys := make([]string, len(poolsHostsIpInfo))
+		i := 0
+		for key, _ := range poolsHostsIpInfo {
+			sliceOfKeys[i] = key
+			i++
+		}
 		randomKey := rand.Intn(len(poolsHostsIpInfo))
 		selectedHostId = sliceOfKeys[randomKey]
 		randomHostIP := rand.Intn(len(poolsHostsIpInfo[selectedHostId]))
@@ -1017,7 +1017,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 		return err
 	}
 
-	visitor := func(service dao.Service) error{
+	visitor := func(service dao.Service) error {
 		//start this service
 		var unusedInt int
 		service.DesiredState = dao.SVC_RUN
@@ -1025,7 +1025,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 		if err != nil {
 			return err
 		}
-		return nil;
+		return nil
 	}
 
 	// traverse all the services
@@ -1046,7 +1046,7 @@ func (this *ControlPlaneDao) walkServices(serviceId string, visitFn visit) error
 	if err != nil {
 		return err
 	}
-	
+
 	var query = fmt.Sprintf("ParentServiceId:%s", serviceId)
 	subServices, err := this.queryServices(query, "100")
 	if err != nil {
