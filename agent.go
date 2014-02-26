@@ -372,11 +372,7 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 // the permissions.
 func chownConfFile(filename, owner, permissions string, dockerImage string) error {
 	// TODO: reach in to the dockerImage and get the effective UID, GID so we can do this without a bind mount
-	if len(owner) == 0 {
-		return fmt.Errorf("Config file does not have an owner specified, can not chown it")
-	}
-	parts := strings.Split(owner, ":")
-	if len(parts) != 2 {
+	if !validOwnerSpec(owner) {
 		return fmt.Errorf("Unsupported owner specification: %s", owner)
 	}
 

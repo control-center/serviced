@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"regexp"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -43,6 +44,13 @@ func HostId() (hostid string, err error) {
 
 // Path to meminfo file. Placed here so getMemorySize() is testable.
 var meminfoFile = "/proc/meminfo"
+
+// validOwnerSpec returns true if the owner is specified in owner:group format and the
+// identifiers are valid POSIX.1-2008 username and group strings, respectively.
+func validOwnerSpec(owner string) bool {
+	var pattern = regexp.MustCompile(`^[a-zA-Z]+[a-zA-Z0-9.-]*:[a-zA-Z]+[a-zA-Z0-9.-]*$`)
+	return pattern.MatchString(owner)
+}
 
 // getMemorySize attempts to get the size of the installed RAM.
 func getMemorySize() (size uint64, err error) {

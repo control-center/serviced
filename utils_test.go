@@ -30,6 +30,36 @@ func TestGetMemorySize(t *testing.T) {
 	}
 }
 
+// Test validOwnerSpec
+func TestValidOwnerSpec(t *testing.T) {
+
+	invalidSpecs := []string{
+		"",
+		":",
+		".test:test",
+		"test:.test",
+		"test,test",
+	}
+	for _, spec := range invalidSpecs {
+		if validOwnerSpec(spec) {
+			t.Logf("%s should NOT be a valid owner spec")
+			t.Fail()
+		}
+	}
+	validSpecs := []string{
+		"mysql:mysql",
+		"root:root",
+		"user.name:group.name",
+		"user-name:group-name",
+	}
+	for _, spec := range validSpecs {
+		if !validOwnerSpec(spec) {
+			t.Logf("%s should be a valid owner spec")
+			t.Fail()
+		}
+	}
+}
+
 // Test parsing docker version
 func Test_parseDockerVersion(t *testing.T) {
 
