@@ -45,6 +45,7 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 }
 
+//AssignmentRequest is used to couple a serviceId to an IpAddress
 type AssignmentRequest struct {
 	ServiceId string
 	IpAddress string

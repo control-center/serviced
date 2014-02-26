@@ -494,8 +494,10 @@ func testDaoHostExists(t *testing.T) {
 
 func TestDaoValidServiceForStart(t *testing.T) {
 	testService := dao.Service{
+		Id: "TestDaoValidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
+				Name:        "TestDaoValidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
@@ -503,7 +505,7 @@ func TestDaoValidServiceForStart(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
+	err := controlPlaneDao.validateServicesForStarting(testService, nil)
 	if err != nil {
 		t.Error("Services failed validation for starting: ", err)
 	}
@@ -511,8 +513,10 @@ func TestDaoValidServiceForStart(t *testing.T) {
 
 func TestDaoInvalidServiceForStart(t *testing.T) {
 	testService := dao.Service{
+		Id: "TestDaoInvalidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
+				Name:        "TestDaoInvalidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
@@ -524,7 +528,7 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForStarting(testService, nil)
+	err := controlPlaneDao.validateServicesForStarting(testService, nil)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
 	}
@@ -532,7 +536,6 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 
 func TestDaoGetPoolHostIPInfo(t *testing.T) {
 	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
-	fmt.Printf("%s\n", assignIPsPool.Id)
 	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
 	if err != nil {
 		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)

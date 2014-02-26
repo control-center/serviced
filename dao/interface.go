@@ -139,7 +139,7 @@ type ControlPlane interface {
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
-	// Get a list of the HostIPResources contained in a pool
+	// Get a map of the HostIPResources (key is the hostId) contained in a pool
 	GetPoolHostIPInfo(poolId string, poolsHostsIpInfo *map[string][]HostIPResource) error
 
 	//---------------------------------------------------------------------------

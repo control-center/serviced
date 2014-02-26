@@ -779,39 +779,46 @@ func (this *ControlPlaneDao) initializedAddressConfig(endpoint dao.ServiceEndpoi
 	return true
 }
 
-func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint dao.ServiceEndpoint, addressAssignmentId *string) bool {
+func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint dao.ServiceEndpoint, addressAssignmentId *string) (bool, error) {
 	// check to see if an IP address has already been assigned
 	// maybe this is not needed? ... maybe this should be called something else ... 
 	// maybe I should remove the code below and title this "IP uninitialized"?
 	if this.initializedAddressConfig(endpoint) {
-		assignments := []dao.AddressAssignment{}
-		this.GetServiceAddressAssignments(serviceID, &assignments)
-		for _, assignment := range assignments {
-			if assignment.ServiceId == serviceID && assignment.EndpointName == endpoint.Name {
-				glog.Infof("Assignment %s has already been issued an IP", assignment.Id)
-				*addressAssignmentId = assignment.Id
-
-				// there exists and AddressAssignment for the AddressConfig in question
-				return false
-			}
+		addressAssignment, err := this.getEndpointAddressAssignments(serviceID, endpoint.Name)
+		if err != nil {
+			fmt.Printf("ERROR!")
+			return false, err
 		}
+
 		// if there exists some AddressConfig that is initialized to anything (port and protocol are not the default values)
 		// and there does NOT exist an AddressAssignment corresponding to this AddressConfig
 		// then this service needs an AddressAssignment!
-		glog.Infof("Service: %s endpoint: %s needs an address assignment", serviceID, endpoint.Name)
-		return true
+		if *addressAssignment == (dao.AddressAssignment{}) {
+			glog.Infof("Service: %s endpoint: %s needs an address assignment", serviceID, endpoint.Name)
+			return true, nil
+		}
+
+		// if there exists some AddressConfig that is initialized to anything (port and protocol are not the default values)
+		// and there already exists an AddressAssignment corresponding to this AddressConfig
+		// then this service does NOT need an AddressAssignment
+		return false, nil
 	}
 
 	// No AddressAssignments are needed
-	return false
+	return false, nil
 }
 
 // determine whether the services are ready for deployment
-func (this *ControlPlaneDao) ValidateServicesForStarting(service dao.Service, _ *struct{}) error {
+func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service, _ *struct{}) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range service.Endpoints {
-		notNeededAddressAssignmentId := ""
-		if this.needsAddressAssignment(service.Id, endpoint, &notNeededAddressAssignmentId) {
+		var unusedString string
+		addressAssignmentNeeded, err := this.needsAddressAssignment(service.Id, endpoint, &unusedString)
+		if err != nil {
+			return err
+		}
+		
+		if addressAssignmentNeeded {
 			msg := fmt.Sprintf("Service ID %s does not contain an AddressAssignment.", service.Id)
 			return errors.New(msg)
 		}
@@ -921,7 +928,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		}
 
 		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", service.PoolId)
+			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IpAddress, service.PoolId)
 			return errors.New(msg)
 		}
 	}
@@ -940,7 +947,10 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 			// if an address assignment is needed (does not yet exist) OR
 			// if a specific IP address is provided by the user AND an address assignment already exists
 			addressAssignmentId := ""
-			addressAssignmentNeeded := this.needsAddressAssignment(service.Id, endpoint, &addressAssignmentId)
+			addressAssignmentNeeded, err := this.needsAddressAssignment(service.Id, endpoint, &addressAssignmentId)
+			if err != nil {
+				return err
+			}
 			if addressAssignmentNeeded || (addressAssignmentId != "" && userProvidedIPAssignment) {
 				if addressAssignmentId != "" {
 					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
@@ -984,7 +994,7 @@ func (this *ControlPlaneDao) validateService(serviceId string) error {
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
 	visitor := func(service dao.Service) error {
 		// validate the service is ready to start
-		err := this.ValidateServicesForStarting(service, nil)
+		err := this.validateServicesForStarting(service, nil)
 		if err != nil {
 			glog.Errorf("Services failed validation for starting")
 			fmt.Printf("Error: %v", err)
@@ -1035,7 +1045,6 @@ func (this *ControlPlaneDao) walkServices(serviceId string, visitFn visit) error
 		return err
 	}
 	
-	//start all child services
 	var query = fmt.Sprintf("ParentServiceId:%s", serviceId)
 	subServices, err := this.queryServices(query, "100")
 	if err != nil {
@@ -1387,7 +1396,6 @@ func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string
 		}
 	}
 	if !found {
-		fmt.Printf("333333333333333")
 		return fmt.Errorf("Endpoint %v not found on service %v", endpointName, serviceId)
 	}
 	return nil
