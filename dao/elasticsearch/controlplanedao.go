@@ -883,10 +883,13 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 		subServiceErr := this.StopService(service.Id, unused)
 		// if we encounter an error log it and keep trying to shut down the services
 		if subServiceErr != nil {
+			// keep track of the last err we encountered so
+			// the client of this method can know that something went wrong
+			err = subServiceErr
 			glog.Errorf("Unable to stop service %s because of error: %s", service.Id, subServiceErr)
 		}
 	}
-	return nil
+	return err
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {

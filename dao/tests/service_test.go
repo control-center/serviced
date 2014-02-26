@@ -318,9 +318,13 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 	if err = cp.AddService(childService2, &childService2Id); err != nil {
 		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
 	}
-
-	// stop the parent
 	var unused int
+	var stringUnused string
+	// start the service
+	if err = cp.StartService(id, &stringUnused); err != nil {
+		glog.Fatalf("Unable to stop parent service: %+v, %s", service, err)
+	}
+	// stop the parent
 	if err = cp.StopService(id, &unused); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", service, err)
 	}
