@@ -469,7 +469,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 
 		if err := chownConfFile(f.Name(), config.Owner, config.Permissions, service.ImageId); err != nil {
-			glog.Errorf("Could not write config file for %s, %s: %s", service.Id, filename, err)
+			glog.Errorf("Could not chown config file for %s, %s: %s", service.Id, filename, err)
 		}
 
 		// everything worked!
