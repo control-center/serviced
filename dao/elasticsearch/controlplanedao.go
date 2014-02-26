@@ -865,7 +865,7 @@ func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error
 }
 
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
-	glog.V(2).Info("ControlPlaneDao.StopService id=", id)
+	glog.V(0).Info("ControlPlaneDao.StopService id=", id)
 	var service dao.Service
 	err := this.GetService(id, &service)
 	if err != nil {
@@ -882,9 +882,16 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 		return err
 	}
 	for _, service := range subservices {
-		return this.StopService(service.Id, unused)
+		subServiceErr := this.StopService(service.Id, unused)
+		// if we encounter an error log it and keep trying to shut down the services
+		if subServiceErr != nil {
+			// keep track of the last err we encountered so
+			// the client of this method can know that something went wrong
+			err = subServiceErr
+			glog.Errorf("Unable to stop service %s because of error: %s", service.Id, subServiceErr)
+		}
 	}
-	return nil
+	return err
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
@@ -1307,8 +1314,8 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 	// TODO:
-	//  requestId := snapshotRequest.Id
-	//  defer this.zkDao.RemoveSnapshotRequest(requestId)
+	//	requestId := snapshotRequest.Id
+	//	defer this.zkDao.RemoveSnapshotRequest(requestId)
 
 	glog.V(1).Infof("added snapshot request: %+v", snapshotRequest)
 
