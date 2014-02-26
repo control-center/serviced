@@ -15,6 +15,7 @@ import (
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dfs"
 )
 
 var empty interface{}
@@ -263,6 +264,10 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
+	// Acquire and release the lock to start a container from the latest image
+	dfs.Lock.Lock()
+	dfs.Lock.Unlock()
+
 	var (
 		runner   Runner
 		service  *dao.Service

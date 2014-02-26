@@ -17,6 +17,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
@@ -173,6 +174,7 @@ type ControlPlaneDao struct {
 	vfs        string
 	zookeepers []string
 	zkDao      *zzk.ZkDao
+	dfs        *dfs.DistributedFileSystem
 }
 
 // convert search result of json host to dao.Host array
@@ -1512,43 +1514,12 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) erro
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
+	return this.dfs.Rollback(snapshotId)
+}
 
-	var tenantId string
-	parts := strings.Split(snapshotId, "_")
-	if len(parts) != 2 {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot malformed snapshot Id: %s", snapshotId)
-		return errors.New("malformed snapshotId")
-	}
-	serviceId := parts[0]
-	label := parts[1]
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
-	this.StopService(tenantId, unused)
-	// TODO: Wait for real event that confirms shutdown
-	time.Sleep(time.Second * 5) // wait for shutdown
-
-	var service dao.Service
-	err := this.GetService(tenantId, &service)
-	glog.V(2).Infof("Getting service instance: %s", tenantId)
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
-		return err
-	}
-	// rollback
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Rollback service=%+v err=%s", serviceId, err)
-		return err
-	} else {
-		glog.V(2).Infof("performing rollback on %s to %s", tenantId, label)
-		if err := volume.Rollback(snapshotId); err != nil {
-			return err
-		}
-	}
-	unusedStr := ""
-	return this.StartService(tenantId, &unusedStr)
+// Takes a snapshot of the DFS via the host
+func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
+	return this.dfs.Snapshot(serviceId, label)
 }
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
@@ -1627,6 +1598,11 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 	return nil
 }
 
+// Commits a container to an image and saves it on the DFS
+func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
+	return this.dfs.Commit(containerId, label)
+}
+
 func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
 	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
 	if err != nil {
@@ -1687,7 +1663,18 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
-	return &ControlPlaneDao{hostName, port, "", "", nil, nil}, nil
+
+	dao := &ControlPlaneDao{
+		hostName: hostName,
+		port:     port,
+	}
+	if dfs, err := dfs.NewDistributedFileSystem(dao); err != nil {
+		return nil, err
+	} else {
+		dao.dfs = dfs
+	}
+
+	return dao, nil
 }
 
 // hostId retreives the system's unique id, on linux this maps

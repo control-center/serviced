@@ -176,6 +176,12 @@ type ControlPlane interface {
 	Rollback(snapshotId string, unused *int) error
 
 	// Commit DFS and service image
+	Commit(containerId string, label *string) error
+
+	// Performs a local snapshot from the host
+	LocalSnapshot(serviceId string, label *string) error
+
+	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
 
 	// Delete a snapshot

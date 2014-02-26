@@ -67,6 +67,8 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 		switch {
 		case subpath.Name() == "service.json":
 			continue
+		case subpath.Name() == "makefile": // ignoring makefiles present in service defs
+			continue
 		case subpath.Name() == "-CONFIGS-":
 			if !subpath.IsDir() {
 				return nil, fmt.Errorf("-CONFIGS- must be a director: %s", path)

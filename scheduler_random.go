@@ -4,7 +4,6 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/snapshot"
 	"github.com/zenoss/serviced/zzk"
 
 	"math/rand"
@@ -101,7 +100,7 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn *zk.Conn) {
 
 			// TODO: perform snapshot request here
 			snapLabel := ""
-			if err := snapshot.ExecuteSnapshot(cpDao, snapshotRequest.ServiceId, &snapLabel); err != nil {
+			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceId, &snapLabel); err != nil {
 				glog.V(0).Infof("watchSnapshotRequests: snaps.ExecuteSnapshot err=%s", err)
 				snapshotRequest.SnapshotError = err.Error()
 				snapshotRequest.SnapshotLabel = snapLabel
