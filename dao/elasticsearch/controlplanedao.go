@@ -28,6 +28,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -1384,15 +1385,20 @@ func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	glog.V(2).Infof("controlplanedao.getSubvolume vfs:%v tenantId:%v baseDir:%v\n", vfs, tenantId, baseDir)
+	glog.Infof("Mounting vfs:%v tenantId:%v baseDir:%v\n", vfs, tenantId, baseDir)
 	return volume.Mount(vfs, tenantId, baseDir)
 }
 
 func varPath() string {
 	if len(os.Getenv("SERVICED_HOME")) > 0 {
 		return path.Join(os.Getenv("SERVICED_HOME"), "var")
+	} else if user, err := user.Current(); err == nil {
+		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
+	} else {
+		defaultPath := "/tmp/serviced/var"
+		glog.Warningf("Defaulting varPath to:%v\n", defaultPath)
+		return defaultPath
 	}
-	return "/tmp/serviced/var"
 }
 
 func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {
