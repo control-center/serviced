@@ -173,8 +173,8 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
 }
 
-func (s *ControlClient) GetPoolHostIPInfo(poolId string, poolsHostsIpInfo *map[string][]dao.HostIPResource) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetPoolHostIPInfo", poolId, poolsHostsIpInfo)
+func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
 }
 
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {

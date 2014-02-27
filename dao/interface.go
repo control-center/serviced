@@ -140,7 +140,7 @@ type ControlPlane interface {
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
 	// Get a map of the HostIPResources (key is the hostId) contained in a pool
-	GetPoolHostIPInfo(poolId string, poolsHostsIpInfo *map[string][]HostIPResource) error
+	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

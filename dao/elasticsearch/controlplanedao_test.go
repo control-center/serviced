@@ -534,7 +534,7 @@ func TestDaoInvalidServiceForStart(t *testing.T) {
 	}
 }
 
-func TestDaoGetPoolHostIPInfo(t *testing.T) {
+func TestDaoGetPoolsIPInfo(t *testing.T) {
 	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
 	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
 	if err != nil {
@@ -561,16 +561,16 @@ func TestDaoGetPoolHostIPInfo(t *testing.T) {
 	err = controlPlaneDao.AddHost(assignIPsHost, &id)
 
 	var poolsHostsIpInfo map[string][]dao.HostIPResource
-	err := controlPlaneDao.GetPoolHostIPInfo(assignIPsPool.Id, &poolsHostsIpInfo)
+	err := controlPlaneDao.GetPoolsIPInfo(assignIPsPool.Id, &poolsHostsIpInfo)
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
 
-	if poolsHostsIpInfo[HOSTID][0].IPAddress != ipAddress1 {
-		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][0].IPAddress)
+	if poolsHostsIpInfo[0].IPAddress != ipAddress1 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[0].IPAddress)
 	}
-	if poolsHostsIpInfo[HOSTID][1].IPAddress != ipAddress2 {
-		t.Error("Unexpected IP address: ", poolsHostsIpInfo[HOSTID][1].IPAddress)
+	if poolsHostsIpInfo[1].IPAddress != ipAddress2 {
+		t.Error("Unexpected IP address: ", poolsHostsIpInfo[1].IPAddress)
 	}
 
 	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)

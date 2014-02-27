@@ -784,7 +784,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 		// use the default IP of the host if specific IPs have not been requested
 		ips = append(ips, hostInfo.IpAddr)
 	}
-	hostIPs, err := getIPResources(ips...)
+	hostIPs, err := getIPResources(hostInfo.Id, ips...)
 	if err != nil {
 		return err
 	}
@@ -794,7 +794,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
+func getIPResources(hostId string, ipaddress ...string) ([]dao.HostIPResource, error) {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -839,6 +839,7 @@ func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
 			return []dao.HostIPResource{}, err
 		}
 		hostIp := dao.HostIPResource{}
+		hostIp.HostId = hostId
 		hostIp.IPAddress = ipaddr
 		hostIp.InterfaceName = iface.Name
 		hostIPResources = append(hostIPResources, hostIp)

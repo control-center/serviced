@@ -55,6 +55,7 @@ type AssignmentRequest struct {
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
+	HostId        string
 	IPAddress     string
 	InterfaceName string
 }

@@ -442,24 +442,18 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	controlPlane := getClient()
 	poolId := cmd.Arg(0)
 
-	//assignIPsHostIPResources := []dao.HostIPResource{}
-	// list of maps
-	// dictionary of string to dao.HostIPResource
-	//poolsHostsIpInfo := make(map[string][]dao.HostIPResource, 32)
-	var poolsHostsIpInfo map[string][]dao.HostIPResource
-	err := controlPlane.GetPoolHostIPInfo(poolId, &poolsHostsIpInfo)
+	var poolsIpInfo []dao.HostIPResource
+	err := controlPlane.GetPoolsIPInfo(poolId, &poolsIpInfo)
 	if err != nil {
-		fmt.Printf("GetPoolHostIPInfo failed: %v", err)
+		fmt.Printf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for hostId, _ := range poolsHostsIpInfo {
-		for _, hostIPResource := range poolsHostsIpInfo[hostId] {
-			fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
-		}
+	for _, hostIPResource := range poolsIpInfo {
+		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 
 	return nil
