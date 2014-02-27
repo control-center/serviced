@@ -907,15 +907,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],
-        "downsample": "5m-avg",
+        ],        
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
         "tags": {},
@@ -928,6 +927,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "expression": null,
+                "expression": null,
                 "fill": false,
                 "format": "%6.2f",
                 "id": "pgfault",
@@ -938,15 +938,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],
-        "downsample": "5m-avg",
+        ],        
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
         "tags": {},
@@ -957,27 +956,30 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "datapoints": [
             {
                 "aggregator": "avg",                
-                "expression": null,
+                "expression": "rpn:1024,/,1024,/",
                 "fill": false,
                 "format": "%6.2f",
-                "id": "pgfault",
+                "id": "rssmemory",
                 "legend": "RSS Memory",
                 "metric": "rss",
                 "name": "RSS Memory",                
                 "rateOptions": {},
-                "type": "line"
+                "type": "line",
+                "fill": true
             }
-        ],
-        "downsample": "5m-avg",
+        ],        
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
+        "yAxisLabel": "MB",
         "returnset": "EXACT",
+        height: 300,
+        width: 300,
         "tags": {},
         "type": "line"
     };
