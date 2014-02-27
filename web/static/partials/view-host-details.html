@@ -38,12 +38,15 @@
         </tr>
       </thead>
       <tbody>
-        <td>
-            <div id="cpuchart">{{viz('cpuchart', cpuconfig)}}</div>
-        </td>
-        <td>
-            <div id="memchart">{{viz('memchart', memconfig)}}</div>
-        </td>
+          <tr>
+              <td>
+                  <div id="cpuchart">{{viz('cpuchart', cpuconfig)}}</div>
+              </td>
+              <td>
+                  <div id="memchart">{{viz('memchart', memconfig)}}</div>
+                  <div id="rsschart">{{viz('rsschart', rssconfig)}}</div>
+              </td>
+          </tr>          
       </tbody>
     </table>
 
