@@ -8,9 +8,10 @@ from celery import Celery
 from celery import current_app
 from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
-from celery.utils.log import get_task_logger
 from pyes import TermQuery, ES
 from socketIO_client import SocketIO
+import socket
+import json
 
 REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
 # Go directly to container gateway to hit CP elastic isvc. This will only
@@ -31,7 +32,13 @@ app.conf.update(
     CELERYBEAT_MAX_LOOP_INTERVAL=5
 )
 
-logger = get_task_logger(__name__)
+def log(data):
+    data = json.dumps(data)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((ELASTIC_HOST, 5042))
+    s.sendall(data)
+    s.shutdown(socket.SHUT_WR)
+    s.close()
 
 class ServicedShell:
     def __init__(self):
@@ -40,8 +47,7 @@ class ServicedShell:
         self.stderr = ""
         self.result = ""
     def onResult(self, *args):
-        for l in args:
-            self.result += str(l)
+        self.result = args[0]
         self.socket.disconnect()
     def onStdout(self, *args):
         for l in args:
@@ -50,17 +56,25 @@ class ServicedShell:
         for l in args:
             self.stderr += str(l)
     def run(self, service_id, command):        
-        logger.debug("%s Running command: %s\n" % (datetime.datetime.utcnow().isoformat(), command))
+        log({
+            "command": command,
+            "service_id": service_id,
+            "status": "starting"
+        })
         self.socket = SocketIO(ELASTIC_HOST, 50000)
         self.socket.on('result', self.onResult)
         self.socket.on('stdout', self.onStdout)        
         self.socket.on('stderr', self.onStderr)        
         self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
         self.socket.wait()
-        logger.debug('%s Finished waiting for command "%s":\n' % (datetime.datetime.utcnow().isoformat(), command))
-        logger.debug('result:\n%s' % self.result)
-        logger.debug('stdout:\n%s' % self.stdout)
-        logger.debug('stderr:\n%s' % self.stderr)
+        log({
+            "command": command,
+            "service_id": service_id,
+            "status": "complete",
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "result": self.result
+        })
 
 @app.task
 def serviced_shell(service_id, command):
