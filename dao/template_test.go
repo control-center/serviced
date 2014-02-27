@@ -22,7 +22,7 @@ func init() {
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageId: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
-					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
 				Endpoints: []ServiceEndpoint{
 					ServiceEndpoint{
