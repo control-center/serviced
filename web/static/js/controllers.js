@@ -907,15 +907,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],
-        "downsample": "5m-avg",
+        ],        
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
         "tags": {},
@@ -928,6 +927,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "expression": null,
+                "expression": null,
                 "fill": false,
                 "format": "%6.2f",
                 "id": "pgfault",
@@ -938,17 +938,48 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],
-        "downsample": "5m-avg",
+        ],        
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+    
+    $scope.rssconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",                
+                "expression": "rpn:1024,/,1024,/",
+                "fill": false,
+                "format": "%6.2f",
+                "id": "rssmemory",
+                "legend": "RSS Memory",
+                "metric": "rss",
+                "name": "RSS Memory",                
+                "rateOptions": {},
+                "type": "line",
+                "fill": true
+            }
+        ],        
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "1h-ago"
+        },
+        "yAxisLabel": "MB",
+        "returnset": "EXACT",
+        height: 300,
+        width: 300,
         "tags": {},
         "type": "line"
     };
@@ -957,15 +988,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viz = function(id, config) {
         if (!$scope.drawn[id]) {
-            try {
+            if (window.zenoss === undefined) {
+                return "Not collecting stats, graphs unavailable";
+            } else {
                 zenoss.visualization.chart.create(id, config);
-                $scope.drawn[id] = true;
-            }
-            catch (x) {
-                return "Not collecting stats, graphs unavailable"
-            }
+                $scope.drawn[id] = true;                
+            }            
         }
-    }
+    };
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
