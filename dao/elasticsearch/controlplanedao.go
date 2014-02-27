@@ -36,8 +36,6 @@ import (
 	"time"
 )
 
-var unusedStr string
-
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
@@ -955,6 +953,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				assignment.EndpointName = endpoint.Name
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
+				var unusedStr string
 				err = this.AssignAddress(assignment, &unusedStr)
 				if err != nil {
 					glog.Fatalf("AssignAddress failed in AssignIPs anonymous function: %v", err)
