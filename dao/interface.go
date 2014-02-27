@@ -78,6 +78,9 @@ type ControlPlane interface {
 	// Deploy a service
 	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
+	// Assign IP addresses to all services at and below the provided service
+	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
+
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
 
@@ -135,6 +138,9 @@ type ControlPlane interface {
 
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
+
+	// Get a map of the HostIPResources (key is the hostId) contained in a pool
+	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
