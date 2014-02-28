@@ -34,24 +34,28 @@ type PoolHost struct {
 }
 
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type AssignedPort struct {
-	Port      int
-	ServiceId string
-}
-
-//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type PortAssignment struct {
-	AssignmentType string //Static of Virtual
+type AddressAssignment struct {
+	Id             string //Generated id
+	AssignmentType string //Static or Virtual
 	HostId         string //Host id if type is Static
 	PoolId         string //Pool id if type is Virtual
 	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           int    //Actual assigned port
+	Port           uint16 //Actual assigned port
 	ServiceId      string //Service using this assignment
+	EndpointName   string //Endpoint in the service using the assignment
+}
+
+//AssignmentRequest is used to couple a serviceId to an IpAddress
+type AssignmentRequest struct {
+	ServiceId      string
+	IpAddress      string
+	AutoAssignment bool
 }
 
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
+	HostId        string
 	IPAddress     string
 	InterfaceName string
 }
@@ -153,6 +157,7 @@ type Service struct {
 
 // An endpoint that a Service exposes.
 type ServiceEndpoint struct {
+	Name                string // Human readable name of the endpoint. Unique per service definition
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
@@ -205,8 +210,8 @@ type ServiceState struct {
 
 type ConfigFile struct {
 	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
-	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
+	Permissions string // permission of file, eg 0664, what you would pass to chmod
 	Content     string // content of config file
 }
 
@@ -238,7 +243,7 @@ func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[
 
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
-	Port     int
+	Port     uint16
 	Protocol string
 }
 
@@ -368,4 +373,24 @@ func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) u
 	}
 
 	return 0
+}
+
+// An instantiation of a Snapshot request
+type SnapshotRequest struct {
+	Id            string
+	ServiceId     string
+	SnapshotLabel string
+	SnapshotError string
+}
+
+// A new snapshot request instance (SnapshotRequest)
+func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
+	snapshotRequest = &SnapshotRequest{}
+	snapshotRequest.Id, err = NewUuid()
+	if err == nil {
+		snapshotRequest.ServiceId = serviceId
+		snapshotRequest.SnapshotLabel = snapshotLabel
+		snapshotRequest.SnapshotError = ""
+	}
+	return snapshotRequest, err
 }

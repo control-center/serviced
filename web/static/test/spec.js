@@ -137,6 +137,13 @@ describe('SubServiceControl', function() {
         expect($scope.breadcrumbs.length).toBe(2);
         expect($scope.breadcrumbs[1].label).toBe(fake1.Name);
     });
+
+    it('Snapshot service', function() {
+        spyOn(resourcesService,'snapshot_service');
+        $scope.snapshotService({Id: 'fakesvc123', Name: 'Fake Service 123'});
+        expect(resourcesService.snapshot_service).toHaveBeenCalled();
+    });
+
 });
 
 describe('HostsControl', function() {
@@ -195,6 +202,11 @@ describe('HostsControl', function() {
     });
 
 });
+
+// HostDetailsControl needs zenoss.visualization
+var zenoss = {
+    visualization: {}
+};
 
 describe('HostDetails', function() {
     var $scope = null;
@@ -874,19 +886,20 @@ describe('toggleRunning', function() {
     it('Sets DesiredState and updates service', function() {
         var servicesService = fake_resources_service();
         var svc = {};
-        spyOn(servicesService, 'update_service');
-
+        spyOn(servicesService, 'start_service');
+        spyOn(servicesService, 'stop_service');
         toggleRunning(svc, 'start', servicesService);
         expect(svc.DesiredState).toBe(1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'stop', servicesService);
         expect(svc.DesiredState).toBe(0);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'restart', servicesService);
         expect(svc.DesiredState).toBe(-1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
     });
 });
 
@@ -1037,10 +1050,19 @@ function fake_resources_service() {
        add_service: function(service, callback) {
            callback({});
        },
+       snapshot_service: function(serviceId, callback) {
+           callback(fake_snapshot_service());
+       },
        update_service: function(serviceId, service, callback) {
            callback({});
        },
        remove_service: function(serviceId, callback) {
+           callback({});
+       },
+       start_service: function(serviceId, callback) {
+           callback({});
+       },
+       stop_service: function(serviceId, callback) {
            callback({});
        }
    };
@@ -1323,5 +1345,9 @@ function fake_services_tree() {
         tree[e.Id] = e;
     });
     return tree;
+}
+
+function fake_snapshot_service() {
+    return { Detail: "once upon a time" };
 }
 

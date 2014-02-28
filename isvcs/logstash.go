@@ -22,7 +22,7 @@ func init() {
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
+			Command: "java -Xmx256M -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf",
 			Ports:   []int{5042, 5043, 9292},
 			Volumes: map[string]string{},
 			Notify:  notifyLogstashConfigChange,

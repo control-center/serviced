@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -229,14 +228,15 @@ func dumpOut(stdout, stderr io.Reader, size int) {
 }
 
 func dumpBuffer(reader io.Reader, size int, name string) {
-
 	buffer := make([]byte, size)
 	if n, err := reader.Read(buffer); err != nil {
 		glog.V(1).Infof("Unable to read %s of dump", name)
 	} else {
-		glog.V(0).Infof("Process %s:\n%s", name, string(buffer[:n]))
+		message := strings.TrimSpace(string(buffer[:n]))
+		if len(message) > 0 {
+			glog.V(0).Infof("Process %s:\n%s", name, message)
+		}
 	}
-
 }
 
 func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
@@ -366,37 +366,26 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 	return f, nil
 }
 
-/*
-chownConfFile is responsible for changing the owner of a file
-Input *os.File f	 : file handler to a file that has already been opened
-Input string id		 : Service ID (example cd67c62b-e462-5137-2cd8-38732db4abd9)
-Input string filename: zenmodeler_logstash_forwarder_conf
-Input string owner	 : update the file's owner to this provided string
-Output bool			 : returns true if: the owner parameter is not present present OR the file has been chowned to the requested owner successfully
-*/
-func chownConfFile(f *os.File, id string, filename string, owner string) bool {
-	if len(owner) != 0 {
-		parts := strings.Split(owner, ":")
-		if len(parts) != 2 {
-			glog.Errorf("Unsupported owner specification: %s, only %%d:%%d supported for now: %s, %s", owner, id, filename)
-			return false
-		}
-		uid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			glog.Warningf("Malformed UID: %s %s: %s", id, filename, err)
-			return false
-		}
-		gid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			glog.Warningf("Malformed GID: %s %s: %s", id, filename, err)
-			return false
-		}
-		err = f.Chown(uid, gid)
-		if err != nil {
-			glog.Warningf("Could not chown config file: %s %s: %s", id, filename, err)
-		}
+// chownConfFile() runs 'chown $owner $filename && chmod $permissions $filename'
+// using the given dockerImage. An error is returned if owner is not specified,
+// the owner is not in user:group format, or if there was a problem setting
+// the permissions.
+func chownConfFile(filename, owner, permissions string, dockerImage string) error {
+	// TODO: reach in to the dockerImage and get the effective UID, GID so we can do this without a bind mount
+	if !validOwnerSpec(owner) {
+		return fmt.Errorf("Unsupported owner specification: %s", owner)
 	}
-	return true
+
+	// A docker run is used because the user/group may not exist on the host system. In this case,
+	// the effective uid or gid is reflected as an integer on the host system.
+	// TODO: use docker API to do this
+	cmdString := fmt.Sprintf("docker run -rm -v %s:/tmp/config.file %s /bin/sh -c 'chown %s /tmp/config.file && chmod %s /tmp/config.file'",
+		filename, dockerImage, owner, permissions)
+	glog.V(0).Infof("About to run: %s", cmdString)
+	if output, err := exec.Command("/bin/sh", "-c", cmdString).CombinedOutput(); err != nil {
+		return fmt.Errorf("config file chown error: %s", string(output))
+	}
+	return nil
 }
 
 // Start a service instance and update the CP with the state.
@@ -409,7 +398,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 	defer client.Close()
 
-	//get this service's tenantId for env injection
+	//get this service's tenantId for volume mapping
 	var tenantId string
 	err = client.GetTenantId(service.Id, &tenantId)
 	if err != nil {
@@ -475,9 +464,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			return false, err
 		}
 
-		fileChowned := chownConfFile(f, service.Id, filename, config.Owner)
-		if fileChowned == false {
-			continue
+		if err := chownConfFile(f.Name(), config.Owner, config.Permissions, service.ImageId); err != nil {
+			glog.Errorf("Could not chown config file for %s, %s: %s", service.Id, filename, err)
 		}
 
 		// everything worked!
@@ -515,11 +503,8 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	// add arguments for environment variables
-	environmentVariables := "-e CONTROLPLANE=1"
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_SERVICE_ID=" + service.Id
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_TENANT_ID=" + tenantId
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_WS=ws://localhost:8444/ws/metrics/store"
-	environmentVariables = environmentVariables + " -e CONTROLPLANE_CONSUMER_URL=http://localhost:8444/ws/metrics/store"
+	environmentVariables := "-e CONTROLPLANE=1 "
+	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store"
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
@@ -786,7 +771,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 		// use the default IP of the host if specific IPs have not been requested
 		ips = append(ips, hostInfo.IpAddr)
 	}
-	hostIPs, err := getIPResources(ips...)
+	hostIPs, err := getIPResources(hostInfo.Id, ips...)
 	if err != nil {
 		return err
 	}
@@ -796,7 +781,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
+func getIPResources(hostId string, ipaddress ...string) ([]dao.HostIPResource, error) {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -841,6 +826,7 @@ func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
 			return []dao.HostIPResource{}, err
 		}
 		hostIp := dao.HostIPResource{}
+		hostIp.HostId = hostId
 		hostIp.IPAddress = ipaddr
 		hostIp.InterfaceName = iface.Name
 		hostIPResources = append(hostIPResources, hostIp)

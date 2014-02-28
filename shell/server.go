@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -14,6 +16,7 @@ import (
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dfs"
 )
 
 var empty interface{}
@@ -23,23 +26,46 @@ const (
 	MAXBUFFER  int    = 8192
 )
 
-func NewProcessServer(actor ProcessActor) *ProcessServer {
-	server := &ProcessServer{
-		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: actor,
+var webroot string
+
+func init() {
+	servicedHome := os.Getenv("SERVICED_HOME")
+	if len(servicedHome) > 0 {
+		webroot = servicedHome + "/share/shell/static"
 	}
-	server.sio.On("connect", server.onConnect)
-	server.sio.On("process", server.onProcess)
-	server.sio.On("disconnect", actor.onDisconnect)
-	return server
+}
+
+func staticRoot() string {
+	if len(webroot) == 0 {
+		_, filename, _, _ := runtime.Caller(1)
+		return path.Join(path.Dir(path.Dir(filename)), "shell", "static")
+	}
+	return webroot
 }
 
 func NewProcessForwarderServer(addr string) *ProcessServer {
-	return NewProcessServer(&Forwarder{addr: addr})
+	server := &ProcessServer{
+		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
+		actor: &Forwarder{addr: addr},
+	}
+	server.sio.On("connect", server.onConnect)
+	server.sio.On("disconnect", onForwarderDisconnect)
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	return server
 }
 
 func NewProcessExecutorServer(port string) *ProcessServer {
-	return NewProcessServer(&Executor{port: port})
+	server := &ProcessServer{
+		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
+		actor: &Executor{port: port},
+	}
+	server.sio.On("connect", server.onConnect)
+	server.sio.On("disconnect", onExecutorDisconnect)
+	server.sio.On("process", server.onProcess)
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	return server
 }
 
 func (p *ProcessServer) Handle(pattern string, handler http.Handler) error {
@@ -64,6 +90,17 @@ func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
 
 func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 	glog.Infof("Waiting for process packet")
+}
+
+func onForwarderDisconnect(ns *socketio.NameSpace) {
+	// ns.Session.Values[PROCESSKEY].(*ProcessInstance)
+}
+
+func onExecutorDisconnect(ns *socketio.NameSpace) {
+	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
+	// Client disconnected, so kill the process
+	inst.Signal <- int(syscall.SIGKILL)
+	inst.closeIncoming()
 }
 
 func (p *ProcessInstance) Close() {
@@ -234,6 +271,10 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
+	// Acquire and release the lock to start a container from the latest image
+	dfs.Lock.Lock()
+	dfs.Lock.Unlock()
+
 	var (
 		runner   Runner
 		service  *dao.Service

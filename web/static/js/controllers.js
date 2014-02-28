@@ -55,6 +55,28 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
         });
         $translateProvider.preferredLanguage('en_US');
     }]).
+    /**
+     * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
+     * It makes sure that inputs that are filled in by autofill (like when the browser remembers the password)
+     * are updated in the $scope. See the partials/login.html for an example
+     **/
+    directive('formAutofillFix', function() {
+        return function(scope, elem, attrs) {
+            // Fixes Chrome bug: https://groups.google.com/forum/#!topic/angular/6NlucSskQjY
+            elem.prop('method', 'POST');
+
+            // Fix autofill issues where Angular doesn't know about autofilled inputs
+            if(attrs.ngSubmit) {
+                window.setTimeout(function() {
+                    elem.unbind('submit').submit(function(e) {
+                        e.preventDefault();
+                        elem.find('input, textarea, select').trigger('input').trigger('change').trigger('keydown');
+                        scope.$apply(attrs.ngSubmit);
+                    });
+                }, 0);
+            }
+        };
+    }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
     factory('statsService', StatsService).
@@ -466,18 +488,25 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
-    
+
     $scope.editConfig = function(service, config) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = config;
         $('#editConfig').modal('show');
     };
-    
+
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
+        });
+    };
+
+    $scope.snapshotService = function(service) {
+        resourcesService.snapshot_service(service.Id, function(label) {
+            console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
+            // TODO: add the snapshot label to some partial view in the UI
         });
     };
 
@@ -879,14 +908,13 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "type": "line"
             }
         ],
-        "downsample": "5m-avg",
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
         "tags": {},
@@ -899,6 +927,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "expression": null,
+                "expression": null,
                 "fill": false,
                 "format": "%6.2f",
                 "id": "pgfault",
@@ -910,16 +939,47 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "type": "line"
             }
         ],
-        "downsample": "5m-avg",
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
-            "start": "2d-ago"
+            "start": "1h-ago"
         },
         "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
+    $scope.rssconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "expression": "rpn:1024,/,1024,/",
+                "fill": false,
+                "format": "%6.2f",
+                "id": "rssmemory",
+                "legend": "RSS Memory",
+                "metric": "rss",
+                "name": "RSS Memory",
+                "rateOptions": {},
+                "type": "line",
+                "fill": true
+            }
+        ],
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "1h-ago"
+        },
+        "yAxisLabel": "MB",
+        "returnset": "EXACT",
+        height: 300,
+        width: 300,
         "tags": {},
         "type": "line"
     };
@@ -928,15 +988,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viz = function(id, config) {
         if (!$scope.drawn[id]) {
-            try {
+            if (window.zenoss === undefined) {
+                return "Not collecting stats, graphs unavailable";
+            } else {
                 zenoss.visualization.chart.create(id, config);
                 $scope.drawn[id] = true;
             }
-            catch (x) {
-                return "Not collecting stats, graphs unavailable"
-            }
         }
-    }
+    };
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
@@ -1864,6 +1923,25 @@ function ResourcesService($http, $location) {
         },
 
         /*
+         * Snapshot a running service
+         *
+         * @param {string} serviceId ID of the service to snapshot.
+         * @param {function} callback Response passed to callback on success.
+         */
+        snapshot_service: function(serviceId, callback) {
+            $http.get('/services/' + serviceId + '/snapshot').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Snapshot service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
          * Remove a service definition.
          *
          * @param {string} serviceId The ID of the service to remove.
@@ -1877,6 +1955,43 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     console.log('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Starts a service and all of its children
+         *
+         * @param {string} serviceId The ID of the service to start.
+         * @param {function} callback Response passed to callback on success.
+         */
+        start_service: function(serviceId, callback) {
+            $http.put('/services/' + serviceId + '/startService').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Was unable to start service: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+        /*
+         * Stops a service and all of its children
+         *
+         * @param {string} serviceId The ID of the service to stop.
+         * @param {function} callback Response passed to callback on success.
+         */
+        stop_service: function(serviceId, callback) {
+            $http.put('/services/' + serviceId + '/stopService').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Was unable to stop service: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2102,10 +2217,31 @@ function toggleRunning(app, status, servicesService) {
         console.log('Same status. Ignoring click');
         return;
     }
-    app.DesiredState = newState;
-    servicesService.update_service(app.Id, app, function() {
+    function updateApp(app, desiredState) {
+        var i;        
         updateRunning(app);
-    });
+        if (app.children && app.children.length) {
+            for (i=0; i<app.children.length;i++) {
+                app.children[i].DesiredState = desiredState;
+                updateRunning(app.children[i]);
+            }
+        }
+    }
+    // stop service
+    if ((newState == 0) || (newState == -1)) {
+        app.DesiredState = newState;
+        servicesService.stop_service(app.Id, function() {
+            updateApp(app, newState);
+        });
+    }
+
+    // start service
+    if ((newState == 1) || (newState == -1)) {
+        app.DesiredState = newState;
+        servicesService.start_service(app.Id, function() {
+            updateApp(app, newState);            
+        });
+    }
 }
 
 function updateRunning(app) {
@@ -2308,4 +2444,3 @@ function itemClass(item) {
     }
     return cls;
 }
-

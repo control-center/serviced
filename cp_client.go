@@ -12,6 +12,7 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/volume"
 	"net/rpc"
 )
 
@@ -96,6 +97,10 @@ func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, u
 	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
 }
 
+func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
+}
+
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }
@@ -168,6 +173,10 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
 }
 
+func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
+}
+
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.AddHostToResourcePool", poolHost, unused)
 }
@@ -208,10 +217,22 @@ func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
+// Commits a container to an image and updates the DFS
+func (s *ControlClient) Commit(containerId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
+}
+
+// Rollbacks the DFS and updates the docker images
 func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
+// Performs a DFS snapshot locally (via the host)
+func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+}
+
+// Performs a DFS snapshot via the scheduler
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }
@@ -230,4 +251,10 @@ func (s *ControlClient) Get(service dao.Service, file *string) error {
 
 func (s *ControlClient) Send(service dao.Service, files *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Send", service, files)
+}
+
+func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error {
+	// WARNING: it would not make sense to call this from the CLI
+	// since volume is a pointer
+	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
 }

@@ -19,7 +19,7 @@ RUN cd /tmp ; apt-get download fuse; dpkg-deb -x fuse_* . ; dpkg-deb -e fuse_* ;
 # Install Packages required to run opentsdb
 RUN apt-get install -y -q openjdk-7-jdk git autoconf build-essential libtool gnuplot wget supervisor
 ENV COMPRESSION NONE
-ENV HBASE_HOME /opt/hbase-0.94.14
+ENV HBASE_HOME /opt/hbase-0.94.16
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 
 RUN apt-get -y install maven

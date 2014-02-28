@@ -1,5 +1,9 @@
 package dao
 
+import (
+	"github.com/zenoss/serviced/volume"
+)
+
 // A generic ControlPlane error
 type ControlPlaneError struct {
 	Msg string
@@ -74,6 +78,9 @@ type ControlPlane interface {
 	// Deploy a service
 	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
+	// Assign IP addresses to all services at and below the provided service
+	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
+
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
 
@@ -132,6 +139,9 @@ type ControlPlane interface {
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
+	// Get a map of the HostIPResources (key is the hostId) contained in a pool
+	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
+
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
 
@@ -166,6 +176,12 @@ type ControlPlane interface {
 	Rollback(snapshotId string, unused *int) error
 
 	// Commit DFS and service image
+	Commit(containerId string, label *string) error
+
+	// Performs a local snapshot from the host
+	LocalSnapshot(serviceId string, label *string) error
+
+	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
 
 	// Delete a snapshot
@@ -179,4 +195,7 @@ type ControlPlane interface {
 
 	// Upload file(s) to a container
 	Send(service Service, files *[]string) error
+
+	// Get the DFS volume
+	GetVolume(serviceId string, theVolume *volume.Volume) error
 }

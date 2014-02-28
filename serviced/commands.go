@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -93,6 +92,8 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"add-pool", "Add pool"},
 		{"remove-pool", "Remove pool"},
 		{"list-pool-ips", "Show pool IP addresses"},
+		{"auto-assign-ips", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address"},
+		{"manual-assign-ips", "Manually assign IP addresses to service's endpoints requiring an explicit IP address"},
 
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
@@ -106,6 +107,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
+		{"commit", "Commit a container to an image"},
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
@@ -427,18 +429,6 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 	return err
 }
 
-// ByInterfaceName implements sort.Interface for []dao.HostIPResource
-// This is used to display the interface information sorted
-type ByInterfaceName []dao.HostIPResource
-
-func (a ByInterfaceName) Len() int      { return len(a) }
-func (a ByInterfaceName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-// sort on InterfaceName first, then sort by State
-func (a ByInterfaceName) Less(i, j int) bool {
-	return a[i].InterfaceName < a[j].InterfaceName
-}
-
 // Show pool IP address information
 func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	cmd := Subcmd("list-pool-ips", "[options] POOLID ", "List pool IP addresses")
@@ -450,34 +440,67 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		return nil
 	}
 	controlPlane := getClient()
+	poolId := cmd.Arg(0)
 
-	// retrieve all the hosts that are in the requested pool
-	var poolHosts []*dao.PoolHost
-	err := controlPlane.GetHostsForResourcePool(cmd.Arg(0), &poolHosts)
+	var poolsIpInfo []dao.HostIPResource
+	err := controlPlane.GetPoolsIPInfo(poolId, &poolsIpInfo)
 	if err != nil {
-		glog.Fatalf("Could not get hosts for Pool %s: %v", cmd.Arg(0), err)
+		fmt.Printf("GetPoolsIPInfo failed: %v", err)
+		return err
 	}
-
-	PoolIPResources := []dao.HostIPResource{}
-	for _, poolHost := range poolHosts {
-		// retrieve the IPs of the hosts contained in the requested pool
-		host := dao.Host{}
-		err = controlPlane.GetHost(poolHost.HostId, &host)
-		if err != nil {
-			glog.Fatalf("Could not IP addresses for host %s: %v", poolHost.HostId, err)
-		}
-
-		//aggregate all the IPResources from all the hosts in the requested pool
-		PoolIPResources = append(PoolIPResources, host.IPs...)
-	}
-
-	sort.Sort(ByInterfaceName(PoolIPResources))
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range PoolIPResources {
+	for _, hostIPResource := range poolsIpInfo {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
+	}
+
+	return nil
+}
+
+func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
+	cmd := Subcmd("auto-assign-ips", "[options] SERVICEID", "Automatically assign IP addresses to service's endpoints requiring an explicit IP address")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	serviceId := cmd.Arg(0)
+	assignmentRequest := dao.AssignmentRequest{serviceId, "", true}
+	err := controlPlane.AssignIPs(assignmentRequest, nil)
+	if err != nil {
+		glog.Fatalf("CmdAutoAssignIps AssignIPs failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
+	cmd := Subcmd("manual-assign-ips", "[options] SERVICEID IPADDRESS", "Manually assign IP addresses to service's endpoints requiring an explicit IP address")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 2 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+
+	serviceId := cmd.Arg(0)
+	setIpAddress := cmd.Arg(1)
+	assignmentRequest := dao.AssignmentRequest{serviceId, setIpAddress, false}
+	glog.Infof("Manually setting IP address to: %s", setIpAddress)
+
+	err := controlPlane.AssignIPs(assignmentRequest, nil)
+	if err != nil {
+		glog.Fatalf("CmdManualAssignIps AssignIPs failed: %v", err)
+		return err
 	}
 
 	return nil
@@ -783,6 +806,30 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 		glog.Errorf("Received an error: %s", err)
 	}
 	return err
+}
+
+// Commits a container to a docker image and updates the DFS with a new snapshot
+func (cli *ServicedCli) CmdCommit(args ...string) (err error) {
+	cmd := Subcmd("commit", "DOCKER_ID", "Commits a container and dfs to a new snapshot")
+	err = cmd.Parse(args)
+	if err != nil {
+		return
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return
+	}
+	controlPlane := getClient()
+
+	var label string
+	err = controlPlane.Commit(cmd.Arg(0), &label)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	} else {
+		fmt.Printf("%s\n", label)
+	}
+
+	return
 }
 
 func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {

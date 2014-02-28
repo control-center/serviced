@@ -19,7 +19,9 @@ import (
 	"github.com/zenoss/serviced/zzk"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 )
 
 var unused int
+var unusedStr string
 var id string
 var addresses []string
 var controlPlaneDao *ControlPlaneDao
@@ -392,8 +395,7 @@ func TestDao_StartService(t *testing.T) {
 	controlPlaneDao.AddService(*s011, &id)
 	controlPlaneDao.AddService(*s02, &id)
 
-	var unusedString string
-	controlPlaneDao.StartService("0", &unusedString)
+	controlPlaneDao.StartService("0", &unusedStr)
 
 	service := dao.Service{}
 	controlPlaneDao.GetService("0", &service)
@@ -489,10 +491,12 @@ func testDaoHostExists(t *testing.T) {
 	}
 }
 
-func TestDaoValidServiceForDeployment(t *testing.T) {
+func TestDaoValidServiceForStart(t *testing.T) {
 	testService := dao.Service{
+		Id: "TestDaoValidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
+				Name:        "TestDaoValidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
@@ -500,16 +504,18 @@ func TestDaoValidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.validateServicesForStarting(testService, nil)
 	if err != nil {
-		t.Error("Services failed validation for deployment: ", err)
+		t.Error("Services failed validation for starting: ", err)
 	}
 }
 
-func TestDaoInvalidServiceForDeployment(t *testing.T) {
+func TestDaoInvalidServiceForStart(t *testing.T) {
 	testService := dao.Service{
+		Id: "TestDaoInvalidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
 			dao.ServiceEndpoint{
+				Name:        "TestDaoInvalidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
@@ -521,10 +527,130 @@ func TestDaoInvalidServiceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	err := controlPlaneDao.ValidateServicesForDeployment(testService)
+	err := controlPlaneDao.validateServicesForStarting(testService, nil)
 	if err == nil {
-		t.Error("Services should have failed validation for deployment...")
+		t.Error("Services should have failed validation for starting...")
 	}
+}
+
+func TestDaoGetPoolsIPInfo(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.HostId = HOSTID
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostId = HOSTID
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
+
+	var poolsIpInfo []dao.HostIPResource
+	err := controlPlaneDao.GetPoolsIPInfo(assignIPsPool.Id, &poolsIpInfo)
+	if err != nil {
+		t.Error("GetPoolIps failed")
+	}
+	if len(poolsIpInfo) != 2 {
+		t.Error("Expected number of addresses: ", len(poolsIpInfo))
+	}
+
+	if poolsIpInfo[0].IPAddress != ipAddress1 {
+		t.Error("Unexpected IP address: ", poolsIpInfo[0].IPAddress)
+	}
+	if poolsIpInfo[1].IPAddress != ipAddress2 {
+		t.Error("Unexpected IP address: ", poolsIpInfo[1].IPAddress)
+	}
+
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
+}
+
+func TestDaoAutoAssignIPs(t *testing.T) {
+	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.Id)
+	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
+
+	assignIPsHostIPResources := []dao.HostIPResource{}
+	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.HostId = HOSTID
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostId = HOSTID
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost := dao.Host{}
+	assignIPsHost.Id = HOSTID
+	assignIPsHost.PoolId = assignIPsPool.Id
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = controlPlaneDao.AddHost(assignIPsHost, &id)
+
+	testService := dao.Service{
+		Id:     "assignIPsServiceID",
+		PoolId: assignIPsPool.Id,
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Name:        "AssignIPsEndpointName",
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+				AddressConfig: dao.AddressResourceConfig{
+					Port:     8081,
+					Protocol: commons.TCP,
+				},
+			},
+		},
+	}
+
+	err = controlPlaneDao.AddService(testService, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
+	}
+
+	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
+	err := controlPlaneDao.AssignIPs(assignmentRequest, nil)
+	if err != nil {
+		t.Error("AssignIPs failed: %v", err)
+	}
+
+	assignments := []dao.AddressAssignment{}
+	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
+	if err != nil {
+		t.Error("GetServiceAddressAssignments failed: %v", err)
+	}
+	if len(assignments) != 1 {
+		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
+	}
+
+	defer controlPlaneDao.RemoveService(testService.Id, &unused)
+	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
+	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
 }
 
 func TestDaoGetHostNoIPs(t *testing.T) {
@@ -547,14 +673,13 @@ func TestDaoGetHostNoIPs(t *testing.T) {
 	if len(resultHost.IPs) != 0 {
 		t.Errorf("Expected %v IPs, got %v", 0, len(resultHost.IPs))
 	}
-
 }
 
 func TestDaoGetHostWithIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testip", "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testHostId", "testip", "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
 	if err != nil {
@@ -573,65 +698,146 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	}
 }
 
-func TestDao_SnapshotState(t *testing.T) {
-	glog.V(0).Infof("TestDao_SnapshotState started")
-	defer glog.V(0).Infof("TestDao_SnapshotState finished")
+func TestRemoveAddressAssignment(t *testing.T) {
+	//test removing address when not present
+	err = controlPlaneDao.RemoveAddressAssignment("fake", nil)
+	if err == nil {
+		t.Errorf("Expected error removing address %v", err)
+	}
+}
+
+func TestAssignAddress(t *testing.T) {
+	aa := dao.AddressAssignment{}
+	aid := ""
+	err := controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	//set up host with IP
+	hostid := "TestHost"
+	ip := "testip"
+	endpoint := "default"
+	serviceId := ""
+	host := dao.Host{}
+	host.Id = hostid
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testHostId", ip, "ifname"}}
+	err = controlPlaneDao.AddHost(host, &id)
+	if err != nil {
+		t.Errorf("Unexpected error adding host: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveHost(hostid, &unused)
+
+	//set up service with endpoint
+	service, _ := dao.NewService()
+	ep := dao.ServiceEndpoint{}
+	ep.Name = endpoint
+	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
+	service.Endpoints = []dao.ServiceEndpoint{ep}
+	controlPlaneDao.AddService(*service, &serviceId)
+	if err != nil {
+		t.Errorf("Unexpected error adding service: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveService(serviceId, &unused)
+
+	//test for bad service id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test for bad endpoint id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	// Valid assignment
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err != nil {
+		t.Errorf("Unexpected error adding address %v", err)
+		return
+	}
+
+	// try to reassign; should fail
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	other_aid := ""
+	err = controlPlaneDao.AssignAddress(aa, &other_aid)
+	if err == nil || "Address Assignment already exists" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test removing address
+	err = controlPlaneDao.RemoveAddressAssignment(aid, nil)
+	if err != nil {
+		t.Errorf("Unexpected error removing address %v", err)
+	}
+}
+
+func TestDao_SnapshotRequest(t *testing.T) {
+	glog.V(0).Infof("TestDao_SnapshotRequest started")
+	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
 
 	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
-	zkDao.RemoveSnapshotState()
-	defer zkDao.RemoveSnapshotState() // cleanup when exitting this function
 
-	// calling RemoveSnapshotState a 2nd time should not be an error
-	if err := zkDao.RemoveSnapshotState(); err != nil {
-		t.Fatalf("Failure RemoveSnapshotStte error: %s", err)
+	srExpected := dao.SnapshotRequest{Id: "request13",
+		ServiceId: "12345", SnapshotLabel: "foo", SnapshotError: "bar"}
+	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
+		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
+	}
+	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: zk: node already exists")
+	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
+		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
 	}
 
-	expectedState := ""
-
-	// create /snapshots
-	expectedState = "INIT"
-	if err := zkDao.AddSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	srResult := dao.SnapshotRequest{}
+	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
+	}
+	if !reflect.DeepEqual(srExpected, srResult) {
+		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
 	}
 
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	srExpected.ServiceId = "67890"
+	srExpected.SnapshotLabel = "bin"
+	srExpected.SnapshotError = "baz"
+	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {
+		t.Fatalf("Failure updating snapshot request %+v with error: %s", srResult, err)
 	}
 
-	// calling addSnapshotState a 2nd time should not be an error
-	expectedState = "ADDSNAP2"
-	if err := zkDao.AddSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure AddSnapshotState error: %s", err)
+	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
+	}
+	if !reflect.DeepEqual(srExpected, srResult) {
+		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
 	}
 
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
+		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
 	}
-
-	// update /snapshots with "PAUSE"
-	expectedState = "PAUSE"
-	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
-	}
-
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
-	}
-
-	// update /snapshots with "RESUME"
-	expectedState = "RESUME"
-	if err := zkDao.UpdateSnapshotState(expectedState); err != nil {
-		t.Fatalf("Failure UpdateSnapshotState error: %s", err)
-	}
-
-	if err := zkDao.GetSnapshotState(&id); err != nil || id != expectedState {
-		t.Fatalf("Failure {Add,Get}SnapshotState expectedState=%s for err=%s, state=%s", expectedState, err, id)
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
+		t.Fatalf("Failure removing non-existant snapshot request %+v", srExpected)
 	}
 }
 
 func TestDao_NewSnapshot(t *testing.T) {
+	// this is technically not a unit test since it depends on the leader
+	// starting a watch for snapshot requests and the code here is time
+	// dependent waiting for that leader to start the watch
+	return
+
 	glog.V(0).Infof("TestDao_NewSnapshot started")
 	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
+
+	time.Sleep(2 * time.Second) // wait for Leader to start watching for snapshot requests
 
 	service := dao.Service{}
 	service.Id = "service-without-quiesce"
@@ -639,7 +845,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 	// snapshot should work for services without Snapshot Pause/Resume
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	service.Id = "service1-quiesce"
@@ -648,7 +854,7 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	service.Id = "service2-quiesce"
@@ -657,13 +863,28 @@ func TestDao_NewSnapshot(t *testing.T) {
 	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
 	err = controlPlaneDao.AddService(service, &id)
 	if err != nil {
-		t.Fatalf("Failure creating service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
 	err = controlPlaneDao.Snapshot(service.Id, &id)
 	if err != nil {
-		t.Fatalf("Failure creating snapshot for service %-v with error: %s", service, err)
+		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
+	if id == "" {
+		t.Fatalf("Failure creating snapshot for service %+v - label is empty", service)
+	}
+	glog.V(0).Infof("successfully created 1st snapshot with label:%s", id)
+
+	err = controlPlaneDao.Snapshot(service.Id, &id)
+	if err != nil {
+		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
+	}
+	if id == "" {
+		t.Fatalf("Failure creating snapshot for service %+v - label is empty", service)
+	}
+	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
+
+	time.Sleep(10 * time.Second)
 }
 
 func TestDao_TestingComplete(t *testing.T) {

@@ -66,8 +66,14 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 		}
 		return err
 	}
-	rsync := exec.Command("rsync", "-a", c.Path()+"/", dest+"/")
-	glog.V(4).Infof("About to execute: %s", rsync)
+
+	exe, err := exec.LookPath("rsync")
+	if err != nil {
+		return err
+	}
+	argv := []string{"-a", c.Path() + "/", dest + "/"}
+	glog.Infof("Performing snapshot rsync command: %s %s", exe, argv)
+	rsync := exec.Command(exe, argv...)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
 		return err
