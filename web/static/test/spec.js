@@ -899,6 +899,7 @@ describe('toggleRunning', function() {
         toggleRunning(svc, 'restart', servicesService);
         expect(svc.DesiredState).toBe(-1);
         expect(servicesService.start_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
     });
 });
 
