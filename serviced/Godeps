@@ -29,7 +29,7 @@
 			"Rev": "92334662baa9cbebc2e6e68b8d56bc1233f85a4c"
 		},
 		{
-			"ImportPath": "github.com/gorrila/mux",
+			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
