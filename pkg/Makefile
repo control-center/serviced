@@ -98,7 +98,6 @@ deb: stage_deb
 		--deb-user root \
 		--deb-group root \
 		.
-#		-d "supervisor" \
 
 # Make an RPM
 rpm: stage_rpm

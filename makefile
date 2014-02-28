@@ -7,6 +7,8 @@
 #
 ################################################################################
 
+UID := $(shell id -u)
+GID := $(shell id -g)
 
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
@@ -36,13 +38,15 @@ dockerbuild: docker_ok
 	echo "Using dock-in-docker cache dir $(dockercache)"
 	mkdir -p $(dockercache)
 	time docker run -rm \
-	-privileged \
-	-v $(dockercache):/var/lib/docker \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	-v `pwd`/pkg/build/tmp:/tmp \
-	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build /bin/bash \
-	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
+		-privileged \
+		-v $(dockercache):/var/lib/docker \
+		-v `pwd`:/go/src/github.com/zenoss/serviced \
+		-v `pwd`/pkg/build/tmp:/tmp \
+		-e BUILD_NUMBER=$(BUILD_NUMBER) \
+		-t zenoss/serviced-build /bin/bash \
+		-c "/usr/local/bin/wrapdocker && make build_binary pkgs; \
+			chown -R $(UID):$(GID) serviced/serviced pkg/pkgroot \
+			pkg/*.deb pkg/*.rpm pkg/build"
 
 test: build_binary docker_ok
 	go test

@@ -42,3 +42,6 @@ isvcs/build/*.tar.gz
 
 *.iml
 *.test
+
+pkg/*.rpm
+pkg/*.deb
