@@ -29,6 +29,10 @@
 			"Rev": "92334662baa9cbebc2e6e68b8d56bc1233f85a4c"
 		},
 		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
+		},
+		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
 			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
 		},
