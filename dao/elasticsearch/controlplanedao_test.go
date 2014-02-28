@@ -544,9 +544,11 @@ func TestDaoGetPoolHostIPInfo(t *testing.T) {
 
 	assignIPsHostIPResources := []dao.HostIPResource{}
 	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.HostId = HOSTID
 	oneHostIPResource.IPAddress = ipAddress1
 	oneHostIPResource.InterfaceName = "eth0"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostId = HOSTID
 	oneHostIPResource.IPAddress = ipAddress2
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
@@ -585,9 +587,11 @@ func TestDaoAutoAssignIPs(t *testing.T) {
 
 	assignIPsHostIPResources := []dao.HostIPResource{}
 	oneHostIPResource := dao.HostIPResource{}
+	oneHostIPResource.HostId = HOSTID
 	oneHostIPResource.IPAddress = "192.168.100.10"
 	oneHostIPResource.InterfaceName = "eth0"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostId = HOSTID
 	oneHostIPResource.IPAddress = "10.50.9.1"
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
@@ -667,7 +671,7 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testip", "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{HOSTID, "testip", "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
 	if err != nil {
@@ -709,7 +713,7 @@ func TestAssignAddress(t *testing.T) {
 	serviceId := ""
 	host := dao.Host{}
 	host.Id = hostid
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{ip, "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{hostid, ip, "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)

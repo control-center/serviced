@@ -508,14 +508,13 @@ func (this *ControlPlaneDao) UpdateHost(host dao.Host, unused *int) error {
 	return err
 }
 
-//
-func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.UpdateService: %+v", service)
+
+// updateService internal method to use when service has been validated
+func (this *ControlPlaneDao) updateService(service *dao.Service) error {
 	id := strings.TrimSpace(service.Id)
 	if id == "" {
 		return errors.New("empty Service.Id not allowed")
 	}
-
 	service.Id = id
 	response, err := indexService(id, service)
 	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
@@ -528,12 +527,24 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 			}
 			if assignment != nil {
 				//assignment exists
-				endpoint.SetAssignment(&assignment)
+				endpoint.SetAssignment(assignment)
 			}
 		}
-		return this.zkDao.UpdateService(&service)
+		return this.zkDao.UpdateService(service)
 	}
 	return err
+}
+//
+func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.UpdateService: %+v", service)
+	//TODO: cannot update service without validating it.
+	if service.DesiredState == dao.SVC_RUN{
+		if err := this.ValidateServicesForStarting(service, nil); err != nil{
+			return err
+		}
+
+	}
+	return this.updateService(&service)
 }
 
 //
@@ -1018,9 +1029,8 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 
 	visitor := func(service dao.Service) error{
 		//start this service
-		var unusedInt int
 		service.DesiredState = dao.SVC_RUN
-		err = this.UpdateService(service, &unusedInt)
+		err = this.updateService(&service)
 		if err != nil {
 			return err
 		}
@@ -1101,7 +1111,7 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 		return err
 	}
 	service.DesiredState = dao.SVC_STOP
-	err = this.UpdateService(service, unused)
+	err = this.updateService(&service)
 	if err != nil {
 		return err
 	}
@@ -1246,6 +1256,11 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 	if err != nil {
 		return err
 	}
+
+	if err= serviceTemplate.Validate(); err != nil{
+		return fmt.Errorf("Error validating template: %v", err)
+	}
+
 	uuid, err = dao.NewUuid()
 	if err != nil {
 		return err
@@ -1424,7 +1439,7 @@ func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.Addre
 	return toAddressAssignments(&result)
 }
 
-// getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment struct will be uninitialized
+// getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
 func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
 	//TODO: this can probably be done w/ a query
 	assignments := []dao.AddressAssignment{}

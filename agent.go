@@ -194,12 +194,22 @@ func (a *HostAgent) dockerRemove(dockerId string) error {
 
 func (a *HostAgent) dockerTerminate(dockerId string) error {
 	glog.V(1).Infof("Killing container %s", dockerId)
+
 	cmd := exec.Command("docker", "kill", dockerId)
-	err := cmd.Run()
-	if err != nil {
-		glog.V(1).Infof("problem killing container instance %s", dockerId)
-		return err
+	killout, killerr := cmd.CombinedOutput()
+	if killerr != nil {
+		//verify dockerId no longer exists
+		cmd = exec.Command("docker", "inspect", dockerId)
+		existsout, err := cmd.CombinedOutput()
+		strout := string(existsout)
+		if err != nil && strings.HasPrefix(strout, "Error: No such image or container:") {
+			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
+			return nil
+		}
+		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr )
+		return errors.New(string(killout))
 	}
+
 	glog.V(2).Infof("Successfully killed %s", dockerId)
 	return nil
 }
@@ -812,7 +822,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 		// use the default IP of the host if specific IPs have not been requested
 		ips = append(ips, hostInfo.IpAddr)
 	}
-	hostIPs, err := getIPResources(ips...)
+	hostIPs, err := getDockerState(hostInfo.Id, ips...)
 	if err != nil {
 		return err
 	}
@@ -822,7 +832,7 @@ func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
+func getIPResources(hostId string, ipaddress ...string) ([]dao.HostIPResource, error) {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -867,6 +877,7 @@ func getIPResources(ipaddress ...string) ([]dao.HostIPResource, error) {
 			return []dao.HostIPResource{}, err
 		}
 		hostIp := dao.HostIPResource{}
+		hostIp.HostId= hostId
 		hostIp.IPAddress = ipaddr
 		hostIp.InterfaceName = iface.Name
 		hostIPResources = append(hostIPResources, hostIp)

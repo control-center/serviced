@@ -79,10 +79,10 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	help := fmt.Sprintf("Usage: serviced [OPTIONS] COMMAND [arg...]\n\nA container based service management system.\n\nCommands:\n")
 	for _, command := range [][2]string{
 
-		{"templates", "show application templates"},
-		{"add-template", "add application templates"},
-		{"remove-template", "remove application templates"},
-		{"deploy-template", "deploy application template"},
+		{"templates", "Show application templates"},
+		{"add-template", "Add application templates"},
+		{"remove-template", "Remove application templates"},
+		{"deploy-template", "Deploy application template"},
 
 		{"hosts", "Display hosts"},
 		{"add-host", "Add a host"},
@@ -97,12 +97,12 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
-		{"remove-service", "Remote a service"},
+		{"remove-service", "Remove a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
 		{"edit-service", "Edit a service"},
 
-		{"proxy", "start a proxy in the foreground"},
+		{"proxy", "Start a proxy in the foreground"},
 
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},

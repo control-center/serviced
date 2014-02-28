@@ -128,7 +128,7 @@ func TestGetInfo(t *testing.T) {
 
 func TestRegisterIPResources(t *testing.T) {
 
-	ips, err := getIPResources("123")
+	ips, err := getIPResources("id", "123")
 	if err == nil || err.Error() != "IP address 123 not valid for this host" {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -136,7 +136,7 @@ func TestRegisterIPResources(t *testing.T) {
 		t.Errorf("Unexpected result %v", ips)
 	}
 
-	ips, err = getIPResources("127.0.0.1")
+	ips, err = getIPResources("id", "127.0.0.1")
 	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -151,7 +151,7 @@ func TestRegisterIPResources(t *testing.T) {
 
 	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip), fmt.Sprintf("   %v   ", ip)}
 	for _, validIP := range validIPs {
-		ips, err = getIPResources(validIP)
+		ips, err = getIPResources("id", validIP)
 		if err != nil {
 			t.Errorf("Unexpected error %v", err)
 		}
