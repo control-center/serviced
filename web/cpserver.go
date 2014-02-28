@@ -114,6 +114,8 @@ func (sc *ServiceConfig) Serve() {
 			return
 		}
 
+		// TODO: implement a more intelligent strategy than "always pick the first one" when more
+		// than one service state is mapped to a given virtual host
 		for _, svcep := range svcstates[0].Endpoints {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
