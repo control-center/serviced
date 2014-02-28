@@ -73,6 +73,8 @@ func (sc *ServiceConfig) Serve() {
 	}
 
 	// Lookup the appropriate virtual host and forward the request to it.
+	// TODO: when zookeeper registration is integrated we can be more event
+	// driven and only refresh the vhost map when service states change.
 	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
 		var empty interface{}
 		services := []*dao.RunningService{}
@@ -228,15 +230,6 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 		routes = append(routes, rest.Route{method, path, handlerFunc})
 		routes = append(routes, rest.Route{method, andsubpath, handlerFunc})
 	}
-	return routes
-}
-
-func routeToTestVhost(vhost string, routes []rest.Route) []rest.Route {
-	glog.Infof("Create route for: %s", vhost)
-	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
-		glog.Infof("Handling request")
-	}
-	routes = append(routes, rest.Route{"GET", vhost, handlerFunc})
 	return routes
 }
 
