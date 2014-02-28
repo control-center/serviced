@@ -76,7 +76,7 @@ class ServicedShell:
             "result": self.result
         })
 
-@app.task
+@app.task()
 def serviced_shell(service_id, command):
     s = ServicedShell()
     s.run(service_id, command)

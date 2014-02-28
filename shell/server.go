@@ -29,6 +29,7 @@ func NewProcessServer(actor ProcessActor) *ProcessServer {
 		actor: actor,
 	}
 	server.sio.On("connect", server.onConnect)
+	server.sio.On("process", server.onProcess)
 	server.sio.On("disconnect", actor.onDisconnect)
 	return server
 }
@@ -50,8 +51,7 @@ func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.sio.ServeHTTP(w, r)
 }
 
-func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
-	ns.On("process", func(ns *socketio.NameSpace, cfg *ProcessConfig) {
+func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
 		// Kick it off
 		glog.Infof("Received process packet")
 		proc := s.actor.Exec(cfg)
@@ -60,7 +60,9 @@ func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 		// Wire up output
 		go proc.ReadRequest(ns)
 		go proc.WriteResponse(ns)
-	})
+}
+
+func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 	glog.Infof("Waiting for process packet")
 }
 
@@ -165,7 +167,6 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 			}
 		}
 	}
-
 	ns.Emit("result", <-p.Result)
 }
 
