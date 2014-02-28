@@ -1,24 +1,36 @@
 package web
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/ant0ine/go-json-rest"
+	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 )
 
 type ServiceConfig struct {
-	bindPort   string
-	agentPort  string
-	zookeepers []string
-	stats      bool
+	bindPort    string
+	agentPort   string
+	zookeepers  []string
+	stats       bool
+	hostaliases []string
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats}
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases string) *ServiceConfig {
+	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats, []string{}}
+	if hostaliases != "" {
+		cfg.hostaliases = strings.Split(hostaliases, ":")
+	}
 	if len(cfg.bindPort) == 0 {
 		cfg.bindPort = ":8787"
 	}
@@ -31,7 +43,115 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	return &cfg
 }
 
-func (this *ServiceConfig) Serve() {
+// Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
+// The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
+// Virutal host routing to zenoss web based services is done by the vhosthandler function.
+func (sc *ServiceConfig) Serve() {
+	client, err := sc.getClient()
+	if err != nil {
+		glog.Errorf("Unable to get control plane client: %v", err)
+		return
+	}
+
+	// Reverse proxy to the web UI server.
+	uihandler := func(w http.ResponseWriter, r *http.Request) {
+		uiUrl, err := url.Parse("http://127.0.0.1:7878")
+		if err != nil {
+			glog.Errorf("Can't parse UI URL: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui := httputil.NewSingleHostReverseProxy(uiUrl)
+		if ui == nil {
+			glog.Errorf("Can't proxy UI request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui.ServeHTTP(w, r)
+	}
+
+	// Lookup the appropriate virtual host and forward the request to it.
+	// TODO: when zookeeper registration is integrated we can be more event
+	// driven and only refresh the vhost map when service states change.
+	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
+		var empty interface{}
+		services := []*dao.RunningService{}
+		client.GetRunningServices(&empty, &services)
+
+		vhosts := make(map[string][]*dao.ServiceState, 0)
+
+		for _, s := range services {
+			var svc dao.Service
+
+			if err := client.GetService(s.ServiceId, &svc); err != nil {
+				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
+			}
+
+			vheps := svc.GetServiceVHosts()
+
+			for _, vhep := range vheps {
+				for _, vh := range vhep.VHosts {
+					svcstates := []*dao.ServiceState{}
+					if err := client.GetServiceStates(s.ServiceId, &svcstates); err != nil {
+						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceId, err), http.StatusInternalServerError)
+						return
+					}
+
+					for _, ss := range svcstates {
+						vhosts[vh] = append(vhosts[vh], ss)
+					}
+				}
+			}
+
+		}
+
+		muxvars := mux.Vars(r)
+		svcstates, ok := vhosts[muxvars["subdomain"]]
+		if !ok {
+			http.Error(w, fmt.Sprintf("unknown vhost: %v", muxvars["subdomain"]), http.StatusNotFound)
+			return
+		}
+
+		// TODO: implement a more intelligent strategy than "always pick the first one" when more
+		// than one service state is mapped to a given virtual host
+		for _, svcep := range svcstates[0].Endpoints {
+			for _, vh := range svcep.VHosts {
+				if vh == muxvars["subdomain"] {
+					rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)})
+					rp.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+
+		http.Error(w, fmt.Sprintf("unrecognized endpoint: %s", muxvars["subdomain"]), http.StatusNotImplemented)
+	}
+
+	r := mux.NewRouter()
+
+	if hnm, err := os.Hostname(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, hnm)
+	}
+
+	cmd := exec.Command("hostname", "--fqdn")
+	if hnm, err := cmd.CombinedOutput(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, string(hnm[:len(hnm)-1]))
+	}
+
+	for _, ha := range sc.hostaliases {
+		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+	}
+
+	r.HandleFunc("/{path:.*}", uihandler)
+
+	http.Handle("/", r)
+	http.ListenAndServe(sc.bindPort, nil)
+}
+
+func (this *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
@@ -90,7 +210,7 @@ func (this *ServiceConfig) Serve() {
 
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(this.bindPort, &handler)
+	http.ListenAndServe(":7878", &handler)
 }
 
 var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
