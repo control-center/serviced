@@ -47,9 +47,10 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 }
 
+//AssignmentRequest is used to couple a serviceId to an IpAddress
 type AssignmentRequest struct {
-	ServiceId string
-	IpAddress string
+	ServiceId      string
+	IpAddress      string
 	AutoAssignment bool
 }
 
@@ -212,8 +213,8 @@ type ServiceState struct {
 
 type ConfigFile struct {
 	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
-	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
+	Permissions string // permission of file, eg 0664, what you would pass to chmod
 	Content     string // content of config file
 }
 

@@ -173,8 +173,8 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
 }
 
-func (s *ControlClient) GetPoolHostIPInfo(poolId string, poolsHostsIpInfo *map[string][]dao.HostIPResource) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetPoolHostIPInfo", poolId, poolsHostsIpInfo)
+func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
 }
 
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {
@@ -217,10 +217,22 @@ func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
+// Commits a container to an image and updates the DFS
+func (s *ControlClient) Commit(containerId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
+}
+
+// Rollbacks the DFS and updates the docker images
 func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
+// Performs a DFS snapshot locally (via the host)
+func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+}
+
+// Performs a DFS snapshot via the scheduler
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }

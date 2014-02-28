@@ -15,6 +15,7 @@ import (
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dfs"
 )
 
 var empty interface{}
@@ -48,7 +49,8 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onForwarderDisconnect)
-	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 
@@ -59,7 +61,8 @@ func NewProcessExecutorServer(port string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
-	server.Handle("/", http.FileServer(http.Dir(staticRoot())))
+	// BUG: ZEN-10320
+	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
 }
 
@@ -261,6 +264,10 @@ func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
+	// Acquire and release the lock to start a container from the latest image
+	dfs.Lock.Lock()
+	dfs.Lock.Unlock()
+
 	var (
 		runner   Runner
 		service  *dao.Service

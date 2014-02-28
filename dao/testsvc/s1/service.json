@@ -21,7 +21,7 @@
             "min": 1
           },
           "ConfigFiles": {
-            "/etc/my.cnf":  { "Filename": "/etc/my.cnf", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
+            "/etc/my.cnf":  { "Filename": "/etc/my.cnf", "Permissions": "0660", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
           },
           "LogConfigs":[ {
             "path": "/tmp/foo",

@@ -107,6 +107,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
+		{"commit", "Commit a container to an image"},
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
@@ -441,24 +442,18 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	controlPlane := getClient()
 	poolId := cmd.Arg(0)
 
-	//assignIPsHostIPResources := []dao.HostIPResource{}
-	// list of maps
-	// dictionary of string to dao.HostIPResource
-	//poolsHostsIpInfo := make(map[string][]dao.HostIPResource, 32)
-	var poolsHostsIpInfo map[string][]dao.HostIPResource
-	err := controlPlane.GetPoolHostIPInfo(poolId, &poolsHostsIpInfo)
+	var poolsIpInfo []dao.HostIPResource
+	err := controlPlane.GetPoolsIPInfo(poolId, &poolsIpInfo)
 	if err != nil {
-		fmt.Printf("GetPoolHostIPInfo failed: %v", err)
+		fmt.Printf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for hostId, _ := range poolsHostsIpInfo {
-		for _, hostIPResource := range poolsHostsIpInfo[hostId] {
-			fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
-		}
+	for _, hostIPResource := range poolsIpInfo {
+		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 
 	return nil
@@ -482,7 +477,7 @@ func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 		glog.Fatalf("CmdAutoAssignIps AssignIPs failed: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -501,13 +496,13 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 	setIpAddress := cmd.Arg(1)
 	assignmentRequest := dao.AssignmentRequest{serviceId, setIpAddress, false}
 	glog.Infof("Manually setting IP address to: %s", setIpAddress)
-	
+
 	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
 		glog.Fatalf("CmdManualAssignIps AssignIPs failed: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -811,6 +806,30 @@ func (cli *ServicedCli) CmdRollback(args ...string) error {
 		glog.Errorf("Received an error: %s", err)
 	}
 	return err
+}
+
+// Commits a container to a docker image and updates the DFS with a new snapshot
+func (cli *ServicedCli) CmdCommit(args ...string) (err error) {
+	cmd := Subcmd("commit", "DOCKER_ID", "Commits a container and dfs to a new snapshot")
+	err = cmd.Parse(args)
+	if err != nil {
+		return
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return
+	}
+	controlPlane := getClient()
+
+	var label string
+	err = controlPlane.Commit(cmd.Arg(0), &label)
+	if err != nil {
+		glog.Errorf("Received an error: %s", err)
+	} else {
+		fmt.Printf("%s\n", label)
+	}
+
+	return
 }
 
 func (cli *ServicedCli) CmdDeleteSnapshot(args ...string) error {
