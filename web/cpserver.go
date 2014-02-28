@@ -137,7 +137,6 @@ func (sc *ServiceConfig) Serve() {
 	}
 
 	for _, ha := range sc.hostaliases {
-		glog.Infof("creating handler for %q", fmt.Sprintf("{subdomain}.%s", ha))
 		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 	}
