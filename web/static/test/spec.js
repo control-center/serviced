@@ -886,19 +886,19 @@ describe('toggleRunning', function() {
     it('Sets DesiredState and updates service', function() {
         var servicesService = fake_resources_service();
         var svc = {};
-        spyOn(servicesService, 'update_service');
-
+        spyOn(servicesService, 'start_service');
+        spyOn(servicesService, 'stop_service');
         toggleRunning(svc, 'start', servicesService);
         expect(svc.DesiredState).toBe(1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'stop', servicesService);
         expect(svc.DesiredState).toBe(0);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'restart', servicesService);
         expect(svc.DesiredState).toBe(-1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
     });
 });
 
@@ -1056,6 +1056,12 @@ function fake_resources_service() {
            callback({});
        },
        remove_service: function(serviceId, callback) {
+           callback({});
+       },
+       start_service: function(serviceId, callback) {
+           callback({});
+       },
+       stop_service: function(serviceId, callback) {
            callback({});
        }
    };
