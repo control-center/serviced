@@ -1710,6 +1710,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 		return nil, err
 	}
 
+	// make sure that the logstash config is present
+	err = s.writeLogstashConfiguration()
+	if err != nil {
+		glog.Warningf("Could not write logstash configuration: %s", err)
+	}
+
 	if err = isvcs.Mgr.Start(); err != nil {
 		return nil, err
 	}
@@ -1738,11 +1744,10 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	return s, nil
 }
 
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
-// This method depends on the elasticsearch container being up and running.
-func (s *ControlPlaneDao) reloadLogstashContainer() error {
+// writeLogstashConfiguration takes all the available
+// services and writes out the filters section for logstash.
+// This is required before logstash startsup
+func (s *ControlPlaneDao) writeLogstashConfiguration() error {
 	var templatesMap map[string]*dao.ServiceTemplate
 	if err := s.GetServiceTemplates(0, &templatesMap); err != nil {
 		return err
@@ -1751,6 +1756,19 @@ func (s *ControlPlaneDao) reloadLogstashContainer() error {
 	// FIXME: eventually this file should live in the DFS or the config should
 	// live in zookeeper to allow the agents to get to this
 	if err := dao.WriteConfigurationFile(templatesMap); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Anytime the available service definitions are modified
+// we need to restart the logstash container so it can write out
+// its new filter set.
+// This method depends on the elasticsearch container being up and running.
+func (s *ControlPlaneDao) reloadLogstashContainer() error {
+	err := s.writeLogstashConfiguration()
+	if err != nil {
+		glog.Fatalf("Could not write logstash configuration: %s", err)
 		return err
 	}
 	glog.V(2).Info("Starting logstash container")
