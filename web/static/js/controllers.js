@@ -1968,7 +1968,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Response passed to callback on success.
          */
         start_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/startService').
+            $http.put('/services/' + serviceId + '/startService').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1986,7 +1986,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Response passed to callback on success.
          */
         stop_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/stopService').
+            $http.put('/services/' + serviceId + '/stopService').
                 success(function(data, status) {
                     callback(data);
                 }).

@@ -66,8 +66,8 @@ func (this *ServiceConfig) Serve() {
 		rest.Route{"GET", "/services/:serviceId/logs", this.AuthorizedClient(RestGetServiceLogs)},
 		rest.Route{"PUT", "/services/:serviceId", this.AuthorizedClient(RestUpdateService)},
 		rest.Route{"GET", "/services/:serviceId/snapshot", this.AuthorizedClient(RestSnapshotService)},
-		rest.Route{"GET", "/services/:serviceId/startService", this.AuthorizedClient(RestStartService)},
-		rest.Route{"GET", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
+		rest.Route{"PUT", "/services/:serviceId/startService", this.AuthorizedClient(RestStartService)},
+		rest.Route{"PUT", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
