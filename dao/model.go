@@ -37,7 +37,7 @@ type PoolHost struct {
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AddressAssignment struct {
 	Id             string //Generated id
-	AssignmentType string //Static of Virtual
+	AssignmentType string //Static or Virtual
 	HostId         string //Host id if type is Static
 	PoolId         string //Pool id if type is Virtual
 	IPAddr         string //Used to associate to resource in Pool or Host
@@ -46,9 +46,17 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 }
 
+//AssignmentRequest is used to couple a serviceId to an IpAddress
+type AssignmentRequest struct {
+	ServiceId      string
+	IpAddress      string
+	AutoAssignment bool
+}
+
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
+	HostId        string
 	IPAddress     string
 	InterfaceName string
 }
@@ -203,8 +211,8 @@ type ServiceState struct {
 
 type ConfigFile struct {
 	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
-	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
+	Permissions string // permission of file, eg 0664, what you would pass to chmod
 	Content     string // content of config file
 }
 

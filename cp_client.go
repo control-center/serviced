@@ -97,6 +97,10 @@ func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, u
 	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
 }
 
+func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
+}
+
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceLogs", serviceId, logs)
 }
@@ -167,6 +171,10 @@ func (s *ControlClient) RemoveResourcePool(poolId string, unused *int) (err erro
 
 func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao.PoolHost) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
+}
+
+func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
 }
 
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {
