@@ -1,6 +1,11 @@
 package web
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/ant0ine/go-json-rest"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
@@ -14,14 +19,18 @@ import (
 )
 
 type ServiceConfig struct {
-	bindPort   string
-	agentPort  string
-	zookeepers []string
-	stats      bool
+	bindPort    string
+	agentPort   string
+	zookeepers  []string
+	stats       bool
+	hostaliases []string
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats}
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases string) *ServiceConfig {
+	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats, []string{}}
+	if hostaliases != "" {
+		cfg.hostaliases = strings.Split(hostaliases, ":")
+	}
 	if len(cfg.bindPort) == 0 {
 		cfg.bindPort = ":8787"
 	}
@@ -34,6 +43,9 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	return &cfg
 }
 
+// Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
+// The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
+// Virutal host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve() {
 	client, err := sc.getClient()
 	if err != nil {
@@ -41,6 +53,7 @@ func (sc *ServiceConfig) Serve() {
 		return
 	}
 
+	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
 		uiUrl, err := url.Parse("http://127.0.0.1:7878")
 		if err != nil {
@@ -59,19 +72,75 @@ func (sc *ServiceConfig) Serve() {
 		ui.ServeHTTP(w, r)
 	}
 
+	// Lookup the appropriate virtual host and forward the request to it.
 	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.Info(*r)
 		var empty interface{}
-		services := []*dao.Service{}
-		client.GetServices(&empty, &services)
+		services := []*dao.RunningService{}
+		client.GetRunningServices(&empty, &services)
 
-		http.Error(w, "TBI", http.StatusNotImplemented)
+		vhosts := make(map[string][]*dao.ServiceState, 0)
+
+		for _, s := range services {
+			var svc dao.Service
+
+			if err := client.GetService(s.ServiceId, &svc); err != nil {
+				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
+			}
+
+			vheps := svc.GetServiceVHosts()
+
+			for _, vhep := range vheps {
+				for _, vh := range vhep.VHosts {
+					svcstates := []*dao.ServiceState{}
+					if err := client.GetServiceStates(s.ServiceId, &svcstates); err != nil {
+						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceId, err), http.StatusInternalServerError)
+						return
+					}
+
+					for _, ss := range svcstates {
+						vhosts[vh] = append(vhosts[vh], ss)
+					}
+				}
+			}
+
+		}
+
+		muxvars := mux.Vars(r)
+		svcstates, ok := vhosts[muxvars["subdomain"]]
+		if !ok {
+			http.Error(w, fmt.Sprintf("unknown vhost: %v", muxvars["subdomain"]), http.StatusNotFound)
+			return
+		}
+
+		for _, svcep := range svcstates[0].Endpoints {
+			for _, vh := range svcep.VHosts {
+				if vh == muxvars["subdomain"] {
+					rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)})
+					rp.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+
+		http.Error(w, fmt.Sprintf("unrecognized endpoint: %s", muxvars["subdomain"]), http.StatusNotImplemented)
 	}
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", vhosthandler).Host("{subdomain}.europa.loc")
-	r.HandleFunc("/{path:.*}", vhosthandler).Host("{subdomain}.europa.loc")
+	if hnm, err := os.Hostname(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, hnm)
+	}
+
+	cmd := exec.Command("hostname", "--fqdn")
+	if hnm, err := cmd.CombinedOutput(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, string(hnm[:len(hnm)-1]))
+	}
+
+	for _, ha := range sc.hostaliases {
+		glog.Infof("creating handler for %q", fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+	}
 
 	r.HandleFunc("/{path:.*}", uihandler)
 

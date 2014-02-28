@@ -73,7 +73,7 @@ type ControlPlane interface {
 	GetTaggedServices(request EntityRequest, services *[]*Service) error
 
 	// Find all service endpoint matches
-	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error)
+	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) error
 
 	// Deploy a service
 	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
