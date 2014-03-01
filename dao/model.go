@@ -337,16 +337,49 @@ func (s *Service) HasImports() bool {
 	return false
 }
 
-// Retrieve service endpoint imports
-func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
+// GetServiceImports retrieves service endpoints whose purpose is "import"
+func (s *Service) GetServiceImports() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
 			if ep.Purpose == "import" {
-				endpoints = append(endpoints, ep)
+				result = append(result, ep)
 			}
 		}
 	}
-	return
+
+	return result
+}
+
+// GetServiceExports retrieves service endpoints whose purpose is "export"
+func (s *Service) GetServiceExports() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if ep.Purpose == "export" {
+				result = append(result, ep)
+			}
+		}
+	}
+
+	return result
+}
+
+// GetServiceVHosts retrieves service endpoints that specify a virtual HostPort
+func (s *Service) GetServiceVHosts() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if len(ep.VHosts) > 0 {
+				result = append(result, ep)
+			}
+		}
+	}
+
+	return result
 }
 
 func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {

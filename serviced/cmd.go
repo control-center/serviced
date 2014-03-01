@@ -26,7 +26,6 @@ import (
 
 	"flag"
 	"fmt"
-	"github.com/zenoss/glog"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -36,6 +35,8 @@ import (
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/zenoss/glog"
 )
 
 // Store the command line options
@@ -60,6 +61,7 @@ var options struct {
 	resourceperiod   int
 	vfs              string
 	esStartupTimeout int
+	hostaliases      string
 }
 
 var agentIP string
@@ -129,6 +131,7 @@ func init() {
 	options.mount = make(ListOpts, 0)
 	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
+	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
 	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 60), "time to wait on elasticsearch startup before bailing")
 
@@ -194,7 +197,8 @@ func startServer() {
 		rpc.RegisterName("ControlPlane", master)
 
 		// TODO: Make bind port for web server optional?
-		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats)
+		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats, options.hostaliases)
+		go cpserver.ServeUI()
 		go cpserver.Serve()
 	}
 	if options.agent {
