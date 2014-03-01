@@ -153,11 +153,13 @@ func TestRegisterIPResources(t *testing.T) {
 	for _, validIP := range validIPs {
 		ips, err = getIPResources("dummy_hostId", validIP)
 		if err != nil {
-		if err != nil {
-			t.Errorf("Unexpected error %v", err)
-		}
-		if len(ips) != 1 {
-			t.Errorf("Unexpected result %v", ips)
+			if err != nil {
+				t.Errorf("Unexpected error %v", err)
+			}
+			if len(ips) != 1 {
+				t.Errorf("Unexpected result %v", ips)
+			}
 		}
 	}
+
 }

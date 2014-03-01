@@ -542,7 +542,7 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 	glog.V(2).Infof("ControlPlaneDao.UpdateService: %+v", service)
 	//TODO: cannot update service without validating it.
 	if service.DesiredState == dao.SVC_RUN{
-		if err := this.ValidateServicesForStarting(service, nil); err != nil{
+		if err := this.validateServicesForStarting(service, nil); err != nil{
 			return err
 		}
 
@@ -816,7 +816,7 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 		// if there exists some AddressConfig that is initialized to anything (port and protocol are not the default values)
 		// and there does NOT exist an AddressAssignment corresponding to this AddressConfig
 		// then this service needs an AddressAssignment
-		if *addressAssignment == (dao.AddressAssignment{}) {
+		if addressAssignment == nil {
 			glog.Infof("Service: %s endpoint: %s needs an address assignment", serviceID, endpoint.Name)
 			return true, "", nil
 		}
