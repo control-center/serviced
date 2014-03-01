@@ -2,9 +2,10 @@
           "Command": "/usr/bin/python -m SimpleHTTPServer",
           "Endpoints": [{
               "Application": "websvc",
-              "PortNumber": 8080,
+              "PortNumber": 8000,
               "Protocol": "tcp",
-              "Purpose": "export"
+              "Purpose": "export",
+              "VHosts": ["websvc"]
             }
           ],
           "ImageId": "ubuntu",
