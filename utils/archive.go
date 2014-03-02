@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"fmt"
@@ -10,14 +11,6 @@ import (
 	"os"
 	"path/filepath"
 )
-
-type EndOfArchive struct {
-	s string
-}
-
-func (e *EndOfArchive) Error() string {
-	return e.s
-}
 
 type ArchiveReader interface {
 	Next() (string, error)
@@ -63,7 +56,7 @@ func NewArchiveReader(path string) (ArchiveReader, error) {
 			}
 			// Make a new gzip reader with same data that doesn't tee
 			fz, err := gzip.NewReader(backup)
-			return &TarballReader{&fileReader{fz}}, nil
+			return &TarballReader{tar.NewReader(fz)}, nil
 		}
 	} else {
 		// Remote path; always a single file
@@ -83,7 +76,7 @@ type SingleFileReader struct {
 }
 
 type TarballReader struct {
-	*fileReader
+	tarreader *tar.Reader
 }
 
 type DirectoryReader struct {
@@ -97,7 +90,7 @@ func (r *SingleFileReader) Next() (string, error) {
 		r.read = true
 		return r.name, nil
 	}
-	return "", &EndOfArchive{"End of archive"}
+	return "", io.EOF
 }
 
 func (r *SingleFileReader) Read(b []byte) (int, error) {
@@ -106,7 +99,7 @@ func (r *SingleFileReader) Read(b []byte) (int, error) {
 
 func (r *DirectoryReader) Next() (string, error) {
 	if len(r.entries) == 0 {
-		return "", &EndOfArchive{"End of archive"}
+		return "", io.EOF
 	}
 	// Pop off the first item
 	now := r.entries[0]
@@ -137,9 +130,16 @@ func (r *DirectoryReader) Read(b []byte) (int, error) {
 }
 
 func (r *TarballReader) Next() (string, error) {
-	return "", nil
+	hdr, err := r.tarreader.Next()
+	if err != nil {
+		return "", err
+	}
+	if hdr.FileInfo().IsDir() {
+		return r.Next()
+	}
+	return hdr.Name, nil
 }
 
-func (r *TarballReader) Read([]byte) (int, error) {
-	return 0, nil
+func (r *TarballReader) Read(b []byte) (int, error) {
+	return r.tarreader.Read(b)
 }

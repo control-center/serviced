@@ -6,8 +6,10 @@ import (
 	. "github.com/zenoss/serviced/utils"
 
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -47,8 +49,7 @@ var _ = Describe("Archive", func() {
 				Expect(string(data)).To(Equal("test data"))
 				Expect(err).To(BeNil())
 				_, err = r.Next()
-				_, ok := err.(*EndOfArchive)
-				Expect(ok).To(BeTrue())
+				Expect(err).To(Equal(io.EOF))
 			})
 		})
 		Context("the file does not exist", func() {
@@ -67,9 +68,9 @@ var _ = Describe("Archive", func() {
 				path = tempdir
 				for i := 0; i < 3; i++ {
 					f, _ := os.Create(filepath.Join(tempdir,
-						fmt.Sprintf("testfile-%s", i)))
+						fmt.Sprintf("testfile-%d", i)))
 					defer f.Close()
-					f.WriteString(fmt.Sprintf("test data %s", i))
+					f.WriteString(fmt.Sprintf("test data %d", i))
 				}
 				subdir := filepath.Join(tempdir, "zzz")
 				os.MkdirAll(subdir, 0777)
@@ -80,17 +81,16 @@ var _ = Describe("Archive", func() {
 				for i := 0; i < 3; i++ {
 					name, err := r.Next()
 					Expect(name).To(Equal(filepath.Join(tempdir,
-						fmt.Sprintf("testfile-%s", i))))
+						fmt.Sprintf("testfile-%d", i))))
 					data, _ := ioutil.ReadAll(r)
 					Expect(string(data)).To(Equal(
-						fmt.Sprintf("test data %s", i)))
+						fmt.Sprintf("test data %d", i)))
 					Expect(err).To(BeNil())
 				}
 				name, err := r.Next()
 				Expect(name).To(Equal(filepath.Join(tempdir, "zzz", "hi")))
 				_, err = r.Next()
-				_, ok := err.(*EndOfArchive)
-				Expect(ok).To(BeTrue())
+				Expect(err).To(Equal(io.EOF))
 			})
 		})
 		Context("the directory does not exist", func() {
@@ -105,6 +105,39 @@ var _ = Describe("Archive", func() {
 	})
 
 	Context("a local tar.gz", func() {
+		BeforeEach(func() {
+			path = tempdir + "-archive.tgz"
+			archdir := filepath.Join(tempdir, "archive")
+			os.MkdirAll(archdir, 0777)
+			for i := 0; i < 3; i++ {
+				f, _ := os.Create(filepath.Join(archdir,
+					fmt.Sprintf("testfile-%d", i)))
+				defer f.Close()
+				f.WriteString(fmt.Sprintf("test data %d", i))
+			}
+			subdir := filepath.Join(archdir, "zzz")
+			os.MkdirAll(subdir, 0777)
+			f, _ := os.Create(filepath.Join(subdir, "hi"))
+			defer f.Close()
+			exec.Command("tar", "czf", path, archdir).Run()
+		})
+
+		It("returns all files with no error", func() {
+			archdir := filepath.Join(tempdir, "archive")
+			for i := 0; i < 3; i++ {
+				name, err := r.Next()
+				Expect(name).To(Equal(filepath.Join(archdir,
+					fmt.Sprintf("testfile-%d", i))[1:]))
+				data, _ := ioutil.ReadAll(r)
+				Expect(string(data)).To(Equal(
+					fmt.Sprintf("test data %d", i)))
+				Expect(err).To(BeNil())
+			}
+			name, err := r.Next()
+			Expect(name).To(Equal(filepath.Join(archdir, "zzz", "hi")[1:]))
+			_, err = r.Next()
+			Expect(err).To(Equal(io.EOF))
+		})
 	})
 
 	Context("a remote file", func() {
