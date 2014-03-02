@@ -4,12 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ArchiveReader interface {
@@ -20,7 +22,6 @@ type ArchiveReader interface {
 func NewArchiveReader(path string) (ArchiveReader, error) {
 	url, err := url.Parse(path)
 	if err != nil {
-		fmt.Println("err is nil")
 		return nil, err
 	}
 	if url.Scheme == "" && url.Host == "" {
@@ -57,12 +58,33 @@ func NewArchiveReader(path string) (ArchiveReader, error) {
 			// Make a new gzip reader with same data that doesn't tee
 			fz, err := gzip.NewReader(backup)
 			return &TarballReader{tar.NewReader(fz)}, nil
+		default:
+			return nil, nil
 		}
 	} else {
 		// Remote path; always a single file
-		fmt.Println("REMOTE PATH")
+		resp, err := http.Get(url.String())
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, errors.New(resp.Status)
+		}
+		split := strings.Split(url.Path, "/")
+		name := split[len(split)-1]
+		tmpBuffer := &bytes.Buffer{}
+		safereader := io.TeeReader(resp.Body, tmpBuffer)
+		backup := io.MultiReader(tmpBuffer, resp.Body)
+		// First, the test
+		_, err = gzip.NewReader(safereader)
+		if err != nil {
+			// Not gzipped, just read it as a single file
+			return &SingleFileReader{name, false, &fileReader{backup}}, nil
+		}
+		// Make a new gzip reader with same data that doesn't tee
+		fz, err := gzip.NewReader(backup)
+		return &TarballReader{tar.NewReader(fz)}, nil
 	}
-	return nil, nil
 }
 
 type fileReader struct {
