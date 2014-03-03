@@ -437,7 +437,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			}
 
 			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
-				glog.Fatalf("Error creating resource path: %v", err)
+				glog.Fatalf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 			}
 			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		}

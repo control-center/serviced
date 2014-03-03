@@ -448,10 +448,13 @@ chmod %s /tmp && \
 shopt -s nullglob && \
 shopt -s dotglob && \
 files=(/tmp/*) && \
-if [ ${#files[@]} -eq 0 ]; then
+if [ ! -d "%s" ]; then
+	echo "ERROR: srcdir %s does not exist in container"
+	exit 2
+elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /tmp/
 fi
-`, userSpec, permissionSpec, containerSpec))
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
 		output, err = docker.CombinedOutput()
 		if err == nil {
 			return nil
