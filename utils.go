@@ -381,6 +381,7 @@ var dockerRun = func(imageSpec string, args ...string) (output string, err error
 	return
 }
 
+// TODO: refactor createVolumeDir to use this function
 func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	var output string
 	output, err = dockerRun(imageSpec, "/bin/sh", "-c",
