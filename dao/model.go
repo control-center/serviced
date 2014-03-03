@@ -2,9 +2,10 @@ package dao
 
 import (
 	"fmt"
-	"github.com/zenoss/glog"
 	"strconv"
 	"time"
+
+	"github.com/zenoss/glog"
 )
 
 type HostIpAndPort struct {
@@ -36,7 +37,7 @@ type PoolHost struct {
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
 type AddressAssignment struct {
 	Id             string //Generated id
-	AssignmentType string //Static of Virtual
+	AssignmentType string //Static or Virtual
 	HostId         string //Host id if type is Static
 	PoolId         string //Pool id if type is Virtual
 	IPAddr         string //Used to associate to resource in Pool or Host
@@ -45,9 +46,17 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 }
 
+//AssignmentRequest is used to couple a serviceId to an IpAddress
+type AssignmentRequest struct {
+	ServiceId      string
+	IpAddress      string
+	AutoAssignment bool
+}
+
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
+	HostId        string
 	IPAddress     string
 	InterfaceName string
 }
@@ -202,8 +211,8 @@ type ServiceState struct {
 
 type ConfigFile struct {
 	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file
-	Permissions int    // permission of file, 0660 (rw owner, rw group, not world rw)
+	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
+	Permissions string // permission of file, eg 0664, what you would pass to chmod
 	Content     string // content of config file
 }
 
@@ -326,16 +335,49 @@ func (s *Service) HasImports() bool {
 	return false
 }
 
-// Retrieve service endpoint imports
-func (s *Service) GetServiceImports() (endpoints []ServiceEndpoint) {
+// GetServiceImports retrieves service endpoints whose purpose is "import"
+func (s *Service) GetServiceImports() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
 			if ep.Purpose == "import" {
-				endpoints = append(endpoints, ep)
+				result = append(result, ep)
 			}
 		}
 	}
-	return
+
+	return result
+}
+
+// GetServiceExports retrieves service endpoints whose purpose is "export"
+func (s *Service) GetServiceExports() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if ep.Purpose == "export" {
+				result = append(result, ep)
+			}
+		}
+	}
+
+	return result
+}
+
+// GetServiceVHosts retrieves service endpoints that specify a virtual HostPort
+func (s *Service) GetServiceVHosts() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if len(ep.VHosts) > 0 {
+				result = append(result, ep)
+			}
+		}
+	}
+
+	return result
 }
 
 // Retrieve service container port, 0 failure

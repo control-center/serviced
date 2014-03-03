@@ -566,6 +566,38 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
 }
 
+// RestStartService starts the service with the given id and all of its children
+func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var i string
+	err = client.StartService(serviceId, &i)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{"Started service", serviceLinks(serviceId)})
+}
+
+// RestStopService stop the service with the given id and all of its children
+func RestStopService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+	var i int
+	err = client.StopService(serviceId, &i)
+	if err != nil {
+		glog.Errorf("Unexpected error getting logs: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{"Stopped service", serviceLinks(serviceId)})
+}
+
 func RestSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
