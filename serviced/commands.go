@@ -699,20 +699,41 @@ func getService(controlPlane *dao.ControlPlane, serviceId string) (service *dao.
 
 func (cli *ServicedCli) CmdShell(args ...string) error {
 	cmd := Subcmd("shell", "SERVICEID", "Open an interactive shell")
-	var istty bool
+	var (
+		service *dao.Service
+		istty   bool
+		rm      bool
+	)
 	cmd.BoolVar(&istty, "i", false, "Whether to run interactively")
+	cmd.BoolVar(&rm, "rm", true, "Removes the container when the command completes")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+
+	cp := getClient()
+	service, err := getService(&cp, cmd.Arg(0))
+	if err != nil {
+		glog.Fatalf("service not found: %s", cmd.Arg(0))
+	}
+
+	saveAs := ""
+	if !rm {
+		saveAs = serviced.GetLabel(service.Id)
+		glog.Infof("Saving container as: %s", saveAs)
 	}
 
 	command := ""
 	if len(cmd.Args()) > 1 {
 		command = strings.Join(cmd.Args()[1:], " ")
+	} else {
+		glog.Fatalf("missing command")
 	}
 
 	config := &shell.ProcessConfig{
-		ServiceId: cmd.Arg(0),
+		ServiceId: service.Id,
 		IsTTY:     istty,
+		SaveAs:    saveAs,
 		Command:   command,
 	}
 

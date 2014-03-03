@@ -26,7 +26,16 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const TIMEFMT = "20060102-150405"
+
+func GetLabel(name string) string {
+	localtime := time.Now()
+	utc := localtime.UTC()
+	return fmt.Sprintf("%s_%s", name, utc.Format(TIMEFMT))
+}
 
 var hostIdCmdString = "/usr/bin/hostid"
 

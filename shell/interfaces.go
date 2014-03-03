@@ -24,6 +24,7 @@ type ProcessServer struct {
 type ProcessConfig struct {
 	ServiceId string
 	IsTTY     bool
+	SaveAs    string
 	Envv      []string
 	Command   string
 }
