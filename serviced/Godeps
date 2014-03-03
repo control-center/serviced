@@ -33,6 +33,10 @@
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
+			"ImportPath": "github.com/dotcloud/docker",
+			"Rev": "a1598d1e1c157388f3b07415729de28f4d205e49"
+		},
+		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
 			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
 		},
