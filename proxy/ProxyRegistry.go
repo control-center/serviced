@@ -22,20 +22,13 @@ type ProxyAddress struct {
 	Port uint16
 }
 
-type BackEnd struct {
-	ProxyAddress
-}
-
-type FrontEnd struct {
-	ProxyAddress
-}
 
 type ProxyRegistry interface {
 	//CreateProxy create, registers and starts a proxy identified by key
 	//protocol is TCP or UDP
 	//frontEnd is the IP/Port to listen on
 	//backends are the what is being proxied, It is up to the proxy implementation on how it distributes requests to the backends
-	CreateProxy(key string, protocol string, frontend FrontEnd, backEnds ...BackEnd) error
+	CreateProxy(key string, protocol string, frontend ProxyAddress, backEnds ...ProxyAddress) error
 
 	//RemoveProxy stops and removes proxy.
 	RemoveProxy(key string) (Proxy, error)
@@ -46,7 +39,7 @@ type Proxy interface {
 	Close() error
 }
 
-type ProxyFactory func(protocol string, frontend FrontEnd, backEnds ...BackEnd) (Proxy, error)
+type ProxyFactory func(protocol string, frontend ProxyAddress, backEnds ...ProxyAddress) (Proxy, error)
 
 // NewProxyRegistry Create a new ProxyRegistry using the supplied ProxyFactory
 func NewProxyRegistry(factory ProxyFactory) ProxyRegistry {
@@ -65,17 +58,18 @@ func NewDefaultProxyRegistry() ProxyRegistry {
 // ------ implementations below -------
 
 type proxyRegistry struct {
+	sync.Mutex
 	registry     map[string]Proxy //Map of identifer to Proxy
 	proxyFactory ProxyFactory
-	registryLock sync.Mutex
+
 }
 
 //make sure proxyRegistry implements interface
 var _ ProxyRegistry = &proxyRegistry{}
 
-func (pr *proxyRegistry) CreateProxy(key string, protocol string, frontend FrontEnd, backEnds ...BackEnd) error {
-	pr.registryLock.Lock()
-	defer pr.registryLock.Unlock()
+func (pr *proxyRegistry) CreateProxy(key string, protocol string, frontend ProxyAddress, backEnds ...ProxyAddress) error {
+	pr.Lock()
+	defer pr.Unlock()
 	if _, found := pr.registry[key]; found {
 		return fmt.Errorf("Proxy already registered for %v", key)
 	}
@@ -92,8 +86,8 @@ func (pr *proxyRegistry) CreateProxy(key string, protocol string, frontend Front
 }
 
 func (pr *proxyRegistry) RemoveProxy(key string) (Proxy, error) {
-	pr.registryLock.Lock()
-	defer pr.registryLock.Unlock()
+	pr.Lock()
+	defer pr.Unlock()
 	proxy, found := pr.registry[key]
 	if found {
 		delete(pr.registry, key)
@@ -103,7 +97,7 @@ func (pr *proxyRegistry) RemoveProxy(key string) (Proxy, error) {
 }
 
 //proxyFactory creates docker proxy implementations
-func proxyFactory(protocol string, frontend FrontEnd, backends ...BackEnd) (Proxy, error) {
+func proxyFactory(protocol string, frontend ProxyAddress, backends ...ProxyAddress) (Proxy, error) {
 
 	if len(backends) == 0 {
 		return nil, errors.New("Default Proxy only requies one backend")

@@ -330,8 +330,8 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
 					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
 
-					frontEnd := proxy.FrontEnd{proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}}
-					backEnd := proxy.BackEnd{proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}}
+					frontEnd := proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}
+					backEnd := proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}
 
 					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
 					if err != nil {
