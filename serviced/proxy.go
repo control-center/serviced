@@ -60,6 +60,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 				if err == nil {
 					defer client.Close()
 					glog.Errorf(message)
+
+					// send the log message to the master
 					client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceId, message}, nil)
 				} else {
 					glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)

@@ -28,7 +28,7 @@ func (a *LBClient) Close() error {
 	return a.rpcClient.Close()
 }
 
-// SendLogMessage
+// SendLogMessage simply outputs the ServiceLogInfo on the serviced master
 func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error {
 	glog.V(4).Infof("ControlPlaneAgent.SendLogMessage()")
 	return a.rpcClient.Call("ControlPlaneAgent.SendLogMessage", serviceLogInfo, nil)
