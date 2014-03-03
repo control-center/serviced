@@ -22,11 +22,12 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"regexp"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -38,12 +39,12 @@ func GetLabel(name string) string {
 	return fmt.Sprintf("%s_%s", name, utc.Format(TIMEFMT))
 }
 
-var hostIdCmdString = "/usr/bin/hostid"
+var hostIDCmdString = "/usr/bin/hostid"
 
-// hostId retreives the system's unique id, on linux this maps
+// HostID retreives the system's unique id, on linux this maps
 // to /usr/bin/hostid.
-func HostId() (hostid string, err error) {
-	cmd := exec.Command(hostIdCmdString)
+func HostID() (hostid string, err error) {
+	cmd := exec.Command(hostIDCmdString)
 	stdout, err := cmd.Output()
 	if err != nil {
 		return hostid, err
@@ -87,7 +88,7 @@ func getMemorySize() (size uint64, err error) {
 	return 0, err
 }
 
-// Represent a entry from the route command
+// RouteEntry represents a entry from the route command
 type RouteEntry struct {
 	Destination string
 	Gateway     string
@@ -152,14 +153,11 @@ func routeCmd() (routes []RouteEntry, err error) {
 	return routes, err
 }
 
-// Get the IP bound to the hostname of the current host
-// This function first attempts to find the ip from the hostname,
-// if it's a loopback interface the ip address is found from making an outgoing
-// connection.
-func GetIpAddress() (ip string, err error) {
-	ip, err = getIpAddrFromHostname()
+// GetIPAddress attempts to find the IP address to the default outbout interface.
+func GetIPAddress() (ip string, err error) {
+	ip, err = getIPAddrFromHostname()
 	if err != nil || strings.HasPrefix(ip, "127") {
-		ip, err = getIpAddrFromOutGoingConnection()
+		ip, err = getIPAddrFromOutGoingConnection()
 		if err == nil && strings.HasPrefix(ip, "127") {
 			return "", fmt.Errorf("unable to identify local ip address")
 		}
@@ -168,8 +166,8 @@ func GetIpAddress() (ip string, err error) {
 	return ip, err
 }
 
-// Get the IP bound to the hostname of the current host
-func getIpAddrFromHostname() (ip string, err error) {
+// getIPAddrFromHostname returns the ip address associated with hostname -i.
+func getIPAddrFromHostname() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()
 	if err != nil {
 		return ip, err
@@ -177,8 +175,9 @@ func getIpAddrFromHostname() (ip string, err error) {
 	return strings.TrimSpace(string(output)), err
 }
 
-// Get the IP bound to the hostname of the current host
-func getIpAddrFromOutGoingConnection() (ip string, err error) {
+// getIPAddrFromOutGoingConnection get the IP bound to the interface which
+// handles the default route traffic.
+func getIPAddrFromOutGoingConnection() (ip string, err error) {
 	addr, err := net.ResolveUDPAddr("udp4", "8.8.8.8:53")
 	if err != nil {
 		return "", err
@@ -194,9 +193,9 @@ func getIpAddrFromOutGoingConnection() (ip string, err error) {
 	return parts[0], nil
 }
 
-// Create a new Host struct from the running host's values. The resource pool id
-// is set to the passed value.
-func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
+// CurrentContextAsHost creates a dao.Host object of the host running
+// this method. The passed in poolID is used as the resource pool in the result.
+func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
 	cpus := runtime.NumCPU()
 	memory, err := getMemorySize()
 	if err != nil {
@@ -208,17 +207,17 @@ func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 		return nil, err
 	}
 	host.Name = hostname
-	hostid_str, err := HostId()
+	hostidStr, err := HostID()
 	if err != nil {
 		return nil, err
 	}
 
-	host.IpAddr, err = GetIpAddress()
+	host.IpAddr, err = GetIPAddress()
 	if err != nil {
 		return host, err
 	}
 
-	host.Id = hostid_str
+	host.Id = hostidStr
 	host.Cores = cpus
 	host.Memory = memory
 
@@ -232,11 +231,11 @@ func CurrentContextAsHost(poolId string) (host *dao.Host, err error) {
 			break
 		}
 	}
-	host.PoolId = poolId
+	host.PoolId = poolID
 	return host, err
 }
 
-// Get the path to the currently running executable.
+// ExecPath returns the path to the currently running executable.
 func ExecPath() (string, string, error) {
 	path, err := os.Readlink("/proc/self/exe")
 	if err != nil {
@@ -245,34 +244,34 @@ func ExecPath() (string, string, error) {
 	return filepath.Dir(path), filepath.Base(path), nil
 }
 
-// DockerVersion contains the tuples that describe the version of docker
+// DockerVersion contains the tuples that describe the version of docker.
 type DockerVersion struct {
 	Client []int
 	Server []int
 }
 
-// Compare two DockerVersion structs
+// equals compares two DockerVersion structs and returns true if they are equal.
 func (a *DockerVersion) equals(b *DockerVersion) bool {
 	if len(a.Client) != len(b.Client) {
 		return false
 	}
-	for i, a_i := range a.Client {
-		if a_i != b.Client[i] {
+	for i, aI := range a.Client {
+		if aI != b.Client[i] {
 			return false
 		}
 	}
 	if len(a.Server) != len(b.Server) {
 		return false
 	}
-	for i, a_i := range a.Server {
-		if a_i != b.Server[i] {
+	for i, aI := range a.Server {
+		if aI != b.Server[i] {
 			return false
 		}
 	}
 	return true
 }
 
-// Get the docker version numbers from the runtime
+// GetDockerVersion returns docker version number.
 func GetDockerVersion() (DockerVersion, error) {
 	cmd := exec.Command("docker", "version")
 	output, err := cmd.Output()
@@ -282,7 +281,8 @@ func GetDockerVersion() (DockerVersion, error) {
 	return parseDockerVersion(string(output))
 }
 
-// parse Docker versions
+// parseDockerVersion parses the output of the 'docker version' commmand and
+// returns a DockerVersion object.
 func parseDockerVersion(output string) (version DockerVersion, err error) {
 
 	for _, line := range strings.Split(output, "\n") {
@@ -316,15 +316,16 @@ func parseDockerVersion(output string) (version DockerVersion, err error) {
 		}
 	}
 	if len(version.Client) == 0 {
-		return version, fmt.Errorf("No client version found")
+		return version, fmt.Errorf("no client version found")
 	}
 	if len(version.Server) == 0 {
-		return version, fmt.Errorf("No server version found")
+		return version, fmt.Errorf("no server version found")
 	}
 	return version, nil
 }
 
-//create a user directory and setting ownership and permission according to parameters
+// CreateDirectory creates a directory using the given username as the owner and the
+// given perm as the directory permission.
 func CreateDirectory(path, username string, perm os.FileMode) error {
 	user, err := user.Lookup(username)
 	if err == nil {
@@ -338,7 +339,8 @@ func CreateDirectory(path, username string, perm os.FileMode) error {
 	return err
 }
 
-// This code is straight out of net/http/httputil
+// singleJoiningSlash joins a and b ensuring there is only a single /
+// character between them.
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
@@ -351,7 +353,7 @@ func singleJoiningSlash(a, b string) string {
 	return a + b
 }
 
-// This differs from httputil.NewSingleHostReverseProxy in that it rewrites
+// NewReverseProxy differs from httputil.NewSingleHostReverseProxy in that it rewrites
 // the path so that it does /not/ include the incoming path. e.g. request for
 // "/mysvc/thing" when proxy is served from "/mysvc" means target is
 // targeturl.Path + "/thing"; vs. httputil.NewSingleHostReverseProxy, in which
@@ -372,20 +374,75 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{Director: director}
 }
 
+var dockerRun = func(imageSpec string, args ...string) (output string, err error) {
+	targs := []string{"run", "run", "-rm", imageSpec}
+	for _, s := range args {
+		targs = append(targs, s)
+	}
+	docker := exec.Command("docker", targs...)
+	var outputBytes []byte
+	outputBytes, err = docker.CombinedOutput()
+	if err != nil {
+		return
+	}
+	output = string(outputBytes)
+	return
+}
+
+// TODO: refactor createVolumeDir to use this function
+func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
+	var output string
+	output, err = dockerRun(imageSpec, "/bin/sh", "-c",
+		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln | awk '{ print $3 " " $4 }'`,
+			userSpec))
+	if err != nil {
+		return
+	}
+	s := strings.TrimSpace(string(output))
+	pattern := regexp.MustCompile(`^\d+ \d+$`)
+
+	if !pattern.MatchString(s) {
+		err = fmt.Errorf("unexpected output from getInternalImageIds: %s", s)
+		return
+	}
+	fields := strings.Fields(s)
+	if len(fields) != 2 {
+		err = fmt.Errorf("unexpected number of fields from container spec: %s", fields)
+		return
+	}
+	uid, err = strconv.Atoi(fields[0])
+	if err != nil {
+		return
+	}
+	gid, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return
+	}
+	return
+}
+
+var createVolumeDirMutex sync.Mutex
+
 // createVolumeDir() creates a directory on the running host using the user ids
 // found within the specified image. For example, it can create a directory owned
 // by the mysql user (as seen by the container) despite there being no mysql user
 // on the host system
 func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
+	createVolumeDirMutex.Lock()
+	defer createVolumeDirMutex.Unlock()
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
-	docker := exec.Command("docker", "run", "-rm",
-		"-v", hostPath+":/tmp",
-		imageSpec,
-		"/bin/sh", "-c",
-		fmt.Sprintf(`
+
+	var err error
+	var output []byte
+	for i := 0; i < 1; i++ {
+		docker := exec.Command("docker", "run", "-rm",
+			"-v", hostPath+":/tmp",
+			imageSpec,
+			"/bin/sh", "-c",
+			fmt.Sprintf(`
 chown %s /tmp && \
 chmod %s /tmp && \
 shopt -s nullglob && \
@@ -395,9 +452,13 @@ if [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /tmp/
 fi
 `, userSpec, permissionSpec, containerSpec))
-	output, err := docker.CombinedOutput()
-	if err != nil {
-		glog.Errorf("could not create host volume: %s", string(output))
+		output, err = docker.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Second)
 	}
+
+	glog.Errorf("could not create host volume: %s", string(output))
 	return err
 }
