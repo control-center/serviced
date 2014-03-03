@@ -787,7 +787,7 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 	if this.initializedAddressConfig(endpoint) {
 		addressAssignment, err := this.getEndpointAddressAssignments(serviceID, endpoint.Name)
 		if err != nil {
-			glog.Fatalf("getEndpointAddressAssignments failed: %v", err)
+			glog.Errorf("getEndpointAddressAssignments failed: %v", err)
 			return false, "", err
 		}
 
@@ -836,7 +836,7 @@ func (this *ControlPlaneDao) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.Ho
 	var poolHosts []*dao.PoolHost
 	err := this.GetHostsForResourcePool(poolId, &poolHosts)
 	if err != nil {
-		glog.Fatalf("Could not get hosts for Pool %s: %v", poolId, err)
+		glog.Errorf("Could not get hosts for Pool %s: %v", poolId, err)
 		return err
 	}
 
@@ -845,7 +845,7 @@ func (this *ControlPlaneDao) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.Ho
 		host := dao.Host{}
 		err = this.GetHost(poolHost.HostId, &host)
 		if err != nil {
-			glog.Fatalf("Could not get host %s: %v", poolHost.HostId, err)
+			glog.Errorf("Could not get host %s: %v", poolHost.HostId, err)
 			return err
 		}
 
@@ -875,7 +875,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	var poolsIpInfo []dao.HostIPResource
 	err = this.GetPoolsIPInfo(service.PoolId, &poolsIpInfo)
 	if err != nil {
-		glog.Fatalf("GetPoolsIPInfo failed: %v", err)
+		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
 
@@ -921,7 +921,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	assignments := []dao.AddressAssignment{}
 	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
 	if err != nil {
-		glog.Fatalf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
+		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
 	}
 
@@ -940,7 +940,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
 					err = this.RemoveAddressAssignment(addressAssignmentId, nil)
 					if err != nil {
-						glog.Fatalf("controlPlaneDao.RemoveAddressAssignment failed in AssignIPs anonymous function: %v", err)
+						glog.Errorf("controlPlaneDao.RemoveAddressAssignment failed in AssignIPs anonymous function: %v", err)
 						return err
 					}
 				}
@@ -957,7 +957,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				var unusedStr string
 				err = this.AssignAddress(assignment, &unusedStr)
 				if err != nil {
-					glog.Fatalf("AssignAddress failed in AssignIPs anonymous function: %v", err)
+					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
 				}
 				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.Id, assignment.EndpointName)
@@ -984,7 +984,6 @@ func (this *ControlPlaneDao) validateService(serviceId string) error {
 		err := this.validateServicesForStarting(service, nil)
 		if err != nil {
 			glog.Errorf("Services failed validation for starting")
-			glog.Fatalf("Error: %v", err)
 			return err
 		}
 		return nil
