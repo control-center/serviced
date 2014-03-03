@@ -1,8 +1,12 @@
 from __future__ import absolute_import
 import time
+import math
+import random
 import datetime
-from dateutil import parser
+import socket
+import json
 
+from dateutil import parser
 from multiprocessing.util import Finalize
 from celery import Celery
 from celery import current_app
@@ -10,8 +14,6 @@ from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
 from pyes import TermQuery, ES
 from socketIO_client import SocketIO
-import socket
-import json
 
 REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
 # Go directly to container gateway to hit CP elastic isvc. This will only
@@ -32,31 +34,47 @@ app.conf.update(
     CELERYBEAT_MAX_LOOP_INTERVAL=5
 )
 
-def log(data):
-    data = json.dumps(data)
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((ELASTIC_HOST, 5042))
-    s.sendall(data)
-    s.shutdown(socket.SHUT_WR)
-    s.close()
-
-class ServicedShell:
-    def __init__(self):
+class LogstashLogger(object):
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
         self.socket = None
-        self.stdout = ""
-        self.stderr = ""
+        self.connect()
+    def connect(self, collisions=0):
+        # random exponential backoff
+        backoff = random.random() * (math.pow(2, collisions) - 1) 
+        time.sleep(min(backoff, 600))
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.host, self.port))
+        except socket.error as err:
+            self.connect(collisions + 1)
+    def log(self, data):
+        try:
+            data = json.dumps(data)
+            self.socket.sendall(data)
+        except socket.error as err:
+            self.connect()
+            self.log(data)
+
+class ServicedShell(object):
+    def __init__(self, logstash):
+        self.logstash = logstash
+        self.socket = None
+        self.stdout = []
+        self.stderr = []
         self.result = ""
     def onResult(self, *args):
         self.result = args[0]
         self.socket.disconnect()
     def onStdout(self, *args):
         for l in args:
-            self.stdout += str(l)
+            self.stdout.append(str(l))
     def onStderr(self, *args):
         for l in args:
-            self.stderr += str(l)
+            self.stderr.append(str(l))
     def run(self, service_id, command):        
-        log({
+        self.logstash.log({
             "command": command,
             "service_id": service_id,
             "status": "starting"
@@ -67,18 +85,18 @@ class ServicedShell:
         self.socket.on('stderr', self.onStderr)        
         self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
         self.socket.wait()
-        log({
+        self.logstash.log({
             "command": command,
             "service_id": service_id,
             "status": "complete",
-            "stdout": self.stdout,
-            "stderr": self.stderr,
+            "stdout": "".join(self.stdout),
+            "stderr": "".join(self.stderr),
             "result": self.result
         })
 
 @app.task()
 def serviced_shell(service_id, command):
-    s = ServicedShell()
+    s = ServicedShell(LogstashLogger(ELASTIC_HOST, 5042))
     s.run(service_id, command)
 
 class ControlPlaneScheduleEntry(ScheduleEntry):

@@ -254,7 +254,6 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 }
 
 func (f *Forwarder) onDisconnect(ns *socketio.NameSpace) {
-	// ns.Session.Values[PROCESSKEY].(*ProcessInstance)
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
