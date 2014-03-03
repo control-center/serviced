@@ -275,9 +275,8 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	dfs.Lock.Unlock()
 
 	var (
-		runner   Runner
-		service  *dao.Service
-		services []*dao.Service
+		runner  Runner
+		service dao.Service
 	)
 
 	// Create a control plane client to look up the service
@@ -287,18 +286,9 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	}
 	glog.Infof("Connected to the control plane at %s", port)
 
-	err = (*cp).GetServices(&empty, &services)
-	for _, svc := range services {
-		if svc.Id == cfg.ServiceId || svc.Name == cfg.ServiceId {
-			service = svc
-			break
-		}
-	}
-
-	if service == nil {
+	if err := cp.GetService(cfg.ServiceId, &service); err != nil {
 		glog.Fatalf("Unable to find service %s", cfg.ServiceId)
 	}
-	glog.Infof("Found service %s", cfg.ServiceId)
 
 	// Bind mount on /serviced
 	dir, bin, err := serviced.ExecPath()
@@ -328,8 +318,14 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	if err != nil {
 		glog.Fatalf("Docker not found: %v", err)
 	}
-	argv := []string{"run", "-rm", "-v", servicedVolume, "-v", pwdVolume}
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
 	argv = append(argv, cfg.Envv...)
+
+	if cfg.SaveAs != "" {
+		argv = append(argv, fmt.Sprintf("--name=%s", cfg.SaveAs))
+	} else {
+		argv = append(argv, "-rm")
+	}
 
 	if cfg.IsTTY {
 		argv = append(argv, "-i", "-t")

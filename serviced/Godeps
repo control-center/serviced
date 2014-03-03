@@ -55,6 +55,10 @@
 		{
 			"ImportPath": "github.com/zenoss/glog",
 			"Rev": "776492278b0bca8f9bad17bfdfd27b8e189c5d28"
-		}		
+		},
+		{
+			"ImportPath": "github.com/zenoss/go-dockerclient",
+			"Rev": "39ea673116083ccf7813d15c9a3f40e937061011"
+		}
 	]
 }
