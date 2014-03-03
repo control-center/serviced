@@ -511,7 +511,6 @@ func (this *ControlPlaneDao) UpdateHost(host dao.Host, unused *int) error {
 	return err
 }
 
-
 // updateService internal method to use when service has been validated
 func (this *ControlPlaneDao) updateService(service *dao.Service) error {
 	id := strings.TrimSpace(service.Id)
@@ -523,26 +522,29 @@ func (this *ControlPlaneDao) updateService(service *dao.Service) error {
 	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
 	if response.Ok {
 		//add address assignment info to ZK Service
-		for _, endpoint := range service.Endpoints {
-			assignment, err := this.getEndpointAddressAssignments(service.Id, endpoint.Name)
+		for idx := range service.Endpoints {
+			assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
 			if err != nil {
+				glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
 				return err
 			}
 			if assignment != nil {
 				//assignment exists
-				endpoint.SetAssignment(assignment)
+				glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
+				service.Endpoints[idx].SetAssignment(assignment)
 			}
 		}
 		return this.zkDao.UpdateService(service)
 	}
 	return err
 }
+
 //
 func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.UpdateService: %+v", service)
-	//TODO: cannot update service without validating it.
-	if service.DesiredState == dao.SVC_RUN{
-		if err := this.validateServicesForStarting(service, nil); err != nil{
+	//cannot update service without validating it.
+	if service.DesiredState == dao.SVC_RUN {
+		if err := this.validateServicesForStarting(service, nil); err != nil {
 			return err
 		}
 
@@ -1259,7 +1261,7 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 		return err
 	}
 
-	if err= serviceTemplate.Validate(); err != nil{
+	if err = serviceTemplate.Validate(); err != nil {
 		return fmt.Errorf("Error validating template: %v", err)
 	}
 

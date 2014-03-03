@@ -102,6 +102,7 @@ func (pr *proxyRegistry) RemoveProxy(key string) (Proxy, error) {
 	return nil, nil
 }
 
+//proxyFactory creates docker proxy implementations
 func proxyFactory(protocol string, frontend FrontEnd, backends ...BackEnd) (Proxy, error) {
 
 	if len(backends) == 0 {
@@ -125,9 +126,11 @@ func proxyFactory(protocol string, frontend FrontEnd, backends ...BackEnd) (Prox
 	switch strings.Trim(strings.ToLower(protocol), " ") {
 	case commons.TCP:
 		frontendAddr = &net.TCPAddr{IP: frontendIP, Port: int(frontend.Port)}
+		backendAddr = &net.TCPAddr{IP: backendIP, Port: int(backends[0].Port)}
 
 	case commons.UDP:
 		frontendAddr = &net.UDPAddr{IP: frontendIP, Port: int(frontend.Port)}
+		backendAddr = &net.UDPAddr{IP: backendIP, Port: int(backends[0].Port)}
 
 	default:
 		return nil, fmt.Errorf("Unsupported protocol %v", protocol)

@@ -205,7 +205,7 @@ func (a *HostAgent) dockerTerminate(dockerId string) error {
 			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
 			return nil
 		}
-		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr )
+		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr)
 		return errors.New(string(killout))
 	}
 
@@ -324,14 +324,19 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 		if _, err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
 			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
 		} else {
+			glog.V(4).Infof("Looking for address assignment in service %s:%s", service.Name, service.Id)
 			for _, endpoint := range service.Endpoints {
 				if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
+					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
 					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
 
 					frontEnd := proxy.FrontEnd{proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}}
 					backEnd := proxy.BackEnd{proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}}
 
-					a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
+					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
+					if err != nil {
+						glog.Warningf("Could not start External address proxy for %v; error: proxyId", proxyId, err)
+					}
 					defer a.proxyRegistry.RemoveProxy(proxyId)
 
 				}

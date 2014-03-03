@@ -168,7 +168,7 @@ type ServiceEndpoint struct {
 	AddressConfig       AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	addressAssignment AddressAssignment //addressAssignment holds the assignment when Service is started - non-exported
+	AddressAssignment AddressAssignment //addressAssignment holds the assignment when Service is started
 }
 
 // A scheduled task
@@ -386,17 +386,17 @@ func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {
 		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
 	}
-	se.addressAssignment = *aa
+	se.AddressAssignment = *aa
 	return nil
 }
 
 //GetAssignment Returns nil if no assignment set
 func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
-	if se.addressAssignment.Id == "" {
+	if se.AddressAssignment.Id == "" {
 		return nil
 	}
 	//return reference to copy
-	result := se.addressAssignment
+	result := se.AddressAssignment
 	return &result
 }
 
