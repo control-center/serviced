@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 var _ = Describe("Archive", func() {
@@ -225,5 +226,53 @@ var _ = Describe("Archive", func() {
 				Expect(err).To(Equal(io.EOF))
 			})
 		})
+	})
+
+	Describe("a file iterator", func() {
+		var iterator *ArchiveIterator
+
+		BeforeEach(func() {
+			path = tempdir
+			for i := 0; i < 3; i++ {
+				f, _ := os.Create(filepath.Join(tempdir,
+					fmt.Sprintf("testfile-%d", i)))
+				defer f.Close()
+				f.WriteString(fmt.Sprintf("test data %d", i))
+			}
+			subdir := filepath.Join(tempdir, "zzz")
+			os.MkdirAll(subdir, 0777)
+			f, _ := os.Create(filepath.Join(subdir, "hi"))
+			defer f.Close()
+		})
+
+		JustBeforeEach(func() {
+			iterator = &ArchiveIterator{Reader: &r}
+		})
+
+		It("iterates over all files with no filter", func() {
+			fnames := []string{}
+			for iterator.Iterate(nil) {
+				fnames = append(fnames, iterator.Name())
+			}
+			Expect(fnames).To(HaveLen(4))
+		})
+
+		It("returns only files matching filter", func() {
+			filterfunc := func(s string) bool {
+				return strings.HasSuffix(s, "2")
+			}
+			fnames := []string{}
+			for iterator.Iterate(filterfunc) {
+				fnames = append(fnames, iterator.Name())
+			}
+			Expect(fnames).To(HaveLen(1))
+		})
+
+		It("has a nil error after successful iteration", func() {
+			for iterator.Iterate(nil) {
+			}
+			Expect(iterator.Err()).To(BeNil())
+		})
+
 	})
 })

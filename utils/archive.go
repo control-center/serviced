@@ -14,11 +14,21 @@ import (
 	"strings"
 )
 
+// ArchiveReader provides a convenient interface to files, directories and tgz
+// archives, both local and remote. In all cases, it allows sequential access
+// to the file(s) specified. It mimics the tar.Reader interface; the Next method
+// advances to the next file in the archive, returning the path to the file.
+// The ArchiveReader can then be used as an io.Reader to access the file's
+// data.
 type ArchiveReader interface {
 	Next() (string, error)
 	io.Reader
 }
 
+// NewArchiveReader turns a local path or URL into an instance of the
+// appropriate implementation of ArchiveReader, based on whether the path
+// specified is a remote URL or local path, gzipped or not, file or directory
+// or tarball.
 func NewArchiveReader(path string) (ArchiveReader, error) {
 	url, err := url.Parse(path)
 	if err != nil {
@@ -91,22 +101,37 @@ type fileReader struct {
 	r io.Reader
 }
 
+type nameHaver struct {
+	name string
+}
+
+func (n *nameHaver) Name() string {
+	return n.name
+}
+
+// SingleFileReader wraps a single file in an ArchiveReader, i.e., Next() may
+// only be called once before io.EOF is returned.
 type SingleFileReader struct {
 	name string
 	read bool
 	*fileReader
 }
 
+// TarballReader wraps a tar archive in an ArchiveReader, presenting an
+// interface nearly identical to tar.Reader.
 type TarballReader struct {
 	tarreader *tar.Reader
 }
 
+// DirectoryReader wraps a local directory in an ArchiveReader.
 type DirectoryReader struct {
 	path    string
 	entries []os.FileInfo
 	*fileReader
 }
 
+// The first time, Next provides access to the underlying file. The second
+// time, it returns io.EOF.
 func (r *SingleFileReader) Next() (string, error) {
 	if r.read == false {
 		r.read = true
@@ -164,4 +189,70 @@ func (r *TarballReader) Next() (string, error) {
 
 func (r *TarballReader) Read(b []byte) (int, error) {
 	return r.tarreader.Read(b)
+}
+
+// ArchiveIterator gives a slightly cleaner interface for handling
+// ArchiveReaders, similar to that of bufio.Scanner. One may iterate over an
+// ArchiveIterator using the following pattern:
+//
+//	for iterator.Iterate(filterfunc) {
+//      ...
+//	}
+//
+// Within the loop, iterate.Name and iterate.Read provide access to the
+// current file. If filterfunc is specified, it will be called with each
+// file's name, and only those resulting in a value of true will be returned.
+type ArchiveIterator struct {
+	Reader *ArchiveReader
+	name   string
+	err    error
+}
+
+// NewArchiveIterator creates an ArchiveReader and wraps it in an
+// ArchiveIterator.
+func NewArchiveIterator(path string) (*ArchiveIterator, error) {
+	reader, err := NewArchiveReader(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveIterator{
+		Reader: &reader,
+	}, nil
+}
+
+// Name returns the name of the current file.
+func (it *ArchiveIterator) Name() string {
+	return it.name
+}
+
+// Iterate advances the underlying ArchiveReader and returns a boolean
+// indicating whether another file is available. If filterfunc is specified,
+// every file returned will have a name that satisfies it.
+func (it *ArchiveIterator) Iterate(filter func(string) bool) bool {
+	reader := *it.Reader
+	for {
+		name, err := reader.Next()
+		if err != nil {
+			it.err = err
+			return false
+		}
+		if filter == nil || filter(name) {
+			it.name = name
+			return true
+		}
+	}
+}
+
+func (it *ArchiveIterator) Read(b []byte) (int, error) {
+	return (*it.Reader).Read(b)
+}
+
+// Err returns the error, if any, that arose during iteration. If the error
+// was an ordinary io.EOF, indicating that file reading completed normally,
+// Err will return nil.
+func (it *ArchiveIterator) Err() error {
+	if it.err != nil && it.err != io.EOF {
+		return it.err
+	}
+	return nil
 }

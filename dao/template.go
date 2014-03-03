@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zenoss/serviced/utils"
 )
 
 func (s ServiceDefinition) String() string {
@@ -27,7 +29,24 @@ func ServiceDefinitionFromPath(path string) (*ServiceDefinition, error) {
 	return getServiceDefinition(path)
 }
 
+func serviceJSONFilter(filename string) bool {
+	return strings.HasSuffix(filename, "/service.json")
+}
+
 func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error) {
+
+	files, err := utils.NewArchiveIterator(path)
+	if err != nil {
+		return nil, err
+	}
+	for files.Iterate(serviceJSONFilter) {
+		// TODO: stuff
+		_, err := ioutil.ReadAll(files)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// TODO: Replace the rest!
 
 	// is path a dir
 	fi, err := os.Stat(path)
