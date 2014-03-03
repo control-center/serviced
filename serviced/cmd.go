@@ -133,7 +133,7 @@ func init() {
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
-	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 60), "time to wait on elasticsearch startup before bailing")
+	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 600), "time to wait on elasticsearch startup before bailing")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
