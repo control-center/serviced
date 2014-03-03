@@ -97,7 +97,7 @@ func ensureMinimumInt(envVar string, flagName string, minimum int) {
 // Setup flag options (static block)
 func init() {
 	var err error
-	agentIP, err = serviced.GetIpAddress()
+	agentIP, err = serviced.GetIPAddress()
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +133,7 @@ func init() {
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
-	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 600), "time to wait on elasticsearch startup before bailing")
+	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 60), "time to wait on elasticsearch startup before bailing")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -174,10 +174,15 @@ func startServer() {
 	}
 
 	atLeast := []int{0, 7, 5}
-	atMost := []int{0, 7, 6}
+	atMost := []int{0, 8, 1}
 	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
-		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.7.6")
+		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.8.1 but not 0.8.0")
 	}
+	if compareVersion([]int{0,8,0}, dockerVersion.Client) == 0 {
+		glog.Fatal("serviced specifically does not support docker 0.8.0")
+
+	}
+
 
 	if _, ok := volume.Registered(options.vfs); !ok {
 		glog.Fatalf("no driver registered for %s", options.vfs)
