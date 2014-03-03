@@ -56,7 +56,8 @@ sudo usermod -G docker -a $USER
 Ubuntu 13.x is the typical development environment. There are additional dependencies 
 your install will need.
 ```bash
-sudo apt-get install git mercurial libpam0g-dev
+sudo apt-get install git mercurial libpam0g-dev apparmor-utils make
+sudo aa-complain /usr/bin/lxc-start
 ```
 
 With $GOROOT set and $GOROOT/bin in your $PATH, create a development workspace.
