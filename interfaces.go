@@ -77,6 +77,9 @@ type ContainerState struct {
 
 // The API for a service proxy.
 type LoadBalancer interface {
+	// SendLogMessage sends a log message from a container to the agent???
+	SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error
+
 	GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error
 
 	// GetProxySnapshotQuiece blocks until there is a snapshot request

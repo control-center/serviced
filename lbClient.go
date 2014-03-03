@@ -28,6 +28,12 @@ func (a *LBClient) Close() error {
 	return a.rpcClient.Close()
 }
 
+// SendLogMessage
+func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error {
+	glog.V(4).Infof("ControlPlaneAgent.SendLogMessage()")
+	return a.rpcClient.Call("ControlPlaneAgent.SendLogMessage", serviceLogInfo, nil)
+}
+
 // GetServiceEndpoints returns a list of endpoints for the given service endpoint request.
 func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")

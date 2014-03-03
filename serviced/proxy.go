@@ -55,6 +55,16 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			cmd.Stdin = os.Stdin
 			err := cmd.Run()
 			if err != nil {
+				client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
+				message := fmt.Sprintf("Problem running service: %v. Command \"%v\" failed: %v", config.ServiceId, config.Command, err)
+				if err == nil {
+					defer client.Close()
+					glog.Errorf(message)
+					client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceId, message}, nil)
+				} else {
+					glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+				}
+
 				glog.Errorf("Problem running service: %v", err)
 				glog.Flush()
 				if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
@@ -63,6 +73,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					}
 				}
 			}
+
 			if !proxyOptions.autorestart {
 				break
 			}
