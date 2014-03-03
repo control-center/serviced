@@ -48,8 +48,7 @@ func NewArchiveReader(path string) (ArchiveReader, error) {
 		case mode.IsDir():
 			// Directory
 			defer f.Close()
-			return &DirectoryReader{filepath.Dir(path), []os.FileInfo{fi},
-				&fileReader{nil}}, nil
+			return NewDirectoryReader(url.Path, fi), nil
 		case mode.IsRegular():
 			// File
 			// Assume gzipped, error will tell us otherwise
@@ -63,11 +62,11 @@ func NewArchiveReader(path string) (ArchiveReader, error) {
 			_, err := gzip.NewReader(safereader)
 			if err != nil {
 				// Not gzipped, just read it as a single file
-				return &SingleFileReader{f.Name(), false, &fileReader{backup}}, nil
+				return NewSingleFileReader(f.Name(), backup), nil
 			}
 			// Make a new gzip reader with same data that doesn't tee
 			fz, err := gzip.NewReader(backup)
-			return &TarballReader{tar.NewReader(fz)}, nil
+			return NewTarballReader(fz), nil
 		default:
 			return nil, nil
 		}
@@ -89,11 +88,11 @@ func NewArchiveReader(path string) (ArchiveReader, error) {
 		_, err = gzip.NewReader(safereader)
 		if err != nil {
 			// Not gzipped, just read it as a single file
-			return &SingleFileReader{name, false, &fileReader{backup}}, nil
+			return NewSingleFileReader(name, backup), nil
 		}
 		// Make a new gzip reader with same data that doesn't tee
 		fz, err := gzip.NewReader(backup)
-		return &TarballReader{tar.NewReader(fz)}, nil
+		return NewTarballReader(fz), nil
 	}
 }
 
@@ -112,9 +111,16 @@ func (n *nameHaver) Name() string {
 // SingleFileReader wraps a single file in an ArchiveReader, i.e., Next() may
 // only be called once before io.EOF is returned.
 type SingleFileReader struct {
+	path string
 	name string
 	read bool
 	*fileReader
+}
+
+func NewSingleFileReader(path string, reader io.Reader) *SingleFileReader {
+	root := filepath.Dir(path)
+	name := filepath.Base(path)
+	return &SingleFileReader{root, name, false, &fileReader{reader}}
 }
 
 // TarballReader wraps a tar archive in an ArchiveReader, presenting an
@@ -123,11 +129,27 @@ type TarballReader struct {
 	tarreader *tar.Reader
 }
 
+func NewTarballReader(reader io.Reader) *TarballReader {
+	return &TarballReader{tar.NewReader(reader)}
+}
+
 // DirectoryReader wraps a local directory in an ArchiveReader.
 type DirectoryReader struct {
-	path    string
+	root    string
+	curpath string
 	entries []os.FileInfo
 	*fileReader
+	*nameHaver
+}
+
+func NewDirectoryReader(path string, fi os.FileInfo) *DirectoryReader {
+	return &DirectoryReader{
+		root:       path,
+		curpath:    filepath.Dir(path),
+		entries:    []os.FileInfo{fi},
+		fileReader: &fileReader{nil},
+		nameHaver:  &nameHaver{""},
+	}
 }
 
 // The first time, Next provides access to the underlying file. The second
@@ -151,10 +173,11 @@ func (r *DirectoryReader) Next() (string, error) {
 	// Pop off the first item
 	now := r.entries[0]
 	r.entries = r.entries[1:]
+	r.name = now.Name()
+	nowname := filepath.Join(r.curpath, r.name)
 	// If it's a directory, append to the queue
-	nowname := filepath.Join(r.path, now.Name())
 	if now.IsDir() {
-		r.path = nowname
+		r.curpath = nowname
 		entries, err := ioutil.ReadDir(nowname)
 		if err != nil {
 			return "", err
@@ -168,7 +191,7 @@ func (r *DirectoryReader) Next() (string, error) {
 			return "", err
 		}
 		r.r = f
-		return nowname, nil
+		return strings.TrimPrefix(nowname, r.root+"/"), nil
 	}
 }
 

@@ -47,7 +47,7 @@ var _ = Describe("Archive", func() {
 			})
 			It("returns a single file without error", func() {
 				name, err := r.Next()
-				Expect(name).To(Equal(filepath.Join(tempdir, "testfile")))
+				Expect(name).To(Equal("testfile"))
 				data, _ := ioutil.ReadAll(r)
 				Expect(string(data)).To(Equal("test data"))
 				Expect(err).To(BeNil())
@@ -83,15 +83,14 @@ var _ = Describe("Archive", func() {
 			It("returns all files without error", func() {
 				for i := 0; i < 3; i++ {
 					name, err := r.Next()
-					Expect(name).To(Equal(filepath.Join(tempdir,
-						fmt.Sprintf("testfile-%d", i))))
+					Expect(name).To(Equal(fmt.Sprintf("testfile-%d", i)))
 					data, _ := ioutil.ReadAll(r)
 					Expect(string(data)).To(Equal(
 						fmt.Sprintf("test data %d", i)))
 					Expect(err).To(BeNil())
 				}
 				name, err := r.Next()
-				Expect(name).To(Equal(filepath.Join(tempdir, "zzz", "hi")))
+				Expect(name).To(Equal(filepath.Join("zzz", "hi")))
 				_, err = r.Next()
 				Expect(err).To(Equal(io.EOF))
 			})
@@ -109,7 +108,7 @@ var _ = Describe("Archive", func() {
 
 	Describe("a local tar.gz", func() {
 		BeforeEach(func() {
-			path = tempdir + "-archive.tgz"
+			path = filepath.Join(tempdir, "archive.tgz")
 			archdir := filepath.Join(tempdir, "archive")
 			os.MkdirAll(archdir, 0777)
 			for i := 0; i < 3; i++ {
@@ -122,22 +121,24 @@ var _ = Describe("Archive", func() {
 			os.MkdirAll(subdir, 0777)
 			f, _ := os.Create(filepath.Join(subdir, "hi"))
 			defer f.Close()
-			exec.Command("tar", "czf", path, archdir).Run()
+			cmd := exec.Command("tar", "czf", path, "archive")
+			cmd.Dir = tempdir
+			cmd.Run()
 		})
 
 		It("returns all files with no error", func() {
-			archdir := filepath.Join(tempdir, "archive")
+			archdir := "archive"
 			for i := 0; i < 3; i++ {
 				name, err := r.Next()
 				Expect(name).To(Equal(filepath.Join(archdir,
-					fmt.Sprintf("testfile-%d", i))[1:]))
+					fmt.Sprintf("testfile-%d", i))))
 				data, _ := ioutil.ReadAll(r)
 				Expect(string(data)).To(Equal(
 					fmt.Sprintf("test data %d", i)))
 				Expect(err).To(BeNil())
 			}
 			name, err := r.Next()
-			Expect(name).To(Equal(filepath.Join(archdir, "zzz", "hi")[1:]))
+			Expect(name).To(Equal(filepath.Join(archdir, "zzz", "hi")))
 			_, err = r.Next()
 			Expect(err).To(Equal(io.EOF))
 		})
