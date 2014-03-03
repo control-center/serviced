@@ -736,7 +736,9 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	cp := getClient()
 	service, err := getService(&cp, cmd.Arg(0))
 	if err != nil {
-		glog.Fatalf("service not found: %s", cmd.Arg(0))
+		glog.Fatalf("Error while acquiring service: %s", err)
+	} else if service == nil {
+		glog.Fatalf("No service found: %s", cmd.Arg(0))
 	}
 
 	saveAs := ""
@@ -752,14 +754,14 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		glog.Fatalf("missing command")
 	}
 
-	config := &shell.ProcessConfig{
+	config := shell.ProcessConfig{
 		ServiceId: service.Id,
 		IsTTY:     istty,
 		SaveAs:    saveAs,
 		Command:   command,
 	}
 
-	inst := shell.StartDocker(config, options.port)
+	inst := shell.StartDocker(&config, options.port)
 
 	go func() {
 		buf := bufio.NewReader(os.Stdin)

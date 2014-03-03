@@ -187,7 +187,6 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	var (
 		images []docker.Image
 		image  *docker.Image
-		repo   string
 	)
 
 	if err := d.getLatestImages(&images); err != nil {
@@ -206,12 +205,6 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	// Snapshot the DFS
-	if err := d.Snapshot(serviceId, label); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
-	}
-
 	// Commit the container to the image
 	imageId, err := d.dockerClient.Commit(container.Id, container.Config.Image, DOCKER_LATEST, "", "", docker.Config{})
 	if err != nil {
@@ -222,11 +215,12 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	newImage, err := d.dockerClient.InspectImage(*imageId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
+		return err
 	}
 
 	// Copy images to the DFS
 	*image = docker.Image{
-		RepoTags: []string{repo},
+		RepoTags: image.RepoTags,
 		Id:       newImage.Id,
 	}
 
@@ -246,12 +240,18 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	config := path.Join(volume.Path(), *label, DOCKER_IMAGEJSON)
+	config := path.Join(volume.Path(), DOCKER_IMAGEJSON)
 	if data, err := json.Marshal(images); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
 	} else if err := ioutil.WriteFile(config, data, 0644); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
+		return err
+	}
+
+	// Snapshot the DFS
+	if err := d.Snapshot(serviceId, label); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return err
 	}
 
