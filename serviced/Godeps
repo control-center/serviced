@@ -55,6 +55,10 @@
 		{
 			"ImportPath": "github.com/zenoss/glog",
 			"Rev": "776492278b0bca8f9bad17bfdfd27b8e189c5d28"
-		}		
+		},
+		{
+			"ImportPath": "github.com/zenoss/docker-go",
+			"Rev": "c9469c64fb3ae00212c970548170c71869f61e2c"
+		}
 	]
 }
