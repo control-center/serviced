@@ -88,8 +88,9 @@ deb: stage_deb
 		-n $(NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d apparmor-utils \
 		-d lxc-docker \
-		-d make \
+		--after-install aa-workaround.sh \
 		-t deb \
 		-a x86_64 \
 		-C pkgroot \

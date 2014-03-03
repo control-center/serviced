@@ -80,7 +80,7 @@ func NewHostAgent(master string, varPath string, mount []string, vfs string, zoo
 	}
 
 	agent.closing = make(chan chan error)
-	hostId, err := HostId()
+	hostId, err := HostID()
 	if err != nil {
 		panic("Could not get hostid")
 	}
