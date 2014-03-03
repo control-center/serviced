@@ -6,7 +6,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
 
-	docker "github.com/zenoss/docker-go"
+	docker "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
 	"errors"
@@ -53,7 +53,7 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 
 type DistributedFileSystem struct {
 	client       dao.ControlPlane
-	dockerClient docker.Client
+	dockerClient *docker.Client
 }
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
@@ -185,8 +185,8 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 
 	// Get tag & repo information
 	var (
-		images []docker.Image
-		image  *docker.Image
+		images []docker.APIImages
+		image  *docker.APIImages
 	)
 
 	if err := d.getLatestImages(&images); err != nil {
@@ -194,7 +194,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 	for _, i := range images {
-		if i.Id == container.Image {
+		if i.ID == container.Image {
 			image = &i
 			break
 		}
@@ -206,22 +206,24 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	}
 
 	// Commit the container to the image
-	imageId, err := d.dockerClient.Commit(container.Id, container.Config.Image, DOCKER_LATEST, "", "", docker.Config{})
-	if err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
-	}
-
-	newImage, err := d.dockerClient.InspectImage(*imageId)
+	newImage, err := d.dockerClient.CommitContainer(docker.CommitContainerOptions{
+		Container:  container.ID,
+		Repository: image.Repository,
+		Tag:        image.Tag,
+	})
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
 	}
 
 	// Copy images to the DFS
-	*image = docker.Image{
-		RepoTags: image.RepoTags,
-		Id:       newImage.Id,
+	*image = docker.APIImages{
+		ID:         newImage.ID,
+		Created:    newImage.Created.Unix(),
+		Size:       newImage.Size,
+		ParentId:   newImage.Parent,
+		Repository: image.Repository,
+		Tag:        image.Tag,
 	}
 
 	// Get the path to the volume and write the images
@@ -259,14 +261,20 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 }
 
 // Gets the images from docker and filters those marked as latest
-func (d *DistributedFileSystem) getLatestImages(images *[]docker.Image) error {
+func (d *DistributedFileSystem) getLatestImages(images *[]docker.APIImages) error {
 	// Get all of the images from docker and find the ones tagged as the latest
-	if allImages, err := d.dockerClient.ListImages(); err != nil {
+	if allImages, err := d.dockerClient.ListImages(false); err != nil {
 		return err
 	} else {
 		for _, image := range allImages {
-			if image.HasTag(DOCKER_LATEST) {
-				*images = append(*images, image)
+			for _, rt := range image.RepoTags {
+				repo := rt.Repo()
+				tag := rt.Tag()
+				if tag == DOCKER_LATEST {
+					image.Repository = repo
+					image.Tag = tag
+					*images = append(*images, image)
+				}
 			}
 		}
 	}
@@ -275,7 +283,7 @@ func (d *DistributedFileSystem) getLatestImages(images *[]docker.Image) error {
 }
 
 // Gets the images from the snapshot; returns error if image does not exist in docker
-func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *volume.Volume, images *[]docker.Image) error {
+func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *volume.Volume, images *[]docker.APIImages) error {
 	config := path.Join(path.Dir(volume.Path()), snapshotId, DOCKER_IMAGEJSON)
 
 	if data, err := ioutil.ReadFile(config); err != nil {
@@ -286,7 +294,7 @@ func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *vol
 
 	// Check if the images still exist
 	for _, image := range *images {
-		if _, err := d.dockerClient.InspectImage(image.Id); err != nil {
+		if _, err := d.dockerClient.InspectImage(image.ID); err != nil {
 			return err
 		}
 	}
@@ -295,12 +303,15 @@ func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *vol
 }
 
 // Retags containers with the given snapshot
-func (d *DistributedFileSystem) retag(images *[]docker.Image, volume *volume.Volume, force bool) error {
+func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume.Volume, force bool) error {
 
 	// Set the tag of the new image
 	for _, image := range *images {
-		repo := fmt.Sprintf("%s:%s", image.Repository(), DOCKER_LATEST)
-		if err := d.dockerClient.TagImage(image.Id, repo, force); err != nil {
+		repo := fmt.Sprintf("%s:%s", image.Repository, image.Tag)
+		if err := d.dockerClient.TagImage(image.ID, docker.TagImageOptions{
+			Repo:  repo,
+			Force: force,
+		}); err != nil {
 			return err
 		}
 	}
@@ -363,13 +374,13 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	var latestImages []docker.Image
+	var latestImages []docker.APIImages
 	if err := d.getLatestImages(&latestImages); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
 	}
 
-	var snapshotImages []docker.Image
+	var snapshotImages []docker.APIImages
 	if err := d.getSnapshotImages(snapshotId, &volume, &snapshotImages); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
