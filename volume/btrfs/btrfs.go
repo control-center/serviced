@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"sync"
 )
 
 const (
@@ -22,12 +23,14 @@ const (
 
 type BtrfsDriver struct {
 	sudoer bool
+	sync.Mutex
 }
 
 type BtrfsConn struct {
 	sudoer bool
 	name   string
 	root   string
+	sync.Mutex
 }
 
 func init() {
@@ -40,6 +43,7 @@ func init() {
 	volume.Register(DriverName, btrfsdriver)
 }
 
+// New creates a new BtrfsDriver
 func New() (*BtrfsDriver, error) {
 	user, err := user.Current()
 	if err != nil {
@@ -55,7 +59,10 @@ func New() (*BtrfsDriver, error) {
 	return result, nil
 }
 
+// Mount creates a new subvolume at given root dir
 func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+	d.Lock()
+	defer d.Unlock()
 	if dirp, err := volume.IsDir(rootDir); err != nil || dirp == false {
 		if err := os.MkdirAll(rootDir, 0775); err != nil {
 			glog.Errorf("Volume root cannot be created: %s", rootDir)
@@ -75,22 +82,28 @@ func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	return c, nil
 }
 
+// Name provides the name of the subvolume
 func (c *BtrfsConn) Name() string {
 	return c.name
 }
 
+// Path provides the full path to the subvolume
 func (c *BtrfsConn) Path() string {
 	return path.Join(c.root, c.name)
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
 func (c *BtrfsConn) Snapshot(label string) error {
+	c.Lock()
+	defer c.Unlock()
 	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.Path(), path.Join(c.root, label))
 	return err
 }
 
 // Snapshots() returns the current snapshots on the volume
 func (c *BtrfsConn) Snapshots() ([]string, error) {
+	c.Lock()
+	defer c.Unlock()
 	labels := make([]string, 0)
 	glog.V(4).Info("about to execute subvolume list command")
 	if output, err := runcmd(c.sudoer, "subvolume", "list", "-apucr", c.root); err != nil {
@@ -118,7 +131,10 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 	return labels, nil
 }
 
+// RemoveSnapshot removes the snapshot with the given label
 func (c *BtrfsConn) RemoveSnapshot(label string) error {
+	c.Lock()
+	defer c.Unlock()
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -132,6 +148,8 @@ func (c *BtrfsConn) RemoveSnapshot(label string) error {
 
 // Rollback() rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
+	c.Lock()
+	defer c.Unlock()
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -156,7 +174,7 @@ func (c *BtrfsConn) Rollback(label string) error {
 	return err
 }
 
-// snapshotExists() rolls back the volume to the given snapshot
+// snapshotExists() queries the snapshot existence for the given label
 func (c *BtrfsConn) snapshotExists(label string) (exists bool, err error) {
 	if snapshots, err := c.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
@@ -170,6 +188,7 @@ func (c *BtrfsConn) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
+// runcmd runs the btrfs command
 func runcmd(sudoer bool, args ...string) ([]byte, error) {
 	cmd := append([]string{"btrfs"}, args...)
 	if sudoer {

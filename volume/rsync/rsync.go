@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 )
 
 const (
@@ -21,11 +22,13 @@ const (
 )
 
 type RsyncDriver struct {
+	sync.Mutex
 }
 
 type RsyncConn struct {
 	name string
 	root string
+	sync.Mutex
 }
 
 func init() {
@@ -43,6 +46,8 @@ func New() (*RsyncDriver, error) {
 }
 
 func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+	d.Lock()
+	defer d.Unlock()
 	conn := &RsyncConn{name: volumeName, root: rootDir}
 	if err := os.MkdirAll(conn.Path(), 0775); err != nil {
 		return nil, err
@@ -59,6 +64,8 @@ func (c *RsyncConn) Path() string {
 }
 
 func (c *RsyncConn) Snapshot(label string) (err error) {
+	c.Lock()
+	defer c.Unlock()
 	dest := path.Join(c.root, label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
@@ -82,6 +89,8 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 }
 
 func (c *RsyncConn) Snapshots() (labels []string, err error) {
+	c.Lock()
+	defer c.Unlock()
 	var infos []os.FileInfo
 	infos, err = ioutil.ReadDir(c.root)
 	if err != nil {
@@ -100,6 +109,8 @@ func (c *RsyncConn) Snapshots() (labels []string, err error) {
 }
 
 func (c *RsyncConn) RemoveSnapshot(label string) error {
+	c.Lock()
+	defer c.Unlock()
 	parts := strings.Split(label, "_")
 	if len(parts) != 2 {
 		return fmt.Errorf("malformed label: %s", label)
@@ -118,6 +129,8 @@ func (c *RsyncConn) RemoveSnapshot(label string) error {
 }
 
 func (c *RsyncConn) Rollback(label string) (err error) {
+	c.Lock()
+	defer c.Unlock()
 	src := path.Join(c.root, label)
 	if exists, err := volume.IsDir(src); !exists || err != nil {
 		if !exists {
