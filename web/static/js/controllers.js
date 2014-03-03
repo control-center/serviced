@@ -488,13 +488,13 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
         $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
     };
-    
+
     $scope.editConfig = function(service, config) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = config;
         $('#editConfig').modal('show');
     };
-    
+
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
@@ -907,7 +907,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],        
+        ],
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
@@ -938,7 +938,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "rateOptions": {},
                 "type": "line"
             }
-        ],        
+        ],
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
@@ -951,23 +951,23 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "tags": {},
         "type": "line"
     };
-    
+
     $scope.rssconfig = {
         "datapoints": [
             {
-                "aggregator": "avg",                
+                "aggregator": "avg",
                 "expression": "rpn:1024,/,1024,/",
                 "fill": false,
                 "format": "%6.2f",
                 "id": "rssmemory",
                 "legend": "RSS Memory",
                 "metric": "rss",
-                "name": "RSS Memory",                
+                "name": "RSS Memory",
                 "rateOptions": {},
                 "type": "line",
                 "fill": true
             }
-        ],        
+        ],
         "footer": false,
         "format": "%6.2f",
         "maxy": null,
@@ -992,8 +992,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 return "Not collecting stats, graphs unavailable";
             } else {
                 zenoss.visualization.chart.create(id, config);
-                $scope.drawn[id] = true;                
-            }            
+                $scope.drawn[id] = true;
+            }
         }
     };
 }
@@ -1959,6 +1959,43 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        /*
+         * Starts a service and all of its children
+         *
+         * @param {string} serviceId The ID of the service to start.
+         * @param {function} callback Response passed to callback on success.
+         */
+        start_service: function(serviceId, callback) {
+            $http.put('/services/' + serviceId + '/startService').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Was unable to start service: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+        /*
+         * Stops a service and all of its children
+         *
+         * @param {string} serviceId The ID of the service to stop.
+         * @param {function} callback Response passed to callback on success.
+         */
+        stop_service: function(serviceId, callback) {
+            $http.put('/services/' + serviceId + '/stopService').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    console.log('Was unable to stop service: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
@@ -2180,10 +2217,31 @@ function toggleRunning(app, status, servicesService) {
         console.log('Same status. Ignoring click');
         return;
     }
-    app.DesiredState = newState;
-    servicesService.update_service(app.Id, app, function() {
+    function updateApp(app, desiredState) {
+        var i;        
         updateRunning(app);
-    });
+        if (app.children && app.children.length) {
+            for (i=0; i<app.children.length;i++) {
+                app.children[i].DesiredState = desiredState;
+                updateRunning(app.children[i]);
+            }
+        }
+    }
+    // stop service
+    if ((newState == 0) || (newState == -1)) {
+        app.DesiredState = newState;
+        servicesService.stop_service(app.Id, function() {
+            updateApp(app, newState);
+        });
+    }
+
+    // start service
+    if ((newState == 1) || (newState == -1)) {
+        app.DesiredState = newState;
+        servicesService.start_service(app.Id, function() {
+            updateApp(app, newState);            
+        });
+    }
 }
 
 function updateRunning(app) {
@@ -2386,4 +2444,3 @@ function itemClass(item) {
     }
     return cls;
 }
-

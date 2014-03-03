@@ -62,7 +62,7 @@ func elasticsearchHealthCheck() error {
 	start := time.Now()
 	lastError := time.Now()
 	minUptime := time.Second * 2
-	timeout := time.Second * time.Duration(getEnvVarInt("ES_STARTUP_TIMEOUT", 60))
+	timeout := time.Second * time.Duration(getEnvVarInt("ES_STARTUP_TIMEOUT", 600))
 
 	schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
 
