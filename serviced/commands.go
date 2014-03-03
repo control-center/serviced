@@ -254,7 +254,11 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 // Add a host to the control plane given the host:port.
 func (cli *ServicedCli) CmdAddHost(args ...string) error {
 
-	cmd := Subcmd("add-host", "HOST:PORT RESOURCE_POOL", "Add host")
+	cmd := Subcmd("add-host", "[OPTIONS] HOST:PORT RESOURCE_POOL", "Add host")
+
+	ipOpts := NewListOpts()
+	cmd.Var(&ipOpts, "ips", "Comma separated list of IP available for endpoing assignment. If not set the default IP of the host is used")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -270,8 +274,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	}
 
 	var remoteHost dao.Host
-	//TODO: get user supplied IPs from command line
-	err = client.GetInfo([]string{}, &remoteHost)
+	//Add the IP used to connect
+	err = client.GetInfo(ipOpts, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}
@@ -518,6 +522,10 @@ func (opts *PortOpts) String() string {
 
 // ListOpts type
 type ListOpts []string
+
+func NewListOpts() ListOpts {
+	return make(ListOpts, 0)
+}
 
 func (opts *ListOpts) String() string {
 	return fmt.Sprint(*opts)
