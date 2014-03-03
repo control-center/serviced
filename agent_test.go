@@ -98,7 +98,7 @@ func TestParseContainerState(t *testing.T) {
 
 func TestGetInfo(t *testing.T) {
 
-	ip, err := GetIpAddress()
+	ip, err := GetIPAddress()
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -144,7 +144,7 @@ func TestRegisterIPResources(t *testing.T) {
 		t.Errorf("Unexpected result %v", ips)
 	}
 
-	ip, err := GetIpAddress()
+	ip, err := GetIPAddress()
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

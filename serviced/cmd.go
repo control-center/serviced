@@ -97,7 +97,7 @@ func ensureMinimumInt(envVar string, flagName string, minimum int) {
 // Setup flag options (static block)
 func init() {
 	var err error
-	agentIP, err = serviced.GetIpAddress()
+	agentIP, err = serviced.GetIPAddress()
 	if err != nil {
 		panic(err)
 	}
@@ -174,10 +174,15 @@ func startServer() {
 	}
 
 	atLeast := []int{0, 7, 5}
-	atMost := []int{0, 7, 6}
+	atMost := []int{0, 8, 1}
 	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
-		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.7.6")
+		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.8.1 but not 0.8.0")
 	}
+	if compareVersion([]int{0,8,0}, dockerVersion.Client) == 0 {
+		glog.Fatal("serviced specifically does not support docker 0.8.0")
+
+	}
+
 
 	if _, ok := volume.Registered(options.vfs); !ok {
 		glog.Fatalf("no driver registered for %s", options.vfs)

@@ -14,18 +14,24 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 )
 
 const (
+	// DriverName is the name of this rsync volume driver implementation
 	DriverName = "rsync"
 )
 
+// RsyncDriver is a driver for the rsync volume
 type RsyncDriver struct {
+	sync.Mutex
 }
 
+// RsyncConn is a connection to a rsync volume
 type RsyncConn struct {
 	name string
 	root string
+	sync.Mutex
 }
 
 func init() {
@@ -38,11 +44,15 @@ func init() {
 	volume.Register(DriverName, rsyncdriver)
 }
 
+// New creates a new RsyncDriver
 func New() (*RsyncDriver, error) {
 	return &RsyncDriver{}, nil
 }
 
+// Mount creates a new subvolume at given root dir
 func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+	d.Lock()
+	defer d.Unlock()
 	conn := &RsyncConn{name: volumeName, root: rootDir}
 	if err := os.MkdirAll(conn.Path(), 0775); err != nil {
 		return nil, err
@@ -50,15 +60,20 @@ func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	return conn, nil
 }
 
+// Name provides the name of the subvolume
 func (c *RsyncConn) Name() string {
 	return c.name
 }
 
+// Path provides the full path to the subvolume
 func (c *RsyncConn) Path() string {
 	return path.Join(c.root, c.name)
 }
 
+// Snapshot performs a writable snapshot on the subvolume
 func (c *RsyncConn) Snapshot(label string) (err error) {
+	c.Lock()
+	defer c.Unlock()
 	dest := path.Join(c.root, label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
@@ -81,7 +96,10 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 	return nil
 }
 
+// Snapshots returns the current snapshots on the volume
 func (c *RsyncConn) Snapshots() (labels []string, err error) {
+	c.Lock()
+	defer c.Unlock()
 	var infos []os.FileInfo
 	infos, err = ioutil.ReadDir(c.root)
 	if err != nil {
@@ -99,7 +117,10 @@ func (c *RsyncConn) Snapshots() (labels []string, err error) {
 	return labels, nil
 }
 
+// RemoveSnapshot removes the snapshot with the given label
 func (c *RsyncConn) RemoveSnapshot(label string) error {
+	c.Lock()
+	defer c.Unlock()
 	parts := strings.Split(label, "_")
 	if len(parts) != 2 {
 		return fmt.Errorf("malformed label: %s", label)
@@ -117,7 +138,10 @@ func (c *RsyncConn) RemoveSnapshot(label string) error {
 	return nil
 }
 
+// Rollback rolls back the volume to the given snapshot
 func (c *RsyncConn) Rollback(label string) (err error) {
+	c.Lock()
+	defer c.Unlock()
 	src := path.Join(c.root, label)
 	if exists, err := volume.IsDir(src); !exists || err != nil {
 		if !exists {

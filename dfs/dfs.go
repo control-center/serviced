@@ -2,10 +2,11 @@ package dfs
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
 
-	docker "github.com/fsouza/go-dockerclient"
+	docker "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
 	"errors"
@@ -16,7 +17,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 )
 
 const (
@@ -205,12 +205,6 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	// Snapshot the DFS
-	if err := d.Snapshot(serviceId, label); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
-	}
-
 	// Commit the container to the image
 	newImage, err := d.dockerClient.CommitContainer(docker.CommitContainerOptions{
 		Container:  container.ID,
@@ -224,14 +218,12 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 
 	// Copy images to the DFS
 	*image = docker.APIImages{
-		ID:          newImage.ID,
-		RepoTags:    image.RepoTags,
-		Created:     newImage.Created.Unix(),
-		Size:        newImage.Size,
-		VirtualSize: image.VirtualSize,
-		ParentId:    newImage.Parent,
-		Repository:  image.Repository,
-		Tag:         image.Tag,
+		ID:         newImage.ID,
+		Created:    newImage.Created.Unix(),
+		Size:       newImage.Size,
+		ParentId:   newImage.Parent,
+		Repository: image.Repository,
+		Tag:        image.Tag,
 	}
 
 	// Get the path to the volume and write the images
@@ -250,12 +242,18 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		return err
 	}
 
-	config := path.Join(volume.Path(), *label, DOCKER_IMAGEJSON)
+	config := path.Join(volume.Path(), DOCKER_IMAGEJSON)
 	if data, err := json.Marshal(images); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return err
 	} else if err := ioutil.WriteFile(config, data, 0644); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
+		return err
+	}
+
+	// Snapshot the DFS
+	if err := d.Snapshot(serviceId, label); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return err
 	}
 
@@ -265,26 +263,32 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 // Gets the images from docker and filters those marked as latest
 func (d *DistributedFileSystem) getLatestImages(images *[]docker.APIImages) error {
 	// Get all of the images from docker and find the ones tagged as the latest
-	if allImages, err := d.dockerClient.ListImages(true); err != nil {
+	if allImages, err := d.dockerClient.ListImages(false); err != nil {
 		return err
 	} else {
 		for _, image := range allImages {
-			if image.Tag == DOCKER_LATEST {
-				*images = append(*images, image)
+			for _, rt := range image.RepoTags {
+				repo := rt.Repo()
+				tag := rt.Tag()
+				if tag == DOCKER_LATEST {
+					image.Repository = repo
+					image.Tag = tag
+					*images = append(*images, image)
+				}
 			}
 		}
 	}
-
+	glog.V(3).Infof("Found %d images: %+v", len(*images), *images)
 	return nil
 }
 
 // Gets the images from the snapshot; returns error if image does not exist in docker
 func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *volume.Volume, images *[]docker.APIImages) error {
-	config := path.Join(volume.Path(), snapshotId, DOCKER_IMAGEJSON)
+	config := path.Join(path.Dir(volume.Path()), snapshotId, DOCKER_IMAGEJSON)
 
 	if data, err := ioutil.ReadFile(config); err != nil {
 		return err
-	} else if err := json.Unmarshal(data, images); err != nil {
+	} else if err := json.Unmarshal(data, &images); err != nil {
 		return err
 	}
 
@@ -294,23 +298,20 @@ func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *vol
 			return err
 		}
 	}
-
+	glog.V(3).Infof("Found %d images: %+v", len(*images), *images)
 	return nil
 }
 
 // Retags containers with the given snapshot
-func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume.Volume) error {
+func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume.Volume, force bool) error {
 
 	// Set the tag of the new image
-	dockerBin, err := exec.LookPath("docker")
-	if err != nil {
-		return err
-	}
-
 	for _, image := range *images {
-		// docker tag %{image.ID} %{image.Repo}:%{image.Tag}
-		cmd := exec.Command(dockerBin, "tag", image.ID, fmt.Sprintf("%s:%s", image.Repository, image.Tag))
-		if err := cmd.Run(); err != nil {
+		repo := fmt.Sprintf("%s:%s", image.Repository, image.Tag)
+		if err := d.dockerClient.TagImage(image.ID, docker.TagImageOptions{
+			Repo:  repo,
+			Force: force,
+		}); err != nil {
 			return err
 		}
 	}
@@ -385,9 +386,9 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
-	if err := d.retag(&snapshotImages, &volume); err != nil {
+	if err := d.retag(&snapshotImages, &volume, false); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		if err := d.retag(&latestImages, &volume); err != nil {
+		if err := d.retag(&latestImages, &volume, true); err != nil {
 			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
 		}
 		return err
@@ -396,7 +397,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", tenantId, snapshotId)
 	if err := volume.Rollback(snapshotId); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		if err := d.retag(&latestImages, &volume); err != nil {
+		if err := d.retag(&latestImages, &volume, true); err != nil {
 			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
 		}
 		return err
@@ -405,8 +406,5 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 }
 
 func getSnapshotLabel(v *volume.Volume) string {
-	format := "20060102-150405"
-	loc := time.Now()
-	utc := loc.UTC()
-	return fmt.Sprintf("%s_%s", v.Name(), utc.Format(format))
+	return serviced.GetLabel(v.Name())
 }
