@@ -18,14 +18,17 @@ import (
 )
 
 const (
+	// DriverName is the name of this btrfs driver implementation
 	DriverName = "btrfs"
 )
 
+// BtrfsDriver is a driver for the btrfs volume
 type BtrfsDriver struct {
 	sudoer bool
 	sync.Mutex
 }
 
+// BtrfsConn is a connection to a btrfs volume
 type BtrfsConn struct {
 	sudoer bool
 	name   string
@@ -100,7 +103,7 @@ func (c *BtrfsConn) Snapshot(label string) error {
 	return err
 }
 
-// Snapshots() returns the current snapshots on the volume
+// Snapshots returns the current snapshots on the volume
 func (c *BtrfsConn) Snapshots() ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -146,7 +149,7 @@ func (c *BtrfsConn) RemoveSnapshot(label string) error {
 	return err
 }
 
-// Rollback() rolls back the volume to the given snapshot
+// Rollback rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
 	c.Lock()
 	defer c.Unlock()
@@ -174,7 +177,7 @@ func (c *BtrfsConn) Rollback(label string) error {
 	return err
 }
 
-// snapshotExists() queries the snapshot existence for the given label
+// snapshotExists queries the snapshot existence for the given label
 func (c *BtrfsConn) snapshotExists(label string) (exists bool, err error) {
 	if snapshots, err := c.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
