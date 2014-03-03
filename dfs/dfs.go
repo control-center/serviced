@@ -276,7 +276,7 @@ func (d *DistributedFileSystem) getLatestImages(images *[]docker.Image) error {
 
 // Gets the images from the snapshot; returns error if image does not exist in docker
 func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *volume.Volume, images *[]docker.Image) error {
-	config := path.Join(volume.Path(), snapshotId, DOCKER_IMAGEJSON)
+	config := path.Join(path.Dir(volume.Path()), snapshotId, DOCKER_IMAGEJSON)
 
 	if data, err := ioutil.ReadFile(config); err != nil {
 		return err
