@@ -14,6 +14,7 @@ from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
 from pyes import TermQuery, ES
 from socketIO_client import SocketIO
+from uuid import uuid4
 
 REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
 # Go directly to container gateway to hit CP elastic isvc. This will only
@@ -49,10 +50,13 @@ class LogstashLogger(object):
             self.socket.connect((self.host, self.port))
         except socket.error as err:
             self.connect(collisions + 1)
+    def disconnect(self):
+        self.socket.shutdown(socket.SHUT_WR)
+        self.socket.close();
     def log(self, data):
         try:
             data = json.dumps(data)
-            self.socket.sendall(data)
+            self.socket.sendall(data + "\n")
         except socket.error as err:
             self.connect()
             self.log(data)
@@ -61,23 +65,35 @@ class ServicedShell(object):
     def __init__(self, logstash):
         self.logstash = logstash
         self.socket = None
-        self.stdout = []
-        self.stderr = []
-        self.result = ""
+        self.jobid = str(uuid4())
     def onResult(self, *args):
-        self.result = args[0]
+        self.logstash.log({
+            "jobid": self.jobid,
+            "value-type": "result",
+            "value": json.dumps(args[0])
+        })
         self.socket.disconnect()
+        self.logstash.disconnect()
     def onStdout(self, *args):
         for l in args:
-            self.stdout.append(str(l))
+            self.logstash.log({
+                "jobid": self.jobid,
+                "value-type": "stdout",
+                "value": str(l)
+            })
     def onStderr(self, *args):
         for l in args:
-            self.stderr.append(str(l))
+            self.logstash.log({
+                "jobid": self.jobid,
+                "value-type": "stderr",
+                "value": str(l)
+            })
     def run(self, service_id, command):        
         self.logstash.log({
+            "jobid": self.jobid,
             "command": command,
             "service_id": service_id,
-            "status": "starting"
+            "value-type": "launch"
         })
         self.socket = SocketIO(ELASTIC_HOST, 50000)
         self.socket.on('result', self.onResult)
@@ -85,14 +101,7 @@ class ServicedShell(object):
         self.socket.on('stderr', self.onStderr)        
         self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
         self.socket.wait()
-        self.logstash.log({
-            "command": command,
-            "service_id": service_id,
-            "status": "complete",
-            "stdout": "".join(self.stdout),
-            "stderr": "".join(self.stderr),
-            "result": self.result
-        })
+
 
 @app.task()
 def serviced_shell(service_id, command):
