@@ -26,8 +26,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 controller: SubServiceControl}).
             when('/apps', {
                 templateUrl: '/static/partials/view-apps.html',
-                controller: DeployedAppsControl
-            }).
+                controller: DeployedAppsControl}).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
                 controller: HostsControl}).
@@ -39,8 +38,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 controller: ServicesMapControl}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
-                controller: HostDetailsControl
-            }).
+                controller: HostDetailsControl}).
+            when('/jobs', {
+                templateUrl: '/static/partials/celery-log.html',
+                controller: CeleryLogControl}).
             when('/devmode', {
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
@@ -996,6 +997,23 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             }
         }
     };
+}
+
+function CeleryLogControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "hostdetails";
+    $scope.params = $routeParams;
+
+    var client = new elasticsearch.Client({host: 'localhost:9200'});
+    client.search({
+        "value-type": 'result'
+    }).then(function(body){
+        console.log(body);
+    });
+
+
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
