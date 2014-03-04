@@ -12,6 +12,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
@@ -454,6 +455,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		for _, endpoint := range service.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
+				if endpoint.Protocol == commons.UDP {
+					portOps += "/udp"
+				}
 			}
 		}
 	}
