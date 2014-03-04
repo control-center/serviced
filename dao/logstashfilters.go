@@ -22,7 +22,7 @@ func resourcesDir() string {
 	homeDir := os.Getenv("SERVICED_HOME")
 	if len(homeDir) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
-		return path.Clean(path.Join(path.Dir(filename), "/../isvcs/resources"))
+		return path.Clean(path.Join(path.Dir(filename), "..", "isvcs", "resources"))
 
 	}
 	return path.Clean(path.Join(homeDir, "isvcs/resources"))
