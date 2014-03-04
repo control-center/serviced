@@ -100,11 +100,11 @@ func writeLogStashConfigFile(filters string, outputPath string) error {
 
         filterSection :=`
 filter {
- # NOTE the filters are generated from the service definitions
-` + string(contents) + `
+# NOTE the filters are generated from the service definitions
+` + string(filters) + `
 }
 `
-	newContents := strings.Replace(filterSection, "${FILTER_SECTION}", filters, 1)
+	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterSection, 1)
 	newBytes := []byte(newContents)
 	// generate the filters section
 	// write the log file
