@@ -2,6 +2,7 @@ description "Zenoss ServiceD"
 
 start on filesystem or runlevel [2345]
 stop on run level [!2345]
+kill timeout 60
 
 script
     export SERVICED_HOME=/usr/local/serviced
