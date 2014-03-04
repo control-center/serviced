@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -75,22 +76,24 @@ var _ = Describe("Archive", func() {
 					defer f.Close()
 					f.WriteString(fmt.Sprintf("test data %d", i))
 				}
-				subdir := filepath.Join(tempdir, "zzz")
+				subdir := filepath.Join(tempdir, "abc")
 				os.MkdirAll(subdir, 0777)
 				f, _ := os.Create(filepath.Join(subdir, "hi"))
 				defer f.Close()
+				subdir = filepath.Join(tempdir, "zzz")
+				os.MkdirAll(subdir, 0777)
+				g, _ := os.Create(filepath.Join(subdir, "hi"))
+				defer g.Close()
 			})
 			It("returns all files without error", func() {
-				for i := 0; i < 3; i++ {
+				names := []string{}
+				for i := 0; i < 5; i++ {
 					name, err := r.Next()
-					Expect(name).To(Equal(fmt.Sprintf("testfile-%d", i)))
-					data, _ := ioutil.ReadAll(r)
-					Expect(string(data)).To(Equal(
-						fmt.Sprintf("test data %d", i)))
+					names = append(names, name)
 					Expect(err).To(BeNil())
 				}
-				name, err := r.Next()
-				Expect(name).To(Equal(filepath.Join("zzz", "hi")))
+				sort.Strings(names)
+				Expect(names).To(Equal([]string{"abc/hi", "testfile-0", "testfile-1", "testfile-2", "zzz/hi"}))
 				_, err = r.Next()
 				Expect(err).To(Equal(io.EOF))
 			})
@@ -127,18 +130,15 @@ var _ = Describe("Archive", func() {
 		})
 
 		It("returns all files with no error", func() {
-			archdir := "archive"
-			for i := 0; i < 3; i++ {
+			names := []string{}
+			for i := 0; i < 4; i++ {
 				name, err := r.Next()
-				Expect(name).To(Equal(filepath.Join(archdir,
-					fmt.Sprintf("testfile-%d", i))))
-				data, _ := ioutil.ReadAll(r)
-				Expect(string(data)).To(Equal(
-					fmt.Sprintf("test data %d", i)))
+				names = append(names, name)
 				Expect(err).To(BeNil())
 			}
-			name, err := r.Next()
-			Expect(name).To(Equal(filepath.Join(archdir, "zzz", "hi")))
+			sort.Strings(names)
+			Expect(names).To(Equal([]string{"archive/testfile-0",
+				"archive/testfile-1", "archive/testfile-2", "archive/zzz/hi"}))
 			_, err = r.Next()
 			Expect(err).To(Equal(io.EOF))
 		})
@@ -211,18 +211,15 @@ var _ = Describe("Archive", func() {
 			})
 
 			It("returns all files with no error", func() {
-				archdir := "archive"
-				for i := 0; i < 3; i++ {
+				names := []string{}
+				for i := 0; i < 4; i++ {
 					name, err := r.Next()
-					Expect(name).To(Equal(filepath.Join(archdir,
-						fmt.Sprintf("testfile-%d", i))))
-					data, _ := ioutil.ReadAll(r)
-					Expect(string(data)).To(Equal(
-						fmt.Sprintf("test data %d", i)))
+					names = append(names, name)
 					Expect(err).To(BeNil())
 				}
-				name, err := r.Next()
-				Expect(name).To(Equal(filepath.Join(archdir, "zzz", "hi")))
+				sort.Strings(names)
+				Expect(names).To(Equal([]string{"archive/testfile-0",
+					"archive/testfile-1", "archive/testfile-2", "archive/zzz/hi"}))
 				_, err = r.Next()
 				Expect(err).To(Equal(io.EOF))
 			})

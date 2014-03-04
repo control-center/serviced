@@ -17,7 +17,6 @@ import (
 
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	/*
@@ -96,31 +95,13 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 		}
 	} else {
 		// is the input a file or directory
-		nodeinfo, err := os.Stat(cmd.Arg(0))
+		sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
 		if err != nil {
-			glog.Fatalf("Could not ServiceTemplate from %s: %s", cmd.Arg(0), err)
+			glog.Fatalf("Could not read template from directory %s: %s", cmd.Arg(0), err)
 		}
-
-		if nodeinfo.IsDir() {
-			sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
-			if err != nil {
-				glog.Fatalf("Could not read template from directory %s: %s", nodeinfo.Name(), err)
-			}
-			serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
-			serviceTemplate.Services[0] = *sdefinition
-			serviceTemplate.Name = sdefinition.Name
-		} else {
-			// Read the argument as a file
-			templateStr, err := ioutil.ReadFile(cmd.Arg(0))
-			if err != nil {
-				glog.Fatalf("Could not read ServiceTemplate from file: %s", err)
-			}
-			err = json.Unmarshal(templateStr, &serviceTemplate)
-			if err != nil {
-				glog.Fatalf("Could not unmarshal ServiceTemplate from file: %s", err)
-			}
-		}
-
+		serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
+		serviceTemplate.Services[0] = *sdefinition
+		serviceTemplate.Name = sdefinition.Name
 	}
 
 	if err := serviceTemplate.Validate(); err != nil {

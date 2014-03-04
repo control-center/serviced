@@ -50,6 +50,8 @@ dockerbuild: docker_ok
 
 test: build_binary docker_ok
 	go test
+	go get github.com/onsi/ginkgo
+	go get github.com/onsi/gomega
 	cd dao && make test
 	cd web && go test
 	cd serviced && go test
