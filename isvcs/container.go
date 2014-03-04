@@ -10,8 +10,8 @@
 package isvcs
 
 import (
-	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/utils"
 
@@ -63,16 +63,26 @@ type ContainerDescription struct {
 
 type Container struct {
 	ContainerDescription
-	ops chan containerOpRequest // channel for communicating to the container's loop
+	client *docker.Client
+	ops    chan containerOpRequest // channel for communicating to the container's loop
 }
 
 func NewContainer(cd ContainerDescription) (*Container, error) {
+	client, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("Could not create docker client: %s", err)
+		return nil, err
+	}
+
 	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || len(cd.Command) == 0 {
 		return nil, ErrBadContainerSpec
 	}
+
 	c := Container{
 		ContainerDescription: cd,
-		ops:                  make(chan containerOpRequest),
+
+		ops:    make(chan containerOpRequest),
+		client: client,
 	}
 	go c.loop()
 	return &c, nil
@@ -143,8 +153,8 @@ func (c *Container) loop() {
 }
 
 // getMatchingContainersIds
-func (c *Container) getMatchingContainersIds(client *docker.Client) (*[]string, error) {
-	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
+func (c *Container) getMatchingContainersIds() (*[]string, error) {
+	containers, err := c.client.ListContainers(docker.ListContainersOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
@@ -161,16 +171,11 @@ func (c *Container) getMatchingContainersIds(client *docker.Client) (*[]string, 
 
 // attempt to stop all matching containers
 func (c *Container) stop() error {
-	client, err := newDockerClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("Could not create docker client: %s", err)
-		return err
-	}
-	if ids, err := c.getMatchingContainersIds(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(); err != nil {
 		return err
 	} else {
 		for _, id := range *ids {
-			client.StopContainer(id, 20)
+			c.client.StopContainer(id, 20)
 		}
 	}
 	return nil
@@ -178,16 +183,11 @@ func (c *Container) stop() error {
 
 // attempt to remove all matching containers
 func (c *Container) rm() error {
-	client, err := newDockerClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("Could not create docker client: %s", err)
-		return err
-	}
-	if ids, err := c.getMatchingContainersIds(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(); err != nil {
 		return err
 	} else {
 		for _, id := range *ids {
-			client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+			c.client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil

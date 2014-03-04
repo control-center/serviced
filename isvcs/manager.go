@@ -10,8 +10,8 @@
 package isvcs
 
 import (
-	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-dockerclient"
 
 	"errors"
 	"os"
@@ -92,7 +92,7 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 		} else {
 			for _, image := range images {
 				for _, tagi := range image.RepoTags {
-					if tagi == repoTag {
+					if string(tagi) == repoTag {
 						return true, nil
 					}
 				}

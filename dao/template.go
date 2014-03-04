@@ -153,6 +153,8 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			}
 			base = strings.TrimSuffix(base, ".conf")
 			svc.LogFilters[base] = string(contents)
+		default:
+			glog.V(4).Infof("Unrecognized file %s at %s", base, filepath.Dir(name))
 		}
 	}
 	if _, ok := defs["."]; !ok {
