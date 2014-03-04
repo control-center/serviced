@@ -68,32 +68,36 @@ class ServicedShell(object):
         self.jobid = str(uuid4())
     def onResult(self, *args):
         self.logstash.log({
+            "type": "celerylog",
             "jobid": self.jobid,
-            "value-type": "result",
-            "value": json.dumps(args[0])
+            "logtype": "exitcode",
+            "exitcode": args[0]['ExitCode']
         })
         self.socket.disconnect()
         self.logstash.disconnect()
     def onStdout(self, *args):
         for l in args:
             self.logstash.log({
+                "type": "celerylog",
                 "jobid": self.jobid,
-                "value-type": "stdout",
-                "value": str(l)
+                "logtype": "stdout",
+                "stdout": str(l)
             })
     def onStderr(self, *args):
         for l in args:
             self.logstash.log({
+                "type": "celerylog",
                 "jobid": self.jobid,
-                "value-type": "stderr",
-                "value": str(l)
+                "logtype": "stderr",
+                "stderr": str(l)
             })
     def run(self, service_id, command):        
         self.logstash.log({
+            "type": "celerylog",
             "jobid": self.jobid,
+            "logtype": "command",
             "command": command,
             "service_id": service_id,
-            "value-type": "launch"
         })
         self.socket = SocketIO(ELASTIC_HOST, 50000)
         self.socket.on('result', self.onResult)
