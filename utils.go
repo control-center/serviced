@@ -434,6 +434,8 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
+	// the file globbing checks that /tmp is empty before the copy - should initially be empty
+	//    we don't want the copy to occur multiple times if restarting services.
 
 	var err error
 	var output []byte
@@ -445,11 +447,14 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 			fmt.Sprintf(`
 chown %s /tmp && \
 chmod %s /tmp && \
+shopt -s nullglob && \
+shopt -s dotglob && \
+files=(/tmp/*) && \
 if [ ! -d "%s" ]; then
 	echo "ERROR: srcdir %s does not exist in container"
 	exit 2
-else
-	rsync -a %s/ /tmp/
+elif [ ${#files[@]} -eq 0 ]; then
+	cp -rp %s/* /tmp/
 fi
 `, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
 		output, err = docker.CombinedOutput()
