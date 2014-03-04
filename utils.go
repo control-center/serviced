@@ -445,14 +445,11 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 			fmt.Sprintf(`
 chown %s /tmp && \
 chmod %s /tmp && \
-shopt -s nullglob && \
-shopt -s dotglob && \
-files=(/tmp/*) && \
 if [ ! -d "%s" ]; then
 	echo "ERROR: srcdir %s does not exist in container"
 	exit 2
-elif [ ${#files[@]} -eq 0 ]; then
-	cp -rp %s/* /tmp/
+else
+	rsync -a %s/ /tmp/
 fi
 `, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
 		output, err = docker.CombinedOutput()
