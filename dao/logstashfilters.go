@@ -28,6 +28,8 @@ func resourcesDir() string {
 	return path.Clean(path.Join(homeDir, "isvcs/resources"))
 }
 
+// WriteConfigurationFile takes a map of ServiceTemplates and writes them to the
+// appropriate place in the logstash.conf.
 func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
