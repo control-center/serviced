@@ -122,6 +122,7 @@ func TestWritingConfigFile(t *testing.T) {
 		t.FailNow()
 	}
 	defer tmpfile.Close()
+	defer os.Remove(tmpfile.Name())
         _, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
 	if err != nil {
 		t.Logf("%s", err)
@@ -132,8 +133,6 @@ func TestWritingConfigFile(t *testing.T) {
 		t.Logf("%s", err)
 		t.FailNow()
 	}
-
-	//defer os.Remove(tmpfile.Name())
 
 	if err = writeLogStashConfigFile(filters, tmpfile.Name()); err != nil {
 		t.Error("error calling writeLogStashConfigFile: %s", err)
