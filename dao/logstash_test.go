@@ -12,6 +12,7 @@ package dao
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
