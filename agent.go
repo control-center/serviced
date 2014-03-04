@@ -13,6 +13,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -54,6 +55,7 @@ type HostAgent struct {
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
 	closing         chan chan error
+	proxyRegistry   proxy.ProxyRegistry
 }
 
 // assert that this implemenents the Agent interface
@@ -87,6 +89,7 @@ func NewHostAgent(master string, varPath string, mount []string, vfs string, zoo
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
 
+	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
 	return agent, err
 }
@@ -190,12 +193,22 @@ func (a *HostAgent) dockerRemove(dockerId string) error {
 
 func (a *HostAgent) dockerTerminate(dockerId string) error {
 	glog.V(1).Infof("Killing container %s", dockerId)
+
 	cmd := exec.Command("docker", "kill", dockerId)
-	err := cmd.Run()
-	if err != nil {
-		glog.V(1).Infof("problem killing container instance %s", dockerId)
-		return err
+	killout, killerr := cmd.CombinedOutput()
+	if killerr != nil {
+		//verify dockerId no longer exists
+		cmd = exec.Command("docker", "inspect", dockerId)
+		existsout, err := cmd.CombinedOutput()
+		strout := string(existsout)
+		if err != nil && strings.HasPrefix(strout, "Error: No such image or container:") {
+			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
+			return nil
+		}
+		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr)
+		return errors.New(string(killout))
 	}
+
 	glog.V(2).Infof("Successfully killed %s", dockerId)
 	return nil
 }
@@ -290,16 +303,46 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 	if err != nil {
 		return
+		//TODO: should  "cmd" be cleaned up before returning?
 	}
+
+	var sState *dao.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
 		ss.DockerId = containerState.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = containerState.NetworkSettings.IPAddress
 		ss.PortMapping = containerState.NetworkSettings.Ports
+		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+		//TODO: should  "cmd" be cleaned up before returning?
 	} else {
+
+		//start IP resource proxy for each endpoint
+		var service dao.Service
+		if _, err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
+			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
+		} else {
+			glog.V(4).Infof("Looking for address assignment in service %s:%s", service.Name, service.Id)
+			for _, endpoint := range service.Endpoints {
+				if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
+					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
+					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
+
+					frontEnd := proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}
+					backEnd := proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}
+
+					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
+					if err != nil {
+						glog.Warningf("Could not start External address proxy for %v; error: proxyId", proxyId, err)
+					}
+					defer a.proxyRegistry.RemoveProxy(proxyId)
+
+				}
+			}
+
+		}
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 

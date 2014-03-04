@@ -4,7 +4,11 @@
               "Application": "www",
               "PortNumber": 8080,
               "Protocol": "tcp",
-              "Purpose": "export"
+              "Purpose": "export",
+              "AddressConfig": {
+                              "Port": 1000,
+                              "Protocol": "TCP"
+                          }
             },{
               "Application": "websvc",
               "PortNumber": 8081,

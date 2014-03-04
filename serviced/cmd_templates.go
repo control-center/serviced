@@ -123,17 +123,13 @@ func (cli *ServicedCli) CmdAddTemplate(args ...string) error {
 
 	}
 
-	if err := serviceTemplate.Validate(); err != nil {
-		return err
-	} else {
-		c := getClient()
-		var templateId string
-		err = c.AddServiceTemplate(serviceTemplate, &templateId)
-		if err != nil {
-			glog.Fatalf("Could not read add service template:  %s", err)
-		}
-		fmt.Println(templateId)
+	c := getClient()
+	var templateId string
+	err := c.AddServiceTemplate(serviceTemplate, &templateId)
+	if err != nil {
+		glog.Fatalf("Could not add service template:  %s", err)
 	}
+	fmt.Println(templateId)
 
 	return nil
 }

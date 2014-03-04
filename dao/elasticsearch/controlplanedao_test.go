@@ -679,7 +679,7 @@ func TestDaoGetHostWithIPs(t *testing.T) {
 	//Add host to test scenario where host exists but no IP resource registered
 	host := dao.Host{}
 	host.Id = HOSTID
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testHostId", "testip", "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{HOSTID, "testip", "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
 	if err != nil {
@@ -721,7 +721,7 @@ func TestAssignAddress(t *testing.T) {
 	serviceId := ""
 	host := dao.Host{}
 	host.Id = hostid
-	host.IPs = []dao.HostIPResource{dao.HostIPResource{"testHostId", ip, "ifname"}}
+	host.IPs = []dao.HostIPResource{dao.HostIPResource{hostid, ip, "ifname"}}
 	err = controlPlaneDao.AddHost(host, &id)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)

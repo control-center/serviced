@@ -12,26 +12,33 @@ import (
 	"github.com/zenoss/serviced/commons"
 
 	"testing"
+	"strings"
 )
 
 var validSvcDef *ServiceDefinition
-var invalidSvcDef *ServiceDefinition
 
 func init() {
 	// should we make the service definition from the dao test package public and use here?
-	validSvcDef = &ServiceDefinition{
+	validSvcDef = createValidServiceDefinition()
+}
+
+func createValidServiceDefinition() *ServiceDefinition {
+	// should we make the service definition from the dao test package public and use here?
+	return &ServiceDefinition{
 		Name: "testsvc",
 		Services: []ServiceDefinition{
 			ServiceDefinition{
 				Name: "s1",
 				Endpoints: []ServiceEndpoint{
 					ServiceEndpoint{
+						Name:        "www",
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
 					ServiceEndpoint{
+						Name:        "websvc",
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
@@ -59,6 +66,7 @@ func init() {
 				ImageId: "ubuntu",
 				Endpoints: []ServiceEndpoint{
 					ServiceEndpoint{
+						Name:        "websvc",
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
@@ -79,6 +87,7 @@ func init() {
 			},
 		},
 	}
+
 }
 
 func TestServiceTemplateValidate(t *testing.T) {
@@ -105,6 +114,34 @@ func TestServiceTemplateValidateErrorVhost(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error")
 	} else if err.Error() != "Service Definition s2: Duplicate Vhost found: testhost" {
+		t.Errorf("Unexpected Error %v", err)
+	}
+}
+
+func TestServiceDefinitionDuplicateEndpoint(t *testing.T) {
+	sd := createValidServiceDefinition()
+	sd.Services[0].Endpoints[0].Name = "websvc"
+	template := ServiceTemplate{}
+	template.Services = []ServiceDefinition{*sd}
+
+	err := template.Validate()
+	if err == nil {
+		t.Error("Expected error")
+	} else if err.Error() != "Service Definition s1: Endpoint name websvc not unique in service definition" {
+		t.Errorf("Unexpected Error %v", err)
+	}
+}
+
+func TestServiceDefinitionEmpyEndpointName(t *testing.T) {
+	sd := createValidServiceDefinition()
+	sd.Services[0].Endpoints[0].Name = ""
+	template := ServiceTemplate{}
+	template.Services = []ServiceDefinition{*sd}
+
+	err := template.Validate()
+	if err == nil {
+		t.Error("Expected error")
+	} else if !strings.Contains(err.Error(),"Endpoint must have a name") {
 		t.Errorf("Unexpected Error %v", err)
 	}
 }

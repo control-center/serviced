@@ -156,6 +156,8 @@ func (this *ZkDao) UpdateService(service *dao.Service) error {
 		err = AddService(conn, service)
 		return err
 	}
+	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicePath, service)
+
 	_, err = conn.Set(servicePath, sBytes, stats.Version)
 	return err
 }

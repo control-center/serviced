@@ -1,11 +1,12 @@
 package dao
 
 import (
+	"github.com/zenoss/glog"
+
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
-
-	"github.com/zenoss/glog"
 )
 
 type HostIpAndPort struct {
@@ -167,6 +168,7 @@ type ServiceEndpoint struct {
 	AddressConfig       AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
+	AddressAssignment AddressAssignment //addressAssignment holds the assignment when Service is started
 }
 
 // A scheduled task
@@ -378,6 +380,24 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 	}
 
 	return result
+}
+
+func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
+	if se.AddressConfig.Port == 0 {
+		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
+	}
+	se.AddressAssignment = *aa
+	return nil
+}
+
+//GetAssignment Returns nil if no assignment set
+func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
+	if se.AddressAssignment.Id == "" {
+		return nil
+	}
+	//return reference to copy
+	result := se.AddressAssignment
+	return &result
 }
 
 // Retrieve service container port, 0 failure
