@@ -25,7 +25,7 @@ func resourcesDir() string {
 		homeDir = path.Dir(filename) + "/../isvcs/"
 
 	}
-	return path.Clean(path.Join(homeDir, "resources"))
+	return path.Clean(path.Join(homeDir, "isvcs/resources"))
 }
 
 func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
@@ -97,7 +97,16 @@ func writeLogStashConfigFile(filters string, outputPath string) error {
 	if err != nil {
 		return err
 	}
-	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filters, 1)
+
+	// the newlines in the string below are deliberate so that the filter
+        // syntax is correct
+        filterSection :=`
+filter {
+# NOTE the filters are generated from the service definitions
+` + string(filters) + `
+}
+`
+	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterSection, 1)
 	newBytes := []byte(newContents)
 	// generate the filters section
 	// write the log file
