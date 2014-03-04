@@ -12,7 +12,7 @@ package dao
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
+//	"os"
 	"strings"
 	"testing"
 )
@@ -115,26 +115,41 @@ func TestConstructingFilterString(t *testing.T) {
 
 func TestWritingConfigFile(t *testing.T) {
 	filters := "This is my test filter"
-	tmpName := os.TempDir() + "/logstash_test.conf"
-	writeLogStashConfigFile(filters, tmpName)
-
-	// make sure the file exists
-	_, err := os.Stat(tmpName)
+	tmpfile, err := ioutil.TempFile("", "logstash_test.conf")
+	t.Logf("Created tempfile: %s", tmpfile.Name())
 	if err != nil {
-		t.Error(fmt.Sprintf("Was unable to stat %s", tmpName))
+		t.Logf("could not create tempfile: %s", err)
+		t.FailNow()
+	}
+	defer tmpfile.Close()
+        _, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
+	if err != nil {
+		t.Logf("%s", err)
+		t.FailNow()
+	}
+	err = tmpfile.Sync()
+	if err != nil {
+		t.Logf("%s", err)
+		t.FailNow()
 	}
 
-	// attempt to clean up after ourselves
-	defer os.Remove(tmpName)
+	//defer os.Remove(tmpfile.Name())
+
+	if err = writeLogStashConfigFile(filters, tmpfile.Name()); err != nil {
+		t.Error("error calling writeLogStashConfigFile: %s", err)
+		t.Fail()
+	}
 
 	// read the contents
-	contents, err := ioutil.ReadFile(tmpName)
+	contents, err := ioutil.ReadFile(tmpfile.Name())
 	if err != nil {
 		t.Error(fmt.Sprintf("Unable to read output file %v", err))
 	}
 
 	// make sure our filter string is in it
 	if !strings.Contains(string(contents), filters) {
+		t.Log("Read in contents: %s", string(contents))
+		t.Log(filters)
 		t.Error("Was unable to write the logstash conf file")
 	}
 }
