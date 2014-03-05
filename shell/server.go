@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -61,6 +62,7 @@ func NewProcessExecutorServer(port string) *ProcessServer {
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
+	server.sio.On("process", server.onProcess)
 	// BUG: ZEN-10320
 	// server.Handle("/", http.FileServer(http.Dir(staticRoot())))
 	return server
@@ -75,16 +77,7 @@ func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.sio.ServeHTTP(w, r)
 }
 
-func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("Received connection")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-	glog.Infof("===========================================")
-
-	ns.On("process", func(ns *socketio.NameSpace, cfg *ProcessConfig) {
+func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
 		// Kick it off
 		glog.Infof("Received process packet")
 		proc := s.actor.Exec(cfg)
@@ -93,7 +86,9 @@ func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 		// Wire up output
 		go proc.ReadRequest(ns)
 		go proc.WriteResponse(ns)
-	})
+}
+
+func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
 	glog.Infof("Waiting for process packet")
 }
 
@@ -138,11 +133,12 @@ func (p *ProcessInstance) closeOutgoing() {
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 	ns.On("signal", func(n *socketio.NameSpace, signal int) {
+		glog.V(4).Infof("received signal %d", signal)
 		p.Signal <- signal
 	})
 
 	ns.On("stdin", func(n *socketio.NameSpace, stdin string) {
-		glog.Infof("Received stdin: %s", stdin)
+		glog.V(4).Infof("Received stdin: %s", stdin)
 		p.Stdin <- stdin
 	})
 
@@ -155,18 +151,15 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 		select {
 		case m, ok := <-p.Stdin:
 			if !ok {
-				glog.V(0).Infof("Setting stdin to nil")
 				p.Stdin = nil
-				continue
 			} else {
 				ns.Emit("stdin", m)
 			}
-		case m, ok := <-p.Signal:
+		case s, ok := <-p.Signal:
 			if !ok {
 				p.Signal = nil
-				continue
 			} else {
-				ns.Emit("signal", m)
+				ns.Emit("signal", s)
 			}
 		}
 	}
@@ -174,17 +167,17 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	ns.On("stdout", func(n *socketio.NameSpace, stdout string) {
-		glog.Infof("Process received stdout: %s", stdout)
+		glog.V(4).Infof("Process received stdout: %s", stdout)
 		p.Stdout <- stdout
 	})
 
 	ns.On("stderr", func(n *socketio.NameSpace, stderr string) {
-		glog.Infof("Process received stderr: %s", stderr)
+		glog.V(4).Infof("Process received stderr: %s", stderr)
 		p.Stderr <- stderr
 	})
 
 	ns.On("result", func(n *socketio.NameSpace, result Result) {
-		glog.Infof("Process received stderr: %s", result)
+		glog.V(0).Infof("Process received result: %s", result)
 		p.Result <- result
 	})
 	glog.V(0).Info("Hooked up outgoing events!")
@@ -193,12 +186,11 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up output channels!")
-	for p.Stdout != nil || p.Stderr != nil || p.Result != nil {
+	for p.Stdout != nil || p.Stderr != nil {
 		select {
 		case m, ok := <-p.Stdout:
 			if !ok {
 				p.Stdout = nil
-				continue
 			} else {
 				glog.Infof("Emitting stdout: %s", m)
 				ns.Emit("stdout", m)
@@ -206,35 +198,37 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 		case m, ok := <-p.Stderr:
 			if !ok {
 				p.Stderr = nil
-				continue
 			} else {
 				glog.Infof("Emitting stderr: %s", m)
 				ns.Emit("stderr", m)
 			}
-		case m, ok := <-p.Result:
-			if !ok {
-				p.Result = nil
-				continue
-			} else {
-				glog.Infof("Emitting result: %s", m)
-				ns.Emit("result", m)
-			}
 		}
 	}
+	ns.Emit("result", <-p.Result)
 }
 
 func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
+	// TODO: make me more extensible
+	urlAddr, err := url.Parse(f.addr)
+	if err != nil {
+		glog.Fatalf("Not a valid path: %s (%v)", f.addr, err)
+	}
+
+	host := fmt.Sprintf("http://%s:50000/", strings.Split(urlAddr.Host, ":")[0])
 
 	// Dial the remote ProcessServer
-	host := strings.Split(f.addr, ":")[0]
-	client, err := socketio.Dial(fmt.Sprintf("http://%s:50000/", host))
+	client, err := socketio.Dial(host)
 
 	if err != nil {
 		glog.Fatalf("Unable to contact remote process server: %v", err)
 	}
 
 	client.On("connect", func(ns *socketio.NameSpace) {
-		ns.Emit("process", cfg)
+		if ns.Session.Values[PROCESSKEY] == nil {
+			ns.Emit("process", cfg)
+		} else {
+			glog.Fatalf("Trying to connect to a stale process!")
+		}
 	})
 
 	ns := client.Of("")
@@ -259,8 +253,20 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 	return proc
 }
 
+func (f *Forwarder) onDisconnect(ns *socketio.NameSpace) {
+	ns.Session.Values[PROCESSKEY] = nil
+}
+
 func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
 	return StartDocker(cfg, e.port)
+}
+
+func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
+	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
+	// Client disconnected, so kill the process
+	inst.Signal <- int(syscall.SIGKILL)
+	inst.closeIncoming()
+	ns.Session.Values[PROCESSKEY] = nil
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {

@@ -20,6 +20,9 @@ RUN update-alternatives --set "java" "/usr/lib/jvm/java-7-openjdk-amd64/bin/java
 RUN mkdir /root/logstash
 RUN cd /root/logstash && wget https://download.elasticsearch.org/logstash/logstash/logstash-1.3.2-flatjar.jar
 
+# listen for logstash requests
+EXPOSE 5042
+
 # listen for logstash-forwarder requests
 EXPOSE 5043
 

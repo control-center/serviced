@@ -6,6 +6,10 @@ input {
 	  ssl_certificate => "/usr/local/serviced/resources/logstash/logstash-forwarder.crt"
 	  ssl_key => "/usr/local/serviced/resources/logstash/logstash-forwarder.key"
 	}
+	tcp {
+		port => 5042
+		format => "json"
+	}
 }
 
 

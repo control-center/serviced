@@ -45,6 +45,7 @@ type ProcessInstance struct {
 
 type ProcessActor interface {
 	Exec(*ProcessConfig) *ProcessInstance
+	onDisconnect(*socketio.NameSpace)
 }
 
 type Forwarder struct {

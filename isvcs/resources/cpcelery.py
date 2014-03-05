@@ -1,20 +1,26 @@
 from __future__ import absolute_import
 import time
+import math
+import random
 import datetime
-from dateutil import parser
+import socket
+import json
 
+from dateutil import parser
 from multiprocessing.util import Finalize
 from celery import Celery
 from celery import current_app
 from celery.schedules import crontab
 from celery.beat import Scheduler, ScheduleEntry
 from pyes import TermQuery, ES
-
+from socketIO_client import SocketIO
+from uuid import uuid4
 
 REDIS_URL = "redis://"  # Default is localhost:6379, which is what we want
 # Go directly to container gateway to hit CP elastic isvc. This will only
 # be true while we can guarantee isvcs running on the same box.
-ELASTIC_URL = 'http://172.17.42.1:9200'  
+ELASTIC_HOST = '172.17.42.1'
+ELASTIC_URL = 'http://%s:9200' % ELASTIC_HOST
 
 
 app = Celery("cpcelery", broker="redis://", backend="redis://")
@@ -29,11 +35,82 @@ app.conf.update(
     CELERYBEAT_MAX_LOOP_INTERVAL=5
 )
 
-@app.task
-def serviced_shell(service_id, command):
-    with open('/opt/celery/var/task_output.log', 'a') as f:
-        f.write("%s Running command: %s\n" % (datetime.datetime.utcnow().isoformat(), command))
+class LogstashLogger(object):
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.socket = None
+        self.connect()
+    def connect(self, collisions=0):
+        # random exponential backoff
+        backoff = random.random() * (math.pow(2, collisions) - 1) 
+        time.sleep(min(backoff, 600))
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.host, self.port))
+        except socket.error as err:
+            self.connect(collisions + 1)
+    def disconnect(self):
+        self.socket.shutdown(socket.SHUT_WR)
+        self.socket.close();
+    def log(self, data):
+        try:
+            data = json.dumps(data)
+            self.socket.sendall(data + "\n")
+        except socket.error as err:
+            self.connect()
+            self.log(data)
 
+class ServicedShell(object):
+    def __init__(self, logstash):
+        self.logstash = logstash
+        self.socket = None
+        self.jobid = str(uuid4())
+    def onResult(self, *args):
+        self.logstash.log({
+            "type": "celerylog",
+            "jobid": self.jobid,
+            "logtype": "exitcode",
+            "exitcode": args[0]['ExitCode']
+        })
+        self.socket.disconnect()
+        self.logstash.disconnect()
+    def onStdout(self, *args):
+        for l in args:
+            self.logstash.log({
+                "type": "celerylog",
+                "jobid": self.jobid,
+                "logtype": "stdout",
+                "stdout": str(l)
+            })
+    def onStderr(self, *args):
+        for l in args:
+            self.logstash.log({
+                "type": "celerylog",
+                "jobid": self.jobid,
+                "logtype": "stderr",
+                "stderr": str(l)
+            })
+    def run(self, service_id, command):        
+        self.logstash.log({
+            "type": "celerylog",
+            "jobid": self.jobid,
+            "logtype": "command",
+            "command": command,
+            "service_id": service_id,
+        })
+        self.socket = SocketIO(ELASTIC_HOST, 50000)
+        self.socket.on('result', self.onResult)
+        self.socket.on('stdout', self.onStdout)        
+        self.socket.on('stderr', self.onStderr)        
+        self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
+        self.socket.wait()
+
+
+@app.task()
+def serviced_shell(service_id, command):
+    s = ServicedShell(LogstashLogger(ELASTIC_HOST, 5042))
+    s.run(service_id, command)
 
 class ControlPlaneScheduleEntry(ScheduleEntry):
 
