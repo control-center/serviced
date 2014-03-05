@@ -3,7 +3,7 @@ Description=Zenoss ServiceD
 
 [Service]
 EnvironmentFile=/etc/default/serviced
-ExecStart=/usr/local/serviced/bin/serviced -agent -master
+ExecStart=/opt/serviced/bin/serviced -agent -master
 
 [Install]
 WantedBy=multi-user.target
