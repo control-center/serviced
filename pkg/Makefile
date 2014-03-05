@@ -72,7 +72,7 @@ stage: build pkgroot
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
 
 	# add serviced to the path via symlink
-	mkdir -p pkgroot/usr/bin/ && rm pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
+	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
 
 
 stage_deb: stage
