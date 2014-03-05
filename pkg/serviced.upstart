@@ -13,7 +13,7 @@ pre-start script
 end script
 
 script
-    export SERVICED_HOME=/usr/local/serviced
+    export SERVICED_HOME=/opt/serviced
     . /etc/default/serviced
 
     cd $SERVICED_HOME && ./bin/serviced -agent -master

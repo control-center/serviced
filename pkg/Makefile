@@ -22,7 +22,7 @@ services in a uniform way.
 endef
 export DESCRIPTION
 
-INSTALL_DIR=/usr/local/serviced
+INSTALL_DIR=/opt/serviced
 
 .PHONY: all clean stage deb rpm
 .SILENT: desc
@@ -70,6 +70,9 @@ stage: build pkgroot
 	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
 	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
+
+	# add serviced to the path via symlink
+	mkdir -p pkgroot/usr/bin/ && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
 
 
 stage_deb: stage
