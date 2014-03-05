@@ -35,6 +35,7 @@ import (
 	"path"
 	"strconv"
 	"time"
+	"syscall"
 
 	"github.com/zenoss/glog"
 )
@@ -224,7 +225,7 @@ func startServer() {
 
 		go func() {
 			signalChan := make(chan os.Signal, 10)
-			signal.Notify(signalChan, os.Interrupt)
+			signal.Notify(signalChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
 			glog.V(0).Info("Shutting down due to interrupt")
 			err = agent.Shutdown()
