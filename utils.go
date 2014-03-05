@@ -431,31 +431,33 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 
 	createVolumeDirMutex.Lock()
 	defer createVolumeDirMutex.Unlock()
+
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
-	// the file globbing checks that /tmp is empty before the copy - should initially be empty
+	// the file globbing checks that /mnt is empty before the copy - should initially be empty
 	//    we don't want the copy to occur multiple times if restarting services.
 
 	var err error
 	var output []byte
 	for i := 0; i < 1; i++ {
 		docker := exec.Command("docker", "run", "-rm",
-			"-v", hostPath+":/tmp",
+			"-v", hostPath+":/mnt",
 			imageSpec,
 			"/bin/sh", "-c",
 			fmt.Sprintf(`
-chown %s /tmp && \
-chmod %s /tmp && \
+chown %s /mnt && \
+chmod %s /mnt && \
 shopt -s nullglob && \
 shopt -s dotglob && \
-files=(/tmp/*) && \
+files=(/mnt/*) && \
 if [ ! -d "%s" ]; then
 	echo "ERROR: srcdir %s does not exist in container"
 	exit 2
 elif [ ${#files[@]} -eq 0 ]; then
-	cp -rp %s/* /tmp/
+	cp -rp %s/* /mnt/
 fi
+sleep 5s
 `, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
 		output, err = docker.CombinedOutput()
 		if err == nil {
