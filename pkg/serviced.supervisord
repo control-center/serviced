@@ -1,5 +1,5 @@
 [program:serviced]
 command=bin/serviced -agent -master
-directory=/usr/local/serviced
+directory=/opt/serviced
 redirect_stderr=true
 environment=
