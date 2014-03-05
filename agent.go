@@ -420,16 +420,12 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return fmt.Errorf("Unsupported owner specification: %s", owner)
 	}
 
-	// A docker run is used because the user/group may not exist on the host system. In this case,
-	// the effective uid or gid is reflected as an integer on the host system.
-	// TODO: use docker API to do this
-	cmdString := fmt.Sprintf("docker run -rm -v %s:/tmp/config.file %s /bin/sh -c 'chown %s /tmp/config.file && chmod %s /tmp/config.file'",
-		filename, dockerImage, owner, permissions)
-	glog.V(0).Infof("About to run: %s", cmdString)
-	if output, err := exec.Command("/bin/sh", "-c", cmdString).CombinedOutput(); err != nil {
-		return fmt.Errorf("config file chown error: %s", string(output))
+	uid, gid, err := getInternalImageIds(owner, dockerImage)
+	if err != nil {
+		return err
 	}
-	return nil
+	// this will fail if we are not running as root
+	return os.Chown(filename, uid, gid)
 }
 
 // Start a service instance and update the CP with the state.
