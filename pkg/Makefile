@@ -22,7 +22,7 @@ services in a uniform way.
 endef
 export DESCRIPTION
 
-INSTALL_DIR=/usr/local/serviced
+INSTALL_DIR=/opt/serviced
 
 .PHONY: all clean stage deb rpm
 .SILENT: desc
