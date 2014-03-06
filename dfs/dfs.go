@@ -307,9 +307,8 @@ func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume
 
 	// Set the tag of the new image
 	for _, image := range *images {
-		repo := fmt.Sprintf("%s:%s", image.Repository, image.Tag)
 		if err := d.dockerClient.TagImage(image.ID, docker.TagImageOptions{
-			Repo:  repo,
+			Repo:  image.Repository,
 			Force: force,
 		}); err != nil {
 			return err
@@ -338,6 +337,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	serviceId := parts[0]
 
 	// Fail if any services have running instances
+	glog.V(3).Infof("DistributedFileSystem.Rollback checking service states for service=%s", serviceId)
 	if err := d.client.GetServices(unused, &services); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
@@ -361,9 +361,9 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	}
 
 	// Validate existence of images for this snapshot
+	glog.V(3).Infof("DistributedFileSystem.Rollback validating image for service instance: %s", tenantId)
 	var service dao.Service
 	err := d.client.GetService(tenantId, &service)
-	glog.V(2).Infof("Getting service instance: %s", tenantId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		return err
@@ -386,6 +386,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
+	glog.V(3).Infof("DistributedFileSystem.Rollback retagging snapshots:%+v", snapshotImages)
 	if err := d.retag(&snapshotImages, &volume, false); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
 		if err := d.retag(&latestImages, &volume, true); err != nil {
