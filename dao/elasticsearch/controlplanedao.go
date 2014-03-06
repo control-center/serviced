@@ -550,6 +550,11 @@ func (this *ControlPlaneDao) RemoveHost(id string, unused *int) error {
 
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
+	this.walkServices(id, func(svc dao.Service) error {
+		this.zkDao.RemoveService(svc.Id)
+		return nil
+	})
+
 	glog.V(2).Infof("ControlPlaneDao.RemoveService: %s", id)
 	response, err := deleteService(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveService response: %+v", response)
@@ -557,7 +562,6 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 		glog.Errorf("Error removing service %s: %v", id, err)
 		return err
 	}
-	this.zkDao.RemoveService(id)
 	//TODO: remove AddressAssignments with this Service
 	return nil
 }
