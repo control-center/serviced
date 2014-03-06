@@ -193,9 +193,9 @@ func (a *HostAgent) dockerRemove(dockerId string) error {
 }
 
 func (a *HostAgent) dockerTerminate(dockerId string) error {
-	glog.V(1).Infof("Killing container %s", dockerId)
+	glog.V(1).Infof("Stopping container %s", dockerId)
 
-	cmd := exec.Command("docker", "kill", dockerId)
+	cmd := exec.Command("docker", "stop", dockerId)
 	killout, killerr := cmd.CombinedOutput()
 	if killerr != nil {
 		//verify dockerId no longer exists
@@ -206,11 +206,11 @@ func (a *HostAgent) dockerTerminate(dockerId string) error {
 			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
 			return nil
 		}
-		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr)
+		glog.V(1).Infof("problem stopping container instance %s, %v;%v", dockerId, string(killout), killerr)
 		return errors.New(string(killout))
 	}
 
-	glog.V(2).Infof("Successfully killed %s", dockerId)
+	glog.V(1).Infof("Successfully stopped %s", dockerId)
 	return nil
 }
 
