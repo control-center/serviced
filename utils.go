@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -375,7 +376,7 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 }
 
 var dockerRun = func(imageSpec string, args ...string) (output string, err error) {
-	targs := []string{"run", "run", "-rm", imageSpec}
+	targs := []string{"run", imageSpec}
 	for _, s := range args {
 		targs = append(targs, s)
 	}
@@ -383,6 +384,7 @@ var dockerRun = func(imageSpec string, args ...string) (output string, err error
 	var outputBytes []byte
 	outputBytes, err = docker.CombinedOutput()
 	if err != nil {
+		err = errors.New(err.Error() + " OUTPUT: " + string(outputBytes))
 		return
 	}
 	output = string(outputBytes)
@@ -393,7 +395,7 @@ var dockerRun = func(imageSpec string, args ...string) (output string, err error
 func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	var output string
 	output, err = dockerRun(imageSpec, "/bin/sh", "-c",
-		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln | awk '{ print $3 " " $4 }'`,
+		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln test.txt | awk '{ print $3, $4 }'`,
 			userSpec))
 	if err != nil {
 		return
