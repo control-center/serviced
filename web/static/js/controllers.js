@@ -1003,17 +1003,73 @@ function CeleryLogControl($scope, $routeParams, $location, resourcesService, aut
     // Ensure logged in
     authService.checkLogin($scope);
 
-    $scope.name = "hostdetails";
+    $scope.name = "celerylog";
     $scope.params = $routeParams;
 
+    $scope.logs = buildTable('Name', [
+        { id: 'JobID', name: 'celery_tbl_jobid' },
+        { id: 'Command', name: 'celery_tbl_command' },
+        { id: 'StartTime', name: 'celery_tbl_starttime' },
+        { id: 'EndTime', name: 'celery_tbl_endtime' },
+        { id: 'ExitCode', name: 'celery_tbl_exitcode' },
+    ]);
+
+    $scope.logs.data = {};
+    $scope.logs.page = 1
+
     var client = new elasticsearch.Client({host: 'localhost:9200'});
-    client.search({
-        "value-type": 'result'
-    }).then(function(body){
-        console.log(body);
+
+    var jobSearch = {
+        size: 0,
+        body: {
+            query: {
+                filtered: {
+                    query: {
+                        match_all: {}
+                    },
+                    filter: {
+                        or: [
+                            {
+                                term: {
+                                    "logtype": "command"
+                                }
+                            },
+                            {
+                                term: {
+                                    "logtype": "exitcode"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }    
+        }
+    };
+
+    // Get a count of job start and finish logs.
+    client.search(jobSearch).then(function(body) {
+        // Get them all. Double the count to add a buffer, in case some were added between queries.
+        jobSearch.size = body.hits.total*2;
+        client.search(jobSearch).then(function(body) {
+            for (var i = 0; i < body.hits.hits.length; i++) {
+                var hit = body.hits.hits[i]._source;
+                if (!(hit.jobid in $scope.logs.data)){
+                    $scope.logs.data[hit.jobid] = {};
+                    $scope.logs.data[hit.jobid].jobid = hit.jobid;
+                }
+                var result = $scope.logs.data[hit.jobid];
+                if (hit.logtype == 'command') {
+                    result.command = hit.command;
+                    result.starttime = hit['@timestamp'];
+                }
+                if (hit.logtype == 'exitcode') {
+                    result.exitcode = hit.exitcode;
+                    result.endtime = hit['@timestamp']
+                }
+            } 
+            $scope.$apply();      
+        });
     });
-
-
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
