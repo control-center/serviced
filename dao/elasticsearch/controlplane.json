@@ -134,6 +134,12 @@
         "ServiceId" :       {"type": "string", "index":"not_analyzed"},
         "EndpointName" :    {"type": "string", "index":"not_analyzed"}
       }
+    },
+	  "user": {
+      "properties":{        
+        "Name":           {"type": "string", "index":"not_analyzed"},
+        "Password":       {"type": "string", "index":"not_analyzed"}
+      }
     }
   }
 }

@@ -299,7 +299,7 @@ func TestDao_UpdateService(t *testing.T) {
 	result := dao.Service{}
 	controlPlaneDao.GetService("default", &result)
 	//XXX the time.Time types fail comparison despite being equal...
-	//    as far as I can tell this is a limitation with Go
+	//	  as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
 	if !service.Equals(&result) {
@@ -318,7 +318,7 @@ func TestDao_GetService(t *testing.T) {
 	var result dao.Service
 	err := controlPlaneDao.GetService("default", &result)
 	//XXX the time.Time types fail comparison despite being equal...
-	//    as far as I can tell this is a limitation with Go
+	//	  as far as I can tell this is a limitation with Go
 	result.UpdatedAt = service.UpdatedAt
 	result.CreatedAt = service.CreatedAt
 	if err == nil {
@@ -352,7 +352,7 @@ func TestDao_GetServices(t *testing.T) {
 	err := controlPlaneDao.GetServices(new(dao.EntityRequest), &result)
 	if err == nil && len(result) == 1 {
 		//XXX the time.Time types fail comparison despite being equal...
-		//    as far as I can tell this is a limitation with Go
+		//	  as far as I can tell this is a limitation with Go
 		result[0].UpdatedAt = service.UpdatedAt
 		result[0].CreatedAt = service.CreatedAt
 		if !result[0].Equals(service) {
@@ -901,4 +901,84 @@ func TestDao_TestingComplete(t *testing.T) {
 	controlPlaneDao.RemoveHost("1", &unused)
 	controlPlaneDao.RemoveHost("existsTest", &unused)
 	controlPlaneDao.RemoveHost(HOSTID, &unused)
+}
+
+func TestUser_UserOperations(t *testing.T) {
+	user := dao.User{
+		Name:     "Pepe",
+		Password: "Pepe",
+	}
+	id := "Pepe"
+	err = controlPlaneDao.AddUser(user, &id)
+	if err != nil {
+		t.Fatalf("Failure creating a user %s", err)
+	}
+
+	newUser := dao.User{}
+	err = controlPlaneDao.GetUser("Pepe", &newUser)
+	if err != nil {
+		t.Fatalf("Failure getting user %s", err)
+	}
+
+	// make sure they are the same user
+	if newUser.Name != user.Name {
+		t.Fatalf("Retrieved an unexpected user %v", newUser)
+	}
+
+	// make sure the password was hashed
+	if newUser.Password == "Pepe" {
+		t.Fatalf("Did not hash the password %+v", user)
+	}
+
+	unused := 0
+	err = controlPlaneDao.RemoveUser("Pepe", &unused)
+	if err != nil {
+		t.Fatalf("Failure removing user %s", err)
+	}
+}
+
+func TestUser_ValidateCredentials(t *testing.T) {
+	user := dao.User{
+		Name:     "Pepe",
+		Password: "Pepe",
+	}
+	id := "Pepe"
+	err = controlPlaneDao.AddUser(user, &id)
+	if err != nil {
+		t.Fatalf("Failure creating a user %s", err)
+	}
+	var isValid bool
+	attemptUser := dao.User{
+		Name:     "Pepe",
+		Password: "Pepe",
+	}
+	err = controlPlaneDao.ValidateCredentials(attemptUser, &isValid)
+
+	if err != nil {
+		t.Fatalf("Failure authenticating credentials %s", err)
+	}
+
+	if !isValid {
+		t.Fatalf("Unable to authenticate user credentials")
+	}
+
+	unused := 0
+	err = controlPlaneDao.RemoveUser("Pepe", &unused)
+	if err != nil {
+		t.Fatalf("Failure removing user %s", err)
+	}
+
+	// update the user
+	user.Password = "pepe2"
+	err = controlPlaneDao.UpdateUser(user, &unused)
+	if err != nil {
+		t.Fatalf("Failure creating a user %s", err)
+	}
+	attemptUser.Password = "Pepe2"
+	// make sure we can validate against the updated credentials
+	err = controlPlaneDao.ValidateCredentials(attemptUser, &isValid)
+
+	if err != nil {
+		t.Fatalf("Failure authenticating credentials %s", err)
+	}
 }

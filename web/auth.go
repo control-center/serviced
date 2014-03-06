@@ -25,7 +25,7 @@ func init() {
 	}
 }
 
-func validateLogin(creds *Login) bool {
+func pamValidateLogin(creds *Login) bool {
 	var cprog *C.char = C.CString("sudo")
 	defer C.free(unsafe.Pointer(cprog))
 	var cuser *C.char = C.CString(creds.Username)

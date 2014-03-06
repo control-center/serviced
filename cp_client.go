@@ -258,3 +258,11 @@ func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error
 	// since volume is a pointer
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
 }
+
+func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
+	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
+}
+
+func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
+	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
+}

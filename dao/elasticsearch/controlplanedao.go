@@ -22,9 +22,11 @@ import (
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -130,6 +132,7 @@ var (
 	serviceExists      func(string) (bool, error) = exists(&Pretty, "controlplane", "service")
 	serviceStateExists func(string) (bool, error) = exists(&Pretty, "controlplane", "servicestate")
 	resourcePoolExists func(string) (bool, error) = exists(&Pretty, "controlplane", "resourcepool")
+	userExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
 	//model index functions
 	newHost                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "host")
@@ -138,12 +141,14 @@ var (
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
 	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
+	newUser                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
 
 	//model index functions
 	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
 	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
 	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
 	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
+	indexUser         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
@@ -152,6 +157,7 @@ var (
 	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
 	deleteAddressAssignment      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
+	deleteUser                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
 
 	//model get functions
 	getHost                   func(string, interface{}) error = getSource("controlplane", "host")
@@ -159,6 +165,7 @@ var (
 	getServiceState           func(string, interface{}) error = getSource("controlplane", "servicestate")
 	getResourcePool           func(string, interface{}) error = getSource("controlplane", "resourcepool")
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
+	getUser                   func(string, interface{}) error = getSource("controlplane", "user")
 
 	//model search functions, using uri based query
 	searchHostUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "host")
@@ -166,7 +173,13 @@ var (
 	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
 	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
+	searchUserUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "user")
 )
+
+// each time Serviced starts up a new password will be generated. This will be passed into
+// the containers so that they can authenticate against the API
+var SYSTEM_USER_NAME = "system_user"
+var INSTANCE_PASSWORD string
 
 type ControlPlaneDao struct {
 	hostName   string
@@ -402,6 +415,28 @@ func (this *ControlPlaneDao) AddResourcePool(pool dao.ResourcePool, poolId *stri
 	return err
 }
 
+//hashPassword returns the sha-1 of a password
+func hashPassword(password string) string {
+	h := sha1.New()
+	io.WriteString(h, password)
+	return fmt.Sprintf("% x", h.Sum(nil))
+}
+
+//addUser places a new user record into elastic searchp
+func (this *ControlPlaneDao) AddUser(user dao.User, userName *string) error {
+	glog.V(2).Infof("ControlPlane.NewUser: %+v", user)
+	name := strings.TrimSpace(*userName)
+	user.Password = hashPassword(user.Password)
+
+	// save the user
+	response, err := newUser(name, user)
+	if response.Ok {
+		*userName = name
+		return nil
+	}
+	return err
+}
+
 //
 func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddHost: %+v", host)
@@ -511,6 +546,26 @@ func (this *ControlPlaneDao) UpdateHost(host dao.Host, unused *int) error {
 	return err
 }
 
+//UpdateUser updates the user entry in elastic search. NOTE: It is assumed the
+//pasword is NOT hashed when updating the user record
+func (this *ControlPlaneDao) UpdateUser(user dao.User, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.UpdateUser: %+v", user)
+
+	id := strings.TrimSpace(user.Name)
+	if id == "" {
+		return errors.New("empty User.Name not allowed")
+	}
+
+	user.Name = id
+	user.Password = hashPassword(user.Password)
+	response, err := indexUser(id, user)
+	glog.V(2).Infof("ControlPlaneDao.UpdateUser response: %+v", response)
+	if response.Ok {
+		return nil
+	}
+	return err
+}
+
 // updateService internal method to use when service has been validated
 func (this *ControlPlaneDao) updateService(service *dao.Service) error {
 	id := strings.TrimSpace(service.Id)
@@ -572,6 +627,14 @@ func (this *ControlPlaneDao) RemoveHost(id string, unused *int) error {
 	return err
 }
 
+// RemoveUser removes the user specified by the userName string
+func (this *ControlPlaneDao) RemoveUser(userName string, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.RemoveUser: %s", userName)
+	response, err := deleteUser(userName)
+	glog.V(2).Infof("ControlPlaneDao.RemoveUser response: %+v", response)
+	return err
+}
+
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RemoveService: %s", id)
@@ -607,6 +670,49 @@ func (this *ControlPlaneDao) GetHost(id string, host *dao.Host) error {
 	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
 	*host = request
 	return err
+}
+
+func (this *ControlPlaneDao) GetUser(userName string, user *dao.User) error {
+	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s", userName)
+	request := dao.User{}
+	err := getUser(userName, &request)
+	glog.V(2).Infof("ControlPlaneDao.GetHost: userName=%s, host=%+v, err=%s", userName, request, err)
+	*user = request
+	return err
+}
+
+//ValidateCredentials takes a user name and password and validates them against a stored user
+func (this *ControlPlaneDao) ValidateCredentials(user dao.User, result *bool) error {
+	glog.V(2).Infof("ControlPlaneDao.ValidateCredentials: userName=%s", user.Name)
+	storedUser := dao.User{}
+	err := this.GetUser(user.Name, &storedUser)
+	if err != nil {
+		*result = false
+		return err
+	}
+
+	// hash the passed in password
+	hashedPassword := hashPassword(user.Password)
+
+	// confirm the password
+	if storedUser.Password != hashedPassword {
+		*result = false
+		return nil
+	}
+
+	// at this point we found the user and confirmed the password
+	*result = true
+	return nil
+}
+
+//GetSystemUser returns the system user's credentials. The "unused int" is required by the RPC interface.
+func (this *ControlPlaneDao) GetSystemUser(unused int, user *dao.User) error {
+	systemUser := dao.User{
+		Name:     SYSTEM_USER_NAME,
+		Password: INSTANCE_PASSWORD,
+	}
+	*user = systemUser
+	return nil
 }
 
 //
@@ -1728,6 +1834,36 @@ func createDefaultPool(s *ControlPlaneDao) error {
 	return nil
 }
 
+//createSystemUser updates the running instance password as well as the user record in elastic
+func createSystemUser(s *ControlPlaneDao) error {
+	user := dao.User{}
+	err := s.GetUser(SYSTEM_USER_NAME, &user)
+	if err != nil {
+		glog.Errorf("%s", err)
+		glog.V(0).Info("'default' user not found; creating...")
+
+		// create the system user
+		user := dao.User{}
+		user.Name = SYSTEM_USER_NAME
+		userName := SYSTEM_USER_NAME
+
+		if err := s.AddUser(user, &userName); err != nil {
+			return err
+		}
+	}
+
+	// update the instance password
+	password, err := dao.NewUuid()
+	if err != nil {
+		return err
+	}
+	user.Name = SYSTEM_USER_NAME
+	user.Password = password
+	INSTANCE_PASSWORD = password
+	unused := 0
+	return s.UpdateUser(user, &unused)
+}
+
 func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
@@ -1735,12 +1871,6 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	s, err := NewControlPlaneDao(hostName, port)
 	if err != nil {
 		return nil, err
-	}
-
-	// make sure that the logstash config is present
-	err = s.writeLogstashConfiguration()
-	if err != nil {
-		glog.Warningf("Could not write logstash configuration: %s", err)
 	}
 
 	if err = isvcs.Mgr.Start(); err != nil {
@@ -1763,6 +1893,11 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 
 	hid, err := hostId()
 	if err != nil {
+		return nil, err
+	}
+
+	// create the account credentials
+	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
 

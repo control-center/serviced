@@ -14,6 +14,11 @@ type HostIpAndPort struct {
 	HostPort string
 }
 
+type User struct {
+	Name     string // the unique identifier for a user
+	Password string // no requirements on passwords yet
+}
+
 type MinMax struct {
 	Min int
 	Max int
