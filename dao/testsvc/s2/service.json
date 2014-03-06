@@ -1,6 +1,7 @@
 {
           "Command": "/usr/bin/python -m SimpleHTTPServer",
           "Endpoints": [{
+              "Name": "websvc",
               "Application": "websvc",
               "PortNumber": 8000,
               "Protocol": "tcp",

@@ -375,13 +375,13 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 }
 
 var dockerRun = func(imageSpec string, args ...string) (output string, err error) {
-	targs := []string{"run", "run", "-rm", imageSpec}
+	targs := []string{"run", "-rm", imageSpec}
 	for _, s := range args {
 		targs = append(targs, s)
 	}
 	docker := exec.Command("docker", targs...)
 	var outputBytes []byte
-	outputBytes, err = docker.CombinedOutput()
+	outputBytes, err = docker.Output()
 	if err != nil {
 		return
 	}
@@ -389,15 +389,36 @@ var dockerRun = func(imageSpec string, args ...string) (output string, err error
 	return
 }
 
-// TODO: refactor createVolumeDir to use this function
+type uidgid struct {
+	uid int
+	gid int
+}
+
+var userSpecCache struct {
+	lookup map[string]uidgid
+	sync.Mutex
+}
+
+
+func init() {
+	userSpecCache.lookup = make(map[string]uidgid)
+}
+
 func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
-	var output string
-	output, err = dockerRun(imageSpec, "/bin/sh", "-c",
-		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln | awk '{ print $3 " " $4 }'`,
-			userSpec))
-	if err != nil {
-		return
+
+	userSpecCache.Lock()
+	defer userSpecCache.Unlock()
+
+	key := userSpec + "!" + imageSpec
+	if val, found := userSpecCache.lookup[key]; found {
+		return val.uid, val.gid, nil
 	}
+
+	var output string
+	// explicitly ignoring errors because of -rm under load
+	output, _ = dockerRun(imageSpec, "/bin/sh", "-c",
+		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln test.txt | awk '{ print $3 " " $4 }'`,
+			userSpec))
 	s := strings.TrimSpace(string(output))
 	pattern := regexp.MustCompile(`^\d+ \d+$`)
 
@@ -418,6 +439,8 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	if err != nil {
 		return
 	}
+	// cache the results
+	userSpecCache.lookup[key] = uidgid{uid: uid, gid: gid}
 	return
 }
 
