@@ -304,7 +304,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 	if err != nil {
 		return
-		//TODO: should  "cmd" be cleaned up before returning?
+		//TODO: should	"cmd" be cleaned up before returning?
 	}
 
 	var sState *dao.ServiceState
@@ -317,7 +317,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
-		//TODO: should  "cmd" be cleaned up before returning?
+		//TODO: should	"cmd" be cleaned up before returning?
 	} else {
 
 		//start IP resource proxy for each endpoint
@@ -445,6 +445,16 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
 	}
 
+	// get the system user
+	unused := 0
+	systemUser := dao.User{}
+	err = client.GetSystemUser(unused, &systemUser)
+	if err != nil {
+		glog.Errorf("Unable to get system user account for agent %s", err)
+	}
+	glog.V(0).Infof("System User %v", systemUser)
+
+	// get the points
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
@@ -547,7 +557,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1 "
-	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store"
+	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store "
+	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name)
+	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password)
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10

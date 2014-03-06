@@ -198,4 +198,10 @@ type ControlPlane interface {
 
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error
+
+	//GetSystemUser retrieves the credentials for the system_user account
+	GetSystemUser(unused int, user *User) error
+
+	//ValidateCredentials verifies if the passed in user has the correct username and password
+	ValidateCredentials(user User, result *bool) error
 }
