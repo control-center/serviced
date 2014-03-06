@@ -416,7 +416,7 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	var output string
 	// explicitly ignoring errors because of -rm under load
 	output, _ = dockerRun(imageSpec, "/bin/sh", "-c",
-		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln test.txt | awk '{ print $3 " " $4 }'`,
+		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln test.txt | awk '{ print $3, $4 }'`,
 			userSpec))
 
 	s := strings.TrimSpace(string(output))
