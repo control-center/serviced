@@ -441,6 +441,7 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	}
 	// cache the results
 	userSpecCache.lookup[key] = uidgid{uid: uid, gid: gid}
+	time.Sleep(time.Second)
 	return
 }
 
@@ -464,7 +465,7 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	var err error
 	var output []byte
 	for i := 0; i < 1; i++ {
-		docker := exec.Command("docker", "run", "-rm",
+		docker := exec.Command("docker", "run",
 			"-v", hostPath+":/mnt",
 			imageSpec,
 			"/bin/sh", "-c",
