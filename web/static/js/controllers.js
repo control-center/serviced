@@ -1006,7 +1006,7 @@ function CeleryLogControl($scope, $routeParams, $location, resourcesService, aut
     $scope.name = "celerylog";
     $scope.params = $routeParams;
 
-    $scope.logs = buildTable('Name', [
+    $scope.logs = buildTable('StartTime', [
         { id: 'JobID', name: 'celery_tbl_jobid' },
         { id: 'Command', name: 'celery_tbl_command' },
         { id: 'StartTime', name: 'celery_tbl_starttime' },
@@ -1014,13 +1014,38 @@ function CeleryLogControl($scope, $routeParams, $location, resourcesService, aut
         { id: 'ExitCode', name: 'celery_tbl_exitcode' },
     ]);
 
-    $scope.logs.data = {};
     $scope.logs.page = 1
 
     var client = new elasticsearch.Client({host: 'localhost:9200'});
 
+    var commandSearch = {
+        size: 16,
+        body: {
+            sort: [
+                {
+                    "@timestamp": {
+                        order: "desc"
+                    }
+                }
+            ],
+            query: {
+                filtered: {
+                    query: {
+                        match_all: {}
+                    },
+                    filter: {
+                        term: {
+                            "logtype": "command"
+                        }
+                    }
+                }
+            }    
+        }
+    };
+
+    var jobids = [];
     var jobSearch = {
-        size: 0,
+        size: 32,
         body: {
             query: {
                 filtered: {
@@ -1028,45 +1053,53 @@ function CeleryLogControl($scope, $routeParams, $location, resourcesService, aut
                         match_all: {}
                     },
                     filter: {
-                        or: [
+                        and: [
                             {
-                                term: {
-                                    "logtype": "command"
+                                terms: {
+                                    "jobid.raw": jobids
                                 }
                             },
                             {
-                                term: {
-                                    "logtype": "exitcode"
+                                terms: {
+                                    "logtype.raw": [
+                                        "command",
+                                        "exitcode"
+                                    ]
                                 }
                             }
                         ]
                     }
                 }
-            }    
+            }
         }
-    };
+    }
 
     // Get a count of job start and finish logs.
-    client.search(jobSearch).then(function(body) {
-        // Get them all. Double the count to add a buffer, in case some were added between queries.
-        jobSearch.size = body.hits.total*2;
+    client.search(commandSearch).then(function(body) {
+        // Create a list of jobids for the command log lines.
+        var jobrecords = [];
+        var jobmapping = {};
+        for (var i = 0; i < body.hits.hits.length; i++) {
+            var hit = body.hits.hits[i]._source;
+            jobids.push(hit.jobid);
+            var record = {jobid: hit.jobid};
+            jobrecords.push(record);
+            jobmapping[hit.jobid] = record;
+        }
+        // Get all the commands and exitcodes associated with the jobids and fill out the records.
         client.search(jobSearch).then(function(body) {
             for (var i = 0; i < body.hits.hits.length; i++) {
                 var hit = body.hits.hits[i]._source;
-                if (!(hit.jobid in $scope.logs.data)){
-                    $scope.logs.data[hit.jobid] = {};
-                    $scope.logs.data[hit.jobid].jobid = hit.jobid;
-                }
-                var result = $scope.logs.data[hit.jobid];
                 if (hit.logtype == 'command') {
-                    result.command = hit.command;
-                    result.starttime = hit['@timestamp'];
+                    jobmapping[hit.jobid].command = hit.command;
+                    jobmapping[hit.jobid].starttime = hit['@timestamp'];
                 }
                 if (hit.logtype == 'exitcode') {
-                    result.exitcode = hit.exitcode;
-                    result.endtime = hit['@timestamp']
+                    jobmapping[hit.jobid].exitcode = hit.exitcode;
+                    jobmapping[hit.jobid].endtime = hit['@timestamp']
                 }
             } 
+            $scope.logs.data = jobrecords;
             $scope.$apply();      
         });
     });
