@@ -34,8 +34,8 @@ import (
 	"os/user"
 	"path"
 	"strconv"
-	"time"
 	"syscall"
+	"time"
 
 	"github.com/zenoss/glog"
 )
@@ -124,7 +124,7 @@ func init() {
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
-	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
+	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
