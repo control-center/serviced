@@ -158,19 +158,51 @@ func (cli *ServicedCli) CmdRemoveTemplate(args ...string) error {
 
 // Deploy a service template into the given pool
 func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
+	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID DEPLOYMENT_ID", "Deploy TEMPLATE_ID into POOL_ID with a new id DEPLOYMENT_ID optional NO_AUTO_ASSIGN_IPS")
 
-	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID DEPLOYMENT_ID", "Deploy TEMPLATE_ID into POOL_ID with a new id DEPLOYMENT_ID")
+	var autoAssignIps bool
+	cmd.BoolVar(&autoAssignIps, "noAutoAssignIps", true, "flag determining whether or not to set IPs automatically")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+	glog.V(1).Infof("Received %v arguments", len(cmd.Args()))
+	if len(cmd.Args()) != 3 {
+		cmd.Usage()
+		return nil
+	}
 
-	deployreq := dao.ServiceTemplateDeploymentRequest{cmd.Arg(1), cmd.Arg(0), cmd.Arg(2)}
+	deployreq := dao.ServiceTemplateDeploymentRequest{
+		PoolId:       cmd.Arg(1),
+		TemplateId:   cmd.Arg(0),
+		DeploymentId: cmd.Arg(2),
+	}
 
 	var unused int
-	if err := getClient().DeployTemplate(deployreq, &unused); err != nil {
+	controlPlane := getClient()
+	if err := controlPlane.DeployTemplate(deployreq, &unused); err != nil {
 		glog.Fatalf("Could not deploy service template: %v", err)
 	}
-	fmt.Println("OK")
+	glog.V(1).Infof("OK")
+
+	if autoAssignIps {
+		var services []*dao.Service
+		if err := controlPlane.GetServices(&empty, &services); err != nil {
+			glog.Fatalf("Could not get services: %v", err)
+		}
+
+		tenantId := "" 
+		if err := controlPlane.GetTenantId(services[0].Id, &tenantId); err != nil {
+			glog.Fatalf("Could not obtain tenant Id: %v", err)
+			return err
+		}
+
+		if err := cli.CmdAutoAssignIps(tenantId); err != nil {
+			glog.Fatalf("Could not automatically assign IPs: %v", err)
+			return err
+		}
+		glog.Infof("Automatically assigned IP addresses to service: %v", tenantId)
+	}
 
 	return nil
 }
