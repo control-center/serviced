@@ -166,7 +166,7 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
-	fmt.Println("Received %v arguments", len(cmd.Args()))
+	glog.V(1).Infof("Received %v arguments", len(cmd.Args()))
 	if len(cmd.Args()) != 3 {
 		cmd.Usage()
 		return nil
@@ -183,7 +183,7 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 	if err := controlPlane.DeployTemplate(deployreq, &unused); err != nil {
 		glog.Fatalf("Could not deploy service template: %v", err)
 	}
-	fmt.Println("OK")
+	glog.V(1).Infof("OK")
 
 	if autoAssignIps {
 		var services []*dao.Service
@@ -201,6 +201,7 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 			glog.Fatalf("Could not automatically assign IPs: %v", err)
 			return err
 		}
+		glog.Infof("Automatically assigned IP addresses to service: %v", tenantId)
 	}
 
 	return nil
