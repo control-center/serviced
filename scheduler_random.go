@@ -1,6 +1,8 @@
 package serviced
 
 import (
+	"path"
+
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
@@ -179,6 +181,15 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 		_, _, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceId))
 
 		glog.V(1).Info("Leader watching for changes to service ", service.Name)
+
+		switch exists, _, err := conn.Exists(path.Join("/services", serviceId)); {
+		case err != nil:
+			glog.Errorf("conn.Exists failed (%v)", err)
+			return
+		case exists == false:
+			glog.V(2).Infof("no /service node for: %s", serviceId)
+			return
+		}
 
 		// check current state
 		var serviceStates []*dao.ServiceState
