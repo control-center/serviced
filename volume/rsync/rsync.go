@@ -60,6 +60,21 @@ func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	return conn, nil
 }
 
+// List lists all of the folders at given root dir
+func (d *RsyncDriver) List(rootDir string) (result []string) {
+	if files, err := ioutil.ReadDir(rootDir); err != nil {
+		glog.Errorf("Error trying to read from root directory: %s", rootDir)
+	} else {
+		for _, fi := range files {
+			if fi.IsDir() {
+				result = append(result, fi.Name())
+			}
+		}
+	}
+
+	return
+}
+
 // Name provides the name of the subvolume
 func (c *RsyncConn) Name() string {
 	return c.name

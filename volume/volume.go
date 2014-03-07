@@ -16,6 +16,7 @@ var (
 
 type Driver interface {
 	Mount(volumeName, root string) (Conn, error)
+	List(root string) []string
 }
 
 type Conn interface {
