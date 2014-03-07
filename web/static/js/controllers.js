@@ -1014,7 +1014,7 @@ function CeleryLogControl($scope, authService) {
         { id: 'ExitCode', name: 'celery_tbl_exitcode' },
     ]);
 
-    window.client = $scope.client = new elasticsearch.Client({host: 'localhost:9200'});
+    $scope.client = new elasticsearch.Client({host: 'localhost:9200'});
 
     $scope.commandQuery = function() {
         return {
@@ -1044,7 +1044,7 @@ function CeleryLogControl($scope, authService) {
         };
     };
 
-    window.exitquery = $scope.exitQuery = function(jobids) {
+    $scope.exitQuery = function(jobids) {
         return {
             size: 32,
             body: {
@@ -1073,7 +1073,7 @@ function CeleryLogControl($scope, authService) {
         };
     };
 
-    window.buildpage = $scope.buildPage = function() {
+    $scope.buildPage = function() {
         var jobids = [];
         var jobrecords = [];
         var jobmapping = {};
