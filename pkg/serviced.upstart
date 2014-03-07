@@ -10,6 +10,8 @@ pre-start script
     echo "$(date): waiting for docker"
     while ! pgrep -fl /usr/bin/docker; do date ; sleep 1 ; done
     echo "$(date): docker is now ready - done with pre-start"
+    sleep 1s
+    /sbin/ifconfig
 end script
 
 script
