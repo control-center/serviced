@@ -70,17 +70,32 @@ func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
 	}
 
 	if node.subSvcs != nil {
-		subSvcs := make(byStubName, 0, len(node.subSvcs))
+		subSvcsNoSubSvcs := make(byStubName, 0, len(node.subSvcs))
 		for _, svc := range node.subSvcs {
-			subSvcs = append(subSvcs, svc)
+			if len(svc.subSvcs) == 0 {
+				subSvcsNoSubSvcs = append(subSvcsNoSubSvcs, svc)
+			}
 		}
-		sort.Sort(byStubName(subSvcs))
+		sort.Sort(byStubName(subSvcsNoSubSvcs))
 
-		i := 0
-		for _, s := range subSvcs {
-			i = i + 1
-			s.treePrintBody(indent, false, i == len(subSvcs), raw)
+		subSvcsHasSubSvcs := make(byStubName, 0, len(node.subSvcs))
+		for _, svc := range node.subSvcs {
+			if len(svc.subSvcs) != 0 {
+				subSvcsHasSubSvcs = append(subSvcsHasSubSvcs, svc)
+			}
 		}
+		sort.Sort(byStubName(subSvcsHasSubSvcs))
+
+		treePrintSubSvcs := func(subSvcs byStubName, indent string, raw bool) {
+			i := 0
+			for _, s := range subSvcs {
+				i = i + 1
+				s.treePrintBody(indent, false, i == len(subSvcs), raw)
+			}
+		}
+
+		treePrintSubSvcs(subSvcsNoSubSvcs, indent, raw)
+		treePrintSubSvcs(subSvcsHasSubSvcs, indent, raw)
 	}
 }
 
