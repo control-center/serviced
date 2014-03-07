@@ -1,0 +1,39 @@
+
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    
+    <div class="details">
+      <div class="details-form">
+        <div class="vertical-info">
+          <label for="celery_log_page">Page {{page}} of {{pageCount}}</label>
+          <button class="btn btn-default" ng-disabled="leftDisabled" ng-click="pageLeft()">
+            <span class="glyphicon glyphicon-chevron-left"></span>
+          </button> 
+          <button class="btn btn-default" ng-disabled="rightDisabled" ng-click="pageRight()">
+            <span class="glyphicon glyphicon-chevron-right"></span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+      <table class="table table-striped table-bordered table-hover side-flush">
+        <thead>
+          <tr>
+            <th ng-repeat="header in logs.headers">{{header.name|translate}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="log in logs.data">
+            <td>{{log.jobid}}</td>
+            <td>{{log.command}}</td>
+            <td>{{log.starttime}}</td>
+            <td>{{log.endtime}}</td>
+            <td>{{log.exitcode}}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+
+    <div ng-include="'/static/partials/edit-config.html'"></div>
+    <div ng-include="'/static/partials/view-log.html'"></div>
+
