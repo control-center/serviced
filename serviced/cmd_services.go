@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"sort"
 	"syscall"
 	"unicode/utf8"
 )
@@ -67,11 +68,18 @@ func (node *svcStub) treePrintBody(indent string, root, last, raw bool) {
 			s.Launch,
 			s.DeploymentId)
 	}
+
 	if node.subSvcs != nil {
+		subSvcs := make(byStubName, 0, len(node.subSvcs))
+		for _, svc := range node.subSvcs {
+			subSvcs = append(subSvcs, svc)
+		}
+		sort.Sort(byStubName(subSvcs))
+
 		i := 0
-		for _, s := range node.subSvcs {
+		for _, s := range subSvcs {
 			i = i + 1
-			s.treePrintBody(indent, false, i == len(node.subSvcs), raw)
+			s.treePrintBody(indent, false, i == len(subSvcs), raw)
 		}
 	}
 }
@@ -114,6 +122,13 @@ type svcStub struct {
 	value   *dao.Service
 	subSvcs map[string]*svcStub
 }
+
+// byStubName provides svcStub sort interface functions
+type byStubName []*svcStub
+
+func (v byStubName) Len() int           { return len(v) }
+func (v byStubName) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v byStubName) Less(i, j int) bool { return v[i].value.Name < v[j].value.Name }
 
 // Adds a Service object to the given svcStub.
 func (svcMap *svcStub) add(s *dao.Service) {
