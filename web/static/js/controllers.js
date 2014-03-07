@@ -1135,6 +1135,7 @@ function CeleryLogControl($scope, authService) {
                 } 
                 $scope.logs.data = jobrecords;
                 $scope.$apply();
+                $("abbr.timeago").timeago();
             });
         });
     };

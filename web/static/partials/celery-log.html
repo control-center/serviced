@@ -20,10 +20,10 @@
         </thead>
         <tbody>
           <tr ng-repeat="log in logs.data">
-            <td ng-click='click_jobid(log.jobid)' class='link' style='font-family: monospace;'>{{log.jobid_short}}</td>
+            <td ng-click='click_jobid(log.jobid)' class='link'>{{log.jobid_short}}</td>
             <td>{{log.command}}</td>
-            <td>{{log.starttime}}</td>
-            <td>{{log.endtime}}</td>
+            <td><abbr class='timeago' title='{{log.starttime}}'></td>
+            <td><abbr class='timeago' title='{{log.endtime}}'></td>
             <td>{{log.exitcode}}</td>
           </tr>
         </tbody>
