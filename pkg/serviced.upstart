@@ -4,6 +4,8 @@ start on (filesystem and started docker and started lxc-net)
 stop on run level [!2345]
 kill timeout 60
 
+limit nofile 65536 65536
+
 # this pre-start script is necessary because the above start on
 # directive to wait for docker and lxc-net is not working
 pre-start script
