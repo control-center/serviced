@@ -6,6 +6,7 @@
 #include <security/pam_appl.h>
 
 #define _CP_MAX_GROUPS 100
+#define _CP_ROOT "root"
 #define _CP_WHEEL "wheel"
 #define _CP_SUDO "sudo"
 #define _CP_SUCCESS    0
@@ -61,7 +62,7 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
                 if (gr == NULL) {
                         break;
                 }
-                if (strcmp(_CP_WHEEL, gr->gr_name) == 0 || strcmp(_CP_SUDO, gr->gr_name) == 0) {
+                if (strcmp(_CP_WHEEL, gr->gr_name) == 0 || strcmp(_CP_SUDO, gr->gr_name) == 0 || strcmp(_CP_ROOT, gr->gr_name) == 0) {
                         found_wheel = 1;
                         break;
                 }
