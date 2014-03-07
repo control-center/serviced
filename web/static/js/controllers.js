@@ -999,12 +999,12 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 }
 
-function CeleryLogControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function CeleryLogControl($scope, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "celerylog";
-    $scope.params = $routeParams;
+    $scope.page = 1;
 
     $scope.logs = buildTable('StartTime', [
         { id: 'JobID', name: 'celery_tbl_jobid' },
@@ -1014,95 +1014,115 @@ function CeleryLogControl($scope, $routeParams, $location, resourcesService, aut
         { id: 'ExitCode', name: 'celery_tbl_exitcode' },
     ]);
 
-    $scope.logs.page = 1
+    window.client = $scope.client = new elasticsearch.Client({host: 'localhost:9200'});
 
-    var client = new elasticsearch.Client({host: 'localhost:9200'});
-
-    var commandSearch = {
-        size: 16,
-        body: {
-            sort: [
-                {
-                    "@timestamp": {
-                        order: "desc"
-                    }
-                }
-            ],
-            query: {
-                filtered: {
-                    query: {
-                        match_all: {}
-                    },
-                    filter: {
-                        term: {
-                            "logtype": "command"
+    $scope.commandQuery = function() {
+        return {
+            body: {
+                size: 16,
+                from: ($scope.page - 1) * 16,
+                sort: [
+                    {
+                        "@timestamp": {
+                            order: "desc"
                         }
                     }
-                }
-            }    
-        }
+                ],
+                query: {
+                    filtered: {
+                        query: {
+                            match_all: {}
+                        },
+                        filter: {
+                            term: {
+                                "logtype": "command"
+                            }
+                        }
+                    }
+                }    
+            }
+        };
     };
 
-    var jobids = [];
-    var jobSearch = {
-        size: 32,
-        body: {
-            query: {
-                filtered: {
-                    query: {
-                        match_all: {}
-                    },
-                    filter: {
-                        and: [
-                            {
-                                terms: {
-                                    "jobid.raw": jobids
+    window.exitquery = $scope.exitQuery = function(jobids) {
+        return {
+            size: 32,
+            body: {
+                query: {
+                    filtered: {
+                        query: {
+                            match_all: {}
+                        },
+                        filter: {
+                            and: [
+                                {
+                                    terms: {
+                                        "jobid.raw": jobids
+                                    }
+                                },
+                                {
+                                    term: {
+                                        "logtype.raw": "exitcode"
+                                    }
                                 }
-                            },
-                            {
-                                terms: {
-                                    "logtype.raw": [
-                                        "command",
-                                        "exitcode"
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
+                            ]
+                        }
+                    }          
+                }            // Not sure if I should be proud or ashamed of this.
             }
-        }
-    }
+        };
+    };
 
-    // Get a count of job start and finish logs.
-    client.search(commandSearch).then(function(body) {
-        // Create a list of jobids for the command log lines.
+    window.buildpage = $scope.buildPage = function() {
+        var jobids = [];
         var jobrecords = [];
         var jobmapping = {};
-        for (var i = 0; i < body.hits.hits.length; i++) {
-            var hit = body.hits.hits[i]._source;
-            jobids.push(hit.jobid);
-            var record = {jobid: hit.jobid};
-            jobrecords.push(record);
-            jobmapping[hit.jobid] = record;
-        }
-        // Get all the commands and exitcodes associated with the jobids and fill out the records.
-        client.search(jobSearch).then(function(body) {
+        // Get a count of job start and finish logs.
+        $scope.client.search($scope.commandQuery()).then(function(body) {
+            $scope.pageCount = Math.ceil(body.hits.total/16);
+            $scope.leftDisabled = false;
+            $scope.rightDisabled = false;
+            if ($scope.page == 1) {
+                $scope.leftDisabled = true;
+            }
+            if ($scope.page == $scope.pageCount) {
+                $scope.rightDisabled = true;
+            }
+            // Create a list of jobids for the command log lines.
             for (var i = 0; i < body.hits.hits.length; i++) {
                 var hit = body.hits.hits[i]._source;
-                if (hit.logtype == 'command') {
-                    jobmapping[hit.jobid].command = hit.command;
-                    jobmapping[hit.jobid].starttime = hit['@timestamp'];
-                }
-                if (hit.logtype == 'exitcode') {
+                jobids.push(hit.jobid);
+                var record = {jobid: hit.jobid};
+                record.command = hit.command;
+                record.starttime = hit['@timestamp'];
+                jobrecords.push(record);
+                jobmapping[hit.jobid] = record;
+            }
+            // Get all the exitcodes associated with the jobids and fill out the records.
+            $scope.client.search($scope.exitQuery(jobids)).then(function(body) {
+                for (var i = 0; i < body.hits.hits.length; i++) {
+                    var hit = body.hits.hits[i]._source;
                     jobmapping[hit.jobid].exitcode = hit.exitcode;
-                    jobmapping[hit.jobid].endtime = hit['@timestamp']
-                }
-            } 
-            $scope.logs.data = jobrecords;
-            $scope.$apply();      
+                    jobmapping[hit.jobid].endtime = hit['@timestamp'];
+                } 
+                $scope.logs.data = jobrecords;
+                $scope.$apply();
+            });
         });
-    });
+    };
+
+    $scope.pageLeft = function() {
+        $scope.page--;
+        $scope.buildPage();
+    }
+
+    $scope.pageRight = function() {
+        $scope.page++;
+        $scope.buildPage();
+    }
+
+    $scope.buildPage();
+
 }
 
 function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
