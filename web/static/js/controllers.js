@@ -1044,6 +1044,33 @@ function CeleryLogControl($scope, authService) {
         };
     };
 
+    $scope.jobQuery = function(jobid, size) {
+        return {
+            body: {
+                size: size,
+                sort: [
+                    {
+                        "@timestamp": {
+                            order: "asc"
+                        }
+                    }
+                ],
+                query: {
+                    filtered: {
+                        query: {
+                            match_all: {}
+                        },
+                        filter: {
+                            term: {
+                                "jobid.raw": jobid
+                            }
+                        }
+                    }
+                }    
+            }
+        };
+    };
+
     $scope.exitQuery = function(jobids) {
         return {
             size: 32,
@@ -1068,7 +1095,7 @@ function CeleryLogControl($scope, authService) {
                             ]
                         }
                     }          
-                }            // Not sure if I should be proud or ashamed of this.
+                }            
             }
         };
     };
@@ -1093,6 +1120,7 @@ function CeleryLogControl($scope, authService) {
                 var hit = body.hits.hits[i]._source;
                 jobids.push(hit.jobid);
                 var record = {jobid: hit.jobid};
+                record.jobid_short = record.jobid.slice(0,8) + '...';
                 record.command = hit.command;
                 record.starttime = hit['@timestamp'];
                 jobrecords.push(record);
@@ -1119,6 +1147,31 @@ function CeleryLogControl($scope, authService) {
     $scope.pageRight = function() {
         $scope.page++;
         $scope.buildPage();
+    }
+
+    $scope.click_jobid = function(jobid) {
+        $scope.client.search($scope.jobQuery(jobid, 0)).then(function(count) {
+            $scope.client.search($scope.jobQuery(jobid, count.hits.total)).then(function(body) {
+                $scope.loglines = "";
+                for (var i = 0; i < body.hits.hits.length; i++) {
+                    var hit = body.hits.hits[i]._source;
+                    if (hit.logtype == "command") {
+                        $scope.loglines += hit.command + "\n";
+                    }
+                    else if (hit.logtype == "stdout") {
+                        $scope.loglines += hit.stdout;
+                    }
+                    else if (hit.logtype == "stderr") {
+                        $scope.loglines += hit.stderr;
+                    }
+                    else if (hit.logtype == "exitcode") {
+                        $scope.loglines += hit.exitcode;
+                    }
+                }
+                $scope.$apply();
+                $('#jobs-log-modal').modal('show');
+            });
+        });
     }
 
     $scope.buildPage();
