@@ -5,8 +5,6 @@
 package btrfs
 
 import (
-	"github.com/zenoss/glog"
-
 	"io/ioutil"
 	"log"
 	"os"
@@ -41,67 +39,59 @@ func TestBtrfsVolume(t *testing.T) {
 		t.Skip("Skipping BTRFS tests because btrfs-tools were not found in the path")
 	}
 
-	glog.Infof("Using '%s' as btrfs test volume, use env '%s' to override.",
+	t.Logf("Using '%s' as btrfs test volume, use env '%s' to override.",
 		btrfsTestVolumePath, btrfsTestVolumePathEnv)
 
 	if err := os.MkdirAll(btrfsTestVolumePath, 0775); err != nil {
-		log.Printf("Could not create test volume path: %s : %s", btrfsTestVolumePath, err)
-		t.FailNow()
+		t.Fatalf("Could not create test volume path: %s : %s", btrfsTestVolumePath, err)
 	}
 
 	btrfsd, err := New()
 	if err != nil {
-		t.Fatal("Unable to create btrfs driver: %v", err)
+		t.Fatalf("Unable to create btrfs driver: %v", err)
 	}
 
 	if c, err := btrfsd.Mount("unittest", btrfsTestVolumePath); err != nil {
-		log.Printf("Could not create volume object :%s", err)
-		t.FailNow()
+		t.Fatalf("Could not create volume object :%s", err)
 	} else {
 		testFile := "/var/lib/serviced/unittest/test.txt"
 		testData := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		testData2 := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 		if err := ioutil.WriteFile(testFile, testData, 0664); err != nil {
-			log.Printf("Could not write out test file: %s", err)
-			t.FailNow()
+			t.Fatalf("Could not write out test file: %s", err)
 		}
 
 		label := "unittest_foo"
 		if err := c.Snapshot(label); err != nil {
-			log.Printf("Could not snapshot: %s", err)
-			t.FailNow()
+			t.Fatalf("Could not snapshot: %s", err)
 		}
 
 		if err := ioutil.WriteFile(testFile, testData2, 0664); err != nil {
-			log.Printf("Could not write out test file 2: %s", err)
-			t.FailNow()
+			t.Errorf("Could not write out test file 2: %s", err)
 		}
 
 		snapshots, _ := c.Snapshots()
-		log.Printf("Found %v", snapshots)
+		t.Logf("Found %v", snapshots)
 
-		log.Printf("About to rollback %s", label)
+		t.Logf("About to rollback %s", label)
 		if err := c.Rollback(label); err != nil {
-			log.Printf("Could not roll back: %s", err)
-			t.FailNow()
+			t.Fatalf("Could not roll back: %s", err)
 		}
 
 		if output, err := ioutil.ReadFile(testFile); err != nil {
-			log.Printf("Could not read back test file: %s", err)
-			t.FailNow()
+			t.Fatalf("Could not read back test file: %s", err)
 		} else {
 			if !reflect.DeepEqual(output, testData) {
-				log.Printf("testdata: %v", testData)
-				log.Printf("readdata: %v", output)
+				t.Logf("testdata: %v", testData)
+				t.Logf("readdata: %v", output)
 				t.FailNow()
 			}
 		}
 
 		log.Printf("About to remove snapshot %s", label)
 		if err := c.RemoveSnapshot(label); err != nil {
-			log.Printf("Could not remove %s: %s", label, err)
-			t.FailNow()
+			t.Fatalf("Could not remove %s: %s", label, err)
 		}
 
 	}
