@@ -92,7 +92,6 @@ deb: stage_deb
 		-v $(PKG_VERSION) \
 		-s dir \
 		-d apparmor-utils \
-		-d cgroup-lite \
 		-d 'lxc-docker > 0.8.0' \
 		--after-install aa-workaround.sh \
 		-t deb \
