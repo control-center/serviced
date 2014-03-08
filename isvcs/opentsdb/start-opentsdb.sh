@@ -7,6 +7,11 @@ export COMPRESSION=NONE
 export HBASE_HOME=/opt/hbase-$HBASE_VERSION
 export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
 
+echo "Clearing HBase (temporary) fix for ZEN-10492"
+if [ -d /opt/zenoss/var/hbase ] ; then
+    rm -rf /opt/zenoss/var/hbase
+fi
+
 echo "Starting HBase..."
 /opt/hbase-$HBASE_VERSION/bin/start-hbase.sh 
 
