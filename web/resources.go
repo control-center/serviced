@@ -32,8 +32,8 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 		RestBadRequest(w)
 		return
 	}
-	var unused int
-	err = client.DeployTemplate(payload, &unused)
+	var tenantId string
+	err = client.DeployTemplate(payload, &tenantId)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
 		RestServerError(w)
@@ -41,20 +41,7 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	}
 	glog.V(0).Info("Deployed template ", payload)
 
-	// The following 3 methods are required to automatically assign IPs to services requiring them
 	// TODO: the UI needs a way to disable that automatic IP assignment (see CmdDeployTemplate)
-	var services []*dao.Service
-	if err := client.GetServices(&empty, &services); err != nil {
-		glog.Error("Could not get services: %v", err)
-		return
-	}
-
-	tenantId := "" 
-	if err := client.GetTenantId(services[0].Id, &tenantId); err != nil {
-		glog.Error("Could not obtain tenant Id: %v", err)
-		return
-	}
-
 	assignmentRequest := dao.AssignmentRequest{tenantId, "", true}
 	if err := client.AssignIPs(assignmentRequest, nil); err != nil {
 		glog.Error("Could not automatically assign IPs: %v", err)

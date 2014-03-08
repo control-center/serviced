@@ -680,7 +680,7 @@ func (this *ControlPlaneDao) GetUser(userName string, user *dao.User) error {
 	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s", userName)
 	request := dao.User{}
 	err := getUser(userName, &request)
-	glog.V(2).Infof("ControlPlaneDao.GetHost: userName=%s, host=%+v, err=%s", userName, request, err)
+	glog.V(2).Infof("ControlPlaneDao.GetHost: userName=%s, user=%+v, err=%s", userName, request, err)
 	*user = request
 	return err
 }
@@ -1244,7 +1244,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 	return this.zkDao.TerminateHostService(request.HostId, request.ServiceStateId)
 }
 
-func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, unused *int) error {
+func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
 	var wrapper dao.ServiceTemplateWrapper
 	err := getServiceTemplateWrapper(request.TemplateId, &wrapper)
 
@@ -1268,19 +1268,19 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId)
+	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string, deploymentId string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parent, volumes, deploymentId); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parent string, volumes map[string]string, deploymentId string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
@@ -1312,7 +1312,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
-	svc.ParentServiceId = parent
+	svc.ParentServiceId = parentServiceId
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = sd.Volumes
@@ -1344,7 +1344,10 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId)
+	if parentServiceId == "" {
+		*tenantId = svc.Id
+	}
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
 func (this *ControlPlaneDao) AddServiceDeployment(deployment dao.ServiceDeployment, unused *int) error {

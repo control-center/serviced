@@ -185,8 +185,8 @@ func (s *ControlClient) RemoveHostFromResourcePool(poolHost dao.PoolHost, unused
 	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
 }
 
-func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
+func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantId)
 }
 
 func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
