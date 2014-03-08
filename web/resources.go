@@ -32,8 +32,8 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 		RestBadRequest(w)
 		return
 	}
-	var rootServiceId string
-	err = client.DeployTemplate(payload, &rootServiceId)
+	var tenantId string
+	err = client.DeployTemplate(payload, &tenantId)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
 		RestServerError(w)
@@ -42,13 +42,13 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	glog.V(0).Info("Deployed template ", payload)
 
 	// TODO: the UI needs a way to disable that automatic IP assignment (see CmdDeployTemplate)
-	assignmentRequest := dao.AssignmentRequest{rootServiceId, "", true}
+	assignmentRequest := dao.AssignmentRequest{tenantId, "", true}
 	if err := client.AssignIPs(assignmentRequest, nil); err != nil {
 		glog.Error("Could not automatically assign IPs: %v", err)
 		return
 	}
 
-	glog.Infof("Automatically assigned IP addresses to service: %v", rootServiceId)
+	glog.Infof("Automatically assigned IP addresses to service: %v", tenantId)
 	// end of automatic IP assignment
 
 	w.WriteJson(&SimpleResponse{"Deployed app template", servicesLinks()})
