@@ -146,7 +146,7 @@ type ControlPlane interface {
 	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
+	DeployTemplate(request ServiceTemplateDeploymentRequest, rootServiceId *string) error
 
 	// Add a new service Template
 	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
