@@ -19,11 +19,56 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
+)
 
-	/*
-		clientlib "github.com/zenoss/serviced/client"
-		"github.com/zenoss/serviced/proxy"
-	*/)
+// mapImageNames translates values of service.ImageId using the mapping.
+func mapImageNames(service *dao.ServiceDefinition, mapping map[string]string) {
+	if _, found := mapping[service.ImageId]; found {
+		service.ImageId = mapping[service.ImageId]
+	}
+	for i, _ := range service.Services {
+		mapImageNames(&service.Services[i], mapping)
+	}
+}
+
+// CmdCompileTemplate traverses the given directory of service definitions
+// and prints the generated json struct to stdout.
+func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
+	cmd := Subcmd("compile-template", "[OPTIONS] DIR", "Read the given directory of service definitions compile to a single json struct")
+
+	imageMappings := make(ListOpts, 0)
+	cmd.Var(&imageMappings, "map", "Map a given image name to another (e.g. -map zenoss/zenoss5x:quay.io/zenoss-core:alpha2 )")
+
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	mapping := make(map[string]string)
+	for _, spec := range imageMappings {
+		parts := strings.Split(spec, ":")
+		if len(parts) != 2 {
+			glog.Fatalf("invalid mapping spec: %s", spec)
+		}
+		mapping[parts[0]] = parts[1]
+	}
+
+	template, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+	mapImageNames(template, mapping)
+	output, err := json.MarshalIndent(template, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(output))
+	return nil
+}
 
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
