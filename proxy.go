@@ -166,8 +166,8 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 
 	var remote net.Conn
 
-	glog.Infof("Dialing hostAgent:%v to proxy %v<->%v",
-		remoteAddr, local.LocalAddr(), address)
+	glog.Infof("Dialing hostAgent:%v to proxy %v<->%v<->%v",
+		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
 	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", remoteAddr, &config)
