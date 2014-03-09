@@ -38,7 +38,7 @@ func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
 	cmd := Subcmd("compile-template", "[OPTIONS] DIR", "Read the given directory of service definitions compile to a single json struct")
 
 	imageMappings := make(ListOpts, 0)
-	cmd.Var(&imageMappings, "map", "Map a given image name to another (e.g. -map zenoss/zenoss5x:quay.io/zenoss-core:alpha2 )")
+	cmd.Var(&imageMappings, "map", "Map a given image name to another (e.g. -map zenoss/zenoss5x,quay.io/zenoss-core:alpha2 )")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
@@ -50,7 +50,7 @@ func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
 
 	mapping := make(map[string]string)
 	for _, spec := range imageMappings {
-		parts := strings.Split(spec, ":")
+		parts := strings.Split(spec, ",")
 		if len(parts) != 2 {
 			glog.Fatalf("invalid mapping spec: %s", spec)
 		}
