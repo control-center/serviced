@@ -25,6 +25,30 @@ import (
 		"github.com/zenoss/serviced/proxy"
 	*/)
 
+// CmdCompileTemplate traverses the given directory of service definitions
+// and prints the generated json struct to stdout.
+func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
+	cmd := Subcmd("compile-template", "DIR", "Read the given directory of service definitions compile to a single json struct")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	template, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+	output, err := json.MarshalIndent(template, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(output))
+	return nil
+}
+
 // List the service templates associated with the control plane.
 func (cli *ServicedCli) CmdTemplates(args ...string) error {
 	cmd := Subcmd("templates", "[OPTIONS]", "List templates")
