@@ -185,6 +185,14 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 
 	glog.Infof("Using   hostAgent:%v to proxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
-	go io.Copy(local, remote)
-	go io.Copy(remote, local)
+	go func() {
+		defer local.Close()
+		defer remote.Close()
+		io.Copy(local, remote)
+	}()
+	go func() {
+		defer local.Close()
+		defer remote.Close()
+		io.Copy(remote, local)
+	}()
 }
