@@ -277,7 +277,9 @@ func main() {
 			cli.CmdHelp(flag.Args()...)
 			flag.Usage()
 		} else {
-			ParseCommands(flag.Args()...)
+			if err := ParseCommands(flag.Args()...); err != nil {
+				glog.Fatalf("%s", err)
+			}
 		}
 	}
 	glog.Flush()
