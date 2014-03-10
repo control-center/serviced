@@ -1005,6 +1005,7 @@ function CeleryLogControl($scope, authService) {
 
     $scope.name = "celerylog";
     $scope.page = 1;
+    $scope.pageCount = 1;
 
     $scope.logs = buildTable('StartTime', [
         { id: 'JobID', name: 'celery_tbl_jobid' },
@@ -1107,6 +1108,7 @@ function CeleryLogControl($scope, authService) {
         // Get a count of job start and finish logs.
         $scope.client.search($scope.commandQuery()).then(function(body) {
             $scope.pageCount = Math.ceil(body.hits.total/16);
+            console.log($scope.pageCount);
             $scope.leftDisabled = false;
             $scope.rightDisabled = false;
             if ($scope.page == 1) {
