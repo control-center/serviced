@@ -16,6 +16,7 @@ pkg/pkgroot/
 pkg/serviced-0.1.0-1.x86_64.rpm
 pkg/serviced_0.1.0_amd64.deb
 isvcs/images/
+pkg/templates/
 
 # emacs tags file
 TAGS

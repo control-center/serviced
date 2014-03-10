@@ -22,19 +22,21 @@ func init() {
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageId: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
-					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+					"/etc/my.cnf": ConfigFile{Owner: "root:root", Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
 				Endpoints: []ServiceEndpoint{
 					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
+						Name: "www",
 						Purpose:     "export",
 					},
 					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
+						Name: "websvc",
 						Purpose:     "import",
 						AddressConfig: AddressResourceConfig{
 							Port:     8081,
@@ -62,6 +64,7 @@ func init() {
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
+						Name: "websvc",
 						Purpose:     "export",
 						VHosts:      []string{"testhost"},
 					},

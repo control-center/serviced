@@ -146,7 +146,7 @@ type ControlPlane interface {
 	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
+	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantId *string) error
 
 	// Add a new service Template
 	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
@@ -198,4 +198,10 @@ type ControlPlane interface {
 
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error
+
+	//GetSystemUser retrieves the credentials for the system_user account
+	GetSystemUser(unused int, user *User) error
+
+	//ValidateCredentials verifies if the passed in user has the correct username and password
+	ValidateCredentials(user User, result *bool) error
 }

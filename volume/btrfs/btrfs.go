@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/volume"
 
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"path"
@@ -66,15 +65,15 @@ func New() (*BtrfsDriver, error) {
 func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	d.Lock()
 	defer d.Unlock()
-	if dirp, err := volume.IsDir(rootDir); err != nil || dirp == false {
-		if err := os.MkdirAll(rootDir, 0775); err != nil {
-			glog.Errorf("Volume root cannot be created: %s", rootDir)
-			return nil, err
+	if _, err := runcmd(d.sudoer, "subvolume", "list", rootDir); err != nil {
+		if _, err := runcmd(d.sudoer, "subvolume", "create", rootDir); err != nil {
+			glog.Errorf("Could not create subvolume at: %s", rootDir)
+			return nil, fmt.Errorf("could not create subvolume: %s (%v)", rootDir, err)
 		}
 	}
 
 	vdir := path.Join(rootDir, volumeName)
-	if _, err := runcmd(d.sudoer, "subvolume", "list", "-apuc", vdir); err != nil {
+	if _, err := runcmd(d.sudoer, "subvolume", "list", vdir); err != nil {
 		if _, err = runcmd(d.sudoer, "subvolume", "create", vdir); err != nil {
 			glog.Errorf("Could not create volume at: %s", vdir)
 			return nil, fmt.Errorf("could not create subvolume: %s (%v)", volumeName, err)
@@ -83,6 +82,24 @@ func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 
 	c := &BtrfsConn{sudoer: d.sudoer, name: volumeName, root: rootDir}
 	return c, nil
+}
+
+// List returns a list of btrfs subvolumes at a given root dir
+func (d *BtrfsDriver) List(rootDir string) (result []string) {
+	if raw, err := runcmd(d.sudoer, "subvolume", "list", "-a", rootDir); err != nil {
+		glog.Errorf("Could not list subvolumes at: %s", rootDir)
+	} else {
+		rows := strings.Split(string(raw), "\n")
+		for _, row := range rows {
+			if parts := strings.Split(row, "path"); len(parts) != 2 {
+				glog.Errorf("Bad format parsing subvolume row: %s", row)
+			} else {
+				result = append(result, strings.TrimSpace(parts[1]))
+			}
+		}
+	}
+
+	return
 }
 
 // Name provides the name of the subvolume
@@ -109,7 +126,7 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 	defer c.Unlock()
 	labels := make([]string, 0)
 	glog.V(4).Info("about to execute subvolume list command")
-	if output, err := runcmd(c.sudoer, "subvolume", "list", "-apucr", c.root); err != nil {
+	if output, err := runcmd(c.sudoer, "subvolume", "list", "-s", c.root); err != nil {
 		glog.Errorf("got an error with subvolume list: %s", string(output))
 		return labels, err
 	} else {
@@ -117,16 +134,10 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 		prefixedName := c.name + "_"
 		for _, line := range strings.Split(string(output), "\n") {
 			glog.Infof("btrfs subvolume list: %s", line)
-			fields := strings.Fields(line)
-			for i, field := range fields {
-				if field == "path" {
-					fstree := fields[i+1]
-					parts := strings.Split(fstree, "/")
-					label := parts[len(parts)-1]
-					if strings.HasPrefix(label, prefixedName) {
-						labels = append(labels, label)
-						break
-					}
+			if parts := strings.Split(line, "path"); len(parts) == 2 {
+				label := strings.TrimSpace(parts[1])
+				if strings.HasPrefix(label, prefixedName) {
+					labels = append(labels, label)
 				}
 			}
 		}

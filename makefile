@@ -27,6 +27,22 @@ go:
 pkgs:
 	cd pkg && make rpm && make deb
 
+dockerbuild_binary: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run -rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	echo "Using dock-in-docker cache dir $(dockercache)"
+	mkdir -p $(dockercache)
+	time docker run -rm \
+	-privileged \
+	-v $(dockercache):/var/lib/docker \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build /bin/bash \
+	-c '/usr/local/bin/wrapdocker && make build_binary'
+
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build

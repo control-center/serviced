@@ -12,7 +12,9 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/circular"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -54,6 +56,7 @@ type HostAgent struct {
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
 	closing         chan chan error
+	proxyRegistry   proxy.ProxyRegistry
 }
 
 // assert that this implemenents the Agent interface
@@ -87,6 +90,7 @@ func NewHostAgent(master string, varPath string, mount []string, vfs string, zoo
 	agent.hostId = hostId
 	agent.currentServices = make(map[string]*exec.Cmd)
 
+	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
 	return agent, err
 }
@@ -190,12 +194,22 @@ func (a *HostAgent) dockerRemove(dockerId string) error {
 
 func (a *HostAgent) dockerTerminate(dockerId string) error {
 	glog.V(1).Infof("Killing container %s", dockerId)
+
 	cmd := exec.Command("docker", "kill", dockerId)
-	err := cmd.Run()
-	if err != nil {
-		glog.V(1).Infof("problem killing container instance %s", dockerId)
-		return err
+	killout, killerr := cmd.CombinedOutput()
+	if killerr != nil {
+		//verify dockerId no longer exists
+		cmd = exec.Command("docker", "inspect", dockerId)
+		existsout, err := cmd.CombinedOutput()
+		strout := string(existsout)
+		if err != nil && strings.HasPrefix(strout, "Error: No such image or container:") {
+			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
+			return nil
+		}
+		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr)
+		return errors.New(string(killout))
 	}
+
 	glog.V(2).Infof("Successfully killed %s", dockerId)
 	return nil
 }
@@ -290,16 +304,46 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 	if err != nil {
 		return
+		//TODO: should	"cmd" be cleaned up before returning?
 	}
+
+	var sState *dao.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
 		ss.DockerId = containerState.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = containerState.NetworkSettings.IPAddress
 		ss.PortMapping = containerState.NetworkSettings.Ports
+		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+		//TODO: should	"cmd" be cleaned up before returning?
 	} else {
+
+		//start IP resource proxy for each endpoint
+		var service dao.Service
+		if _, err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
+			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
+		} else {
+			glog.V(4).Infof("Looking for address assignment in service %s:%s", service.Name, service.Id)
+			for _, endpoint := range service.Endpoints {
+				if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
+					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
+					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
+
+					frontEnd := proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}
+					backEnd := proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}
+
+					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
+					if err != nil {
+						glog.Warningf("Could not start External address proxy for %v; error: proxyId", proxyId, err)
+					}
+					defer a.proxyRegistry.RemoveProxy(proxyId)
+
+				}
+			}
+
+		}
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
@@ -376,16 +420,12 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return fmt.Errorf("Unsupported owner specification: %s", owner)
 	}
 
-	// A docker run is used because the user/group may not exist on the host system. In this case,
-	// the effective uid or gid is reflected as an integer on the host system.
-	// TODO: use docker API to do this
-	cmdString := fmt.Sprintf("docker run -rm -v %s:/tmp/config.file %s /bin/sh -c 'chown %s /tmp/config.file && chmod %s /tmp/config.file'",
-		filename, dockerImage, owner, permissions)
-	glog.V(0).Infof("About to run: %s", cmdString)
-	if output, err := exec.Command("/bin/sh", "-c", cmdString).CombinedOutput(); err != nil {
-		return fmt.Errorf("config file chown error: %s", string(output))
+	uid, gid, err := getInternalImageIds(owner, dockerImage)
+	if err != nil {
+		return err
 	}
-	return nil
+	// this will fail if we are not running as root
+	return os.Chown(filename, uid, gid)
 }
 
 // Start a service instance and update the CP with the state.
@@ -405,12 +445,25 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		glog.Errorf("Failed getting tenantId for service: %s, %s", service.Id, err)
 	}
 
+	// get the system user
+	unused := 0
+	systemUser := dao.User{}
+	err = client.GetSystemUser(unused, &systemUser)
+	if err != nil {
+		glog.Errorf("Unable to get system user account for agent %s", err)
+	}
+	glog.V(0).Infof("System User %v", systemUser)
+
+	// get the points
 	portOps := ""
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
 		for _, endpoint := range service.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				portOps += fmt.Sprintf(" -p %d", endpoint.PortNumber)
+				if endpoint.Protocol == commons.UDP {
+					portOps += "/udp"
+				}
 			}
 		}
 	}
@@ -437,7 +490,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			}
 
 			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
-				glog.Fatalf("Error creating resource path: %v", err)
+				glog.Fatalf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 			}
 			volumeOpts += fmt.Sprintf(" -v %s:%s", resourcePath, volume.ContainerPath)
 		}
@@ -504,7 +557,9 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 	// add arguments for environment variables
 	environmentVariables := "-e CONTROLPLANE=1 "
-	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store"
+	environmentVariables += "-e CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store "
+	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name)
+	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password)
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
 	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10

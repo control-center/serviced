@@ -21,6 +21,16 @@ import (
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
 
+type ServiceLogInfo struct {
+	ServiceID string
+	Message   string
+}
+
+func (a *HostAgent) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) (err error) {
+	glog.Infof("Service: %v message: %v", serviceLogInfo.ServiceID, serviceLogInfo.Message)
+	return nil
+}
+
 func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {

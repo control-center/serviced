@@ -69,6 +69,10 @@ func (sr StatsReporter) reportStats(t time.Time) {
 // Create a function to gather and report the container statistics
 func (sr StatsReporter) mkReporter(source string, statfiles []string, ts int64) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if info.IsDir() == false {
 			return nil
 		}

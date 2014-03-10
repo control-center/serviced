@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"sort"
 	"syscall"
 	"time"
@@ -43,6 +44,11 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	go http.ListenAndServe(":50000", sio)
 
 	procexit := make(chan int)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 
 	// continually execute subprocess
 	go func(cmdString string) {
@@ -53,16 +59,44 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Stdin = os.Stdin
-			err := cmd.Run()
-			if err != nil {
-				glog.Errorf("Problem running service: %v", err)
-				glog.Flush()
-				if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
-					if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-						procexit <- status.ExitStatus()
+			serviceExit := make(chan error)
+			go func() {
+				serviceExit <- cmd.Run()
+			}()
+			select {
+			case sig := <-sigc:
+				glog.V(1).Infof("Caught signal %d", sig)
+				cmd.Process.Signal(sig)
+				cmd.Wait()
+				exitCode := 0
+				if cmd.ProcessState != nil {
+					exitCode, _ = cmd.ProcessState.Sys().(int)
+				}
+				procexit <- exitCode
+			case err := <-serviceExit:
+				if err != nil {
+					client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
+					message := fmt.Sprintf("Problem running service: %v. Command \"%v\" failed: %v", config.ServiceId, config.Command, err)
+					if err == nil {
+						defer client.Close()
+						glog.Errorf(message)
+
+						// send the log message to the master
+						client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceId, message}, nil)
+					} else {
+						glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+					}
+
+					glog.Errorf("Problem running service: %v", err)
+					glog.Flush()
+					if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
+						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+							procexit <- status.ExitStatus()
+						}
 					}
 				}
 			}
+
 			if !proxyOptions.autorestart {
 				break
 			}
@@ -155,7 +189,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 	}()
 
-	//setup container metric forwarder 
+	//setup container metric forwarder
 	go func() {
 		//loop until successfully identifying this container's tenant id
 		var tenantId string

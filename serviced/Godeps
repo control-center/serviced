@@ -20,17 +20,16 @@
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
 		},
 		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Comment": "0.2.1-25-g08fe80a",
-			"Rev": "08fe80a1c0c8ef39e40c6b275564eb34b3589ef7"
-		},
-		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Rev": "92334662baa9cbebc2e6e68b8d56bc1233f85a4c"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker",
+			"Rev": "a1598d1e1c157388f3b07415729de28f4d205e49"
 		},
 		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",

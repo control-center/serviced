@@ -50,23 +50,20 @@ func (d *ServiceDefinition) validate(context *validationContext) error {
 	}
 
 	//validate endpoint config
-	//	names := make(map[string]interface{})
+	names := make(map[string]struct{})
 	for _, se := range d.Endpoints {
-		err = se.validate()
-		if err == nil {
-			err = context.validateVHost(se)
-		}
-		if err != nil {
+		if err = se.validate(); err != nil {
 			return fmt.Errorf("Service Definition %v: %v", d.Name, err)
 		}
-		// TODO: uncomment to unique enable endpoint name validation
-		/*
-			trimName := strings.Trim(se.Name, "")
-			if _, found := names[trimName]; found {
-				return fmt.Errorf("Service Definition %v: Endpoint name not unique in service definition %v", d.Name, trimName)
-			}
-			names[trimName] = struct{}
-		*/
+		if err = context.validateVHost(se); err != nil {
+			return fmt.Errorf("Service Definition %v: %v", d.Name, err)
+		}
+		//enable unique endpoint name validation
+		trimName := strings.Trim(se.Name, " ")
+		if _, found := names[trimName]; found {
+			return fmt.Errorf("Service Definition %v: Endpoint name %s not unique in service definition", d.Name, trimName)
+		}
+		names[trimName] = struct{}{}
 	}
 	//TODO: validate LogConfigs
 
@@ -91,15 +88,14 @@ func (sd *ServiceDefinition) normalizeLaunch() error {
 }
 
 func (se ServiceEndpoint) validate() error {
-	err := portValidation(se.PortNumber)
-	if err != nil {
-		trimName := strings.Trim(se.Name, "")
-		if "" == trimName {
-			return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
-		}
-		err = se.AddressConfig.normalize()
+	if err := portValidation(se.PortNumber); err != nil {
+		return err
 	}
-	return err
+	trimName := strings.Trim(se.Name, " ")
+	if trimName == "" {
+		return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
+	}
+	return  se.AddressConfig.normalize()
 }
 
 func portValidation(port uint16) error {

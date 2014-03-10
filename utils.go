@@ -375,13 +375,13 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 }
 
 var dockerRun = func(imageSpec string, args ...string) (output string, err error) {
-	targs := []string{"run", "run", "-rm", imageSpec}
+	targs := []string{"run", imageSpec}
 	for _, s := range args {
 		targs = append(targs, s)
 	}
 	docker := exec.Command("docker", targs...)
 	var outputBytes []byte
-	outputBytes, err = docker.CombinedOutput()
+	outputBytes, err = docker.Output()
 	if err != nil {
 		return
 	}
@@ -389,15 +389,36 @@ var dockerRun = func(imageSpec string, args ...string) (output string, err error
 	return
 }
 
-// TODO: refactor createVolumeDir to use this function
+type uidgid struct {
+	uid int
+	gid int
+}
+
+var userSpecCache struct {
+	lookup map[string]uidgid
+	sync.Mutex
+}
+
+func init() {
+	userSpecCache.lookup = make(map[string]uidgid)
+}
+
 func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
-	var output string
-	output, err = dockerRun(imageSpec, "/bin/sh", "-c",
-		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln | awk '{ print $3 " " $4 }'`,
-			userSpec))
-	if err != nil {
-		return
+
+	userSpecCache.Lock()
+	defer userSpecCache.Unlock()
+
+	key := userSpec + "!" + imageSpec
+	if val, found := userSpecCache.lookup[key]; found {
+		return val.uid, val.gid, nil
 	}
+
+	var output string
+	// explicitly ignoring errors because of -rm under load
+	output, _ = dockerRun(imageSpec, "/bin/sh", "-c",
+		fmt.Sprintf(`touch test.txt && chown %s test.txt && ls -ln test.txt | awk '{ print $3, $4 }'`,
+			userSpec))
+
 	s := strings.TrimSpace(string(output))
 	pattern := regexp.MustCompile(`^\d+ \d+$`)
 
@@ -418,6 +439,9 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	if err != nil {
 		return
 	}
+	// cache the results
+	userSpecCache.lookup[key] = uidgid{uid: uid, gid: gid}
+	time.Sleep(time.Second)
 	return
 }
 
@@ -431,27 +455,34 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 
 	createVolumeDirMutex.Lock()
 	defer createVolumeDirMutex.Unlock()
+
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
+	// the file globbing checks that /mnt is empty before the copy - should initially be empty
+	//    we don't want the copy to occur multiple times if restarting services.
 
 	var err error
 	var output []byte
 	for i := 0; i < 1; i++ {
-		docker := exec.Command("docker", "run", "-rm",
-			"-v", hostPath+":/tmp",
+		docker := exec.Command("docker", "run",
+			"-v", hostPath+":/mnt",
 			imageSpec,
 			"/bin/sh", "-c",
 			fmt.Sprintf(`
-chown %s /tmp && \
-chmod %s /tmp && \
+chown %s /mnt && \
+chmod %s /mnt && \
 shopt -s nullglob && \
 shopt -s dotglob && \
-files=(/tmp/*) && \
-if [ ${#files[@]} -eq 0 ]; then
-	cp -rp %s/* /tmp/
+files=(/mnt/*) && \
+if [ ! -d "%s" ]; then
+	echo "ERROR: srcdir %s does not exist in container"
+	exit 2
+elif [ ${#files[@]} -eq 0 ]; then
+	cp -rp %s/* /mnt/
 fi
-`, userSpec, permissionSpec, containerSpec))
+sleep 5s
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
 		output, err = docker.CombinedOutput()
 		if err == nil {
 			return nil

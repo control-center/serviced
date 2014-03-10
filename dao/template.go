@@ -114,7 +114,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			}
 			subServices[subpath.Name()] = subsvc
 		default:
-			glog.Errorf("Unreconised file %s at %s", subpath, path)
+			glog.V(4).Infof("Unrecognized file %s at %s", subpath.Name(), path)
 		}
 	}
 	svc.Services = make([]ServiceDefinition, len(subServices))

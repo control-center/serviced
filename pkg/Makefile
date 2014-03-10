@@ -1,4 +1,4 @@
-##############################################################################
+#############################################################################
 #
 # Copyright (C) Zenoss, Inc. 2013, all rights reserved.
 #
@@ -22,7 +22,7 @@ services in a uniform way.
 endef
 export DESCRIPTION
 
-INSTALL_DIR=/usr/local/serviced
+INSTALL_DIR=/opt/serviced
 
 .PHONY: all clean stage deb rpm
 .SILENT: desc
@@ -38,6 +38,10 @@ clean:
 	rm -f $(NAME)*.rpm
 	rm -rf pkgroot
 	rm -rf build
+	# we need to perform a clean here
+
+clean_templates:
+	find templates -type f ! -name 'README.txt' -exec rm {} + # remove everything under templates except README.txt
 
 # Make root dir for packaging
 pkgroot:
@@ -70,6 +74,12 @@ stage: build pkgroot
 	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
 	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
+	# stage any templates that are present
+	mkdir -p pkgroot$(INSTALL_DIR)/templates
+	rsync -a --exclude=README.txt templates/ pkgroot$(INSTALL_DIR)/templates/
+
+	# add serviced to the path via symlink
+	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
 
 
 stage_deb: stage

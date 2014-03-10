@@ -34,6 +34,7 @@ import (
 	"os/user"
 	"path"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/zenoss/glog"
@@ -123,7 +124,7 @@ func init() {
 	flag.StringVar(&options.certPEMFile, "certfile", "", "path to public certificate file (defaults to compiled in public cert)")
 	options.zookeepers = make(ListOpts, 0)
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
-	flag.BoolVar(&options.repstats, "reportstats", false, "report container statistics")
+	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
 	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
@@ -133,7 +134,7 @@ func init() {
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
-	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 60), "time to wait on elasticsearch startup before bailing")
+	flag.IntVar(&options.esStartupTimeout, "esStartupTimeout", getEnvVarInt("ES_STARTUP_TIMEOUT", 600), "time to wait on elasticsearch startup before bailing")
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -178,11 +179,10 @@ func startServer() {
 	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
 		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.8.1 but not 0.8.0")
 	}
-	if compareVersion([]int{0,8,0}, dockerVersion.Client) == 0 {
+	if compareVersion([]int{0, 8, 0}, dockerVersion.Client) == 0 {
 		glog.Fatal("serviced specifically does not support docker 0.8.0")
 
 	}
-
 
 	if _, ok := volume.Registered(options.vfs); !ok {
 		glog.Fatalf("no driver registered for %s", options.vfs)
@@ -225,7 +225,7 @@ func startServer() {
 
 		go func() {
 			signalChan := make(chan os.Signal, 10)
-			signal.Notify(signalChan, os.Interrupt)
+			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
 			glog.V(0).Info("Shutting down due to interrupt")
 			err = agent.Shutdown()

@@ -1,11 +1,17 @@
 {
           "Command": "/usr/bin/python -m SimpleHTTPServer",
           "Endpoints": [{
+              "Name": "www",
               "Application": "www",
               "PortNumber": 8080,
               "Protocol": "tcp",
-              "Purpose": "export"
+              "Purpose": "export",
+              "AddressConfig": {
+                              "Port": 1000,
+                              "Protocol": "TCP"
+                          }
             },{
+              "Name": "websvc",
               "Application": "websvc",
               "PortNumber": 8081,
               "Protocol": "tcp",
@@ -17,7 +23,7 @@
             "min": 1
           },
           "ConfigFiles": {
-            "/etc/my.cnf":  { "Filename": "/etc/my.cnf", "Permissions": "0660", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
+            "/etc/my.cnf":  { "Owner": "root:root", "Filename": "/etc/my.cnf", "Permissions": "0660", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
           },
           "LogConfigs":[ {
             "path": "/tmp/foo",

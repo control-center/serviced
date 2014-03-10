@@ -156,6 +156,8 @@ func (this *ZkDao) UpdateService(service *dao.Service) error {
 		err = AddService(conn, service)
 		return err
 	}
+	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicePath, service)
+
 	_, err = conn.Set(servicePath, sBytes, stats.Version)
 	return err
 }
@@ -310,6 +312,9 @@ func (z *ZkDao) RemoveService(id string) error {
 }
 
 func RemoveService(conn *zk.Conn, id string) error {
+	glog.V(2).Infof("zkdao.RemoveService: %s - begin", id)
+	defer glog.V(2).Infof("zkdao.RemoveService: %s - complete", id)
+
 	servicePath := ServicePath(id)
 
 	// First mark the service as needing to shutdown so the scheduler

@@ -22,12 +22,14 @@ func resourcesDir() string {
 	homeDir := os.Getenv("SERVICED_HOME")
 	if len(homeDir) == 0 {
 		_, filename, _, _ := runtime.Caller(1)
-		homeDir = path.Dir(filename) + "/../isvcs/"
+		return path.Clean(path.Join(path.Dir(filename), "..", "isvcs", "resources"))
 
 	}
-	return path.Clean(path.Join(homeDir, "resources"))
+	return path.Clean(path.Join(homeDir, "isvcs/resources"))
 }
 
+// WriteConfigurationFile takes a map of ServiceTemplates and writes them to the
+// appropriate place in the logstash.conf.
 func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
@@ -91,19 +93,23 @@ func getFilters(services []ServiceDefinition, filterDefs map[string]string) stri
 func writeLogStashConfigFile(filters string, outputPath string) error {
 	// read the log configuration template
 	templatePath := resourcesDir() + "/logstash/logstash.conf.template"
-	configPath := outputPath
 
 	contents, err := ioutil.ReadFile(templatePath)
 	if err != nil {
 		return err
 	}
-	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filters, 1)
+
+	// the newlines in the string below are deliberate so that the filter
+        // syntax is correct
+        filterSection :=`
+filter {
+# NOTE the filters are generated from the service definitions
+` + string(filters) + `
+}
+`
+	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterSection, 1)
 	newBytes := []byte(newContents)
 	// generate the filters section
 	// write the log file
-	err = ioutil.WriteFile(configPath, newBytes, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(outputPath, newBytes, 0644)
 }

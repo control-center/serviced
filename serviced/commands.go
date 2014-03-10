@@ -79,10 +79,10 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 	help := fmt.Sprintf("Usage: serviced [OPTIONS] COMMAND [arg...]\n\nA container based service management system.\n\nCommands:\n")
 	for _, command := range [][2]string{
 
-		{"templates", "show application templates"},
-		{"add-template", "add application templates"},
-		{"remove-template", "remove application templates"},
-		{"deploy-template", "deploy application template"},
+		{"templates", "Show application templates"},
+		{"add-template", "Add application templates"},
+		{"remove-template", "Remove application templates"},
+		{"deploy-template", "Deploy application template"},
 
 		{"hosts", "Display hosts"},
 		{"add-host", "Add a host"},
@@ -97,12 +97,12 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 
 		{"services", "Show services"},
 		{"add-service", "Add a service"},
-		{"remove-service", "Remote a service"},
+		{"remove-service", "Remove a service"},
 		{"start-service", "Start a service"},
 		{"stop-service", "Stop a service"},
 		{"edit-service", "Edit a service"},
 
-		{"proxy", "start a proxy in the foreground"},
+		{"proxy", "Start a proxy in the foreground"},
 
 		{"show", "Show all available commands"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
@@ -254,7 +254,11 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 // Add a host to the control plane given the host:port.
 func (cli *ServicedCli) CmdAddHost(args ...string) error {
 
-	cmd := Subcmd("add-host", "HOST:PORT RESOURCE_POOL", "Add host")
+	cmd := Subcmd("add-host", "[OPTIONS] HOST:PORT RESOURCE_POOL", "Add host")
+
+	ipOpts := NewListOpts()
+	cmd.Var(&ipOpts, "ips", "Comma separated list of IP available for endpoing assignment. If not set the default IP of the host is used")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -270,8 +274,8 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 	}
 
 	var remoteHost dao.Host
-	//TODO: get user supplied IPs from command line
-	err = client.GetInfo([]string{}, &remoteHost)
+	//Add the IP used to connect
+	err = client.GetInfo(ipOpts, &remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}
@@ -474,7 +478,7 @@ func (cli *ServicedCli) CmdAutoAssignIps(args ...string) error {
 	assignmentRequest := dao.AssignmentRequest{serviceId, "", true}
 	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
-		glog.Fatalf("CmdAutoAssignIps AssignIPs failed: %v", err)
+		glog.Fatalf("Could not automatically assign IPs: %v", err)
 		return err
 	}
 
@@ -499,7 +503,7 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 
 	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {
-		glog.Fatalf("CmdManualAssignIps AssignIPs failed: %v", err)
+		glog.Fatalf("Could not manually assign IPs: %v", err)
 		return err
 	}
 
@@ -518,6 +522,10 @@ func (opts *PortOpts) String() string {
 
 // ListOpts type
 type ListOpts []string
+
+func NewListOpts() ListOpts {
+	return make(ListOpts, 0)
+}
 
 func (opts *ListOpts) String() string {
 	return fmt.Sprint(*opts)

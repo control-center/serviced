@@ -3,6 +3,8 @@ package web
 import (
 	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 
 	"crypto/rand"
 	"encoding/base64"
@@ -95,7 +97,7 @@ func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Perform login, return JSON
  */
-func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
+func RestLogin(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	creds := Login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
@@ -104,7 +106,7 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	if validateLogin(&creds) {
+	if pamValidateLogin(&creds) || cpValidateLogin(&creds, client) {
 		session, err := createSession(creds.Username)
 		if err != nil {
 			WriteJson(w, &SimpleResponse{"Session could not be created", loginLink()}, http.StatusInternalServerError)
@@ -133,6 +135,24 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
 	} else {
 		WriteJson(w, &SimpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
 	}
+}
+
+func cpValidateLogin(creds *Login, client *serviced.ControlClient) bool {
+	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds)
+	// create a client
+	user := dao.User{
+		Name:     creds.Username,
+		Password: creds.Password,
+	}
+	// call validate token on it
+	var result bool
+	err := client.ValidateCredentials(user, &result)
+
+	if err != nil {
+		glog.Errorf("Unable to validate credentials %s", err)
+	}
+
+	return result
 }
 
 func createSession(user string) (*Session, error) {

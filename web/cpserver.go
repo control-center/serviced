@@ -192,7 +192,7 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
 		// Login
-		rest.Route{"POST", "/login", RestLogin},
+		rest.Route{"POST", "/login", this.UnAuthorizedClient(RestLogin)},
 		rest.Route{"DELETE", "/login", RestLogout},
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", this.AuthorizedClient(RestGetTopServices)},
@@ -233,6 +233,19 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 		routes = append(routes, rest.Route{method, andsubpath, handlerFunc})
 	}
 	return routes
+}
+
+func (this *ServiceConfig) UnAuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		client, err := this.getClient()
+		if err != nil {
+			glog.Errorf("Unable to acquire client: %v", err)
+			RestServerError(w)
+			return
+		}
+		defer client.Close()
+		realfunc(w, r, client)
+	}
 }
 
 func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {

@@ -166,7 +166,8 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 
 	var remote net.Conn
 
-	glog.V(0).Info("Abount to dial: %s", remoteAddr)
+	glog.Infof("Dialing hostAgent:%v to proxy %v<->%v<->%v",
+		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
 	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", remoteAddr, &config)
@@ -182,6 +183,8 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.name, remotePort))
 	}
 
+	glog.Infof("Using   hostAgent:%v to proxy %v<->%v<->%v<->%v",
+		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	go io.Copy(local, remote)
 	go io.Copy(remote, local)
 }

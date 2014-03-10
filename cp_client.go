@@ -185,8 +185,8 @@ func (s *ControlClient) RemoveHostFromResourcePool(poolHost dao.PoolHost, unused
 	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
 }
 
-func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, unused)
+func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantId)
 }
 
 func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
@@ -257,4 +257,12 @@ func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error
 	// WARNING: it would not make sense to call this from the CLI
 	// since volume is a pointer
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
+}
+
+func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
+	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
+}
+
+func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
+	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
 }
