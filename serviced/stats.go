@@ -1,144 +1,32 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
-// license that can be found in the LICENSE file.
+// // Copyright 2014, The Serviced Authors. All rights reserved.
+// // Use of this source code is governed by a
+// // license that can be found in the LICENSE file.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
+// // Package agent implements a service that runs on a serviced node. It is
+// // responsible for ensuring that a particular node is running the correct services
+// // and reporting the state and health of those services back to the master
+// // serviced.
 
 package main
 
 import (
-	"github.com/zenoss/glog"
-
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/zenoss/glog"
+	"github.com/rcrowley/go-metrics"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
+	"bufio"
+	"bytes"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const (
-	BLKIODIR = "/sys/fs/cgroup/blkio/lxc"
-	CPUDIR   = "/sys/fs/cgroup/cpuacct/lxc"
-	MEMDIR   = "/sys/fs/cgroup/memory/lxc"
-)
-
-// StatsReporter is a mechanism for gathering container statistics and sending
-// them to a specified destination
 type StatsReporter struct {
 	destination string
 	username    string
-	passwd      string
-}
-
-// Gather and report available container statistics every duration (d) ticks
-func (sr StatsReporter) Report(d time.Duration) {
-	tc := time.Tick(d)
-	for t := range tc {
-		go sr.reportStats(t)
-	}
-}
-
-// Do the actual gathering and reporting of container statistics
-func (sr StatsReporter) reportStats(t time.Time) {
-	glog.V(3).Infoln("Reporting container stats at: ", t)
-
-	memfiles := []string{"memory.stat"}
-	if err := filepath.Walk(MEMDIR, sr.mkReporter("memory", memfiles, t.Unix())); err != nil {
-		glog.Error("Problem reporting container memory statistics: ", err)
-	}
-
-	cpufiles := []string{"cpuacct.stat"}
-	if err := filepath.Walk(CPUDIR, sr.mkReporter("cpuacct", cpufiles, t.Unix())); err != nil {
-		glog.Error("Problem reporting container cpu statistics: ", err)
-	}
-
-	blkiofiles := []string{"blkio.sectors", "blkio.io_service_bytes", "blkio.io_serviced", "blkio.io_queued"}
-	if err := filepath.Walk(BLKIODIR, sr.mkReporter("blkio", blkiofiles, t.Unix())); err != nil {
-		glog.Error("Problem reporting container blkio statistics: ", err)
-	}
-}
-
-// Create a function to gather and report the container statistics
-func (sr StatsReporter) mkReporter(source string, statfiles []string, ts int64) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() == false {
-			return nil
-		}
-
-		dirname := filepath.Base(path)
-
-		if dirname == "lxc" {
-			return nil
-		}
-
-		for _, statfile := range statfiles {
-			if stats, err := ioutil.ReadFile(strings.Join([]string{path, statfile}, "/")); err != nil {
-				return err
-			} else {
-				cstats := []containerStat{}
-				statscanner := bufio.NewScanner(strings.NewReader(string(stats)))
-				for statscanner.Scan() {
-					cs := mkContainerStat(dirname, source, ts, statscanner.Text())
-					cstats = append(cstats, cs)
-				}
-
-				if len(stats) > 0 {
-					payload := map[string][]containerStat{"metrics": cstats}
-					data, err := json.Marshal(payload)
-					if err != nil {
-						glog.V(3).Info("Couldn't marshal stats: ", err)
-						return err
-					}
-
-					return sr.postStats(data)
-				}
-				return nil
-			}
-		}
-
-		return nil
-	}
-}
-
-func (sr StatsReporter) postStats(stats []byte) error {
-	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(stats))
-	if err != nil {
-		glog.V(3).Info("Couldn't create stats request: ", err)
-		return err
-	}
-	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
-	statsreq.Header["Content-Type"] = []string{"application/json"}
-
-	if glog.V(4) {
-		glog.Info(string(stats))
-	}
-
-	resp, reqerr := http.DefaultClient.Do(statsreq)
-	if reqerr != nil {
-		glog.V(3).Info("Couldn't post stats: ", reqerr)
-		return reqerr
-	}
-
-	if strings.Contains(resp.Status, "200") == false {
-		glog.V(3).Info("Non-success: ", resp.Status)
-		return fmt.Errorf("Couldn't post stats: ", resp.Status)
-	}
-
-	resp.Body.Close()
-
-	return nil
+	password    string
 }
 
 type containerStat struct {
@@ -148,13 +36,118 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
-// Package up container statistics
-func mkContainerStat(id, datasource string, timestamp int64, statline string) containerStat {
-	statparts := strings.Split(statline, " ")
+// Runs report every d. Blocks. Should be run as a goroutine.
+func (sr StatsReporter) StartReporting(d time.Duration) {
+	tc := time.Tick(d)
+	for t := range tc {
+		go sr.report(t)
+	}
+}
 
-	tagmap := make(map[string]string)
-	tagmap["datasource"] = datasource
-	tagmap["uuid"] = id
+// Updates the default registry, fills out the metric consumer format, and posts
+// the data to the TSDB.
+func (sr StatsReporter) report(t time.Time) {
+	fmt.Println("Reporting container stats at:", t)
+	sr.UpdateSSKVint64("/sys/fs/cgroup/memory/memory.stat", "memory")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/cpuacct/cpuacct.stat", "cpu")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.sectors", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_service_bytes", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_serviced", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_queued", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/memory/lxc/memory.stat", "memory")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/cpuacct/lxc/cpuacct.stat", "cpu")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.sectors", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_service_bytes", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_serviced", "blkio")
+	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_queued", "blkio")
+	stats := []containerStat{}
+	reg, _ := metrics.DefaultRegistry.(*metrics.StandardRegistry)
+	reg.Each(func(n string, i interface{}) {
+		switch metric := i.(type) {
+		case metrics.Gauge:
+			tagmap := make(map[string]string)
+			tagmap["datasource"] = n
+			tagmap["uuid"] = n
+			stats = append(stats, containerStat{n, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		}
+	})
+	sr.post(stats)
+}
 
-	return containerStat{statparts[0], statparts[1], timestamp, tagmap}
+// Send the list of stats to the TSDB.
+func (sr StatsReporter) post(stats []containerStat) error {
+	payload := map[string][]containerStat{"metrics": stats}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		glog.V(3).Info("Couldn't marshal stats: ", err)
+		return err
+	}
+	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(data))
+	if err != nil {
+		glog.V(3).Info("Couldn't create stats request: ", err)
+		return err
+	}
+	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
+	statsreq.Header["Content-Type"] = []string{"application/json"}
+	if glog.V(4) {
+		glog.Info(string(data))
+	}
+	resp, reqerr := http.DefaultClient.Do(statsreq)
+	if reqerr != nil {
+		glog.V(3).Info("Couldn't post stats: ", reqerr)
+		return reqerr
+	}
+	if strings.Contains(resp.Status, "200") == false {
+		glog.V(3).Info("Non-success: ", resp.Status)
+		return fmt.Errorf("Couldn't post stats: ", resp.Status)
+	}
+	resp.Body.Close()
+	return nil
+}
+
+// Updates a list of metrics produced from a space-separated key-value pair
+// file. The prefix is prepended to the key in the final metric name.
+func (sr StatsReporter) UpdateSSKVint64(filename string, prefix string) {
+	kv, _ := parseSSKVint64(filename)
+	for k, v := range kv {
+		name := prefix + "." + k
+		gauge := metrics.GetOrRegisterGauge(name, metrics.DefaultRegistry)
+		gauge.Update(v)
+	}
+}
+
+// Parses a space-separated key-value pair file and returns a
+// key(string):value(int64) mapping.
+func parseSSKVint64(filename string) (map[string]int64, error) {
+	if kv, err := parseSSKV(filename); err != nil {
+		return nil, err
+	} else {
+		mapping := make(map[string]int64)
+		for k, v := range kv {
+			if n, err := strconv.ParseInt(v, 0, 64); err != nil {
+				return nil, err
+			} else {
+				mapping[k] = n
+			}
+		}
+		return mapping, nil
+	}
+	return nil, nil
+}
+
+// Parses a space-separated key-value pair file and returns a
+// key(string):value(string) mapping.
+func parseSSKV(filename string) (map[string]string, error) {
+	if stats, err := ioutil.ReadFile(filename); err != nil {
+		return nil, err
+	} else {
+		mapping := make(map[string]string)
+		scanner := bufio.NewScanner(strings.NewReader(string(stats)))
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Split(line, " ")
+			mapping[parts[0]] = parts[1]
+		}
+		return mapping, nil
+	}
 }
