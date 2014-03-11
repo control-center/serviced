@@ -56,6 +56,10 @@
 			"Rev": "776492278b0bca8f9bad17bfdfd27b8e189c5d28"
 		},
 		{
+			"ImportPath": "github.com/rcrowley/go-metrics",
+			"Rev": "ea09f7d79be2a99bb6989c7b6ada5fea44b2cb10"
+		},
+		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
 			"Rev": "0448bff43c4612f2672668de2a2433fd4350771f"
 		},
