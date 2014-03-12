@@ -57,12 +57,16 @@ func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
 		mapping[parts[0]] = parts[1]
 	}
 
-	template, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+	sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
 	if err != nil {
 		return err
 	}
-	mapImageNames(template, mapping)
-	output, err := json.MarshalIndent(template, "", "    ")
+	mapImageNames(sdefinition, mapping)
+	serviceTemplate := dao.ServiceTemplate{}
+	serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
+	serviceTemplate.Services[0] = *sdefinition
+	serviceTemplate.Name = sdefinition.Name
+	output, err := json.MarshalIndent(serviceTemplate, "", "    ")
 	if err != nil {
 		return err
 	}
