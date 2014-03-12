@@ -13,10 +13,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/cgroup"
 	"github.com/rcrowley/go-metrics"
-	"io/ioutil"
 	"net/http"
-	"bufio"
 	"bytes"
 	"strconv"
 	"strings"
@@ -48,30 +47,33 @@ func (sr StatsReporter) StartReporting(d time.Duration) {
 // the data to the TSDB.
 func (sr StatsReporter) report(t time.Time) {
 	fmt.Println("Reporting container stats at:", t)
-	sr.UpdateSSKVint64("/sys/fs/cgroup/memory/memory.stat", "memory")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/cpuacct/cpuacct.stat", "cpu")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.sectors", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_service_bytes", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_serviced", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/blkio.io_queued", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/memory/lxc/memory.stat", "memory")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/cpuacct/lxc/cpuacct.stat", "cpu")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.sectors", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_service_bytes", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_serviced", "blkio")
-	sr.UpdateSSKVint64("/sys/fs/cgroup/blkio/lxc/blkio.io_queued", "blkio")
+	sr.updateStats()
+	stats := sr.gatherStats(t)
+	sr.post(stats)
+}
+
+// Updates the default registry.
+func (sr StatsReporter) updateStats() {
+	cpuacctStat := cgroup.ReadCpuacctStat()
+	metrics.GetOrRegisterGauge("CpuacctStat.system", metrics.DefaultRegistry).Update(cpuacctStat.System)
+	metrics.GetOrRegisterGauge("CpuacctStat.user", metrics.DefaultRegistry).Update(cpuacctStat.User)
+	memoryStat := cgroup.ReadMemoryStat()
+	metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
+	metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
+}
+
+// Fills out the metric consumer format.
+func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 	stats := []containerStat{}
 	reg, _ := metrics.DefaultRegistry.(*metrics.StandardRegistry)
 	reg.Each(func(n string, i interface{}) {
-		switch metric := i.(type) {
-		case metrics.Gauge:
-			tagmap := make(map[string]string)
-			tagmap["datasource"] = n
-			tagmap["uuid"] = n
-			stats = append(stats, containerStat{n, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
-		}
+		metric := i.(metrics.Gauge)
+		tagmap := make(map[string]string)
+		tagmap["datasource"] = n
+		tagmap["uuid"] = n
+		stats = append(stats, containerStat{n, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 	})
-	sr.post(stats)
+	return stats
 }
 
 // Send the list of stats to the TSDB.
@@ -105,49 +107,3 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	return nil
 }
 
-// Updates a list of metrics produced from a space-separated key-value pair
-// file. The prefix is prepended to the key in the final metric name.
-func (sr StatsReporter) UpdateSSKVint64(filename string, prefix string) {
-	kv, _ := parseSSKVint64(filename)
-	for k, v := range kv {
-		name := prefix + "." + k
-		gauge := metrics.GetOrRegisterGauge(name, metrics.DefaultRegistry)
-		gauge.Update(v)
-	}
-}
-
-// Parses a space-separated key-value pair file and returns a
-// key(string):value(int64) mapping.
-func parseSSKVint64(filename string) (map[string]int64, error) {
-	if kv, err := parseSSKV(filename); err != nil {
-		return nil, err
-	} else {
-		mapping := make(map[string]int64)
-		for k, v := range kv {
-			if n, err := strconv.ParseInt(v, 0, 64); err != nil {
-				return nil, err
-			} else {
-				mapping[k] = n
-			}
-		}
-		return mapping, nil
-	}
-	return nil, nil
-}
-
-// Parses a space-separated key-value pair file and returns a
-// key(string):value(string) mapping.
-func parseSSKV(filename string) (map[string]string, error) {
-	if stats, err := ioutil.ReadFile(filename); err != nil {
-		return nil, err
-	} else {
-		mapping := make(map[string]string)
-		scanner := bufio.NewScanner(strings.NewReader(string(stats)))
-		for scanner.Scan() {
-			line := scanner.Text()
-			parts := strings.Split(line, " ")
-			mapping[parts[0]] = parts[1]
-		}
-		return mapping, nil
-	}
-}
