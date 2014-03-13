@@ -119,5 +119,8 @@
 	"task_command": "Comando",
 	"task_last_run": "Última Ejecución",
 	"task_run_count": "Conta Ejecución",
-	"host": "Servidore"
+	"host": "Servidore",
+	"applications": "Aplicaciónes",
+	"services": "Services",
+	"running_services": "Running Services"
 }

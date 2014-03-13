@@ -2218,6 +2218,9 @@ function toggleRunning(app, status, servicesService) {
         return;
     }
 
+    // recursively updates the text of the status button, this
+    // is so that when stopping takes a long time you can see that
+    // something is happening. This doesn't update the color
     function updateAppText(app, text, notRunningText) {
         var i;
         app.runningText = text;
@@ -2226,10 +2229,12 @@ function toggleRunning(app, status, servicesService) {
             return;
         }
         for (i=0; i<app.children.length;i++) {
-            updateAppText(app.children[i], text);
+            updateAppText(app.children[i], text, notRunningText);
         }
     }
 
+    // updates the color and the running/non-running text of the
+    // status buttons
     function updateApp(app, desiredState) {
         var i, child;
         updateRunning(app);

@@ -123,5 +123,7 @@
 	    "task_command": "Command",
 	    "task_last_run": "Last Run",
 	    "task_run_count": "Run Count",
-	    "host": "Host"
+	    "host": "Host",
+	    "applications": "Applications",
+	    "running_services": "Running Services"
 }
