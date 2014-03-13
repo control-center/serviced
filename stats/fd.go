@@ -12,7 +12,7 @@ import (
 
 // GetOpenFileDescriptorCount returns the number of open file descriptors for the process id of the caller.
 func GetOpenFileDescriptorCount() (int64, error) {
-	files, err := filepath.Glob("*")
+	files, err := filepath.Glob("/proc/self/fd")
 	if err != nil {
 		return 0, err
 	}
