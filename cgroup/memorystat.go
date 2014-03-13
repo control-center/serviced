@@ -37,13 +37,14 @@ type MemoryStat struct {
 	TotalUnevictable        int64
 }
 
-// MemoryStatFileName can be altered to use a different source for MemoryStat.
-var MemoryStatFileName = "/sys/fs/cgroup/memory/memory.stat"
-
-// ReadMemoryStat fills out and returns a MemoryStat struct from MemoryStatFileName.
-func ReadMemoryStat() MemoryStat {
+// ReadMemoryStat fills out and returns a MemoryStat struct from the given file name.
+// if fileName is "", the default path of /sys/fs/cgroup/memory/memory.stat is used.
+func ReadMemoryStat(fileName string) MemoryStat {
+	if fileName == "" {
+		fileName = "/sys/fs/cgroup/memory/memory.stat"
+	}
 	stat := MemoryStat{}
-	kv, _ := parseSSKVint64(MemoryStatFileName)
+	kv, _ := parseSSKVint64(fileName)
 	for k, v := range kv {
 		switch k {
 		case "cache":

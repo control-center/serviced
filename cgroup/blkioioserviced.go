@@ -11,13 +11,14 @@ type BlkioIoServiced struct {
 	Total int64
 }
 
-// BlkioIoServicedFileName can be altered to use a different source for BlkioIoServiced.
-var BlkioIoServicedFileName = "/sys/fs/cgroup/blkio/blkio.io_serviced"
-
-// ReadBlkioIoServiced fills out and returns a BlkioIoServiced struct from BlkioIoServicedFileName.
-func ReadBlkioIoServiced() BlkioIoServiced {
+// ReadBlkioIoServiced fills out and returns a BlkioIoServiced struct from the given file name.
+// if fileName is "", the default path of /sys/fs/cgroup/blkio/blkio.io_serviced is used.
+func ReadBlkioIoServiced(fileName string) BlkioIoServiced {
+	if fileName == "" {
+		fileName = "/sys/fs/cgroup/blkio/blkio.io_serviced"
+	}
 	stat := BlkioIoServiced{}
-	kv, _ := parseSSKVint64(BlkioIoServicedFileName)
+	kv, _ := parseSSKVint64(fileName)
 	for k, v := range kv {
 		switch k {
 		case "Total":

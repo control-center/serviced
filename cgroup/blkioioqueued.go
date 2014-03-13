@@ -11,13 +11,14 @@ type BlkioIoQueued struct {
 	Total int64
 }
 
-// BlkioIoQueuedFileName can be altered to use a different source for BlkioIoQueued.
-var BlkioIoQueuedFileName = "/sys/fs/cgroup/blkio/blkio.io_queued"
-
-// ReadBlkioIoQueued fills out and returns a BlkioIoQueued struct from BlkioIoQueuedFileName.
-func ReadBlkioIoQueued() BlkioIoQueued {
+// ReadBlkioIoQueued fills out and returns a BlkioIoQueued struct from the given file name.
+// if fileName is "", the default path of /sys/fs/cgroup/blkio/blkio.io_queued is used.
+func ReadBlkioIoQueued(fileName string) BlkioIoQueued {
+	if fileName == "" {
+		fileName = "/sys/fs/cgroup/blkio/blkio.io_queued"
+	}
 	stat := BlkioIoQueued{}
-	kv, _ := parseSSKVint64(BlkioIoQueuedFileName)
+	kv, _ := parseSSKVint64(fileName)
 	for k, v := range kv {
 		switch k {
 		case "Total":

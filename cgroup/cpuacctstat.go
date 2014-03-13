@@ -12,13 +12,14 @@ type CpuacctStat struct {
 	System int64
 }
 
-// CpuacctStatFileName can be altered to use a different source for CpuacctStat.
-var CpuacctStatFileName = "/sys/fs/cgroup/cpuacct/cpuacct.stat"
-
-// ReadCpuacctStat fills out and returns a CpuacctStat struct from CpuacctStatFileName.
-func ReadCpuacctStat() CpuacctStat {
+// ReadCpuacctStat fills out and returns a CpuacctStat struct from the given file name.
+// if fileName is "", the default path of /sys/fs/cgroup/cpuacct/cpuacct.stat is used.
+func ReadCpuacctStat(fileName string) CpuacctStat {
+	if fileName == "" {
+		fileName = "/sys/fs/cgroup/cpuacct/cpuacct.stat"
+	}
 	stat := CpuacctStat{}
-	kv, _ := parseSSKVint64(CpuacctStatFileName)
+	kv, _ := parseSSKVint64(fileName)
 	for k, v := range kv {
 		switch k {
 		case "user":

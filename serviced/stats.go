@@ -54,10 +54,10 @@ func (sr StatsReporter) report(t time.Time) {
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
-	cpuacctStat := cgroup.ReadCpuacctStat()
+	cpuacctStat := cgroup.ReadCpuacctStat("")
 	metrics.GetOrRegisterGauge("CpuacctStat.system", metrics.DefaultRegistry).Update(cpuacctStat.System)
 	metrics.GetOrRegisterGauge("CpuacctStat.user", metrics.DefaultRegistry).Update(cpuacctStat.User)
-	memoryStat := cgroup.ReadMemoryStat()
+	memoryStat := cgroup.ReadMemoryStat("")
 	metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
 	metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
 }

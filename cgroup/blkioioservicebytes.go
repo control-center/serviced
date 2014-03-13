@@ -11,13 +11,14 @@ type BlkioIoServiceBytes struct {
 	Total int64
 }
 
-// BlkioIoServiceBytesFileName can be altered to use a different source for BlkioIoServiceBytes.
-var BlkioIoServiceBytesFileName = "/sys/fs/cgroup/blkio/blkio.io_service_bytes"
-
-// ReadBlkioIoServiceBytes fills out and returns a BlkioIoServiceBytes struct from BlkioIoServiceBytesFileName.
-func ReadBlkioIoServiceBytes() BlkioIoServiceBytes {
+// ReadBlkioIoServiceBytes fills out and returns a BlkioIoServiceBytes struct from the given file name.
+// if fileName is "", the default path of /sys/fs/cgroup/blkio/blkio.io_service_bytes is used.
+func ReadBlkioIoServiceBytes(fileName string) BlkioIoServiceBytes {
+	if fileName == "" {
+		fileName = "/sys/fs/cgroup/blkio/blkio.io_service_bytes"
+	}
 	stat := BlkioIoServiceBytes{}
-	kv, _ := parseSSKVint64(BlkioIoServiceBytesFileName)
+	kv, _ := parseSSKVint64(fileName)
 	for k, v := range kv {
 		switch k {
 		case "Total":
