@@ -347,29 +347,57 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
-		if err := cmd.Wait(); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					statusCode := status.ExitStatus()
-					switch {
-					case statusCode == 137:
-						glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+		done := make(chan error)
+		go func() {
+			done <- cmd.Wait()
+		}()
+		loop := true
+		stateUpdateEvery := time.Tick(time.Second * 20)
+		for loop {
+			select {
+			case err := <-done:
+				if err != nil {
+					if exiterr, ok := err.(*exec.ExitError); ok {
+						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+							statusCode := status.ExitStatus()
+							switch {
+							case statusCode == 137:
+								glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
 
-					case statusCode == 2:
-						glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+							case statusCode == 2:
+								glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
 
-					default:
-						glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-						dumpOut(lastStdout, lastStderr, circularBufferSize)
+							default:
+								glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
+								dumpOut(lastStdout, lastStderr, circularBufferSize)
+							}
+						}
+					} else {
+						glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 					}
+				} else {
+					glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
 				}
-			} else {
-				glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
-			}
-		} else {
-			glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
-		}
+				loop = false
+			case <-stateUpdateEvery:
+				containerState, err := getDockerState(dockerId)
+				if err != nil {
+					glog.Errorf("Could not get docker state: %v", err)
+					continue
+				}
+				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+					ss.DockerId = containerState.ID
+					ss.Started = time.Now()
+					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+					ss.PrivateIp = containerState.NetworkSettings.IPAddress
+					ss.PortMapping = containerState.NetworkSettings.Ports
+					sState = ss
+				}); err != nil {
+					glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+				}
 
+			}
+		}
 		if err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id); err != nil {
 			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
 		}
