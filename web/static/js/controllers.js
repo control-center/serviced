@@ -930,9 +930,9 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "fill": false,
                 "format": "%6.2f",
                 "id": "ofd",
-                "legend": "Open File Descriptors",
+                "legend": "Serviced Open File Descriptors",
                 "metric": "OpenFileDescriptors",
-                "name": "Open File Descriptors",
+                "name": "Serviced Open File Descriptors",
                 "rate": false,
                 "rateOptions": {},
                 "type": "line"
