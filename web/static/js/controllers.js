@@ -921,6 +921,36 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "type": "line"
     };
 
+    $scope.ofdconfig = {
+        "datapoints": [
+            {
+                "aggregator": "avg",
+                "color": "#aec7e8",
+                "expression": null,
+                "fill": false,
+                "format": "%6.2f",
+                "id": "ofd",
+                "legend": "Serviced Open File Descriptors",
+                "metric": "Serviced.OpenFileDescriptors",
+                "name": "Serviced Open File Descriptors",
+                "rate": false,
+                "rateOptions": {},
+                "type": "line"
+            },
+        ],
+        "footer": false,
+        "format": "%6.2f",
+        "maxy": null,
+        "miny": 0,
+        "range": {
+            "end": "0s-ago",
+            "start": "1h-ago"
+        },
+        "returnset": "EXACT",
+        "tags": {},
+        "type": "line"
+    };
+
     $scope.memconfig = {
         "datapoints": [
             {
