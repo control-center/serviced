@@ -934,6 +934,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "metric": "OpenFileDescriptors",
                 "name": "Open File Descriptors",
                 "rate": false,
+                "rateOptions": {},
                 "type": "line"
             },
         ],
