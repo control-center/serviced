@@ -16,6 +16,7 @@ package main
 import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/shell"
@@ -71,12 +72,12 @@ var agentIP string
 func getEnvVarInt(envVar string, defaultValue int) int {
 	envVarValue := os.Getenv(envVar)
 	if len(envVarValue) > 0 {
-		if value, err := strconv.Atoi(envVarValue); err != nil {
+		value, err := strconv.Atoi(envVarValue)
+		if err != nil {
 			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
 			return defaultValue
-		} else {
-			return value
-		}
+		} 
+		return value
 	}
 	return defaultValue
 }
@@ -126,7 +127,7 @@ func init() {
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
 	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
-	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
+	flag.IntVar(&options.statsperiod, "statsperiod", 1, "Period (seconds) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
@@ -243,11 +244,10 @@ func startServer() {
 
 	if options.repstats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
-
+		statsduration := time.Duration(options.statsperiod)*time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
-		statsduration := time.Duration(options.statsperiod) * time.Minute
-		go sr.Report(statsduration)
+		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
+		defer statsReporter.Close()
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
