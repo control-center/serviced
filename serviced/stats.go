@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	BLKIODIR = "/sys/fs/cgroup/blkio/lxc"
-	CPUDIR   = "/sys/fs/cgroup/cpuacct/lxc"
-	MEMDIR   = "/sys/fs/cgroup/memory/lxc"
+	BLKIODIR = "/sys/fs/cgroup/blkio"
+	CPUDIR   = "/sys/fs/cgroup/cpuacct"
+	MEMDIR   = "/sys/fs/cgroup/memory"
 )
 
 // StatsReporter is a mechanism for gathering container statistics and sending
