@@ -7,12 +7,12 @@
 package cgroup
 
 import (
-	"testing"
 	"io/ioutil"
 	"math/rand"
-	"time"
 	"strconv"
-)	
+	"testing"
+	"time"
+)
 
 const chars = "1234567890!@#$%%^&*()QWERTYUIOPASDFGHJKL:\"{}|ZXCVBNM<>?qwertyuiop[]\\asdfghjkl;'zxcvbnm,./"
 
@@ -75,12 +75,12 @@ func TestParseSSKVint64(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for k, _ := range data {
+	for k := range data {
 		if data[k] != testdata[k] {
 			t.Error(data[k], "!=", testdata[k])
 		}
 	}
-	for k, _ := range testdata {
+	for k := range testdata {
 		if data[k] != testdata[k] {
 			t.Error(data[k], "!=", testdata[k])
 		}
@@ -96,12 +96,12 @@ func TestParseSSKV(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for k, _ := range data {
+	for k := range data {
 		if data[k] != testdata[k] {
 			t.Error(data[k], "!=", testdata[k])
 		}
 	}
-	for k, _ := range testdata {
+	for k := range testdata {
 		if data[k] != testdata[k] {
 			t.Error(data[k], "!=", testdata[k])
 		}

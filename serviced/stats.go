@@ -22,6 +22,7 @@ import (
 	"time"
 )
 
+// StatsReporter collects and posts serviced stats to the TSDB.
 type StatsReporter struct {
 	destination string
 	username    string
@@ -35,7 +36,7 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
-// Runs report every d. Blocks. Should be run as a goroutine.
+// StartReporting runs report every d time units. Blocks. Should be run as a goroutine.
 func (sr StatsReporter) StartReporting(d time.Duration) {
 	tc := time.Tick(d)
 	for t := range tc {
@@ -101,7 +102,7 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	}
 	if strings.Contains(resp.Status, "200") == false {
 		glog.V(3).Info("Non-success: ", resp.Status)
-		return fmt.Errorf("Couldn't post stats: ", resp.Status)
+		return fmt.Errorf("couldn't post stats: ", resp.Status)
 	}
 	resp.Body.Close()
 	return nil

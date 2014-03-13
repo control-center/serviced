@@ -71,12 +71,12 @@ var agentIP string
 func getEnvVarInt(envVar string, defaultValue int) int {
 	envVarValue := os.Getenv(envVar)
 	if len(envVarValue) > 0 {
-		if value, err := strconv.Atoi(envVarValue); err != nil {
+		value, err := strconv.Atoi(envVarValue)
+		if err != nil {
 			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
 			return defaultValue
-		} else {
-			return value
-		}
+		} 
+		return value
 	}
 	return defaultValue
 }
