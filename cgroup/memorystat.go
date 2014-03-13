@@ -1,5 +1,12 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package cgroup provides access to /sys/fs/cgroup metrics.
+
 package cgroup
 
+// MemoryStat stores data from /sys/fs/cgroup/memory/memory.stat.
 type MemoryStat struct {
 	Cache                   int64
 	Rss                     int64
@@ -30,9 +37,13 @@ type MemoryStat struct {
 	TotalUnevictable        int64
 }
 
+// MemoryStatFileName can be altered to use a different source for MemoryStat.
+var MemoryStatFileName = "/sys/fs/cgroup/memory/memory.stat"
+
+// ReadMemoryStat fills out and returns a MemoryStat struct from MemoryStatFileName.
 func ReadMemoryStat() MemoryStat {
 	stat := MemoryStat{}
-	kv, _ := parseSSKVint64("/sys/fs/cgroup/memory/memory.stat")
+	kv, _ := parseSSKVint64(MemoryStatFileName)
 	for k, v := range kv {
 		switch k {
 		case "cache":
