@@ -82,7 +82,7 @@ func (sr StatsReporter) updateStats() {
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
 	} else {
-		metrics.GetOrRegisterGauge("OpenFileDescriptors", metrics.DefaultRegistry).Update(openFileDescriptorCount)
+		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", metrics.DefaultRegistry).Update(openFileDescriptorCount)
 	}
 }
 

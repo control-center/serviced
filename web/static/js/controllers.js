@@ -931,7 +931,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "format": "%6.2f",
                 "id": "ofd",
                 "legend": "Serviced Open File Descriptors",
-                "metric": "OpenFileDescriptors",
+                "metric": "Serviced.OpenFileDescriptors",
                 "name": "Serviced Open File Descriptors",
                 "rate": false,
                 "rateOptions": {},
