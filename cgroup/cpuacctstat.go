@@ -6,6 +6,8 @@
 
 package cgroup
 
+import "fmt"
+
 // CpuacctStat stores data from /sys/fs/cgroup/cpuacct/cpuacct.stat.
 type CpuacctStat struct {
 	User   int64
@@ -14,12 +16,15 @@ type CpuacctStat struct {
 
 // ReadCpuacctStat fills out and returns a CpuacctStat struct from the given file name.
 // if fileName is "", the default path of /sys/fs/cgroup/cpuacct/cpuacct.stat is used.
-func ReadCpuacctStat(fileName string) CpuacctStat {
+func ReadCpuacctStat(fileName string) (*CpuacctStat, error) {
 	if fileName == "" {
 		fileName = "/sys/fs/cgroup/cpuacct/cpuacct.stat"
 	}
 	stat := CpuacctStat{}
-	kv, _ := parseSSKVint64(fileName)
+	kv, err := parseSSKVint64(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing /sys/fs/cgroup/cpuacct/cpuacct.stat")
+	}
 	for k, v := range kv {
 		switch k {
 		case "user":
@@ -28,5 +33,5 @@ func ReadCpuacctStat(fileName string) CpuacctStat {
 			stat.System = v
 		}
 	}
-	return stat
+	return &stat, nil
 }

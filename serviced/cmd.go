@@ -243,11 +243,10 @@ func startServer() {
 
 	if options.repstats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
-
-		glog.V(1).Infoln("Staring container statistics reporter")
 		statsduration := time.Duration(options.statsperiod)*time.Second
-		go sr.StartReporting(statsduration)
+		glog.V(1).Infoln("Staring container statistics reporter")
+		statsReporter := NewStatsReporter(statsdest, statsduration)
+		defer statsReporter.Close()
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())

@@ -10,13 +10,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cgroup"
-	"github.com/rcrowley/go-metrics"
 	"net/http"
-	"bytes"
 	"strconv"
 	"strings"
 	"time"
@@ -24,9 +24,8 @@ import (
 
 // StatsReporter collects and posts serviced stats to the TSDB.
 type StatsReporter struct {
-	destination string
-	username    string
-	password    string
+	destination  string
+	closeChannel chan bool
 }
 
 type containerStat struct {
@@ -36,21 +35,35 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
-// StartReporting runs report every d time units. Blocks. Should be run as a goroutine.
-func (sr StatsReporter) StartReporting(d time.Duration) {
-	tc := time.Tick(d)
-	for t := range tc {
-		go sr.report(t)
-	}
+// NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
+func NewStatsReporter(destination string, interval time.Duration) *StatsReporter {
+	sr := StatsReporter{destination, make(chan bool)}
+	go sr.report(interval)
+	return &sr
+}
+
+// Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
+// is indeed shutting down.
+func (sr StatsReporter) Close() {
+	sr.closeChannel <- true
+	_ = <-sr.closeChannel
 }
 
 // Updates the default registry, fills out the metric consumer format, and posts
-// the data to the TSDB.
-func (sr StatsReporter) report(t time.Time) {
-	fmt.Println("Reporting container stats at:", t)
-	sr.updateStats()
-	stats := sr.gatherStats(t)
-	sr.post(stats)
+// the data to the TSDB. Stops when close signal is received on closeChannel.
+func (sr StatsReporter) report(d time.Duration) {
+	tc := time.Tick(d)
+	select {
+	case _ = <-sr.closeChannel:
+		glog.V(3).Info("Ceasing stat reporting.")
+		sr.closeChannel <- true
+		return
+	case t := <-tc:
+		glog.V(3).Info("Reporting container stats at:", t)
+		sr.updateStats()
+		stats := sr.gatherStats(t)
+		sr.post(stats)
+	}
 }
 
 // Updates the default registry.
@@ -107,4 +120,3 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	resp.Body.Close()
 	return nil
 }
-

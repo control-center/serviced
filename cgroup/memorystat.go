@@ -6,6 +6,8 @@
 
 package cgroup
 
+import "fmt"
+
 // MemoryStat stores data from /sys/fs/cgroup/memory/memory.stat.
 type MemoryStat struct {
 	Cache                   int64
@@ -39,12 +41,15 @@ type MemoryStat struct {
 
 // ReadMemoryStat fills out and returns a MemoryStat struct from the given file name.
 // if fileName is "", the default path of /sys/fs/cgroup/memory/memory.stat is used.
-func ReadMemoryStat(fileName string) MemoryStat {
+func ReadMemoryStat(fileName string) (*MemoryStat, error) {
 	if fileName == "" {
 		fileName = "/sys/fs/cgroup/memory/memory.stat"
 	}
 	stat := MemoryStat{}
-	kv, _ := parseSSKVint64(fileName)
+	kv, err := parseSSKVint64(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing /sys/fs/cgroup/memory/memory.stat")
+	}
 	for k, v := range kv {
 		switch k {
 		case "cache":
@@ -103,5 +108,5 @@ func ReadMemoryStat(fileName string) MemoryStat {
 			stat.TotalUnevictable = v
 		}
 	}
-	return stat
+	return &stat, nil
 }

@@ -2,12 +2,13 @@ package cgroup
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
 )
 
-// Parses a space-separated key-value pair file and returns a
+// parseSSKVint64 parses a space-separated key-value pair file and returns a
 // key(string):value(int64) mapping.
 func parseSSKVint64(filename string) (map[string]int64, error) {
 	kv, err := parseSSKV(filename)
@@ -25,7 +26,7 @@ func parseSSKVint64(filename string) (map[string]int64, error) {
 	return mapping, nil
 }
 
-// Parses a space-separated key-value pair file and returns a
+// parseSSKV parses a space-separated key-value pair file and returns a
 // key(string):value(string) mapping.
 func parseSSKV(filename string) (map[string]string, error) {
 	stats, err := ioutil.ReadFile(filename)
@@ -36,7 +37,10 @@ func parseSSKV(filename string) (map[string]string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(stats)))
 	for scanner.Scan() {
 		line := scanner.Text()
-		parts := strings.Split(line, " ")
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("expected 2 parts, got %d: %s", len(parts), line)
+		}
 		mapping[parts[0]] = parts[1]
 	}
 	return mapping, nil
