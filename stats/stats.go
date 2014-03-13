@@ -53,16 +53,18 @@ func (sr StatsReporter) Close() {
 // the data to the TSDB. Stops when close signal is received on closeChannel.
 func (sr StatsReporter) report(d time.Duration) {
 	tc := time.Tick(d)
-	select {
-	case _ = <-sr.closeChannel:
-		glog.V(3).Info("Ceasing stat reporting.")
-		sr.closeChannel <- true
-		return
-	case t := <-tc:
-		glog.V(3).Info("Reporting container stats at:", t)
-		sr.updateStats()
-		stats := sr.gatherStats(t)
-		sr.post(stats)
+	for {
+		select {
+		case _ = <-sr.closeChannel:
+			glog.V(3).Info("Ceasing stat reporting.")
+			sr.closeChannel <- true
+			return
+		case t := <-tc:
+			glog.V(3).Info("Reporting container stats at:", t)
+			sr.updateStats()
+			stats := sr.gatherStats(t)
+			sr.post(stats)
+		}
 	}
 }
 
