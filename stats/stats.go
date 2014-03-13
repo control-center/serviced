@@ -7,7 +7,7 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package main
+package stats
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/cgroup"
+	"github.com/zenoss/serviced/stats/cgroup"
 	"net/http"
 	"strconv"
 	"strings"
@@ -68,12 +68,18 @@ func (sr StatsReporter) report(d time.Duration) {
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
-	cpuacctStat := cgroup.ReadCpuacctStat("")
-	metrics.GetOrRegisterGauge("CpuacctStat.system", metrics.DefaultRegistry).Update(cpuacctStat.System)
-	metrics.GetOrRegisterGauge("CpuacctStat.user", metrics.DefaultRegistry).Update(cpuacctStat.User)
-	memoryStat := cgroup.ReadMemoryStat("")
-	metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
-	metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
+	if cpuacctStat, err := cgroup.ReadCpuacctStat(""); err != nil {
+		glog.V(3).Info("Couldn't read CpuacctStat:", err)
+	} else {
+		metrics.GetOrRegisterGauge("CpuacctStat.system", metrics.DefaultRegistry).Update(cpuacctStat.System)
+		metrics.GetOrRegisterGauge("CpuacctStat.user", metrics.DefaultRegistry).Update(cpuacctStat.User)
+	}
+	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
+		glog.V(3).Info("Couldn't read MemoryStat:", err)
+	} else {
+		metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
+		metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
+	}
 }
 
 // Fills out the metric consumer format.

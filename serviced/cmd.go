@@ -16,6 +16,7 @@ package main
 import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/shell"
@@ -245,7 +246,7 @@ func startServer() {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
 		statsduration := time.Duration(options.statsperiod)*time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
-		statsReporter := NewStatsReporter(statsdest, statsduration)
+		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
 		defer statsReporter.Close()
 	}
 
