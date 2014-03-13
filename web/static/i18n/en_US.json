@@ -109,6 +109,7 @@
 		"running_tbl_instances":"Running Instances",
 		"title_log":"Log",
 		"title_add_config_file": "Add Configuration File",
+	    "title_config_files": "Configuration Files",
 		"title_add_host":"Add host",
 		"title_add_pool":"Add resource pool",
 		"title_add_service":"Add service",
@@ -116,5 +117,11 @@
 		"title_edit_pool":"Edit resource pool",
 		"title_edit_service":"Edit service",
 		"title_edit_config":"Edit configuration",
-		"title_user_details":"User Details"
+		"title_user_details":"User Details",
+	    "scheduled_tasks": "Scheduled Tasks",
+	    "task_schedule": "Schedule",
+	    "task_command": "Command",
+	    "task_last_run": "Last Run",
+	    "task_run_count": "Run Count",
+	    "host": "Host"
 }

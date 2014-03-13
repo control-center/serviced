@@ -2217,13 +2217,30 @@ function toggleRunning(app, status, servicesService) {
         console.log('Same status. Ignoring click');
         return;
     }
+
+    function updateAppText(app, text, notRunningText) {
+        var i;
+        app.runningText = text;
+        app.notRunningText = notRunningText;
+        if (!app.children) {
+            return;
+        }
+        for (i=0; i<app.children.length;i++) {
+            updateAppText(app.children[i], text);
+        }
+    }
+
     function updateApp(app, desiredState) {
-        var i;        
+        var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                app.children[i].DesiredState = desiredState;
-                updateRunning(app.children[i]);
+                child = app.children[i];
+                child.DesiredState = desiredState;
+                updateRunning(child);
+                if (child.children && child.children.length) {
+                    updateApp(child, desiredState);
+                }
             }
         }
     }
@@ -2233,14 +2250,16 @@ function toggleRunning(app, status, servicesService) {
         servicesService.stop_service(app.Id, function() {
             updateApp(app, newState);
         });
+        updateAppText(app, "stopping...", "ctl_running_blank");
     }
 
     // start service
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);            
+            updateApp(app, newState);
         });
+        updateAppText(app, "ctl_running_blank", "starting...");
     }
 }
 

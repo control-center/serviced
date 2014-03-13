@@ -105,6 +105,7 @@
 	"running_tbl_instances":"Instancias en Ejecución",
 	"title_log":"Registro",
 	"title_add_config_file": "Añadir archivos de configuración",
+	"title_config_files": "Configuración",
 	"title_add_host":"Añadir servidor",
 	"title_add_pool":"Añadir grupo de recursos",
 	"title_add_service":"Añadir servicio",
@@ -112,5 +113,11 @@
 	"title_edit_pool":"Editar grupo de recursos",
 	"title_edit_service":"Editar servicio",
 	"title_edit_config":"Editar configuración",
-	"title_user_details":"Información de Usuario"
+	"title_user_details":"Información de Usuario",
+	"scheduled_tasks": "Tareas Programadas",
+	"task_schedule": "Próxima Ejecución",
+	"task_command": "Comando",
+	"task_last_run": "Última Ejecución",
+	"task_run_count": "Conta Ejecución",
+	"host": "Servidore"
 }
