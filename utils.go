@@ -464,12 +464,12 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 
 	var err error
 	var output []byte
-	for i := 0; i < 1; i++ {
-		docker := exec.Command("docker", "run",
-			"-v", hostPath+":/mnt",
-			imageSpec,
-			"/bin/sh", "-c",
-			fmt.Sprintf(`
+	command := [...]string{
+		"docker", "run",
+		"-v", hostPath + ":/mnt",
+		imageSpec,
+		"/bin/bash", "-c",
+		fmt.Sprintf(`
 chown %s /mnt && \
 chmod %s /mnt && \
 shopt -s nullglob && \
@@ -482,7 +482,11 @@ elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /mnt/
 fi
 sleep 5s
-`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
+	}
+
+	for i := 0; i < 1; i++ {
+		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
 			return nil
@@ -490,6 +494,6 @@ sleep 5s
 		time.Sleep(time.Second)
 	}
 
-	glog.Errorf("could not create host volume: %s", string(output))
+	glog.Errorf("could not create host volume: %+v, %s", command, string(output))
 	return err
 }
