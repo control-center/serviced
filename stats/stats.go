@@ -2,10 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
+// Package stats collects serviced metrics and posts them to the TSDB.
 
 package stats
 
@@ -81,6 +78,11 @@ func (sr StatsReporter) updateStats() {
 	} else {
 		metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
 		metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
+	}
+	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
+		glog.V(3).Info("Couldn't get open file descriptor count", err)
+	} else {
+		metrics.GetOrRegisterGauge("OpenFileDescriptors", metrics.DefaultRegistry).Update(openFileDescriptorCount)
 	}
 }
 
