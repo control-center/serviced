@@ -263,8 +263,7 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 func startServiceInstances(conn *zk.Conn, service *dao.Service, pool_hosts []*dao.PoolHost, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(pool_hosts))
 	for i := 0; i < numToStart; i++ {
-		// randomly select host
-		service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+		service_host := weightedRandomChoice(pool_hosts)
 		glog.V(2).Info("Selected host ", service_host)
 		serviceState, err := service.NewServiceState(service_host.HostId)
 		if err != nil {
@@ -293,4 +292,31 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostId, serviceStates[i].Id)
 		}
 	}
+}
+
+// weightedRandomChoice selects a host from the pool using memory as the weighting criteria.
+// The specific algorithm used, in-place (unsorted), is described in:
+// http://www.electricmonk.nl/log/2009/12/23/weighted-random-distribution
+func weightedRandomChoice(hosts []*dao.PoolHost) *dao.PoolHost {
+	mc := memcap(hosts)
+	tw := rand.Int63n(int64(mc))
+
+	var w uint64
+	for _, h := range hosts {
+		w += h.Memory
+		if w > uint64(tw) {
+			return h
+		}
+	}
+
+	return hosts[len(hosts)]
+}
+
+// memcap computes the total memory capacity of the pool's hosts.
+func memcap(hosts []*dao.PoolHost) uint64 {
+	var c uint64
+	for _, h := range hosts {
+		c += h.Memory
+	}
+	return c
 }

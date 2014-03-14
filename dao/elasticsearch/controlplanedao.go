@@ -908,7 +908,7 @@ func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[
 
 	var response []*dao.PoolHost = make([]*dao.PoolHost, len(result))
 	for i := 0; i < len(result); i += 1 {
-		poolHost := dao.PoolHost{result[i].Id, result[i].PoolId, result[i].IpAddr}
+		poolHost := dao.PoolHost{result[i].Id, result[i].PoolId, result[i].IpAddr, result[i].Memory}
 		response[i] = &poolHost
 	}
 
