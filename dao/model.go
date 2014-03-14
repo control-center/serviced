@@ -160,6 +160,7 @@ type Service struct {
 	DisableImage    bool
 	LogConfigs      []LogConfig
 	Snapshot        SnapshotCommands
+	Weight          uint64
 }
 
 // An endpoint that a Service exposes.
@@ -240,6 +241,7 @@ type ServiceDefinition struct {
 	Volumes     []Volume               // list of volumes to bind into containers
 	LogConfigs  []LogConfig
 	Snapshot    SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
+	Weight      uint64           // RAM "weight" to use for scheduling
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
