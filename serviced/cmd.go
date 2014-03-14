@@ -34,6 +34,7 @@ import (
 	"os/user"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,8 +46,8 @@ var options struct {
 	port             string
 	listen           string
 	master           bool
+	dockerDns        string
 	agent            bool
-	bridgeInt        string
 	muxPort          int
 	tls              bool
 	keyPEMFile       string
@@ -104,9 +105,10 @@ func init() {
 		panic(err)
 	}
 
+	dockerDns := os.Getenv("SERVICED_DOCKER_DNS")
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
-	flag.StringVar(&options.bridgeInt, "bridgeInt", "docker0", "Docker Bridge Interface")
+	flag.StringVar(&options.dockerDns, "dockerDns", dockerDns, "docker dns configuration used for running containers (comma seperated list)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
@@ -212,12 +214,8 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		bridgeIP, err := serviced.GetInterfaceIpAddress(options.bridgeInt)
-		if err != nil {
-			panic(err)
-		}
-
-		agent, err := serviced.NewHostAgent(options.port, bridgeIP, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+		_dns := strings.Split(options.dockerDns, ",")
+		agent, err := serviced.NewHostAgent(options.port, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
