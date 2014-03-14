@@ -94,7 +94,7 @@
         <tr ng-repeat="app in services.subservices">
           <td ng-click="click_app(app.Id)" class="link">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
-          <td>
+          <td width="200">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
                 <input type="radio" name="running{{$index}}" 
@@ -110,7 +110,7 @@
             </div>
           </td>
           <td>
-            <button ng-click="viewConfig(app)" class="btn btn-link disabled">{{'action_view_cfg'|translate}}</button> 
+			 {{app.Startup}}
           </td>
         </tr>
       </tbody>
@@ -124,7 +124,7 @@
         <tr>
           <th>{{'label_service_name'|translate}}</th>
 		  <th>{{'host'|translate}}</th>
-		  <th>{{'label_host_id'|translate}}</th>
+		  <th>{{'running_tbl_docker_id'|translate}}</th>
 		  <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
@@ -136,9 +136,9 @@
           <td>
             <button ng-click="viewLog(app)" class="btn btn-link">{{'action_view_log'|translate}}</button>
             |
-            <button ng-click="killRunning(app)" class="btn btn-link">{{'action_kill'|translate}}</button>
+            <button ng-click="killRunning(app)" class="btn btn-link">{{'action_restart'|translate}}</button>
             |
-            <button ng-click="startTerminal(app)" class="btn btn-link">{{'action_terminal'|translate}}</button>
+            <button ng-click="startTerminal(app)" class="btn btn-link disabled">{{'action_terminal'|translate}}</button>
           </td>
         </tr>
       </tbody>
