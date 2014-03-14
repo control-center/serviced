@@ -5,8 +5,7 @@
 package datastore
 
 import (
-	"fmt"
-	"reflect"
+	"encoding/json"
 )
 
 type Key struct {
@@ -27,14 +26,14 @@ func (k *Key) ID() string {
 // Entity is the data to be stored in the store. Key is the unique key. Type is the type of the data being stored.
 // Payload is the actual data being stored.  It is up to the datastore driver to serialize and deserialize the Entity
 // and the payload
-type Entity struct {
-	Key     Key
-	Payload interface{}
-}
+//type Entity struct {
+//	Key     Key
+//	Payload interface{}
+//}
 
-func NewEntity(key Key, payload interface{}) *Entity {
-	return &Entity{key, payload}
-}
+//func NewEntity(key Key, payload interface{}) *Entity {
+//	return &Entity{key, payload}
+//}
 func New() DataStore {
 	return &dataStore{}
 }
@@ -42,7 +41,7 @@ func New() DataStore {
 type DataStore interface {
 	Put(ctx Context, key Key, data interface{}) error
 
-	Get(ctx Context, id string, data interface{}) error
+	Get(ctx Context, Key Key, data interface{}) error
 
 	Delete(ctx Context, key Key) error
 
@@ -52,32 +51,36 @@ type DataStore interface {
 type dataStore struct{}
 
 func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
-
-	entity := NewEntity(key, data)
-	return ctx.Driver().Put(entity)
+	jsonMsg, err := ds.serialize(key.Kind(), data)
+	if err != nil {
+		return err
+	}
+	return ctx.Connection().Put(key, jsonMsg)
 }
 
-func (ds *dataStore) Get(ctx Context, id string, data interface{}) error {
-	v := reflect.ValueOf(data)
-	if v.Kind() != reflect.Ptr {
-		return fmt.Errorf("data parm not a pointer")
-	}
-	if entity, err := ctx.Driver().Get(id); err != nil {
+func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
+	if jsonMsg, err := ctx.Connection().Get(key); err != nil {
 		return err
 	} else {
-		payload := reflect.ValueOf(entity.Payload)
-		if payload.Kind() == reflect.Ptr {
-			payload = payload.Elem()
-		}
-		v.Elem().Set(payload)
+		err = ds.deserialize(key.Kind(), jsonMsg, obj)
+		return err
 	}
-	return nil
 }
 
 func (ds *dataStore) Delete(ctx Context, key Key) error {
-	return ctx.Driver().Delete(key)
+	return ctx.Connection().Delete(key)
 }
 
-func (ds *dataStore) Query(ctx Context) Query{
+func (ds *dataStore) Query(ctx Context) Query {
 	return newQuery(ctx)
+}
+
+func (ds *dataStore) serialize(kind string, obj interface{}) (JsonMessage, error) {
+	// hook for looking up serializers by kind; default json Marshal for now
+	return json.Marshal(obj)
+}
+
+func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, obj interface{}) error {
+	// hook for looking up deserializers by kind; default json Unmarshal for now
+	return json.Unmarshal(jsonMsg, obj)
 }

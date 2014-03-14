@@ -4,12 +4,19 @@
 
 package datastore
 
-type Driver interface {
-	Put(data *Entity) error
+type JsonMessage []byte
 
-	Get(id string) (*Entity, error)
+type Driver interface {
+	GetConnection() Connection
+}
+
+type Connection interface{
+	Put(key Key, data JsonMessage) error
+
+	Get(key Key) (JsonMessage, error)
 
 	Delete(key Key) error
 
-	Query(query Query)([]*Entity, error)
+	Query(query Query)([]JsonMessage, error)
+
 }
