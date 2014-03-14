@@ -1107,8 +1107,7 @@ function CeleryLogControl($scope, authService) {
         var jobmapping = {};
         // Get a count of job start and finish logs.
         $scope.client.search($scope.commandQuery()).then(function(body) {
-            $scope.pageCount = Math.ceil(body.hits.total/16);
-            console.log($scope.pageCount);
+            $scope.pageCount = Math.max(1, Math.ceil(body.hits.total/16));
             $scope.leftDisabled = false;
             $scope.rightDisabled = false;
             if ($scope.page == 1) {
