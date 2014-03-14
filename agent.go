@@ -570,11 +570,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add arguments to mount requested directory (if requested)
 	requestedMount := ""
 	for _, bindMountString := range a.mount {
-		splitMount := strings.Split(bindMountString, ":")
-		if len(splitMount) == 3 {
+		splitMount := strings.Split(bindMountString, ",")
+		numMountArgs := len(splitMount)
+
+		if numMountArgs == 2 || numMountArgs == 3 {
 			requestedImage := splitMount[0]
 			hostPath := splitMount[1]
-			containerPath := splitMount[2]
+
+			// assume the container path is going to be the same as the host path 
+			containerPath := hostPath
+
+			// if the container path is provided, use it
+			if numMountArgs > 2 {
+				containerPath = splitMount[2]
+			}
+
 			if requestedImage == service.ImageId {
 				requestedMount += " -v " + hostPath + ":" + containerPath
 			}
