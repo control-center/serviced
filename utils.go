@@ -63,7 +63,7 @@ func validOwnerSpec(owner string) bool {
 }
 
 // getMemorySize attempts to get the size of the installed RAM.
-func getMemorySize() (size uint64, err error) {
+func GetMemorySize() (size uint64, err error) {
 	file, err := os.Open(meminfoFile)
 	if err != nil {
 		return 0, err
@@ -100,8 +100,8 @@ type RouteEntry struct {
 	Iface       string
 }
 
-// wrapper around the route command
-func routeCmd() (routes []RouteEntry, err error) {
+// RouteCmd wrapper around the route command
+func RouteCmd() (routes []RouteEntry, err error) {
 	output, err := exec.Command("/sbin/route", "-A", "inet").Output()
 	if err != nil {
 		return routes, err
@@ -197,7 +197,7 @@ func getIPAddrFromOutGoingConnection() (ip string, err error) {
 // this method. The passed in poolID is used as the resource pool in the result.
 func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
 	cpus := runtime.NumCPU()
-	memory, err := getMemorySize()
+	memory, err := GetMemorySize()
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
-	routes, err := routeCmd()
+	routes, err := RouteCmd()
 	if err != nil {
 		return nil, err
 	}
