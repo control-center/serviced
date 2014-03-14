@@ -46,7 +46,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 controller: DevControl
             }).
             otherwise({redirectTo: '/entry'});
-    },]).
+    }]).
     config(['$translateProvider', function($translateProvider) {
 
         $translateProvider.useStaticFilesLoader({
@@ -410,7 +410,8 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
-        { id: 'DesiredState', name: 'deployed_tbl_state' }
+        { id: 'DesiredState', name: 'deployed_tbl_state' },
+        { id: 'DesiredState', name: 'running_tbl_actions' }
     ]);
 
     $scope.click_app = function(id) {
@@ -418,6 +419,32 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     };
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
+    };
+
+    $scope.clickRemoveService = function(app) {
+        $scope.appToRemove = app;
+        $('#removeApp').modal('show');
+    };
+
+    $scope.remove_service = function() {
+        if (!$scope.appToRemove) {
+            console.log('No selected service to remove');
+            return;
+        }
+        var id = $scope.appToRemove.Id;
+        resourcesService.remove_service(id, function() {
+            delete $scope.appToRemove;
+            var i = 0, newServices = [];
+
+            // build up a new services array containing all the services
+            // except the one we just deleted
+            for (i=0;i<$scope.services.data.length;i++) {
+                if ($scope.services.data[i].Id != id) {
+                    newServices.push($scope.services.data[i]);
+                }
+            }
+            $scope.services.data = newServices;
+        });
     };
 
     $scope.clickRunning = toggleRunning;
@@ -447,6 +474,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
             console.log('Unexpected navlink: %s', JSON.stringify(navlink));
         }
     };
+
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
@@ -459,7 +487,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     }
 }
 
-function SubServiceControl($scope, $routeParams, $location, resourcesService, authService) {
+function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -473,7 +501,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
-        { id: 'Details', name: 'deployed_tbl_details' }
+        { id: 'Startup', name: 'label_service_startup' }
     ]);
 
     $scope.click_app = function(id) {
@@ -515,9 +543,20 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
             console.log('Updated %s', $scope.services.current.Id);
             var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
             lastCrumb.label = $scope.services.current.Name;
-        });
-    }
 
+        });
+    };
+    // Update the running instances so it is reflected when we save the changes
+    //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
+    function updateRunning() {
+        if ($scope.params.serviceId) {
+            refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
+                wait.running = true;
+                mashHostsToInstances();
+            });
+        }
+    }
+    $interval(updateRunning, 3000);
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, true, function() {
         if ($scope.services.current) {
@@ -544,7 +583,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
             var instance = $scope.running.data[i];
             instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
         }
-    }
+    };
     refreshHosts($scope, resourcesService, true, function() {
         wait.hosts = true;
         mashHostsToInstances();
@@ -564,7 +603,7 @@ function SubServiceControl($scope, $routeParams, $location, resourcesService, au
     };
 
     $scope.startTerminal = function(app) {
-      window.open("http://" + window.location.hostname + ":50000")
+        window.open("http://" + window.location.hostname + ":50000");
     };
 
     var setupNewService = function() {
@@ -2247,13 +2286,35 @@ function toggleRunning(app, status, servicesService) {
         console.log('Same status. Ignoring click');
         return;
     }
+
+    // recursively updates the text of the status button, this
+    // is so that when stopping takes a long time you can see that
+    // something is happening. This doesn't update the color
+    function updateAppText(app, text, notRunningText) {
+        var i;
+        app.runningText = text;
+        app.notRunningText = notRunningText;
+        if (!app.children) {
+            return;
+        }
+        for (i=0; i<app.children.length;i++) {
+            updateAppText(app.children[i], text, notRunningText);
+        }
+    }
+
+    // updates the color and the running/non-running text of the
+    // status buttons
     function updateApp(app, desiredState) {
-        var i;        
+        var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                app.children[i].DesiredState = desiredState;
-                updateRunning(app.children[i]);
+                child = app.children[i];
+                child.DesiredState = desiredState;
+                updateRunning(child);
+                if (child.children && child.children.length) {
+                    updateApp(child, desiredState);
+                }
             }
         }
     }
@@ -2263,14 +2324,16 @@ function toggleRunning(app, status, servicesService) {
         servicesService.stop_service(app.Id, function() {
             updateApp(app, newState);
         });
+        updateAppText(app, "stopping...", "ctl_running_blank");
     }
 
     // start service
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);            
+            updateApp(app, newState);
         });
+        updateAppText(app, "ctl_running_blank", "starting...");
     }
 }
 

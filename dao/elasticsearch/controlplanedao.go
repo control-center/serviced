@@ -642,6 +642,14 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 		return nil
 	})
 
+	this.walkServices(id, func(svc dao.Service) error {
+		_, err := deleteService(svc.Id)
+		if err != nil {
+			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
+		}
+		return err
+	})
+
 	glog.V(2).Infof("ControlPlaneDao.RemoveService: %s", id)
 	response, err := deleteService(id)
 	glog.V(2).Infof("ControlPlaneDao.RemoveService response: %+v", response)
