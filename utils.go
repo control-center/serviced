@@ -166,6 +166,27 @@ func GetIPAddress() (ip string, err error) {
 	return ip, err
 }
 
+// GetInterfaceIPAddress attempts to find the IP address based on interface name
+func GetInterfaceIpAddress(_interface string) (string, error) {
+	output, err := exec.Command("/sbin/ip", "-4", "-o", "addr").Output()
+	if err != nil {
+		return "", err
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+
+		if strings.HasPrefix(fields[1], _interface) {
+			return strings.Split(fields[3], "/")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("Unable to find ip for interface: %s", _interface)
+}
+
 // getIPAddrFromHostname returns the ip address associated with hostname -i.
 func getIPAddrFromHostname() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()

@@ -49,6 +49,7 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
+	bridgeIp        string   // ip address of the docker bridge interface
 	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	vfs             string   // driver for container volumes
@@ -64,10 +65,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, bridgeIp string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.bridgeIp = bridgeIp
 	agent.varPath = varPath
 	agent.mount = mount
 	agent.vfs = vfs
@@ -562,8 +564,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password)
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run --dns %s %s -rm -name=%s %s -v %s %s %s %s %s %s %s", a.bridgeIp, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)

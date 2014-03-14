@@ -46,6 +46,7 @@ var options struct {
 	listen           string
 	master           bool
 	agent            bool
+	bridgeInt        string
 	muxPort          int
 	tls              bool
 	keyPEMFile       string
@@ -105,6 +106,7 @@ func init() {
 
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
+	flag.StringVar(&options.bridgeInt, "bridgeInt", "docker0", "Docker Bridge Interface")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
@@ -210,7 +212,12 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+		bridgeIP, err := serviced.GetInterfaceIpAddress(options.bridgeInt)
+		if err != nil {
+			panic(err)
+		}
+
+		agent, err := serviced.NewHostAgent(options.port, bridgeIP, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
