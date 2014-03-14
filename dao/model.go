@@ -38,6 +38,7 @@ type PoolHost struct {
 	HostId string
 	PoolId string
 	HostIp string
+	Memory uint64
 }
 
 //AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
