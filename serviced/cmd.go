@@ -16,10 +16,10 @@ package main
 import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/volume"
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
@@ -76,7 +76,7 @@ func getEnvVarInt(envVar string, defaultValue int) int {
 		if err != nil {
 			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
 			return defaultValue
-		} 
+		}
 		return value
 	}
 	return defaultValue
@@ -131,7 +131,7 @@ func init() {
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
-	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.Var(&options.mount, "mount", "bind mount: container_image,host_path,container_path (e.g. -mount zenoss/zenoss5x:latest,/home/zenoss/zenhome/zenoss/Products/,/opt/zenoss/Products/)")
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
@@ -244,7 +244,7 @@ func startServer() {
 
 	if options.repstats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		statsduration := time.Duration(options.statsperiod)*time.Second
+		statsduration := time.Duration(options.statsperiod) * time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
 		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
 		defer statsReporter.Close()
