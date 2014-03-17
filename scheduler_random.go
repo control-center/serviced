@@ -1,15 +1,17 @@
 package serviced
 
 import (
+	"container/heap"
+	"fmt"
 	"path"
+	"sync"
+
+	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/zzk"
-
-	"math/rand"
-	"time"
 )
 
 func Lead(dao dao.ControlPlane, conn *zk.Conn, zkEvent <-chan zk.Event) {
@@ -249,7 +251,7 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 			return nil
 		}
 
-		return startServiceInstances(conn, service, poolHosts, instancesToStart)
+		return startServiceInstances(cpDao, conn, service, poolHosts, instancesToStart)
 
 	} else if len(serviceStates) > service.Instances {
 		instancesToKill := len(serviceStates) - service.Instances
@@ -260,11 +262,14 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 
 }
 
-func startServiceInstances(conn *zk.Conn, service *dao.Service, pool_hosts []*dao.PoolHost, numToStart int) error {
+func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, pool_hosts []*dao.PoolHost, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(pool_hosts))
 	for i := 0; i < numToStart; i++ {
-		// randomly select host
-		service_host := pool_hosts[rand.Intn(len(pool_hosts))]
+		service_host, err := selectLeastCommittedHost(cpDao, pool_hosts)
+		if err != nil {
+			return err
+		}
+
 		glog.V(2).Info("Selected host ", service_host)
 		serviceState, err := service.NewServiceState(service_host.HostId)
 		if err != nil {
@@ -293,4 +298,126 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostId, serviceStates[i].Id)
 		}
 	}
+}
+
+// hostitem is what is stored in the least commited RAM scheduler's priority queue
+type hostitem struct {
+	host     *dao.PoolHost
+	priority uint64 // the host's available RAM
+	index    int    // the index of the hostitem in the heap
+}
+
+// priorityqueue implements the heap.Interface and holds hostitems
+type priorityqueue []*hostitem
+
+// selectLeastCommittedHost choses the host with the least RAM commited to running containers. It
+// uses a two stage pipeline that first calculates the available RAM per host and then adds each
+// host to a queue prioritized by available RAM. The selected host is the one with the top
+// priority.
+func selectLeastCommittedHost(cp dao.ControlPlane, hosts []*dao.PoolHost) (*dao.PoolHost, error) {
+	var wg sync.WaitGroup
+
+	done := make(chan bool)
+	defer close(done)
+
+	hic := make(chan *hostitem)
+
+	// fan-out available RAM computation for each host
+	for _, h := range hosts {
+		var poolhost *dao.PoolHost = h
+		go func() {
+			wg.Add(1)
+			availableRAM(cp, poolhost, hic, done)
+			wg.Done()
+		}()
+	}
+
+	// close the hostitem channel when all the calculation is finished
+	go func() {
+		wg.Wait()
+		close(hic)
+	}()
+
+	pq := &priorityqueue{}
+	heap.Init(pq)
+
+	// fan-in all the available RAM computations
+	for hi := range hic {
+		heap.Push(pq, hi)
+	}
+
+	// select the highest priority (most available RAM) host
+	if pq.Len() <= 0 {
+		return nil, fmt.Errorf("unable to find a host to schedule")
+	}
+	return heap.Pop(pq).(*hostitem).host, nil
+}
+
+// availableRAM computes the amount of RAM available on a given host by subtracting the sum of the
+// RAM commitments of each of its running services from its total memory.
+func availableRAM(cp dao.ControlPlane, host *dao.PoolHost, result chan *hostitem, done <-chan bool) {
+	rss := []*dao.RunningService{}
+	if err := cp.GetRunningServicesForHost(host.HostId, &rss); err != nil {
+		glog.Errorf("cannot retrieve running services for host: %s (%v)", host.HostId, err)
+		return // this host won't be scheduled
+	}
+
+	var cr uint64
+
+	for i, _ := range rss {
+		s := dao.Service{}
+		if err := cp.GetService(rss[i].ServiceId, &s); err != nil {
+			glog.Errorf("cannot retrieve service information for running service (%v)", err)
+			return // this host won't be scheduled
+		}
+
+		cr += s.RAMCommitment
+	}
+
+	h := dao.Host{}
+	if err := cp.GetHost(host.HostId, &h); err != nil {
+		glog.Errorf("cannot retrieve host information for pool host %s (%v)", host.HostId, err)
+		return // this host won't be scheduled
+	}
+
+	result <- &hostitem{host, h.Memory - cr, -1}
+}
+
+/*
+PriorityQueue implementation take from golang std library container/heap documentation example
+*/
+
+// Len is the number of elements in the collection.
+func (pq priorityqueue) Len() int {
+	return len(pq)
+}
+
+// Less reports whether the element with index i should sort before the element with index j.
+func (pq priorityqueue) Less(i, j int) bool {
+	return pq[i].priority > pq[j].priority
+}
+
+// Swap swaps the elements with indexes i and j.
+func (pq priorityqueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].index = i
+	pq[j].index = j
+}
+
+// Push pushes the hostitem onto the heap.
+func (pq *priorityqueue) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*hostitem)
+	item.index = n
+	*pq = append(*pq, item)
+}
+
+// Pop removes the minimum element (according to Less) from the heap and returns it.
+func (pq *priorityqueue) Pop() interface{} {
+	opq := *pq
+	n := len(opq)
+	item := opq[n-1]
+	item.index = -1 // mark it as removed, just in case
+	*pq = opq[0 : n-1]
+	return item
 }
