@@ -968,8 +968,8 @@ func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service, _ 
 		}
 	}
 
-	if service.Weight < 0 {
-		return fmt.Errorf("service weight cannot be negative")
+	if service.RAMCommitment < 0 {
+		return fmt.Errorf("service RAM commitment cannot be negative")
 	}
 
 	// add additional validation checks to the services
@@ -1331,7 +1331,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
-	svc.Weight = sd.Weight
+	svc.RAMCommitment = sd.RAMCommitment
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
