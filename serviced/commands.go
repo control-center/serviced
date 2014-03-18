@@ -12,6 +12,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -821,36 +823,49 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 		glog.Fatalf("no service found: %s", cmd.Arg(0))
 	}
 
-	config := shell.ProcessConfig{
-		ServiceId: service.Id,
-		IsTTY:     false,
-		SaveAs:    "",
-		Command:   serviced.SERVICED_SHOWCMD,
+	if len(service.Commands) == 0 {
+		fmt.Printf("no commands found for service: %s\n", cmd.Arg(0))
+		return nil
 	}
 
-	inst := shell.StartDocker(&config, options.port)
-	for inst.Stdout != nil || inst.Stderr != nil {
-		select {
-		case line, ok := <-inst.Stdout:
-			if ok {
-				os.Stdout.WriteString(line)
-			} else {
-				inst.Stdout = nil
-			}
-		case line, ok := <-inst.Stderr:
-			if ok {
-				os.Stderr.WriteString(line)
-			} else {
-				inst.Stderr = nil
-			}
-		}
+	keys := []string{}
+	for key, _ := range service.Commands {
+		keys = append(keys, key)
 	}
-	return (<-inst.Result).Error
+	sort.Strings(keys)
+
+	// Print the commands in tabular form
+	const colwidth = 20
+	output := make([]byte, 0, 80)
+	buffer := bytes.NewBuffer(output)
+	index := 0
+	for index < len(keys) {
+		for buffer.Len() < cap(output) && index < len(keys) {
+			key := keys[index]
+			if len(key) >= colwidth-2 {
+				// truncate command name if it is longer than the column width
+				key = fmt.Sprintf("(%s...)  ", key[:colwidth-7])
+			} else {
+				// append spaces to command name if it is shorter than the column width
+				key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", colwidth-len(key)))
+			}
+			buffer.Write([]byte(key))
+			index += 1
+		}
+		// dump row to the screen and reset buffer
+		fmt.Println(buffer.String())
+		buffer.Reset()
+	}
+
+	return nil
 }
 
 func (cli *ServicedCli) CmdRun(args ...string) error {
+	var istty bool
+
 	// Check the args
 	cmd := Subcmd("run", "SERVICEID PROGRAM", "Runs serviced command on a service container")
+	cmd.BoolVar(&istty, "i", false, "Whether to run interactively")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -863,9 +878,18 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	cp := getClient()
 	service, err := getService(&cp, cmd.Arg(0))
 	if err != nil {
-		glog.Fatalf("Error while acquiring service: %s", err)
+		glog.Fatalf("error while acquiring service: %s", err)
 	} else if service == nil {
-		glog.Fatalf("No service found: %s", cmd.Arg(0))
+		glog.Fatalf("no service found: %s", cmd.Arg(0))
+	}
+
+	path, ok := service.Commands[cmd.Arg(1)]
+	if !ok {
+		glog.Fatalf("cannot access command: %s", cmd.Arg(1))
+	}
+	command := []string{serviced.RUNCMD, path}
+	if len(cmd.Args()) > 2 {
+		command = append(command, cmd.Args()[2:]...)
 	}
 
 	// Start the container
@@ -874,7 +898,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 		ServiceId: service.Id,
 		IsTTY:     false,
 		SaveAs:    saveAs,
-		Command:   fmt.Sprintf("%s %s", serviced.SERVICED_RUNCMD, strings.Join(cmd.Args()[1:], " ")),
+		Command:   strings.Join(command, " "),
 	}
 	inst := shell.StartDocker(&config, options.port)
 	for inst.Stdout != nil && inst.Stderr != nil {
@@ -898,7 +922,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	result := <-inst.Result
 	if result.Termination == shell.NORMAL {
 		switch result.ExitCode {
-		case serviced.SERVICED_TX_COMMIT:
+		case serviced.TX_COMMIT:
 			label := ""
 			// Get the DOCKER_ID
 			if dockercli, err := docker.NewClient("unix:///var/run/docker.sock"); err != nil {
