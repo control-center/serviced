@@ -5,18 +5,17 @@ import (
 )
 
 type nTimes struct {
-	n int // number of time to retry
+	n                   int // number of time to retry
 	sleepBetweenRetries time.Duration
-	done chan struct{}
+	done                chan struct{}
 }
-
 
 // NTimes returns a retry policy that retries up to n times.
 func NTimes(n int, sleepBetweenRetries time.Duration) Policy {
 	return nTimes{
-		n:n,
+		n:                   n,
 		sleepBetweenRetries: sleepBetweenRetries,
-		done: make(chan struct{}),
+		done:                make(chan struct{}),
 	}
 }
 
@@ -42,4 +41,3 @@ func (n nTimes) AllowRetry(retryCount int, elapsed time.Duration) bool {
 	}
 	return false
 }
-

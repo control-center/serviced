@@ -1,8 +1,8 @@
 package retry
 
 import (
-	"time"
 	"math/rand"
+	"time"
 )
 
 type boundedExponentialBackoff struct {

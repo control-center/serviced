@@ -1,4 +1,3 @@
-
 package retry
 
 import (
@@ -6,12 +5,12 @@ import (
 )
 
 type Loop struct {
-	isDone bool
-	startTime time.Duration
-	retryCount int
+	isDone      bool
+	startTime   time.Duration
+	retryCount  int
 	retryPolicy Policy
-	callable func() error
-	done chan struct{}
+	callable    func() error
+	done        chan struct{}
 }
 
 func (loop *Loop) Close() {
@@ -25,10 +24,6 @@ func (loop *Loop) ShouldContinue() bool {
 	return !loop.isDone
 }
 
-
 func (loop *Loop) MarkComplete() {
 	loop.isDone = true
 }
-
-
-

@@ -9,5 +9,3 @@ type Policy interface {
 	AllowRetry(retryCount int, elapsed time.Duration) bool
 	Close()
 }
-
-
