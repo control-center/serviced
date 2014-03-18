@@ -101,6 +101,7 @@ type Host struct {
 	IpAddr         string // The IP address the host can be reached at from a serviced master
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	CommitedRam    uint64 // Amount of RAM commited to services
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -160,6 +161,7 @@ type Service struct {
 	DisableImage    bool
 	LogConfigs      []LogConfig
 	Snapshot        SnapshotCommands
+	RAMCommitment   uint64
 }
 
 // An endpoint that a Service exposes.
@@ -224,22 +226,23 @@ type ConfigFile struct {
 }
 
 type ServiceDefinition struct {
-	Name        string                 // Name of the defined service
-	Command     string                 // Command which runs the service
-	Description string                 // Description of the service
-	Tags        []string               // Searchable service tags
-	ImageId     string                 // Docker image hosting the service
-	Instances   MinMax                 // Constraints on the number of instances
-	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
-	ConfigFiles map[string]ConfigFile  // Config file templates
-	Context     map[string]interface{} // Context information for the service
-	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
-	Services    []ServiceDefinition    // Supporting subservices
-	Tasks       []Task                 // Scheduled tasks for celery to find
-	LogFilters  map[string]string      // map of log filter name to log filter definitions
-	Volumes     []Volume               // list of volumes to bind into containers
-	LogConfigs  []LogConfig
-	Snapshot    SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
+	Name          string                 // Name of the defined service
+	Command       string                 // Command which runs the service
+	Description   string                 // Description of the service
+	Tags          []string               // Searchable service tags
+	ImageId       string                 // Docker image hosting the service
+	Instances     MinMax                 // Constraints on the number of instances
+	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	ConfigFiles   map[string]ConfigFile  // Config file templates
+	Context       map[string]interface{} // Context information for the service
+	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
+	Services      []ServiceDefinition    // Supporting subservices
+	Tasks         []Task                 // Scheduled tasks for celery to find
+	LogFilters    map[string]string      // map of log filter name to log filter definitions
+	Volumes       []Volume               // list of volumes to bind into containers
+	LogConfigs    []LogConfig
+	Snapshot      SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment uint64           // expected RAM commitment to use for scheduling
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
