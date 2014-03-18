@@ -1,19 +1,17 @@
-
 package client
 
 import (
+	"strings"
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
 )
 
-
 type EtcdDriver struct {
-	client *etcd.Client
+	client  *etcd.Client
 	servers []string
 	timeout time.Duration
 }
-
 
 func NewEtcdDriver(servers []string, timeout time.Duration) (driver *EtcdDriver, err error) {
 
@@ -21,15 +19,26 @@ func NewEtcdDriver(servers []string, timeout time.Duration) (driver *EtcdDriver,
 	client.SetConsistency("STRONG_CONSISTENCY")
 
 	driver = &EtcdDriver{
-		client: client,
+		client:  client,
 		servers: servers,
 		timeout: timeout,
 	}
 	return driver, nil
 }
 
-func (etcd *EtcdDriver) Create(path string, data []byte) error {
+func (etcd EtcdDriver) Create(path string, data []byte) error {
 	_, err := etcd.client.Create(path, string(data), 1000000)
 	return err
 }
 
+func (etcd EtcdDriver) Exists(path string) (bool, error) {
+	_, err := etcd.client.Get(path, false, false)
+	if err != nil {
+		if strings.Contains(err.Error(), "Key not found") {
+			return false, nil
+		}
+
+		return false, err
+	}
+	return true, nil
+}

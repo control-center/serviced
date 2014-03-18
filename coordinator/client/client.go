@@ -9,6 +9,7 @@ import (
 
 
 var (
+	ErrNodeExists = errors.New("coord-client: node exists")
 	ErrInvalidZkServers = errors.New("coord-client: invalid zk servers list")
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 )

@@ -1,12 +1,10 @@
 
-package utils
+package client 
 
 
 import (
 	"errors"
 	"strings"
-
-	"github.com/samuel/go-zookeeper/zk"
 )
 
 
@@ -30,7 +28,7 @@ func ValidatePath(path string) error {
 	return nil
 }
 
-func Mkdirs(zookeeper *zk.Conn, path string, makeLastNode bool) error {
+func Mkdirs(driver Driver, path string, makeLastNode bool) error {
 
 	if err := ValidatePath(path); err != nil {
 		return err
@@ -48,15 +46,15 @@ func Mkdirs(zookeeper *zk.Conn, path string, makeLastNode bool) error {
 		}
 
                 subPath += part
-		exists, _, err := zookeeper.Exists(subPath)
+		exists, err := driver.Exists(subPath)
 		if err != nil {
 			return err
 		}
 		if exists {
 			continue
 		}
-		if _, err = zookeeper.Create(subPath, []byte{}, 0, zk.WorldACL(zk.PermAll)); err != nil {
-			if err == zk.ErrNodeExists {
+		if err = driver.Create(subPath, []byte{}); err != nil {
+			if err == ErrNodeExists {
 				continue
 			}
 			return err

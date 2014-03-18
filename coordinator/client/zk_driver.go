@@ -31,8 +31,14 @@ func NewZkDriver(servers []string, timeout time.Duration) (driver *ZkDriver, err
 	return driver, nil
 }
 
-func (zk *ZkDriver) Create(path string, data []byte	) error {
+func (zk ZkDriver) Create(path string, data []byte	) error {
 	_, err := zk.conn.Create(path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
 	return err
+}
+
+
+func (zk ZkDriver) Exists(path string) (bool, error) {
+	exists, _, err := zk.conn.Exists(path)
+	return exists, err
 }
 
