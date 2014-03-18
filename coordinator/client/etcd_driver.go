@@ -31,6 +31,11 @@ func (etcd EtcdDriver) Create(path string, data []byte) error {
 	return err
 }
 
+func (etcd EtcdDriver) CreateDir(path string) error {
+	_, err := etcd.client.CreateDir(path, 1000000)
+	return err
+}
+
 func (etcd EtcdDriver) Exists(path string) (bool, error) {
 	_, err := etcd.client.Get(path, false, false)
 	if err != nil {

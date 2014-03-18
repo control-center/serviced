@@ -36,6 +36,10 @@ func (zk ZkDriver) Create(path string, data []byte	) error {
 	return err
 }
 
+func (zk ZkDriver) CreateDir(path string) error {
+	return zk.Create(path, []byte{})
+}
+
 
 func (zk ZkDriver) Exists(path string) (bool, error) {
 	exists, _, err := zk.conn.Exists(path)
