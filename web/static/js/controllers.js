@@ -957,7 +957,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.ofdconfig = {
@@ -987,7 +988,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.memconfig = {
@@ -1018,7 +1020,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.rssconfig = {
@@ -1050,7 +1053,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         height: 300,
         width: 300,
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.drawn = {};
