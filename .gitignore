@@ -32,7 +32,7 @@ _cgo_gotypes.go
 _cgo_export.*
 
 _testmain.go
-isvcs/resources/logstash/logstash.conf
+./isvcs/resources/logstash/logstash.conf
 isvcs/build/*.tar.gz
 *.exe
 
