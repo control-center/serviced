@@ -1,8 +1,9 @@
-package client
+package zk_driver
 
 import (
 	"time"
 
+	"github.com/zenoss/serviced/coordinator/client"
 	zklib "github.com/samuel/go-zookeeper/zk"
 )
 
@@ -13,9 +14,16 @@ type ZkDriver struct {
 }
 
 // Assert that the Zookeeper driver meets the Driver interface
-var _ Driver = ZkDriver{}
+var _ client.Driver = ZkDriver{}
 
-func NewZkDriver(servers []string, timeout time.Duration) (driver Driver, err error) {
+
+func init() {
+	if err := client.RegisterDriver("zookeeper", NewZkDriver); err != nil {
+		panic(err)
+	}
+}
+
+func NewZkDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
 
 	conn, _, err := zklib.Connect(servers, timeout)
 	if err != nil {
@@ -28,10 +36,6 @@ func NewZkDriver(servers []string, timeout time.Duration) (driver Driver, err er
 		timeout: timeout,
 	}
 	return driver, nil
-}
-
-func init() {
-	registeredDrivers["zookeeper"] = NewZkDriver
 }
 
 func (zk ZkDriver) Create(path string, data []byte) error {

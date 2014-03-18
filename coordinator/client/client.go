@@ -3,25 +3,45 @@ package client
 import (
 	"errors"
 	"time"
+	"sync"
 
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
 var (
+	ErrDriverAlreadyRegistered = errors.New("coord-client: driver already registered")
 	ErrDriverNotFound     = errors.New("coord-client: flavor not found")
 	ErrNodeExists         = errors.New("coord-client: node exists")
 	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 )
 
+type regDriversType struct {
+	driverMap map[string] func([]string, time.Duration) (Driver, error)
+	sync.Mutex
+}
+
 var (
-	registeredDrivers = make(map[string]func([]string, time.Duration) (Driver, error))
+	registeredDrivers = regDriversType{
+		driverMap: make(map[string]func([]string, time.Duration) (Driver, error)),
+	}
 )
 
+
+func RegisterDriver(name string, driver func([]string, time.Duration) (Driver, error)) error {
+	registeredDrivers.Lock()
+	defer registeredDrivers.Unlock()
+	if _, found := registeredDrivers.driverMap[name]; !found {
+		registeredDrivers.driverMap[name] = driver
+		return nil
+	}
+	return ErrDriverAlreadyRegistered
+}
+
 func RegisteredDrivers() []string {
-	names := make([]string, len(registeredDrivers))
+	names := make([]string, len(registeredDrivers.driverMap))
 	i := 0
-	for key, _ := range registeredDrivers {
+	for key, _ := range registeredDrivers.driverMap {
 		names[i] = key
 		i++
 	}
@@ -45,7 +65,7 @@ func New(machines []string, timeout time.Duration, retryPolicy retry.Policy, fla
 			return nil, ErrInvalidMachines
 		}
 	}
-	if _, found := registeredDrivers[flavor]; !found {
+	if _, found := registeredDrivers.driverMap[flavor]; !found {
 		return nil, ErrDriverNotFound
 	}
 	client = &Client{
@@ -53,7 +73,7 @@ func New(machines []string, timeout time.Duration, retryPolicy retry.Policy, fla
 		timeout:       timeout,
 		done:          make(chan struct{}),
 		retryPolicy:   retryPolicy,
-		driverFactory: registeredDrivers[flavor],
+		driverFactory: registeredDrivers.driverMap[flavor],
 	}
 	return client, nil
 }

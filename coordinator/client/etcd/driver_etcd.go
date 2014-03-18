@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/coreos/go-etcd/etcd"
 )
 
@@ -14,9 +15,9 @@ type EtcdDriver struct {
 }
 
 // Assert that the Ectd driver meets the Driver interface
-var _ Driver = EtcdDriver{}
+var _ client.Driver = EtcdDriver{}
 
-func NewEtcdDriver(servers []string, timeout time.Duration) (driver Driver, err error) {
+func NewEtcdDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
 
 	client := etcd.NewClient(servers)
 	client.SetConsistency("STRONG_CONSISTENCY")
@@ -30,7 +31,9 @@ func NewEtcdDriver(servers []string, timeout time.Duration) (driver Driver, err 
 }
 
 func init() {
-	registeredDrivers["etcd"] = NewEtcdDriver
+	if err := client.RegisterDriver("etcd", NewEtcdDriver); err != nil {
+		panic(err)
+	}
 }
 
 func (etcd EtcdDriver) Create(path string, data []byte) error {
