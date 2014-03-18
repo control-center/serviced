@@ -1,12 +1,9 @@
-
-package client 
-
+package client
 
 import (
 	"errors"
 	"strings"
 )
-
 
 func ValidatePath(path string) error {
 
@@ -34,18 +31,18 @@ func Mkdirs(driver Driver, path string, makeLastNode bool) error {
 		return err
 	}
 
-        parts := strings.Split(path, "/")
+	parts := strings.Split(path, "/")
 
-        subPath := "/"
+	subPath := "/"
 
 	lastNodeIndex := len(parts) - 1
-        for i, part := range parts {
+	for i, part := range parts {
 
-		if i == lastNodeIndex && !makeLastNode{
+		if i == lastNodeIndex && !makeLastNode {
 			return nil
 		}
 
-                subPath += part
+		subPath += part
 		exists, err := driver.Exists(subPath)
 		if err != nil {
 			return err
@@ -59,7 +56,6 @@ func Mkdirs(driver Driver, path string, makeLastNode bool) error {
 			}
 			return err
 		}
-        }
+	}
 	return nil
 }
-

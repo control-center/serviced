@@ -47,3 +47,8 @@ func (etcd EtcdDriver) Exists(path string) (bool, error) {
 	}
 	return true, nil
 }
+
+func (etc EtcdDriver) Delete(path string) error {
+	_, err := etc.client.Delete(path, false)
+	return err
+}

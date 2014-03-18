@@ -7,17 +7,16 @@ import (
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
-
 var (
-	ErrNodeExists = errors.New("coord-client: node exists")
-	ErrInvalidZkServers = errors.New("coord-client: invalid zk servers list")
+	ErrNodeExists         = errors.New("coord-client: node exists")
+	ErrInvalidZkServers   = errors.New("coord-client: invalid zk servers list")
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 )
 
 type Client struct {
-	zkServers []string
-	timeout time.Duration
-	done chan struct{}
+	zkServers   []string
+	timeout     time.Duration
+	done        chan struct{}
 	retryPolicy retry.Policy
 }
 
@@ -31,9 +30,9 @@ func New(zkServers []string, timeout time.Duration, retryPolicy retry.Policy) (c
 		}
 	}
 	client = &Client{
-		zkServers: zkServers,
-		timeout: timeout,
-		done: make(chan struct{}),
+		zkServers:   zkServers,
+		timeout:     timeout,
+		done:        make(chan struct{}),
 		retryPolicy: retryPolicy,
 	}
 	return client, nil
@@ -43,7 +42,7 @@ func (client *Client) Close() {
 	client.done <- struct{}{}
 }
 
-func (client *Client) SetRetryPolicy (policy retry.Policy) error {
+func (client *Client) SetRetryPolicy(policy retry.Policy) error {
 	if policy == nil {
 		return ErrInvalidRetryPolicy
 	}
@@ -54,4 +53,3 @@ func (client *Client) SetRetryPolicy (policy retry.Policy) error {
 func (client *Client) SetTimeout(timeout time.Duration) {
 	client.timeout = timeout
 }
-
