@@ -2,8 +2,8 @@ package client
 
 import (
 	"reflect"
-	"testing"
 	"sort"
+	"testing"
 )
 
 func TestRegisteredDrivers(t *testing.T) {
@@ -16,5 +16,3 @@ func TestRegisteredDrivers(t *testing.T) {
 		t.FailNow()
 	}
 }
-
-
