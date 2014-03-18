@@ -49,6 +49,7 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
+	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	vfs             string   // driver for container volumes
@@ -64,10 +65,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.dockerDns = dockerDns
 	agent.varPath = varPath
 	agent.mount = mount
 	agent.vfs = vfs
@@ -599,9 +601,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name)
 	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password)
 
+	// add dns values to setup
+	dns := ""
+	for _, addr := range a.dockerDns {
+    if len( dns) > 0 {
+      dns += " "
+    }
+
+    _addr := strings.TrimSpace( addr)
+    if len(_addr) > 0 {
+      dns += "--dns " + addr
+    }
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s -rm -name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)
