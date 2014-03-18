@@ -324,12 +324,11 @@ func selectLeastCommittedHost(cp dao.ControlPlane, hosts []*dao.PoolHost) (*dao.
 
 	// fan-out available RAM computation for each host
 	for _, h := range hosts {
-		var poolhost *dao.PoolHost = h
-		go func() {
-			wg.Add(1)
+		wg.Add(1)
+		go func(poolhost *dao.PoolHost) {
 			availableRAM(cp, poolhost, hic, done)
 			wg.Done()
-		}()
+		}(h)
 	}
 
 	// close the hostitem channel when all the calculation is finished
