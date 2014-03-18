@@ -21,7 +21,7 @@ type ElasticDriver interface {
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(name string, mapping interface{}) error
 	Initialize() error
-	GetConnection() datastore.Connection
+	GetConnection() (datastore.Connection, error)
 }
 
 func New(host string, port uint16, index string) ElasticDriver {
@@ -48,8 +48,8 @@ type elasticDriver struct {
 	index    string
 }
 
-func (ed *elasticDriver) GetConnection() datastore.Connection {
-	return &elasticConnection{ed.index}
+func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
+	return &elasticConnection{ed.index}, nil
 }
 
 func (ed *elasticDriver) Initialize() error {

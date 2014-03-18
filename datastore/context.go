@@ -5,7 +5,7 @@
 package datastore
 
 type Context interface {
-	Connection() Connection
+	Connection() (Connection, error)
 }
 
 type context struct {
@@ -16,6 +16,6 @@ func NewContext(driver Driver) Context {
 	return &context{driver}
 }
 
-func (c *context) Connection() Connection {
+func (c *context) Connection() (Connection, error) {
 	return c.driver.GetConnection()
 }

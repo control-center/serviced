@@ -5,7 +5,7 @@
 package datastore
 
 type Driver interface {
-	GetConnection() Connection
+	GetConnection() (Connection, error)
 }
 
 type Connection interface {

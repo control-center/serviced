@@ -89,11 +89,20 @@ func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	return ctx.Connection().Put(key, jsonMsg)
+	conn, err := ctx.Connection()
+	if err!= nil{
+		return err
+	}
+	return conn.Put(key, jsonMsg)
 }
 
 func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
-	if jsonMsg, err := ctx.Connection().Get(key); err != nil {
+	conn, err := ctx.Connection()
+	if err!= nil{
+		return err
+	}
+
+	if jsonMsg, err := conn.Get(key); err != nil {
 		return err
 	} else {
 		err = ds.deserialize(key.Kind(), jsonMsg, obj)
@@ -102,7 +111,12 @@ func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
 }
 
 func (ds *dataStore) Delete(ctx Context, key Key) error {
-	return ctx.Connection().Delete(key)
+	conn, err := ctx.Connection()
+	if err!= nil{
+		return err
+	}
+
+	return conn.Delete(key)
 }
 
 func (ds *dataStore) Query(ctx Context) Query {

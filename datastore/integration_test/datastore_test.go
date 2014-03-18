@@ -2,42 +2,44 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package elastic
+package integration_test
 
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/datastore/elastic"
 
 	"encoding/json"
 	"reflect"
 	"testing"
 )
 
-var driver ElasticDriver
+var driver datastore.Driver
 
-func getConnection() (ElasticDriver, error) {
+func getContext() (datastore.Context, error) {
 
 	if driver == nil {
-		driver = New("localhost", 9200, "twitter")
-		err := driver.Initialize()
+		esDriver := elastic.New("localhost", 9200, "twitter")
+		err := esDriver.Initialize()
 		if err != nil {
 			return nil, err
 		}
+		driver = esDriver
+
 	}
-	return driver, nil
+	return datastore.NewContext(driver), nil
 }
 
 func TestPutGetDelete(t *testing.T) {
 
-	driver, err := getConnection()
+	ctx, err := getContext()
 	if err != nil {
-		t.Fatalf("Error initializing driver: %v", err)
+		t.Fatalf("Got error %v", err)
 	}
-
-	conn, err := driver.GetConnection()
-	if err != nil {
-		t.Fatalf("Error getting connection: %v", err)
+	if ctx == nil{
+		t.Fatal("Expected context")
 	}
+	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
 	tweet := map[string]string{
@@ -46,19 +48,17 @@ func TestPutGetDelete(t *testing.T) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	err = ds.Put(ctx, key, datastore.NewJsonMessage(tweetJson))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	//Get tweet
-	raw, err := conn.Get(key)
+	var tweetMap map[string]string
+	err = ds.Get(ctx, key, &tweetMap)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	glog.Infof("raw is %v", string(raw.Bytes()))
-	var tweetMap map[string]string
-	json.Unmarshal(raw.Bytes(), &tweetMap)
 	glog.Infof("tweet is %v", tweetMap)
 
 	if tweetMap["user"] != "kimchy" {
@@ -66,16 +66,13 @@ func TestPutGetDelete(t *testing.T) {
 	}
 
 	//Delete tweet
-	err = conn.Delete(key)
+	err = ds.Delete(ctx, key)
 	if err != nil {
 		t.Errorf("Unexpected delete error: %v", err)
 	}
 
 	//test not found
-	raw, err = conn.Get(key)
-	if raw != nil {
-		t.Errorf("Expected nil return;")
-	}
+	err = ds.Get(ctx, key, &tweetMap)
 	if err == nil {
 		t.Error("Expected error, not nil")
 	} else {
