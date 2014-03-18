@@ -13,6 +13,9 @@ type EtcdDriver struct {
 	timeout time.Duration
 }
 
+// Assert that the Ectd driver meets the Driver interface
+var _ Driver = EtcdDriver{}
+
 func NewEtcdDriver(servers []string, timeout time.Duration) (driver *EtcdDriver, err error) {
 
 	client := etcd.NewClient(servers)

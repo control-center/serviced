@@ -12,6 +12,9 @@ type ZkDriver struct {
 	timeout time.Duration
 }
 
+// Assert that the Zookeeper driver meets the Driver interface
+var _ Driver = ZkDriver{}
+
 func NewZkDriver(servers []string, timeout time.Duration) (driver *ZkDriver, err error) {
 
 	conn, _, err := zklib.Connect(servers, timeout)

@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+// Loop is an object that manages running the callable function and retrying it 
+// based on a give policy.
 type Loop struct {
 	isDone      bool
 	startTime   time.Duration
