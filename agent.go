@@ -566,7 +566,14 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add dns values to setup
 	dns := ""
 	for _, addr := range a.dockerDns {
-		dns += "--dns " + addr + " "
+    if len( dns) > 0 {
+      dns += " "
+    }
+
+    _addr := strings.TrimSpace( addr)
+    if len(_addr) > 0 {
+      dns += "--dns " + addr
+    }
 	}
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
