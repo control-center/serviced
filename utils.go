@@ -173,6 +173,27 @@ func GetIPAddress() (ip string, err error) {
 	return ip, err
 }
 
+// GetInterfaceIPAddress attempts to find the IP address based on interface name
+func GetInterfaceIpAddress(_interface string) (string, error) {
+	output, err := exec.Command("/sbin/ip", "-4", "-o", "addr").Output()
+	if err != nil {
+		return "", err
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+
+		if strings.HasPrefix(fields[1], _interface) {
+			return strings.Split(fields[3], "/")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("Unable to find ip for interface: %s", _interface)
+}
+
 // getIPAddrFromHostname returns the ip address associated with hostname -i.
 func getIPAddrFromHostname() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()
@@ -471,12 +492,12 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 
 	var err error
 	var output []byte
-	for i := 0; i < 1; i++ {
-		docker := exec.Command("docker", "run",
-			"-v", hostPath+":/mnt",
-			imageSpec,
-			"/bin/sh", "-c",
-			fmt.Sprintf(`
+	command := [...]string{
+		"docker", "run",
+		"-v", hostPath + ":/mnt",
+		imageSpec,
+		"/bin/bash", "-c",
+		fmt.Sprintf(`
 chown %s /mnt && \
 chmod %s /mnt && \
 shopt -s nullglob && \
@@ -489,7 +510,11 @@ elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /mnt/
 fi
 sleep 5s
-`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
+	}
+
+	for i := 0; i < 1; i++ {
+		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
 			return nil
@@ -497,6 +522,6 @@ sleep 5s
 		time.Sleep(time.Second)
 	}
 
-	glog.Errorf("could not create host volume: %s", string(output))
+	glog.Errorf("could not create host volume: %+v, %s", command, string(output))
 	return err
 }

@@ -35,6 +35,7 @@ import (
 	"os/user"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,6 +47,7 @@ var options struct {
 	port             string
 	listen           string
 	master           bool
+	dockerDns        string
 	agent            bool
 	muxPort          int
 	tls              bool
@@ -104,8 +106,10 @@ func init() {
 		panic(err)
 	}
 
+	dockerDns := os.Getenv("SERVICED_DOCKER_DNS")
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
+	flag.StringVar(&options.dockerDns, "dockerDns", dockerDns, "docker dns configuration used for running containers (comma seperated list)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
@@ -127,7 +131,7 @@ func init() {
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
 	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
-	flag.IntVar(&options.statsperiod, "statsperiod", 1, "Period (seconds) for container statistics reporting")
+	flag.IntVar(&options.statsperiod, "statsperiod", 60, "Period (seconds) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
@@ -211,7 +215,8 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+		_dns := strings.Split(options.dockerDns, ",")
+		agent, err := serviced.NewHostAgent(options.port, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}

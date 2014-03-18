@@ -72,6 +72,11 @@ cd serviced
 make install
 ```
 
+Setup HBASE
+```
+https://github.com/zenoss/serviced/wiki/Single-node-HBASE-setup
+```
+
 After this, a binary should exist at $GOPATH/bin/serviced & 
 $GOPATH/src/github.com/zenoss/serviced/serviced. You can run the server with
 
