@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', {
@@ -957,7 +957,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.ofdconfig = {
@@ -978,7 +979,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             },
         ],
         "footer": false,
-        "format": "%6.2f",
+        "format": "%d",
         "maxy": null,
         "miny": 0,
         "range": {
@@ -987,7 +988,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.memconfig = {
@@ -998,7 +1000,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "expression": null,
                 "expression": null,
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%d",
                 "id": "pgfault",
                 "legend": "Page Faults",
                 "metric": "MemoryStat.pgfault",
@@ -1018,7 +1020,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         },
         "returnset": "EXACT",
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.rssconfig = {
@@ -1050,7 +1053,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         height: 300,
         width: 300,
         "tags": {},
-        "type": "line"
+        "type": "line",
+        "downsample": "1m-avg"
     };
 
     $scope.drawn = {};
