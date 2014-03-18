@@ -15,7 +15,7 @@ type ZkDriver struct {
 // Assert that the Zookeeper driver meets the Driver interface
 var _ Driver = ZkDriver{}
 
-func NewZkDriver(servers []string, timeout time.Duration) (driver *ZkDriver, err error) {
+func NewZkDriver(servers []string, timeout time.Duration) (driver Driver, err error) {
 
 	conn, _, err := zklib.Connect(servers, timeout)
 	if err != nil {
@@ -28,6 +28,10 @@ func NewZkDriver(servers []string, timeout time.Duration) (driver *ZkDriver, err
 		timeout: timeout,
 	}
 	return driver, nil
+}
+
+func init() {
+	registeredDrivers["zookeeper"] = NewZkDriver
 }
 
 func (zk ZkDriver) Create(path string, data []byte) error {
