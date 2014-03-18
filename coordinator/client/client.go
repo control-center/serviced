@@ -3,6 +3,7 @@ package client
 import (
 	"errors"
 	"time"
+
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
