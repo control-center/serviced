@@ -9,28 +9,28 @@ import (
 
 var (
 	ErrNodeExists         = errors.New("coord-client: node exists")
-	ErrInvalidZkServers   = errors.New("coord-client: invalid zk servers list")
+	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 )
 
 type Client struct {
-	zkServers   []string
+	machines    []string
 	timeout     time.Duration
 	done        chan struct{}
 	retryPolicy retry.Policy
 }
 
-func New(zkServers []string, timeout time.Duration, retryPolicy retry.Policy) (client *Client, err error) {
-	if len(zkServers) == 0 {
-		return nil, ErrInvalidZkServers
+func New(machines []string, timeout time.Duration, retryPolicy retry.Policy) (client *Client, err error) {
+	if len(machines) == 0 {
+		return nil, ErrInvalidMachines
 	}
-	for _, server := range zkServers {
-		if len(server) == 0 {
-			return nil, ErrInvalidZkServers
+	for _, machine := range machines {
+		if len(machine) == 0 {
+			return nil, ErrInvalidMachines
 		}
 	}
 	client = &Client{
-		zkServers:   zkServers,
+		machines:    machines,
 		timeout:     timeout,
 		done:        make(chan struct{}),
 		retryPolicy: retryPolicy,
