@@ -109,14 +109,13 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"proxy", "Start a proxy in the foreground"},
 
 		{"show", "Show all available commands"},
+		{"run", "Starts a shell to run defined commands from a container"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
 		{"commit", "Commit a container to an image"},
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
-		{"get", "Download a file from a container image"},
-		{"recv", "Receive a file for a container image"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -896,7 +895,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	saveAs := serviced.GetLabel(service.Id)
 	config := shell.ProcessConfig{
 		ServiceId: service.Id,
-		IsTTY:     false,
+		IsTTY:     istty,
 		SaveAs:    saveAs,
 		Command:   strings.Join(command, " "),
 	}
