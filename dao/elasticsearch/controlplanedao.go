@@ -1921,6 +1921,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	return s, nil
 }
 
+func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
+	s.dfs.Lock()
+	s.dfs.Unlock()
+	return
+}
+
 // writeLogstashConfiguration takes all the available
 // services and writes out the filters section for logstash.
 // This is required before logstash startsup

@@ -31,6 +31,14 @@ import (
 	"time"
 )
 
+// CUSTOM SERVICED COMMANDS CONSTANTS
+const (
+	SERVICED_BINDIR    = "/etc/supervisord/bin"
+	SERVICED_RUNCMD    = SERVICED_BINDIR + "/.run"
+	SERVICED_SHOWCMD   = SERVICED_BINDIR + "/.show"
+	SERVICED_TX_COMMIT = 100
+)
+
 const TIMEFMT = "20060102-150405"
 
 func GetLabel(name string) string {

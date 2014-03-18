@@ -1,0 +1,19 @@
+#! /bin/bash
+
+# Global constants and program utilities
+source $SERVICED_BIN/.define
+
+# Default action for undefined program calls
+__DEFAULT__() {
+    echo -e "This is an example template for custom commands"
+    echo -e "Typically, this will look up the command on the \$PATH and " \
+        "run with the designated arguments"
+    echo -e "Supported commands here are commit and rollback"
+    echo -e "Put more useful documentation here"
+    return 0
+}
+
+commit() {
+    echo -e "Indicator for the host to commit the container and dfs"
+    return $TX_COMMIT
+}

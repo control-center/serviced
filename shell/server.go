@@ -16,7 +16,6 @@ import (
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/dfs"
 )
 
 var empty interface{}
@@ -78,14 +77,14 @@ func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
-		// Kick it off
-		glog.Infof("Received process packet")
-		proc := s.actor.Exec(cfg)
-		ns.Session.Values[PROCESSKEY] = proc
+	// Kick it off
+	glog.Infof("Received process packet")
+	proc := s.actor.Exec(cfg)
+	ns.Session.Values[PROCESSKEY] = proc
 
-		// Wire up output
-		go proc.ReadRequest(ns)
-		go proc.WriteResponse(ns)
+	// Wire up output
+	go proc.ReadRequest(ns)
+	go proc.WriteResponse(ns)
 }
 
 func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
@@ -270,10 +269,6 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
-	// Acquire and release the lock to start a container from the latest image
-	dfs.Lock.Lock()
-	dfs.Lock.Unlock()
-
 	var (
 		runner  Runner
 		service dao.Service
@@ -334,6 +329,8 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	argv = append(argv, service.ImageId)
 	argv = append(argv, proxycmd...)
 
+	// Wait for the DFS to be ready in order to start container on the latest image
+	cp.ReadyDFS(false, nil)
 	glog.Infof("%s %s", docker, argv)
 	runner, err = CreateCommand(docker, argv)
 	if err != nil {
@@ -371,9 +368,17 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 		}()
 
 		if err := runner.Reader(MAXBUFFER); err != nil {
-			inst.Result <- Result{1, err, NORMAL}
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					inst.Result <- Result{status.ExitStatus(), err, NORMAL}
+				}
+			}
+
+			// If the above is valid, you shouldn't be capturing the next
+			// result in the channel
+			inst.Result <- Result{0, err, ABNORMAL}
 		} else {
-			inst.Result <- Result{0, err, NORMAL}
+			inst.Result <- Result{0, nil, NORMAL}
 		}
 	}()
 

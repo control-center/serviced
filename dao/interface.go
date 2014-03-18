@@ -204,4 +204,7 @@ type ControlPlane interface {
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
 	ValidateCredentials(user User, result *bool) error
+
+	// Waits for the DFS to be ready
+	ReadyDFS(bool, *int) error
 }

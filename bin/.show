@@ -1,0 +1,3 @@
+#! /bin/bash
+
+ls $SERVICED_BIN
