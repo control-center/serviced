@@ -31,7 +31,7 @@ func NewZkDriver(servers []string, timeout time.Duration) (driver *ZkDriver, err
 }
 
 func (zk ZkDriver) Create(path string, data []byte) error {
-	_, err := zk.conn.Create(path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+	_, err := zk.conn.Create(path, data, 0, zklib.WorldACL(zklib.PermAll))
 	return err
 }
 
