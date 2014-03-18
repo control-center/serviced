@@ -979,7 +979,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             },
         ],
         "footer": false,
-        "format": "%6.2f",
+        "format": "%d",
         "maxy": null,
         "miny": 0,
         "range": {
@@ -1000,7 +1000,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "expression": null,
                 "expression": null,
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%d",
                 "id": "pgfault",
                 "legend": "Page Faults",
                 "metric": "MemoryStat.pgfault",
