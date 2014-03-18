@@ -40,7 +40,7 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JsonMessage) e
 
 func (ec *elasticConnection) Get(key datastore.Key) (datastore.JsonMessage, error) {
 	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
-	glog.Infof("Get for kind %s, id %s", key.Kind(), key.ID())
+	glog.Infof("Get for {kind:%s, id:%s}", key.Kind(), key.ID())
 	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
 	response, err := core.Get(false, ec.index, key.Kind(), key.ID())
 	if err != nil {
@@ -48,6 +48,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JsonMessage, erro
 		return nil, err
 	}
 	if !response.Exists {
+		glog.Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
 		return nil, datastore.ErrNoSuchEntity{key}
 	}
 	//again this stupid API doesn't let me deal with raw bytes. GetSource does but doesn't differentiate
@@ -59,10 +60,16 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JsonMessage, erro
 	return datastore.NewJsonMessage(bytes), nil
 }
 
-func (ec *elasticConnection) Query(query datastore.Query) ([]datastore.JsonMessage, error) {
-	return make([]datastore.JsonMessage, 0), nil
+func (ec *elasticConnection) Delete(key datastore.Key) error {
+	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
+	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
+	glog.Infof("Delete response: %v", resp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (ec *elasticConnection) Delete(key datastore.Key) error {
-	return nil
+func (ec *elasticConnection) Query(query datastore.Query) ([]datastore.JsonMessage, error) {
+	return make([]datastore.JsonMessage, 0), nil
 }

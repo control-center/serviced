@@ -20,7 +20,6 @@ type ElasticDriver interface {
 	SetProperty(name string, prop interface{}) error
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(name string, mapping interface{}) error
-	GetMappings() map[string]interface{}
 	Initialize() error
 	GetConnection() datastore.Connection
 }
@@ -54,17 +53,72 @@ func (ed *elasticDriver) GetConnection() datastore.Connection {
 }
 
 func (ed *elasticDriver) Initialize() error {
-	url := fmt.Sprintf("http://%s:%d/%s", ed.host, ed.port, ed.index)
-	glog.Infof("Posting to %s", url)
+	if err := ed.postIndex(); err != nil {
+		return err
+	}
+
+	if err := ed.postMappings(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ed *elasticDriver) SetProperty(name string, prop interface{}) error {
+	ed.settings[name] = prop
+	return nil
+}
+
+func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
+	//TODO: this should add the fields from Entity, key and type)
+	ed.mappings[name] = mapping
+	return nil
+}
+
+func (ed *elasticDriver) postMappings() error {
+	baseUrl := fmt.Sprintf("http://%s:%d/%s/", ed.host, ed.port, ed.index)
+
+	for typeName, mapping := range ed.mappings {
+
+		mappingBytes, err := json.Marshal(mapping)
+
+		glog.Infof("mappping %v to  %v", typeName, string(mappingBytes))
+
+		if err != nil {
+			return err
+		}
+		mapURL := fmt.Sprintf("%s/%s/_mapping", baseUrl, typeName)
+		glog.Infof("Posting mapping to %s", mapURL)
+		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
+		if err != nil {
+			return fmt.Errorf("Error mapping %s: %s", typeName, err)
+		}
+		glog.Infof("Response %v", resp)
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		glog.Infof("Post result %s", body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("Response &d mapping %s: $s", resp.StatusCode, typeName, string(body))
+		}
+	}
+	return nil
+}
+
+func (ed *elasticDriver) postIndex() error {
+	url := fmt.Sprintf("http://%s:%d/%s/", ed.host, ed.port, ed.index)
+	glog.Infof("Posting Index to %s", url)
+
 	config := make(map[string]interface{})
 	config["settings"] = ed.settings
-	config["mappings"] = ed.mappings
 	configBytes, err := json.Marshal(config)
 	glog.Infof("Config is %v", string(configBytes))
 
 	if err != nil {
 		return err
 	}
+
 	resp, err := http.Post(url, "application/json", bytes.NewReader(configBytes))
 	if err != nil {
 		return err
@@ -103,42 +157,3 @@ func (ed *elasticDriver) Initialize() error {
 	}
 	return nil
 }
-
-func (ed *elasticDriver) SetProperty(name string, prop interface{}) error {
-	ed.settings[name] = prop
-	return nil
-}
-
-func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
-	//TODO: this should add the fields from Entity, key and type)
-	ed.mappings[name] = mapping
-	return nil
-}
-func (ed *elasticDriver) GetMappings() map[string]interface{} {
-	return ed.mappings
-}
-
-//func (ec *elasticDriver) serialize(entity *datastore.Entity) (*Json, error) {
-//	var result Json
-//	result, err := json.Marshal(entity)
-//	return &result, err
-//}
-//
-//func (ed *elasticDriver) convertPayload(entity *datastore.Entity) error {
-//	factory, found := ed.factories[entity.Key.Kind()]
-//	if !found {
-//		return nil
-//	}
-//	value := factory()
-//	data, error := json.Marshal(entity.Payload)
-//	if error != nil {
-//		return error
-//	}
-//	json.Unmarshal(data, value)
-//	if error != nil {
-//		return error
-//	}
-//	entity.Payload = value
-//	return nil
-//}
-//

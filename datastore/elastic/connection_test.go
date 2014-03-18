@@ -27,7 +27,7 @@ func getConnection() (ElasticDriver, error) {
 	return driver, nil
 }
 
-func TestPut(t *testing.T) {
+func TestPutGetDelete(t *testing.T) {
 
 	driver, err := getConnection()
 	if err != nil {
@@ -44,42 +44,31 @@ func TestPut(t *testing.T) {
 	tweetJson, err := json.Marshal(tweet)
 	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Errorf("%v", err)
 	}
 
-}
-
-func TestGet(t *testing.T) {
-
-	driver, err := getConnection()
-	if err != nil {
-		t.Fatalf("Error initializing driver: %v", err)
-	}
-
-	conn := driver.GetConnection()
-	raw, err := conn.Get(datastore.NewKey("tweet", "1"))
+	//Get tweet
+	raw, err := conn.Get(key)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
 	glog.Infof("raw is %v", string(raw.Bytes()))
-	var tweet map[string]string
-	json.Unmarshal(raw.Bytes(), &tweet)
-	glog.Infof("tweet is %v", tweet)
+	var tweetMap map[string]string
+	json.Unmarshal(raw.Bytes(), &tweetMap)
+	glog.Infof("tweet is %v", tweetMap)
 
-	if tweet["user"] != "kimchy" {
-		t.Errorf("Expected kimchy, found %s", tweet["user"])
+	if tweetMap["user"] != "kimchy" {
+		t.Errorf("Expected kimchy, found %s", tweetMap["user"])
 	}
-}
 
-func TestGetNotFound(t *testing.T) {
-
-	driver, err := getConnection()
+	//Delete tweet
+	err = conn.Delete(key)
 	if err != nil {
-		t.Fatalf("Error initializing driver: %v", err)
+		t.Errorf("Unexpected delete error: %v", err)
 	}
 
-	conn := driver.GetConnection()
-	raw, err := conn.Get(datastore.NewKey("tweet", "2"))
+	//test not found
+	raw, err = conn.Get(key)
 	if raw != nil {
 		t.Errorf("Expected nil return;")
 	}
