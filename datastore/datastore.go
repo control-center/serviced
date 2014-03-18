@@ -8,19 +8,53 @@ import (
 	"encoding/json"
 )
 
-type Key struct {
+type JsonMessage interface {
+	Bytes() []byte
+}
+
+func NewJsonMessage(data []byte) JsonMessage {
+	return &jsonMessage{data}
+}
+
+type jsonMessage struct {
+	data json.RawMessage
+}
+
+// MarshalJSON returns *m as the JSON encoding of m.
+func (m *jsonMessage) MarshalJSON() ([]byte, error) {
+	return m.data.MarshalJSON()
+}
+
+// UnmarshalJSON sets *m to a copy of data.
+func (m *jsonMessage) UnmarshalJSON(data []byte) error {
+	return m.data.UnmarshalJSON(data)
+}
+func (m *jsonMessage) Bytes() []byte {
+	return m.data
+}
+
+type Key interface {
+	Kind() string
+	ID() string
+}
+
+type key struct {
 	id   string
 	kind string
 }
 
 // Kind returns the key's kind (also known as entity type).
-func (k *Key) Kind() string {
+func (k *key) Kind() string {
 	return k.kind
 }
 
 // Kind returns the key's kind (also known as entity type).
-func (k *Key) ID() string {
+func (k *key) ID() string {
 	return k.id
+}
+
+func NewKey(kind string, id string) Key {
+	return &key{id, kind}
 }
 
 // Entity is the data to be stored in the store. Key is the unique key. Type is the type of the data being stored.
@@ -77,10 +111,14 @@ func (ds *dataStore) Query(ctx Context) Query {
 
 func (ds *dataStore) serialize(kind string, obj interface{}) (JsonMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
-	return json.Marshal(obj)
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &jsonMessage{data}, nil
 }
 
 func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, obj interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
-	return json.Unmarshal(jsonMsg, obj)
+	return json.Unmarshal(jsonMsg.Bytes(), obj)
 }

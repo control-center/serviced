@@ -4,19 +4,16 @@
 
 package datastore
 
-type JsonMessage []byte
-
 type Driver interface {
 	GetConnection() Connection
 }
 
-type Connection interface{
+type Connection interface {
 	Put(key Key, data JsonMessage) error
 
 	Get(key Key) (JsonMessage, error)
 
 	Delete(key Key) error
 
-	Query(query Query)([]JsonMessage, error)
-
+	Query(query Query) ([]JsonMessage, error)
 }

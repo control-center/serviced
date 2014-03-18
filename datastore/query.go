@@ -18,7 +18,7 @@ type query struct {
 	ctx Context
 }
 
-func newQuery(ctx Context)Query{
+func newQuery(ctx Context) Query {
 	return &query{ctx}
 }
 func (q *query) Run() (Iterator, error) {

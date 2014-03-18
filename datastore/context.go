@@ -16,6 +16,6 @@ func NewContext(driver Driver) Context {
 	return &context{driver}
 }
 
-func (c *context) Connection() Connection{
+func (c *context) Connection() Connection {
 	return c.driver.GetConnection()
 }
