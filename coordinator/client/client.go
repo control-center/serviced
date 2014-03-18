@@ -18,6 +18,16 @@ var (
 	registeredDrivers = make(map[string]func([]string, time.Duration) (Driver, error))
 )
 
+func RegisteredDrivers() []string {
+	names := make([]string, len(registeredDrivers))
+	i := 0
+	for key, _ := range registeredDrivers {
+		names[i] = key
+		i++
+	}
+	return names
+}
+
 type Client struct {
 	machines      []string
 	timeout       time.Duration
