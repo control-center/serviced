@@ -86,6 +86,14 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 	return client, nil
 }
 
+func (client *Client) NewRetryLoop(cancelable retry.Cancelable) retry.Loop {
+	return retry.NewLoop(client.retryPolicy, cancelable)
+}
+
+func (client *Client) GetConnection() (Driver, error) {
+	return client.driverFactory(client.machines, client.timeout)
+}
+
 func (client *Client) Close() {
 	client.done <- struct{}{}
 }
