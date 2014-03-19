@@ -73,8 +73,8 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 					exitCode, _ = cmd.ProcessState.Sys().(int)
 				}
 				procexit <- exitCode
-			case err := <-serviceExit:
-				if err != nil {
+			case cmderr := <-serviceExit:
+				if cmderr != nil {
 					client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 					message := fmt.Sprintf("Problem running service: %v. Command \"%v\" failed: %v", config.ServiceId, config.Command, err)
 					if err == nil {
@@ -87,9 +87,9 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 						glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 					}
 
-					glog.Errorf("Problem running service: %v", err)
+					glog.Infof("%s", err)
 					glog.Flush()
-					if exiterr, ok := err.(*exec.ExitError); ok && !proxyOptions.autorestart {
+					if exiterr, ok := cmderr.(*exec.ExitError); ok && !proxyOptions.autorestart {
 						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 							procexit <- status.ExitStatus()
 						}
