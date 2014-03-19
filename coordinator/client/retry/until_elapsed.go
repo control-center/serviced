@@ -7,7 +7,6 @@ import (
 type untilElapsed struct {
 	maxElapsed          time.Duration // amount of time
 	sleepBetweenRetries time.Duration // time between retries
-	done                chan struct{}
 }
 
 // UntilElapsed returns a policy that retries until a given amount of time elapses
@@ -22,21 +21,9 @@ func (u untilElapsed) Name() string {
 	return "UntilElapsed"
 }
 
-func (u untilElapsed) Close() {
-	select {
-	case u.done <- struct{}{}:
-	default:
-	}
-}
-
-func (u untilElapsed) AllowRetry(retryCount int, elapsed time.Duration) bool {
+func (u untilElapsed) AllowRetry(retryCount int, elapsed time.Duration) (bool, time.Duration) {
 	if elapsed < u.maxElapsed {
-		select {
-		case <-time.After(u.sleepBetweenRetries):
-			return true
-		case <-u.done:
-			return false
-		}
+		return true, u.sleepBetweenRetries
 	}
-	return false
+	return false, time.Duration(0)
 }

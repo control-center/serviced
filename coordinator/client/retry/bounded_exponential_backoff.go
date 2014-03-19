@@ -16,7 +16,6 @@ func BoundedExponentialBackoff(baseSleepTime time.Duration, maxSleepTime time.Du
 		exponentialBackoff: exponentialBackoff{
 			baseSleepTime: baseSleepTime,
 			maxRetries:    maxRetries,
-			done:          make(chan struct{}),
 		},
 		maxSleepTime: maxSleepTime,
 	}
