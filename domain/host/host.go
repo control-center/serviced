@@ -40,7 +40,7 @@ func New() *Host {
 // param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
 // resources. If any IP is not a valid IP on the machine return error.
 func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
-	if poolid == ""{
+	if poolid == "" {
 		poolid = "UNKNOWN"
 	}
 	host, err := currentHost(ip, poolid)
@@ -60,5 +60,3 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	*host = *host
 	return host, nil
 }
-
-

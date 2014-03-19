@@ -35,18 +35,16 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	}
 
 	if ip != "" {
-		if !validIP(ip){
+		if !validIP(ip) {
 			return nil, fmt.Errorf("Requested IP %v is not available on host", ip)
 		}
 		host.IpAddr = ip
-	}else {
+	} else {
 		host.IpAddr, err = serviced.GetIPAddress()
 		if err != nil {
 			return host, err
 		}
 	}
-
-
 
 	host.Id = hostidStr
 	host.Cores = cpus
@@ -80,7 +78,7 @@ func getIPResources(hostId string, ipaddress ...string) ([]HostIPResource, error
 	hostIPResources := make([]HostIPResource, 0)
 
 	validate := func(iface net.Interface, ip string) error {
-		if (uint(iface.Flags) & (1<<uint(net.FlagLoopback))) == 0 {
+		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
 			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
 		}
 		return nil
@@ -144,4 +142,3 @@ func validIP(ip string) bool {
 	_, found := interfaces[normalIP]
 	return found
 }
-
