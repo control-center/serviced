@@ -8,34 +8,19 @@ import (
 	"encoding/json"
 )
 
-type JsonMessage interface {
-	Bytes() []byte
-}
-
-func NewJsonMessage(data []byte) JsonMessage {
-	return &jsonMessage{data}
-}
-
-type jsonMessage struct {
-	data json.RawMessage
-}
-
-// MarshalJSON returns *m as the JSON encoding of m.
-func (m *jsonMessage) MarshalJSON() ([]byte, error) {
-	return m.data.MarshalJSON()
-}
-
-// UnmarshalJSON sets *m to a copy of data.
-func (m *jsonMessage) UnmarshalJSON(data []byte) error {
-	return m.data.UnmarshalJSON(data)
-}
-func (m *jsonMessage) Bytes() []byte {
-	return m.data
-}
-
 type Key interface {
 	Kind() string
 	ID() string
+}
+
+type DataStore interface {
+	Put(ctx Context, key Key, data interface{}) error
+
+	Get(ctx Context, Key Key, data interface{}) error
+
+	Delete(ctx Context, key Key) error
+
+	Query(ctx Context) Query
 }
 
 type key struct {
@@ -57,29 +42,8 @@ func NewKey(kind string, id string) Key {
 	return &key{id, kind}
 }
 
-// Entity is the data to be stored in the store. Key is the unique key. Type is the type of the data being stored.
-// Payload is the actual data being stored.  It is up to the datastore driver to serialize and deserialize the Entity
-// and the payload
-//type Entity struct {
-//	Key     Key
-//	Payload interface{}
-//}
-
-//func NewEntity(key Key, payload interface{}) *Entity {
-//	return &Entity{key, payload}
-//}
 func New() DataStore {
 	return &dataStore{}
-}
-
-type DataStore interface {
-	Put(ctx Context, key Key, data interface{}) error
-
-	Get(ctx Context, Key Key, data interface{}) error
-
-	Delete(ctx Context, key Key) error
-
-	Query(ctx Context) Query
 }
 
 type dataStore struct{}
@@ -90,7 +54,7 @@ func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
 		return err
 	}
 	conn, err := ctx.Connection()
-	if err!= nil{
+	if err != nil {
 		return err
 	}
 	return conn.Put(key, jsonMsg)
@@ -98,7 +62,7 @@ func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
 
 func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
 	conn, err := ctx.Connection()
-	if err!= nil{
+	if err != nil {
 		return err
 	}
 
@@ -112,7 +76,7 @@ func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
 
 func (ds *dataStore) Delete(ctx Context, key Key) error {
 	conn, err := ctx.Connection()
-	if err!= nil{
+	if err != nil {
 		return err
 	}
 

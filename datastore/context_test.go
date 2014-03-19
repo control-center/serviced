@@ -4,44 +4,41 @@
 
 package datastore
 
-import(
+import (
 	"testing"
 )
 
 type testDriver struct{}
 
-func (d *testDriver )GetConnection() (Connection, error){
+func (d *testDriver) GetConnection() (Connection, error) {
 	return &testConn{}, nil
 }
 
 type testConn struct{}
-func (c testConn)Put(key Key, data JsonMessage) error{
+
+func (c testConn) Put(key Key, data JsonMessage) error {
 	return nil
 }
 
-func (c testConn)Get(key Key) (JsonMessage, error){
+func (c testConn) Get(key Key) (JsonMessage, error) {
 	return nil, nil
 }
 
-func (c testConn)Delete(key Key) error{
+func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn)Query(query Query) ([]JsonMessage, error){
+func (c testConn) Query(query Query) ([]JsonMessage, error) {
 	return nil, nil
 }
-
 
 func TestContext(t *testing.T) {
-
 
 	driver := testDriver{}
 	ctx := NewContext(&driver)
 
-	conn, _:=ctx.Connection()
-	if conn == nil{
+	conn, _ := ctx.Connection()
+	if conn == nil {
 		t.Error("Expected connection, got nil")
 	}
 }
-
-

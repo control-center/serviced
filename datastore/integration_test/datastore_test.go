@@ -36,7 +36,7 @@ func TestPutGetDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	if ctx == nil{
+	if ctx == nil {
 		t.Fatal("Expected context")
 	}
 	ds := datastore.New()
@@ -47,8 +47,7 @@ func TestPutGetDelete(t *testing.T) {
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
-	tweetJson, err := json.Marshal(tweet)
-	err = ds.Put(ctx, key, datastore.NewJsonMessage(tweetJson))
+	err = ds.Put(ctx, key, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
