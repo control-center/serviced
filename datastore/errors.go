@@ -16,7 +16,3 @@ type ErrNoSuchEntity struct {
 func (e ErrNoSuchEntity) Error() string {
 	return fmt.Sprintf("No such entity {kind:%s, id:%s}", e.Key.Kind(), e.Key.ID())
 }
-
-//func NewErrNoSuchEntity(key Key)error{
-//	return &ErrNoSuchEntity{key}
-//}

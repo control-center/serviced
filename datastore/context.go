@@ -4,16 +4,19 @@
 
 package datastore
 
+// Context is the context of the application or request being made
 type Context interface {
+	// Get a connection to the datastore
 	Connection() (Connection, error)
+}
+
+//Creates a new context with an Driver to a datastore
+func NewContext(driver Driver) Context {
+	return &context{driver}
 }
 
 type context struct {
 	driver Driver
-}
-
-func NewContext(driver Driver) Context {
-	return &context{driver}
 }
 
 func (c *context) Connection() (Connection, error) {

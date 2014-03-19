@@ -8,38 +8,20 @@ import (
 	"encoding/json"
 )
 
-type Key interface {
-	Kind() string
-	ID() string
-}
-
+// Interface for storing and retrieving data types from a datastore.
 type DataStore interface {
-	Put(ctx Context, key Key, data interface{}) error
 
-	Get(ctx Context, Key Key, data interface{}) error
+	// Put adds or updates an entity
+	Put(ctx Context, key Key, entity interface{}) error
 
+	// Get adds or updates an entity. Return ErrNoSuchEntity if nothing found for the
+	Get(ctx Context, Key Key, entity interface{}) error
+
+	// Delete removes the entity
 	Delete(ctx Context, key Key) error
 
+	// Query returns a Query type to be exectued
 	Query(ctx Context) Query
-}
-
-type key struct {
-	id   string
-	kind string
-}
-
-// Kind returns the key's kind (also known as entity type).
-func (k *key) Kind() string {
-	return k.kind
-}
-
-// Kind returns the key's kind (also known as entity type).
-func (k *key) ID() string {
-	return k.id
-}
-
-func NewKey(kind string, id string) Key {
-	return &key{id, kind}
 }
 
 func New() DataStore {
@@ -48,8 +30,8 @@ func New() DataStore {
 
 type dataStore struct{}
 
-func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
-	jsonMsg, err := ds.serialize(key.Kind(), data)
+func (ds *dataStore) Put(ctx Context, key Key, entity interface{}) error {
+	jsonMsg, err := ds.serialize(key.Kind(), entity)
 	if err != nil {
 		return err
 	}
@@ -60,7 +42,7 @@ func (ds *dataStore) Put(ctx Context, key Key, data interface{}) error {
 	return conn.Put(key, jsonMsg)
 }
 
-func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
+func (ds *dataStore) Get(ctx Context, key Key, entity interface{}) error {
 	conn, err := ctx.Connection()
 	if err != nil {
 		return err
@@ -69,7 +51,7 @@ func (ds *dataStore) Get(ctx Context, key Key, obj interface{}) error {
 	if jsonMsg, err := conn.Get(key); err != nil {
 		return err
 	} else {
-		err = ds.deserialize(key.Kind(), jsonMsg, obj)
+		err = ds.deserialize(key.Kind(), jsonMsg, entity)
 		return err
 	}
 }
@@ -87,16 +69,16 @@ func (ds *dataStore) Query(ctx Context) Query {
 	return newQuery(ctx)
 }
 
-func (ds *dataStore) serialize(kind string, obj interface{}) (JsonMessage, error) {
+func (ds *dataStore) serialize(kind string, entity interface{}) (JsonMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
-	data, err := json.Marshal(obj)
+	data, err := json.Marshal(entity)
 	if err != nil {
 		return nil, err
 	}
 	return &jsonMessage{data}, nil
 }
 
-func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, obj interface{}) error {
+func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
-	return json.Unmarshal(jsonMsg.Bytes(), obj)
+	return json.Unmarshal(jsonMsg.Bytes(), entity)
 }

@@ -8,16 +8,23 @@ import (
 	"encoding/json"
 )
 
+// JsonMessage Represents a enity as JSON
 type JsonMessage interface {
+	// Bytes return the JSON bytes of an entity
 	Bytes() []byte
 }
 
+// NewJsonMessage creates a JsonMessage using the provided bytes. The bytes should represent valid JSON
 func NewJsonMessage(data []byte) JsonMessage {
 	return &jsonMessage{data}
 }
 
 type jsonMessage struct {
 	data json.RawMessage
+}
+
+func (m *jsonMessage) Bytes() []byte {
+	return m.data
 }
 
 // MarshalJSON returns *m as the JSON encoding of m.
@@ -28,7 +35,4 @@ func (m *jsonMessage) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON sets *m to a copy of data.
 func (m *jsonMessage) UnmarshalJSON(data []byte) error {
 	return m.data.UnmarshalJSON(data)
-}
-func (m *jsonMessage) Bytes() []byte {
-	return m.data
 }
