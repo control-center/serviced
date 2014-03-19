@@ -2,22 +2,22 @@ package client
 
 import (
 	"errors"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
 var (
 	ErrDriverAlreadyRegistered = errors.New("coord-client: driver already registered")
-	ErrDriverNotFound     = errors.New("coord-client: flavor not found")
-	ErrNodeExists         = errors.New("coord-client: node exists")
-	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
-	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
+	ErrDriverNotFound          = errors.New("coord-client: flavor not found")
+	ErrNodeExists              = errors.New("coord-client: node exists")
+	ErrInvalidMachines         = errors.New("coord-client: invalid servers list")
+	ErrInvalidRetryPolicy      = errors.New("coord-client: invalid retry policy")
 )
 
 type regDriversType struct {
-	driverMap map[string] func([]string, time.Duration) (Driver, error)
+	driverMap map[string]func([]string, time.Duration) (Driver, error)
 	sync.Mutex
 }
 
@@ -26,7 +26,6 @@ var (
 		driverMap: make(map[string]func([]string, time.Duration) (Driver, error)),
 	}
 )
-
 
 func RegisterDriver(name string, driver func([]string, time.Duration) (Driver, error)) error {
 	registeredDrivers.Lock()
@@ -56,7 +55,11 @@ type Client struct {
 	driverFactory func([]string, time.Duration) (Driver, error)
 }
 
-func New(machines []string, timeout time.Duration, retryPolicy retry.Policy, flavor string) (client *Client, err error) {
+func DefaultRetryPolicy() retry.Policy {
+	return retry.NTimes(30, time.Millisecond*50)
+}
+
+func New(machines []string, timeout time.Duration, flavor string, retryPolicy retry.Policy) (client *Client, err error) {
 	if len(machines) == 0 {
 		return nil, ErrInvalidMachines
 	}
@@ -67,6 +70,9 @@ func New(machines []string, timeout time.Duration, retryPolicy retry.Policy, fla
 	}
 	if _, found := registeredDrivers.driverMap[flavor]; !found {
 		return nil, ErrDriverNotFound
+	}
+	if retryPolicy == nil {
+		retryPolicy = DefaultRetryPolicy()
 	}
 	client = &Client{
 		machines:      machines,
