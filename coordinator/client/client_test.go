@@ -4,9 +4,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
 type mockDriver struct{}
+
+var callTimes = 0
 
 func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err error) {
 	driver = mockDriver{}
@@ -18,11 +22,19 @@ func (driver mockDriver) ValidateMachineList(machines []string) error {
 }
 
 func (driver mockDriver) Create(path string, data []byte) error {
-	return nil
+	callTimes++
+	if callTimes > 30 {
+		return nil
+	}
+	return ErrNodeExists
 }
 
 func (driver mockDriver) CreateDir(path string) error {
-	return nil
+	callTimes++
+	if callTimes > 30 {
+		return nil
+	}
+	return ErrNodeExists
 }
 
 func (driver mockDriver) Exists(path string) (bool, error) {
@@ -56,7 +68,6 @@ func TestRegisteredDrivers(t *testing.T) {
 	}
 }
 
-
 func TestNew(t *testing.T) {
 	if _, err := New([]string{}, time.Second, "", nil); err != ErrInvalidMachines {
 		t.Logf("Expected ErrInvalidMachines got : %s", err)
@@ -67,5 +78,29 @@ func TestNew(t *testing.T) {
 		t.FailNow()
 	}
 
+	client, err := New([]string{"foo"}, time.Second, "mock",
+		retry.BoundedExponentialBackoff(time.Millisecond*10, time.Second*10, 10))
+	if err != nil {
+		t.Fatalf("could not create client :%s", err)
+	}
+	myLoop := client.NewRetryLoop(
+		func(cancelChan chan chan error) chan error {
+			t.Logf("running callable")
+			errc := make(chan error)
+			go func() {
+				t.Logf("getting connection")
+				conn, err := client.GetConnection()
+				if err != nil {
+					errc <- err
+					return
+				}
+				errc <- conn.CreateDir("/foo")
+			}()
+			return errc
+		})
+	go func() {
+		time.Sleep(time.Second * 1)
+		myLoop.Close()
+	}()
+	myLoop.Wait()
 }
-

@@ -86,7 +86,7 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 	return client, nil
 }
 
-func (client *Client) NewRetryLoop(cancelable retry.Cancelable) retry.Loop {
+func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) retry.Loop {
 	return retry.NewLoop(client.retryPolicy, cancelable)
 }
 

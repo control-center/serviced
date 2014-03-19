@@ -1,10 +1,9 @@
 package retry
 
 import (
+	"log"
 	"time"
 )
-
-type Cancelable func(chan chan error) chan error
 
 // Loop is an object that manages running the callable function and retrying it
 // based on a give policy.
@@ -13,13 +12,13 @@ type Loop struct {
 	startTime   time.Time
 	retryCount  int
 	retryPolicy Policy
-	cancelable  Cancelable
+	cancelable  func(chan chan error) chan error
 	waiting     chan error
 	closing     chan chan error
 	done        bool
 }
 
-func NewLoop(policy Policy, cancelable Cancelable) Loop {
+func NewLoop(policy Policy, cancelable func(chan chan error) chan error) Loop {
 	loop := Loop{
 		startTime:   time.Now(),
 		retryPolicy: policy,
@@ -27,6 +26,7 @@ func NewLoop(policy Policy, cancelable Cancelable) Loop {
 		waiting:     make(chan error),
 		closing:     make(chan chan error),
 	}
+	go loop.loop()
 	return loop
 }
 
@@ -40,6 +40,7 @@ func (loop *Loop) loop() {
 	for {
 		select {
 		case err = <-loopRun:
+			log.Printf("runnloop: %s", err)
 			if err == nil {
 				loopRun = nil
 				go func() {
@@ -59,7 +60,7 @@ func (loop *Loop) loop() {
 				go func() {
 					loop.waiting <- err
 				}()
-				continue
+				return
 			}
 			loop.retryCount++
 			loopSleep = time.After(timeToSleep)

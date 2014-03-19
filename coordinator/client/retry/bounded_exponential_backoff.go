@@ -25,6 +25,15 @@ func (u boundedExponentialBackoff) Name() string {
 	return "BoundedExponentialBackoff"
 }
 
+func (u boundedExponentialBackoff) AllowRetry(retryCount int, elapsed time.Duration) (bool, time.Duration) {
+
+	retry, sleep := u.exponentialBackoff.AllowRetry(retryCount, elapsed)
+	if sleep > u.maxSleepTime {
+		sleep = u.maxSleepTime
+	}
+	return retry, sleep
+}
+
 func (u boundedExponentialBackoff) getSleepTime(retryCount int) time.Duration {
 	sleepTime := u.baseSleepTime * u.exponentialBackoff.getSleepTime(retryCount)
 	if sleepTime > u.maxSleepTime {
