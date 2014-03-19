@@ -1,6 +1,14 @@
-package client
+package etcd
 
 import (
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -61,4 +69,94 @@ func (etcd EtcdDriver) Exists(path string) (bool, error) {
 func (etc EtcdDriver) Delete(path string) error {
 	_, err := etc.client.Delete(path, true)
 	return err
+}
+
+var etcdBinaryPath string
+
+func setEtcdBinaryPath() error {
+	var err error
+	etcdBinaryPath, err = exec.LookPath("etcd")
+	if err == nil {
+		return nil
+	}
+
+	gopath := os.Getenv("GOPATH")
+	if len(gopath) <= 0 {
+		log.Fatal("GOPATH is not set")
+	}
+
+	err = exec.Command("go", "get", "github.com/coreos/etcd").Run()
+	if err != nil {
+		return err
+	}
+
+	for _, pth := range filepath.SplitList(gopath) {
+		if len(pth) <= 0 {
+			break
+		}
+		etcdBinaryPath, err = exec.LookPath(pth + "/bin/etcd")
+		if err == nil {
+			return nil
+		}
+		break
+	}
+	return errors.New("Could not find etcd")
+}
+
+type TestCluster struct {
+	tmpDir     string
+	process    *os.Process
+	clientPort int
+}
+
+func (tc TestCluster) Machines() []string {
+	return []string{fmt.Sprintf("http://localhost:%d", tc.clientPort)}
+}
+
+func (tc TestCluster) Stop() {
+	tc.process.Kill()
+	os.RemoveAll(tc.tmpDir)
+}
+
+func NewTestCluster() (*TestCluster, error) {
+
+	if err := setEtcdBinaryPath(); err != nil {
+		return nil, err
+	}
+
+	tc := &TestCluster{}
+
+	// get some unused ports
+	lclient, _ := net.Listen("tcp", "127.0.0.1:0") // listen on localhost
+	clientPort := lclient.Addr().(*net.TCPAddr).Port
+	lserver, _ := net.Listen("tcp", "127.0.0.1:0") // listen on localhost
+	serverPort := lserver.Addr().(*net.TCPAddr).Port
+
+	tmpdir, err := ioutil.TempDir("", "etcDriverTest-")
+	if err != nil {
+		return nil, err
+	}
+
+	tc.tmpDir = tmpdir
+
+	procAttr := new(os.ProcAttr)
+	procAttr.Files = []*os.File{nil, os.Stdout, os.Stderr}
+	args := []string{etcdBinaryPath, "-name=etcDriverTest",
+		fmt.Sprintf("-addr=127.0.0.1:%d", clientPort),
+		fmt.Sprintf("-bind-addr=127.0.0.1:%d", clientPort),
+		fmt.Sprintf("-peer-addr=127.0.0.1:%d", serverPort),
+		fmt.Sprintf("-peer-bind-addr=127.0.0.1:%d", serverPort),
+		"-data-dir=" + tmpdir}
+
+	lclient.Close()
+	lserver.Close()
+	tc.clientPort = clientPort
+	process, err := os.StartProcess(etcdBinaryPath, append(args, "-f"), procAttr)
+	if err != nil {
+		defer os.RemoveAll(tc.tmpDir)
+		return nil, err
+	}
+	tc.process = process
+	time.Sleep(time.Second)
+	return tc, nil
 }

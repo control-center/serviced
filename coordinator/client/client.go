@@ -2,6 +2,8 @@ package client
 
 import (
 	"errors"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -49,10 +51,11 @@ func RegisteredDrivers() []string {
 }
 
 type Client struct {
-	machines      []string
-	timeout       time.Duration
-	done          chan struct{}
-	retryPolicy   retry.Policy
+	machines    []string
+	timeout     time.Duration
+	done        chan struct{}
+	retryPolicy retry.Policy
+	*sync.RWMutex
 	driverFactory func([]string, time.Duration) (Driver, error)
 }
 
@@ -83,7 +86,49 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 		retryPolicy:   retryPolicy,
 		driverFactory: drv,
 	}
+	go client.loop()
 	return client, nil
+}
+
+func EnsurePath(client *Client, path string, makeLastNode bool) error {
+	return client.NewRetryLoop(
+		func(cancelChan chan chan error) chan error {
+			errc := make(chan error)
+			go func() {
+				conn, err := client.GetConnection()
+				if err != nil {
+					errc <- err
+					return
+				}
+
+				parts := strings.Split(path, "/")
+				lastPartId := len(parts) - 1
+				currentPath := ""
+				for i, part := range parts {
+					if lastPartId == i || i == 0 {
+						continue
+					}
+					currentPath += "/" + part
+
+					log.Printf("CreateDir(%s) ", currentPath)
+					err = conn.CreateDir(currentPath)
+					if err == ErrNodeExists {
+						log.Printf("%s exists", currentPath)
+						continue
+					}
+					errc <- err
+					return
+				}
+				errc <- nil
+			}()
+			return errc
+		}).Wait()
+}
+
+func (client *Client) loop() {
+	select {
+	case <-client.done:
+	}
 }
 
 func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) retry.Loop {
