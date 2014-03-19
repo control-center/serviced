@@ -25,11 +25,10 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/shell"
-
-	docker "github.com/fsouza/go-dockerclient"
 )
 
 var empty interface{}
@@ -822,13 +821,13 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 		glog.Fatalf("no service found: %s", cmd.Arg(0))
 	}
 
-	if len(service.Commands) == 0 {
+	if len(service.Runs) == 0 {
 		fmt.Printf("no commands found for service: %s\n", cmd.Arg(0))
 		return nil
 	}
 
 	keys := []string{}
-	for key, _ := range service.Commands {
+	for key, _ := range service.Runs {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
@@ -860,7 +859,11 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 }
 
 func (cli *ServicedCli) CmdRun(args ...string) error {
-	var istty bool
+	const TX_COMMIT = 1
+	var (
+		istty bool
+		argv  []string
+	)
 
 	// Check the args
 	cmd := Subcmd("run", "SERVICEID PROGRAM", "Runs serviced command on a service container")
@@ -868,27 +871,28 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) < 2 {
+	argv = cmd.Args()
+	if len(argv) < 2 {
 		cmd.Usage()
 		return nil
 	}
 
 	// Get the associated service
 	cp := getClient()
-	service, err := getService(&cp, cmd.Arg(0))
+	service, err := getService(&cp, argv[0])
 	if err != nil {
 		glog.Fatalf("error while acquiring service: %s", err)
 	} else if service == nil {
-		glog.Fatalf("no service found: %s", cmd.Arg(0))
+		glog.Fatalf("no service found: %s", argv[0])
 	}
 
-	path, ok := service.Commands[cmd.Arg(1)]
-	if !ok {
-		glog.Fatalf("cannot access command: %s", cmd.Arg(1))
-	}
-	command := []string{serviced.RUNCMD, path}
-	if len(cmd.Args()) > 2 {
-		command = append(command, cmd.Args()[2:]...)
+	// Parse the command
+	var command string
+	if path, ok := service.Runs[argv[1]]; ok {
+		args[1] = path
+		command = fmt.Sprintf("su - zenoss -c \"${ZENHOME:-/opt/zenoss}/bin/zenrun %s\"", strings.Join(argv[1:], " "))
+	} else {
+		glog.Fatalf("cannot access command: %s", argv[1])
 	}
 
 	// Start the container
@@ -897,7 +901,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 		ServiceId: service.Id,
 		IsTTY:     istty,
 		SaveAs:    saveAs,
-		Command:   strings.Join(command, " "),
+		Command:   command,
 	}
 	inst := shell.StartDocker(&config, options.port)
 	for inst.Stdout != nil && inst.Stderr != nil {
@@ -920,23 +924,28 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	// Check the result to determine if any transactional actions need to be done
 	result := <-inst.Result
 	if result.Termination == shell.NORMAL {
+
+		dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
+		if err != nil {
+			glog.Fatalf("unable to connect to the docker service: %s", err)
+		}
+		container, err := dockercli.InspectContainer(saveAs)
+		if err != nil {
+			glog.Fatalf("cannot acquire information about container: %s (%s)", saveAs, err)
+		}
+		glog.V(2).Infof("Container ID: %s", container.ID)
+
 		switch result.ExitCode {
-		case serviced.TX_COMMIT:
+		case TX_COMMIT:
+			// Commit the container
 			label := ""
-			// Get the DOCKER_ID
-			if dockercli, err := docker.NewClient("unix:///var/run/docker.sock"); err != nil {
-				glog.Fatalf("unable to connect to the docker service: %s", err)
-			} else if container, err := dockercli.InspectContainer(saveAs); err != nil {
-				glog.Fatalf("cannot acquire container: %s (%s)", saveAs, err)
-			} else if cp.Commit(container.ID, &label); err != nil {
-				glog.Fatalf("failed to commit: %s", err)
+			if err := cp.Commit(container.ID, &label); err != nil {
+				glog.Fatalf("failed to commit: %s (%s)", container.ID, err)
 			}
 		default:
 			// Delete the container
-			if dockercli, err := docker.NewClient("unix:///var/run/docker.sock"); err != nil {
-				glog.Fatalf("unable to connect to the docker service: %s", err)
-			} else if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: saveAs}); err != nil {
-				glog.Fatalf("failed to remove container: %s (%s)", saveAs, err)
+			if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+				glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 			}
 		}
 	} else {

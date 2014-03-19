@@ -31,13 +31,6 @@ import (
 	"time"
 )
 
-// CUSTOM SERVICED COMMANDS CONSTANTS
-const (
-	BINDIR    = "/opt/zenoss/bin"
-	RUNCMD    = BINDIR + "/zenrun"
-	TX_COMMIT = 100
-)
-
 const TIMEFMT = "20060102-150405"
 
 func GetLabel(name string) string {

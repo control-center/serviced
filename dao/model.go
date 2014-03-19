@@ -161,7 +161,7 @@ type Service struct {
 	DisableImage    bool
 	LogConfigs      []LogConfig
 	Snapshot        SnapshotCommands
-	Commands        map[string]string
+	Runs            map[string]string
 	RAMCommitment   uint64
 }
 
