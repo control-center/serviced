@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/zenoss/serviced/coordinator/client"
 )
 
 type EtcdDriver struct {
@@ -59,6 +59,6 @@ func (etcd EtcdDriver) Exists(path string) (bool, error) {
 }
 
 func (etc EtcdDriver) Delete(path string) error {
-	_, err := etc.client.Delete(path, false)
+	_, err := etc.client.Delete(path, true)
 	return err
 }

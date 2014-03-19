@@ -17,6 +17,7 @@ pkg/serviced-0.1.0-1.x86_64.rpm
 pkg/serviced_0.1.0_amd64.deb
 isvcs/images/
 pkg/templates/
+coordinator/client/zookeeper/zookeeper-3.3.3
 
 # emacs tags file
 TAGS

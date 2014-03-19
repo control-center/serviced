@@ -13,6 +13,10 @@ func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err
 	return driver, err
 }
 
+func (driver mockDriver) ValidateMachineList(machines []string) error {
+	return nil
+}
+
 func (driver mockDriver) Create(path string, data []byte) error {
 	return nil
 }
@@ -51,3 +55,17 @@ func TestRegisteredDrivers(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+
+func TestNew(t *testing.T) {
+	if _, err := New([]string{}, time.Second, "", nil); err != ErrInvalidMachines {
+		t.Logf("Expected ErrInvalidMachines got : %s", err)
+		t.FailNow()
+	}
+	if _, err := New([]string{"foo", ""}, time.Second, "", nil); err != ErrInvalidMachines {
+		t.Logf("Expected ErrInvalidMachines got : %s", err)
+		t.FailNow()
+	}
+
+}
+

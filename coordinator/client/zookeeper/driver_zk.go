@@ -3,8 +3,8 @@ package zk_driver
 import (
 	"time"
 
-	"github.com/zenoss/serviced/coordinator/client"
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/serviced/coordinator/client"
 )
 
 type ZkDriver struct {
@@ -15,7 +15,6 @@ type ZkDriver struct {
 
 // Assert that the Zookeeper driver meets the Driver interface
 var _ client.Driver = ZkDriver{}
-
 
 func init() {
 	if err := client.RegisterDriver("zookeeper", NewZkDriver); err != nil {
@@ -53,5 +52,16 @@ func (zk ZkDriver) Exists(path string) (bool, error) {
 }
 
 func (zk ZkDriver) Delete(path string) error {
+	children, _, err := zk.conn.Children(path)
+	if err != nil {
+		return err
+	}
+	// recursively delete children
+	for _, child := range children {
+		err = zk.Delete(path + "/" + child)
+		if err != nil {
+			return err
+		}
+	}
 	return zk.conn.Delete(path, 0)
 }

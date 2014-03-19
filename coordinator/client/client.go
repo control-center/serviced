@@ -13,6 +13,7 @@ var (
 	ErrDriverNotFound          = errors.New("coord-client: flavor not found")
 	ErrNodeExists              = errors.New("coord-client: node exists")
 	ErrInvalidMachines         = errors.New("coord-client: invalid servers list")
+	ErrInvalidMachine          = errors.New("coord-client: invalid machine")
 	ErrInvalidRetryPolicy      = errors.New("coord-client: invalid retry policy")
 )
 
@@ -68,7 +69,8 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 			return nil, ErrInvalidMachines
 		}
 	}
-	if _, found := registeredDrivers.driverMap[flavor]; !found {
+	drv, found := registeredDrivers.driverMap[flavor]
+	if !found {
 		return nil, ErrDriverNotFound
 	}
 	if retryPolicy == nil {
@@ -79,7 +81,7 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 		timeout:       timeout,
 		done:          make(chan struct{}),
 		retryPolicy:   retryPolicy,
-		driverFactory: registeredDrivers.driverMap[flavor],
+		driverFactory: drv,
 	}
 	return client, nil
 }
