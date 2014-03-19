@@ -81,11 +81,11 @@ func (loop *Loop) loop() {
 	}
 }
 
-func (loop *Loop) Wait() error {
+func (loop Loop) Wait() error {
 	return <-loop.waiting
 }
 
-func (loop *Loop) Close() error {
+func (loop Loop) Close() error {
 	errc := make(chan error)
 	loop.closing <- errc
 	return <-errc

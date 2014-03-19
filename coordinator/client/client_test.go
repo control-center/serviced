@@ -83,7 +83,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create client :%s", err)
 	}
-	myLoop := client.NewRetryLoop(
+	client.NewRetryLoop(
 		func(cancelChan chan chan error) chan error {
 			t.Logf("running callable")
 			errc := make(chan error)
@@ -97,10 +97,5 @@ func TestNew(t *testing.T) {
 				errc <- conn.CreateDir("/foo")
 			}()
 			return errc
-		})
-	go func() {
-		time.Sleep(time.Second * 1)
-		myLoop.Close()
-	}()
-	myLoop.Wait()
+		}).Wait()
 }
