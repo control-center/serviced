@@ -889,7 +889,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	// Parse the command
 	var command string
 	if path, ok := service.Runs[argv[1]]; ok {
-		args[1] = path
+		argv[1] = path
 		command = fmt.Sprintf("su - zenoss -c \"${ZENHOME:-/opt/zenoss}/bin/zenrun %s\"", strings.Join(argv[1:], " "))
 	} else {
 		glog.Fatalf("cannot access command: %s", argv[1])
