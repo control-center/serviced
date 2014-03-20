@@ -76,7 +76,7 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 			case cmderr := <-serviceExit:
 				if cmderr != nil {
 					client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
-					message := fmt.Sprintf("Problem running service: %v. Command \"%v\" failed: %v", config.ServiceId, config.Command, err)
+					message := fmt.Sprintf("Service returned a non-zero exit code: %v. Command: \"%v\" Message: %v", config.ServiceId, config.Command, err)
 					if err == nil {
 						defer client.Close()
 						glog.Errorf(message)
