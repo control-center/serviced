@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	hostone   dao.PoolHost = dao.PoolHost{"a", "p", "0.0.0.0"}
-	hosttwo   dao.PoolHost = dao.PoolHost{"b", "p", "1.1.1.1"}
-	hostthree dao.PoolHost = dao.PoolHost{"c", "p", "2.2.2.2"}
+	hostone   = dao.PoolHost{"a", "p", "0.0.0.0"}
+	hosttwo   = dao.PoolHost{"b", "p", "1.1.1.1"}
+	hostthree = dao.PoolHost{"c", "p", "2.2.2.2"}
 )
 
 var addressAssignmentTests = []struct {
