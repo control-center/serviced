@@ -10,10 +10,11 @@
 package serviced
 
 import (
+	"net/rpc"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
-	"net/rpc"
 )
 
 // A serviced client.
@@ -99,6 +100,10 @@ func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, u
 
 func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
+}
+
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, assignments *[]*dao.AddressAssignment) error {
+	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, assignments)
 }
 
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {

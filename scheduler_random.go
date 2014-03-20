@@ -265,7 +265,7 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, pool_hosts []*dao.PoolHost, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(pool_hosts))
 	for i := 0; i < numToStart; i++ {
-		service_host, err := selectLeastCommittedHost(cpDao, pool_hosts)
+		service_host, err := selectPoolHostForService(cpDao, service, pool_hosts)
 		if err != nil {
 			return err
 		}
@@ -298,6 +298,47 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostId, serviceStates[i].Id)
 		}
 	}
+}
+
+// selectPoolHostForService chooses a host from the pool for the specified service. If the service
+// has an address assignment the host will already be selected. If not the host with the least amount
+// of memory committed to running containers will be chosen.
+func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+	var aas []*dao.AddressAssignment // address assignments
+	if err := cp.GetServiceAddressAssignments(s.Id, &aas); err != nil {
+		return nil, err
+	}
+
+	if len(aas) > 0 {
+		return poolHostFromAddressAssignments(aas, pool)
+	}
+
+	return selectLeastCommittedHost(cp, pool)
+}
+
+// poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
+func poolHostFromAddressAssignments(assignments []*dao.AddressAssignment, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+	// ensure the address assignments are sane
+	var assignedHost string
+	for _, assignment := range assignments {
+		switch {
+		case assignedHost == "":
+			assignedHost = assignment.HostId
+		case assignedHost != assignment.HostId:
+			return nil, fmt.Errorf("service has addresses assigned to multiple hosts")
+		default:
+			// happy path
+		}
+	}
+
+	// ensure the assigned host is in the pool
+	for _, ph := range pool {
+		if ph.HostId == assignedHost {
+			return ph, nil
+		}
+	}
+
+	return nil, fmt.Errorf("assigned host is not in pool")
 }
 
 // hostitem is what is stored in the least commited RAM scheduler's priority queue
