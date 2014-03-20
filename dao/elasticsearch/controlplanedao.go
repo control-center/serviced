@@ -1332,6 +1332,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
+	svc.Runs = sd.Runs
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1924,6 +1925,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	go s.handleScheduler(hid)
 
 	return s, nil
+}
+
+func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
+	s.dfs.Lock()
+	s.dfs.Unlock()
+	return
 }
 
 // writeLogstashConfiguration takes all the available

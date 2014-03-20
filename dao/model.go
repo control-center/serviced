@@ -161,6 +161,7 @@ type Service struct {
 	DisableImage    bool
 	LogConfigs      []LogConfig
 	Snapshot        SnapshotCommands
+	Runs            map[string]string
 	RAMCommitment   uint64
 }
 
@@ -241,8 +242,9 @@ type ServiceDefinition struct {
 	LogFilters    map[string]string      // map of log filter name to log filter definitions
 	Volumes       []Volume               // list of volumes to bind into containers
 	LogConfigs    []LogConfig
-	Snapshot      SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment uint64           // expected RAM commitment to use for scheduling
+	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment uint64            // expected RAM commitment to use for scheduling
+	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field

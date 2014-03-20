@@ -11,12 +11,8 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/shell"
-
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -24,8 +20,15 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/shell"
 )
 
 var empty interface{}
@@ -105,14 +108,13 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"proxy", "Start a proxy in the foreground"},
 
 		{"show", "Show all available commands"},
+		{"run", "Starts a shell to run defined commands from a container"},
 		{"shell", "Starts a shell to run arbitrary system commands from a container"},
 		{"rollback", "Rollback a service to a particular snapshot"},
 		{"commit", "Commit a container to an image"},
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
-		{"get", "Download a file from a container image"},
-		{"recv", "Receive a file for a container image"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -811,13 +813,146 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	controlPlane := getClient()
+	cp := getClient()
+	service, err := getService(&cp, cmd.Arg(0))
+	if err != nil {
+		glog.Fatalf("error while acquiring service: %s (%s)", cmd.Arg(0), err)
+	} else if service == nil {
+		glog.Fatalf("no service found: %s", cmd.Arg(0))
+	}
 
-	var unused int
-	var service dao.Service
-	service.Id = cmd.Arg(0)
-	err := controlPlane.ShowCommands(service, &unused)
-	return err
+	if len(service.Runs) == 0 {
+		fmt.Printf("no commands found for service: %s\n", cmd.Arg(0))
+		return nil
+	}
+
+	keys := []string{}
+	for key, _ := range service.Runs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	// Print the commands in tabular form
+	const colwidth = 20
+	output := make([]byte, 0, 80)
+	buffer := bytes.NewBuffer(output)
+	index := 0
+	for index < len(keys) {
+		for buffer.Len() < cap(output) && index < len(keys) {
+			key := keys[index]
+			if len(key) >= colwidth-2 {
+				// truncate command name if it is longer than the column width
+				key = fmt.Sprintf("(%s...)  ", key[:colwidth-7])
+			} else {
+				// append spaces to command name if it is shorter than the column width
+				key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", colwidth-len(key)))
+			}
+			buffer.Write([]byte(key))
+			index += 1
+		}
+		// dump row to the screen and reset buffer
+		fmt.Println(buffer.String())
+		buffer.Reset()
+	}
+
+	return nil
+}
+
+func (cli *ServicedCli) CmdRun(args ...string) error {
+	const TX_COMMIT = 42
+	var (
+		istty bool
+		argv  []string
+	)
+
+	// Check the args
+	cmd := Subcmd("run", "SERVICEID PROGRAM", "Runs serviced command on a service container")
+	cmd.BoolVar(&istty, "i", false, "Whether to run interactively")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	argv = cmd.Args()
+	if len(argv) < 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	// Get the associated service
+	cp := getClient()
+	service, err := getService(&cp, argv[0])
+	if err != nil {
+		glog.Fatalf("error while acquiring service: %s", err)
+	} else if service == nil {
+		glog.Fatalf("no service found: %s", argv[0])
+	}
+
+	// Parse the command
+	var command string
+	if path, ok := service.Runs[argv[1]]; ok {
+		argv[1] = path
+		command = fmt.Sprintf("su - zenoss -c \"%s\"", strings.Join(argv[1:], " "))
+	} else {
+		glog.Fatalf("cannot access command: %s", argv[1])
+	}
+
+	// Start the container
+	saveAs := serviced.GetLabel(service.Id)
+	config := shell.ProcessConfig{
+		ServiceId: service.Id,
+		IsTTY:     istty,
+		SaveAs:    saveAs,
+		Command:   command,
+	}
+	inst := shell.StartDocker(&config, options.port)
+	for inst.Stdout != nil && inst.Stderr != nil {
+		select {
+		case line, ok := <-inst.Stdout:
+			if ok {
+				os.Stdout.WriteString(line)
+			} else {
+				inst.Stdout = nil
+			}
+		case line, ok := <-inst.Stderr:
+			if ok {
+				os.Stderr.WriteString(line)
+			} else {
+				inst.Stderr = nil
+			}
+		}
+	}
+
+	// Check the result to determine if any transactional actions need to be done
+	result := <-inst.Result
+	if result.Termination == shell.NORMAL {
+
+		dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
+		if err != nil {
+			glog.Fatalf("unable to connect to the docker service: %s", err)
+		}
+		container, err := dockercli.InspectContainer(saveAs)
+		if err != nil {
+			glog.Fatalf("cannot acquire information about container: %s (%s)", saveAs, err)
+		}
+		glog.V(2).Infof("Container ID: %s", container.ID)
+
+		switch result.ExitCode {
+		case TX_COMMIT:
+			// Commit the container
+			label := ""
+			if err := cp.Commit(container.ID, &label); err != nil {
+				glog.Fatalf("failed to commit: %s (%s)", container.ID, err)
+			}
+		default:
+			// Delete the container
+			if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+				glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
+			}
+		}
+	} else {
+		glog.Fatalf("abnormal termination from shell command: %s", result.Error)
+	}
+
+	return result.Error
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {

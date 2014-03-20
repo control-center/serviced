@@ -266,3 +266,7 @@ func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
 func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
 	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
 }
+
+func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
+	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint)
+}
