@@ -13,15 +13,15 @@ var (
 )
 
 var addressAssignmentTests = []struct {
-	addressAssignments []*dao.AddressAssignment
+	addressAssignments []dao.AddressAssignment
 	pool               []*dao.PoolHost
 	expectedPoolHost   *dao.PoolHost
 	expectingError     bool
 }{
 	{
 		// one valid address assignment
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"a",
@@ -38,8 +38,8 @@ var addressAssignmentTests = []struct {
 	},
 	{
 		// one invalid address assignment, address assigned to host not in pool
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"z",
@@ -56,8 +56,8 @@ var addressAssignmentTests = []struct {
 	},
 	{
 		// multiple valid address assignments
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"b",
@@ -67,7 +67,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"456",
 				"static",
 				"b",
@@ -84,8 +84,8 @@ var addressAssignmentTests = []struct {
 	},
 	{
 		// multiple address assignments, addresses assigned to multiple hosts
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"b",
@@ -95,7 +95,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"456",
 				"static",
 				"c",
@@ -105,7 +105,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"789",
 				"static",
 				"b",
@@ -122,8 +122,8 @@ var addressAssignmentTests = []struct {
 	},
 	{
 		// multiple address assignements, address assigned to host not in pool
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"b",
@@ -133,7 +133,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"456",
 				"static",
 				"b",
@@ -143,7 +143,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"789",
 				"static",
 				"z",
@@ -160,8 +160,8 @@ var addressAssignmentTests = []struct {
 	},
 	{
 		// empty pool
-		[]*dao.AddressAssignment{
-			&dao.AddressAssignment{
+		[]dao.AddressAssignment{
+			dao.AddressAssignment{
 				"123",
 				"static",
 				"b",
@@ -171,7 +171,7 @@ var addressAssignmentTests = []struct {
 				"test",
 				"test",
 			},
-			&dao.AddressAssignment{
+			dao.AddressAssignment{
 				"456",
 				"static",
 				"b",

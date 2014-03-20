@@ -102,7 +102,7 @@ func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *st
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, assignments *[]*dao.AddressAssignment) error {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, assignments *[]dao.AddressAssignment) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, assignments)
 }
 

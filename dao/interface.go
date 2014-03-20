@@ -82,7 +82,7 @@ type ControlPlane interface {
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
 	// GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-	GetServiceAddressAssignments(serviceId string, assignments *[]*AddressAssignment) error
+	GetServiceAddressAssignments(serviceId string, assignments *[]AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD

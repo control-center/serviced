@@ -306,7 +306,7 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
 func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.PoolHost) (*dao.PoolHost, error) {
-	var aas []*dao.AddressAssignment // address assignments
+	var aas []dao.AddressAssignment // address assignments
 	if err := cp.GetServiceAddressAssignments(s.Id, &aas); err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.P
 }
 
 // poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
-func poolHostFromAddressAssignments(assignments []*dao.AddressAssignment, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+func poolHostFromAddressAssignments(assignments []dao.AddressAssignment, pool []*dao.PoolHost) (*dao.PoolHost, error) {
 	// ensure the address assignments are sane
 	var assignedHost string
 	for _, assignment := range assignments {
