@@ -859,7 +859,7 @@ func (cli *ServicedCli) CmdShow(args ...string) error {
 }
 
 func (cli *ServicedCli) CmdRun(args ...string) error {
-	const TX_COMMIT = 1
+	const TX_COMMIT = 42
 	var (
 		istty bool
 		argv  []string
@@ -890,7 +890,7 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	var command string
 	if path, ok := service.Runs[argv[1]]; ok {
 		argv[1] = path
-		command = fmt.Sprintf("su - zenoss -c \"${ZENHOME:-/opt/zenoss}/bin/zenrun %s\"", strings.Join(argv[1:], " "))
+		command = fmt.Sprintf("su - zenoss -c \"%s\"", strings.Join(argv[1:], " "))
 	} else {
 		glog.Fatalf("cannot access command: %s", argv[1])
 	}
