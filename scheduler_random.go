@@ -306,36 +306,26 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
 func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.PoolHost) (*dao.PoolHost, error) {
-	var aas []dao.AddressAssignment // address assignments
-	if err := cp.GetServiceAddressAssignments(s.Id, &aas); err != nil {
-		return nil, err
+	var hostid string
+	for _, ep := range s.Endpoints {
+		if ep.AddressAssignment != (dao.AddressAssignment{}) {
+			hostid = ep.AddressAssignment.HostId
+			break
+		}
 	}
 
-	if len(aas) > 0 {
-		return poolHostFromAddressAssignments(aas, pool)
+	if hostid != "" {
+		return poolHostFromAddressAssignments(hostid, pool)
 	}
 
 	return selectLeastCommittedHost(cp, pool)
 }
 
 // poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
-func poolHostFromAddressAssignments(assignments []dao.AddressAssignment, pool []*dao.PoolHost) (*dao.PoolHost, error) {
-	// ensure the address assignments are sane
-	var assignedHost string
-	for _, assignment := range assignments {
-		switch {
-		case assignedHost == "":
-			assignedHost = assignment.HostId
-		case assignedHost != assignment.HostId:
-			return nil, fmt.Errorf("service has addresses assigned to multiple hosts")
-		default:
-			// happy path
-		}
-	}
-
+func poolHostFromAddressAssignments(hostid string, pool []*dao.PoolHost) (*dao.PoolHost, error) {
 	// ensure the assigned host is in the pool
 	for _, ph := range pool {
-		if ph.HostId == assignedHost {
+		if ph.HostId == hostid {
 			return ph, nil
 		}
 	}
