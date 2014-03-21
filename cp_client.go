@@ -10,10 +10,11 @@
 package serviced
 
 import (
+	"net/rpc"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
-	"net/rpc"
 )
 
 // A serviced client.

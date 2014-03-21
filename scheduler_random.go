@@ -14,10 +14,12 @@ import (
 	"github.com/zenoss/serviced/zzk"
 )
 
+// Lead is executed by the "leader" of the control plane cluster to handle its
+// service/snapshot management responsibilities.
 func Lead(dao dao.ControlPlane, conn *zk.Conn, zkEvent <-chan zk.Event) {
-	shutdown_mode := false
+	shutdownmode := false
 	for {
-		if shutdown_mode {
+		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
 			break
 		}
@@ -26,7 +28,7 @@ func Lead(dao dao.ControlPlane, conn *zk.Conn, zkEvent <-chan zk.Event) {
 			select {
 			case evt := <-zkEvent:
 				// shut this thing down
-				shutdown_mode = true
+				shutdownmode = true
 				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
 				return nil
 			default:
@@ -83,10 +85,10 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn *zk.Conn) {
 			glog.Errorf("Leader unable to watch for snapshot requests to %s error: %s", zzk.SNAPSHOT_REQUEST_PATH, err)
 			return
 		}
-		for _, requestId := range requestIds {
+		for _, requestID := range requestIds {
 			snapshotRequest := dao.SnapshotRequest{}
-			if _, err := zzk.LoadSnapshotRequest(conn, requestId, &snapshotRequest); err != nil {
-				glog.Errorf("Leader unable to load snapshot request: %s  error: %s", requestId, err)
+			if _, err := zzk.LoadSnapshotRequest(conn, requestID, &snapshotRequest); err != nil {
+				glog.Errorf("Leader unable to load snapshot request: %s  error: %s", requestID, err)
 				snapshotRequest.SnapshotError = err.Error()
 				zzk.UpdateSnapshotRequest(conn, &snapshotRequest)
 				continue
@@ -150,52 +152,52 @@ func watchServices(cpDao dao.ControlPlane, conn *zk.Conn) {
 			glog.Errorf("Leader unable to find any services: ", err)
 			return
 		}
-		for _, serviceId := range serviceIds {
-			if processing[serviceId] == nil {
-				glog.V(2).Info("Leader starting goroutine to watch ", serviceId)
+		for _, serviceID := range serviceIds {
+			if processing[serviceID] == nil {
+				glog.V(2).Info("Leader starting goroutine to watch ", serviceID)
 				serviceChannel := make(chan int)
-				processing[serviceId] = serviceChannel
-				go watchService(cpDao, conn, serviceChannel, sDone, serviceId)
+				processing[serviceID] = serviceChannel
+				go watchService(cpDao, conn, serviceChannel, sDone, serviceID)
 			}
 		}
 		select {
 		case evt := <-zkEvent:
 			glog.V(1).Info("Leader event: ", evt)
-		case serviceId := <-sDone:
-			glog.V(1).Info("Leading cleaning up for service ", serviceId)
-			delete(processing, serviceId)
+		case serviceID := <-sDone:
+			glog.V(1).Info("Leading cleaning up for service ", serviceID)
+			delete(processing, serviceID)
 		}
 	}
 }
 
-func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, done chan<- string, serviceId string) {
+func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, done chan<- string, serviceID string) {
 	defer func() {
-		glog.V(3).Info("Exiting function watchService ", serviceId)
-		done <- serviceId
+		glog.V(3).Info("Exiting function watchService ", serviceID)
+		done <- serviceID
 	}()
 	for {
 		var service dao.Service
-		_, zkEvent, err := zzk.LoadServiceW(conn, serviceId, &service)
+		_, zkEvent, err := zzk.LoadServiceW(conn, serviceID, &service)
 		if err != nil {
-			glog.Errorf("Unable to load service %s: %v", serviceId, err)
+			glog.Errorf("Unable to load service %s: %v", serviceID, err)
 			return
 		}
-		_, _, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceId))
+		_, _, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceID))
 
 		glog.V(1).Info("Leader watching for changes to service ", service.Name)
 
-		switch exists, _, err := conn.Exists(path.Join("/services", serviceId)); {
+		switch exists, _, err := conn.Exists(path.Join("/services", serviceID)); {
 		case err != nil:
 			glog.Errorf("conn.Exists failed (%v)", err)
 			return
 		case exists == false:
-			glog.V(2).Infof("no /service node for: %s", serviceId)
+			glog.V(2).Infof("no /service node for: %s", serviceID)
 			return
 		}
 
 		// check current state
 		var serviceStates []*dao.ServiceState
-		err = zzk.GetServiceStates(conn, &serviceStates, serviceId)
+		err = zzk.GetServiceStates(conn, &serviceStates, serviceID)
 		if err != nil {
 			glog.Error("Unable to retrieve running service states: ", err)
 			return
@@ -214,7 +216,7 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 		select {
 		case evt := <-zkEvent:
 			if evt.Type == zk.EventNodeDeleted {
-				glog.V(0).Info("Shutting down due to node delete ", serviceId)
+				glog.V(0).Info("Shutting down due to node delete ", serviceID)
 				shutdownServiceInstances(conn, serviceStates, len(serviceStates))
 				return
 			}
@@ -262,22 +264,22 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 
 }
 
-func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, pool_hosts []*dao.PoolHost, numToStart int) error {
-	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(pool_hosts))
+func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, poolhosts []*dao.PoolHost, numToStart int) error {
+	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(poolhosts))
 	for i := 0; i < numToStart; i++ {
-		service_host, err := selectLeastCommittedHost(cpDao, pool_hosts)
+		servicehost, err := selectPoolHostForService(cpDao, service, poolhosts)
 		if err != nil {
 			return err
 		}
 
-		glog.V(2).Info("Selected host ", service_host)
-		serviceState, err := service.NewServiceState(service_host.HostId)
+		glog.V(2).Info("Selected host ", servicehost)
+		serviceState, err := service.NewServiceState(servicehost.HostId)
 		if err != nil {
 			glog.Errorf("Error creating ServiceState instance: %v", err)
 			return err
 		}
 
-		serviceState.HostIp = service_host.HostIp
+		serviceState.HostIp = servicehost.HostIp
 		err = zzk.AddServiceState(conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)
@@ -298,6 +300,37 @@ func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, 
 			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostId, serviceStates[i].Id)
 		}
 	}
+}
+
+// selectPoolHostForService chooses a host from the pool for the specified service. If the service
+// has an address assignment the host will already be selected. If not the host with the least amount
+// of memory committed to running containers will be chosen.
+func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+	var hostid string
+	for _, ep := range s.Endpoints {
+		if ep.AddressAssignment != (dao.AddressAssignment{}) {
+			hostid = ep.AddressAssignment.HostId
+			break
+		}
+	}
+
+	if hostid != "" {
+		return poolHostFromAddressAssignments(hostid, pool)
+	}
+
+	return selectLeastCommittedHost(cp, pool)
+}
+
+// poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
+func poolHostFromAddressAssignments(hostid string, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+	// ensure the assigned host is in the pool
+	for _, ph := range pool {
+		if ph.HostId == hostid {
+			return ph, nil
+		}
+	}
+
+	return nil, fmt.Errorf("assigned host is not in pool")
 }
 
 // hostitem is what is stored in the least commited RAM scheduler's priority queue
@@ -363,7 +396,7 @@ func availableRAM(cp dao.ControlPlane, host *dao.PoolHost, result chan *hostitem
 
 	var cr uint64
 
-	for i, _ := range rss {
+	for i := range rss {
 		s := dao.Service{}
 		if err := cp.GetService(rss[i].ServiceId, &s); err != nil {
 			glog.Errorf("cannot retrieve service information for running service (%v)", err)
