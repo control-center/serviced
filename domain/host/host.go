@@ -5,6 +5,8 @@
 package host
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -40,8 +42,8 @@ func New() *Host {
 // param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
 // resources. If any IP is not a valid IP on the machine return error.
 func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
-	if poolid == "" {
-		poolid = "UNKNOWN"
+	if strings.TrimSpace(poolid) == "" {
+		return nil, errors.New("Empty poolid not allowed")
 	}
 	host, err := currentHost(ip, poolid)
 	if err != nil {

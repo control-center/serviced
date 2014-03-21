@@ -38,6 +38,10 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 		if !validIP(ip) {
 			return nil, fmt.Errorf("Requested IP %v is not available on host", ip)
 		}
+		if isLoopBack(ip) {
+			return nil, fmt.Errorf("Loopback address %s cannot be used to register a host", ip)
+		}
+
 		host.IpAddr = ip
 	} else {
 		host.IpAddr, err = serviced.GetIPAddress()
@@ -79,7 +83,7 @@ func getIPResources(hostId string, ipaddress ...string) ([]HostIPResource, error
 
 	validate := func(iface net.Interface, ip string) error {
 		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
-			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
+			return fmt.Errorf("Loopback address %v cannot be used as an IP Resource", ip)
 		}
 		return nil
 	}
@@ -141,4 +145,17 @@ func validIP(ip string) bool {
 	normalIP := normalizeIP(ip)
 	_, found := interfaces[normalIP]
 	return found
+}
+
+func isLoopBack(ip string) bool {
+	interfaces, err := getInterfaceMap()
+	if err != nil {
+		glog.Error("Problem reading interfaces: ", err)
+		return false
+	}
+	iface := interfaces[normalizeIP(ip)]
+	if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
+		return true
+	}
+	return false
 }

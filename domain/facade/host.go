@@ -8,6 +8,9 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
+
+	"time"
+	"fmt"
 )
 
 type session map[string]interface{}
@@ -59,10 +62,21 @@ func (f *facade) afterHostRemove(session session, hostId string, err error) {
 // Register a host with serviced
 func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %+v", host)
+	exists, err := f.GetHost(ctx, host.Id)
+	if err != nil{
+		return err
+	}
+	if exists != nil{
+		return fmt.Errorf("Host with ID %s already exists", host.Id)
+	}
+
 	s := newSession()
 	err := f.beforeHostAdd(s, host)
+	now := time.Now()
+	host.CreatedAt = now
+	host.UpdatedAt = now
 	if err == nil {
-		err = f.UpdateHost(ctx, host)
+		err = f.hostStore.Put(ctx, host)
 	}
 	defer f.afterHostAdd(s, host, err)
 	return err
@@ -75,6 +89,8 @@ func (f *facade) UpdateHost(ctx datastore.Context, host *host.Host) error {
 	//TODO: make sure pool exists
 	s := newSession()
 	err := f.beforeHostUpdate(s, host)
+	now := time.Now()
+	host.UpdatedAt = now
 	if err == nil {
 		err = f.hostStore.Put(ctx, host)
 	}
