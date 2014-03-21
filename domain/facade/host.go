@@ -70,6 +70,8 @@ func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
 		return fmt.Errorf("Host with ID %s already exists", host.Id)
 	}
 
+	// validate Pool exists
+
 	s := newSession()
 	err := f.beforeHostAdd(s, host)
 	now := time.Now()
