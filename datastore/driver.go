@@ -23,5 +23,5 @@ type Connection interface {
 	Delete(key Key) error
 
 	// Query evaluates the query and returns a list of entities form the datastore
-	Query(query Query) ([]JsonMessage, error)
+	Query(query interface{}) ([]JsonMessage, error)
 }

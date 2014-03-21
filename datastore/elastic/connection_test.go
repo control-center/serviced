@@ -5,6 +5,7 @@
 package elastic
 
 import (
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 
@@ -78,13 +79,72 @@ func TestPutGetDelete(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("Expected error, not nil")
-	} else {
-		switch err.(type) {
-		case datastore.ErrNoSuchEntity:
-			glog.Info("No such entity")
-		default:
-			glog.Infof("type is %s", reflect.ValueOf(err))
-			t.Fatalf("Unexpected: %v", err)
-		}
+	} else if !datastore.IsErrNoSuchEntity(err) {
+		glog.Infof("type is %s", reflect.ValueOf(err))
+		t.Fatalf("Unexpected: %v", err)
 	}
+
+}
+
+func TestQuery(t *testing.T) {
+
+	driver, err := getConnection()
+	if err != nil {
+		t.Fatalf("Error initializing driver: %v", err)
+	}
+
+	conn, err := driver.GetConnection()
+	if err != nil {
+		t.Fatalf("Error getting connection: %v", err)
+	}
+
+	key := datastore.NewKey("tweet", "1")
+	tweet := map[string]string{
+		"user":      "kimchy",
+		"state":     "NY",
+		"post_date": "2009-11-15T14:12:12",
+		"message":   "trying out Elasticsearch",
+	}
+	tweetJson, err := json.Marshal(tweet)
+	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	key = datastore.NewKey("tweet", "2")
+	tweet = map[string]string{
+		"user":      "kimchy2",
+		"state":     "NY",
+		"post_date": "2010-11-15T14:12:12",
+		"message":   "trying out Elasticsearch again",
+	}
+	tweetJson, err = json.Marshal(tweet)
+	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	query := search.Query().Search("_exists_:state")
+	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
+
+	msgs, err := conn.Query(testSearch)
+	if err != nil {
+		t.Errorf("Unepected error %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Errorf("Expected 2 msgs, got  %V", len(msgs))
+	}
+
+	//query for non-existant entity
+	query = search.Query().Search("_exists_:blam")
+	testSearch = search.Search("twitter").Type("tweet").Size("10000").Query(query)
+
+	msgs, err = conn.Query(testSearch)
+	if err != nil {
+		t.Errorf("Unepected error %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Errorf("Expected 0 msgs, got  %V", len(msgs))
+	}
+
 }

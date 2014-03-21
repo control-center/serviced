@@ -16,20 +16,26 @@ type Query interface {
 	// is no abstraction.
 	Set(query interface{})
 
-	// Run performs the query and returns an iterator to the results
-	Run() (Iterator, error)
+	// Run performs the query and returns an Results to the results
+	Run() (Results, error)
 }
 
 var NoSuchElement error = errors.New("NoSuchElement")
 
-// Iterator iterates of the results returned from a query
-type Iterator interface {
-	// Next retrieves the next available result into entity and advances the iterator to the next available entity.
+// Results iterates or indexes into the results returned from a query
+type Results interface {
+	// Next retrieves the next available result into entity and advances the Results to the next available entity.
 	// NoSuchElement is returned if no more results.
 	Next(entity interface{}) error
 
 	// HasNext returns true if a call to next would yield a value or false if no more entities are available
 	HasNext() bool
+
+	//Len return the length of the results
+	Len() int
+
+	//Len return the length of the results
+	Get(idx int, entity interface{}) error
 }
 
 type query struct {
@@ -41,43 +47,56 @@ func newQuery(ctx Context) Query {
 	return &query{nil, ctx}
 }
 
-func (q *query) Run() (Iterator, error) {
+func (q *query) Run() (Results, error) {
 	conn, err := q.ctx.Connection()
 	if err != nil {
 		return nil, err
 	}
 
-	results, err := conn.Query(q)
+	results, err := conn.Query(q.query)
 	if err != nil {
 		return nil, err
 	}
 
-	return newIterator(results), nil
+	return newResults(results), nil
 }
 
 func (q *query) Set(query interface{}) {
 	q.query = query
 }
 
-type iterator struct {
-	results []JsonMessage
-	idx     int
+type results struct {
+	data []JsonMessage
+	idx  int
 }
 
-func (i *iterator) Next(entity interface{}) error {
-	if !i.HasNext() {
+func (r *results) Len() int {
+	return len(r.data)
+}
+
+func (r *results) Get(idx int, entity interface{}) error {
+	if idx >= len(r.data) {
 		return NoSuchElement
 	}
-	v := i.results[i.idx]
-	i.idx = i.idx + 1
+	v := r.data[idx]
 	err := json.Unmarshal(v.Bytes(), entity)
 	return err
 }
 
-func (i *iterator) HasNext() bool {
-	return i.idx < len(i.results)
+func (r *results) Next(entity interface{}) error {
+	if !r.HasNext() {
+		return NoSuchElement
+	}
+	v := r.data[r.idx]
+	r.idx = r.idx + 1
+	err := json.Unmarshal(v.Bytes(), entity)
+	return err
 }
 
-func newIterator(results []JsonMessage) Iterator {
-	return &iterator{results, 0}
+func (r *results) HasNext() bool {
+	return r.idx < len(r.data)
+}
+
+func newResults(data []JsonMessage) Results {
+	return &results{data, 0}
 }

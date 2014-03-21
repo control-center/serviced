@@ -16,3 +16,11 @@ type ErrNoSuchEntity struct {
 func (e ErrNoSuchEntity) Error() string {
 	return fmt.Sprintf("No such entity {kind:%s, id:%s}", e.Key.Kind(), e.Key.ID())
 }
+
+func IsErrNoSuchEntity(err error) bool {
+	switch err.(type) {
+	case ErrNoSuchEntity:
+		return true
+	}
+	return false
+}

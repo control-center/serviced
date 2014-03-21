@@ -28,7 +28,7 @@ func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn) Query(query Query) ([]JsonMessage, error) {
+func (c testConn) Query(interface{}) ([]JsonMessage, error) {
 	return nil, nil
 }
 

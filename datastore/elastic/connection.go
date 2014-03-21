@@ -6,11 +6,13 @@ package elastic
 
 import (
 	"github.com/mattbaird/elastigo/core"
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type elasticConnection struct {
@@ -70,6 +72,30 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 	return nil
 }
 
-func (ec *elasticConnection) Query(query datastore.Query) ([]datastore.JsonMessage, error) {
-	return make([]datastore.JsonMessage, 0), nil
+func (ec *elasticConnection) Query(query interface{}) ([]datastore.JsonMessage, error) {
+
+	search, ok := query.(*search.SearchDsl)
+	if !ok {
+		return nil, fmt.Errorf("Invalid search type %v", reflect.ValueOf(query))
+	}
+	resp, err := search.Result()
+	if err != nil {
+		err = fmt.Errorf("Error executing query %v", err)
+		glog.Infof("%v", err)
+		return nil, err
+	}
+	return toJsonMessages(resp), nil
+}
+
+// convert search result of json host to dao.Host array
+func toJsonMessages(result *core.SearchResult) []datastore.JsonMessage {
+	glog.Infof("Converting results %v", result)
+	var total = len(result.Hits.Hits)
+	var msgs []datastore.JsonMessage = make([]datastore.JsonMessage, total)
+	for i := 0; i < total; i += 1 {
+		glog.Infof("Adding result %s", string(result.Hits.Hits[i].Source))
+		msg := datastore.NewJsonMessage(result.Hits.Hits[i].Source)
+		msgs[i] = msg
+	}
+	return msgs
 }
