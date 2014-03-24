@@ -28,7 +28,6 @@ const (
 
 var (
 	unused interface{}
-	Lock   *sync.Mutex = new(sync.Mutex)
 	// stubs
 	getCurrentUser = user.Current
 )
@@ -52,6 +51,7 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 }
 
 type DistributedFileSystem struct {
+	sync.Mutex
 	client       dao.ControlPlane
 	dockerClient *docker.Client
 }
@@ -165,8 +165,8 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 
 // Commits a container to docker image and updates the DFS
 func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
-	Lock.Lock()
-	defer Lock.Unlock()
+	d.Lock()
+	defer d.Unlock()
 
 	// Get the container
 	container, err := d.dockerClient.InspectContainer(dockerId)
@@ -320,8 +320,8 @@ func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume
 
 // Rolls back the DFS to a specified state and retags the images
 func (d *DistributedFileSystem) Rollback(snapshotId string) error {
-	Lock.Lock()
-	defer Lock.Unlock()
+	d.Lock()
+	defer d.Unlock()
 
 	var (
 		services []*dao.Service
