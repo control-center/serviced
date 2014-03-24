@@ -99,46 +99,41 @@ func onExecutorDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
 	// Client disconnected, so kill the process
 	inst.Signal <- int(syscall.SIGKILL)
-	inst.closeIncoming()
+	inst.Disconnect()
+}
+
+func (p *ProcessInstance) Disconnect() {
+	p.disconnected = true
+	close(p.Stdin)
+	close(p.Signal)
 }
 
 func (p *ProcessInstance) Close() {
-	p.closeIncoming()
-	p.closeOutgoing()
-}
-
-func (p *ProcessInstance) closeIncoming() {
-	glog.V(0).Infof("Closing incoming channels")
-	if _, ok := <-p.Stdin; ok {
-		close(p.Stdin)
-	}
-	if _, ok := <-p.Signal; ok {
-		close(p.Signal)
-	}
-}
-
-func (p *ProcessInstance) closeOutgoing() {
-	glog.V(0).Infof("Closing outgoing channels")
-	if _, ok := <-p.Stdout; ok {
-		close(p.Stdout)
-	}
-	if _, ok := <-p.Stderr; ok {
-		close(p.Stderr)
-	}
-	if _, ok := <-p.Result; ok {
-		close(p.Result)
-	}
+	p.closed = true
+	close(p.Stdout)
+	close(p.Stderr)
+	close(p.Result)
 }
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 	ns.On("signal", func(n *socketio.NameSpace, signal int) {
 		glog.V(4).Infof("received signal %d", signal)
-		p.Signal <- signal
+		if p.disconnected {
+			glog.Warning("disconnected; cannot send signal: %s", signal)
+		} else {
+			p.Signal <- signal
+		}
 	})
 
 	ns.On("stdin", func(n *socketio.NameSpace, stdin string) {
 		glog.V(4).Infof("Received stdin: %s", stdin)
-		p.Stdin <- stdin
+		if p.disconnected {
+			glog.Warning("disconnected; cannot send stdin: %s", stdin)
+		} else {
+			for _, b := range []byte(stdin) {
+				p.Stdin <- b
+			}
+		}
 	})
 
 	glog.V(0).Info("Hooked up incoming events!")
@@ -167,12 +162,24 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	ns.On("stdout", func(n *socketio.NameSpace, stdout string) {
 		glog.V(4).Infof("Process received stdout: %s", stdout)
-		p.Stdout <- stdout
+		if p.closed {
+			glog.Warning("connection closed; cannot write stdout: %s", stdout)
+		} else {
+			for _, b := range []byte(stdout) {
+				p.Stdout <- b
+			}
+		}
 	})
 
 	ns.On("stderr", func(n *socketio.NameSpace, stderr string) {
 		glog.V(4).Infof("Process received stderr: %s", stderr)
-		p.Stderr <- stderr
+		if p.closed {
+			glog.Warning("connection closed; cannot write stderr: %s", stderr)
+		} else {
+			for _, b := range []byte(stderr) {
+				p.Stderr <- b
+			}
+		}
 	})
 
 	ns.On("result", func(n *socketio.NameSpace, result Result) {
@@ -180,11 +187,11 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 		p.Result <- result
 	})
 	glog.V(0).Info("Hooked up outgoing events!")
-
 }
 
 func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up output channels!")
+
 	for p.Stdout != nil || p.Stderr != nil {
 		select {
 		case m, ok := <-p.Stdout:
@@ -204,6 +211,7 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 		}
 	}
 	ns.Emit("result", <-p.Result)
+	p.Disconnect()
 }
 
 func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
@@ -232,15 +240,16 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 
 	ns := client.Of("")
 	proc := &ProcessInstance{
-		Stdin:  make(chan string),
-		Stdout: make(chan string),
-		Stderr: make(chan string),
+		Stdin:  make(chan byte, 1024),
+		Stdout: make(chan byte, 1024),
+		Stderr: make(chan byte, 1024),
 		Signal: make(chan int),
 		Result: make(chan Result),
 	}
 
 	client.On("disconnect", func(ns *socketio.NameSpace) {
 		glog.Infof("Disconnected!")
+		proc.Disconnect()
 		proc.Close()
 	})
 
@@ -256,62 +265,97 @@ func (f *Forwarder) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func (e *Executor) Exec(cfg *ProcessConfig) *ProcessInstance {
-	return StartDocker(cfg, e.port)
+func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
+	p = &ProcessInstance{
+		Stdin:  make(chan byte, 1024),
+		Stdout: make(chan byte, 1024),
+		Stderr: make(chan byte, 1024),
+		Signal: make(chan int),
+		Result: make(chan Result),
+	}
+
+	cmd, err := StartDocker(cfg, e.port)
+	if err != nil {
+		p.Result <- Result{0, err, ABNORMAL}
+		return
+	}
+
+	cmd.Stdin = ShellReader{p.Stdin}
+	cmd.Stdout = ShellWriter{p.Stdout}
+	cmd.Stderr = ShellWriter{p.Stderr}
+
+	go func() {
+		defer p.Close()
+
+		if err := cmd.Run(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					p.Result <- Result{status.ExitStatus(), err, NORMAL}
+					return
+				}
+			}
+			p.Result <- Result{0, err, ABNORMAL}
+		} else {
+			p.Result <- Result{0, nil, NORMAL}
+		}
+	}()
+
+	return
 }
 
 func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
 	// Client disconnected, so kill the process
 	inst.Signal <- int(syscall.SIGKILL)
-	inst.closeIncoming()
+	inst.Disconnect()
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
-	var (
-		runner  Runner
-		service dao.Service
-	)
+func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+	var service dao.Service
 
 	// Create a control plane client to look up the service
 	cp, err := serviced.NewControlClient(port)
 	if err != nil {
-		glog.Fatalf("Could not create a control plane client %v", err)
+		glog.Errorf("could not create a control plane client %v", err)
+		return nil, err
 	}
-	glog.Infof("Connected to the control plane at %s", port)
+	glog.Infof("Connected to the control plane at port %s", port)
 
 	if err := cp.GetService(cfg.ServiceId, &service); err != nil {
-		glog.Fatalf("Unable to find service %s", cfg.ServiceId)
+		glog.Errorf("unable to find service %s", cfg.ServiceId)
+		return nil, err
 	}
 
-	// Bind mount on /serviced
+	// bind mount on /serviced
 	dir, bin, err := serviced.ExecPath()
 	if err != nil {
-		glog.Fatalf("Unable to find serviced binary: %v", err)
+		glog.Errorf("serviced not found: %s", err)
+		return nil, err
 	}
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 
-	// Bind mount the pwd
+	// bind mount the pwd
 	dir, err = os.Getwd()
 	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
 
-	// Get the shell command
+	// get the shell command
 	shellcmd := cfg.Command
 	if cfg.Command == "" {
 		shellcmd = "su -"
 	}
 
-	// Get the serviced command
+	// get the serviced command
 	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
 
-	// Get the proxy command
+	// get the proxy command
 	proxycmd := []string{svcdcmd, "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", service.Id, shellcmd}
 
-	// Get the docker start command
+	// get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		glog.Fatalf("Docker not found: %v", err)
+		glog.Errorf("Docker not found: %v", err)
+		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
 	argv = append(argv, cfg.Envv...)
@@ -329,58 +373,10 @@ func StartDocker(cfg *ProcessConfig, port string) *ProcessInstance {
 	argv = append(argv, service.ImageId)
 	argv = append(argv, proxycmd...)
 
-	// Wait for the DFS to be ready in order to start container on the latest image
+	// wait for the DFS to be ready in order to start container on the latest image
+	glog.Infof("Acquiring image from the dfs...")
 	cp.ReadyDFS(false, nil)
-	glog.Infof("%s %s", docker, argv)
-	runner, err = CreateCommand(docker, argv)
-	if err != nil {
-		glog.Fatalf("Unable to run command {%s %s} %v", docker, argv, err)
-	}
+	glog.Infof("Acquired!  Starting shell")
 
-	// Wire it up
-	inst := &ProcessInstance{
-		Stdout: runner.StdoutPipe(),
-		Stderr: runner.StderrPipe(),
-		Stdin:  make(chan string),
-		Signal: make(chan int),
-		Result: make(chan Result),
-	}
-
-	go func() {
-		go func() {
-			glog.Infof("Reading from stdin/signal channels")
-			for inst.Stdin != nil || inst.Signal != nil {
-				select {
-				case m, ok := <-inst.Stdin:
-					if ok {
-						runner.Write([]byte(m))
-					} else {
-						inst.Stdin = nil
-					}
-				case s, ok := <-inst.Signal:
-					if ok {
-						runner.Signal(syscall.Signal(s))
-					} else {
-						inst.Signal = nil
-					}
-				}
-			}
-		}()
-
-		if err := runner.Reader(MAXBUFFER); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					inst.Result <- Result{status.ExitStatus(), err, NORMAL}
-				}
-			}
-
-			// If the above is valid, you shouldn't be capturing the next
-			// result in the channel
-			inst.Result <- Result{0, err, ABNORMAL}
-		} else {
-			inst.Result <- Result{0, nil, NORMAL}
-		}
-	}()
-
-	return inst
+	return exec.Command(docker, argv...), nil
 }
