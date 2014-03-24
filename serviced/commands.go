@@ -11,7 +11,6 @@ package main
 // This is here the command line arguments are parsed and executed.
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -23,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -771,37 +771,13 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 		Command:   command,
 	}
 
-	inst := shell.StartDocker(&config, options.port)
+	// TODO: Change me to call shell Forwarder
+	dockercmd := shell.StartDocker(&config, options.port)
+	dockercmd.Stdin = os.Stdin
+	dockercmd.Stdout = os.Stdout
+	dockercmd.Stderr = os.Stderr
 
-	go func() {
-		buf := bufio.NewReader(os.Stdin)
-		for {
-			b, err := buf.ReadByte()
-			if err != nil {
-				// Something errory here
-			}
-			inst.Stdin <- string(b)
-		}
-	}()
-
-	for inst.Stdout != nil || inst.Stderr != nil {
-		select {
-		case line, ok := <-inst.Stdout:
-			if ok {
-				os.Stdout.WriteString(line)
-			} else {
-				inst.Stdout = nil
-			}
-		case line, ok := <-inst.Stderr:
-			if ok {
-				os.Stderr.WriteString(line)
-			} else {
-				inst.Stderr = nil
-			}
-		}
-	}
-
-	return (<-inst.Result).Error
+	return dockercmd.Run()
 }
 
 func (cli *ServicedCli) CmdShow(args ...string) error {
@@ -903,56 +879,56 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 		SaveAs:    saveAs,
 		Command:   command,
 	}
-	inst := shell.StartDocker(&config, options.port)
-	for inst.Stdout != nil && inst.Stderr != nil {
-		select {
-		case line, ok := <-inst.Stdout:
-			if ok {
-				os.Stdout.WriteString(line)
-			} else {
-				inst.Stdout = nil
+
+	// TODO: change me to use shell Forwarder
+	dockercmd := shell.StartDocker(&config, options.port)
+	dockercmd.Stdin = os.Stdin
+	dockercmd.Stdout = os.Stdout
+	dockercmd.Stderr = os.Stderr
+
+	exitcode, err := func(cmd *exec.Cmd) (int, error) {
+		if err := cmd.Run(); err != nil {
+			if e, ok := err.(*exec.ExitError); ok {
+				if status, ok := e.Sys().(syscall.WaitStatus); ok {
+					return status.ExitStatus(), nil
+				}
 			}
-		case line, ok := <-inst.Stderr:
-			if ok {
-				os.Stderr.WriteString(line)
-			} else {
-				inst.Stderr = nil
-			}
+			return 0, err
+		}
+		return 0, nil
+	}(dockercmd)
+
+	if err != nil {
+		glog.Fatalf("abnormal termination from shell command: %s", err)
+	}
+
+	dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Fatalf("unable to connect to the docker service: %s", err)
+	}
+	container, err := dockercli.InspectContainer(saveAs)
+	if err != nil {
+		glog.Fatalf("cannot acquire information about container: %s (%s)", saveAs, err)
+	}
+	glog.V(2).Infof("Container ID: %s", container.ID)
+
+	switch exitcode {
+	case TX_COMMIT:
+		// Commit the container
+		label := ""
+		if err := cp.Commit(container.ID, &label); err != nil {
+			glog.Fatalf("failed to commit: %s (%s)", container.ID, err)
+		}
+	default:
+		// Delete the container
+		if err := dockercli.StopContainer(container.ID, 10); err != nil {
+			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
+		} else if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
 	}
 
-	// Check the result to determine if any transactional actions need to be done
-	result := <-inst.Result
-	if result.Termination == shell.NORMAL {
-
-		dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
-		if err != nil {
-			glog.Fatalf("unable to connect to the docker service: %s", err)
-		}
-		container, err := dockercli.InspectContainer(saveAs)
-		if err != nil {
-			glog.Fatalf("cannot acquire information about container: %s (%s)", saveAs, err)
-		}
-		glog.V(2).Infof("Container ID: %s", container.ID)
-
-		switch result.ExitCode {
-		case TX_COMMIT:
-			// Commit the container
-			label := ""
-			if err := cp.Commit(container.ID, &label); err != nil {
-				glog.Fatalf("failed to commit: %s (%s)", container.ID, err)
-			}
-		default:
-			// Delete the container
-			if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
-				glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
-			}
-		}
-	} else {
-		glog.Fatalf("abnormal termination from shell command: %s", result.Error)
-	}
-
-	return result.Error
+	return nil
 }
 
 func (cli *ServicedCli) CmdRollback(args ...string) error {
