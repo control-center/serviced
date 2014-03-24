@@ -209,7 +209,6 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 	newImage, err := d.dockerClient.CommitContainer(docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: image.Repository,
-		Tag:        image.Tag,
 	})
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
@@ -223,7 +222,7 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 		Size:       newImage.Size,
 		ParentId:   newImage.Parent,
 		Repository: image.Repository,
-		Tag:        image.Tag,
+		Tag:        DOCKER_LATEST,
 	}
 
 	// Get the path to the volume and write the images
@@ -267,13 +266,15 @@ func (d *DistributedFileSystem) getLatestImages(images *[]docker.APIImages) erro
 		return err
 	} else {
 		for _, image := range allImages {
-			for _, rt := range image.RepoTags {
-				repo := rt.Repo()
-				tag := rt.Tag()
-				if tag == DOCKER_LATEST {
-					image.Repository = repo
-					image.Tag = tag
-					*images = append(*images, image)
+			if len(image.RepoTags) == 1 {
+				image.Repository = image.RepoTags[0].Repo()
+				image.Tag = image.RepoTags[0].Tag()
+			} else {
+				for _, rt := range image.RepoTags {
+					if rt.Tag() == DOCKER_LATEST {
+						image.Repository = rt.Repo()
+						image.Tag = DOCKER_LATEST
+					}
 				}
 			}
 		}
