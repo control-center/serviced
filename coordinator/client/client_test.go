@@ -1,6 +1,7 @@
 package client
 
 import (
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -8,17 +9,34 @@ import (
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
-type mockDriver struct{}
+type mockDriver struct {
+	onClose **func()
+}
 
 var callTimes = 0
 
 func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err error) {
-	driver = mockDriver{}
+	driver = mockDriver{
+		onClose: new(*func()),
+	}
 	return driver, err
 }
 
 func (driver mockDriver) ValidateMachineList(machines []string) error {
 	return nil
+}
+
+func (driver mockDriver) SetOnClose(f func()) {
+	log.Printf("calling set on close")
+	*driver.onClose = &f
+}
+
+func (driver mockDriver) Close() {
+	log.Printf("in driver.Close()")
+	if *driver.onClose != nil {
+		log.Printf("calling onClose pointer")
+		(*(*driver.onClose))()
+	}
 }
 
 func (driver mockDriver) Create(path string, data []byte) error {
@@ -43,6 +61,14 @@ func (driver mockDriver) Exists(path string) (bool, error) {
 
 func (driver mockDriver) Delete(path string) error {
 	return nil
+}
+
+func (driver mockDriver) Unlock(path, lockId string) error {
+	return nil
+}
+
+func (driver mockDriver) Lock(path string) (lockId string, err error) {
+	return "", nil
 }
 
 func TestRegisteredDrivers(t *testing.T) {
@@ -83,13 +109,27 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create client :%s", err)
 	}
+	connection, _ := client.GetConnection()
+	connection.Close()
 	client.NewRetryLoop(
 		func(cancelChan chan chan error) chan error {
 			t.Logf("running callable")
 			errc := make(chan error)
 			go func() {
 				t.Logf("getting connection")
-				conn, err := client.GetConnection()
+				var conn Driver
+				var err error
+				result := make(chan bool)
+				go func() {
+					conn, err = client.GetConnection()
+					result <- true
+				}()
+				select {
+				case <-result:
+				case canit := <-cancelChan:
+					canit <- err
+					return
+				}
 				if err != nil {
 					errc <- err
 					return
@@ -98,5 +138,6 @@ func TestNew(t *testing.T) {
 			}()
 			return errc
 		}).Wait()
+	defer client.Close()
 
 }

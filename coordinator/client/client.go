@@ -17,6 +17,7 @@ var (
 	ErrInvalidMachines         = errors.New("coord-client: invalid servers list")
 	ErrInvalidMachine          = errors.New("coord-client: invalid machine")
 	ErrInvalidRetryPolicy      = errors.New("coord-client: invalid retry policy")
+	ErrConnectionNotFound      = errors.New("coord-client: connection not found")
 )
 
 type regDriversType struct {
@@ -50,12 +51,35 @@ func RegisteredDrivers() []string {
 	return names
 }
 
+type opClientRequestType int
+
+const (
+	opClientRequestConnection opClientRequestType = iota
+	opClientCloseConnection
+	opClientClose
+)
+
+func newOpClientRequest(reqType opClientRequestType, args interface{}) opClientRequest {
+	return opClientRequest{
+		op:       reqType,
+		args:     args,
+		response: make(chan interface{}),
+	}
+}
+
+type opClientRequest struct {
+	op       opClientRequestType
+	args     interface{}
+	response chan interface{}
+}
+
 type Client struct {
 	machines    []string
 	timeout     time.Duration
 	done        chan struct{}
 	retryPolicy retry.Policy
 	*sync.RWMutex
+	opRequests    chan opClientRequest
 	driverFactory func([]string, time.Duration) (Driver, error)
 }
 
@@ -85,6 +109,7 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 		done:          make(chan struct{}),
 		retryPolicy:   retryPolicy,
 		driverFactory: drv,
+		opRequests:    make(chan opClientRequest),
 	}
 	go client.loop()
 	return client, nil
@@ -126,9 +151,55 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 }
 
 func (client *Client) loop() {
-	select {
-	case <-client.done:
+	connections := make(map[int]*Driver)
+	connectionId := 0
+
+	for {
+		select {
+		case req := <-client.opRequests:
+			switch req.op {
+			case opClientCloseConnection:
+				connectionId := req.args.(int)
+				if connection, found := connections[connectionId]; found {
+					(*connection).Close()
+					delete(connections, connectionId)
+					req.response <- nil
+				} else {
+					req.response <- ErrConnectionNotFound
+				}
+			case opClientRequestConnection:
+				c, err := client.driverFactory(client.machines, client.timeout)
+				// setting up a callback to close the connection in this client
+				// if someone calls Close() on the driver reference
+				c.SetOnClose(func() {
+					client.CloseConnection(connectionId)
+				})
+				if err == nil {
+					connections[connectionId] = &c
+					connectionId++
+					req.response <- c
+				} else {
+					req.response <- err
+				}
+				log.Printf("# of connections: %d", len(connections))
+			}
+
+		case <-client.done:
+			log.Printf("Closing client")
+			for i, c := range connections {
+				log.Printf("closing connection %d", i)
+				(*c).Close()
+			}
+			return
+		}
 	}
+}
+
+func (client *Client) CloseConnection(connectionId int) error {
+	request := newOpClientRequest(opClientCloseConnection, connectionId)
+	client.opRequests <- request
+	response := <-request.response
+	return response.(error)
 }
 
 func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) retry.Loop {
@@ -136,11 +207,24 @@ func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) 
 }
 
 func (client *Client) GetConnection() (Driver, error) {
-	return client.driverFactory(client.machines, client.timeout)
+	request := newOpClientRequest(opClientRequestConnection, nil)
+	client.opRequests <- request
+	response := <-request.response
+	switch response.(type) {
+	case error:
+		return nil, response.(error)
+	case Driver:
+		return response.(Driver), nil
+	}
+	panic("unreachable")
 }
 
 func (client *Client) Close() {
 	client.done <- struct{}{}
+}
+
+func (client *Client) Unregister(id int) {
+
 }
 
 func (client *Client) SetRetryPolicy(policy retry.Policy) error {

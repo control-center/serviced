@@ -20,6 +20,7 @@ type EtcdDriver struct {
 	client  *etcd.Client
 	servers []string
 	timeout time.Duration
+	onClose **func()
 }
 
 // Assert that the Ectd driver meets the Driver interface
@@ -34,6 +35,7 @@ func NewEtcdDriver(servers []string, timeout time.Duration) (driver client.Drive
 		client:  client,
 		servers: servers,
 		timeout: timeout,
+		onClose: new(*func()),
 	}
 	return driver, nil
 }
@@ -42,6 +44,25 @@ func init() {
 	if err := client.RegisterDriver("etcd", NewEtcdDriver); err != nil {
 		panic(err)
 	}
+}
+
+func (etcd EtcdDriver) Close() {
+	etcd.client.CloseCURL()
+	if *etcd.onClose != nil {
+		(*(*etcd.onClose))()
+	}
+}
+
+func (etcd EtcdDriver) SetOnClose(f func()) {
+	*etcd.onClose = &f
+}
+
+func (etcd EtcdDriver) Lock(path string) (lockId string, err error) {
+	return "", errors.New("unsupported")
+}
+
+func (etcd EtcdDriver) Unlock(path string, lockId string) (err error) {
+	return errors.New("unsupported")
 }
 
 func (etcd EtcdDriver) Create(path string, data []byte) error {
