@@ -772,7 +772,10 @@ func (cli *ServicedCli) CmdShell(args ...string) error {
 	}
 
 	// TODO: Change me to call shell Forwarder
-	dockercmd := shell.StartDocker(&config, options.port)
+	dockercmd, err := shell.StartDocker(&config, options.port)
+	if err != nil {
+		glog.Fatalf("failed to connect to service: %s", err)
+	}
 	dockercmd.Stdin = os.Stdin
 	dockercmd.Stdout = os.Stdout
 	dockercmd.Stderr = os.Stderr
@@ -881,7 +884,11 @@ func (cli *ServicedCli) CmdRun(args ...string) error {
 	}
 
 	// TODO: change me to use shell Forwarder
-	dockercmd := shell.StartDocker(&config, options.port)
+	dockercmd, err := shell.StartDocker(&config, options.port)
+	if err != nil {
+		glog.Fatalf("failed to connect to service: %s", err)
+	}
+
 	dockercmd.Stdin = os.Stdin
 	dockercmd.Stdout = os.Stdout
 	dockercmd.Stderr = os.Stderr

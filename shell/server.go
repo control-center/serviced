@@ -274,7 +274,12 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result),
 	}
 
-	cmd := StartDocker(cfg, e.port)
+	cmd, err := StartDocker(cfg, e.port)
+	if err != nil {
+		p.Result <- Result{0, err, ABNORMAL}
+		return
+	}
+
 	cmd.Stdin = ShellReader{p.Stdin}
 	cmd.Stdout = ShellWriter{p.Stdout}
 	cmd.Stderr = ShellWriter{p.Stderr}
@@ -306,24 +311,27 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(cfg *ProcessConfig, port string) *exec.Cmd {
+func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var service dao.Service
 
 	// Create a control plane client to look up the service
 	cp, err := serviced.NewControlClient(port)
 	if err != nil {
-		glog.Fatalf("could not create a control plane client %v", err)
+		glog.Errorf("could not create a control plane client %v", err)
+		return nil, err
 	}
 	glog.Infof("Connected to the control plane at port %s", port)
 
 	if err := cp.GetService(cfg.ServiceId, &service); err != nil {
-		glog.Fatalf("unable to find service %s", cfg.ServiceId)
+		glog.Errorf("unable to find service %s", cfg.ServiceId)
+		return nil, err
 	}
 
 	// bind mount on /serviced
 	dir, bin, err := serviced.ExecPath()
 	if err != nil {
-		glog.Fatalf("serviced not found: %s", err)
+		glog.Errorf("serviced not found: %s", err)
+		return nil, err
 	}
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 
@@ -346,7 +354,8 @@ func StartDocker(cfg *ProcessConfig, port string) *exec.Cmd {
 	// get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		glog.Fatalf("Docker not found: %v", err)
+		glog.Errorf("Docker not found: %v", err)
+		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
 	argv = append(argv, cfg.Envv...)
@@ -369,5 +378,5 @@ func StartDocker(cfg *ProcessConfig, port string) *exec.Cmd {
 	cp.ReadyDFS(false, nil)
 	glog.Infof("Acquired!  Starting shell")
 
-	return exec.Command(docker, argv...)
+	return exec.Command(docker, argv...), nil
 }
