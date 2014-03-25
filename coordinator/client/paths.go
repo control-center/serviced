@@ -25,7 +25,7 @@ func ValidatePath(path string) error {
 	return nil
 }
 
-func Mkdirs(driver Driver, path string, makeLastNode bool) error {
+func Mkdirs(conn Connection, path string, makeLastNode bool) error {
 
 	if err := ValidatePath(path); err != nil {
 		return err
@@ -43,14 +43,14 @@ func Mkdirs(driver Driver, path string, makeLastNode bool) error {
 		}
 
 		subPath += part
-		exists, err := driver.Exists(subPath)
+		exists, err := conn.Exists(subPath)
 		if err != nil {
 			return err
 		}
 		if exists {
 			continue
 		}
-		if err = driver.Create(subPath, []byte{}); err != nil {
+		if err = conn.Create(subPath, []byte{}); err != nil {
 			if err == ErrNodeExists {
 				continue
 			}

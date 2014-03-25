@@ -1,6 +1,10 @@
 package client
 
 type Driver interface {
+	GetConnection() (Connection, error)
+}
+
+type Connection interface {
 	Close()
 	SetOnClose(func())
 	Create(path string, data []byte) error

@@ -9,37 +9,45 @@ import (
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
+var callTimes int
+
 type mockDriver struct {
+	machines []string
+	timeout  time.Duration
+}
+
+type mockConnection struct {
 	onClose **func()
 }
 
-var callTimes = 0
-
 func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err error) {
 	driver = mockDriver{
-		onClose: new(*func()),
+		machines: machines,
+		timeout:  timeout,
 	}
 	return driver, err
 }
 
-func (driver mockDriver) ValidateMachineList(machines []string) error {
-	return nil
+func (driver mockDriver) GetConnection() (Connection, error) {
+	return &mockConnection{
+		onClose: new(*func()),
+	}, nil
 }
 
-func (driver mockDriver) SetOnClose(f func()) {
+func (conn mockConnection) SetOnClose(f func()) {
 	log.Printf("calling set on close")
-	*driver.onClose = &f
+	*conn.onClose = &f
 }
 
-func (driver mockDriver) Close() {
+func (conn mockConnection) Close() {
 	log.Printf("in driver.Close()")
-	if *driver.onClose != nil {
+	if *conn.onClose != nil {
 		log.Printf("calling onClose pointer")
-		(*(*driver.onClose))()
+		(*(*conn.onClose))()
 	}
 }
 
-func (driver mockDriver) Create(path string, data []byte) error {
+func (conn mockConnection) Create(path string, data []byte) error {
 	callTimes++
 	if callTimes > 30 {
 		return nil
@@ -47,7 +55,7 @@ func (driver mockDriver) Create(path string, data []byte) error {
 	return ErrNodeExists
 }
 
-func (driver mockDriver) CreateDir(path string) error {
+func (conn mockConnection) CreateDir(path string) error {
 	callTimes++
 	if callTimes > 30 {
 		return nil
@@ -55,19 +63,19 @@ func (driver mockDriver) CreateDir(path string) error {
 	return ErrNodeExists
 }
 
-func (driver mockDriver) Exists(path string) (bool, error) {
+func (conn mockConnection) Exists(path string) (bool, error) {
 	return false, nil
 }
 
-func (driver mockDriver) Delete(path string) error {
+func (conn mockConnection) Delete(path string) error {
 	return nil
 }
 
-func (driver mockDriver) Unlock(path, lockId string) error {
+func (conn mockConnection) Unlock(path, lockId string) error {
 	return nil
 }
 
-func (driver mockDriver) Lock(path string) (lockId string, err error) {
+func (conn mockConnection) Lock(path string) (lockId string, err error) {
 	return "", nil
 }
 
@@ -78,7 +86,9 @@ func TestRegisteredDrivers(t *testing.T) {
 		t.FailNow()
 	}
 
-	if err := RegisterDriver("mock", newMockDriver); err != nil {
+	driver, _ := newMockDriver([]string{}, time.Second)
+
+	if err := RegisterDriver("mock", driver); err != nil {
 		t.Logf("Expected no error when registering mock driver: %s", err)
 		t.FailNow()
 	}
@@ -88,7 +98,7 @@ func TestRegisteredDrivers(t *testing.T) {
 		t.FailNow()
 	}
 
-	if err := RegisterDriver("mock", newMockDriver); err != ErrDriverAlreadyRegistered {
+	if err := RegisterDriver("mock", driver); err != ErrDriverAlreadyRegistered {
 		t.Logf("Expected ErrDriverAlreadyRegistered, got %s", err)
 		t.FailNow()
 	}
@@ -117,7 +127,7 @@ func TestNew(t *testing.T) {
 			errc := make(chan error)
 			go func() {
 				t.Logf("getting connection")
-				var conn Driver
+				var conn Connection
 				var err error
 				result := make(chan bool)
 				go func() {

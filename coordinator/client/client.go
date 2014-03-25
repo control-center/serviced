@@ -20,17 +20,17 @@ var (
 )
 
 type regDriversType struct {
-	driverMap map[string]func([]string, time.Duration) (Driver, error)
+	driverMap map[string]Driver
 	sync.Mutex
 }
 
 var (
 	registeredDrivers = regDriversType{
-		driverMap: make(map[string]func([]string, time.Duration) (Driver, error)),
+		driverMap: make(map[string]Driver),
 	}
 )
 
-func RegisterDriver(name string, driver func([]string, time.Duration) (Driver, error)) error {
+func RegisterDriver(name string, driver Driver) error {
 	registeredDrivers.Lock()
 	defer registeredDrivers.Unlock()
 	if _, found := registeredDrivers.driverMap[name]; !found {
@@ -78,8 +78,8 @@ type Client struct {
 	done        chan struct{}
 	retryPolicy retry.Policy
 	*sync.RWMutex
-	opRequests    chan opClientRequest
-	driverFactory func([]string, time.Duration) (Driver, error)
+	opRequests        chan opClientRequest
+	connectionFactory Driver
 }
 
 func DefaultRetryPolicy() retry.Policy {
@@ -103,12 +103,12 @@ func New(machines []string, timeout time.Duration, flavor string, retryPolicy re
 		retryPolicy = DefaultRetryPolicy()
 	}
 	client = &Client{
-		machines:      machines,
-		timeout:       timeout,
-		done:          make(chan struct{}),
-		retryPolicy:   retryPolicy,
-		driverFactory: drv,
-		opRequests:    make(chan opClientRequest),
+		machines:          machines,
+		timeout:           timeout,
+		done:              make(chan struct{}),
+		retryPolicy:       retryPolicy,
+		connectionFactory: drv,
+		opRequests:        make(chan opClientRequest),
 	}
 	go client.loop()
 	return client, nil
@@ -148,7 +148,7 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 }
 
 func (client *Client) loop() {
-	connections := make(map[int]*Driver)
+	connections := make(map[int]*Connection)
 	connectionId := 0
 
 	for {
@@ -165,7 +165,7 @@ func (client *Client) loop() {
 					req.response <- ErrConnectionNotFound
 				}
 			case opClientRequestConnection:
-				c, err := client.driverFactory(client.machines, client.timeout)
+				c, err := client.connectionFactory.GetConnection()
 				// setting up a callback to close the connection in this client
 				// if someone calls Close() on the driver reference
 				c.SetOnClose(func() {
@@ -200,15 +200,15 @@ func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) 
 	return retry.NewLoop(client.retryPolicy, cancelable)
 }
 
-func (client *Client) GetConnection() (Driver, error) {
+func (client *Client) GetConnection() (Connection, error) {
 	request := newOpClientRequest(opClientRequestConnection, nil)
 	client.opRequests <- request
 	response := <-request.response
 	switch response.(type) {
 	case error:
 		return nil, response.(error)
-	case Driver:
-		return response.(Driver), nil
+	case Connection:
+		return response.(Connection), nil
 	}
 	panic("unreachable")
 }
