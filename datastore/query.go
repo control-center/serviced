@@ -5,7 +5,7 @@
 package datastore
 
 import (
-w	"errors"
+	"errors"
 )
 
 // Query is a query used to search for and return entities from a datastore
