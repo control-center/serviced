@@ -20,6 +20,7 @@ type ElasticDriver interface {
 	SetProperty(name string, prop interface{}) error
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(name string, mapping interface{}) error
+	AddMappingFilie(name string, path string) error
 	Initialize() error
 	GetConnection() (datastore.Connection, error)
 }
@@ -34,6 +35,7 @@ func New(host string, port uint16, index string) ElasticDriver {
 	driver.index = index
 	driver.settings = map[string]interface{}{"number_of_shards": 1}
 	driver.mappings = make(map[string]interface{})
+	driver.mappingPaths = make(map[string]string)
 	return driver
 }
 
@@ -41,11 +43,12 @@ func New(host string, port uint16, index string) ElasticDriver {
 var _ datastore.Driver = &elasticDriver{}
 
 type elasticDriver struct {
-	host     string
-	port     uint16
-	settings map[string]interface{}
-	mappings map[string]interface{}
-	index    string
+	host         string
+	port         uint16
+	settings     map[string]interface{}
+	mappings     map[string]interface{}
+	mappingPaths map[string]string
+	index        string
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
@@ -69,23 +72,19 @@ func (ed *elasticDriver) SetProperty(name string, prop interface{}) error {
 }
 
 func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
-	//TODO: this should add the fields from Entity, key and type)
 	ed.mappings[name] = mapping
+	return nil
+}
+
+func (ed *elasticDriver) AddMappingFilie(name string, path string) error {
+	ed.mappingPaths[name] = path
 	return nil
 }
 
 func (ed *elasticDriver) postMappings() error {
 	baseUrl := fmt.Sprintf("http://%s:%d/%s/", ed.host, ed.port, ed.index)
 
-	for typeName, mapping := range ed.mappings {
-
-		mappingBytes, err := json.Marshal(mapping)
-
-		glog.Infof("mappping %v to  %v", typeName, string(mappingBytes))
-
-		if err != nil {
-			return err
-		}
+	post := func(typeName string, mappingBytes []byte) error {
 		mapURL := fmt.Sprintf("%s/%s/_mapping", baseUrl, typeName)
 		glog.Infof("Posting mapping to %s", mapURL)
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
@@ -102,7 +101,35 @@ func (ed *elasticDriver) postMappings() error {
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			return fmt.Errorf("Response &d mapping %s: $s", resp.StatusCode, typeName, string(body))
 		}
+		return nil
 	}
+
+	for typeName, path := range ed.mappingPaths {
+		bytes, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		glog.Infof("mappping %v to  %v", path, string(bytes))
+		err = post(typeName, bytes)
+		if err != nil {
+			return err
+		}
+	}
+
+	for typeName, mapping := range ed.mappings {
+		mappingBytes, err := json.Marshal(mapping)
+		if err != nil {
+			return err
+		}
+
+		glog.Infof("mappping %v to  %v", typeName, string(mappingBytes))
+		err = post(typeName, mappingBytes)
+		if err != nil {
+			return err
+		}
+
+	}
+
 	return nil
 }
 

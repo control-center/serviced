@@ -10,17 +10,17 @@ import (
 	"github.com/zenoss/serviced/datastore/elastic"
 
 	"testing"
+	"time"
 )
 
 var hs HostStore
 var ctx datastore.Context
 
 func init() {
-
-	esDriver := elastic.New("localhost", 9200, "twitter")
+	esDriver := elastic.New("localhost", 9200, "controlplane")
+	esDriver.AddMappingFilie("host", "./host_mapping.json")
 	err := esDriver.Initialize()
 	if err != nil {
-
 		glog.Infof("Error initializing db driver %v", err)
 		return
 	}
@@ -28,10 +28,12 @@ func init() {
 	ctx = datastore.NewContext(esDriver)
 }
 
-func Test_AddHost(t *testing.T) {
+func Test_HostCRUD(t *testing.T) {
+
 	if hs == nil {
 		t.Fatalf("Test failed to initialize")
 	}
+	defer hs.Delete(ctx, "testid")
 
 	host := New()
 
@@ -47,93 +49,101 @@ func Test_AddHost(t *testing.T) {
 	}
 
 	//fill host with required values
-	host.PoolId = "default_pool"
-	err = hs.Put(ctx, host)
-	if err == nil {
-		t.Errorf("Expected failure to create host %-v", host)
-	}
-}
-
-/*
-func Test_UpdateHost(t *testing.T) {
-	controlPlaneDao.RemoveHost("default", &unused)
-
-	host :=NewHost()
-	host.Id = "default"
-	controlPlaneDao.AddHost(*host, &id)
-
-	host.Name = "hostname"
-	host.IpAddr = "127.0.0.1"
-	err := controlPlaneDao.UpdateHost(*host, &unused)
+	host, err = Build("", "pool-id", []string{}...)
+	host.Id = "testid"
 	if err != nil {
-		t.Errorf("Failure updating host %-v with error: %s", host, err)
-		t.Fail()
+		t.Fatalf("Unexpected error building host: %v", err)
+	}
+	err = hs.Put(ctx, host)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	}
 
-	var result =Host{}
-	controlPlaneDao.GetHost("default", &result)
-	result.CreatedAt = host.CreatedAt
-	result.UpdatedAt = host.UpdatedAt
-
-	if !reflect.DeepEqual(*host, result) {
-		t.Errorf("%+v != %+v", result, host)
-		t.Fail()
+	host2, err := hs.Get(ctx, "testid")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	}
-}
+	hostEquals(host, host2, t)
 
-func Test_GetHost(t *testing.T) {
-	controlPlaneDao.RemoveHost("default", &unused)
-
-	host :=NewHost()
-	host.Id = "default"
-	controlPlaneDao.AddHost(*host, &id)
-
-	var result =Host{}
-	err := controlPlaneDao.GetHost("default", &result)
-	result.CreatedAt = host.CreatedAt
-	result.UpdatedAt = host.UpdatedAt
-	if err == nil {
-		if !reflect.DeepEqual(*host, result) {
-			t.Errorf("Unexpected Host: expected=%+v, actual=%+v", host, result)
-		}
-	} else {
-		t.Errorf("Unexpected Error Retrieving Host: err=%s", err)
+	//Test update
+	host.Memory = 1024
+	err = hs.Put(ctx, host)
+	host2, err = hs.Get(ctx, "testid")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	}
+	hostEquals(host, host2, t)
+
+	//test delete
+	err = hs.Delete(ctx, "testid")
+	host2, err = hs.Get(ctx, "testid")
+	if err != nil && !datastore.IsErrNoSuchEntity(err) {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
 }
 
 func Test_GetHosts(t *testing.T) {
-	controlPlaneDao.RemoveHost("0", &unused)
-	controlPlaneDao.RemoveHost("1", &unused)
-	controlPlaneDao.RemoveHost("default", &unused)
-
-	host :=NewHost()
-	host.Id = "default"
-	host.Name = "hostname"
-	host.IpAddr = "127.0.0.1"
-	err := controlPlaneDao.AddHost(*host, &id)
-	if err == nil {
-		t.Errorf("Expected error on host having loopback ip address")
-		t.Fail()
+	if hs == nil {
+		t.Fatalf("Test failed to initialize")
 	}
-	host.IpAddr = "10.0.0.1"
-	err = controlPlaneDao.AddHost(*host, &id)
+	defer hs.Delete(ctx, "Test_GetHosts1")
+	defer hs.Delete(ctx, "Test_GetHosts2")
+
+	host, err := Build("", "pool-id", []string{}...)
+	host.Id = "Test_GetHosts1"
 	if err != nil {
-		t.Errorf("Unexpected error on adding host: %s", err)
-		t.Fail()
+		t.Fatalf("Unexpected error building host: %v", err)
+	}
+	err = hs.Put(ctx, host)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	time.Sleep(1000 * time.Millisecond)
+	hosts, err := hs.GetUpTo(ctx, 1000)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(hosts) != 1 {
+		t.Errorf("Expected %v results, got %v :%v", 1, len(hosts), hosts)
 	}
 
-	var hosts map[string]*dao.Host
-	err = controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
-	if err == nil && len(hosts) == 1 {
-		hosts["default"].CreatedAt = host.CreatedAt
-		hosts["default"].UpdatedAt = host.UpdatedAt
-		if !reflect.DeepEqual(*hosts["default"], *host) {
-			t.Errorf("expected [%+v] actual=%s", host, hosts)
-			t.Fail()
-		}
-	} else {
-		t.Errorf("Unexpected Error Retrieving Hosts: hosts=%+v, err=%s", hosts, err)
-		t.Fail()
+	host.Id = "Test_GetHosts2"
+	err = hs.Put(ctx, host)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	time.Sleep(1000 * time.Millisecond)
+	hosts, err = hs.GetUpTo(ctx, 1000)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(hosts) != 2 {
+		t.Errorf("Expected %v results, got %v :%v", 2, len(hosts), hosts)
+	}
+
+}
+
+func hostEquals(h1 *Host, h2 *Host, t *testing.T) {
+	if h1.Id != h2.Id {
+		t.Errorf("Host name %v did not equal %v", h1.Id, h2.Id)
+	}
+	if h1.Name != h2.Name {
+		t.Errorf("Host id %v did not equal %v", h1.Name, h2.Name)
+	}
+	if h1.PoolId != h2.PoolId {
+		t.Errorf("Host PoolId %v did not equal %v", h1.PoolId, h2.PoolId)
+	}
+	if h1.IpAddr != h2.IpAddr {
+		t.Errorf("Host IpAddr %v did not equal %v", h1.IpAddr, h2.IpAddr)
+	}
+
+	if h1.Cores != h2.Cores {
+		t.Errorf("Host Cores %v did not equal %v", h1.Cores, h2.Cores)
+	}
+	if h1.Memory != h2.Memory {
+		t.Errorf("Host Memory %v did not equal %v", h1.Memory, h2.Memory)
+	}
+	if h1.PrivateNetwork != h2.PrivateNetwork {
+		t.Errorf("Host PrivateNetwork %v did not equal %v", h1.PrivateNetwork, h2.PrivateNetwork)
 	}
 }
-*/

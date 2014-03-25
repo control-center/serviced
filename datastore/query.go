@@ -5,8 +5,7 @@
 package datastore
 
 import (
-	"encoding/json"
-	"errors"
+w	"errors"
 )
 
 // Query is a query used to search for and return entities from a datastore
@@ -79,7 +78,7 @@ func (r *results) Get(idx int, entity interface{}) error {
 		return NoSuchElement
 	}
 	v := r.data[idx]
-	err := json.Unmarshal(v.Bytes(), entity)
+	err := SafeUnmarshal(v.Bytes(), entity)
 	return err
 }
 
@@ -89,7 +88,7 @@ func (r *results) Next(entity interface{}) error {
 	}
 	v := r.data[r.idx]
 	r.idx = r.idx + 1
-	err := json.Unmarshal(v.Bytes(), entity)
+	err := SafeUnmarshal(v.Bytes(), entity)
 	return err
 }
 

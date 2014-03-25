@@ -50,7 +50,7 @@ func (h *Host) validate() error {
 	if err != nil {
 		glog.Errorf("Could not resolve: %s to an ip4 address: %v", h.IpAddr, err)
 		vErrors = append(vErrors, err)
-	}else if ipAddr.IP.IsLoopback() {
+	} else if ipAddr.IP.IsLoopback() {
 		glog.Errorf("Can not use %s as host address because it is a loopback address", h.IpAddr)
 		vErrors = append(vErrors, errors.New("Host ip can not be a loopback address"))
 	}

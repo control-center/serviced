@@ -8,6 +8,7 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
 
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ type HostStore interface {
 	Delete(ctx datastore.Context, id string) error
 
 	// GetUpTo returns all hosts up to limit.
-	GetUpTo(ctx datastore.Context, limit int) ([]Host, error)
+	GetUpTo(ctx datastore.Context, limit uint64) ([]Host, error)
 }
 
 func NewStore() HostStore {
@@ -49,10 +50,10 @@ func (hs *hostStore) Get(ctx datastore.Context, id string) (*Host, error) {
 	return &host, nil
 }
 
-func (hs *hostStore) GetUpTo(ctx datastore.Context, limit int) ([]Host, error) {
+func (hs *hostStore) GetUpTo(ctx datastore.Context, limit uint64) ([]Host, error) {
 	q := hs.ds.Query(ctx)
 	query := search.Query().Search("_exists_:Id")
-	search := search.Search("controlplane").Type(kind).Size(limit).Query(query)
+	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
 	q.Set(search)
 	results, err := q.Run()
 	if err != nil {

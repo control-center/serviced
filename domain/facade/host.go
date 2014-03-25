@@ -9,8 +9,8 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 
-	"time"
 	"fmt"
+	"time"
 )
 
 type session map[string]interface{}
@@ -63,10 +63,10 @@ func (f *facade) afterHostRemove(session session, hostId string, err error) {
 func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %+v", host)
 	exists, err := f.GetHost(ctx, host.Id)
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	if exists != nil{
+	if exists != nil {
 		return fmt.Errorf("Host with ID %s already exists", host.Id)
 	}
 
@@ -122,98 +122,3 @@ func (f *facade) GetHost(ctx datastore.Context, hostId string) (*host.Host, erro
 func (f *facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return nil, nil
 }
-
-/*
-
-//
-func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
-	glog.V(2).Infof("ControlPlaneDao.AddHost: %+v", host)
-	id := strings.TrimSpace(host.Id)
-	if id == "" {
-		return errors.New("empty Host.Id not allowed")
-	}
-
-	//TODO: shouldn't all this validation be in the UpdateHost method as well?
-	ipAddr, err := net.ResolveIPAddr("ip4", host.IpAddr)
-	if err != nil {
-		glog.Errorf("Could not resolve: %s to an ip4 address: %s", host.IpAddr, err)
-		return err
-	}
-	if ipAddr.IP.IsLoopback() {
-		glog.Errorf("Can not use %s as host address because it is a loopback address", host.IpAddr)
-		return errors.New("host ip can not be a loopback address")
-	}
-
-	host.Id = id
-	response, err := newHost(id, host)
-	glog.V(2).Infof("ControlPlaneDao.AddHost response: %+v", response)
-	if response.Ok {
-		*hostId = id
-		return nil
-	}
-	return err
-}
-
-
-func (this *ControlPlaneDao) UpdateHost(host dao.Host, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.UpdateHost: %+v", host)
-
-	id := strings.TrimSpace(host.Id)
-	if id == "" {
-		return errors.New("empty Host.Id not allowed")
-	}
-
-	host.Id = id
-	response, err := indexHost(id, host)
-	glog.V(2).Infof("ControlPlaneDao.UpdateHost response: %+v", response)
-	if response.Ok {
-		return nil
-	}
-	return err
-}
-
-
-func (this *ControlPlaneDao) RemoveHost(id string, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.RemoveHost: %s", id)
-	response, err := deleteHost(id)
-	glog.V(2).Infof("ControlPlaneDao.RemoveHost response: %+v", response)
-	//TODO: remove AddressAssignments with this host
-	return err
-}
-
-func (this *ControlPlaneDao) GetHost(id string, host *dao.Host) error {
-	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s", id)
-	request := dao.Host{}
-	err := getHost(id, &request)
-	glog.V(2).Infof("ControlPlaneDao.GetHost: id=%s, host=%+v, err=%s", id, request, err)
-	*host = request
-	return err
-}
-
-func (this *ControlPlaneDao) GetHosts(request dao.EntityRequest, hosts *map[string]*dao.Host) error {
-	glog.V(3).Infof("ControlPlaneDao.GetHosts")
-	query := search.Query().Search("_exists_:Id")
-	search_result, err := search.Search("controlplane").Type("host").Size("10000").Query(query).Result()
-
-	if err != nil {
-		glog.Error("ControlPlaneDao.GetHosts: err=", err)
-		return err
-	}
-	result, err := toHosts(search_result)
-	if err != nil {
-		return err
-	}
-	hostmap := make(map[string]*dao.Host)
-	var total = len(result)
-	for i := 0; i < total; i += 1 {
-		host := result[i]
-		hostmap[host.Id] = host
-	}
-	*hosts = hostmap
-	return nil
-}
-
-
-
-
-*/

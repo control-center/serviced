@@ -80,5 +80,5 @@ func (ds *dataStore) serialize(kind string, entity interface{}) (JsonMessage, er
 
 func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
-	return json.Unmarshal(jsonMsg.Bytes(), entity)
+	return SafeUnmarshal(jsonMsg.Bytes(), entity)
 }
