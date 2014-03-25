@@ -95,7 +95,7 @@ func (se ServiceEndpoint) validate() error {
 	if trimName == "" {
 		return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
 	}
-	return  se.AddressConfig.normalize()
+	return se.AddressConfig.normalize()
 }
 
 func portValidation(port uint16) error {

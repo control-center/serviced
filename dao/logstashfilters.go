@@ -100,8 +100,8 @@ func writeLogStashConfigFile(filters string, outputPath string) error {
 	}
 
 	// the newlines in the string below are deliberate so that the filter
-        // syntax is correct
-        filterSection :=`
+	// syntax is correct
+	filterSection := `
 filter {
 # NOTE the filters are generated from the service definitions
 ` + string(filters) + `
