@@ -11,8 +11,8 @@ package dao
 import (
 	"github.com/zenoss/serviced/commons"
 
-	"testing"
 	"strings"
+	"testing"
 )
 
 var validSvcDef *ServiceDefinition
@@ -141,7 +141,7 @@ func TestServiceDefinitionEmpyEndpointName(t *testing.T) {
 	err := template.Validate()
 	if err == nil {
 		t.Error("Expected error")
-	} else if !strings.Contains(err.Error(),"Endpoint must have a name") {
+	} else if !strings.Contains(err.Error(), "Endpoint must have a name") {
 		t.Errorf("Unexpected Error %v", err)
 	}
 }

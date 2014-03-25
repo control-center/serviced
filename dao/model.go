@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -390,6 +391,72 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 	}
 
 	return result
+}
+
+// Add a virtual host for given service, this method avoids duplicates vhosts
+func (s *Service) AddVirtualHost(application, vhostName string) error {
+	if s.Endpoints != nil {
+
+		//find the matching endpoint
+		for i := 0; i < len(s.Endpoints); i += 1 {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				_vhostName := strings.ToLower(vhostName)
+				vhosts := make([]string, 0)
+				for _, vhost := range ep.VHosts {
+					if strings.ToLower(vhost) != _vhostName {
+						vhosts = append(vhosts, vhost)
+					}
+				}
+				ep.VHosts = append(vhosts, _vhostName)
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
+}
+
+// Remove a virtual host for given service
+func (s *Service) RemoveVirtualHost(application, vhostName string) error {
+	if s.Endpoints != nil {
+
+		//find the matching endpoint
+		for i := 0; i < len(s.Endpoints); i += 1 {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				if len(ep.VHosts) == 0 {
+					break
+				}
+
+				_vhostName := strings.ToLower(vhostName)
+				if len(ep.VHosts) == 1 && ep.VHosts[0] == _vhostName {
+					return fmt.Errorf("Cannot delete last vhost: %s", _vhostName)
+				}
+
+        found := false
+				vhosts := make([]string, 0)
+				for _, vhost := range ep.VHosts {
+					if vhost != _vhostName {
+						vhosts = append(vhosts, vhost)
+					} else {
+            found = true;
+          }
+				}
+        //error removing an unknown vhost
+        if !found {
+          break;
+        }
+
+				ep.VHosts = vhosts
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
 }
 
 func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
