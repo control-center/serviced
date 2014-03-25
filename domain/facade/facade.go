@@ -8,13 +8,10 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 )
 
-type Facade interface {
-}
-
-type facade struct {
+type Facade struct {
 	hostStore host.HostStore
 }
 
-func New(hostStore host.HostStore) Facade {
-	return &facade{hostStore}
+func New(hostStore host.HostStore) *Facade {
+	return &Facade{hostStore}
 }

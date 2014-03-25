@@ -17,15 +17,12 @@ import (
 var driver datastore.Driver
 
 func getContext() (datastore.Context, error) {
-
 	if driver == nil {
-		esDriver := elastic.New("localhost", 9200, "twitter")
-		err := esDriver.Initialize()
+		esDriver, err := elastic.InitElasticTest("twitter")
 		if err != nil {
 			return nil, err
 		}
 		driver = esDriver
-
 	}
 	return datastore.NewContext(driver), nil
 }

@@ -13,9 +13,7 @@ import (
 
 func Test_AddFileMapping(t *testing.T) {
 
-	esDriver := elastic.New("localhost", 9200, "twitter")
-	esDriver.AddMappingFilie("host", "./host_mapping.json")
-	err := esDriver.Initialize()
+	_, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "./host_mapping.json"})
 	glog.Infof("initialized: %v", err)
 	if err != nil {
 		t.Errorf("Error initializing db driver %v", err)

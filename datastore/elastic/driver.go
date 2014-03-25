@@ -10,10 +10,12 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type ElasticDriver interface {
@@ -21,11 +23,16 @@ type ElasticDriver interface {
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(name string, mapping interface{}) error
 	AddMappingFilie(name string, path string) error
-	Initialize() error
+	//Initialize the driver, register mappings with elasticserach. Timeout in ms to wait for elastic to be available.
+	Initialize(timeout time.Duration) error
 	GetConnection() (datastore.Connection, error)
 }
 
 func New(host string, port uint16, index string) ElasticDriver {
+	return new(host, port, index)
+}
+
+func new(host string, port uint16, index string) *elasticDriver {
 	//TODO: set elastic host and port
 	//TODO: singleton since elastigo doesn't support multiple endpoints
 
@@ -55,7 +62,20 @@ func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
 	return &elasticConnection{ed.index}, nil
 }
 
-func (ed *elasticDriver) Initialize() error {
+func (ed *elasticDriver) Initialize(timeout time.Duration) error {
+
+	quit := make(chan int)
+	healthy := make(chan int)
+
+	go ed.checkHealth(quit, healthy)
+
+	select {
+	case <-healthy:
+		glog.Infof("Got response from Elastic")
+	case <-time.After(timeout):
+		return errors.New("Timed Out waiting for response from Elastic")
+	}
+
 	if err := ed.postIndex(); err != nil {
 		return err
 	}
@@ -81,11 +101,45 @@ func (ed *elasticDriver) AddMappingFilie(name string, path string) error {
 	return nil
 }
 
+func (ed *elasticDriver) elasticURL() string {
+	return fmt.Sprintf("http://%s:%d", ed.host, ed.port)
+}
+
+func (ed *elasticDriver) indexUrl() string {
+	return fmt.Sprintf("%s/%s/", ed.elasticURL(), ed.index)
+}
+
+func (ed *elasticDriver) isUp() bool {
+	healthURL := fmt.Sprintf("%v/_cluster/health", ed.elasticURL())
+	resp, err := http.Get(healthURL)
+	if err == nil && resp.StatusCode == 200 {
+		return true
+	}
+	return false
+}
+
+func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
+	for {
+		select {
+		default:
+			if ed.isUp() {
+				healthy <- 1
+				return
+			} else {
+				glog.Infof("Waiting for Elastic Search")
+				time.Sleep(500 * time.Millisecond)
+			}
+		case <-quit:
+			return
+		}
+	}
+
+}
+
 func (ed *elasticDriver) postMappings() error {
-	baseUrl := fmt.Sprintf("http://%s:%d/%s/", ed.host, ed.port, ed.index)
 
 	post := func(typeName string, mappingBytes []byte) error {
-		mapURL := fmt.Sprintf("%s/%s/_mapping", baseUrl, typeName)
+		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexUrl(), typeName)
 		glog.Infof("Posting mapping to %s", mapURL)
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
 		if err != nil {
@@ -134,7 +188,7 @@ func (ed *elasticDriver) postMappings() error {
 }
 
 func (ed *elasticDriver) postIndex() error {
-	url := fmt.Sprintf("http://%s:%d/%s/", ed.host, ed.port, ed.index)
+	url := ed.indexUrl()
 	glog.Infof("Posting Index to %s", url)
 
 	config := make(map[string]interface{})

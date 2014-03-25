@@ -21,37 +21,37 @@ func newSession() session {
 
 // beforeHostUpdate called before updating a host. The same session instance is passed here and the corresponding
 // afterHostUpdate. If an error is returned host will not be updated.
-func (f *facade) beforeHostUpdate(session session, host *host.Host) error {
+func (f *Facade) beforeHostUpdate(session session, host *host.Host) error {
 	return nil
 }
 
 // afterHostUpdate called after updating a host, if there was an error updating the host err will be non nil. The same
 // session instance is passed here and the corresponding beforeHostUpdate
-func (f *facade) afterHostUpdate(session session, host *host.Host, err error) {
+func (f *Facade) afterHostUpdate(session session, host *host.Host, err error) {
 
 }
 
 // beforeHostAdd called before adding a host. The same session instance is passed here and the corresponding
 // afterHostAdd. If an error is returned host will not be added.
-func (f *facade) beforeHostAdd(session session, host *host.Host) error {
+func (f *Facade) beforeHostAdd(session session, host *host.Host) error {
 	return nil
 }
 
 // afterHostUpdate called after adding a host, if there was an error adding the host err will be non nil. The same
 // session instance is passed here and the corresponding beforeHostAdd
-func (f *facade) afterHostAdd(session session, host *host.Host, err error) {
+func (f *Facade) afterHostAdd(session session, host *host.Host, err error) {
 
 }
 
 // beforeHostRemove called before removing a host. The same session instance is passed here and the corresponding
 // afterHostRemove. If an error is returned host will not be removed.
-func (f *facade) beforeHostRemove(session session, hostId string) error {
+func (f *Facade) beforeHostRemove(session session, hostId string) error {
 	return nil
 }
 
 // afterHostRemove called after removing a host, if there was an error removing the host err will be non nil. The same
 // session instance is passed here and the corresponding beforeHostRemove
-func (f *facade) afterHostRemove(session session, hostId string, err error) {
+func (f *Facade) afterHostRemove(session session, hostId string, err error) {
 	//TODO: remove AddressAssignments with this host
 
 }
@@ -59,8 +59,8 @@ func (f *facade) afterHostRemove(session session, hostId string, err error) {
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// Register a host with serviced
-func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
+// Register a host with serviced. Returns an error if host already exists
+func (f *Facade) AddHost(ctx datastore.Context, host *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %+v", host)
 	exists, err := f.GetHost(ctx, host.Id)
 	if err != nil {
@@ -73,7 +73,7 @@ func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
 	// validate Pool exists
 
 	s := newSession()
-	err := f.beforeHostAdd(s, host)
+	err = f.beforeHostAdd(s, host)
 	now := time.Now()
 	host.CreatedAt = now
 	host.UpdatedAt = now
@@ -86,7 +86,7 @@ func (f *facade) AddHost(ctx datastore.Context, host *host.Host) error {
 }
 
 // Update Host information for a registered host
-func (f *facade) UpdateHost(ctx datastore.Context, host *host.Host) error {
+func (f *Facade) UpdateHost(ctx datastore.Context, host *host.Host) error {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", host)
 	//TODO: make sure pool exists
 	s := newSession()
@@ -101,7 +101,7 @@ func (f *facade) UpdateHost(ctx datastore.Context, host *host.Host) error {
 }
 
 // Remove a Host from serviced
-func (f *facade) RemoveHost(ctx datastore.Context, hostId string) error {
+func (f *Facade) RemoveHost(ctx datastore.Context, hostId string) error {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostId)
 	s := newSession()
 	err := f.beforeHostRemove(s, hostId)
@@ -113,12 +113,16 @@ func (f *facade) RemoveHost(ctx datastore.Context, hostId string) error {
 }
 
 // Get Host by id
-func (f *facade) GetHost(ctx datastore.Context, hostId string) (*host.Host, error) {
+func (f *Facade) GetHost(ctx datastore.Context, hostId string) (*host.Host, error) {
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostId)
-	return f.hostStore.Get(ctx, hostId)
+	host, err := f.hostStore.Get(ctx, hostId)
+	if err != nil && !datastore.IsErrNoSuchEntity(err) {
+		return nil, err
+	}
+	return host, nil
 }
 
 // GetHosts returns a list of all registered hosts
-func (f *facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
+func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return nil, nil
 }

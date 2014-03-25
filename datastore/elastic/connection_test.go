@@ -18,15 +18,7 @@ import (
 var driver ElasticDriver
 
 func getConnection() (ElasticDriver, error) {
-
-	if driver == nil {
-		driver = New("localhost", 9200, "twitter")
-		err := driver.Initialize()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return driver, nil
+	return InitElasticTest("twitter")
 }
 
 func TestPutGetDelete(t *testing.T) {

@@ -2,94 +2,97 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package host
+package facade
 
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/host"
 
 	"testing"
-	"time"
 )
 
-var hs HostStore
-var ctx datastore.Context
+var (
+	tf  *Facade
+	ctx datastore.Context
+)
 
 func init() {
 
-	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "./host_mapping.json"})
+	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "../host/host_mapping.json"})
 	if err != nil {
 		glog.Infof("Error initializing db driver %v", err)
 		return
 	}
-	hs = NewStore()
+
 	ctx = datastore.NewContext(esDriver)
+	hs := host.NewStore()
+	tf = New(hs)
 }
 
 func Test_HostCRUD(t *testing.T) {
 
-	if hs == nil {
+	if tf == nil {
 		t.Fatalf("Test failed to initialize")
 	}
-	defer hs.Delete(ctx, "testid")
 
-	host := New()
-
-	err := hs.Put(ctx, host)
-	if err == nil {
-		t.Errorf("Expected failure to create host %-v", host)
-	}
-
-	host.Id = "testid"
-	err = hs.Put(ctx, host)
-	if err == nil {
-		t.Errorf("Expected failure to create host %-v", host)
-	}
+	testid := "facadetestid"
+	defer tf.RemoveHost(ctx, testid)
 
 	//fill host with required values
-	host, err = Build("", "pool-id", []string{}...)
-	host.Id = "testid"
+	h, err := host.Build("", "pool-id", []string{}...)
+	h.Id = "facadetestid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = hs.Put(ctx, host)
+	err = tf.AddHost(ctx, h)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	host2, err := hs.Get(ctx, "testid")
+	//Test re-add fails
+	err = tf.AddHost(ctx, h)
+	if err == nil {
+		t.Errorf("Expected already exists error: %v", err)
+	}
+
+	h2, err := tf.GetHost(ctx, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	HostEquals(t, host, host2)
+	host.HostEquals(t, h, h2)
 
 	//Test update
-	host.Memory = 1024
-	err = hs.Put(ctx, host)
-	host2, err = hs.Get(ctx, "testid")
+	h.Memory = 1024
+	err = tf.UpdateHost(ctx, h)
+	h2, err = tf.GetHost(ctx, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	HostEquals(t, host, host2)
+	host.HostEquals(t, h, h2)
 
 	//test delete
-	err = hs.Delete(ctx, "testid")
-	host2, err = hs.Get(ctx, "testid")
+	err = tf.RemoveHost(ctx, testid)
+	h2, err = tf.GetHost(ctx, testid)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 }
 
+/*
 func Test_GetHosts(t *testing.T) {
-	if hs == nil {
+	if tf == nil {
 		t.Fatalf("Test failed to initialize")
 	}
-	defer hs.Delete(ctx, "Test_GetHosts1")
-	defer hs.Delete(ctx, "Test_GetHosts2")
+	hid1 := "gethosts1"
+	hid2 := "gethosts2"
 
-	host, err := Build("", "pool-id", []string{}...)
+	defer tf.RemoveHost(ctx, hid1)
+	defer tf.RemoveHost(ctx, hid2)
+
+	host, err := host.Build("", "pool-id", []string{}...)
 	host.Id = "Test_GetHosts1"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -121,3 +124,4 @@ func Test_GetHosts(t *testing.T) {
 	}
 
 }
+*/
