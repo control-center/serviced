@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -135,10 +134,8 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 					}
 					currentPath += "/" + part
 
-					log.Printf("CreateDir(%s) ", currentPath)
 					err = conn.CreateDir(currentPath)
 					if err == ErrNodeExists {
-						log.Printf("%s exists", currentPath)
 						continue
 					}
 					errc <- err
@@ -181,13 +178,10 @@ func (client *Client) loop() {
 				} else {
 					req.response <- err
 				}
-				log.Printf("# of connections: %d", len(connections))
 			}
 
 		case <-client.done:
-			log.Printf("Closing client")
-			for i, c := range connections {
-				log.Printf("closing connection %d", i)
+			for _, c := range connections {
 				(*c).Close()
 			}
 			return
