@@ -89,7 +89,6 @@ func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceS
 
 // Snapshots the DFS
 func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
-
 	// Get the service
 	var service dao.Service
 	if err := d.client.GetService(tenantId, &service); err != nil {
@@ -170,6 +169,52 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	glog.V(2).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
 	return label, nil
+}
+
+// Deletes a snapshot from the DFS
+func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
+	parts := strings.SplitN(snapshotId, "_", 2)
+	if len(parts) < 2 {
+		err := errors.New("malformed snapshot")
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	}
+
+	tenantId := parts[0]
+	timestamp := parts[1]
+
+	var service dao.Service
+	if err := d.client.GetService(tenantId, &service); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s", err)
+		return err
+	}
+
+	var theVolume volume.Volume
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s service=%s err=%s", snapshotId, service.Id, err)
+		return err
+	}
+
+	glog.V(2).Infof("Deleting snapshot %s", snapshotId)
+	if err := theVolume.RemoveSnapshot(snapshotId); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	}
+
+	glog.V(2).Infof("Removing snapshot tags (%s)", snapshotId)
+	if images, err := d.findImages(tenantId, timestamp); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	} else {
+		for _, image := range images {
+			repo := image.Repository + ":" + timestamp
+			if err := d.dockerClient.RemoveImage(repo); err != nil {
+				glog.Errorf("unable to untag image: %s (%s)", image.ID, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Commits a container to docker image and updates the DFS

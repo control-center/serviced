@@ -1624,37 +1624,7 @@ func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) erro
 }
 
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
-	var tenantId string
-	parts := strings.Split(snapshotId, "_")
-	if len(parts) != 2 {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot malformed snapshot Id: %s", snapshotId)
-		return errors.New("malformed snapshotId")
-	}
-	serviceId := parts[0]
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
-	var service dao.Service
-	err := this.GetService(tenantId, &service)
-	glog.V(2).Infof("Getting service instance: %s", tenantId)
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
-	// delete snapshot
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	} else {
-		glog.V(2).Infof("deleting snapshot %s", snapshotId)
-		if err := volume.RemoveSnapshot(snapshotId); err != nil {
-			return err
-		}
-	}
-	return nil
+	return this.dfs.DeleteSnapshot(snapshotId)
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
