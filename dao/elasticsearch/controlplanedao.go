@@ -1663,13 +1663,32 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 
 // Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
-	return this.dfs.Snapshot(serviceId, label)
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		return err
+	}
+
+	if id, err := this.dfs.Snapshot(tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		return err
+	} else {
+		*label = id
+	}
+
+	return nil
 }
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
 	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot for service=%s", serviceId)
+
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao: dao.LocalSnapshot err=%s", err)
+		return err
+	}
 
 	// request a snapshot by placing request znode in zookeeper - leader will notice
 	snapshotRequest, err := dao.NewSnapshotRequest(serviceId, "")
@@ -1744,7 +1763,14 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 
 // Commits a container to an image and saves it on the DFS
 func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
-	return this.dfs.Commit(containerId, label)
+	if id, err := this.dfs.Commit(containerId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetVolume containerId=%s err=%s", containerId, err)
+		return err
+	} else {
+		*label = id
+	}
+
+	return nil
 }
 
 func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
