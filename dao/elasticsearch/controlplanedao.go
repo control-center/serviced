@@ -15,6 +15,7 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
@@ -1317,7 +1318,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
-	svc.ImageId = sd.ImageId
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
@@ -1361,6 +1361,33 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	if parentServiceId == "" {
 		*tenantId = svc.Id
 	}
+
+	// Using the tenant id, tag the base image with the tenantID
+	path := strings.SplitN(sd.ImageId, "/", 3)
+	path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
+	repo := strings.Join(path, "/")
+
+	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		return err
+	}
+
+	image, err := dockerclient.InspectImage(sd.ImageId)
+	if err != nil {
+		return err
+	}
+
+	options := docker.TagImageOptions{
+		Repo:  repo,
+		Force: true,
+	}
+
+	if err := dockerclient.TagImage(image.ID, options); err != nil {
+		return err
+	}
+
+	svc.ImageId = repo
+
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
