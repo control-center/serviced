@@ -123,7 +123,7 @@ func TestWritingConfigFile(t *testing.T) {
 	}
 	defer tmpfile.Close()
 	defer os.Remove(tmpfile.Name())
-        _, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
+	_, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
 	if err != nil {
 		t.Logf("%s", err)
 		t.FailNow()

@@ -410,6 +410,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
+        { id: 'VirtualHost', name: 'vhost_names'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
         { id: 'DesiredState', name: 'running_tbl_actions' }
     ]);
@@ -420,6 +421,21 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
     };
+
+    // given a service application find all of it's virtual host names
+    $scope.collect_vhosts = function( app) {
+      var vhosts = [];
+      var vhosts_definitions = aggregateVhosts( app);
+      for ( var i in vhosts_definitions) {
+        vhosts.push( vhosts_definitions[i].Name);
+      }
+      return vhosts;
+    }
+
+    // given a vhost, return a url to it
+    $scope.vhost_url = function( vhost) {
+      return get_vhost_url( $location, vhost);
+    }
 
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
@@ -504,9 +520,47 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Startup', name: 'label_service_startup' }
     ]);
 
+    $scope.vhosts = buildTable('vhost_name', [
+        { id: 'Name', name: 'vhost_name'},
+        { id: 'Application', name: 'vhost_application'},
+        { id: 'ServiceEndpoint', name: 'vhost_service_endpoint'},
+        { id: 'URL', name: 'vhost_url'},
+        { id: 'Action', name: 'vhost_actions'},
+    ]);
+
+    //add vhost data (includes name, app & service endpoint)
+    $scope.vhosts.add = {};
+
+    //app & service endpoint option for adding a new virtual host
+    $scope.vhosts.options = [];
+
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
     };
+
+    $scope.addVHost = function() {
+        if (!$scope.vhosts.add.name || $scope.vhosts.add.name.length <= 0) {
+          console.error( "Cannot add vhost -- missing name");
+          return;
+        }
+
+        if ($scope.vhosts.options.length <= 0) {
+          console.error( "Cannot add vhost -- no available application and service");
+          return;
+        }
+
+        var name = $scope.vhosts.add.name;
+        var serviceId = $scope.vhosts.add.app_ep.ServiceId;
+        var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
+        resourcesService.add_vhost( serviceId, serviceEndpoint, name, function() {
+          $scope.vhosts.add = {};
+          refreshServices($scope, resourcesService, false);
+        });
+    };
+
+    $scope.vhost_url = function( vhost) {
+      return get_vhost_url( $location, vhost);
+    }
 
     $scope.indent = indentClass;
     $scope.clickRunning = toggleRunning;
@@ -515,6 +569,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $scope.editService = $.extend({}, service);
         $scope.editService.config = 'TODO: Implement';
         $('#editConfig').modal('show');
+    };
+
+    $scope.clickRemoveVirtualHost = function(vhost) {
+      resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
+        refreshServices($scope, resourcesService, false);
+      });
     };
 
     $scope.editConfig = function(service, config) {
@@ -1418,7 +1478,8 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
             }).
             error(function(data, status) {
                 // On failure to logout, note the error
-                console.log('Unable to log out. Were you logged in to begin with?');
+                // TODO error screen
+                console.error('Unable to log out. Were you logged in to begin with?');
             });
     };
 
@@ -1534,7 +1595,8 @@ function ResourcesService($http, $location) {
                 callback(cached_services, cached_services_map);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve services');
+                // TODO error screen
+                console.error('Unable to retrieve services');
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1550,7 +1612,8 @@ function ResourcesService($http, $location) {
                 callback(data);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve app templates');
+                // TODO error screen
+                console.error('Unable to retrieve app templates');
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1566,7 +1629,8 @@ function ResourcesService($http, $location) {
                 callback(data);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve list of pools');
+                // TODO error screen
+                console.error('Unable to retrieve list of pools');
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1581,7 +1645,8 @@ function ResourcesService($http, $location) {
                 callback(data);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve hosts for pool %s', poolId);
+                // TODO error screen
+                console.error('Unable to retrieve hosts for pool %s', poolId);
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1596,7 +1661,8 @@ function ResourcesService($http, $location) {
                 callback(data);
             }).
             error(function(data, status) {
-                console.log('Unable to retrieve host details');
+                // TODO error screen
+                console.error('Unable to retrieve host details');
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1634,7 +1700,67 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+
+        /*
+         * Get a list of virtual hosts
+         *
+         * @param {function} callback virtual hosts are passed to callback on success.
+         */
+        get_vhosts: function(callback) {
+            $http.get('/vhosts').
+                success(function(data, status) {
+                    console.log('Retrieved list of virtual hosts');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire virtual hosts: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * add a virtual host,
+         */
+        add_vhost: function(serviceId, serviceEndpoint, virtualhost, callback) {
+            var ep = serviceId + "/" + serviceEndpoint + "/" + virtualhost;
+            $http.post('/vhosts/' + ep).
+                success(function(data, status) {
+                    console.log('Added virtual host: %s, %s', ep, JSON.stringify(data));
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to add virtual hosts: %s, %s', ep, JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Remove a virtual host
+         */
+        delete_vhost: function(serviceId, serviceEndpoint, virtualhost, callback) {
+            var ep = serviceId + "/" + serviceEndpoint + "/" + virtualhost;
+            $http.delete('/vhosts/' + ep).
+                success(function(data, status) {
+                    console.log('Removed virtual host: %s, %s', ep, JSON.stringify(data));
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to remove virtual hosts: %s, %s', ep, JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1654,7 +1780,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1673,7 +1800,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Unable to acquire running services: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1694,7 +1822,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding pool failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Adding pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1715,7 +1844,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating pool failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Updating pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1735,7 +1865,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing pool failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Removing pool failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1755,7 +1886,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Terminating instance failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Terminating instance failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1792,7 +1924,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding host failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Adding host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1813,7 +1946,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating host failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Updating host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1834,7 +1968,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing host failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Removing host failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1892,7 +2027,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Unable to retrieve service logs: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1911,7 +2047,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Unable to retrieve service logs: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1947,7 +2084,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Adding service failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Adding service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1968,7 +2106,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Updating service failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Updating service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1988,7 +2127,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Deploying app template failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Deploying app template failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2007,7 +2147,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Snapshot service failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Snapshot service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2027,7 +2168,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Removing service failed: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2046,7 +2188,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Was unable to start service: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Was unable to start service: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2064,7 +2207,8 @@ function ResourcesService($http, $location) {
                     callback(data);
                 }).
                 error(function(data, status) {
-                    console.log('Was unable to stop service: %s', JSON.stringify(data));
+                    // TODO error screen
+                    console.error('Was unable to stop service: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -2131,7 +2275,8 @@ function StatsService($http, $location) {
                     callback(status);
                 }).
                 error(function(data, status) {
-                    console.log('serviced is not collecting stats');
+                    // TODO error screen
+                    console.error('serviced is not collecting stats');
                     callback(status);
                 });
         }
@@ -2154,6 +2299,58 @@ function flattenTree(depth, current) {
         retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
     }
     return retVal;
+}
+
+// return a url to a virtual host
+function get_vhost_url( $location, vhost) {
+  return $location.$$protocol + "://" + vhost + "." + $location.$$host + ":" + $location.$$port;
+}
+
+// collect all virtual hosts for provided service
+function aggregateVhosts( service) {
+  var vhosts = [];
+  if (service.Endpoints) {
+    for (var i in service.Endpoints) {
+      var endpoint = service.Endpoints[i];
+      if (endpoint.VHosts) {
+        for ( var j in endpoint.VHosts) {
+          var name = endpoint.VHosts[j];
+          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
+          vhosts.push( vhost)
+        }
+      }
+    }
+  }
+  for (var i in service.children) {
+    var child_service = service.children[i];
+    vhosts = vhosts.concat( aggregateVhosts( child_service));
+  }
+  return vhosts;
+}
+
+// collect all virtual hosts options for provided service
+function aggregateVhostOptions( service) {
+  var options = [];
+  if (service.Endpoints) {
+    for (var i in service.Endpoints) {
+      var endpoint = service.Endpoints[i];
+      if (endpoint.VHosts) {
+        var option = {
+          ServiceId:service.Id,
+          ServiceEndpoint:endpoint.Application,
+          Value:service.Name + " - " + endpoint.Application
+        };
+        options.push( option);
+      }
+    }
+  }
+
+  for (var i in service.children) {
+    var child_service = service.children[i];
+    options = options.concat( aggregateVhostOptions( child_service));
+  }
+
+  return options;
 }
 
 function refreshServices($scope, servicesService, cacheOk, extraCallback) {
@@ -2205,6 +2402,11 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
 
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current);
+                $scope.vhosts.data = aggregateVhosts( $scope.services.current);
+                $scope.vhosts.options = aggregateVhostOptions( $scope.services.current);
+                if ($scope.vhosts.options.length > 0) {
+                  $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
+                }
             }
         }
         if (extraCallback) {

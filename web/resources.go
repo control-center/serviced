@@ -571,7 +571,7 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 	var logs string
 	err = client.GetServiceLogs(serviceId, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
+		glog.Errorf("Unexpected error getting service logs: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
@@ -587,7 +587,7 @@ func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.
 	var i string
 	err = client.StartService(serviceId, &i)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
+		glog.Errorf("Unexpected error starting service: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{"Started service", serviceLinks(serviceId)})
@@ -603,7 +603,7 @@ func RestStopService(w *rest.ResponseWriter, r *rest.Request, client *serviced.C
 	var i int
 	err = client.StopService(serviceId, &i)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
+		glog.Errorf("Unexpected error stopping service: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{"Stopped service", serviceLinks(serviceId)})
@@ -640,11 +640,10 @@ func RestGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *serv
 	var running dao.RunningService
 	err = client.GetRunningService(request, &running)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
+		glog.Errorf("Unexpected error retrieving services: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(running)
-
 }
 
 func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
@@ -663,8 +662,175 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 	var logs string
 	err = client.GetServiceStateLogs(request, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
+		glog.Errorf("Unexpected error getting service state logs: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
+}
+
+type VirtualHost struct {
+	Name            string
+	Application     string
+	ServiceName     string
+	ServiceEndpoint string
+}
+
+func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	application, err := url.QueryUnescape(r.PathParam("application"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	vhostName, err := url.QueryUnescape(r.PathParam("vhostName"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	var services []*dao.Service
+	if err := client.GetServices(&empty, &services); err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		RestServerError(w)
+		return
+	}
+
+	var service *dao.Service
+	for _, _service := range services {
+		if _service.Id == serviceId {
+			service = _service
+		}
+	}
+
+	if service == nil {
+		glog.Errorf("Could not find service: %s", services)
+		RestServerError(w)
+		return
+	}
+
+	//checkout other virtual hosts for redundancy
+	_vhost := strings.ToLower(vhostName)
+	for _, service := range services {
+		if service.Endpoints == nil {
+			continue
+		}
+
+		for _, endpoint := range service.Endpoints {
+			for _, host := range endpoint.VHosts {
+				if host == _vhost {
+					glog.Errorf("vhost %s already defined for service: %s", vhostName, service.Id)
+					RestServerError(w)
+					return
+				}
+			}
+		}
+	}
+
+	err = service.AddVirtualHost(application, vhostName)
+	if err != nil {
+		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		RestServerError(w)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		RestServerError(w)
+		return
+	}
+}
+
+// Remove a virtual hosts for provided service, endpoint, and vhost name, parameters are defined in path
+func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	application, err := url.QueryUnescape(r.PathParam("application"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	vhostName, err := url.QueryUnescape(r.PathParam("vhostName"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	var service dao.Service
+	err = client.GetService(serviceId, &service)
+	if err != nil {
+		glog.Errorf("Unexpected error getting service (%s): %v", serviceId, err)
+		RestServerError(w)
+		return
+	}
+
+	err = service.RemoveVirtualHost(application, vhostName)
+	if err != nil {
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostName, serviceId, err)
+		RestServerError(w)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostName, serviceId, err)
+		RestServerError(w)
+		return
+	}
+}
+
+// Get all virtual hosts
+func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	var services []*dao.Service
+	err := client.GetServices(&empty, &services)
+	if err != nil {
+		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
+		RestServerError(w)
+		return
+	}
+
+	service_tree := make(map[string]*dao.Service)
+	for _, service := range services {
+		service_tree[service.Id] = service
+	}
+
+	var vhosts []VirtualHost = make([]VirtualHost, 0)
+	for _, service := range services {
+		if service.Endpoints == nil {
+			continue
+		}
+
+		for _, endpoint := range service.Endpoints {
+			if len(endpoint.VHosts) > 0 {
+				parent, _ := service_tree[service.ParentServiceId]
+				for ; len(parent.ParentServiceId) != 0; parent, _ = service_tree[parent.ParentServiceId] {
+				}
+
+				for _, vhost := range endpoint.VHosts {
+					vh := VirtualHost{
+						Name:            vhost,
+						Application:     parent.Name,
+						ServiceName:     service.Name,
+						ServiceEndpoint: endpoint.Application,
+					}
+					vhosts = append(vhosts, vh)
+				}
+			}
+		}
+	}
+
+	w.WriteJson(&vhosts)
 }

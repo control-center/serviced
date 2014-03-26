@@ -48,9 +48,6 @@
           <input type="text" id="app_data_image" class="image"
                  ng-model="services.current.ImageId"></input>
         </div>
-
-        
-
       </div>
       <div class="details-actions">	    
         <button ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
@@ -58,6 +55,51 @@
         <button ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
       </div>
     </div>
+
+	<!-- Virtual Host Names -->
+	<h3>{{'virtualhostnames'|translate}}</h3>
+	<table class="table table-striped table-bordered table-hover" id="vhosts_data">
+		<thead>
+			<tr>
+				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
+					<button ng-click="vhosts.set_order(header.id, vhosts)" 
+									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort" class="link">			
+				<td>{{vhost.Name}}</td>
+				<td>{{vhost.Application}}</td> <td>{{vhost.ServiceEndpoint}}</td>
+				<td><a href="{{vhost_url( vhost.Name)}}">{{vhost_url(vhost.Name)}}</a></td>
+				<td> <button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link">Delete</button> </td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h4>{{'vhost_controls' | translate}}</h4>
+	<div id="add_vhost">
+		<table class="table table-striped table-bordered table-hover" id="add_vhost_data">
+			<thead>
+				<tr>
+					<th>{{'vhost_name' | translate}}</th>
+					<th>{{'vhost_application' | translate}} and {{'vhost_service_endpoint' | translate}}</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><input type="text" id="vhost_data" ng-model="vhosts.add.name"></input> </td>
+					<td><select ng-model="vhosts.add.app_ep" ng-options="opt as opt.Value for opt in vhosts.options"></select> </td>
+				</tr>
+			</tbody>
+		</table>
+		<span class="add-control">
+			<button class="btn-link" ng-click="addVHost()">
+				<span class="glyphicon glyphicon-plus-sign"></span>
+				{{'modal_add_vhost' | translate}}
+			</button>
+		</span>
+	</div>
 
 	<!-- Config Files -->
 	<h3>{{'title_config_files' | translate }}</h3>

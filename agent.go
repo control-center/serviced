@@ -579,7 +579,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			requestedImage := splitMount[0]
 			hostPath := splitMount[1]
 
-			// assume the container path is going to be the same as the host path 
+			// assume the container path is going to be the same as the host path
 			containerPath := hostPath
 
 			// if the container path is provided, use it
@@ -604,14 +604,14 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add dns values to setup
 	dns := ""
 	for _, addr := range a.dockerDns {
-    if len( dns) > 0 {
-      dns += " "
-    }
+		if len(dns) > 0 {
+			dns += " "
+		}
 
-    _addr := strings.TrimSpace( addr)
-    if len(_addr) > 0 {
-      dns += "--dns " + addr
-    }
+		_addr := strings.TrimSpace(addr)
+		if len(_addr) > 0 {
+			dns += "--dns " + addr
+		}
 	}
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
