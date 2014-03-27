@@ -11,7 +11,7 @@ import (
 // JsonMessage Represents a enity as JSON
 type JsonMessage interface {
 	// Bytes return the JSON bytes of an entity
-	Bytes() []byte
+	Bytes() json.RawMessage
 }
 
 // NewJsonMessage creates a JsonMessage using the provided bytes. The bytes should represent valid JSON
@@ -23,7 +23,7 @@ type jsonMessage struct {
 	data json.RawMessage
 }
 
-func (m *jsonMessage) Bytes() []byte {
+func (m *jsonMessage) Bytes() json.RawMessage{
 	return m.data
 }
 

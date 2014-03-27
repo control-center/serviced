@@ -23,15 +23,9 @@ type elasticConnection struct {
 func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JsonMessage) error {
 	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 
-	//stupid API won't let me pass raw json. We should just post/parse using gorilla http
-	var data interface{}
 	glog.Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
-	err := datastore.SafeUnmarshal(msg.Bytes(), &data)
-	if err != nil {
-		return err
-	}
-	glog.Infof("Unmarshalled {kind:%s, id:%s} %v", key.Kind(), key.ID(), data)
-	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &data)
+	var raw json.RawMessage = msg.Bytes()
+	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &raw)
 	glog.Infof("Put response: %s", resp)
 	if err != nil {
 		glog.Infof("Put err: %v", err)
