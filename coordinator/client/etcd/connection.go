@@ -19,7 +19,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type EtcdConnection struct {
+type Connection struct {
 	client  *etcd.Client
 	servers []string
 	timeout time.Duration
@@ -27,38 +27,38 @@ type EtcdConnection struct {
 }
 
 // Assert that the Ectd connection meets the Connection interface
-var _ client.Connection = &EtcdConnection{}
+var _ client.Connection = &Connection{}
 
-func (etcd *EtcdConnection) Close() {
+func (etcd *Connection) Close() {
 	etcd.client.CloseCURL()
 	if etcd.onClose != nil {
 		(*etcd.onClose)()
 	}
 }
 
-func (etcd *EtcdConnection) SetOnClose(f func()) {
+func (etcd *Connection) SetOnClose(f func()) {
 	etcd.onClose = &f
 }
 
-func (etcd *EtcdConnection) Lock(path string) (lockId string, err error) {
+func (etcd *Connection) Lock(path string) (lockId string, err error) {
 	return "", errors.New("unsupported")
 }
 
-func (etcd *EtcdConnection) Unlock(path string, lockId string) (err error) {
+func (etcd *Connection) Unlock(path string, lockId string) (err error) {
 	return errors.New("unsupported")
 }
 
-func (etcd *EtcdConnection) Create(path string, data []byte) error {
+func (etcd *Connection) Create(path string, data []byte) error {
 	_, err := etcd.client.Create(path, string(data), 1000000)
 	return err
 }
 
-func (etcd *EtcdConnection) CreateDir(path string) error {
+func (etcd *Connection) CreateDir(path string) error {
 	_, err := etcd.client.CreateDir(path, 1000000)
 	return err
 }
 
-func (etcd *EtcdConnection) Exists(path string) (bool, error) {
+func (etcd *Connection) Exists(path string) (bool, error) {
 	_, err := etcd.client.Get(path, false, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {
@@ -70,7 +70,7 @@ func (etcd *EtcdConnection) Exists(path string) (bool, error) {
 	return true, nil
 }
 
-func (etc EtcdConnection) Delete(path string) error {
+func (etc Connection) Delete(path string) error {
 	_, err := etc.client.Delete(path, true)
 	return err
 }

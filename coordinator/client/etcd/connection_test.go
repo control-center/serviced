@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestEtcdDriver(t *testing.T) {
+func TestDriver(t *testing.T) {
 
 	tc, err := NewTestCluster()
 	if err != nil {
@@ -23,7 +23,7 @@ func TestEtcdDriver(t *testing.T) {
 	}
 	dsnStr := string(dsnbytes)
 
-	drv := EtcdDriver{}
+	drv := Driver{}
 
 	conn, err := drv.GetConnection(dsnStr)
 	if err != nil {

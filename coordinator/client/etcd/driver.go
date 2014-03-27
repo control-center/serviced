@@ -11,7 +11,8 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type EtcdDriver struct{}
+// Driver is the
+type Driver struct{}
 
 type DSN struct {
 	Servers []string
@@ -19,10 +20,10 @@ type DSN struct {
 }
 
 // Assert that the Ectd driver meets the Driver interface
-var _ client.Driver = &EtcdDriver{}
+var _ client.Driver = &Driver{}
 
 func init() {
-	client.RegisterDriver("etcd", &EtcdDriver{})
+	client.RegisterDriver("etcd", &Driver{})
 }
 
 func parseDsn(dsn string) (dsnVal DSN, err error) {
@@ -30,7 +31,7 @@ func parseDsn(dsn string) (dsnVal DSN, err error) {
 	return dsnVal, err
 }
 
-func (driver *EtcdDriver) GetConnection(dsn string) (client.Connection, error) {
+func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
 
 	dsnVal, err := parseDsn(dsn)
 	if err != nil {
@@ -40,7 +41,7 @@ func (driver *EtcdDriver) GetConnection(dsn string) (client.Connection, error) {
 	client := etcd.NewClient(dsnVal.Servers)
 	client.SetConsistency("STRONG_CONSISTENCY")
 
-	connection := &EtcdConnection{
+	connection := &Connection{
 		client:  client,
 		servers: dsnVal.Servers,
 		timeout: dsnVal.Timeout,
