@@ -243,13 +243,14 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	// Verify the image exists and has the latest tag
 	var image *docker.APIImages
 	images, err := d.findImages(id, DOCKER_LATEST)
+	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), id)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
 	}
 	for _, i := range images {
 		if i.ID == container.Image {
-			image = i
+			image = &i
 			break
 		}
 	}
@@ -351,23 +352,27 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	return nil
 }
 
-func (d *DistributedFileSystem) findImages(id, tag string) (images []*docker.APIImages, err error) {
+func (d *DistributedFileSystem) findImages(id, tag string) (images []docker.APIImages, err error) {
 	if all, err := d.dockerClient.ListImages(false); err != nil {
 		return images, err
 	} else {
 		for _, image := range all {
 			for _, repotag := range image.RepoTags {
-				if repotag.Tag() != tag {
+				// check if the tags match
+				if !strings.HasSuffix(repotag, ":"+tag) {
 					continue
 				}
 
-				repo := repotag.Repo()
-				parts := strings.SplitN(repo, "/", 3)
-				name := parts[len(parts)-1]
+				// figure out the repo
+				repo := strings.TrimSuffix(repotag, ":"+tag)
 
-				if strings.HasPrefix(name, id+"_") {
+				// verify that the repo matches
+				repoparts := strings.SplitN(repo, "/", 3)
+				reponame := repoparts[len(repoparts)-1]
+				if strings.HasPrefix(reponame, id+"_") {
 					image.Repository = repo
-					images = append(images, &image)
+					image.Tag = tag
+					images = append(images, image)
 					break
 				}
 			}
@@ -385,7 +390,8 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 
 	for i, image := range images {
 		options := docker.TagImageOptions{
-			Repo:  image.Repository + ":" + newtag,
+			Repo:  image.Repository,
+			Tag:   newtag,
 			Force: true,
 		}
 

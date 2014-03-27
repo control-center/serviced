@@ -1318,6 +1318,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
+	svc.ImageId = sd.ImageId
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
@@ -1344,6 +1345,42 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
+	if parentServiceId == "" {
+		*tenantId = svc.Id
+	}
+
+	// Using the tenant id, tag the base image with the tenantID
+	if svc.ImageId != "" {
+		repotag := strings.SplitN(svc.ImageId, ":", 2)
+		path := strings.SplitN(repotag[0], "/", 3)
+		path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
+		repo := strings.Join(path, "/")
+
+		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+		if err != nil {
+			glog.Errorf("unable to start docker client")
+			return err
+		}
+
+		image, err := dockerclient.InspectImage(svc.ImageId)
+		if err != nil {
+			glog.Errorf("could not look up image: %s", sd.ImageId)
+			return err
+		}
+
+		options := docker.TagImageOptions{
+			Repo:  repo,
+			Force: true,
+		}
+
+		if err := dockerclient.TagImage(image.ID, options); err != nil {
+			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			return err
+		}
+
+		svc.ImageId = repo
+	}
+
 	var serviceId string
 	err = this.AddService(svc, &serviceId)
 	if err != nil {
@@ -1357,36 +1394,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	if err != nil {
 		return err
 	}
-
-	if parentServiceId == "" {
-		*tenantId = svc.Id
-	}
-
-	// Using the tenant id, tag the base image with the tenantID
-	path := strings.SplitN(sd.ImageId, "/", 3)
-	path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
-	repo := strings.Join(path, "/")
-
-	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		return err
-	}
-
-	image, err := dockerclient.InspectImage(sd.ImageId)
-	if err != nil {
-		return err
-	}
-
-	options := docker.TagImageOptions{
-		Repo:  repo,
-		Force: true,
-	}
-
-	if err := dockerclient.TagImage(image.ID, options); err != nil {
-		return err
-	}
-
-	svc.ImageId = repo
 
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
