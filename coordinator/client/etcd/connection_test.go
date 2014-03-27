@@ -18,7 +18,12 @@ func TestEtcdDriver(t *testing.T) {
 		t.Fatalf("Could not create a client: %s", err)
 	}
 
-	exists, err := drv.Exists("/foo")
+	conn, err := drv.GetConnection()
+	if err != nil {
+		t.Fatalf("Could not create a connection: %s", err)
+	}
+
+	exists, err := conn.Exists("/foo")
 	if err != nil {
 		t.Fatalf("err calling exists: %s", err)
 	}
@@ -26,22 +31,22 @@ func TestEtcdDriver(t *testing.T) {
 		t.Fatal("foo should not exist")
 	}
 
-	err = drv.Delete("/foo")
+	err = conn.Delete("/foo")
 	if err == nil {
 		t.Fatalf("delete on non-existent object should fail")
 	}
 
-	err = drv.CreateDir("/foo")
+	err = conn.CreateDir("/foo")
 	if err != nil {
 		t.Fatalf("creating /foo should work: %s", err)
 	}
 
-	err = drv.Create("/foo/bar", []byte("test"))
+	err = conn.Create("/foo/bar", []byte("test"))
 	if err != nil {
 		t.Fatalf("creating /foo/bar should work: %s", err)
 	}
 
-	exists, err = drv.Exists("/foo/bar")
+	exists, err = conn.Exists("/foo/bar")
 	if err != nil {
 		t.Fatalf("could not call exists: %s", err)
 	}
@@ -50,7 +55,7 @@ func TestEtcdDriver(t *testing.T) {
 		t.Fatal("/foo/bar should not exist")
 	}
 
-	err = drv.Delete("/foo")
+	err = conn.Delete("/foo")
 	if err != nil {
 		t.Fatalf("delete of /foo should work: %s", err)
 	}

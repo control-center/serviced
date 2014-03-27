@@ -2,7 +2,6 @@ package client
 
 import (
 	"log"
-	"reflect"
 	"testing"
 	"time"
 
@@ -79,42 +78,10 @@ func (conn mockConnection) Lock(path string) (lockId string, err error) {
 	return "", nil
 }
 
-func TestRegisteredDrivers(t *testing.T) {
-
-	if drivers := RegisteredDrivers(); !reflect.DeepEqual(drivers, []string{}) {
-		t.Logf("Expected no drivers, got %v", drivers)
-		t.FailNow()
-	}
-
-	driver, _ := newMockDriver([]string{}, time.Second)
-
-	if err := RegisterDriver("mock", driver); err != nil {
-		t.Logf("Expected no error when registering mock driver: %s", err)
-		t.FailNow()
-	}
-
-	if drivers := RegisteredDrivers(); !reflect.DeepEqual(drivers, []string{"mock"}) {
-		t.Logf("Expected only 'mock' driver, got %v", drivers)
-		t.FailNow()
-	}
-
-	if err := RegisterDriver("mock", driver); err != ErrDriverAlreadyRegistered {
-		t.Logf("Expected ErrDriverAlreadyRegistered, got %s", err)
-		t.FailNow()
-	}
-}
-
 func TestNew(t *testing.T) {
-	if _, err := New([]string{}, time.Second, "", nil); err != ErrInvalidMachines {
-		t.Logf("Expected ErrInvalidMachines got : %s", err)
-		t.FailNow()
-	}
-	if _, err := New([]string{"foo", ""}, time.Second, "", nil); err != ErrInvalidMachines {
-		t.Logf("Expected ErrInvalidMachines got : %s", err)
-		t.FailNow()
-	}
 
-	client, err := New([]string{"foo"}, time.Second, "mock",
+	mDriver, _ := newMockDriver([]string{}, time.Second)
+	client, err := New(mDriver,
 		retry.BoundedExponentialBackoff(time.Millisecond*10, time.Second*10, 10))
 	if err != nil {
 		t.Fatalf("could not create client :%s", err)

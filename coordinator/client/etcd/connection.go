@@ -16,66 +16,46 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type EtcdDriver struct {
+type EtcdConnection struct {
 	client  *etcd.Client
 	servers []string
 	timeout time.Duration
-	onClose **func()
+	onClose *func()
 }
 
-// Assert that the Ectd driver meets the Driver interface
-var _ client.Driver = EtcdDriver{}
+// Assert that the Ectd connection meets the Connection interface
+var _ client.Connection = &EtcdConnection{}
 
-func NewEtcdDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
-
-	client := etcd.NewClient(servers)
-	client.SetConsistency("STRONG_CONSISTENCY")
-
-	driver = &EtcdDriver{
-		client:  client,
-		servers: servers,
-		timeout: timeout,
-		onClose: new(*func()),
-	}
-	return driver, nil
-}
-
-func init() {
-	if err := client.RegisterDriver("etcd", NewEtcdDriver); err != nil {
-		panic(err)
-	}
-}
-
-func (etcd EtcdDriver) Close() {
+func (etcd *EtcdConnection) Close() {
 	etcd.client.CloseCURL()
-	if *etcd.onClose != nil {
-		(*(*etcd.onClose))()
+	if etcd.onClose != nil {
+		(*etcd.onClose)()
 	}
 }
 
-func (etcd EtcdDriver) SetOnClose(f func()) {
-	*etcd.onClose = &f
+func (etcd *EtcdConnection) SetOnClose(f func()) {
+	etcd.onClose = &f
 }
 
-func (etcd EtcdDriver) Lock(path string) (lockId string, err error) {
+func (etcd *EtcdConnection) Lock(path string) (lockId string, err error) {
 	return "", errors.New("unsupported")
 }
 
-func (etcd EtcdDriver) Unlock(path string, lockId string) (err error) {
+func (etcd *EtcdConnection) Unlock(path string, lockId string) (err error) {
 	return errors.New("unsupported")
 }
 
-func (etcd EtcdDriver) Create(path string, data []byte) error {
+func (etcd *EtcdConnection) Create(path string, data []byte) error {
 	_, err := etcd.client.Create(path, string(data), 1000000)
 	return err
 }
 
-func (etcd EtcdDriver) CreateDir(path string) error {
+func (etcd *EtcdConnection) CreateDir(path string) error {
 	_, err := etcd.client.CreateDir(path, 1000000)
 	return err
 }
 
-func (etcd EtcdDriver) Exists(path string) (bool, error) {
+func (etcd *EtcdConnection) Exists(path string) (bool, error) {
 	_, err := etcd.client.Get(path, false, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {
@@ -87,7 +67,7 @@ func (etcd EtcdDriver) Exists(path string) (bool, error) {
 	return true, nil
 }
 
-func (etc EtcdDriver) Delete(path string) error {
+func (etc EtcdConnection) Delete(path string) error {
 	_, err := etc.client.Delete(path, true)
 	return err
 }

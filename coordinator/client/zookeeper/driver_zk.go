@@ -7,55 +7,73 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type ZkDriver struct {
-	conn    *zklib.Conn
+type Driver struct {
 	servers []string
 	timeout time.Duration
 }
 
-// Assert that the Zookeeper driver meets the Driver interface
-var _ client.Driver = ZkDriver{}
-
-func init() {
-	if err := client.RegisterDriver("zookeeper", NewZkDriver); err != nil {
-		panic(err)
-	}
+type Connection struct {
+	conn    *zklib.Conn
+	servers []string
+	timeout time.Duration
+	onClose *func()
 }
 
-func NewZkDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
+// Assert that the Zookeeper driver meets the Driver interface
+var _ client.Driver = Driver{}
 
-	conn, _, err := zklib.Connect(servers, timeout)
-	if err != nil {
-		return nil, err
-	}
+func NewDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
 
-	driver = &ZkDriver{
-		conn:    conn,
+	driver = &Driver{
 		servers: servers,
 		timeout: timeout,
 	}
 	return driver, nil
 }
 
-func (zk ZkDriver) Close() {
+func (driver Driver) GetConnection() (client.Connection, error) {
+	conn, _, err := zklib.Connect(driver.servers, driver.timeout)
+	if err != nil {
+		return nil, err
+	}
+	return Connection{
+		conn:    conn,
+		servers: driver.servers,
+		timeout: driver.timeout,
+	}, nil
+}
+
+func (zk Connection) Close() {
 	zk.conn.Close()
 }
 
-func (zk ZkDriver) Create(path string, data []byte) error {
+func (zk Connection) SetOnClose(f func()) {
+	zk.onClose = &f
+}
+
+func (zk Connection) Create(path string, data []byte) error {
 	_, err := zk.conn.Create(path, data, 0, zklib.WorldACL(zklib.PermAll))
 	return err
 }
 
-func (zk ZkDriver) CreateDir(path string) error {
+func (zk Connection) Lock(path string) (lockId string, err error) {
+	return "", nil
+}
+
+func (zk Connection) Unlock(path, lockId string) error {
+	return nil
+}
+
+func (zk Connection) CreateDir(path string) error {
 	return zk.Create(path, []byte{})
 }
 
-func (zk ZkDriver) Exists(path string) (bool, error) {
+func (zk Connection) Exists(path string) (bool, error) {
 	exists, _, err := zk.conn.Exists(path)
 	return exists, err
 }
 
-func (zk ZkDriver) Delete(path string) error {
+func (zk Connection) Delete(path string) error {
 	children, _, err := zk.conn.Children(path)
 	if err != nil {
 		return err
