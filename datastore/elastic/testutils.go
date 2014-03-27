@@ -20,7 +20,7 @@ func InitElasticTestMappings(index string, mappingPaths map[string]string) (Elas
 		//TODO: start elastic
 	}
 	for name, path := range mappingPaths {
-		driver.AddMappingFilie(name, path)
+		driver.AddMappingFile(name, path)
 	}
 	err := driver.Initialize(time.Second * 10)
 	if err != nil {

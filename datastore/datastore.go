@@ -14,14 +14,11 @@ type DataStore interface {
 	// Put adds or updates an entity
 	Put(ctx Context, key Key, entity interface{}) error
 
-	// Get adds or updates an entity. Return ErrNoSuchEntity if nothing found for the
-	Get(ctx Context, Key Key, entity interface{}) error
+	// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
+	Get(ctx Context, key Key, entity interface{}) error
 
 	// Delete removes the entity
 	Delete(ctx Context, key Key) error
-
-	// Query returns a Query type to be exectued
-	Query(ctx Context) Query
 }
 
 func New() DataStore {
@@ -63,10 +60,6 @@ func (ds *dataStore) Delete(ctx Context, key Key) error {
 	}
 
 	return conn.Delete(key)
-}
-
-func (ds *dataStore) Query(ctx Context) Query {
-	return newQuery(ctx)
 }
 
 func (ds *dataStore) serialize(kind string, entity interface{}) (JsonMessage, error) {

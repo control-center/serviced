@@ -22,7 +22,7 @@ type ElasticDriver interface {
 	SetProperty(name string, prop interface{}) error
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(name string, mapping interface{}) error
-	AddMappingFilie(name string, path string) error
+	AddMappingFile(name string, path string) error
 	//Initialize the driver, register mappings with elasticserach. Timeout in ms to wait for elastic to be available.
 	Initialize(timeout time.Duration) error
 	GetConnection() (datastore.Connection, error)
@@ -96,7 +96,7 @@ func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
 	return nil
 }
 
-func (ed *elasticDriver) AddMappingFilie(name string, path string) error {
+func (ed *elasticDriver) AddMappingFile(name string, path string) error {
 	ed.mappingPaths[name] = path
 	return nil
 }
@@ -153,7 +153,7 @@ func (ed *elasticDriver) postMappings() error {
 			return err
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("Response &d mapping %s: $s", resp.StatusCode, typeName, string(body))
+			return fmt.Errorf("Response %d mapping %s: %s", resp.StatusCode, typeName, string(body))
 		}
 		return nil
 	}

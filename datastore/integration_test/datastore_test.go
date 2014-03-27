@@ -116,9 +116,8 @@ func TestQuery(t *testing.T) {
 	query := search.Query().Search("_exists_:state")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	q := ds.Query(ctx)
-	q.Set(testSearch)
-	msgs, err := q.Run()
+	q := datastore.NewQuery(ctx)
+	msgs, err := q.Execute(testSearch)
 
 	if err != nil {
 		t.Errorf("Unepected error %v", err)
@@ -131,9 +130,8 @@ func TestQuery(t *testing.T) {
 	query = search.Query().Search("_exists_:blam")
 	testSearch = search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	q = ds.Query(ctx)
-	q.Set(testSearch)
-	msgs, err = q.Run()
+	q = datastore.NewQuery(ctx)
+	msgs, err = q.Execute(testSearch)
 
 	if err != nil {
 		t.Errorf("Unepected error %v", err)

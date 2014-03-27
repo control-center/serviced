@@ -53,7 +53,6 @@ func (f *Facade) beforeHostRemove(session session, hostId string) error {
 // session instance is passed here and the corresponding beforeHostRemove
 func (f *Facade) afterHostRemove(session session, hostId string, err error) {
 	//TODO: remove AddressAssignments with this host
-
 }
 
 //---------------------------------------------------------------------------

@@ -51,11 +51,10 @@ func (hs *hostStore) Get(ctx datastore.Context, id string) (*Host, error) {
 }
 
 func (hs *hostStore) GetUpTo(ctx datastore.Context, limit uint64) ([]Host, error) {
-	q := hs.ds.Query(ctx)
+	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:Id")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
-	q.Set(search)
-	results, err := q.Run()
+	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
 	}
