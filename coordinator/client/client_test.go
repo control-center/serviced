@@ -21,25 +21,25 @@ type mockConnection struct {
 }
 
 func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err error) {
-	driver = mockDriver{
+	driver = &mockDriver{
 		machines: machines,
 		timeout:  timeout,
 	}
 	return driver, err
 }
 
-func (driver mockDriver) GetConnection() (Connection, error) {
+func (driver *mockDriver) GetConnection() (Connection, error) {
 	return &mockConnection{
 		onClose: new(*func()),
 	}, nil
 }
 
-func (conn mockConnection) SetOnClose(f func()) {
+func (conn *mockConnection) SetOnClose(f func()) {
 	log.Printf("calling set on close")
 	*conn.onClose = &f
 }
 
-func (conn mockConnection) Close() {
+func (conn *mockConnection) Close() {
 	log.Printf("in driver.Close()")
 	if *conn.onClose != nil {
 		log.Printf("calling onClose pointer")
@@ -47,7 +47,7 @@ func (conn mockConnection) Close() {
 	}
 }
 
-func (conn mockConnection) Create(path string, data []byte) error {
+func (conn *mockConnection) Create(path string, data []byte) error {
 	callTimes++
 	if callTimes > 30 {
 		return nil
@@ -55,7 +55,7 @@ func (conn mockConnection) Create(path string, data []byte) error {
 	return ErrNodeExists
 }
 
-func (conn mockConnection) CreateDir(path string) error {
+func (conn *mockConnection) CreateDir(path string) error {
 	callTimes++
 	if callTimes > 30 {
 		return nil
@@ -63,19 +63,19 @@ func (conn mockConnection) CreateDir(path string) error {
 	return ErrNodeExists
 }
 
-func (conn mockConnection) Exists(path string) (bool, error) {
+func (conn *mockConnection) Exists(path string) (bool, error) {
 	return false, nil
 }
 
-func (conn mockConnection) Delete(path string) error {
+func (conn *mockConnection) Delete(path string) error {
 	return nil
 }
 
-func (conn mockConnection) Unlock(path, lockId string) error {
+func (conn *mockConnection) Unlock(path, lockId string) error {
 	return nil
 }
 
-func (conn mockConnection) Lock(path string) (lockId string, err error) {
+func (conn *mockConnection) Lock(path string) (lockId string, err error) {
 	return "", nil
 }
 
