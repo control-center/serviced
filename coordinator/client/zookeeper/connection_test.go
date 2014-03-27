@@ -1,6 +1,7 @@
 package zk_driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -70,12 +71,14 @@ func TestZkDriver(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
 
-	drv, err := NewDriver(servers, time.Second*15)
+	drv := Driver{}
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second*15})
 	if err != nil {
-		t.Fatal("unexpected error creating zk driver: %s", err)
+		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
+	dsn := string(dsnBytes)
 
-	conn, err := drv.GetConnection()
+	conn, err := drv.GetConnection(dsn)
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}

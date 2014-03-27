@@ -1,38 +1,47 @@
 package zk_driver
 
 import (
+	"encoding/json"
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type Driver struct {
-	servers []string
-	timeout time.Duration
+type Driver struct {}
+
+type DSN struct {
+	Servers []string
+	Timeout time.Duration
 }
 
 // Assert that the Zookeeper driver meets the Driver interface
 var _ client.Driver = &Driver{}
 
-func NewDriver(servers []string, timeout time.Duration) (driver client.Driver, err error) {
-
-	driver = &Driver{
-		servers: servers,
-		timeout: timeout,
-	}
-	return driver, nil
+func ParseDSN(dsn string) (val DSN, err error) {
+	err = json.Unmarshal([]byte(dsn), &val)
+	return val, err
 }
 
-func (driver *Driver) GetConnection() (client.Connection, error) {
-	conn, _, err := zklib.Connect(driver.servers, driver.timeout)
+func init() {
+	client.RegisterDriver("zookeeper", &Driver{})
+}
+
+func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
+
+	dsnVal, err := ParseDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, _, err := zklib.Connect(dsnVal.Servers, dsnVal.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	return &Connection{
 		conn:    conn,
-		servers: driver.servers,
-		timeout: driver.timeout,
+		servers: dsnVal.Servers,
+		timeout: dsnVal.Timeout,
 	}, nil
 }
 

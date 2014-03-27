@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	ErrDriverDoesNotExist = errors.New("coord-client: driver does not exist")
 	ErrNodeExists         = errors.New("coord-client: node exists")
 	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
 	ErrInvalidMachine     = errors.New("coord-client: invalid machine")
@@ -24,6 +25,15 @@ const (
 	opClientCloseConnection
 	opClientClose
 )
+
+var registeredDrivers = make(map[string]Driver)
+
+func RegisterDriver(name string, driver Driver) {
+	if _, exists := registeredDrivers[name]; exists {
+		panic(name + " driver is already registered")
+	}
+	registeredDrivers[name] = driver
+}
 
 func newOpClientRequest(reqType opClientRequestType, args interface{}) opClientRequest {
 	return opClientRequest{
@@ -40,6 +50,8 @@ type opClientRequest struct {
 }
 
 type Client struct {
+	driver      Driver
+	connectionString string
 	done        chan struct{}
 	retryPolicy retry.Policy
 	*sync.RWMutex
@@ -51,11 +63,20 @@ func DefaultRetryPolicy() retry.Policy {
 	return retry.NTimes(30, time.Millisecond*50)
 }
 
-func New(driver Driver, retryPolicy retry.Policy) (client *Client, err error) {
+func New(driverName, connectionString string, retryPolicy retry.Policy) (client *Client, err error) {
+
+	var driver Driver
+	var exists bool
+	if driver, exists = registeredDrivers[driverName]; !exists {
+		return nil, ErrDriverDoesNotExist
+	}
+
 	if retryPolicy == nil {
 		retryPolicy = DefaultRetryPolicy()
 	}
 	client = &Client{
+		driver:            driver,
+		connectionString:  connectionString,
 		done:              make(chan struct{}),
 		retryPolicy:       retryPolicy,
 		connectionFactory: driver,
@@ -116,7 +137,7 @@ func (client *Client) loop() {
 					req.response <- ErrConnectionNotFound
 				}
 			case opClientRequestConnection:
-				c, err := client.connectionFactory.GetConnection()
+				c, err := client.connectionFactory.GetConnection(client.connectionString)
 				// setting up a callback to close the connection in this client
 				// if someone calls Close() on the driver reference
 				c.SetOnClose(func() {

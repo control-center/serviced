@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -13,12 +14,17 @@ func TestEtcdDriver(t *testing.T) {
 	}
 	defer tc.Stop()
 
-	drv, err := NewDriver(tc.Machines(), time.Second)
-	if err != nil {
-		t.Fatalf("Could not create a client: %s", err)
-	}
 
-	conn, err := drv.GetConnection()
+
+	dsnbytes, err := json.Marshal(DSN{Servers: tc.Machines(), Timeout: time.Second})
+	if err != nil {
+		t.Fatal("Error creating connection string")
+	}
+	dsnStr := string(dsnbytes)
+
+	drv := EtcdDriver{}
+
+	conn, err := drv.GetConnection(dsnStr)
 	if err != nil {
 		t.Fatalf("Could not create a connection: %s", err)
 	}

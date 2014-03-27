@@ -1,7 +1,7 @@
 package client
 
 type Driver interface {
-	GetConnection() (Connection, error)
+	GetConnection(dsn string) (Connection, error)
 }
 
 type Connection interface {

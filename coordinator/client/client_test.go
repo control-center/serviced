@@ -27,7 +27,7 @@ func newMockDriver(machines []string, timeout time.Duration) (driver Driver, err
 	return driver, err
 }
 
-func (driver *mockDriver) GetConnection() (Connection, error) {
+func (driver *mockDriver) GetConnection(string) (Connection, error) {
 	return &mockConnection{
 		onClose: new(*func()),
 	}, nil
@@ -81,7 +81,8 @@ func (conn *mockConnection) Lock(path string) (lockId string, err error) {
 func TestNew(t *testing.T) {
 
 	mDriver, _ := newMockDriver([]string{}, time.Second)
-	client, err := New(mDriver,
+	RegisterDriver("mockDriver", mDriver)
+	client, err := New("mockDriver", "fake connection string", 
 		retry.BoundedExponentialBackoff(time.Millisecond*10, time.Second*10, 10))
 	if err != nil {
 		t.Fatalf("could not create client :%s", err)
