@@ -1,3 +1,6 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 package client
 
 import (
@@ -50,10 +53,10 @@ type opClientRequest struct {
 }
 
 type Client struct {
-	driver      Driver
+	driver           Driver
 	connectionString string
-	done        chan struct{}
-	retryPolicy retry.Policy
+	done             chan struct{}
+	retryPolicy      retry.Policy
 	*sync.RWMutex
 	opRequests        chan opClientRequest
 	connectionFactory Driver

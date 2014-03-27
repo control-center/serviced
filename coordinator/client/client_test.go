@@ -1,3 +1,6 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 package client
 
 import (
@@ -82,7 +85,7 @@ func TestNew(t *testing.T) {
 
 	mDriver, _ := newMockDriver([]string{}, time.Second)
 	RegisterDriver("mockDriver", mDriver)
-	client, err := New("mockDriver", "fake connection string", 
+	client, err := New("mockDriver", "fake connection string",
 		retry.BoundedExponentialBackoff(time.Millisecond*10, time.Second*10, 10))
 	if err != nil {
 		t.Fatalf("could not create client :%s", err)

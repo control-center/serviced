@@ -8,7 +8,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type Driver struct {}
+type Driver struct{}
 
 type DSN struct {
 	Servers []string
@@ -44,4 +44,3 @@ func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
 		timeout: dsnVal.Timeout,
 	}, nil
 }
-

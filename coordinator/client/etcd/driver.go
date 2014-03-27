@@ -1,3 +1,6 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 package etcd
 
 import (
@@ -8,7 +11,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
-type EtcdDriver struct {}
+type EtcdDriver struct{}
 
 type DSN struct {
 	Servers []string
@@ -45,4 +48,3 @@ func (driver *EtcdDriver) GetConnection(dsn string) (client.Connection, error) {
 	}
 	return connection, nil
 }
-

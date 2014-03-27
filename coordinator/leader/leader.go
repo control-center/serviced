@@ -1,3 +1,6 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
 package leader
 
 import (
@@ -38,8 +41,6 @@ func (s *Selector) HasLeadership() bool {
 	return isLeader > 0
 }
 
-
-func (s *Selector)
 // Close() shuts down the selector
 func (s *Selector) Close() error {
 	errc := make(chan error)

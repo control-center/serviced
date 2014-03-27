@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/coordinator/client/retry"
 	"github.com/zenoss/serviced/coordinator/client/etcd"
+	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
 func TestEtcd(t *testing.T) {
@@ -21,7 +21,7 @@ func TestEtcd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create new driver")
 	}
-	cClient, err := client.New(driver, retry.NTimes(10, time.Millisecond * 30))
+	cClient, err := client.New(driver, retry.NTimes(10, time.Millisecond*30))
 	if err != nil {
 		t.Fatalf("Could not create create coordinator client: %s", err)
 	}
