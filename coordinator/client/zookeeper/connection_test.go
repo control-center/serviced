@@ -70,12 +70,16 @@ func TestZkDriver(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
 
-	drv, err := NewZkDriver(servers, time.Second*15)
+	drv, err := NewDriver(servers, time.Second*15)
 	if err != nil {
 		t.Fatal("unexpected error creating zk driver: %s", err)
 	}
 
-	exists, err := drv.Exists("/foo")
+	conn, err := drv.GetConnection()
+	if err != nil {
+		t.Fatal("unexpected error getting connection")
+	}
+	exists, err := conn.Exists("/foo")
 	if err != nil {
 		t.Fatalf("err calling exists: %s", err)
 	}
@@ -83,22 +87,22 @@ func TestZkDriver(t *testing.T) {
 		t.Fatal("foo should not exist")
 	}
 
-	err = drv.Delete("/foo")
+	err = conn.Delete("/foo")
 	if err == nil {
 		t.Fatalf("delete on non-existent object should fail")
 	}
 
-	err = drv.CreateDir("/foo")
+	err = conn.CreateDir("/foo")
 	if err != nil {
 		t.Fatalf("creating /foo should work: %s", err)
 	}
 
-	err = drv.Create("/foo/bar", []byte("test"))
+	err = conn.Create("/foo/bar", []byte("test"))
 	if err != nil {
 		t.Fatalf("creating /foo/bar should work: %s", err)
 	}
 
-	exists, err = drv.Exists("/foo/bar")
+	exists, err = conn.Exists("/foo/bar")
 	if err != nil {
 		t.Fatalf("could not call exists: %s", err)
 	}
@@ -107,7 +111,7 @@ func TestZkDriver(t *testing.T) {
 		t.Fatal("/foo/bar should not exist")
 	}
 
-	err = drv.Delete("/foo")
+	err = conn.Delete("/foo")
 	if err != nil {
 		t.Fatalf("delete of /foo should work: %s", err)
 	}
