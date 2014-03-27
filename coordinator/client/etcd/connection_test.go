@@ -13,7 +13,7 @@ func TestEtcdDriver(t *testing.T) {
 	}
 	defer tc.Stop()
 
-	drv, err := NewEtcdDriver(tc.Machines(), time.Second)
+	drv, err := NewDriver(tc.Machines(), time.Second)
 	if err != nil {
 		t.Fatalf("Could not create a client: %s", err)
 	}

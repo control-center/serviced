@@ -13,16 +13,16 @@ type EtcdDriver struct {
 }
 
 // Assert that the Ectd driver meets the Driver interface
-var _ client.Driver = EtcdDriver{}
+var _ client.Driver = &EtcdDriver{}
 
-func NewEtcdDriver(servers []string, timeout time.Duration) (client.Driver, error) {
+func NewDriver(servers []string, timeout time.Duration) (client.Driver, error) {
 	return &EtcdDriver{
 		servers: servers,
 		timeout: timeout,
 	}, nil
 }
 
-func (driver EtcdDriver) GetConnection() (client.Connection, error) {
+func (driver *EtcdDriver) GetConnection() (client.Connection, error) {
 
 	client := etcd.NewClient(driver.servers)
 	client.SetConsistency("STRONG_CONSISTENCY")
