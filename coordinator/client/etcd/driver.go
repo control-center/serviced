@@ -19,6 +19,14 @@ type DSN struct {
 	Timeout time.Duration
 }
 
+func (dsn DSN) String() string {
+	bytes, err := json.Marshal(dsn)
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
+}
+
 // Assert that the Ectd driver meets the Driver interface
 var _ client.Driver = &Driver{}
 
@@ -26,14 +34,14 @@ func init() {
 	client.RegisterDriver("etcd", &Driver{})
 }
 
-func parseDsn(dsn string) (dsnVal DSN, err error) {
+func ParseDSN(dsn string) (dsnVal DSN, err error) {
 	err = json.Unmarshal([]byte(dsn), &dsnVal)
 	return dsnVal, err
 }
 
 func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
 
-	dsnVal, err := parseDsn(dsn)
+	dsnVal, err := ParseDSN(dsn)
 	if err != nil {
 		return nil, err
 	}
