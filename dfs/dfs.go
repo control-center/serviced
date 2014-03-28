@@ -188,7 +188,7 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 
 	var service dao.Service
 	if err := d.client.GetService(tenantId, &service); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s", err)
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
 		return err
 	}
 
