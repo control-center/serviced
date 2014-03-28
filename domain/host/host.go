@@ -10,12 +10,12 @@ import (
 	"time"
 )
 
-// A host that runs the control plane agent.
+//Host that runs the control plane agent.
 type Host struct {
-	Id             string // Unique identifier, default to hostid
+	ID             string // Unique identifier, default to hostid
 	Name           string // A label for the host, eg hostname, role
-	PoolId         string // Pool that the Host belongs to
-	IpAddr         string // The IP address the host can be reached at from a serviced master
+	PoolID         string // Pool that the Host belongs to
+	IPAddr         string // The IP address the host can be reached at from a serviced master
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
@@ -26,7 +26,7 @@ type Host struct {
 
 //HostIPResource contains information about a specific IP available as a resource
 type HostIPResource struct {
-	HostId        string
+	HostID        string
 	IPAddress     string
 	InterfaceName string
 }
@@ -43,7 +43,7 @@ func New() *Host {
 // resources. If any IP is not a valid IP on the machine return error.
 func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	if strings.TrimSpace(poolid) == "" {
-		return nil, errors.New("Empty poolid not allowed")
+		return nil, errors.New("empty poolid not allowed")
 	}
 	host, err := currentHost(ip, poolid)
 	if err != nil {
@@ -52,9 +52,9 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 
 	if len(ipAddrs) == 0 {
 		// use the default IP of the host if specific IPs have not been requested
-		ipAddrs = append(ipAddrs, host.IpAddr)
+		ipAddrs = append(ipAddrs, host.IPAddr)
 	}
-	hostIPs, err := getIPResources(host.Id, ipAddrs...)
+	hostIPs, err := getIPResources(host.ID, ipAddrs...)
 	if err != nil {
 		return nil, err
 	}

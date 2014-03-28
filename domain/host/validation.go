@@ -13,24 +13,25 @@ import (
 	"strings"
 )
 
+//ValidateEntity validates Host fields
 func (h *Host) ValidateEntity() error {
 	glog.Info("Validating host")
 
 	violations := validation.NewValidationError()
-	violations.Add(validation.NotEmpty("Host.Id", h.Id))
-	violations.Add(validation.NotEmpty("Host.PoolId", h.PoolId))
-	violations.Add(validation.IsIP(h.IpAddr))
+	violations.Add(validation.NotEmpty("Host.ID", h.ID))
+	violations.Add(validation.NotEmpty("Host.PoolID", h.PoolID))
+	violations.Add(validation.IsIP(h.IPAddr))
 
 	//TODO: what should we be validating here? It doesn't seem to work for
-	glog.Infof("Validating IPAddr %v for host %s", h.IpAddr, h.Id)
-	ipAddr, err := net.ResolveIPAddr("ip4", h.IpAddr)
+	glog.Infof("Validating IPAddr %v for host %s", h.IPAddr, h.ID)
+	ipAddr, err := net.ResolveIPAddr("ip4", h.IPAddr)
 
 	if err != nil {
-		glog.Errorf("Could not resolve: %s to an ip4 address: %v", h.IpAddr, err)
+		glog.Errorf("Could not resolve: %s to an ip4 address: %v", h.IPAddr, err)
 		violations.Add(err)
 	} else if ipAddr.IP.IsLoopback() {
-		glog.Errorf("Can not use %s as host address because it is a loopback address", h.IpAddr)
-		violations.Add(errors.New("Host ip can not be a loopback address"))
+		glog.Errorf("Can not use %s as host address because it is a loopback address", h.IPAddr)
+		violations.Add(errors.New("host ip can not be a loopback address"))
 
 	}
 
@@ -38,6 +39,6 @@ func (h *Host) ValidateEntity() error {
 		return violations
 	}
 	//Don't like this side effect
-	h.Id = strings.TrimSpace(h.Id)
+	h.ID = strings.TrimSpace(h.ID)
 	return nil
 }

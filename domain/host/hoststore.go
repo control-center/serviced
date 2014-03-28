@@ -12,39 +12,15 @@ import (
 	"strings"
 )
 
-//type HostStore interface {
-//	Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error
-//
-//	Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error
-//
-//	Delete(ctx datastore.Context, key datastore.Key) error
-//
-//	// GetUpTo returns all hosts up to limit.
-//	GetUpTo(ctx datastore.Context, limit uint64) ([]Host, error)
-//}
-
+//NewStore creates a HostStore
 func NewStore() *HostStore {
 	return &HostStore{}
 }
 
+//HostStore type for interacting with Host persistent storage
 type HostStore struct {
 	datastore.DataStore
 }
-
-var kind string = "host"
-
-//func (hs *hostStore) Put(ctx datastore.Context, host *Host) error {
-//	return hs.Put(ctx, hostKey(host), host)
-//}
-//
-//func (hs *hostStore) Get(ctx datastore.Context, id string) (*Host, error) {
-//	var host Host
-//	err := hs.ds.Get(ctx, makeKey(id), &host)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &host, nil
-//}
 
 // GetN returns all hosts up to limit.
 func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
@@ -68,11 +44,10 @@ func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	return hosts, nil
 }
 
-//func (hs *hostStore) Delete(ctx datastore.Context, id string) error {
-//	return hs.ds.Delete(ctx, makeKey(id))
-//}
-
+//HostKey creates a Key suitable for getting, putting and deleting Hosts
 func HostKey(id string) datastore.Key {
 	id = strings.TrimSpace(id)
 	return datastore.NewKey(kind, id)
 }
+
+var kind = "host"

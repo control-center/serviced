@@ -41,15 +41,15 @@ func Test_HostCRUD(t *testing.T) {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
 
-	host.Id = "testid"
-	err = hs.Put(ctx, HostKey(host.Id), host)
+	host.ID = "testid"
+	err = hs.Put(ctx, HostKey(host.ID), host)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
 
 	//fill host with required values
 	host, err = Build("", "pool-id", []string{}...)
-	host.Id = "testid"
+	host.ID = "testid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
@@ -69,7 +69,7 @@ func Test_HostCRUD(t *testing.T) {
 
 	//Test update
 	host.Memory = 1024
-	err = hs.Put(ctx, HostKey(host.Id), host)
+	err = hs.Put(ctx, HostKey(host.ID), host)
 	err = hs.Get(ctx, HostKey("testid"), &host2)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

@@ -12,14 +12,14 @@ import (
 
 func NotEmpty(fieldName string, value string) Violation {
 	if strings.TrimSpace(value) == "" {
-		return NewViolation(fmt.Sprintf("Empty string for %v", fieldName))
+		return NewViolation(fmt.Sprintf("empty string for %v", fieldName))
 	}
 	return nil
 }
 
 func IsIP(value string) Violation {
 	if nil == net.ParseIP(value) {
-		return NewViolation(fmt.Sprintf("Invalid IP Address %s", value))
+		return NewViolation(fmt.Sprintf("invalid IP Address %s", value))
 	}
 	return nil
 }

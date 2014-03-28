@@ -49,12 +49,12 @@ func init() {
 	}
 
 	validatetable = []validateCase{
-		validateCase{"", "", "", []string{"Empty string for Host.Id", "Empty string for Host.PoolId", "Invalid IP Address "}},
-		validateCase{"hostid", "", "", []string{"Empty string for Host.PoolId", "Invalid IP Address "}},
-		validateCase{"", "poolid", "", []string{"Empty string for Host.Id", "Invalid IP Address "}},
-		validateCase{"hostid", "poolid", "", []string{"Invalid IP Address "}},
-		validateCase{"hostid", "poolid", "blam", []string{"Invalid IP Address blam"}},
-		validateCase{"hostid", "poolid", "127.0.0.1", []string{"Host ip can not be a loopback address"}},
+		validateCase{"", "", "", []string{"empty string for Host.ID", "empty string for Host.PoolID", "invalid IP Address "}},
+		validateCase{"hostid", "", "", []string{"empty string for Host.PoolID", "invalid IP Address "}},
+		validateCase{"", "poolid", "", []string{"empty string for Host.ID", "invalid IP Address "}},
+		validateCase{"hostid", "poolid", "", []string{"invalid IP Address "}},
+		validateCase{"hostid", "poolid", "blam", []string{"invalid IP Address blam"}},
+		validateCase{"hostid", "poolid", "127.0.0.1", []string{"host ip can not be a loopback address"}},
 		validateCase{"hostid", "poolid", ip, []string{}},
 	}
 
@@ -64,9 +64,9 @@ func Test_ValidateTable(t *testing.T) {
 	for idx, test := range validatetable {
 		glog.Infof("test for  %v", test)
 		h := New()
-		h.Id = test.id
-		h.PoolId = test.poolid
-		h.IpAddr = test.ip
+		h.ID = test.id
+		h.PoolID = test.poolid
+		h.IPAddr = test.ip
 
 		err := h.ValidateEntity()
 		if len(test.expectedErrors) > 0 {
@@ -106,14 +106,14 @@ func Test_BuildInvalid(t *testing.T) {
 	}
 
 	_, err = Build("127.0.0.1", "poolid", empty...)
-	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used to register a host" {
+	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
 	_, err = Build("", "poolid", "127.0.0.1")
 	glog.Infof("last build  error %v", err)
 
-	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used as an IP Resource" {
+	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
@@ -144,7 +144,7 @@ func Test_Build(t *testing.T) {
 		t.Errorf("Unexpected result %v", host.IPs)
 	}
 
-	if host.IpAddr != ip {
+	if host.IPAddr != ip {
 		t.Errorf("Expected ip %v, got %v", ip, host.IPs)
 	}
 
@@ -165,7 +165,7 @@ func Test_getIPResources(t *testing.T) {
 	}
 
 	ips, err = getIPResources("dummy_hostId", "127.0.0.1")
-	if err == nil || err.Error() != "Loopback address 127.0.0.1 cannot be used as an IP Resource" {
+	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
 	}
 	if len(ips) != 0 {

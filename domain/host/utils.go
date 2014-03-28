@@ -36,21 +36,21 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 
 	if ip != "" {
 		if !validIP(ip) {
-			return nil, fmt.Errorf("Requested IP %v is not available on host", ip)
+			return nil, fmt.Errorf("requested IP %v is not available on host", ip)
 		}
 		if isLoopBack(ip) {
-			return nil, fmt.Errorf("Loopback address %s cannot be used to register a host", ip)
+			return nil, fmt.Errorf("loopback address %s cannot be used to register a host", ip)
 		}
 
-		host.IpAddr = ip
+		host.IPAddr = ip
 	} else {
-		host.IpAddr, err = serviced.GetIPAddress()
+		host.IPAddr, err = serviced.GetIPAddress()
 		if err != nil {
 			return host, err
 		}
 	}
 
-	host.Id = hostidStr
+	host.ID = hostidStr
 	host.Cores = cpus
 	host.Memory = memory
 
@@ -64,12 +64,12 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 			break
 		}
 	}
-	host.PoolId = poolID
+	host.PoolID = poolID
 	return host, err
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(hostId string, ipaddress ...string) ([]HostIPResource, error) {
+func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error) {
 
 	//make a map of all ipaddresses to interface
 	ips, err := getInterfaceMap()
@@ -83,7 +83,7 @@ func getIPResources(hostId string, ipaddress ...string) ([]HostIPResource, error
 
 	validate := func(iface net.Interface, ip string) error {
 		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
-			return fmt.Errorf("Loopback address %v cannot be used as an IP Resource", ip)
+			return fmt.Errorf("loopback address %v cannot be used as an IP Resource", ip)
 		}
 		return nil
 	}
@@ -98,11 +98,11 @@ func getIPResources(hostId string, ipaddress ...string) ([]HostIPResource, error
 		if err != nil {
 			return []HostIPResource{}, err
 		}
-		hostIp := HostIPResource{}
-		hostIp.HostId = hostId
-		hostIp.IPAddress = ipaddr
-		hostIp.InterfaceName = iface.Name
-		hostIPResources = append(hostIPResources, hostIp)
+		hostIP := HostIPResource{}
+		hostIP.HostID = hostID
+		hostIP.IPAddress = ipaddr
+		hostIP.InterfaceName = iface.Name
+		hostIPResources = append(hostIPResources, hostIP)
 	}
 	return hostIPResources, nil
 }

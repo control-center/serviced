@@ -8,26 +8,27 @@ import (
 	"testing"
 )
 
+//HostEquals used for testing host equality in tests
 func HostEquals(t *testing.T, h1 *Host, h2 *Host) bool {
 	equals := true
 	if h1 != nil && h2 == nil {
 		t.Errorf("%v:Cannot compare non nil h1 to nil h2", t)
 		return false
 	}
-	if h1.Id != h2.Id {
-		t.Errorf("Host name %v did not equal %v", h1.Id, h2.Id)
+	if h1.ID != h2.ID {
+		t.Errorf("Host name %v did not equal %v", h1.ID, h2.ID)
 		equals = false
 	}
 	if h1.Name != h2.Name {
 		t.Errorf("Host id %v did not equal %v", h1.Name, h2.Name)
 		equals = false
 	}
-	if h1.PoolId != h2.PoolId {
-		t.Errorf("Host PoolId %v did not equal %v", h1.PoolId, h2.PoolId)
+	if h1.PoolID != h2.PoolID {
+		t.Errorf("Host PoolId %v did not equal %v", h1.PoolID, h2.PoolID)
 		equals = false
 	}
-	if h1.IpAddr != h2.IpAddr {
-		t.Errorf("Host IpAddr %v did not equal %v", h1.IpAddr, h2.IpAddr)
+	if h1.IPAddr != h2.IPAddr {
+		t.Errorf("Host IpAddr %v did not equal %v", h1.IPAddr, h2.IPAddr)
 		equals = false
 	}
 	if h1.Cores != h2.Cores {
