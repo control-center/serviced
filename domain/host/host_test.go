@@ -7,13 +7,14 @@ package host
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/validation"
 
 	"fmt"
 	"strings"
 	"testing"
 )
 
-func containsAll(ve *ValidationError, errStrings ...string) bool {
+func containsAll(ve *validation.ValidationError, errStrings ...string) bool {
 	for _, err := range errStrings {
 		if !contains(ve, err) {
 			return false
@@ -21,9 +22,9 @@ func containsAll(ve *ValidationError, errStrings ...string) bool {
 	}
 	return true
 }
-func contains(ve *ValidationError, errString string) bool {
+func contains(ve *validation.ValidationError, errString string) bool {
 
-	for _, err := range ve.Errs {
+	for _, err := range ve.Errors {
 		if err.Error() == errString {
 			return true
 		}
@@ -48,11 +49,11 @@ func init() {
 	}
 
 	validatetable = []validateCase{
-		validateCase{"", "", "", []string{"Empty Host.Id not allowed", "Empty Host.PoolId not allowed", "Invalid IPAddr "}},
-		validateCase{"hostid", "", "", []string{"Empty Host.PoolId not allowed", "Invalid IPAddr "}},
-		validateCase{"", "poolid", "", []string{"Empty Host.Id not allowed", "Invalid IPAddr "}},
-		validateCase{"hostid", "poolid", "", []string{"Invalid IPAddr "}},
-		validateCase{"hostid", "poolid", "blam", []string{"Invalid IPAddr blam"}},
+		validateCase{"", "", "", []string{"Empty string for Host.Id", "Empty string for Host.PoolId", "Invalid IP Address "}},
+		validateCase{"hostid", "", "", []string{"Empty string for Host.PoolId", "Invalid IP Address "}},
+		validateCase{"", "poolid", "", []string{"Empty string for Host.Id", "Invalid IP Address "}},
+		validateCase{"hostid", "poolid", "", []string{"Invalid IP Address "}},
+		validateCase{"hostid", "poolid", "blam", []string{"Invalid IP Address blam"}},
 		validateCase{"hostid", "poolid", "127.0.0.1", []string{"Host ip can not be a loopback address"}},
 		validateCase{"hostid", "poolid", ip, []string{}},
 	}
@@ -67,9 +68,9 @@ func Test_ValidateTable(t *testing.T) {
 		h.PoolId = test.poolid
 		h.IpAddr = test.ip
 
-		err := h.validate()
+		err := h.ValidateEntity()
 		if len(test.expectedErrors) > 0 {
-			if verr, isVErr := err.(*ValidationError); !isVErr {
+			if verr, isVErr := err.(*validation.ValidationError); !isVErr {
 				t.Errorf("expected ValidationError, got %v", err)
 			} else if !containsAll(verr, test.expectedErrors...) {
 				t.Errorf("Did not find expected errors for case %v, %v", idx, verr)
@@ -135,7 +136,7 @@ func Test_Build(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
-	if err = host.validate(); err != nil {
+	if err = host.ValidateEntity(); err != nil {
 		t.Errorf("Validation failed %v", err)
 	}
 

@@ -23,7 +23,7 @@ type jsonMessage struct {
 	data json.RawMessage
 }
 
-func (m *jsonMessage) Bytes() json.RawMessage{
+func (m *jsonMessage) Bytes() json.RawMessage {
 	return m.data
 }
 

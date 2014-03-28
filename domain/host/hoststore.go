@@ -34,10 +34,6 @@ type hostStore struct {
 var kind string = "host"
 
 func (hs *hostStore) Put(ctx datastore.Context, host *Host) error {
-	if err := host.validate(); err != nil {
-		return err
-	}
-
 	return hs.ds.Put(ctx, hostKey(host), host)
 }
 

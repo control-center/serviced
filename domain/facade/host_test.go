@@ -61,7 +61,9 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	host.HostEquals(t, h, h2)
+	if !host.HostEquals(t, h, h2){
+		t.Error("Hosts did not match")
+	}
 
 	//Test update
 	h.Memory = 1024
@@ -70,7 +72,9 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	host.HostEquals(t, h, h2)
+	if !host.HostEquals(t, h, h2){
+		t.Error("Hosts did not match")
+	}
 
 	//test delete
 	err = tf.RemoveHost(ctx, testid)

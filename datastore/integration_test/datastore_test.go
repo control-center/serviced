@@ -39,26 +39,23 @@ func TestPutGetDelete(t *testing.T) {
 	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
-	tweet := map[string]string{
-		"user":      "kimchy",
-		"post_date": "2009-11-15T14:12:12",
-		"message":   "trying out Elasticsearch",
-	}
-	err = ds.Put(ctx, key, tweet)
+	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch"}
+
+	err = ds.Put(ctx, key, &tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	//Get tweet
-	var tweetMap map[string]string
-	err = ds.Get(ctx, key, &tweetMap)
+	var storedtweet tweettest
+	err = ds.Get(ctx, key, &storedtweet)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	glog.Infof("tweet is %v", tweetMap)
+	glog.Infof("tweet is %v", &storedtweet)
 
-	if tweetMap["user"] != "kimchy" {
-		t.Errorf("Expected kimchy, found %s", tweetMap["user"])
+	if storedtweet.User != "kimchy" {
+		t.Errorf("Expected kimchy, found %s", storedtweet.User)
 	}
 
 	//Delete tweet
@@ -68,7 +65,7 @@ func TestPutGetDelete(t *testing.T) {
 	}
 
 	//test not found
-	err = ds.Get(ctx, key, &tweetMap)
+	err = ds.Get(ctx, key, &storedtweet)
 	if err == nil {
 		t.Error("Expected error, not nil")
 	} else if !datastore.IsErrNoSuchEntity(err) {
@@ -89,12 +86,7 @@ func TestQuery(t *testing.T) {
 	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
-	tweet := map[string]string{
-		"user":      "kimchy",
-		"state":     "NY",
-		"post_date": "2009-11-15T14:12:12",
-		"message":   "trying out Elasticsearch",
-	}
+	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch"}
 
 	err = ds.Put(ctx, key, tweet)
 	if err != nil {
@@ -102,12 +94,7 @@ func TestQuery(t *testing.T) {
 	}
 
 	key = datastore.NewKey("tweet", "2")
-	tweet = map[string]string{
-		"user":      "kimchy2",
-		"state":     "NY",
-		"post_date": "2010-11-15T14:12:12",
-		"message":   "trying out Elasticsearch again",
-	}
+	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again"}
 	err = ds.Put(ctx, key, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -140,4 +127,15 @@ func TestQuery(t *testing.T) {
 		t.Errorf("Expected 0 msgs, got  %v", msgs.Len())
 	}
 
+}
+
+type tweettest struct {
+	User      string
+	State     string
+	Post_date string
+	Message   string
+}
+
+func (t *tweettest) ValidateEntity() error {
+	return nil
 }

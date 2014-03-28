@@ -62,7 +62,9 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	HostEquals(t, host, host2)
+	if !HostEquals(t, host, host2) {
+		t.Error("Hosts did not match")
+	}
 
 	//Test update
 	host.Memory = 1024
@@ -71,7 +73,9 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	HostEquals(t, host, host2)
+	if !HostEquals(t, host, host2) {
+		t.Error("Hosts did not match")
+	}
 
 	//test delete
 	err = hs.Delete(ctx, "testid")

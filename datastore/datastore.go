@@ -6,19 +6,30 @@ package datastore
 
 import (
 	"encoding/json"
+	"errors"
+)
+
+var (
+	ErrNilEntity  = errors.New("Nil Entity")
+	ErrNilContext = errors.New("Nil Context")
+	ErrNilKind    = errors.New("Nil Kind")
 )
 
 // Interface for storing and retrieving data types from a datastore.
 type DataStore interface {
 
 	// Put adds or updates an entity
-	Put(ctx Context, key Key, entity interface{}) error
+	Put(ctx Context, key Key, entity ValidEntity) error
 
 	// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
-	Get(ctx Context, key Key, entity interface{}) error
+	Get(ctx Context, key Key, entity ValidEntity) error
 
 	// Delete removes the entity
 	Delete(ctx Context, key Key) error
+}
+
+type ValidEntity interface {
+	ValidateEntity() error
 }
 
 func New() DataStore {
@@ -27,7 +38,20 @@ func New() DataStore {
 
 type dataStore struct{}
 
-func (ds *dataStore) Put(ctx Context, key Key, entity interface{}) error {
+func (ds *dataStore) Put(ctx Context, key Key, entity ValidEntity) error {
+	if ctx == nil {
+		return ErrNilContext
+	}
+	if key == nil {
+		return ErrNilKind
+	}
+	if entity == nil {
+		return ErrNilEntity
+	}
+	if err := entity.ValidateEntity(); err != nil {
+		return err
+	}
+
 	jsonMsg, err := ds.serialize(key.Kind(), entity)
 	if err != nil {
 		return err
@@ -39,7 +63,16 @@ func (ds *dataStore) Put(ctx Context, key Key, entity interface{}) error {
 	return conn.Put(key, jsonMsg)
 }
 
-func (ds *dataStore) Get(ctx Context, key Key, entity interface{}) error {
+func (ds *dataStore) Get(ctx Context, key Key, entity ValidEntity) error {
+	if ctx == nil {
+		return ErrNilContext
+	}
+	if key == nil {
+		return ErrNilKind
+	}
+	if entity == nil {
+		return ErrNilEntity
+	}
 	conn, err := ctx.Connection()
 	if err != nil {
 		return err
@@ -54,6 +87,12 @@ func (ds *dataStore) Get(ctx Context, key Key, entity interface{}) error {
 }
 
 func (ds *dataStore) Delete(ctx Context, key Key) error {
+	if ctx == nil {
+		return ErrNilContext
+	}
+	if key == nil {
+		return ErrNilKind
+	}
 	conn, err := ctx.Connection()
 	if err != nil {
 		return err
