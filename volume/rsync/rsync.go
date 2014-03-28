@@ -153,6 +153,34 @@ func (c *RsyncConn) RemoveSnapshot(label string) error {
 	return nil
 }
 
+// Unmount deletes the volume and snapshots
+func (c *RsyncConn) Unmount() error {
+
+	// Delete all of the snapshots
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	for _, snapshot := range snapshots {
+		if err := c.RemoveSnapshot(snapshot); err != nil {
+			return err
+		}
+	}
+
+	// Delete the volume
+	c.Lock()
+	defer c.Unlock()
+	sh := exec.Command("rm", "-Rf", c.Path())
+	glog.V(4).Infof("About to execute: %s", sh)
+	output, err := sh.CombinedOutput()
+	if err != nil {
+		glog.Errorf("could not delete subvolume: %s", string(output))
+		return fmt.Errorf("could not delete subvolume: %s", c.Path())
+	}
+	return nil
+}
+
 // Rollback rolls back the volume to the given snapshot
 func (c *RsyncConn) Rollback(label string) (err error) {
 	c.Lock()

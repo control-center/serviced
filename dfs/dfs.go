@@ -8,13 +8,10 @@ import (
 
 	docker "github.com/zenoss/go-dockerclient"
 
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"os/user"
-	"path"
 	"strings"
 	"sync"
 )
@@ -91,30 +88,26 @@ func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceS
 }
 
 // Snapshots the DFS
-func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error {
-	var tenantId string
-	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-		return err
-	}
-
+func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
+	// Get the service
 	var service dao.Service
 	if err := d.client.GetService(tenantId, &service); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-		return err
+		glog.V(2).Infof("DistributedFileSystem.Snapshot tenant=%+v err=%s", tenantId, err)
+		return "", err
 	}
 
+	// Only the root user can pause and resume services
 	if whoami, err := getCurrentUser(); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-		return err
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		return "", err
 	} else if USER_ROOT != whoami.Username {
 		glog.Warningf("Unable to pause/resume service - User is not %s - whoami:%+v", USER_ROOT, whoami)
 	} else {
 
 		var servicesList []*dao.Service
 		if err := d.client.GetServices(unused, &servicesList); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-			return err
+			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+			return "", err
 		}
 
 		for _, service := range servicesList {
@@ -124,19 +117,19 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 
 			var states []*dao.ServiceState
 			if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", serviceId, err)
-				return err
+				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", service.Id, err)
+				return "", err
 			}
 
 			// Pause all running service states
 			for i, state := range states {
-				glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, serviceId, state.DockerId)
+				glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service.Id, state.DockerId)
 				if state.DockerId != "" {
 					err := d.Pause(service, state)
 					defer d.Resume(service, state) // resume service state when snapshot is done
 					if err != nil {
-						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-						return err
+						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+						return "", err
 					}
 				}
 			}
@@ -144,54 +137,153 @@ func (d *DistributedFileSystem) Snapshot(serviceId string, label *string) error 
 	}
 
 	// create a snapshot
-	var (
-		theVolume volume.Volume
-	)
+	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		return "", err
+	}
+
+	label := serviced.GetLabel(tenantId)
+	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", service.Id, label, theVolume)
+
+	parts := strings.SplitN(label, "_", 2)
+	if len(parts) < 2 {
+		err := errors.New("invalid label")
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v label=%s err=%s", service.Id, parts, err)
+		return "", err
+	}
+
+	tag := parts[1]
+
+	// Add tags to the images
+	if err := d.tag(tenantId, DOCKER_LATEST, tag); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		return "", err
+	}
+
+	// Add snapshot to the volume
+	if err := theVolume.Snapshot(label); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		return "", err
+	}
+
+	glog.V(2).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
+	return label, nil
+}
+
+// Deletes a snapshot from the DFS
+func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
+	d.Lock()
+	defer d.Unlock()
+
+	parts := strings.SplitN(snapshotId, "_", 2)
+	if len(parts) < 2 {
+		err := errors.New("malformed snapshot")
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	}
+
+	tenantId := parts[0]
+	timestamp := parts[1]
+
+	var service dao.Service
+	if err := d.client.GetService(tenantId, &service); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	}
+
+	var theVolume volume.Volume
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s service=%s err=%s", snapshotId, service.Id, err)
+		return err
+	}
+
+	glog.V(2).Infof("Deleting snapshot %s", snapshotId)
+	if err := theVolume.RemoveSnapshot(snapshotId); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
+		return err
+	}
+
+	glog.V(2).Infof("Removing snapshot tags (%s)", snapshotId)
+	if images, err := d.findImages(tenantId, timestamp); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
 		return err
 	} else {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v volume=%+v", serviceId, theVolume)
-		*label = getSnapshotLabel(&theVolume)
-		if err := theVolume.Snapshot(*label); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", serviceId, err)
-			return err
+		for _, image := range images {
+			repo := image.Repository + ":" + timestamp
+			if err := d.dockerClient.RemoveImage(repo); err != nil {
+				glog.Errorf("unable to untag image: %s (%s)", image.ID, err)
+			}
 		}
 	}
 
-	glog.V(2).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, *label)
+	return nil
+}
+
+// Deletes snapshots of a service
+func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
+	d.Lock()
+	defer d.Unlock()
+
+	// Delete the snapshot subvolume
+	var theVolume volume.Volume
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot tenant=%s err=%s", tenantId, err)
+		return err
+	} else if err := theVolume.Unmount(); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot tenant=%s err=%s", tenantId, err)
+	}
+
+	// Delete the docker repos
+	images, err := d.findImages(tenantId, DOCKER_LATEST)
+	if err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshots tenantId=%s err=%s", tenantId, err)
+		return err
+	}
+	for _, image := range images {
+		if err := d.dockerClient.RemoveImage(image.Repository); err != nil {
+			glog.Errorf("error trying to delete image %s, err=%s", image.Repository, err)
+			err = errors.New("error(s) while removing service images")
+		}
+	}
+	if err != nil {
+		glog.V(2).Infof("DistibutedFileSystem.DeleteSnapshots tenantId=%s err=%s", tenantId, err)
+		return err
+	}
+
 	return nil
 }
 
 // Commits a container to docker image and updates the DFS
-func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
+func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	d.Lock()
 	defer d.Unlock()
 
-	// Get the container
+	// Get the container, and verify that it is not running
 	container, err := d.dockerClient.InspectContainer(dockerId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	} else if container.State.Running {
 		err := errors.New("cannot commit a running container")
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	}
 
-	// Get the service id
-	name := strings.Split(container.Name, "_")
-	serviceId := name[0]
+	// Parse the image information
+	imageID := container.Config.Image
+	repopath := strings.SplitN(imageID, ":", 2)[0]
+	parts := strings.SplitN(repopath, "/", 3)
+	reponame := parts[len(parts)-1]
+	id := strings.SplitN(reponame, "_", 2)[0]
 
-	// Get tag & repo information
-	var (
-		images []docker.APIImages
-		image  *docker.APIImages
-	)
-
-	if err := d.getLatestImages(&images); err != nil {
+	// Verify the image exists and has the latest tag
+	var image *docker.APIImages
+	images, err := d.findImages(id, DOCKER_LATEST)
+	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), id)
+	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	}
 	for _, i := range images {
 		if i.ID == container.Image {
@@ -199,123 +291,32 @@ func (d *DistributedFileSystem) Commit(dockerId string, label *string) error {
 			break
 		}
 	}
+	// If not found or not tagged as latest, then the container is stale and cannot be committed.
 	if image == nil {
 		err := errors.New("cannot commit a stale container")
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	}
 
-	// Commit the container to the image
-	newImage, err := d.dockerClient.CommitContainer(docker.CommitContainerOptions{
+	// Commit the container to the image and tag
+	options := docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: image.Repository,
-		Tag:        image.Tag,
-	})
-	if err != nil {
+	}
+	if _, err := d.dockerClient.CommitContainer(options); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	}
 
-	// Copy images to the DFS
-	*image = docker.APIImages{
-		ID:         newImage.ID,
-		Created:    newImage.Created.Unix(),
-		Size:       newImage.Size,
-		ParentId:   newImage.Parent,
-		Repository: image.Repository,
-		Tag:        image.Tag,
-	}
-
-	// Get the path to the volume and write the images
-	var (
-		tenantId string
-		volume   volume.Volume
-	)
-
-	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
+	// Update the dfs
+	var theVolume volume.Volume
+	if err := d.client.GetVolume(id, &theVolume); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
+		return "", err
 	}
 
-	if err := d.client.GetVolume(tenantId, &volume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
-	}
-
-	config := path.Join(volume.Path(), DOCKER_IMAGEJSON)
-	if data, err := json.Marshal(images); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
-	} else if err := ioutil.WriteFile(config, data, 0644); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
-		return err
-	}
-
-	// Snapshot the DFS
-	if err := d.Snapshot(serviceId, label); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
-		return err
-	}
-
-	return nil
-}
-
-// Gets the images from docker and filters those marked as latest
-func (d *DistributedFileSystem) getLatestImages(images *[]docker.APIImages) error {
-	// Get all of the images from docker and find the ones tagged as the latest
-	if allImages, err := d.dockerClient.ListImages(false); err != nil {
-		return err
-	} else {
-		for _, image := range allImages {
-			for _, rt := range image.RepoTags {
-				repo := rt.Repo()
-				tag := rt.Tag()
-				if tag == DOCKER_LATEST {
-					image.Repository = repo
-					image.Tag = tag
-					*images = append(*images, image)
-				}
-			}
-		}
-	}
-	glog.V(3).Infof("Found %d images: %+v", len(*images), *images)
-	return nil
-}
-
-// Gets the images from the snapshot; returns error if image does not exist in docker
-func (d *DistributedFileSystem) getSnapshotImages(snapshotId string, volume *volume.Volume, images *[]docker.APIImages) error {
-	config := path.Join(path.Dir(volume.Path()), snapshotId, DOCKER_IMAGEJSON)
-
-	if data, err := ioutil.ReadFile(config); err != nil {
-		return err
-	} else if err := json.Unmarshal(data, &images); err != nil {
-		return err
-	}
-
-	// Check if the images still exist
-	for _, image := range *images {
-		if _, err := d.dockerClient.InspectImage(image.ID); err != nil {
-			return err
-		}
-	}
-	glog.V(3).Infof("Found %d images: %+v", len(*images), *images)
-	return nil
-}
-
-// Retags containers with the given snapshot
-func (d *DistributedFileSystem) retag(images *[]docker.APIImages, volume *volume.Volume, force bool) error {
-
-	// Set the tag of the new image
-	for _, image := range *images {
-		if err := d.dockerClient.TagImage(image.ID, docker.TagImageOptions{
-			Repo:  image.Repository,
-			Force: force,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// Snapshot the filesystem and images
+	return d.Snapshot(id)
 }
 
 // Rolls back the DFS to a specified state and retags the images
@@ -323,41 +324,38 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	d.Lock()
 	defer d.Unlock()
 
+	// Get the tenant and the timestamp from the snapshotId
+	parts := strings.SplitN(snapshotId, "_", 2)
+	if len(parts) < 2 {
+		err := errors.New("malformed snapshot id")
+		glog.V(2).Infof("DistributedFileSystem.Rollback snapshot=%s, err=%s", snapshotId, err)
+		return err
+	}
+	tenantId := parts[0]
+	timestamp := parts[1]
+
 	var (
-		services []*dao.Service
-		tenantId string
-		volume   volume.Volume
+		services  []*dao.Service
+		theVolume volume.Volume
 	)
 
-	parts := strings.Split(snapshotId, "_")
-	if len(parts) != 2 {
-		glog.V(2).Infof("DistributedFileSystem.Rollback malformed snapshot Id: %s", snapshotId)
-		return errors.New("malformed snapshotId")
-	}
-	serviceId := parts[0]
-
 	// Fail if any services have running instances
-	glog.V(3).Infof("DistributedFileSystem.Rollback checking service states for service=%s", serviceId)
+	glog.V(3).Infof("DistributedFileSystem.Rollback checking service states")
 	if err := d.client.GetServices(unused, &services); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
 	}
 	for _, service := range services {
 		var states []*dao.ServiceState
 		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
 		}
 		if numstates := len(states); numstates > 0 {
 			err := errors.New(fmt.Sprintf("%s has %d running services. Stop all services before rolling back", service.Id, numstates))
-			glog.V(2).Info("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+			glog.V(2).Info("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
 		}
-	}
-
-	if err := d.client.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		return err
 	}
 
 	// Validate existence of images for this snapshot
@@ -365,47 +363,87 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	var service dao.Service
 	err := d.client.GetService(tenantId, &service)
 	if err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
 	}
 
-	if err := d.client.GetVolume(tenantId, &volume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
 	}
 
-	var latestImages []docker.APIImages
-	if err := d.getLatestImages(&latestImages); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+	// Rollback the dfs
+	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", service.Id, snapshotId)
+	if err := theVolume.Rollback(snapshotId); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
 		return err
 	}
 
-	var snapshotImages []docker.APIImages
-	if err := d.getSnapshotImages(snapshotId, &volume, &snapshotImages); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
+	// Set tags on the images
+	glog.V(3).Infof("DistributedFileSystem.Rollback retagging snapshots tenant=%s", tenantId)
+	if err := d.tag(tenantId, timestamp, DOCKER_LATEST); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
 		return err
 	}
 
-	glog.V(3).Infof("DistributedFileSystem.Rollback retagging snapshots:%+v", snapshotImages)
-	if err := d.retag(&snapshotImages, &volume, false); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		if err := d.retag(&latestImages, &volume, true); err != nil {
-			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
-		}
-		return err
-	}
-
-	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", tenantId, snapshotId)
-	if err := volume.Rollback(snapshotId); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", serviceId, err)
-		if err := d.retag(&latestImages, &volume, true); err != nil {
-			glog.Errorf("DistributedFileSystem.Rollback unable to restore images service=%+v err=%s", serviceId, err)
-		}
-		return err
-	}
 	return nil
 }
 
-func getSnapshotLabel(v *volume.Volume) string {
-	return serviced.GetLabel(v.Name())
+func (d *DistributedFileSystem) findImages(id, tag string) (images []docker.APIImages, err error) {
+	if all, err := d.dockerClient.ListImages(false); err != nil {
+		return images, err
+	} else {
+		for _, image := range all {
+			for _, repotag := range image.RepoTags {
+				// check if the tags match
+				if !strings.HasSuffix(repotag, ":"+tag) {
+					continue
+				}
+
+				// figure out the repo
+				repo := strings.TrimSuffix(repotag, ":"+tag)
+
+				// verify that the repo matches
+				repoparts := strings.SplitN(repo, "/", 3)
+				reponame := repoparts[len(repoparts)-1]
+				if strings.HasPrefix(reponame, id+"_") {
+					image.Repository = repo
+					image.Tag = tag
+					images = append(images, image)
+					break
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
+	images, err := d.findImages(id, oldtag)
+	if err != nil {
+		return err
+	}
+
+	for i, image := range images {
+		options := docker.TagImageOptions{
+			Repo: image.Repository,
+			Tag:  newtag,
+		}
+
+		glog.V(3).Infof("Adding tag to image %s: %+v", image.ID, options)
+		if err := d.dockerClient.TagImage(image.ID, options); err != nil {
+			glog.Errorf("error while adding tags, rolling back...")
+			for j := 0; j < i; j++ {
+				repotag := images[j].Repository + ":" + newtag
+				if err := d.dockerClient.RemoveImage(repotag); err != nil {
+					glog.Errorf("cannot untag image %s: (%s)", repotag, err)
+				}
+			}
+
+			return err
+		}
+	}
+
+	return nil
 }
