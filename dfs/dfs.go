@@ -173,6 +173,9 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 // Deletes a snapshot from the DFS
 func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
+	d.Lock()
+	defer d.Unlock()
+
 	parts := strings.SplitN(snapshotId, "_", 2)
 	if len(parts) < 2 {
 		err := errors.New("malformed snapshot")
@@ -212,6 +215,40 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 				glog.Errorf("unable to untag image: %s (%s)", image.ID, err)
 			}
 		}
+	}
+
+	return nil
+}
+
+// Deletes snapshots of a service
+func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
+	d.Lock()
+	defer d.Unlock()
+
+	// Delete the snapshot subvolume
+	var theVolume volume.Volume
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot tenant=%s err=%s", tenantId, err)
+		return err
+	} else if err := theVolume.Unmount(); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot tenant=%s err=%s", tenantId, err)
+	}
+
+	// Delete the docker repos
+	images, err := d.findImages(tenantId, DOCKER_LATEST)
+	if err != nil {
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshots tenantId=%s err=%s", tenantId, err)
+		return err
+	}
+	for _, image := range images {
+		if err := d.dockerClient.RemoveImage(image.Repository); err != nil {
+			glog.Errorf("error trying to delete image %s, err=%s", image.Repository, err)
+			err = errors.New("error(s) while removing service images")
+		}
+	}
+	if err != nil {
+		glog.V(2).Infof("DistibutedFileSystem.DeleteSnapshots tenantId=%s err=%s", tenantId, err)
+		return err
 	}
 
 	return nil
@@ -390,11 +427,11 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 
 	for i, image := range images {
 		options := docker.TagImageOptions{
-			Repo:  image.Repository,
-			Tag:   newtag,
-			Force: true,
+			Repo: image.Repository,
+			Tag:  newtag,
 		}
 
+		glog.V(3).Infof("Adding tag to image %s: %+v", image.ID, options)
 		if err := d.dockerClient.TagImage(image.ID, options); err != nil {
 			glog.Errorf("error while adding tags, rolling back...")
 			for j := 0; j < i; j++ {

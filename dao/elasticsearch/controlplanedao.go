@@ -468,29 +468,29 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) error {
+func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
 	id := strings.TrimSpace(serviceId)
 	if id == "" {
 		return errors.New("empty serviceId not allowed")
 	}
 
-	var err error
-	var service dao.Service
-	for {
-		err = this.GetService(id, &service)
-		if err == nil {
-			id = service.ParentServiceId
-			if id == "" {
-				*tenantId = service.Id
-				return nil
-			}
+	var traverse func(string) (string, error)
+
+	traverse = func(id string) (string, error) {
+		var service dao.Service
+		if err := this.GetService(id, &service); err != nil {
+			return "", err
+		} else if service.ParentServiceId != "" {
+			return traverse(service.ParentServiceId)
 		} else {
-			return err
+			glog.Infof("parent service: %+v", service)
+			return service.Id, nil
 		}
 	}
 
-	return err
+	*tenantId, err = traverse(id)
+	return
 }
 
 //
@@ -1659,6 +1659,21 @@ func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) erro
 
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
 	return this.dfs.DeleteSnapshot(snapshotId)
+}
+
+func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) error {
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
+		return err
+	}
+
+	if serviceId != tenantId {
+		glog.Infof("ControlPlaneDao.DeleteSnapshots service is not the parent, service=%s, tenant=%s", serviceId, tenantId)
+		return nil
+	}
+
+	return this.dfs.DeleteSnapshots(tenantId)
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
