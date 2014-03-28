@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	ErrInvalidDSN         = errors.New("coord-client: invalid DSN")
 	ErrDriverDoesNotExist = errors.New("coord-client: driver does not exist")
 	ErrNodeExists         = errors.New("coord-client: node exists")
 	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
