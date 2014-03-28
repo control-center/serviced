@@ -16,7 +16,7 @@ var (
 )
 
 // Interface for storing and retrieving data types from a datastore.
-type DataStore interface {
+type EntityStore interface {
 
 	// Put adds or updates an entity
 	Put(ctx Context, key Key, entity ValidEntity) error
@@ -32,13 +32,13 @@ type ValidEntity interface {
 	ValidateEntity() error
 }
 
-func New() DataStore {
-	return &dataStore{}
+func New() EntityStore {
+	return &DataStore{}
 }
 
-type dataStore struct{}
+type DataStore struct{}
 
-func (ds *dataStore) Put(ctx Context, key Key, entity ValidEntity) error {
+func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -63,7 +63,7 @@ func (ds *dataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	return conn.Put(key, jsonMsg)
 }
 
-func (ds *dataStore) Get(ctx Context, key Key, entity ValidEntity) error {
+func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -86,7 +86,7 @@ func (ds *dataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	}
 }
 
-func (ds *dataStore) Delete(ctx Context, key Key) error {
+func (ds *DataStore) Delete(ctx Context, key Key) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -101,7 +101,7 @@ func (ds *dataStore) Delete(ctx Context, key Key) error {
 	return conn.Delete(key)
 }
 
-func (ds *dataStore) serialize(kind string, entity interface{}) (JsonMessage, error) {
+func (ds *DataStore) serialize(kind string, entity interface{}) (JsonMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
 	data, err := json.Marshal(entity)
 	if err != nil {
@@ -110,7 +110,7 @@ func (ds *dataStore) serialize(kind string, entity interface{}) (JsonMessage, er
 	return &jsonMessage{data}, nil
 }
 
-func (ds *dataStore) deserialize(kind string, jsonMsg JsonMessage, entity interface{}) error {
+func (ds *DataStore) deserialize(kind string, jsonMsg JsonMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
 	return SafeUnmarshal(jsonMsg.Bytes(), entity)
 }
