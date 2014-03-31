@@ -60,10 +60,6 @@
 			"Rev": "ea09f7d79be2a99bb6989c7b6ada5fea44b2cb10"
 		},
 		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "0448bff43c4612f2672668de2a2433fd4350771f"
-		},
-		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
 			"Rev": "39ea673116083ccf7813d15c9a3f40e937061011"
 		}
