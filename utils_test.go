@@ -18,7 +18,7 @@ func TestGetMemorySize(t *testing.T) {
 
 	// alter the file getMemorySize() is looking at
 	meminfoFile = "testfiles/meminfo"
-	size, err := getMemorySize()
+	size, err := GetMemorySize()
 	if err != nil {
 		t.Errorf("Failed to parse memory file: %s", err)
 		t.Fail()
