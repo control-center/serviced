@@ -8,10 +8,12 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 )
 
-type Facade struct {
-	hostStore host.HostStore
-}
-
+// New creates an initialized  Facade instance
 func New(hostStore host.HostStore) *Facade {
 	return &Facade{hostStore}
+}
+
+// Facade is an entrypoint to available controlpane methods
+type Facade struct {
+	hostStore host.HostStore
 }

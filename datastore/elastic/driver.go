@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+//ElasticDriver describes an the Elastic Search driver
 type ElasticDriver interface {
 	SetProperty(name string, prop interface{}) error
 	// AddMapping add a document mapping to be registered with ElasticSearch
@@ -28,6 +29,7 @@ type ElasticDriver interface {
 	GetConnection() (datastore.Connection, error)
 }
 
+// New creates a new ElasticDriver
 func New(host string, port uint16, index string) ElasticDriver {
 	return new(host, port, index)
 }
@@ -73,7 +75,7 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 	case <-healthy:
 		glog.Infof("Got response from Elastic")
 	case <-time.After(timeout):
-		return errors.New("Timed Out waiting for response from Elastic")
+		return errors.New("timed Out waiting for response from Elastic")
 	}
 
 	if err := ed.postIndex(); err != nil {
@@ -105,7 +107,7 @@ func (ed *elasticDriver) elasticURL() string {
 	return fmt.Sprintf("http://%s:%d", ed.host, ed.port)
 }
 
-func (ed *elasticDriver) indexUrl() string {
+func (ed *elasticDriver) indexURL() string {
 	return fmt.Sprintf("%s/%s/", ed.elasticURL(), ed.index)
 }
 
@@ -125,10 +127,10 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 			if ed.isUp() {
 				healthy <- 1
 				return
-			} else {
-				glog.Infof("Waiting for Elastic Search")
-				time.Sleep(500 * time.Millisecond)
 			}
+			glog.Infof("Waiting for Elastic Search")
+			time.Sleep(500 * time.Millisecond)
+
 		case <-quit:
 			return
 		}
@@ -139,11 +141,11 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 func (ed *elasticDriver) postMappings() error {
 
 	post := func(typeName string, mappingBytes []byte) error {
-		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexUrl(), typeName)
+		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexURL(), typeName)
 		glog.Infof("Posting mapping to %s", mapURL)
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
 		if err != nil {
-			return fmt.Errorf("Error mapping %s: %s", typeName, err)
+			return fmt.Errorf("error mapping %s: %s", typeName, err)
 		}
 		glog.Infof("Response %v", resp)
 		defer resp.Body.Close()
@@ -153,7 +155,7 @@ func (ed *elasticDriver) postMappings() error {
 			return err
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("Response %d mapping %s: %s", resp.StatusCode, typeName, string(body))
+			return fmt.Errorf("response %d mapping %s: %s", resp.StatusCode, typeName, string(body))
 		}
 		return nil
 	}
@@ -188,7 +190,7 @@ func (ed *elasticDriver) postMappings() error {
 }
 
 func (ed *elasticDriver) postIndex() error {
-	url := ed.indexUrl()
+	url := ed.indexURL()
 	glog.Infof("Posting Index to %s", url)
 
 	config := make(map[string]interface{})
@@ -234,7 +236,7 @@ func (ed *elasticDriver) postIndex() error {
 	}
 	if errResponse {
 		glog.Errorf("Error creating index: %s", string(body))
-		return fmt.Errorf("Error posting index: %v", resp.Status)
+		return fmt.Errorf("error posting index: %v", resp.Status)
 	}
 	return nil
 }

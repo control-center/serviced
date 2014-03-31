@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 )
 
+//SafeUnmarshal sets the json decoder to use number types
 func SafeUnmarshal(data []byte, v interface{}) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()

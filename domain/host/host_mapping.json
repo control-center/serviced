@@ -1,10 +1,10 @@
 {
     "host": {
         "properties":{
-            "Id" :            {"type": "string", "index":"not_analyzed"},
+            "ID" :            {"type": "string", "index":"not_analyzed"},
             "Name":           {"type": "string", "index":"not_analyzed"},
-            "PoolId":         {"type": "string", "index":"not_analyzed"},
-            "IpAddr":         {"type": "string", "index":"not_analyzed"},
+            "PoolID":         {"type": "string", "index":"not_analyzed"},
+            "IPAddr":         {"type": "string", "index":"not_analyzed"},
             "Cores":          {"type": "long", "index":"not_analyzed"},
             "Memory":         {"type": "long", "index":"not_analyzed"},
             "PrivateNetwork": {"type": "string", "index":"not_analyzed"},

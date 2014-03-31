@@ -17,6 +17,7 @@ func (e ErrNoSuchEntity) Error() string {
 	return fmt.Sprintf("No such entity {kind:%s, id:%s}", e.Key.Kind(), e.Key.ID())
 }
 
+//IsErrNoSuchEntity check see if error param is of type ErrNoSuchEntity
 func IsErrNoSuchEntity(err error) bool {
 	switch err.(type) {
 	case ErrNoSuchEntity:

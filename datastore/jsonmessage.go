@@ -8,14 +8,14 @@ import (
 	"encoding/json"
 )
 
-// JsonMessage Represents a enity as JSON
-type JsonMessage interface {
+// JSONMessage Represents a enity as JSON
+type JSONMessage interface {
 	// Bytes return the JSON bytes of an entity
 	Bytes() json.RawMessage
 }
 
-// NewJsonMessage creates a JsonMessage using the provided bytes. The bytes should represent valid JSON
-func NewJsonMessage(data []byte) JsonMessage {
+// NewJSONMessage creates a JSONMessage using the provided bytes. The bytes should represent valid JSON
+func NewJSONMessage(data []byte) JSONMessage {
 	return &jsonMessage{data}
 }
 

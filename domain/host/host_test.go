@@ -68,7 +68,7 @@ func Test_ValidateTable(t *testing.T) {
 		h.PoolID = test.poolid
 		h.IPAddr = test.ip
 
-		err := h.ValidateEntity()
+		err := h.ValidEntity()
 		if len(test.expectedErrors) > 0 {
 			if verr, isVErr := err.(*validation.ValidationError); !isVErr {
 				t.Errorf("expected ValidationError, got %v", err)
@@ -136,7 +136,7 @@ func Test_Build(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
-	if err = host.ValidateEntity(); err != nil {
+	if err = host.ValidEntity(); err != nil {
 		t.Errorf("Validation failed %v", err)
 	}
 

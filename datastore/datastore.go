@@ -10,12 +10,15 @@ import (
 )
 
 var (
-	ErrNilEntity  = errors.New("Nil Entity")
-	ErrNilContext = errors.New("Nil Context")
-	ErrNilKind    = errors.New("Nil Kind")
+	//ErrNilEntity returned when Entity parameter is nil
+	ErrNilEntity = errors.New("nil Entity")
+	//ErrNilContext returned when Context parameter is nil
+	ErrNilContext = errors.New("nil Context")
+	//ErrNilKind returned when Kind parameter is nil
+	ErrNilKind = errors.New("nil Kind")
 )
 
-// Interface for storing and retrieving data types from a datastore.
+// EntityStore interface for storing and retrieving data types from a datastore.
 type EntityStore interface {
 
 	// Put adds or updates an entity
@@ -28,16 +31,20 @@ type EntityStore interface {
 	Delete(ctx Context, key Key) error
 }
 
+//ValidEntity interface for entities that can be stored in the EntityStore
 type ValidEntity interface {
-	ValidateEntity() error
+	ValidEntity() error
 }
 
+//New returns a new EntityStore
 func New() EntityStore {
 	return &DataStore{}
 }
 
+//DataStore EntityStore type
 type DataStore struct{}
 
+// Put adds or updates an entity
 func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
@@ -48,7 +55,7 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	if entity == nil {
 		return ErrNilEntity
 	}
-	if err := entity.ValidateEntity(); err != nil {
+	if err := entity.ValidEntity(); err != nil {
 		return err
 	}
 
@@ -63,6 +70,7 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	return conn.Put(key, jsonMsg)
 }
 
+// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
 func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
@@ -78,14 +86,16 @@ func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 		return err
 	}
 
-	if jsonMsg, err := conn.Get(key); err != nil {
-		return err
-	} else {
-		err = ds.deserialize(key.Kind(), jsonMsg, entity)
+	jsonMsg, err := conn.Get(key)
+	if err != nil {
 		return err
 	}
+	err = ds.deserialize(key.Kind(), jsonMsg, entity)
+	return err
+
 }
 
+// Delete removes the entity
 func (ds *DataStore) Delete(ctx Context, key Key) error {
 	if ctx == nil {
 		return ErrNilContext
@@ -101,7 +111,7 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 	return conn.Delete(key)
 }
 
-func (ds *DataStore) serialize(kind string, entity interface{}) (JsonMessage, error) {
+func (ds *DataStore) serialize(kind string, entity interface{}) (JSONMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
 	data, err := json.Marshal(entity)
 	if err != nil {
@@ -110,7 +120,7 @@ func (ds *DataStore) serialize(kind string, entity interface{}) (JsonMessage, er
 	return &jsonMessage{data}, nil
 }
 
-func (ds *DataStore) deserialize(kind string, jsonMsg JsonMessage, entity interface{}) error {
+func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
 	return SafeUnmarshal(jsonMsg.Bytes(), entity)
 }

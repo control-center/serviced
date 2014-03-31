@@ -21,7 +21,8 @@ func NewQuery(ctx Context) Query {
 	return &query{ctx}
 }
 
-var ErrNoSuchElement error = errors.New("NoSuchElement")
+// ErrNoSuchElement if requested element not available
+var ErrNoSuchElement = errors.New("no such element")
 
 // Results iterates or indexes into the results returned from a query
 type Results interface {
@@ -58,7 +59,7 @@ func (q *query) Execute(query interface{}) (Results, error) {
 }
 
 type results struct {
-	data []JsonMessage
+	data []JSONMessage
 	idx  int
 }
 
@@ -89,6 +90,6 @@ func (r *results) HasNext() bool {
 	return r.idx < len(r.data)
 }
 
-func newResults(data []JsonMessage) Results {
+func newResults(data []JSONMessage) Results {
 	return &results{data, 0}
 }

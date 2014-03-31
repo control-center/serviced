@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-//ValidateEntity validates Host fields
-func (h *Host) ValidateEntity() error {
+//ValidEntity validates Host fields
+func (h *Host) ValidEntity() error {
 	glog.Info("Validating host")
 
 	violations := validation.NewValidationError()

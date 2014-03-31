@@ -16,11 +16,11 @@ func (d *testDriver) GetConnection() (Connection, error) {
 
 type testConn struct{}
 
-func (c testConn) Put(key Key, data JsonMessage) error {
+func (c testConn) Put(key Key, data JSONMessage) error {
 	return nil
 }
 
-func (c testConn) Get(key Key) (JsonMessage, error) {
+func (c testConn) Get(key Key) (JSONMessage, error) {
 	return nil, nil
 }
 
@@ -28,7 +28,7 @@ func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn) Query(interface{}) ([]JsonMessage, error) {
+func (c testConn) Query(interface{}) ([]JSONMessage, error) {
 	return nil, nil
 }
 

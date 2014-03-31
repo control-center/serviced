@@ -20,24 +20,25 @@ type elasticConnection struct {
 	index string
 }
 
-func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JsonMessage) error {
+func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
 	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 
 	glog.Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
-	var raw json.RawMessage = msg.Bytes()
+	var raw json.RawMessage
+	raw = msg.Bytes()
 	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &raw)
-	glog.Infof("Put response: %s", resp)
+	glog.Infof("Put response: %v", resp)
 	if err != nil {
 		glog.Infof("Put err: %v", err)
 		return err
 	}
 	if !resp.Ok {
-		return fmt.Errorf("Non OK response: %v", resp)
+		return fmt.Errorf("non OK response: %v", resp)
 	}
 	return nil
 }
 
-func (ec *elasticConnection) Get(key datastore.Key) (datastore.JsonMessage, error) {
+func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
 	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
 	glog.Infof("Get for {kind:%s, id:%s}", key.Kind(), key.ID())
 	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
@@ -51,7 +52,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JsonMessage, erro
 		return nil, datastore.ErrNoSuchEntity{key}
 	}
 	bytes := response.Source
-	return datastore.NewJsonMessage(bytes), nil
+	return datastore.NewJSONMessage(bytes), nil
 }
 
 func (ec *elasticConnection) Delete(key datastore.Key) error {
@@ -64,29 +65,29 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 	return nil
 }
 
-func (ec *elasticConnection) Query(query interface{}) ([]datastore.JsonMessage, error) {
+func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
 
 	search, ok := query.(*search.SearchDsl)
 	if !ok {
-		return nil, fmt.Errorf("Invalid search type %v", reflect.ValueOf(query))
+		return nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
 	}
 	resp, err := search.Result()
 	if err != nil {
-		err = fmt.Errorf("Error executing query %v", err)
+		err = fmt.Errorf("error executing query %v", err)
 		glog.Infof("%v", err)
 		return nil, err
 	}
-	return toJsonMessages(resp), nil
+	return toJSONMessages(resp), nil
 }
 
 // convert search result of json host to dao.Host array
-func toJsonMessages(result *core.SearchResult) []datastore.JsonMessage {
+func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
 	glog.Infof("Converting results %v", result)
 	var total = len(result.Hits.Hits)
-	var msgs []datastore.JsonMessage = make([]datastore.JsonMessage, total)
-	for i := 0; i < total; i += 1 {
+	var msgs = make([]datastore.JSONMessage, total)
+	for i := 0; i < total; i++ {
 		glog.Infof("Adding result %s", string(result.Hits.Hits[i].Source))
-		msg := datastore.NewJsonMessage(result.Hits.Hits[i].Source)
+		msg := datastore.NewJSONMessage(result.Hits.Hits[i].Source)
 		msgs[i] = msg
 	}
 	return msgs
@@ -120,7 +121,7 @@ type elasticResponse struct {
 	Ok      bool            `json:"ok"`
 	Index   string          `json:"_index,omitempty"`
 	Type    string          `json:"_type,omitempty"`
-	Id      string          `json:"_id,omitempty"`
+	ID      string          `json:"_id,omitempty"`
 	Source  json.RawMessage `json:"_source,omitempty"` // depends on the schema you've defined
 	Version int             `json:"_version,omitempty"`
 	Found   bool            `json:"found,omitempty"`

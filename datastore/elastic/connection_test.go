@@ -40,7 +40,7 @@ func TestPutGetDelete(t *testing.T) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -99,7 +99,7 @@ func TestQuery(t *testing.T) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -112,7 +112,7 @@ func TestQuery(t *testing.T) {
 		"message":   "trying out Elasticsearch again",
 	}
 	tweetJson, err = json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJsonMessage(tweetJson))
+	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
 	if err != nil {
 		t.Errorf("%v", err)
 	}

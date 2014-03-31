@@ -10,7 +10,7 @@ type Context interface {
 	Connection() (Connection, error)
 }
 
-//Creates a new context with an Driver to a datastore
+//NewContext Creates a new context with an Driver to a datastore
 func NewContext(driver Driver) Context {
 	return &context{driver}
 }

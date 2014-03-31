@@ -4,7 +4,7 @@
 
 package datastore
 
-// Drive is the interface for a driver to a datastore
+// Driver is the interface for a driver to a datastore
 type Driver interface {
 	// GetConnection returns a connection to the datastore.
 	GetConnection() (Connection, error)
@@ -14,14 +14,14 @@ type Driver interface {
 type Connection interface {
 
 	// Put adds or updates an entity in the datastore using the Key.
-	Put(key Key, data JsonMessage) error
+	Put(key Key, data JSONMessage) error
 
 	// Get returns an entity from the datastore. Can return ErrNoSuchEntity if the entity does not exists
-	Get(key Key) (JsonMessage, error)
+	Get(key Key) (JSONMessage, error)
 
 	// Delete deletes an entity associated with the key
 	Delete(key Key) error
 
 	// Query evaluates the query and returns a list of entities form the datastore
-	Query(query interface{}) ([]JsonMessage, error)
+	Query(query interface{}) ([]JSONMessage, error)
 }

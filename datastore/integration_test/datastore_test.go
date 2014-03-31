@@ -100,7 +100,7 @@ func TestQuery(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 
-	query := search.Query().Search("_exists_:state")
+	query := search.Query().Search("_exists_:State")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
 	q := datastore.NewQuery(ctx)
@@ -136,6 +136,6 @@ type tweettest struct {
 	Message   string
 }
 
-func (t *tweettest) ValidateEntity() error {
+func (t *tweettest) ValidEntity() error {
 	return nil
 }

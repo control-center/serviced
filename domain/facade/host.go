@@ -45,80 +45,89 @@ func (f *Facade) afterHostAdd(session session, host *host.Host, err error) {
 
 // beforeHostRemove called before removing a host. The same session instance is passed here and the corresponding
 // afterHostRemove. If an error is returned host will not be removed.
-func (f *Facade) beforeHostRemove(session session, hostId string) error {
+func (f *Facade) beforeHostRemove(session session, hostID string) error {
 	return nil
 }
 
 // afterHostRemove called after removing a host, if there was an error removing the host err will be non nil. The same
 // session instance is passed here and the corresponding beforeHostRemove
-func (f *Facade) afterHostRemove(session session, hostId string, err error) {
+func (f *Facade) afterHostRemove(session session, hostID string, err error) {
 	//TODO: remove AddressAssignments with this host
 }
 
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// Register a host with serviced. Returns an error if host already exists
-func (f *Facade) AddHost(ctx datastore.Context, host *host.Host) error {
-	glog.V(2).Infof("Facade.AddHost: %+v", host)
-	exists, err := f.GetHost(ctx, host.Id)
+// AddHost register a host with serviced. Returns an error if host already exists
+func (f *Facade) AddHost(ctx datastore.Context, h *host.Host) error {
+	glog.V(2).Infof("Facade.AddHost: %v", h)
+	glog.Infof("Facade.AddHost: %v", h)
+	exists, err := f.GetHost(ctx, h.ID)
+	glog.Infof("Facade.AddHost: after gethost %v", exists)
 	if err != nil {
 		return err
 	}
 	if exists != nil {
-		return fmt.Errorf("Host with ID %s already exists", host.Id)
+		return fmt.Errorf("host with ID %s already exists", h.ID)
 	}
 
 	// validate Pool exists
 
 	s := newSession()
-	err = f.beforeHostAdd(s, host)
+	err = f.beforeHostAdd(s, h)
 	now := time.Now()
-	host.CreatedAt = now
-	host.UpdatedAt = now
+	h.CreatedAt = now
+	h.UpdatedAt = now
 	if err == nil {
-		err = f.hostStore.Put(ctx, host)
+		err = f.hostStore.Put(ctx, host.HostKey(h.ID), h)
 	}
-	defer f.afterHostAdd(s, host, err)
+	defer f.afterHostAdd(s, h, err)
 	return err
 
 }
 
-// Update Host information for a registered host
-func (f *Facade) UpdateHost(ctx datastore.Context, host *host.Host) error {
-	glog.V(2).Infof("Facade.UpdateHost: %+v", host)
+// UpdateHost information for a registered host
+func (f *Facade) UpdateHost(ctx datastore.Context, h *host.Host) error {
+	glog.V(2).Infof("Facade.UpdateHost: %+v", h)
 	//TODO: make sure pool exists
 	s := newSession()
-	err := f.beforeHostUpdate(s, host)
+	err := f.beforeHostUpdate(s, h)
 	now := time.Now()
-	host.UpdatedAt = now
+	h.UpdatedAt = now
 	if err == nil {
-		err = f.hostStore.Put(ctx, host)
+		err = f.hostStore.Put(ctx, host.HostKey(h.ID), h)
 	}
-	defer f.afterHostUpdate(s, host, err)
+	defer f.afterHostUpdate(s, h, err)
 	return err
 }
 
-// Remove a Host from serviced
-func (f *Facade) RemoveHost(ctx datastore.Context, hostId string) error {
-	glog.V(2).Infof("Facade.RemoveHost: %s", hostId)
+// RemoveHost removes  a Host from serviced
+func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
+	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	s := newSession()
-	err := f.beforeHostRemove(s, hostId)
+	err := f.beforeHostRemove(s, hostID)
 	if err == nil {
-		err = f.hostStore.Delete(ctx, hostId)
+		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
-	defer f.afterHostRemove(s, hostId, err)
+	defer f.afterHostRemove(s, hostID, err)
 	return err
 }
 
-// Get Host by id
-func (f *Facade) GetHost(ctx datastore.Context, hostId string) (*host.Host, error) {
-	glog.V(2).Infof("Facade.GetHost: id=%s", hostId)
-	host, err := f.hostStore.Get(ctx, hostId)
-	if err != nil && !datastore.IsErrNoSuchEntity(err) {
+// GetHost gets a host by id. Returns nil if host not found
+func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
+	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
+
+	glog.Infof("Facade.GetHost: id=%s", hostID)
+	var value host.Host
+	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
+	glog.Infof("Facade.GetHost: get error %v", err)
+	if datastore.IsErrNoSuchEntity(err) {
+		return nil, nil
+	}
+	if err != nil {
 		return nil, err
 	}
-	return host, nil
+	return &value, nil
 }
 
 // GetHosts returns a list of all registered hosts

@@ -12,6 +12,7 @@ type Key interface {
 	ID() string
 }
 
+//NewKey returns an initialized Key
 func NewKey(kind string, id string) Key {
 	return &key{id, kind}
 }

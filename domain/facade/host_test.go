@@ -42,10 +42,11 @@ func Test_HostCRUD(t *testing.T) {
 
 	//fill host with required values
 	h, err := host.Build("", "pool-id", []string{}...)
-	h.Id = "facadetestid"
+	h.ID = "facadetestid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
+	glog.Infof("Facade test add host %v", h)
 	err = tf.AddHost(ctx, h)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -61,7 +62,10 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if !host.HostEquals(t, h, h2){
+	if h2 == nil {
+		t.Error("Unexpected nill host")
+
+	} else if !host.HostEquals(t, h, h2) {
 		t.Error("Hosts did not match")
 	}
 
@@ -72,7 +76,7 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if !host.HostEquals(t, h, h2){
+	if !host.HostEquals(t, h, h2) {
 		t.Error("Hosts did not match")
 	}
 
