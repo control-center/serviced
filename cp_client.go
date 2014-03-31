@@ -10,10 +10,11 @@
 package serviced
 
 import (
+	"net/rpc"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
-	"net/rpc"
 )
 
 // A serviced client.
@@ -245,6 +246,10 @@ func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshots", serviceId, labels)
 }
 
+func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
+}
+
 func (s *ControlClient) Get(service dao.Service, file *string) error {
 	return s.rpcClient.Call("ControlPlane.Get", service, file)
 }
@@ -265,4 +270,8 @@ func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
 
 func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
 	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
+}
+
+func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
+	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint)
 }

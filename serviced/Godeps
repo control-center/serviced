@@ -28,7 +28,7 @@
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
-			"ImportPath": "github.com/dotcloud/docker",
+			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
 			"Rev": "a1598d1e1c157388f3b07415729de28f4d205e49"
 		},
 		{
@@ -53,19 +53,15 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "776492278b0bca8f9bad17bfdfd27b8e189c5d28"
+			"Rev": "a2eac79392188053422ed0d0a270f2235cf17776"
 		},
 		{
 			"ImportPath": "github.com/rcrowley/go-metrics",
 			"Rev": "ea09f7d79be2a99bb6989c7b6ada5fea44b2cb10"
 		},
 		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "0448bff43c4612f2672668de2a2433fd4350771f"
-		},
-		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Rev": "39ea673116083ccf7813d15c9a3f40e937061011"
+			"Rev": "278279d13fcc7f0b95f01960a3adb0f6263fa2c4"
 		}
 	]
 }

@@ -49,6 +49,7 @@ const (
 type HostAgent struct {
 	master          string   // the connection string to the master agent
 	hostId          string   // the hostID of the current host
+	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
 	mount           []string // each element is in the form: container_image:host_path:container_path
 	vfs             string   // driver for container volumes
@@ -64,10 +65,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.dockerDns = dockerDns
 	agent.varPath = varPath
 	agent.mount = mount
 	agent.vfs = vfs
@@ -347,29 +349,57 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
-		if err := cmd.Wait(); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					statusCode := status.ExitStatus()
-					switch {
-					case statusCode == 137:
-						glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+		done := make(chan error)
+		go func() {
+			done <- cmd.Wait()
+		}()
+		loop := true
+		stateUpdateEvery := time.Tick(time.Second * 20)
+		for loop {
+			select {
+			case err := <-done:
+				if err != nil {
+					if exiterr, ok := err.(*exec.ExitError); ok {
+						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+							statusCode := status.ExitStatus()
+							switch {
+							case statusCode == 137:
+								glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
 
-					case statusCode == 2:
-						glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+							case statusCode == 2:
+								glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
 
-					default:
-						glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-						dumpOut(lastStdout, lastStderr, circularBufferSize)
+							default:
+								glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
+								dumpOut(lastStdout, lastStderr, circularBufferSize)
+							}
+						}
+					} else {
+						glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
 					}
+				} else {
+					glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
 				}
-			} else {
-				glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
-			}
-		} else {
-			glog.V(0).Infof("Process for service state %s finished", serviceState.Id)
-		}
+				loop = false
+			case <-stateUpdateEvery:
+				containerState, err := getDockerState(dockerId)
+				if err != nil {
+					glog.Errorf("Could not get docker state: %v", err)
+					continue
+				}
+				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+					ss.DockerId = containerState.ID
+					ss.Started = time.Now()
+					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+					ss.PrivateIp = containerState.NetworkSettings.IPAddress
+					ss.PortMapping = containerState.NetworkSettings.Ports
+					sState = ss
+				}); err != nil {
+					glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
+				}
 
+			}
+		}
 		if err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id); err != nil {
 			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
 		}
@@ -542,11 +572,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	// add arguments to mount requested directory (if requested)
 	requestedMount := ""
 	for _, bindMountString := range a.mount {
-		splitMount := strings.Split(bindMountString, ":")
-		if len(splitMount) == 3 {
+		splitMount := strings.Split(bindMountString, ",")
+		numMountArgs := len(splitMount)
+
+		if numMountArgs == 2 || numMountArgs == 3 {
 			requestedImage := splitMount[0]
 			hostPath := splitMount[1]
-			containerPath := splitMount[2]
+
+			// assume the container path is going to be the same as the host path
+			containerPath := hostPath
+
+			// if the container path is provided, use it
+			if numMountArgs > 2 {
+				containerPath = splitMount[2]
+			}
+
 			if requestedImage == service.ImageId {
 				requestedMount += " -v " + hostPath + ":" + containerPath
 			}
@@ -561,9 +601,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name)
 	environmentVariables += fmt.Sprintf("-e CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password)
 
+	// add dns values to setup
+	dns := ""
+	for _, addr := range a.dockerDns {
+		if len(dns) > 0 {
+			dns += " "
+		}
+
+		_addr := strings.TrimSpace(addr)
+		if len(_addr) > 0 {
+			dns += "--dns " + addr
+		}
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	//									 01			  02 03	   04 05 06 07 08 09 10	  01	   02				03					  04			 05				 06						 07			 08			  09			   10
-	cmdString := fmt.Sprintf("docker run %s -rm -name=%s %s -v %s %s %s %s %s %s %s", portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s -rm -name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)

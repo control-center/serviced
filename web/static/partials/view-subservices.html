@@ -19,13 +19,13 @@
           <div id="app_data_status" class="toggle btn-group" data-toggle="buttons">
             <label ng-class="services.current.runningClass" ng-click="clickRunning(services.current, 'start', servicesService)">
               <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="1">
+                     ng-model="services.current.Running" value="1" />
               {{services.current.runningText|translate}}
             </label>
             
             <label ng-class="services.current.notRunningClass" ng-click="clickRunning(services.current, 'stop', servicesService)">
               <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="stopped">
+                     ng-model="services.current.Running" value="stopped" />
               {{services.current.notRunningText|translate}}
             </label>
           </div>
@@ -48,36 +48,84 @@
           <input type="text" id="app_data_image" class="image"
                  ng-model="services.current.ImageId"></input>
         </div>
-
-        <table class="table table-striped table-bordered table-hover">
-          <thead>
-            <tr>
-              <th>Path</th>
-              <th>Owner</th>
-              <th>Perms</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr ng-repeat="configFile in services.current.ConfigFiles">
-               <td>{{ configFile.Filename }}</td>
-               <td>{{ configFile.Owner }}</td>
-               <td>{{ configFile.Permissions }}</td>
-               <td>
-                 <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
-               </td>
-            </trNwq          </tbody>
-        </table>
-
       </div>
-      <div class="details-actions">
+      <div class="details-actions">	    
         <button ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
         <button ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
         <button ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
       </div>
     </div>
 
+	<!-- Virtual Host Names -->
+	<h3>{{'virtualhostnames'|translate}}</h3>
+	<table class="table table-striped table-bordered table-hover" id="vhosts_data">
+		<thead>
+			<tr>
+				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
+					<button ng-click="vhosts.set_order(header.id, vhosts)" 
+									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort" class="link">			
+				<td>{{vhost.Name}}</td>
+				<td>{{vhost.Application}}</td> <td>{{vhost.ServiceEndpoint}}</td>
+				<td><a href="{{vhost_url( vhost.Name)}}">{{vhost_url(vhost.Name)}}</a></td>
+				<td> <button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link">Delete</button> </td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h4>{{'vhost_controls' | translate}}</h4>
+	<div id="add_vhost">
+		<table class="table table-striped table-bordered table-hover" id="add_vhost_data">
+			<thead>
+				<tr>
+					<th>{{'vhost_name' | translate}}</th>
+					<th>{{'vhost_application' | translate}} and {{'vhost_service_endpoint' | translate}}</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><input type="text" id="vhost_data" ng-model="vhosts.add.name"></input> </td>
+					<td><select ng-model="vhosts.add.app_ep" ng-options="opt as opt.Value for opt in vhosts.options"></select> </td>
+				</tr>
+			</tbody>
+		</table>
+		<span class="add-control">
+			<button class="btn-link" ng-click="addVHost()">
+				<span class="glyphicon glyphicon-plus-sign"></span>
+				{{'modal_add_vhost' | translate}}
+			</button>
+		</span>
+	</div>
+
+	<!-- Config Files -->
+	<h3>{{'title_config_files' | translate }}</h3>
+	<table class="table table-striped table-bordered table-hover" >
+      <thead>
+        <tr>
+          <th>Path</th>
+          <th>Owner</th>
+          <th>Perms</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="configFile in services.current.ConfigFiles">
+          <td>{{ configFile.Filename }}</td>
+          <td>{{ configFile.Owner }}</td>
+          <td>{{ configFile.Permissions }}</td>
+          <td>
+            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
+          </td>
+		</tr>
+      </tbody>
+    </table>
+	
     <!-- This table has sub service definitions -->
+	<h3 ng-show="services.subservices.length > 0">Subservices</h3>
     <table class="table table-striped table-bordered table-hover" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
@@ -88,7 +136,7 @@
         <tr ng-repeat="app in services.subservices">
           <td ng-click="click_app(app.Id)" class="link">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
-          <td>
+          <td width="200">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
                 <input type="radio" name="running{{$index}}" 
@@ -104,7 +152,7 @@
             </div>
           </td>
           <td>
-            <button ng-click="viewConfig(app)" class="btn btn-link disabled">{{'action_view_cfg'|translate}}</button> 
+			 {{app.Startup}}
           </td>
         </tr>
       </tbody>
@@ -112,10 +160,14 @@
 
 
     <!-- This table has running instances -->
+	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
     <table class="table table-striped table-bordered table-hover" ng-show="running.data.length > 0">
       <thead>
         <tr>
-          <th colspan="4">{{'running_tbl_instances'|translate}}</th>
+          <th>{{'label_service_name'|translate}}</th>
+		  <th>{{'host'|translate}}</th>
+		  <th>{{'running_tbl_docker_id'|translate}}</th>
+		  <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
@@ -126,21 +178,21 @@
           <td>
             <button ng-click="viewLog(app)" class="btn btn-link">{{'action_view_log'|translate}}</button>
             |
-            <button ng-click="killRunning(app)" class="btn btn-link">{{'action_kill'|translate}}</button>
+            <button ng-click="killRunning(app)" class="btn btn-link">{{'action_restart'|translate}}</button>
             |
-            <button ng-click="startTerminal(app)" class="btn btn-link">{{'action_terminal'|translate}}</button>
+            <button ng-click="startTerminal(app)" class="btn btn-link disabled">{{'action_terminal'|translate}}</button>
           </td>
         </tr>
       </tbody>
     </table>
-
+	<h3>{{'scheduled_tasks'|translate}}</h3>
     <table class="table tabl-striped table-bordered table-hover">
         <thead>
             <tr>
-                <th>Schedule</th>
-                <th>Command</th>
-                <th>Last Run</th>
-                <th>Total Run Count</th>
+                <th>{{'task_schedule'|translate}}</th>
+				<th>{{'task_command' |translate}}</th>
+				<th>{{'task_last_run'|translate}}</th>
+				<th>{{'task_run_count'|translate}}</th>                
             </tr>
         </thead>
         <tbody>
