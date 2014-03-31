@@ -9,7 +9,7 @@
     "applications": "Aplicaci\u00f3nes",
     "brand_cp": "Panel de Control",
     "brand_zcp": "Panel de Control de Zenoss",
-    "breadcrumb_deployed": "Aplicaciones Desplegadas",
+    "breadcrumb_deployed": "Aplicaciones Instaladas",
     "breadcrumb_hosts": "Servidores",
     "breadcrumb_services_map": "Mapa de Servicios",
     "btn_add": "A\u00f1adir",
@@ -35,8 +35,9 @@
     "ctl_running_restarting": "reiniciando",
     "ctl_running_started": "iniciado",
     "ctl_running_stopped": "parado",
-    "deployed_tbl_deployment": "Estado del Despliegue",
+    "deployed_tbl_deployment": "Estado de la Instalaci\u00f3n",
     "deployed_tbl_details": "Detalles",
+    "deployed_tbl_deployment_id": "ID de la Instalaci\u00f3n",
     "deployed_tbl_name": "Aplicaci\u00f3n",
     "deployed_tbl_pool": "Grupo de Recursos",
     "deployed_tbl_state": "Estado",
@@ -132,7 +133,7 @@
     "vhost_application": "Aplicaci\u00f3n",
     "vhost_controls": "Controles",
     "vhost_name": "Virtual Servidor",
-    "vhost_names": "Virtual Servidores",
+    "vhost_names": "Servidores Virtuales",
     "vhost_service_endpoint": "Punto Final",
     "vhost_url": "URL"
 }
