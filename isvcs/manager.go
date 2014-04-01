@@ -139,7 +139,9 @@ func loadImage(tarball, dockerAddress, repoTag string) error {
 // wipe() removes the data directory associate with the manager
 func (m *Manager) wipe() error {
 
-	os.RemoveAll(m.volumesDir)
+	if err:=os.RemoveAll(m.volumesDir); err !=nil{
+		glog.Infof("could not remove %s: %v", m.volumesDir, err)
+	}
 	//nothing to wipe if the volumesDir doesn't exist
 	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
 		glog.Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
@@ -150,7 +152,7 @@ func (m *Manager) wipe() error {
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
-		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
+		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
 	return cmd.Run()
 }
 
