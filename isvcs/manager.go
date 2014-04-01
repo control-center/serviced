@@ -141,8 +141,11 @@ func (m *Manager) wipe() error {
 
 	//nothing to wipe if the volumesDir doesn't exist
 	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
+		glog.Infof("Not removing directories as %s doesn't exist", m.volumesDir)
 		return nil
 	}
+	glog.Infof("Using docker to remove directories in %s", m.volumesDir)
+
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
