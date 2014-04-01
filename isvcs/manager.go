@@ -142,7 +142,6 @@ func (m *Manager) wipe() error {
 	if err := os.RemoveAll(m.volumesDir); err != nil {
 		glog.V(2).Infof("could not remove %s: %v", m.volumesDir, err)
 	}
-
 	//nothing to wipe if the volumesDir doesn't exist
 	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
 		glog.V(2).Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
@@ -153,7 +152,7 @@ func (m *Manager) wipe() error {
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
-		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
+		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
 	return cmd.Run()
 }
 
@@ -204,6 +203,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+				//TODO: didn't  we just check running for nil?
 				responses := make(chan error, len(running))
 				for _, c := range running {
 					go func(con *Container) {
@@ -238,6 +238,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+
 				if err := m.loadImages(); err != nil {
 					request.response <- err
 					continue
