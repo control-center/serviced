@@ -139,9 +139,10 @@ func loadImage(tarball, dockerAddress, repoTag string) error {
 // wipe() removes the data directory associate with the manager
 func (m *Manager) wipe() error {
 
+	os.RemoveAll(m.volumesDir)
 	//nothing to wipe if the volumesDir doesn't exist
 	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
-		glog.Infof("Not removing directories as %s doesn't exist", m.volumesDir)
+		glog.Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
 		return nil
 	}
 	glog.Infof("Using docker to remove directories in %s", m.volumesDir)
