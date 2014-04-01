@@ -21,7 +21,7 @@ type Host struct {
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	IPs            []HostIPResource // The static IP resources available on the hose
+	IPs            []HostIPResource // The static IP resources available on the host
 }
 
 //HostIPResource contains information about a specific IP available as a resource
