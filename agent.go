@@ -587,6 +587,11 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 				containerPath = splitMount[2]
 			}
 
+			// insert tenantId into requestedImage - see dao.DeployService
+			path := strings.SplitN(requestedImage, "/", 3)
+			path[len(path)-1] = tenantId + "_" + path[len(path)-1]
+			requestedImage = strings.Join(path, "/")
+
 			if requestedImage == service.ImageId {
 				requestedMount += " -v " + hostPath + ":" + containerPath
 			}
