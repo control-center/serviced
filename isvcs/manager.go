@@ -139,6 +139,10 @@ func loadImage(tarball, dockerAddress, repoTag string) error {
 // wipe() removes the data directory associate with the manager
 func (m *Manager) wipe() error {
 
+	//nothing to wipe if the volumesDir doesn't exist
+	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
+		return nil
+	}
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
@@ -193,6 +197,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+				//TODO: didn't  we just check running for nil?
 				responses := make(chan error, len(running))
 				for _, c := range running {
 					go func(con *Container) {
@@ -227,6 +232,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+
 				if err := m.loadImages(); err != nil {
 					request.response <- err
 					continue
