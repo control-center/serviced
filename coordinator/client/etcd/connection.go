@@ -26,40 +26,54 @@ type Connection struct {
 	onClose *func()
 }
 
+const (
+	lockModule = "/mod/v2/lock"
+)
+
 // Assert that the Ectd connection meets the Connection interface
 var _ client.Connection = &Connection{}
 
-func (etcd *Connection) Close() {
-	etcd.client.CloseCURL()
-	if etcd.onClose != nil {
-		(*etcd.onClose)()
+func (conn *Connection) Close() {
+	conn.client.CloseCURL()
+	if conn.onClose != nil {
+		(*conn.onClose)()
 	}
 }
 
-func (etcd *Connection) SetOnClose(f func()) {
-	etcd.onClose = &f
+func (conn *Connection) SetOnClose(f func()) {
+	conn.onClose = &f
 }
 
-func (etcd *Connection) Lock(path string) (lockId string, err error) {
-	return "", errors.New("unsupported")
+func (conn *Connection) Lock(path string) (lockId string, err error) {
+
+	response, err := conn.client.RawCreateInOrder(lockModule+path, "", uint64(conn.timeout))
+	if err != nil {
+		return "", err
+	}
+	return string(response.Body), nil
 }
 
-func (etcd *Connection) Unlock(path string, lockId string) (err error) {
-	return errors.New("unsupported")
+func (conn *Connection) Unlock(path string, lockId string) (err error) {
+	req := etcd.NewRawRequest("DELETE", lockModule+path+"?lockid="+lockId, nil, nil)
+	_, err = conn.client.SendRequest(req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (etcd *Connection) Create(path string, data []byte) error {
-	_, err := etcd.client.Create(path, string(data), 1000000)
+func (conn *Connection) Create(path string, data []byte) error {
+	_, err := conn.client.Create(path, string(data), 1000000)
 	return err
 }
 
-func (etcd *Connection) CreateDir(path string) error {
-	_, err := etcd.client.CreateDir(path, 1000000)
+func (conn *Connection) CreateDir(path string) error {
+	_, err := conn.client.CreateDir(path, 1000000)
 	return err
 }
 
-func (etcd *Connection) Exists(path string) (bool, error) {
-	_, err := etcd.client.Get(path, false, false)
+func (conn *Connection) Exists(path string) (bool, error) {
+	_, err := conn.client.Get(path, false, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {
 			return false, nil

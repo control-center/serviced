@@ -66,4 +66,19 @@ func TestDriver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete of /foo should work: %s", err)
 	}
+
+	lockPath := "/foo/lock"
+	lockId, err := conn.Lock(lockPath)
+	if err != nil {
+		t.Fatalf("")
+	}
+	t.Logf("Locked %s with lock id %s", lockPath, lockId)
+
+	t.Logf("This should block")
+	lockId2, err := conn.Lock(lockPath)
+	if err != nil {
+		t.Fatalf("")
+	}
+	t.Logf("Locked %s with lock id2 %s", lockPath, lockId2)
+
 }
