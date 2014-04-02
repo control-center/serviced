@@ -32,13 +32,17 @@ const (
 
 var registeredDrivers = make(map[string]Driver)
 
+// RegisterDriver registers driver under name. This function should only be called
+// in a func init().
 func RegisterDriver(name string, driver Driver) {
+
 	if _, exists := registeredDrivers[name]; exists {
 		panic(name + " driver is already registered")
 	}
 	registeredDrivers[name] = driver
 }
 
+// newOpClientRequest create a client request object.
 func newOpClientRequest(reqType opClientRequestType, args interface{}) opClientRequest {
 	return opClientRequest{
 		op:       reqType,
@@ -47,20 +51,23 @@ func newOpClientRequest(reqType opClientRequestType, args interface{}) opClientR
 	}
 }
 
+//opClientRequest is a client request object; it specifies the request type, its
+// args and a response channel.
 type opClientRequest struct {
 	op       opClientRequestType
 	args     interface{}
 	response chan interface{}
 }
 
+// Client is a coordination client that abstracts using services like etcd or
+// zookeeper.
 type Client struct {
-	driver           Driver
-	connectionString string
-	done             chan struct{}
-	retryPolicy      retry.Policy
-	*sync.RWMutex
-	opRequests        chan opClientRequest
-	connectionFactory Driver
+	connectionString  string               // the driver specific connection string
+	done              chan chan struct{}   // a shutdown channel
+	retryPolicy       retry.Policy         // the default retry policy to use
+	mutext            sync.RWMutex         // a sync to prevent some race conditions
+	opRequests        chan opClientRequest // the request channel the main loop uses
+	connectionFactory Driver               // the current driver under use
 }
 
 func DefaultRetryPolicy() retry.Policy {
@@ -79,14 +86,13 @@ func New(driverName, connectionString string, retryPolicy retry.Policy) (client 
 		retryPolicy = DefaultRetryPolicy()
 	}
 	client = &Client{
-		driver:            driver,
 		connectionString:  connectionString,
-		done:              make(chan struct{}),
+		done:              make(chan chan struct{}),
 		retryPolicy:       retryPolicy,
 		connectionFactory: driver,
 		opRequests:        make(chan opClientRequest),
 	}
-	go client.loop()
+	go client.loop() // start the main loop that listens for requests
 	return client, nil
 }
 
@@ -123,8 +129,13 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 		}).Wait()
 }
 
+// loop() is the  clients main entrypoint; it responds for requests for connections
+// and closing.
 func (client *Client) loop() {
+
+	// keep track of outstanding connections
 	connections := make(map[int]*Connection)
+	// connectionIds are for local identificatin
 	connectionId := 0
 
 	for {
@@ -145,9 +156,10 @@ func (client *Client) loop() {
 				// setting up a callback to close the connection in this client
 				// if someone calls Close() on the driver reference
 				c.SetOnClose(func() {
-					client.CloseConnection(connectionId)
+					client.closeConnection(connectionId)
 				})
 				if err == nil {
+					// save a reference to the connection locally
 					connections[connectionId] = &c
 					connectionId++
 					req.response <- c
@@ -156,26 +168,37 @@ func (client *Client) loop() {
 				}
 			}
 
-		case <-client.done:
+		case req := <-client.done:
+			// during a shutdown request, close all outstanding connections
 			for _, c := range connections {
 				(*c).Close()
 			}
+			req <- struct{}{}
 			return
 		}
 	}
 }
 
-func (client *Client) CloseConnection(connectionId int) error {
+// closeConnection will request that the main loop close the given connection.
+func (client *Client) closeConnection(connectionId int) error {
 	request := newOpClientRequest(opClientCloseConnection, connectionId)
 	client.opRequests <- request
 	response := <-request.response
 	return response.(error)
 }
 
+// NewRetryLoop returns a retry loop that will call the given cancelable function.
+// If the client.Close() method is called, the retry loop will stop. The cancelable
+// function must be able to accept a 'chan chan error' which will have a value if
+// client.Close() was called. The function must respond to the request or risk
+// making the users of this client non-responsive.
 func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) retry.Loop {
 	return retry.NewLoop(client.retryPolicy, cancelable)
 }
 
+// GetConnection returns a client.Connection that will be managed by the client.
+// Callers should call close() on thier connections when done. The client will also
+// close connections if close is called on the client.
 func (client *Client) GetConnection() (Connection, error) {
 	request := newOpClientRequest(opClientRequestConnection, nil)
 	client.opRequests <- request
@@ -189,8 +212,11 @@ func (client *Client) GetConnection() (Connection, error) {
 	panic("unreachable")
 }
 
+// Close is a shutdown request. It will shutdown all outstanding connections.
 func (client *Client) Close() {
-	client.done <- struct{}{}
+	response := make(chan struct{})
+	client.done <- (response)
+	<-response
 }
 
 func (client *Client) Unregister(id int) {
