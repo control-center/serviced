@@ -6,6 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 )
 
+// Run builds the command-line interface for serviced and runs.
 func Run(args ...string) {
 	var app = cli.NewApp()
 	app.Name = "serviced"

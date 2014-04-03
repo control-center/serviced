@@ -34,18 +34,18 @@ func format(listitems []string) {
 	for i < len(listitems) {
 		if tty {
 			output := make([]interface{}, 4)
-			for j, _ := range output {
+			for j := range output {
 				if i < len(listitems) {
 					output[j] = listitems[i]
 				} else {
 					output[j] = ""
 				}
-				i += 1
+				i++
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t\n", output...)
 		} else {
 			fmt.Fprintln(w, listitems[i])
-			i += 1
+			i++
 		}
 	}
 	w.Flush()
