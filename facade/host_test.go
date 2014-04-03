@@ -20,7 +20,7 @@ var (
 
 func init() {
 
-	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "../host/host_mapping.json"})
+	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "../domain/host/host_mapping.json"})
 	if err != nil {
 		glog.Infof("Error initializing db driver %v", err)
 		return
