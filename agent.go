@@ -287,8 +287,8 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 		}
 		glog.Infof("docker wait %s exited", containerId)
 		// get rid of the container
-		if err := exec.Command("docker", "rm", containerId).Run(); err != nil {
-			glog.Errorf("Could not remove container: %s: %s", containerId, err)
+		if rmErr := exec.Command("docker", "rm", containerId).Run(); rmErr != nil {
+			glog.Errorf("Could not remove container: %s: %s", containerId, rmErr)
 		}
 		exited <- err
 	}()
