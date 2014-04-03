@@ -23,7 +23,7 @@ func ExampleCmdPoolRemove() {
 	// serviced pool remove POOLID
 }
 
-func ExampleCmdPoolListIps() {
+func ExampleCmdPoolListIPs() {
 	Run("serviced", "pool", "list-ips")
 
 	// Output:
