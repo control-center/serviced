@@ -135,7 +135,7 @@ func init() {
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
-	flag.Var(&options.mount, "mount", "bind mount: container_image,host_path,container_path (e.g. -mount zenoss/zenoss5x:latest,/home/zenoss/zenhome/zenoss/Products/,/opt/zenoss/Products/)")
+	flag.Var(&options.mount, "mount", "bind mount: dockerImage,hostPath,containerPath (e.g. -mount zenoss/zenoss5x:latest,$HOME/src/europa/src,/mnt/src) dockerImage can be '*'")
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 

@@ -51,7 +51,7 @@ type HostAgent struct {
 	hostId          string   // the hostID of the current host
 	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
-	mount           []string // each element is in the form: container_image:host_path:container_path
+	mount           []string // each element is in the form: dockerImage,hostPath,containerPath
 	vfs             string   // driver for container volumes
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
@@ -588,11 +588,17 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 			}
 
 			// insert tenantId into requestedImage - see dao.DeployService
-			path := strings.SplitN(requestedImage, "/", 3)
-			path[len(path)-1] = tenantId + "_" + path[len(path)-1]
-			requestedImage = strings.Join(path, "/")
+			matchedRequestedImage := false
+			if requestedImage == "*" {
+				matchedRequestedImage = true
+			} else {
+				path := strings.SplitN(requestedImage, "/", 3)
+				path[len(path)-1] = tenantId + "_" + path[len(path)-1]
+				requestedImage = strings.Join(path, "/")
+				matchedRequestedImage = (requestedImage == service.ImageId)
+			}
 
-			if requestedImage == service.ImageId {
+			if matchedRequestedImage {
 				requestedMount += " -v " + hostPath + ":" + containerPath
 			}
 		} else {
