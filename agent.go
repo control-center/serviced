@@ -268,6 +268,9 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			glog.Errorf("docker wait exited with: %s : %s", err, string(output))
+			// TODO: output of docker logs is potentially very large
+			// this should be implemented another way, perhaps a docker attach
+			// or extend docker to give the last N seconds
 			cmd = exec.Command("docker", "logs", containerId)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
