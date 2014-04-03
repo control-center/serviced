@@ -51,7 +51,7 @@ type HostAgent struct {
 	hostId          string   // the hostID of the current host
 	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
-	mount           []string // each element is in the form: container_image:host_path:container_path
+	mount           []string // each element is in the form: dockerImage,hostPath,containerPath
 	vfs             string   // driver for container volumes
 	zookeepers      []string
 	currentServices map[string]*exec.Cmd // the current running services
