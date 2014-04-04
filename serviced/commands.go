@@ -28,6 +28,8 @@ import (
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/shell"
 )
 
@@ -145,6 +147,15 @@ func ParseCommands(args ...string) error {
 	return cli.CmdHelp(args...)
 }
 
+func getMasterClient() *master.Client {
+	//TODO: port is a horrible name for this option
+	client, err := master.NewClient(options.port)
+	if err != nil {
+		glog.Fatalf("Could not create client for master%v", err)
+	}
+	return client
+}
+
 // Create a client to the control plane.
 func getClient() (c dao.ControlPlane) {
 	// setup the client
@@ -209,11 +220,9 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 		return err
 	}
 
-	client := getClient()
+	masterClient := getMasterClient()
 
-	var hosts map[string]*dao.Host
-
-	err := client.GetHosts(&empty, &hosts)
+	hosts, err := masterClient.GetHosts()
 	if err != nil {
 		glog.Fatalf("Could not get hosts %v", err)
 	}
@@ -236,10 +245,10 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 		for _, h := range hosts {
 			fmt.Printf(outfmt,
-				h.Id,
-				h.PoolId,
+				h.ID,
+				h.PoolID,
 				h.Name,
-				h.IpAddr,
+				h.IPAddr,
 				h.Cores,
 				h.Memory,
 				h.PrivateNetwork)
@@ -270,30 +279,28 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := serviced.NewAgentClient(cmd.Arg(0))
+	agentClient, err := agent.NewClient(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
 
-	var remoteHost dao.Host
-	//Add the IP used to connect
-	err = client.GetInfo(ipOpts, &remoteHost)
+	parts := strings.Split(cmd.Arg(0), ":")
+	ip := parts[0]
+	poolID := cmd.Arg(1)
+
+	request := agent.BuildHostRequest{IP: ip, PoolID: poolID, IPResources: ipOpts}
+	remoteHost, err := agentClient.BuildHost(request)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}
-	parts := strings.Split(cmd.Arg(0), ":")
-	remoteHost.IpAddr = parts[0]
-	remoteHost.PoolId = cmd.Arg(1)
 	glog.V(0).Infof("Got host info: %v", remoteHost)
 
-	controlPlane := getClient()
-
-	var hostId string
-	err = controlPlane.AddHost(remoteHost, &hostId)
+	masterClient := getMasterClient()
+	err = masterClient.AddHost(remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not add host: %v", err)
 	}
-	fmt.Println(hostId)
+	fmt.Println(remoteHost.ID)
 	return err
 }
 
@@ -308,14 +315,13 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 		return nil
 	}
 
-	controlPlane := getClient()
-	var unused int
-	err := controlPlane.RemoveHost(cmd.Arg(0), &unused)
-	if err != nil {
+	masterClient := getMasterClient()
+	hostID := strings.TrimSpace(cmd.Arg(0))
+	if err := masterClient.RemoveHost(hostID); err != nil {
 		glog.Fatalf("Could not remove host: %v", err)
 	}
-	glog.V(0).Infof("Host %s removed.", cmd.Arg(0))
-	return err
+	glog.V(0).Infof("Host %s removed.", hostID)
+	return nil
 }
 
 // A convinience struct for printing to command line
@@ -445,20 +451,19 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	controlPlane := getClient()
+	masterClient := getMasterClient()
 	poolId := cmd.Arg(0)
 
-	var poolsIpInfo []dao.HostIPResource
-	err := controlPlane.GetPoolsIPInfo(poolId, &poolsIpInfo)
+	poolIPs, err := masterClient.GetPoolIPs(poolId)
 	if err != nil {
-		fmt.Printf("GetPoolsIPInfo failed: %v", err)
+		fmt.Printf("GetPoolIPs failed: %v", err)
 		return err
 	}
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range poolsIpInfo {
+	for _, hostIPResource := range poolIPs.HostIPs {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 

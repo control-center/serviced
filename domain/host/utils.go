@@ -6,7 +6,7 @@ package host
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
 	"net"
@@ -19,7 +19,7 @@ import (
 // used as the resource pool in the result.
 func currentHost(ip string, poolID string) (host *Host, err error) {
 	cpus := runtime.NumCPU()
-	memory, err := serviced.GetMemorySize()
+	memory, err := utils.GetMemorySize()
 	if err != nil {
 		return nil, err
 	}
@@ -29,13 +29,13 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 		return nil, err
 	}
 	host.Name = hostname
-	hostidStr, err := serviced.HostID()
+	hostidStr, err := utils.HostID()
 	if err != nil {
 		return nil, err
 	}
 
 	if ip != "" {
-		if !validIP(ip) {
+		if !ipExists(ip) {
 			return nil, fmt.Errorf("requested IP %v is not available on host", ip)
 		}
 		if isLoopBack(ip) {
@@ -44,7 +44,7 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 
 		host.IPAddr = ip
 	} else {
-		host.IPAddr, err = serviced.GetIPAddress()
+		host.IPAddr, err = utils.GetIPAddress()
 		if err != nil {
 			return host, err
 		}
@@ -54,7 +54,7 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
-	routes, err := serviced.RouteCmd()
+	routes, err := utils.RouteCmd()
 	if err != nil {
 		return nil, err
 	}
@@ -81,22 +81,14 @@ func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error
 
 	hostIPResources := make([]HostIPResource, 0)
 
-	validate := func(iface net.Interface, ip string) error {
-		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
-			return fmt.Errorf("loopback address %v cannot be used as an IP Resource", ip)
-		}
-		return nil
-	}
-
 	for _, ipaddr := range ipaddress {
 		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
 		iface, found := ips[normalIP]
 		if !found {
 			return []HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
 		}
-		err = validate(iface, normalIP)
-		if err != nil {
-			return []HostIPResource{}, err
+		if isLoopBack(normalIP) {
+			return []HostIPResource{}, fmt.Errorf("loopback address %v cannot be used as an IP Resource", ipaddr)
 		}
 		hostIP := HostIPResource{}
 		hostIP.HostID = hostID
@@ -136,7 +128,7 @@ func normalizeIP(ip string) string {
 	return strings.Trim(strings.ToLower(ip), " ")
 }
 
-func validIP(ip string) bool {
+func ipExists(ip string) bool {
 	interfaces, err := getInterfaceMap()
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
@@ -148,13 +140,7 @@ func validIP(ip string) bool {
 }
 
 func isLoopBack(ip string) bool {
-	interfaces, err := getInterfaceMap()
-	if err != nil {
-		glog.Error("Problem reading interfaces: ", err)
-		return false
-	}
-	iface := interfaces[normalizeIP(ip)]
-	if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
+	if strings.HasPrefix(ip, "127") {
 		return true
 	}
 	return false

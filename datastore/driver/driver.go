@@ -2,7 +2,11 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package datastore
+package driver
+
+import (
+	"github.com/zenoss/serviced/datastore/key"
+)
 
 // Driver is the interface for a driver to a datastore
 type Driver interface {
@@ -14,13 +18,13 @@ type Driver interface {
 type Connection interface {
 
 	// Put adds or updates an entity in the datastore using the Key.
-	Put(key Key, data JSONMessage) error
+	Put(key key.Key, data JSONMessage) error
 
 	// Get returns an entity from the datastore. Can return ErrNoSuchEntity if the entity does not exists
-	Get(key Key) (JSONMessage, error)
+	Get(key key.Key) (JSONMessage, error)
 
 	// Delete deletes an entity associated with the key
-	Delete(key Key) error
+	Delete(key key.Key) error
 
 	// Query evaluates the query and returns a list of entities form the datastore
 	Query(query interface{}) ([]JSONMessage, error)

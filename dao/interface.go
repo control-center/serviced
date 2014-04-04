@@ -31,24 +31,6 @@ type HostServiceRequest struct {
 type ControlPlane interface {
 
 	//---------------------------------------------------------------------------
-	// Host CRUD
-
-	// Register a host with serviced
-	AddHost(host Host, hostId *string) error
-
-	// Update Host information for a registered host
-	UpdateHost(host Host, ununsed *int) error
-
-	// Remove a Host from serviced
-	RemoveHost(hostId string, unused *int) error
-
-	// Get Host by id
-	GetHost(hostId string, host *Host) error
-
-	// Get a list of registered hosts
-	GetHosts(request EntityRequest, hosts *map[string]*Host) error
-
-	//---------------------------------------------------------------------------
 	// Service CRUD
 
 	//for a service, get it's tenant Id
@@ -138,9 +120,6 @@ type ControlPlane interface {
 
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
-
-	// Get a map of the HostIPResources (key is the hostId) contained in a pool
-	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

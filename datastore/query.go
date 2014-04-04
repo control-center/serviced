@@ -5,6 +5,9 @@
 package datastore
 
 import (
+	"github.com/zenoss/serviced/datastore/context"
+	"github.com/zenoss/serviced/datastore/driver"
+
 	"errors"
 )
 
@@ -17,7 +20,7 @@ type Query interface {
 }
 
 // NewQuery returns a Query type to be executed
-func NewQuery(ctx Context) Query {
+func NewQuery(ctx context.Context) Query {
 	return &query{ctx}
 }
 
@@ -41,7 +44,7 @@ type Results interface {
 }
 
 type query struct {
-	ctx Context
+	ctx context.Context
 }
 
 func (q *query) Execute(query interface{}) (Results, error) {
@@ -59,7 +62,7 @@ func (q *query) Execute(query interface{}) (Results, error) {
 }
 
 type results struct {
-	data []JSONMessage
+	data []driver.JSONMessage
 	idx  int
 }
 
@@ -90,6 +93,6 @@ func (r *results) HasNext() bool {
 	return r.idx < len(r.data)
 }
 
-func newResults(data []JSONMessage) Results {
+func newResults(data []driver.JSONMessage) Results {
 	return &results{data, 0}
 }

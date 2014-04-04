@@ -15,6 +15,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/domain/host"
 )
 
 // A serviced client.
@@ -46,19 +47,19 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 }
 
 // Return the matching hosts.
-func (s *ControlClient) GetHosts(request dao.EntityRequest, replyHosts *map[string]*dao.Host) (err error) {
+func (s *ControlClient) GetHosts(request dao.EntityRequest, replyHosts *map[string]*host.Host) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetHosts", request, replyHosts)
 }
 
-func (s *ControlClient) AddHost(host dao.Host, hostId *string) (err error) {
+func (s *ControlClient) AddHost(host host.Host, hostId *string) (err error) {
 	return s.rpcClient.Call("ControlPlane.AddHost", host, hostId)
 }
 
-func (s *ControlClient) UpdateHost(host dao.Host, unused *int) (err error) {
+func (s *ControlClient) UpdateHost(host host.Host, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateHost", host, unused)
 }
 
-func (s *ControlClient) GetHost(hostId string, host *dao.Host) (err error) {
+func (s *ControlClient) GetHost(hostId string, host *host.Host) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetHost", hostId, host)
 }
 
@@ -172,10 +173,6 @@ func (s *ControlClient) RemoveResourcePool(poolId string, unused *int) (err erro
 
 func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao.PoolHost) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
-}
-
-func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
 }
 
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {

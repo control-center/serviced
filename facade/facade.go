@@ -6,14 +6,22 @@ package facade
 
 import (
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 )
 
 // New creates an initialized  Facade instance
-func New(hostStore host.HostStore) *Facade {
-	return &Facade{hostStore}
+
+func New() *Facade {
+	return &Facade{
+		host.NewStore(),
+		pool.NewStore(),
+	}
 }
 
 // Facade is an entrypoint to available controlpane methods
 type Facade struct {
 	hostStore host.HostStore
+	poolStore pool.Store
 }
+
+

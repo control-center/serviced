@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/host"
 
 	"net/url"
 	"regexp"
@@ -126,7 +127,7 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var hosts map[string]*dao.Host
+	var hosts map[string]*host.Host
 	err := client.GetHosts(&empty, &hosts)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
@@ -480,7 +481,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client
 }
 
 func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.Host
+	var payload host.Host
 	var hostId string
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -489,11 +490,11 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.Contr
 		return
 	}
 	// Save the pool ID and IP address for later. GetInfo wipes these
-	pool := payload.PoolId
-	ipAddr := payload.IpAddr
-	remoteClient, err := serviced.NewAgentClient(payload.IpAddr)
+	pool := payload.PoolID
+	ipAddr := payload.IPAddr
+	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
 	if err != nil {
-		glog.Errorf("Could not create connection to host %s: %v", payload.IpAddr, err)
+		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
 		RestServerError(w)
 		return
 	}
@@ -506,9 +507,9 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.Contr
 		return
 	}
 	// Reset the pool ID and IP address
-	payload.PoolId = pool
+	payload.PoolID = pool
 	parts := strings.Split(ipAddr, ":")
-	payload.IpAddr = parts[0]
+	payload.IPAddr = parts[0]
 
 	err = client.AddHost(payload, &hostId)
 	if err != nil {
@@ -527,7 +528,7 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 		return
 	}
 	glog.V(3).Infof("Received update request for %s", hostId)
-	var payload dao.Host
+	var payload host.Host
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {

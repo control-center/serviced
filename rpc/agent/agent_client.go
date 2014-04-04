@@ -2,15 +2,11 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
-
-package serviced
+package agent
 
 import (
 	"github.com/zenoss/serviced/domain/host"
+
 	"net/rpc"
 )
 
@@ -22,15 +18,19 @@ type AgentClient struct {
 }
 
 // Create a new AgentClient.
-func NewAgentClient(addr string) (s *AgentClient, err error) {
-	s = new(AgentClient)
+func NewClient(addr string) (*AgentClient, error) {
+	s := new(AgentClient)
 	s.addr = addr
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err
 }
 
-// Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(ips []string, host *host.Host) error {
-	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
+// BuildHost creates a Host object from the current host.
+func (a *AgentClient) BuildHost(request BuildHostRequest) (*host.Host, error) {
+	hostResponse := host.New()
+	if err := a.rpcClient.Call("Master.BuildHost", request, hostResponse); err != nil {
+		return nil, err
+	}
+	return hostResponse, nil
 }

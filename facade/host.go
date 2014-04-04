@@ -11,110 +11,83 @@ import (
 
 	"fmt"
 	"time"
+	"github.com/zenoss/serviced/datastore/context"
 )
 
-type session map[string]interface{}
-
-func newSession() session {
-	return make(map[string]interface{})
-}
-
-// beforeHostUpdate called before updating a host. The same session instance is passed here and the corresponding
-// afterHostUpdate. If an error is returned host will not be updated.
-func (f *Facade) beforeHostUpdate(session session, host *host.Host) error {
-	return nil
-}
-
-// afterHostUpdate called after updating a host, if there was an error updating the host err will be non nil. The same
-// session instance is passed here and the corresponding beforeHostUpdate
-func (f *Facade) afterHostUpdate(session session, host *host.Host, err error) {
-
-}
-
-// beforeHostAdd called before adding a host. The same session instance is passed here and the corresponding
-// afterHostAdd. If an error is returned host will not be added.
-func (f *Facade) beforeHostAdd(session session, host *host.Host) error {
-	return nil
-}
-
-// afterHostUpdate called after adding a host, if there was an error adding the host err will be non nil. The same
-// session instance is passed here and the corresponding beforeHostAdd
-func (f *Facade) afterHostAdd(session session, host *host.Host, err error) {
-
-}
-
-// beforeHostRemove called before removing a host. The same session instance is passed here and the corresponding
-// afterHostRemove. If an error is returned host will not be removed.
-func (f *Facade) beforeHostRemove(session session, hostID string) error {
-	return nil
-}
-
-// afterHostRemove called after removing a host, if there was an error removing the host err will be non nil. The same
-// session instance is passed here and the corresponding beforeHostRemove
-func (f *Facade) afterHostRemove(session session, hostID string, err error) {
-	//TODO: remove AddressAssignments with this host
-}
+var (
+	beforeHostUpdate beforeEvent = "BeforeHostUpdate"
+	afterHostUpdate  afterEvent  = "AfterHostUpdate"
+	beforeHostAdd    beforeEvent = "BeforeHostAdd"
+	afterHostAdd     afterEvent  = "AfterHostAdd"
+	beforeHostDelete beforeEvent = "BeforeHostDelete"
+	afterHostDelete  afterEvent  = "AfterHostDelete"
+)
 
 //---------------------------------------------------------------------------
 // Host CRUD
 
 // AddHost register a host with serviced. Returns an error if host already exists
-func (f *Facade) AddHost(ctx datastore.Context, h *host.Host) error {
-	glog.V(2).Infof("Facade.AddHost: %v", h)
-	glog.Infof("Facade.AddHost: %v", h)
-	exists, err := f.GetHost(ctx, h.ID)
-	glog.Infof("Facade.AddHost: after gethost %v", exists)
+func (f *Facade) AddHost(ctx context.Context, entity *host.Host) error {
+	glog.V(2).Infof("Facade.AddHost: %v", entity)
+	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
 		return err
 	}
 	if exists != nil {
-		return fmt.Errorf("host with ID %s already exists", h.ID)
+		return fmt.Errorf("host already exists: %s", entity.ID)
 	}
 
 	// validate Pool exists
-
-	s := newSession()
-	err = f.beforeHostAdd(s, h)
-	now := time.Now()
-	h.CreatedAt = now
-	h.UpdatedAt = now
-	if err == nil {
-		err = f.hostStore.Put(ctx, host.HostKey(h.ID), h)
+	pool, err := f.GetResourcePool(ctx, entity.PoolID)
+	if err != nil {
+		return fmt.Errorf("error verifying pool exists: %v", err)
 	}
-	defer f.afterHostAdd(s, h, err)
+	if pool == nil {
+		return fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
+	}
+
+	ec := newEventCtx()
+	err = f.beforeEvent(beforeHostAdd, ec, entity)
+	if err == nil {
+		now := time.Now()
+		entity.CreatedAt = now
+		entity.UpdatedAt = now
+		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
+	}
+	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	return err
 
 }
 
 // UpdateHost information for a registered host
-func (f *Facade) UpdateHost(ctx datastore.Context, h *host.Host) error {
-	glog.V(2).Infof("Facade.UpdateHost: %+v", h)
+func (f *Facade) UpdateHost(ctx context.Context, entity *host.Host) error {
+	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	//TODO: make sure pool exists
-	s := newSession()
-	err := f.beforeHostUpdate(s, h)
-	now := time.Now()
-	h.UpdatedAt = now
+	ec := newEventCtx()
+	err := f.beforeEvent(beforeHostAdd, ec, entity)
 	if err == nil {
-		err = f.hostStore.Put(ctx, host.HostKey(h.ID), h)
+		now := time.Now()
+		entity.UpdatedAt = now
+		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
-	defer f.afterHostUpdate(s, h, err)
+	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	return err
 }
 
-// RemoveHost removes  a Host from serviced
-func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
+// RemoveHost removes a Host from serviced
+func (f *Facade) RemoveHost(ctx context.Context, hostID string) error {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
-	s := newSession()
-	err := f.beforeHostRemove(s, hostID)
+	ec := newEventCtx()
+	err := f.beforeEvent(beforeHostDelete, ec, hostID)
 	if err == nil {
 		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
-	defer f.afterHostRemove(s, hostID, err)
+	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err
 }
 
 // GetHost gets a host by id. Returns nil if host not found
-func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
+func (f *Facade) GetHost(ctx context.Context, hostID string) (*host.Host, error) {
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
 
 	glog.Infof("Facade.GetHost: id=%s", hostID)
@@ -131,6 +104,11 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 }
 
 // GetHosts returns a list of all registered hosts
-func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
-	return nil, nil
+func (f *Facade) GetHosts(ctx context.Context) ([]*host.Host, error) {
+	return f.hostStore.GetN(ctx, 10000)
+}
+
+// GetHosts returns a list of all registered hosts
+func (f *Facade) FindHostsInPool(ctx context.Context, poolID string) ([]*host.Host, error) {
+	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }

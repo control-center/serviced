@@ -11,9 +11,9 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
+//	"github.com/zenoss/serviced/dao"
 
-	"bufio"
+//	"bufio"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,7 +24,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"runtime"
+//	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,131 +39,11 @@ func GetLabel(name string) string {
 	return fmt.Sprintf("%s_%s", name, utc.Format(TIMEFMT))
 }
 
-var hostIDCmdString = "/usr/bin/hostid"
-
-// HostID retreives the system's unique id, on linux this maps
-// to /usr/bin/hostid.
-func HostID() (hostid string, err error) {
-	cmd := exec.Command(hostIDCmdString)
-	stdout, err := cmd.Output()
-	if err != nil {
-		return hostid, err
-	}
-	return strings.TrimSpace(string(stdout)), err
-}
-
-// Path to meminfo file. Placed here so getMemorySize() is testable.
-var meminfoFile = "/proc/meminfo"
-
 // validOwnerSpec returns true if the owner is specified in owner:group format and the
 // identifiers are valid POSIX.1-2008 username and group strings, respectively.
 func validOwnerSpec(owner string) bool {
 	var pattern = regexp.MustCompile(`^[a-zA-Z]+[a-zA-Z0-9.-]*:[a-zA-Z]+[a-zA-Z0-9.-]*$`)
 	return pattern.MatchString(owner)
-}
-
-// getMemorySize attempts to get the size of the installed RAM.
-func GetMemorySize() (size uint64, err error) {
-	file, err := os.Open(meminfoFile)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
-	line, err := reader.ReadString('\n')
-	for err == nil {
-		if strings.Contains(line, "MemTotal:") {
-			parts := strings.Fields(line)
-			if len(parts) < 3 {
-				return 0, err
-			}
-			size, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return 0, err
-			}
-			return uint64(size) * 1024, nil
-		}
-		line, err = reader.ReadString('\n')
-	}
-	return 0, err
-}
-
-// RouteEntry represents a entry from the route command
-type RouteEntry struct {
-	Destination string
-	Gateway     string
-	Genmask     string
-	Flags       string
-	Metric      int
-	Ref         int
-	Use         int
-	Iface       string
-}
-
-// RouteCmd wrapper around the route command
-func RouteCmd() (routes []RouteEntry, err error) {
-	output, err := exec.Command("/sbin/route", "-A", "inet").Output()
-	if err != nil {
-		return routes, err
-	}
-
-	columnMap := make(map[string]int)
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) < 2 {
-		return routes, fmt.Errorf("no routes found")
-	}
-	routes = make([]RouteEntry, len(lines)-2)
-	for lineNum, line := range lines {
-		line = strings.TrimSpace(line)
-		switch {
-		// skip first line
-		case lineNum == 0:
-			continue
-		case lineNum == 1:
-			for number, name := range strings.Fields(line) {
-				columnMap[name] = number
-			}
-			continue
-		default:
-			fields := strings.Fields(line)
-			metric, err := strconv.Atoi(fields[columnMap["Metric"]])
-			if err != nil {
-				return routes, err
-			}
-			ref, err := strconv.Atoi(fields[columnMap["Ref"]])
-			if err != nil {
-				return routes, err
-			}
-			use, err := strconv.Atoi(fields[columnMap["Use"]])
-			if err != nil {
-				return routes, err
-			}
-			routes[lineNum-2] = RouteEntry{
-				Destination: fields[columnMap["Destination"]],
-				Gateway:     fields[columnMap["Gateway"]],
-				Genmask:     fields[columnMap["Genmask"]],
-				Flags:       fields[columnMap["Flags"]],
-				Metric:      metric,
-				Ref:         ref,
-				Use:         use,
-				Iface:       fields[columnMap["Iface"]],
-			}
-		}
-	}
-	return routes, err
-}
-
-// GetIPAddress attempts to find the IP address to the default outbout interface.
-func GetIPAddress() (ip string, err error) {
-	ip, err = getIPAddrFromHostname()
-	if err != nil || strings.HasPrefix(ip, "127") {
-		ip, err = getIPAddrFromOutGoingConnection()
-		if err == nil && strings.HasPrefix(ip, "127") {
-			return "", fmt.Errorf("unable to identify local ip address")
-		}
-	}
-
-	return ip, err
 }
 
 // GetInterfaceIPAddress attempts to find the IP address based on interface name
@@ -187,15 +67,6 @@ func GetInterfaceIpAddress(_interface string) (string, error) {
 	return "", fmt.Errorf("Unable to find ip for interface: %s", _interface)
 }
 
-// getIPAddrFromHostname returns the ip address associated with hostname -i.
-func getIPAddrFromHostname() (ip string, err error) {
-	output, err := exec.Command("hostname", "-i").Output()
-	if err != nil {
-		return ip, err
-	}
-	return strings.TrimSpace(string(output)), err
-}
-
 // getIPAddrFromOutGoingConnection get the IP bound to the interface which
 // handles the default route traffic.
 func getIPAddrFromOutGoingConnection() (ip string, err error) {
@@ -212,48 +83,6 @@ func getIPAddrFromOutGoingConnection() (ip string, err error) {
 	localAddr := conn.LocalAddr()
 	parts := strings.Split(localAddr.String(), ":")
 	return parts[0], nil
-}
-
-// CurrentContextAsHost creates a dao.Host object of the host running
-// this method. The passed in poolID is used as the resource pool in the result.
-func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
-	cpus := runtime.NumCPU()
-	memory, err := GetMemorySize()
-	if err != nil {
-		return nil, err
-	}
-	host = dao.NewHost()
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-	host.Name = hostname
-	hostidStr, err := HostID()
-	if err != nil {
-		return nil, err
-	}
-
-	host.IpAddr, err = GetIPAddress()
-	if err != nil {
-		return host, err
-	}
-
-	host.Id = hostidStr
-	host.Cores = cpus
-	host.Memory = memory
-
-	routes, err := RouteCmd()
-	if err != nil {
-		return nil, err
-	}
-	for _, route := range routes {
-		if route.Iface == "docker0" {
-			host.PrivateNetwork = route.Destination + "/" + route.Genmask
-			break
-		}
-	}
-	host.PoolId = poolID
-	return host, err
 }
 
 // ExecPath returns the path to the currently running executable.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package datastore
+package context
 
 import (
 	"testing"
@@ -35,7 +35,7 @@ func (c testConn) Query(interface{}) ([]JSONMessage, error) {
 func TestContext(t *testing.T) {
 
 	driver := testDriver{}
-	ctx := NewContext(&driver)
+	ctx := New(&driver)
 
 	conn, _ := ctx.Connection()
 	if conn == nil {

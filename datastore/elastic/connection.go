@@ -10,6 +10,8 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/datastore/driver"
+	"github.com/zenoss/serviced/datastore/key"
 
 	"encoding/json"
 	"fmt"
@@ -20,7 +22,7 @@ type elasticConnection struct {
 	index string
 }
 
-func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
+func (ec *elasticConnection) Put(key key.Key, msg driver.JSONMessage) error {
 	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 
 	glog.Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
@@ -38,7 +40,7 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 	return nil
 }
 
-func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
+func (ec *elasticConnection) Get(key key.Key) (driver.JSONMessage, error) {
 	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
 	glog.Infof("Get for {kind:%s, id:%s}", key.Kind(), key.ID())
 	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
@@ -52,10 +54,10 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 		return nil, datastore.ErrNoSuchEntity{key}
 	}
 	bytes := response.Source
-	return datastore.NewJSONMessage(bytes), nil
+	return driver.NewJSONMessage(bytes), nil
 }
 
-func (ec *elasticConnection) Delete(key datastore.Key) error {
+func (ec *elasticConnection) Delete(key key.Key) error {
 	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
 	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
 	glog.Infof("Delete response: %v", resp)
@@ -65,7 +67,7 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 	return nil
 }
 
-func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
+func (ec *elasticConnection) Query(query interface{}) ([]driver.JSONMessage, error) {
 
 	search, ok := query.(*search.SearchDsl)
 	if !ok {
@@ -81,13 +83,13 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 }
 
 // convert search result of json host to dao.Host array
-func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
+func toJSONMessages(result *core.SearchResult) []driver.JSONMessage {
 	glog.Infof("Converting results %v", result)
 	var total = len(result.Hits.Hits)
-	var msgs = make([]datastore.JSONMessage, total)
+	var msgs = make([]driver.JSONMessage, total)
 	for i := 0; i < total; i++ {
 		glog.Infof("Adding result %s", string(result.Hits.Hits[i].Source))
-		msg := datastore.NewJSONMessage(result.Hits.Hits[i].Source)
+		msg := driver.NewJSONMessage(result.Hits.Hits[i].Source)
 		msgs[i] = msg
 	}
 	return msgs
