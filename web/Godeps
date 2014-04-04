@@ -1,0 +1,14 @@
+{
+	"ImportPath": "github.com/zenoss/serviced/web",
+	"GoVersion": "go1.2",
+	"Deps": [
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest",
+			"Rev": "a6396a924a69ca86f6ea7c5318b2ce8f1da7d3a1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/glog",
+			"Rev": "a2eac79392188053422ed0d0a270f2235cf17776"
+		}
+	]
+}
