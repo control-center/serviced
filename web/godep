@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+if ! godep help > /dev/null 2>&1 ; then
+	go get github.com/kr/godep
+fi 
+godep "$@"
