@@ -11,7 +11,6 @@ package serviced
 import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/circular"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
@@ -132,8 +131,7 @@ func (a *HostAgent) attachToService(conn *zk.Conn, procFinished chan<- int, serv
 
 	}
 
-	cmd := exec.Command("docker", "attach", serviceState.DockerId)
-	go a.waitForProcessToDie(conn, cmd, procFinished, serviceState)
+	go a.waitForProcessToDie(conn, serviceState.DockerId, procFinished, serviceState)
 	return true, nil
 }
 
@@ -221,9 +219,9 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	// get docker status
 
 	cmd := exec.Command("docker", "inspect", dockerId)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.V(2).Infof("problem getting docker state: %s", dockerId)
+		glog.V(2).Infof("problem getting docker state: %s, err %s", dockerId, string(output))
 		return containerState, err
 	}
 	var containerStates []ContainerState
@@ -255,35 +253,48 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinished chan<- int, serviceState *dao.ServiceState) {
-	a.dockerRemove(serviceState.Id)
+func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
 
 	defer func() {
 		procFinished <- 1
 	}()
 
-	// save the last circularBufferSize bytes from each container run
-	lastStdout := circular.NewBuffer(circularBufferSize)
-	lastStderr := circular.NewBuffer(circularBufferSize)
+	exited := make(chan error)
 
-	if stdout, err := cmd.StdoutPipe(); err != nil {
-		glog.Errorf("Unable to read standard out for service state %s: %v", serviceState.Id, err)
-		return
-	} else {
-		go io.Copy(lastStdout, stdout)
-	}
-	if stderr, err := cmd.StderrPipe(); err != nil {
-		glog.Errorf("Unable to read standard error for service state %s: %v", serviceState.Id, err)
-		return
-	} else {
-		go io.Copy(lastStderr, stderr)
-	}
+	go func() {
+		var err error
+		cmd := exec.Command("docker", "wait", containerId)
+		var output []byte
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			glog.Errorf("docker wait exited with: %s : %s", err, string(output))
+			// TODO: output of docker logs is potentially very large
+			// this should be implemented another way, perhaps a docker attach
+			// or extend docker to give the last N seconds
+			cmd = exec.Command("docker", "logs", containerId)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				glog.Errorf("Could not get logs for container %s", containerId)
+			} else {
+				// get last 1000 bytes
+				str := string(output)
+				last := len(str) - 1000
+				if last < 0 {
+					last = 0
+				}
+				str = str[last:]
+				glog.Warning("Last 1000 bytes of container %s: %s", containerId, str)
 
-	if err := cmd.Start(); err != nil {
-		glog.Errorf("Problem starting command '%s %s': %v", cmd.Path, cmd.Args, err)
-		dumpOut(lastStdout, lastStderr, circularBufferSize)
-		return
-	}
+			}
+
+		}
+		glog.Infof("docker wait %s exited", containerId)
+		// get rid of the container
+		if rmErr := exec.Command("docker", "rm", containerId).Run(); rmErr != nil {
+			glog.Errorf("Could not remove container: %s: %s", containerId, rmErr)
+		}
+		exited <- err
+	}()
 
 	// We are name the container the same as its service state ID, so use that as an alias
 	dockerId := serviceState.Id
@@ -294,11 +305,9 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 	var containerState ContainerState
 	var err error
 	for i := 0; i < 30; i++ {
-		if containerState, err = getDockerState(dockerId); err != nil {
+		if containerState, err = getDockerState(containerId); err != nil {
 			time.Sleep(3 * time.Second) // Sleep to give docker a chance to start
 			glog.V(2).Infof("Problem getting service state for %s :%v", serviceState.Id, err)
-			a.dockerTerminate(dockerId)
-			dumpOut(lastStdout, lastStderr, circularBufferSize)
 		} else {
 			break
 		}
@@ -349,15 +358,11 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
 
-		done := make(chan error)
-		go func() {
-			done <- cmd.Wait()
-		}()
 		loop := true
 		stateUpdateEvery := time.Tick(time.Second * 20)
 		for loop {
 			select {
-			case err := <-done:
+			case err := <-exited:
 				if err != nil {
 					if exiterr, ok := err.(*exec.ExitError); ok {
 						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
@@ -371,7 +376,6 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 
 							default:
 								glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-								dumpOut(lastStdout, lastStderr, circularBufferSize)
 							}
 						}
 					} else {
@@ -382,7 +386,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, cmd *exec.Cmd, procFinish
 				}
 				loop = false
 			case <-stateUpdateEvery:
-				containerState, err := getDockerState(dockerId)
+				containerState, err := getDockerState(containerId)
 				if err != nil {
 					glog.Errorf("Could not get docker state: %v", err)
 					continue
@@ -626,15 +630,21 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 	}
 
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s %s -rm -name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)
 	a.dockerRemove(serviceState.Id)
 
 	cmd := exec.Command("bash", "-c", cmdString)
+	bytes, err := cmd.Output()
+	if err != nil {
+		glog.Errorf("Could not start container for service %s", serviceState.Id)
+		return false, err
+	}
 
-	go a.waitForProcessToDie(conn, cmd, procFinished, serviceState)
+	dockerId := strings.TrimSpace(string(bytes))
+	go a.waitForProcessToDie(conn, dockerId, procFinished, serviceState)
 
 	glog.V(2).Info("Process started in goroutine")
 	return true, nil
