@@ -126,7 +126,7 @@ func Run(args ...string) {
 						Action:    CmdServiceRemove,
 					}, {
 						Name:   "edit",
-						Usage:  "Edits an existing service in a text editor",
+						Usage:  "Edits an existing service in a text editor.",
 						Action: CmdServiceEdit,
 					}, {
 						Name:   "auto-assign-ips",
