@@ -148,7 +148,7 @@ func (sc *ServiceConfig) Serve() {
 	r.HandleFunc("/{path:.*}", uihandler)
 
 	http.Handle("/", r)
-	http.ListenAndServe(sc.bindPort, nil)
+	http.ListenAndServeTLS(sc.bindPort, serviced.TempCertFile(), serviced.TempKeyFile(), nil)
 }
 
 func (this *ServiceConfig) ServeUI() {

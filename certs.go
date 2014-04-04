@@ -1,5 +1,10 @@
 package serviced
 
+import (
+    "io/ioutil"
+    "fmt"
+)
+
 var (
 	proxyCertPEM = `-----BEGIN CERTIFICATE-----
 MIICaDCCAdGgAwIBAgIJAMsgJclpgZqTMA0GCSqGSIb3DQEBBQUAME0xCzAJBgNV
@@ -34,3 +39,17 @@ lhu+Iu4HUZGgpDg6tgnlB5Tv7zuyUlzPXgbNAsIsTvQfnmWa1/WpOvNOy2Ix5aJB
 sl9SYPJBOM7G8o1p
 -----END PRIVATE KEY-----`
 )
+
+func TempCertFile() string {
+    f, _ := ioutil.TempFile("", "zenoss_cert.")
+    defer f.Close()
+    fmt.Fprint(f, proxyCertPEM)
+    return f.Name()
+}
+
+func TempKeyFile() string {
+    f, _ := ioutil.TempFile("", "zenoss_key.")
+    defer f.Close()
+    fmt.Fprint(f, proxyKeyPEM)
+    return f.Name()
+}
