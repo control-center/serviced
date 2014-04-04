@@ -148,7 +148,15 @@ func (sc *ServiceConfig) Serve() {
 	r.HandleFunc("/{path:.*}", uihandler)
 
 	http.Handle("/", r)
-	http.ListenAndServeTLS(sc.bindPort, serviced.TempCertFile(), serviced.TempKeyFile(), nil)
+	certfile, err := serviced.TempCertFile()
+	if err != nil {
+		glog.Fatal("Could not prepare cert.pem file.")
+	}
+	keyfile, err := serviced.TempKeyFile()
+	if err != nil {
+		glog.Fatal("Could not prepare key.pem file.")
+	}
+	http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
 }
 
 func (this *ServiceConfig) ServeUI() {

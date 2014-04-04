@@ -40,16 +40,26 @@ sl9SYPJBOM7G8o1p
 -----END PRIVATE KEY-----`
 )
 
-func TempCertFile() string {
-    f, _ := ioutil.TempFile("", "zenoss_cert.")
+// TempCertFile creates a temp file with the contents set to proxyCertPEM
+// and returns the temp file path.
+func TempCertFile() (string, error) {
+    f, err := ioutil.TempFile("", "zenoss_cert.")
+    if err != nil {
+        return "", err
+    }
     defer f.Close()
     fmt.Fprint(f, proxyCertPEM)
-    return f.Name()
+    return f.Name(), nil
 }
 
-func TempKeyFile() string {
-    f, _ := ioutil.TempFile("", "zenoss_key.")
+// TempKeyFile creates a temp file with the contents set to proxyCertPEM
+// and returns the temp file path.
+func TempKeyFile() (string, error) {
+    f, err := ioutil.TempFile("", "zenoss_key.")
+    if err != nil {
+        return "", err
+    }
     defer f.Close()
     fmt.Fprint(f, proxyKeyPEM)
-    return f.Name()
+    return f.Name(), nil
 }
