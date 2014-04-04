@@ -3,8 +3,8 @@
 	"GoVersion": "go1.2",
 	"Deps": [
 		{
-			"ImportPath": "github.com/ant0ine/go-json-rest",
-			"Rev": "a6396a924a69ca86f6ea7c5318b2ce8f1da7d3a1"
+			"ImportPath": "github.com/zenoss/go-json-rest",
+			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
