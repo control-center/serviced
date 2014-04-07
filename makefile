@@ -13,10 +13,16 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 
 default: build_binary
 
-install: build_binary
+install: build_binary install-nsinit
 	go install github.com/zenoss/serviced/serviced
 
+install-nsinit:
+	# use go install to install nsinit to $GOBIN
+	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
+
+
 build_binary:
+	make install-nsinit
 	cd serviced && make
 	cd isvcs && make
 

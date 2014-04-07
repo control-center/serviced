@@ -29,7 +29,7 @@
 		},
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
-			"Rev": "a1598d1e1c157388f3b07415729de28f4d205e49"
+			"Rev": "867b2a90c228f62cdcd44907ceef279a2d8f1ac5"
 		},
 		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
