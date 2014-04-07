@@ -81,7 +81,7 @@ stage: build pkgroot
 
 	# add serviced to the path via symlink
 	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
-	rm -f pkgroot/usr/bin/nsinit && ln -s $(INSTALL_DIR)/bin/nsinit  pkgroot/usr/bin/nsinit
+	ln -sf $(INSTALL_DIR)/bin/nsinit  pkgroot/usr/bin/nsinit
 
 
 stage_deb: stage
