@@ -5,37 +5,40 @@
 package context
 
 import (
+	"github.com/zenoss/serviced/datastore/key"
+	"github.com/zenoss/serviced/datastore/driver"
+
 	"testing"
 )
 
 type testDriver struct{}
 
-func (d *testDriver) GetConnection() (Connection, error) {
+func (d *testDriver) GetConnection() (driver.Connection, error) {
 	return &testConn{}, nil
 }
 
 type testConn struct{}
 
-func (c testConn) Put(key Key, data JSONMessage) error {
+func (c testConn) Put(key key.Key, data driver.JSONMessage) error {
 	return nil
 }
 
-func (c testConn) Get(key Key) (JSONMessage, error) {
+func (c testConn) Get(key key.Key) (driver.JSONMessage, error) {
 	return nil, nil
 }
 
-func (c testConn) Delete(key Key) error {
+func (c testConn) Delete(key key.Key) error {
 	return nil
 }
 
-func (c testConn) Query(interface{}) ([]JSONMessage, error) {
+func (c testConn) Query(interface{}) ([]driver.JSONMessage, error) {
 	return nil, nil
 }
 
 func TestContext(t *testing.T) {
 
 	driver := testDriver{}
-	ctx := New(&driver)
+	ctx := new(&driver)
 
 	conn, _ := ctx.Connection()
 	if conn == nil {

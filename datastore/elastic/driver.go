@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"github.com/mattbaird/elastigo/api"
 )
 
 //ElasticDriver describes an the Elastic Search driver
@@ -35,7 +36,8 @@ func New(host string, port uint16, index string) ElasticDriver {
 }
 
 func new(host string, port uint16, index string) *elasticDriver {
-	//TODO: set elastic host and port
+	api.Domain = host
+	api.Port = fmt.Sprintf("%v", port)
 	//TODO: singleton since elastigo doesn't support multiple endpoints
 
 	driver := &elasticDriver{}
@@ -129,7 +131,7 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 				return
 			}
 			glog.Infof("Waiting for Elastic Search")
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 
 		case <-quit:
 			return
