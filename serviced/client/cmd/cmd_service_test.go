@@ -1,86 +1,90 @@
 package cmd
 
-func ExampleCmdServiceList() {
-	Run("serviced", "service", "list")
+import (
+	"github.com/zenoss/serviced/serviced/client/api"
+)
+
+func ExampleServicedCli_cmdServiceList() {
+	New(api.New()).Run("serviced", "service", "list")
 
 	// Output:
 	// serviced service list
 }
 
-func ExampleCmdServiceAdd() {
-	Run("serviced", "service", "add")
+func ExampleServicedCli_cmdServiceAdd() {
+	New(api.New()).Run("serviced", "service", "add")
 
 	// Output:
 	// serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND
 }
 
-func ExampleCmdServiceRemove() {
-	Run("serviced", "service", "remove")
-	Run("serviced", "service", "rm")
+func ExampleServicedCli_cmdServiceRemove() {
+	New(api.New()).Run("serviced", "service", "remove")
+	New(api.New()).Run("serviced", "service", "rm")
 
 	// Output:
 	// serviced service remove SERVICEID
 	// serviced service remove SERVICEID
 }
 
-func ExampleCmdServiceEdit() {
-	Run("serviced", "service", "edit")
+func ExampleServicedCli_cmdServiceEdit() {
+	New(api.New()).Run("serviced", "service", "edit")
 
 	// Output:
 	// serviced service edit SERVICEID
 }
 
-func ExampleCmdServiceAutoIPs() {
-	Run("serviced", "service", "auto-assign-ips")
+func ExampleServicedCli_cmdServiceAutoIPs() {
+	New(api.New()).Run("serviced", "service", "auto-assign-ips")
 
 	// Output:
 	// serviced service auto-assign-ips SERVICEID
 }
 
-func ExampleCmdServiceManualIPs() {
-	Run("serviced", "service", "manual-assign-ips")
+func ExampleServicedCli_cmdServiceManualIPs() {
+	New(api.New()).Run("serviced", "service", "manual-assign-ips")
 
 	// Output:
 	// serviced service manual-assign-ips SERVICEID IPADDRESS
 }
 
-func ExampleCmdServiceStart() {
-	Run("serviced", "service", "start")
+func ExampleServicedCli_cmdServiceStart() {
+	New(api.New()).Run("serviced", "service", "start")
 
 	// Output:
 	// serviced service start SERVICEID
 }
 
-func ExampleCmdServiceStop() {
-	Run("serviced", "service", "stop")
+func ExampleServicedCli_cmdServiceStop() {
+	New(api.New()).Run("serviced", "service", "stop")
 
 	// Output:
 	// serviced service stop SERVICEID
 }
 
-func ExampleCmdServiceRestart() {
-	Run("serviced", "service", "restart")
+func ExampleServicedCli_cmdServiceRestart() {
+	New(api.New()).Run("serviced", "service", "restart")
 
 	// Output:
 	// serviced service restart SERVICEID
 }
 
-func ExampleCmdServiceShell() {
-	Run("serviced", "service", "shell")
+func ExampleServicedCli_cmdServiceShell() {
+	New(api.New()).Run("serviced", "service", "shell")
 
 	// Output:
 	// serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]
 }
 
-func ExampleCmdServiceListCmds() {
-	Run("serviced", "service", "list-commands")
+func ExampleServicedCli_cmdServiceListCmds() {
+	New(api.New()).Run("serviced", "service", "list-commands")
 
 	// Output:
 	// serviced service list-commands SERVICEID
 }
 
-func ExampleCmdServiceRun() {
-	Run("serviced", "service", "run")
+func ExampleServicedCli_cmdServiceRun() {
+	New(api.New()).Run("serviced", "service", "run")
 
 	// Output:
 	// serviced service run SERVICEID PROGRAM [ARGS ...]

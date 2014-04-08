@@ -3,35 +3,67 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/codegangsta/cli"
+	"github.com/zenoss/cli"
 )
 
-// CmdTemplateList is the command-line interaction for serviced template list
+// initTemplate is the initializer for serviced template
+func (c *ServicedCli) initTemplate() {
+	cmd := c.app.AddSubcommand(cli.Command{
+		Name:  "template",
+		Usage: "Administers templates.",
+	})
+	cmd.Commands = []cli.Command{
+		{
+			Name:   "list",
+			Usage:  "Lists all templates.",
+			Action: c.cmdTemplateList,
+		}, {
+			Name:   "add",
+			Usage:  "Adds a new template.",
+			Action: c.cmdTemplateAdd,
+		}, {
+			Name:      "remove",
+			ShortName: "rm",
+			Usage:     "Removes an existing template.",
+			Action:    c.cmdTemplateRemove,
+		}, {
+			Name:   "deploy",
+			Usage:  "Deploys template into a given pool.",
+			Action: c.cmdTemplateDeploy,
+		}, {
+			Name:   "compile",
+			Usage:  "Reads a given directory of service definitions to compile to a json struct.",
+			Action: c.cmdTemplateCompile,
+		},
+	}
+}
+
+// cmdTemplateList is the command-line interaction for serviced template list
 // usage: serviced template list
-func CmdTemplateList(c *cli.Context) {
+func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	fmt.Println("serviced template list")
 }
 
-// CmdTemplateAdd is the command-line interaction for serviced template add
+// cmdTemplateAdd is the command-line interaction for serviced template add
 // usage: serviced template add
-func CmdTemplateAdd(c *cli.Context) {
+func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	fmt.Println("serviced template add")
 }
 
-// CmdTemplateRemove is the command-line interaction for serviced template remove
+// cmdTemplateRemove is the command-line interaction for serviced template remove
 // usage: serviced template remove TEMPLATEID
-func CmdTemplateRemove(c *cli.Context) {
+func (c *ServicedCli) cmdTemplateRemove(ctx *cli.Context) {
 	fmt.Println("serviced template remove TEMPLATEID")
 }
 
-// CmdTemplateDeploy is the command-line interaction for serviced template deploy
+// cmdTemplateDeploy is the command-line interaction for serviced template deploy
 // usage: serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]
-func CmdTemplateDeploy(c *cli.Context) {
+func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	fmt.Println("serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]")
 }
 
-// CmdTemplateCompile is the command-line interaction for serviced template compile
+// cmdTemplateCompile is the command-line interaction for serviced template compile
 // usage: serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]
-func CmdTemplateCompile(c *cli.Context) {
+func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 	fmt.Println("serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]")
 }

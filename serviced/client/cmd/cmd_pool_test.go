@@ -1,30 +1,34 @@
 package cmd
 
-func ExampleCmdPoolList() {
-	Run("serviced", "pool", "list")
+import (
+	"github.com/zenoss/serviced/serviced/client/api"
+)
+
+func ExampleServicedCli_cmdPoolList() {
+	New(api.New()).Run("serviced", "pool", "list")
 
 	// Output:
 	// serviced pool list
 }
 
-func ExampleCmdPoolAdd() {
-	Run("serviced", "pool", "add")
+func ExampleServicedCli_cmdPoolAdd() {
+	New(api.New()).Run("serviced", "pool", "add")
 
 	// Output:
 	// serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY
 }
 
-func ExampleCmdPoolRemove() {
-	Run("serviced", "pool", "remove")
-	Run("serviced", "pool", "rm")
+func ExampleServicedCli_cmdPoolRemove() {
+	New(api.New()).Run("serviced", "pool", "remove")
+	New(api.New()).Run("serviced", "pool", "rm")
 
 	// Output:
 	// serviced pool remove POOLID
 	// serviced pool remove POOLID
 }
 
-func ExampleCmdPoolListIPs() {
-	Run("serviced", "pool", "list-ips")
+func ExampleServicedCli_cmdPoolListIPs() {
+	New(api.New()).Run("serviced", "pool", "list-ips")
 
 	// Output:
 	// serviced pool list-ips POOLID

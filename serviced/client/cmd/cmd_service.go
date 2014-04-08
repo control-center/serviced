@@ -3,77 +3,145 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/codegangsta/cli"
+	"github.com/zenoss/cli"
 )
 
-// CmdServiceList is the command-line interaction for serviced service list
+// initService is the initializer for serviced service
+func (c *ServicedCli) initService() {
+	cmd := c.app.AddSubcommand(cli.Command{
+		Name:  "service",
+		Usage: "Administers services",
+	})
+	cmd.Commands = []cli.Command{
+		{
+			Name:   "list",
+			Usage:  "Lists all services.",
+			Action: c.cmdServiceList,
+		}, {
+			Name:   "add",
+			Usage:  "Adds a new service.",
+			Action: c.cmdServiceAdd,
+		}, {
+			Name:      "remove",
+			ShortName: "rm",
+			Usage:     "Removes an existing service.",
+			Action:    c.cmdServiceRemove,
+		}, {
+			Name:   "edit",
+			Usage:  "Edits an existing service in a text editor.",
+			Action: c.cmdServiceEdit,
+		}, {
+			Name:   "auto-assign-ips",
+			Usage:  "Automatically assign IP addresses to a service's endpoints requiring an explicit IP address.",
+			Action: c.cmdServiceAutoIPs,
+		}, {
+			Name:   "manual-assign-ips",
+			Usage:  "Manually assign IP addresses to a service's endpoints requiring an explicit IP address.",
+			Action: c.cmdServiceManualIPs,
+		}, {
+			Name:   "start",
+			Usage:  "Starts a service.",
+			Action: c.cmdServiceStart,
+		}, {
+			Name:   "stop",
+			Usage:  "Stops a service.",
+			Action: c.cmdServiceStop,
+		}, {
+			Name:   "restart",
+			Usage:  "Restarts a service.",
+			Action: c.cmdServiceRestart,
+		}, {
+			Name:   "shell",
+			Usage:  "Starts a service instance.",
+			Action: c.cmdServiceShell,
+		}, {
+			Name:   "list-commands",
+			Usage:  "Shows a list of predefined commands for a service that can be executed with `run`.",
+			Action: c.cmdServiceListCmds,
+		}, {
+			Name:   "run",
+			Usage:  "Runs a service command as exposed by `show`.",
+			Action: c.cmdServiceRun,
+		}, {
+			Name:   "list-snapshots",
+			Usage:  "Lists the snapshots for a service.",
+			Action: c.cmdSnapshotList,
+		}, {
+			Name:   "snapshot",
+			Usage:  "Takes a snapshot of the service.",
+			Action: c.cmdSnapshotAdd,
+		},
+	}
+}
+
+// cmdServiceList is the command-line interaction for serviced service list
 // usage: serviced service list
-func CmdServiceList(c *cli.Context) {
+func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	fmt.Println("serviced service list")
 }
 
-// CmdServiceAdd is the command-line interaction for serviced service add
+// cmdServiceAdd is the command-line interaction for serviced service add
 // usage: serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND
-func CmdServiceAdd(c *cli.Context) {
+func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	fmt.Println("serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND")
 }
 
-// CmdServiceRemove is the command-line interaction for serviced service remove
+// cmdServiceRemove is the command-line interaction for serviced service remove
 // usage: serviced service remove SERVICEID
-func CmdServiceRemove(c *cli.Context) {
+func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 	fmt.Println("serviced service remove SERVICEID")
 }
 
-// CmdServiceEdit is the command-line interaction for serviced service edit
+// cmdServiceEdit is the command-line interaction for serviced service edit
 // usage: serviced service edit SERVICEID
-func CmdServiceEdit(c *cli.Context) {
+func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	fmt.Println("serviced service edit SERVICEID")
 }
 
-// CmdServiceAutoIPs is the command-line interaction for serviced service auto-assign-ips
+// cmdServiceAutoIPs is the command-line interaction for serviced service auto-assign-ips
 // usage: serviced service auto-assign-ips SERVICEID
-func CmdServiceAutoIPs(c *cli.Context) {
+func (c *ServicedCli) cmdServiceAutoIPs(ctx *cli.Context) {
 	fmt.Println("serviced service auto-assign-ips SERVICEID")
 }
 
-// CmdServiceManualIPs is the command-line interaction for serviced service manual-assign-ips
+// cmdServiceManualIPs is the command-line interaction for serviced service manual-assign-ips
 // usage: serviced service manual-assign-ips SERVICEID IPADDRESS
-func CmdServiceManualIPs(c *cli.Context) {
+func (c *ServicedCli) cmdServiceManualIPs(ctx *cli.Context) {
 	fmt.Println("serviced service manual-assign-ips SERVICEID IPADDRESS")
 }
 
-// CmdServiceStart is the command-line interaction for serviced service start
+// cmdServiceStart is the command-line interaction for serviced service start
 // usage: serviced service start SERVICEID
-func CmdServiceStart(c *cli.Context) {
+func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	fmt.Println("serviced service start SERVICEID")
 }
 
-// CmdServiceStop is the command-line interaction for serviced service stop
+// cmdServiceStop is the command-line interaction for serviced service stop
 // usage: serviced service stop SERVICEID
-func CmdServiceStop(c *cli.Context) {
+func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	fmt.Println("serviced service stop SERVICEID")
 }
 
-// CmdServiceRestart is the command-line interaction for serviced service restart
+// cmdServiceRestart is the command-line interaction for serviced service restart
 // usage: serviced service restart SERVICEID
-func CmdServiceRestart(c *cli.Context) {
+func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	fmt.Println("serviced service restart SERVICEID")
 }
 
-// CmdServiceShell is the command-line interaction for serviced service shell
+// cmdServiceShell is the command-line interaction for serviced service shell
 // usage: serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]
-func CmdServiceShell(c *cli.Context) {
+func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) {
 	fmt.Println("serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]")
 }
 
-// CmdServiceListCmds is the command-line interaction for serviced service list-commands
+// cmdServiceListCmds is the command-line interaction for serviced service list-commands
 // usage: serviced service list-commands SERVICEID
-func CmdServiceListCmds(c *cli.Context) {
+func (c *ServicedCli) cmdServiceListCmds(ctx *cli.Context) {
 	fmt.Println("serviced service list-commands SERVICEID")
 }
 
-// CmdServiceRun is the command-line interaction for serviced service run
+// cmdServiceRun is the command-line interaction for serviced service run
 // usage: serviced service run SERVICEID PROGRAM [ARGS ...]
-func CmdServiceRun(c *cli.Context) {
+func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
 	fmt.Println("serviced service run SERVICEID PROGRAM [ARGS ...]")
 }

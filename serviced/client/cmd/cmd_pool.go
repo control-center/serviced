@@ -3,29 +3,60 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/codegangsta/cli"
+	"github.com/zenoss/cli"
 )
 
-// CmdPoolList is the command-line interaction for serviced pool list
+// initPool is the initializer for serviced pool
+func (c *ServicedCli) initPool() {
+	cmd := c.app.AddSubcommand(cli.Command{
+		Name:  "pool",
+		Usage: "Administers pool data",
+	})
+	cmd.Commands = []cli.Command{
+		{
+			Name:   "list",
+			Usage:  "Lists all pools",
+			Action: c.cmdPoolList,
+		},
+		{
+			Name:   "add",
+			Usage:  "Adds a new resource pool",
+			Action: c.cmdPoolAdd,
+		},
+		{
+			Name:      "remove",
+			ShortName: "rm",
+			Usage:     "Removes an existing resource pool",
+			Action:    c.cmdPoolRemove,
+		},
+		{
+			Name:   "list-ips",
+			Usage:  "Lists the IP addresses for a resource pool",
+			Action: c.cmdPoolListIPs,
+		},
+	}
+}
+
+// cmdPoolList is the command-line interaction for serviced pool list
 // usage: serviced pool list
-func CmdPoolList(c *cli.Context) {
+func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	fmt.Println("serviced pool list")
 }
 
-// CmdPoolAdd is the command-line interaction for serviced pool add
+// cmdPoolAdd is the command-line interaction for serviced pool add
 // usage: serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY
-func CmdPoolAdd(c *cli.Context) {
+func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	fmt.Println("serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY")
 }
 
-// CmdPoolRemove is the command-line interaction for serviced pool remove
+// cmdPoolRemove is the command-line interaction for serviced pool remove
 // usage: serviced pool remove POOLID
-func CmdPoolRemove(c *cli.Context) {
+func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 	fmt.Println("serviced pool remove POOLID")
 }
 
-// CmdPoolListIPs is the command-line interaction for serviced pool list-ips
+// cmdPoolListIPs is the command-line interaction for serviced pool list-ips
 // usage: serviced pool list-ips POOLID
-func CmdPoolListIPs(c *cli.Context) {
+func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 	fmt.Println("serviced pool list-ips POOLID")
 }

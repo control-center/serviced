@@ -1,37 +1,41 @@
 package cmd
 
-func ExampleCmdSnapshotList() {
-	Run("serviced", "snapshot", "list")
+import (
+	"github.com/zenoss/serviced/serviced/client/api"
+)
+
+func ExampleServicedCli_cmdSnapshotList() {
+	New(api.New()).Run("serviced", "snapshot", "list")
 
 	// Output:
 	// serviced snapshot list [SERVICEID]
 }
 
-func ExampleCmdSnapshotAdd() {
-	Run("serviced", "snapshot", "add")
+func ExampleServicedCli_cmdSnapshotAdd() {
+	New(api.New()).Run("serviced", "snapshot", "add")
 
 	// Output:
 	// serviced snapshot add SERVICEID
 }
 
-func ExampleCmdSnapshotRemove() {
-	Run("serviced", "snapshot", "remove")
-	Run("serviced", "snapshot", "rm")
+func ExampleServicedCli_cmdSnapshotRemove() {
+	New(api.New()).Run("serviced", "snapshot", "remove")
+	New(api.New()).Run("serviced", "snapshot", "rm")
 
 	// Output:
 	// serviced snapshot remove SNAPSHOTID
 	// serviced snapshot remove SNAPSHOTID
 }
 
-func ExampleCmdSnapshotCommit() {
-	Run("serviced", "snapshot", "commit")
+func ExampleServicedCli_cmdSnapshotCommit() {
+	New(api.New()).Run("serviced", "snapshot", "commit")
 
 	// Output:
 	// serviced snapshot commit DOCKERID
 }
 
-func ExampleCmdSnapshotRollback() {
-	Run("serviced", "snapshot", "rollback")
+func ExampleServicedCli_cmdSnapshotRollback() {
+	New(api.New()).Run("serviced", "snapshot", "rollback")
 
 	// Output:
 	// serviced snapshot rollback SNAPSHOTID

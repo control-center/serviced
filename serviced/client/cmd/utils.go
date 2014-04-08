@@ -13,9 +13,27 @@ import "C"
 import (
 	"fmt"
 	"os"
-	"syscall"
+	"strings"
 	"text/tabwriter"
 )
+
+type table struct {
+	writer *tabwriter.Writer
+}
+
+func newTable(minwidth, tabwidth, padding int) *table {
+	w := tabwriter.NewWriter(os.Stdout, minwidth, tabwidth, padding, '\t', 0)
+	return &table{w}
+}
+
+func (t *table) PrintRow(columns ...interface{}) {
+	fmt.Fprintf(t.writer, strings.Repeat("%s\t", len(columns)), columns...)
+	fmt.Fprintln(t.writer)
+}
+
+func (t *table) Flush() {
+	t.writer.Flush()
+}
 
 func isatty(fd int) bool {
 	switch C.GoIsatty(C.int(fd)) {
@@ -24,29 +42,4 @@ func isatty(fd int) bool {
 	default:
 		return false
 	}
-}
-
-func format(listitems []string) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
-	tty := isatty(syscall.Stdin)
-
-	i := 0
-	for i < len(listitems) {
-		if tty {
-			output := make([]interface{}, 4)
-			for j := range output {
-				if i < len(listitems) {
-					output[j] = listitems[i]
-				} else {
-					output[j] = ""
-				}
-				i++
-			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t\n", output...)
-		} else {
-			fmt.Fprintln(w, listitems[i])
-			i++
-		}
-	}
-	w.Flush()
 }
