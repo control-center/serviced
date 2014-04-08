@@ -5,7 +5,7 @@
 package elastic
 
 import (
-	. "gopkg.in/check.v1"
+	check "gopkg.in/check.v1"
 
 	"fmt"
 	"log"
@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ES_VERSION = "0.90.0"
+	esVersion = "0.90.0"
 )
 
 // ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
@@ -24,7 +24,7 @@ var (
 // documentation for more infomration about writing gocheck tests.
 type ElasticTest struct {
 	driver ElasticDriver
-	server *TestCluster
+	server *testCluster
 	//InitTimeout in seconds to wait for elastic to start
 	InitTimeout time.Duration
 	//Index for initializing driver, must be set
@@ -36,7 +36,7 @@ type ElasticTest struct {
 }
 
 //setDefaults sets up sane defaults for what it can. Fatal if required values not set.
-func (et *ElasticTest) setDefaults(c *C) {
+func (et *ElasticTest) setDefaults(c *check.C) {
 	if et.Index == "" {
 		c.Fatal("index required to run ElasticTest")
 	}
@@ -49,7 +49,7 @@ func (et *ElasticTest) setDefaults(c *C) {
 }
 
 //SetUpSuite Run once when the suite starts running.
-func (et *ElasticTest) SetUpSuite(c *C) {
+func (et *ElasticTest) SetUpSuite(c *check.C) {
 	log.Print("ElasticTest SetUpSuite called")
 	et.setDefaults(c)
 	driver := new("localhost", et.Port, et.Index)
@@ -60,7 +60,7 @@ func (et *ElasticTest) SetUpSuite(c *C) {
 		//download elastic jar if needed
 		dir := ensureElasticJar()
 		//start elastic
-		tc, err := NewTestCluster(dir, et.Port)
+		tc, err := newTestCluster(dir, et.Port)
 		if err != nil {
 			tc.Stop()
 			c.Fatalf("error in SetUpSuite: %v", err)
@@ -80,12 +80,13 @@ func (et *ElasticTest) SetUpSuite(c *C) {
 }
 
 //TearDownSuite Run once after all tests or benchmarks have finished running.
-func (et *ElasticTest) TearDownSuite(c *C) {
+func (et *ElasticTest) TearDownSuite(c *check.C) {
 	log.Print("ElasticTest TearDownSuite called")
 
 	et.stop()
 }
 
+//Driver returns the initialized driver
 func (et *ElasticTest) Driver() ElasticDriver {
 	return et.driver
 }
@@ -97,14 +98,14 @@ func (et *ElasticTest) stop() error {
 	return nil
 }
 
-type TestCluster struct {
+type testCluster struct {
 	tmpDir     string
 	cmd        *exec.Cmd
 	clientPort int
 	shutdown   bool
 }
 
-func (tc *TestCluster) Stop() error {
+func (tc *testCluster) Stop() error {
 	tc.shutdown = true
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
@@ -113,9 +114,9 @@ func (tc *TestCluster) Stop() error {
 	return nil
 }
 
-func NewTestCluster(elasticDir string, port uint16) (*TestCluster, error) {
+func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 
-	tc := &TestCluster{}
+	tc := &testCluster{}
 	tc.shutdown = false
 
 	command := []string{elasticDir + "/bin/elasticsearch", "-f", fmt.Sprintf("-Des.http.port=%v", port)}
@@ -137,8 +138,8 @@ func ensureElasticJar() string {
 		log.Fatal("Can't find java in path")
 	}
 
-	gz := fmt.Sprintf("elasticsearch-%s.tar.gz", ES_VERSION)
-	path := fmt.Sprintf("/tmp/elasticsearch-%s", ES_VERSION)
+	gz := fmt.Sprintf("elasticsearch-%s.tar.gz", esVersion)
+	path := fmt.Sprintf("/tmp/elasticsearch-%s", esVersion)
 
 	log.Printf("checking %s exists", path)
 	if _, err = os.Stat(path); err != nil {

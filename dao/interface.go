@@ -99,28 +99,28 @@ type ControlPlane interface {
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
-	//---------------------------------------------------------------------------
-	// ResourcePool CRUD
-
-	// Add a new service pool to serviced
-	AddResourcePool(pool ResourcePool, poolId *string) error
-
-	// Update a service pool definition
-	UpdateResourcePool(pool ResourcePool, unused *int) error
-
-	// Remove a service pool
-	RemoveResourcePool(poolId string, unused *int) error
-
-	//TODO does this belong here
-	// Get a list of all the resource pools
-	//GetResourcePool(poolId string, pool *ResourcePool) error
-
-	// Get a list of all the resource pools
-	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
-
-	// Get of a list of hosts that are in the given resource pool
-	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
-
+//	//---------------------------------------------------------------------------
+//	// ResourcePool CRUD
+//
+//	// Add a new service pool to serviced
+//	AddResourcePool(pool ResourcePool, poolId *string) error
+//
+//	// Update a service pool definition
+//	UpdateResourcePool(pool ResourcePool, unused *int) error
+//
+//	// Remove a service pool
+//	RemoveResourcePool(poolId string, unused *int) error
+//
+//	//TODO does this belong here
+//	// Get a list of all the resource pools
+//	//GetResourcePool(poolId string, pool *ResourcePool) error
+//
+//	// Get a list of all the resource pools
+//	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
+//
+//	// Get of a list of hosts that are in the given resource pool
+//	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
+//
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
 

@@ -5,6 +5,7 @@
 package elastic
 
 import (
+	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore/driver"
 
@@ -16,7 +17,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"github.com/mattbaird/elastigo/api"
 )
 
 //ElasticDriver describes an the Elastic Search driver

@@ -48,8 +48,8 @@ func (s *S) TestPutGetDelete(t *C) {
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
-	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJson))
+	tweetJSON, err := json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -102,8 +102,8 @@ func (s *S) TestQuery(t *C) {
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
-	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJson))
+	tweetJSON, err := json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -115,8 +115,8 @@ func (s *S) TestQuery(t *C) {
 		"post_date": "2010-11-15T14:12:12",
 		"message":   "trying out Elasticsearch again",
 	}
-	tweetJson, err = json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJson))
+	tweetJSON, err = json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
