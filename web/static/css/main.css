@@ -36,6 +36,11 @@ table > thead {
     border-left: 0px;
     border-top: 0px;
 }
+
+.table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+    background-color: #ddffdd;
+}
+
 .toggle .btn.active {
     padding-right: 10px;
 }
