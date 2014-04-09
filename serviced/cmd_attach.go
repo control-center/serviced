@@ -48,8 +48,10 @@ func attachContainerAndExec(containerId string, cmd []string) error {
 	return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 }
 
+// findContainerIdFromDocker returns the containerID that matches docker ps output
 func findContainerIdFromDocker(pattern string) (string, error) {
-	// docker ps --no-trunc| awk '/serviced.*redis/{print $1;exit}'
+	// algorithm - perform following shell one-liner in this short 40 line go function :)
+	//   docker ps --no-trunc | awk '/serviced.*redis/{print $1;exit}'
 	exeMap, err := exePaths([]string{"docker"})
 	if err != nil {
 		return "", err
@@ -66,8 +68,7 @@ func findContainerIdFromDocker(pattern string) (string, error) {
 		return "", err
 	}
 
-	err = cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		glog.Errorf("Error starting command: '%v %v'  err: %s", CMD, argv, err)
 		return "", err
 	}
@@ -85,28 +86,25 @@ func findContainerIdFromDocker(pattern string) (string, error) {
 		}
 	}
 
-	newError := fmt.Sprintf("could not find container from pattern: %v", pattern)
-	return "", errors.New(newError)
+	return "", errors.New(fmt.Sprintf("could not find container from pattern: %v", pattern))
 }
 
 // CmdAttach attaches to a service container and runs the given arbitrary bash command
 func (cli *ServicedCli) CmdAttach(args ...string) error {
-
 	cmd := Subcmd("attach", "BASH_CMD ...", "attach to a service container and run command")
 
 	var containerID string
 	cmd.StringVar(&containerID, "containerID", "", "attach to container given containerID")
 
 	var pattern string
-	cmd.StringVar(&pattern, "pattern", "", "attach to container found by matching pattern pattern in docker ps")
+	cmd.StringVar(&pattern, "pattern", "", "attach to first container found by matching pattern in docker ps")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 
 	if len(cmd.Args()) < 1 {
-		glog.Errorf("len(args) = %d; missing bash command to run\n", len(cmd.Args()))
-		os.Exit(253)
+		return errors.New(fmt.Sprintf("missing bash command to run\n"))
 	}
 
 	if len(containerID) <= 0 {
@@ -118,16 +116,14 @@ func (cli *ServicedCli) CmdAttach(args ...string) error {
 				return err
 			}
 		} else {
-			glog.Errorf("neither containerID nor pattern is specified\n")
-			os.Exit(254)
+			return errors.New(fmt.Sprintf("neither containerID nor pattern is specified\n"))
 		}
 	}
 
 	bashCommand := cmd.Args()[0:]
 
 	if err := attachContainerAndExec(containerID, bashCommand); err != nil {
-		glog.Errorf("error running bash command:%v  err:%v\n", cmd.Args(), err)
-		os.Exit(255)
+		return errors.New(fmt.Sprintf("error running bash command:%v  err:%v\n", cmd.Args(), err))
 	}
 
 	return nil
