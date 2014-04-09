@@ -115,6 +115,8 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
+
+		{"attach", "attach to a running service container and execute arbitrary bash command"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
