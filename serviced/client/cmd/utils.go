@@ -27,7 +27,7 @@ func newTable(minwidth, tabwidth, padding int) *table {
 }
 
 func (t *table) PrintRow(columns ...interface{}) {
-	fmt.Fprintf(t.writer, strings.Repeat("%s\t", len(columns)), columns...)
+	fmt.Fprintf(t.writer, strings.Repeat("%v\t", len(columns)), columns...)
 	fmt.Fprintln(t.writer)
 }
 
@@ -42,4 +42,23 @@ func isatty(fd int) bool {
 	default:
 		return false
 	}
+}
+
+func remove(index int, list ...interface{}) []interface{} {
+	var (
+		left  []interface{}
+		right []interface{}
+	)
+
+	switch {
+	case index < 0 || index > len(list):
+		panic("index out of bounds")
+	case index+1 < len(list):
+		right = list[index+1:]
+		fallthrough
+	default:
+		left = list[:index]
+	}
+
+	return append(left, right...)
 }

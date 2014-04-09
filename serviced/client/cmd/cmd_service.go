@@ -9,8 +9,9 @@ import (
 // initService is the initializer for serviced service
 func (c *ServicedCli) initService() {
 	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "service",
-		Usage: "Administers services",
+		Name:   "service",
+		Usage:  "Administers services",
+		Action: cmdDefault,
 	})
 	cmd.Commands = []cli.Command{
 		{

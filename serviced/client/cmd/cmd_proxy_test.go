@@ -5,7 +5,7 @@ import (
 )
 
 func ExampleServicedCli_cmdProxy() {
-	New(api.New()).Run("serviced", "proxy")
+	New(api.New()).Run([]string{"serviced", "proxy"})
 
 	// Output:
 	// serviced proxy ...

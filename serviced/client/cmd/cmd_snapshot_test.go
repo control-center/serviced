@@ -5,22 +5,22 @@ import (
 )
 
 func ExampleServicedCli_cmdSnapshotList() {
-	New(api.New()).Run("serviced", "snapshot", "list")
+	New(api.New()).Run([]string{"serviced", "snapshot", "list"})
 
 	// Output:
 	// serviced snapshot list [SERVICEID]
 }
 
 func ExampleServicedCli_cmdSnapshotAdd() {
-	New(api.New()).Run("serviced", "snapshot", "add")
+	New(api.New()).Run([]string{"serviced", "snapshot", "add"})
 
 	// Output:
 	// serviced snapshot add SERVICEID
 }
 
 func ExampleServicedCli_cmdSnapshotRemove() {
-	New(api.New()).Run("serviced", "snapshot", "remove")
-	New(api.New()).Run("serviced", "snapshot", "rm")
+	New(api.New()).Run([]string{"serviced", "snapshot", "remove"})
+	New(api.New()).Run([]string{"serviced", "snapshot", "rm"})
 
 	// Output:
 	// serviced snapshot remove SNAPSHOTID
@@ -28,14 +28,14 @@ func ExampleServicedCli_cmdSnapshotRemove() {
 }
 
 func ExampleServicedCli_cmdSnapshotCommit() {
-	New(api.New()).Run("serviced", "snapshot", "commit")
+	New(api.New()).Run([]string{"serviced", "snapshot", "commit"})
 
 	// Output:
 	// serviced snapshot commit DOCKERID
 }
 
 func ExampleServicedCli_cmdSnapshotRollback() {
-	New(api.New()).Run("serviced", "snapshot", "rollback")
+	New(api.New()).Run([]string{"serviced", "snapshot", "rollback"})
 
 	// Output:
 	// serviced snapshot rollback SNAPSHOTID

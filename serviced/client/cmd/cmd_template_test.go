@@ -5,22 +5,22 @@ import (
 )
 
 func ExampleServicedCli_cmdTemplateList() {
-	New(api.New()).Run("serviced", "template", "list")
+	New(api.New()).Run([]string{"serviced", "template", "list"})
 
 	// Output:
 	// serviced template list
 }
 
 func ExampleServicedCli_cmdTemplateAdd() {
-	New(api.New()).Run("serviced", "template", "add")
+	New(api.New()).Run([]string{"serviced", "template", "add"})
 
 	// Output:
 	// serviced template add
 }
 
 func ExampleServicedCli_cmdTemplateRemove() {
-	New(api.New()).Run("serviced", "template", "remove")
-	New(api.New()).Run("serviced", "template", "rm")
+	New(api.New()).Run([]string{"serviced", "template", "remove"})
+	New(api.New()).Run([]string{"serviced", "template", "rm"})
 
 	// Output:
 	// serviced template remove TEMPLATEID
@@ -28,14 +28,14 @@ func ExampleServicedCli_cmdTemplateRemove() {
 }
 
 func ExampleServicedCli_cmdTemplateDeploy() {
-	New(api.New()).Run("serviced", "template", "deploy")
+	New(api.New()).Run([]string{"serviced", "template", "deploy"})
 
 	// Output:
 	// serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]
 }
 
 func ExampleServicedCli_cmdTemplateCompile() {
-	New(api.New()).Run("serviced", "template", "compile")
+	New(api.New()).Run([]string{"serviced", "template", "compile"})
 
 	// Output:
 	// serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]

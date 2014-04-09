@@ -9,8 +9,9 @@ import (
 // initPool is the initializer for serviced pool
 func (c *ServicedCli) initPool() {
 	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "pool",
-		Usage: "Administers pool data",
+		Name:   "pool",
+		Usage:  "Administers pool data",
+		Action: cmdDefault,
 	})
 	cmd.Commands = []cli.Command{
 		{

@@ -8,5 +8,5 @@ import (
 )
 
 func main() {
-	cmd.New(api.New()).Run(os.Args...)
+	cmd.New(api.New()).Run(os.Args)
 }

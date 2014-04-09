@@ -9,7 +9,11 @@ const ()
 var ()
 
 // HostConfig is the deserialized object from the command-line
-type HostConfig struct{}
+type HostConfig struct {
+	IPAddr string
+	PoolID string
+	IPs    []string
+}
 
 // ListHosts returns a list of all hosts
 func (a *api) ListHosts() ([]host.Host, error) {
