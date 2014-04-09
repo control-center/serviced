@@ -19,7 +19,7 @@ install:
 build:
 	./godep restore
 	go build
-	cd $(NSINITDIR) && go build
+	cd $(NSINITDIR) && go build && go install
 	cp $(NSINITDIR)/nsinit .
 
 test: build
