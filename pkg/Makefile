@@ -60,7 +60,7 @@ stage: build pkgroot
 	# Stage binary
 	mkdir -p pkgroot$(INSTALL_DIR)/bin
 	cp ../serviced/serviced pkgroot$(INSTALL_DIR)/bin
-	cp $${GOBIN}/nsinit pkgroot$(INSTALL_DIR)/bin
+	cp ../serviced/nsinit pkgroot$(INSTALL_DIR)/bin
 
 	# Stage web files
 	mkdir -p pkgroot$(INSTALL_DIR)/share/web
