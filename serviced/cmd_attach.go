@@ -50,7 +50,7 @@ func attachContainerAndExec(containerId string, cmd []string) error {
 
 func findContainerIdFromDocker(pattern string) (string, error) {
 	// docker ps --no-trunc| awk '/serviced.*redis/{print $1;exit}'
-	exeMap, err := exePaths([]string{"docker", "awk"})
+	exeMap, err := exePaths([]string{"docker"})
 	if err != nil {
 		return "", err
 	}
