@@ -77,6 +77,11 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             }
         };
     }).
+    directive('showIfEmpty', function(){
+        return function(scope, elem, attrs){
+            scope.showIfEmpty();
+        };
+    }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
     factory('statsService', StatsService).
@@ -156,14 +161,17 @@ var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
 
-function EntryControl($scope, authService) {
+function EntryControl($scope, authService, resourcesService) {
     authService.checkLogin($scope);
     $scope.brand_label = "brand_zcp";
     $scope.page_content = "entry_content";
-    $scope.mainlinks = [
-        { url: '#/apps', label: 'nav_apps' },
-        { url: '#/hosts', label: 'nav_hosts' }
-    ];
+    $scope.showIfEmpty = function(){
+        resourcesService.get_services(false, function(topServices, mappedServices){
+            if( topServices.length <= 0 ){
+                $('#addApp').modal('show');
+            }
+        });
+    }
 }
 
 // Used by /login view
@@ -401,15 +409,15 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-    $scope.secondarynav = [
-        { label: 'nav_servicesmap', path: '/servicesmap' }
-    ];
+//    $scope.secondarynav = [
+//        { label: 'nav_servicesmap', path: '/servicesmap' }
+//    ];
 
     $scope.services = buildTable('PoolId', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
-        { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
+        { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'VirtualHost', name: 'vhost_names'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
         { id: 'DesiredState', name: 'running_tbl_actions' }
@@ -418,6 +426,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
     };
+
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
     };
@@ -705,14 +714,17 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     }
 }
 
-function HostsControl($scope, $routeParams, $location, $filter, $timeout,
-                      resourcesService, authService)
-{
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "hosts";
     $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_hosts', itemClass: 'active' }
+    ];
+
     $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
         if (toggled.children === undefined) {
@@ -1444,10 +1456,13 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
 
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps',
-          sublinks: [ '#/services/', '#/servicesmap' ]
+          sublinks: [ '#/services/', '#/servicesmap' ], target: "_self"
         },
         { url: '#/hosts', label: 'nav_hosts',
-          sublinks: [ '#/hosts/', '#/hostsmap' ]
+          sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
+        },
+        { url: '/static/logview/#/dashboard/file/logstash.json', label: 'nav_logs',
+          sublinks: [], target: "_blank"
         }
     ];
 
