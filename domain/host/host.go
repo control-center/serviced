@@ -38,9 +38,10 @@ func New() *Host {
 }
 
 // Build creates a Host type from the current host machine, filling out fields using the current machines attributes.
-// The ip param is routable IP used to connecto to the Host, if empty a IP from the available IPs will be used. The poolid
-// param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
-// resources. If any IP is not a valid IP on the machine return error.
+// The IP param is a routable IP used to connect to to the Host, if empty an IP from the available IPs will be used.
+// The poolid param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
+// resources, if not set the IP used for the host will be given as an IP Resource. If any IP is not a valid IP on the
+// machine return error.
 func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	if strings.TrimSpace(poolid) == "" {
 		return nil, errors.New("empty poolid not allowed")

@@ -29,7 +29,12 @@
 		},
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
-			"Rev": "a1598d1e1c157388f3b07415729de28f4d205e49"
+			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit",
+			"Rev": "867b2a90c228f62cdcd44907ceef279a2d8f1ac5"
+		},
+		{
+			"ImportPath": "github.com/syndtr/gocapability/capability",
+			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
 		},
 		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
@@ -62,6 +67,10 @@
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
 			"Rev": "144872e87874cf77d43d6d341573811737e42173"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+            "Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
 		}
 	]
 }

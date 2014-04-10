@@ -26,3 +26,14 @@ func IsIP(value string) error {
 	}
 	return nil
 }
+
+//StringsEqual checks to see that strings are equal, optional msg to use instead of default
+func StringsEqual(expected string, other string, errMsg string) error {
+	if expected != other {
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("expected %s found %s", expected, other)
+		}
+		return NewViolation(errMsg)
+	}
+	return nil
+}
