@@ -117,7 +117,7 @@ func (ds *DataStore) serialize(kind string, entity interface{}) (JSONMessage, er
 	if err != nil {
 		return nil, err
 	}
-	return &jsonMessage{data}, nil
+	return NewJSONMessage(data), nil
 }
 
 func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity interface{}) error {

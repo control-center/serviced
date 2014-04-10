@@ -35,7 +35,7 @@ func (c testConn) Query(interface{}) ([]JSONMessage, error) {
 func TestContext(t *testing.T) {
 
 	driver := testDriver{}
-	ctx := NewContext(&driver)
+	ctx := newCtx(&driver)
 
 	conn, _ := ctx.Connection()
 	if conn == nil {

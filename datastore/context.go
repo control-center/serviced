@@ -10,8 +10,20 @@ type Context interface {
 	Connection() (Connection, error)
 }
 
-//NewContext Creates a new context with an Driver to a datastore
-func NewContext(driver Driver) Context {
+//Register a driver to use for the context
+func Register(driver Driver) {
+	ctx = newCtx(driver)
+}
+
+//Get returns the global Context
+func Get() Context {
+	return ctx
+}
+
+var ctx Context
+
+//new Creates a new context with a Driver to a datastore
+func newCtx(driver Driver) Context {
 	return &context{driver}
 }
 

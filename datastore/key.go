@@ -4,6 +4,8 @@
 
 package datastore
 
+import "fmt"
+
 // Key is a unique identifier for an entity. A key is composed of a kind or type of entity and the id of the entity.
 type Key interface {
 	// Kind is the type of the entity
@@ -30,4 +32,8 @@ func (k *key) Kind() string {
 // Kind returns the key's kind (also known as entity type).
 func (k *key) ID() string {
 	return k.id
+}
+
+func (k *key) String() string {
+	return fmt.Sprintf("Key: %s - %s", k.kind, k.id)
 }
