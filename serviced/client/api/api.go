@@ -19,9 +19,9 @@ type API interface {
 	RemoveHost(string) error
 
 	// Pools
-	ListPools() ([]pool.Pool, error)
-	GetPool(string) (*pool.Pool, error)
-	AddPool(PoolConfig) (*pool.Pool, error)
+	ListPools() ([]pool.ResourcePool, error)
+	GetPool(string) (*pool.ResourcePool, error)
+	AddPool(PoolConfig) (*pool.ResourcePool, error)
 	RemovePool(string) error
 	ListPoolIPs(string) ([]host.HostIPResource, error)
 

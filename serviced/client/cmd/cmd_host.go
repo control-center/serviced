@@ -18,9 +18,14 @@ func (c *ServicedCli) initHost() {
 	})
 	cmd.Commands = []cli.Command{
 		{
-			Name:   "list",
-			Usage:  "Lists all hosts.",
-			Action: c.cmdHostList,
+			Name:         "list",
+			Usage:        "Lists all hosts.",
+			Action:       c.cmdHostList,
+			BashComplete: c.printHosts,
+
+			Args: []string{
+				"[HOSTID]",
+			},
 			Flags: []cli.Flag{
 				cli.BoolFlag{"verbose, v", "Show JSON format"},
 			},
@@ -28,18 +33,24 @@ func (c *ServicedCli) initHost() {
 			Name:      "add",
 			ShortName: "+",
 			Usage:     "Adds a new host",
-			Args:      []string{"HOST[:PORT]", "RESOURCE_POOL"},
-			Flags: []cli.Flag{
-				cli.StringSliceFlag{"ip", new(cli.StringSlice), "List of available IP endpoints.  Default: HOST"},
+			Action:    c.cmdHostAdd,
+
+			Args: []string{
+				"HOST[:PORT]", "RESOURCE_POOL",
 			},
-			Action: c.cmdHostAdd,
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{"ip", new(cli.StringSlice), "List of available endpoints. Default: host IP address"},
+			},
 		}, {
 			Name:         "remove",
 			ShortName:    "rm",
 			Usage:        "Removes an existing host",
-			Args:         []string{"HOSTID"},
 			Action:       c.cmdHostRemove,
 			BashComplete: c.printHosts,
+
+			Args: []string{
+				"HOSTID",
+			},
 		},
 	}
 }
@@ -65,6 +76,20 @@ func (c *ServicedCli) printHosts(ctx *cli.Context) {
 // cmdHostList is the command-line interaction for serviced host list
 // usage: serviced host list
 func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
+	if len(ctx.Args()) > 0 {
+		hostID := ctx.Args()[0]
+		if host, err := c.driver.GetHost(hostID); err != nil {
+			fmt.Fprintf(os.Stderr, "error trying to retrieve host: %s\n", err)
+		} else if host == nil {
+			fmt.Fprintln(os.Stderr, "host not found")
+		} else if jsonHost, err := json.MarshalIndent(host, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal host: %s", err)
+		} else {
+			fmt.Println(string(jsonHost))
+		}
+		return
+	}
+
 	hosts, err := c.driver.ListHosts()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error trying to retrieve hosts: %s\n", err)

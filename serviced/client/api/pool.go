@@ -11,20 +11,24 @@ var ()
 
 // PoolConfig is the deserialized data from the command-line
 type PoolConfig struct {
+	PoolID      string
+	CoreLimit   int
+	MemoryLimit uint64
+	Priority    int
 }
 
 // ListPools returns a list of all pools
-func (a *api) ListPools() ([]pool.Pool, error) {
+func (a *api) ListPools() ([]pool.ResourcePool, error) {
 	return nil, nil
 }
 
 // GetPool gets information about a pool given a PoolID
-func (a *api) GetPool(id string) (*pool.Pool, error) {
+func (a *api) GetPool(id string) (*pool.ResourcePool, error) {
 	return nil, nil
 }
 
 // AddPool adds a new pool
-func (a *api) AddPool(config PoolConfig) (*pool.Pool, error) {
+func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
 	return nil, nil
 }
 
