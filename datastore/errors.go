@@ -5,14 +5,12 @@
 package datastore
 
 import (
-	"github.com/zenoss/serviced/datastore/key"
-
 	"fmt"
 )
 
 // ErrNoSuchEntity is returned when no entity was found for a given key.
 type ErrNoSuchEntity struct {
-	Key key.Key
+	Key Key
 }
 
 func (e ErrNoSuchEntity) Error() string {

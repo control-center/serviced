@@ -7,7 +7,7 @@ package elastic
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore/driver"
+	"github.com/zenoss/serviced/datastore"
 
 	"bytes"
 	"encoding/json"
@@ -27,7 +27,7 @@ type ElasticDriver interface {
 	AddMappingFile(name string, path string) error
 	//Initialize the driver, register mappings with elasticserach. Timeout in ms to wait for elastic to be available.
 	Initialize(timeout time.Duration) error
-	GetConnection() (driver.Connection, error)
+	GetConnection() (datastore.Connection, error)
 }
 
 // New creates a new ElasticDriver
@@ -51,7 +51,7 @@ func new(host string, port uint16, index string) *elasticDriver {
 }
 
 //Make sure elasticDriver implements datastore.Driver
-var _ driver.Driver = &elasticDriver{}
+var _ datastore.Driver = &elasticDriver{}
 
 type elasticDriver struct {
 	host         string
@@ -62,7 +62,7 @@ type elasticDriver struct {
 	index        string
 }
 
-func (ed *elasticDriver) GetConnection() (driver.Connection, error) {
+func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
 	return &elasticConnection{ed.index}, nil
 }
 

@@ -5,10 +5,6 @@
 package datastore
 
 import (
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/key"
-	"github.com/zenoss/serviced/datastore/driver"
-
 	"encoding/json"
 	"errors"
 )
@@ -26,13 +22,13 @@ var (
 type EntityStore interface {
 
 	// Put adds or updates an entity
-	Put(ctx context.Context, key key.Key, entity ValidEntity) error
+	Put(ctx Context, key Key, entity ValidEntity) error
 
 	// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
-	Get(ctx context.Context, key key.Key, entity ValidEntity) error
+	Get(ctx Context, key Key, entity ValidEntity) error
 
 	// Delete removes the entity
-	Delete(ctx context.Context, key key.Key) error
+	Delete(ctx Context, key Key) error
 }
 
 //ValidEntity interface for entities that can be stored in the EntityStore
@@ -49,7 +45,7 @@ func New() EntityStore {
 type DataStore struct{}
 
 // Put adds or updates an entity
-func (ds *DataStore) Put(ctx context.Context, key key.Key, entity ValidEntity) error {
+func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -75,7 +71,7 @@ func (ds *DataStore) Put(ctx context.Context, key key.Key, entity ValidEntity) e
 }
 
 // Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
-func (ds *DataStore) Get(ctx context.Context, key key.Key, entity ValidEntity) error {
+func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -100,7 +96,7 @@ func (ds *DataStore) Get(ctx context.Context, key key.Key, entity ValidEntity) e
 }
 
 // Delete removes the entity
-func (ds *DataStore) Delete(ctx context.Context, key key.Key) error {
+func (ds *DataStore) Delete(ctx Context, key Key) error {
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -115,16 +111,16 @@ func (ds *DataStore) Delete(ctx context.Context, key key.Key) error {
 	return conn.Delete(key)
 }
 
-func (ds *DataStore) serialize(kind string, entity interface{}) (driver.JSONMessage, error) {
+func (ds *DataStore) serialize(kind string, entity interface{}) (JSONMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
 	data, err := json.Marshal(entity)
 	if err != nil {
 		return nil, err
 	}
-	return driver.NewJSONMessage(data), nil
+	return NewJSONMessage(data), nil
 }
 
-func (ds *DataStore) deserialize(kind string, jsonMsg driver.JSONMessage, entity interface{}) error {
+func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
 	return SafeUnmarshal(jsonMsg.Bytes(), entity)
 }
