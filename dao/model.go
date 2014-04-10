@@ -482,7 +482,7 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 
 
 // Retrieve service container port, 0 failure
-func (ss *ServiceState) GetHostEndpointInfo(application string) (extport, port uint16, protocol string) {
+func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, containerPort uint16, protocol string) {
 	for _, ep := range ss.Endpoints {
 		if ep.Purpose == "export" {
 			if match, err := path.Match(application, ep.Application); err == nil && match {
