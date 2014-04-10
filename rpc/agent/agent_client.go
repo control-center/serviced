@@ -10,24 +10,28 @@ import (
 	"net/rpc"
 )
 
-// AgentClient is an interface that the serviced agent implements to provide
-// information about the host it is running on.
-type AgentClient struct {
+// AgentClient rpc client to interact with agent
+type Client struct {
 	addr      string
 	rpcClient *rpc.Client
 }
 
-// Create a new AgentClient.
-func NewClient(addr string) (*AgentClient, error) {
-	s := new(AgentClient)
+// Create a new Client.
+func NewClient(addr string) (*Client, error) {
+	s := new(Client)
 	s.addr = addr
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err
 }
 
+// Close closes rpc client
+func (c *Client) Close() (err error) {
+	return c.rpcClient.Close()
+}
+
 // BuildHost creates a Host object from the current host.
-func (a *AgentClient) BuildHost(request BuildHostRequest) (*host.Host, error) {
+func (a *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	hostResponse := host.New()
 	if err := a.rpcClient.Call("Master.BuildHost", request, hostResponse); err != nil {
 		return nil, err

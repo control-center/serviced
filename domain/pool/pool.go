@@ -18,7 +18,7 @@ type ResourcePool struct {
 }
 
 // NewResourcePool creates new ResourcePool
-func NewResourcePool(id string) *ResourcePool {
+func New(id string) *ResourcePool {
 	pool := &ResourcePool{}
 	pool.ID = id
 	return pool

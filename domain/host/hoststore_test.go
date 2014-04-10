@@ -5,44 +5,56 @@
 package host
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/datastore/context"
 	"github.com/zenoss/serviced/datastore/elastic"
+	. "gopkg.in/check.v1"
 
 	"testing"
-	//	"time"
+	"time"
 )
 
-var hs *HostStore
-var ctx datastore.Context
-
-func init() {
-
-	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "./host_mapping.json"})
-	if err != nil {
-		glog.Infof("Error initializing db driver %v", err)
-		return
-	}
-	hs = NewStore()
-	ctx = datastore.NewContext(esDriver)
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }
 
-func Test_HostCRUD(t *testing.T) {
+var _ = Suite(&S{
+	ElasticTest: elastic.ElasticTest{
+		Index:    "controlplane",
+		Mappings: map[string]string{"host": "./host_mapping.json"},
+	}})
 
-	if hs == nil {
-		t.Fatalf("Test failed to initialize")
+type S struct {
+	elastic.ElasticTest
+	ctx context.Context
+	hs  *HostStore
+}
+
+func (s *S) SetUpTest(c *C) {
+	context.Register(s.Driver())
+	s.ctx = context.Get()
+	s.hs = NewStore()
+}
+
+func (s *S) Test_HostCRUD(t *C) {
+	defer s.hs.Delete(s.ctx, HostKey("testid"))
+
+	var host2 Host
+
+	if err := s.hs.Get(s.ctx, HostKey("testid"), &host2); !datastore.IsErrNoSuchEntity(err) {
+		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
-	defer hs.Delete(ctx, HostKey("testid"))
 
 	host := New()
 
-	err := hs.Put(ctx, HostKey("testid"), host)
+	err := s.hs.Put(s.ctx, HostKey("testid"), host)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
 
 	host.ID = "testid"
-	err = hs.Put(ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
@@ -53,13 +65,12 @@ func Test_HostCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = hs.Put(ctx, HostKey("testid"), host)
+	err = s.hs.Put(s.ctx, HostKey("testid"), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	var host2 Host
-	err = hs.Get(ctx, HostKey("testid"), &host2)
+	err = s.hs.Get(s.ctx, HostKey("testid"), &host2)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -69,8 +80,8 @@ func Test_HostCRUD(t *testing.T) {
 
 	//Test update
 	host.Memory = 1024
-	err = hs.Put(ctx, HostKey(host.ID), host)
-	err = hs.Get(ctx, HostKey("testid"), &host2)
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Get(s.ctx, HostKey("testid"), &host2)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -79,47 +90,43 @@ func Test_HostCRUD(t *testing.T) {
 	}
 
 	//test delete
-	err = hs.Delete(ctx, HostKey("testid"))
-	err = hs.Get(ctx, HostKey("testid"), &host2)
+	err = s.hs.Delete(s.ctx, HostKey("testid"))
+	err = s.hs.Get(s.ctx, HostKey("testid"), &host2)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 }
 
-/*
-func Test_GetHosts(t *testing.T) {
-	if hs == nil {
-		t.Fatalf("Test failed to initialize")
-	}
-	defer hs.Delete(ctx, "Test_GetHosts1")
-	defer hs.Delete(ctx, "Test_GetHosts2")
+func (s *S) Test_GetHosts(t *C) {
+	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts1"))
+	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts2"))
 
 	host, err := Build("", "pool-id", []string{}...)
-	host.Id = "Test_GetHosts1"
+	host.ID = "Test_GetHosts1"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = hs.Put(ctx, host)
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	time.Sleep(1000 * time.Millisecond)
-	hosts, err := hs.GetUpTo(ctx, 1000)
+	hosts, err := s.hs.GetN(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(hosts) != 1 {
 		t.Errorf("Expected %v results, got %v :%v", 1, len(hosts), hosts)
 	}
 
-	host.Id = "Test_GetHosts2"
-	err = hs.Put(ctx, host)
+	host.ID = "Test_GetHosts2"
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	time.Sleep(1000 * time.Millisecond)
-	hosts, err = hs.GetUpTo(ctx, 1000)
+	hosts, err = s.hs.GetN(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(hosts) != 2 {
@@ -127,4 +134,56 @@ func Test_GetHosts(t *testing.T) {
 	}
 
 }
-*/
+
+func (s *S) Test_FindHostsInPool(t *C) {
+	id1 := "Test_FindHostsInPool1"
+	id2 := "Test_FindHostsInPool2"
+	id3 := "Test_FindHostsInPool3"
+
+	defer s.hs.Delete(s.ctx, HostKey(id1))
+	defer s.hs.Delete(s.ctx, HostKey(id2))
+	defer s.hs.Delete(s.ctx, HostKey(id3))
+
+	host, err := Build("", "pool1", []string{}...)
+	host.ID = id1
+	if err != nil {
+		t.Fatalf("Unexpected error building host: %v", err)
+	}
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+
+	host.ID = id2
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	//add one with different pool
+	host.ID = id3
+	host.PoolID = "pool2"
+	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	time.Sleep(1000 * time.Millisecond)
+	hosts, err := s.hs.FindHostsWithPoolID(s.ctx, "blam")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(hosts) != 0 {
+		t.Errorf("Expected %v results, got %v :%v", 0, len(hosts), hosts)
+	}
+
+	hosts, err = s.hs.FindHostsWithPoolID(s.ctx, "pool2")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(hosts) != 1 {
+		t.Errorf("Expected %v results, got %v :%v", 1, len(hosts), hosts)
+	}
+
+	hosts, err = s.hs.FindHostsWithPoolID(s.ctx, "pool1")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(hosts) != 2 {
+		t.Errorf("Expected %v results, got %v :%v", 2, len(hosts), hosts)
+	}
+}

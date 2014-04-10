@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
@@ -55,17 +56,23 @@ func (et *ElasticTest) SetUpSuite(c *check.C) {
 	driver := new("localhost", et.Port, et.Index)
 	et.driver = driver
 
+	existingServer := true
 	//is elastic already running?
 	if !driver.isUp() {
+		//Seeding because mkdir uses rand and it was returning the same directory
+		rand.Seed(time.Now().Unix())
+		//Create unique tmp dir that will be deleted when suite ends.
+		tmpDir := c.MkDir()
 		//download elastic jar if needed
-		dir := ensureElasticJar()
+		elasticDir := ensureElasticJar(tmpDir)
 		//start elastic
-		tc, err := newTestCluster(dir, et.Port)
+		tc, err := newTestCluster(elasticDir, et.Port)
 		if err != nil {
 			tc.Stop()
 			c.Fatalf("error in SetUpSuite: %v", err)
 		}
 		et.server = tc
+		existingServer = false
 	}
 
 	for name, path := range et.Mappings {
@@ -76,7 +83,11 @@ func (et *ElasticTest) SetUpSuite(c *check.C) {
 	if err != nil {
 		c.Fatalf("error in SetUpSuite: %v", err)
 	}
-
+	if !existingServer {
+		//give it some time if we started it
+		time.Sleep(time.Second * 1)
+		driver.isUp()
+	}
 }
 
 //TearDownSuite Run once after all tests or benchmarks have finished running.
@@ -132,30 +143,31 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	return tc, nil
 }
 
-func ensureElasticJar() string {
+func ensureElasticJar(runDir string) string {
 	_, err := exec.LookPath("java")
 	if err != nil {
 		log.Fatal("Can't find java in path")
 	}
-
 	gz := fmt.Sprintf("elasticsearch-%s.tar.gz", esVersion)
-	path := fmt.Sprintf("/tmp/elasticsearch-%s", esVersion)
+	gzPath := fmt.Sprintf("/tmp/%s", gz)
 
-	log.Printf("checking %s exists", path)
-	if _, err = os.Stat(path); err != nil {
+	path := fmt.Sprintf("%s/elasticsearch-%s", runDir, esVersion)
+
+	commands := [][]string{}
+
+	log.Printf("checking tar %s exists", gzPath)
+	if _, err = os.Stat(gzPath); err != nil {
 		url := fmt.Sprintf("https://download.elasticsearch.org/elasticsearch/elasticsearch/%s", gz)
-		commands := [][]string{
-			{"curl", "-O", url},
-			{"mv", gz, "/tmp/."},
-			{"tar", "-xvzf", "/tmp/" + gz, "-C", "/tmp/."},
-		}
+		commands = append(commands, []string{"curl", "-O", url})
+		commands = append(commands, []string{"mv", gz, gzPath})
+	}
+	commands = append(commands, []string{"tar", "-xvzf", gzPath, "-C", runDir + "/."})
 
-		for _, cmd := range commands {
-			log.Printf("exec: %v", cmd)
-			err = exec.Command(cmd[0], cmd[1:]...).Run()
-			if err != nil {
-				log.Fatalf("could not execute %v: %v", strings.Join(cmd, " "), err)
-			}
+	for _, cmd := range commands {
+		log.Printf("exec: %v", cmd)
+		err = exec.Command(cmd[0], cmd[1:]...).Run()
+		if err != nil {
+			log.Fatalf("could not execute %v: %v", strings.Join(cmd, " "), err)
 		}
 	}
 	return path

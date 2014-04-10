@@ -16,12 +16,7 @@ func (s *Server) GetHosts(empty interface{}, hostReply *[]*host.Host) error {
 	if err != nil {
 		return err
 	}
-	response := make([]*host.Host, len(hosts))
-	for idx, h := range hosts {
-		response[idx] = h
-	}
-
-	*hostReply = response
+	*hostReply = hosts
 	return nil
 }
 
@@ -52,4 +47,12 @@ func (s *Server) GetHost(hostID string, reply *host.Host) error {
 func (s *Server) RemoveHost(hostID string, _ *struct{}) error {
 	return s.f.RemoveHost(s.context(), hostID)
 }
-
+// FindHostsInPool  Returns all Hosts in a pool
+func (s *Server) FindHostsInPool(poolID string, hostReply *[]*host.Host) error {
+	hosts, err := s.f.FindHostsInPool(s.context(),poolID)
+	if err != nil {
+		return err
+	}
+	*hostReply = hosts
+	return nil
+}

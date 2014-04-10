@@ -26,11 +26,11 @@ func (c *Client) GetHosts() ([]*host.Host, error) {
 	return response, nil
 }
 
-func (c *Client) AddHost(host *host.Host) error {
-	return c.call("AddHost", &host, nil)
+func (c *Client) AddHost(host host.Host) error {
+	return c.call("AddHost", host, nil)
 }
 
-func (c *Client) UpdateHost(host *host.Host) error {
+func (c *Client) UpdateHost(host host.Host) error {
 	return c.call("UpdateHost", host, nil)
 }
 
@@ -39,3 +39,11 @@ func (c *Client) RemoveHost(hostId string) error {
 }
 
 
+// FindHostsInPool returns all hosts in a pool
+func (c *Client) FindHostsInPool(poolID string) ([]*host.Host, error) {
+	response := make([]*host.Host, 0)
+	if err := c.rpcClient.Call("FindHostsInPool", nil, &response); err != nil {
+		return []*host.Host{}, err
+	}
+	return response, nil
+}

@@ -7,28 +7,28 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package serviced
+package utils
 
 import (
 	"testing"
 )
 
-//// Test getMemorySize()
-//func TestGetMemorySize(t *testing.T) {
-//
-//	// alter the file getMemorySize() is looking at
-//	meminfoFile = "testfiles/meminfo"
-//	size, err := GetMemorySize()
-//	if err != nil {
-//		t.Errorf("Failed to parse memory file: %s", err)
-//		t.Fail()
-//	}
-//	expectedSize := uint64(33660776448)
-//	if size != expectedSize {
-//		t.Errorf("expected %d, received %d ", expectedSize, size)
-//		t.Fail()
-//	}
-//}
+// Test getMemorySize()
+func TestGetMemorySize(t *testing.T) {
+
+	// alter the file getMemorySize() is looking at
+	meminfoFile = "testfiles/meminfo"
+	size, err := GetMemorySize()
+	if err != nil {
+		t.Errorf("Failed to parse memory file: %s", err)
+		t.Fail()
+	}
+	expectedSize := uint64(33660776448)
+	if size != expectedSize {
+		t.Errorf("expected %d, received %d ", expectedSize, size)
+		t.Fail()
+	}
+}
 
 // Test validOwnerSpec
 func TestValidOwnerSpec(t *testing.T) {

@@ -6,7 +6,7 @@ package host
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/validation"
 
 	"fmt"
@@ -43,7 +43,7 @@ var validatetable []validateCase
 
 func init() {
 
-	ip, err := serviced.GetIPAddress()
+	ip, err := utils.GetIPAddress()
 	if err != nil {
 		glog.Errorf("Could not determine ip %v", err)
 	}
@@ -125,7 +125,7 @@ func Test_BuildInvalid(t *testing.T) {
 }
 
 func Test_Build(t *testing.T) {
-	ip, err := serviced.GetIPAddress()
+	ip, err := utils.GetIPAddress()
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -172,7 +172,7 @@ func Test_getIPResources(t *testing.T) {
 		t.Errorf("Unexpected result %v", ips)
 	}
 
-	ip, err := serviced.GetIPAddress()
+	ip, err := utils.GetIPAddress()
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

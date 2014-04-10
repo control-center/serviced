@@ -1,11 +1,8 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/dao"
 
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 )
 

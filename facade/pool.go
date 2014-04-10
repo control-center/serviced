@@ -45,7 +45,7 @@ func (f *Facade) GetPoolIPs(ctx context.Context, poolID string) (*PoolIPs, error
 
 // AddResourcePool add resource pool to index
 func (f *Facade) AddResourcePool(ctx context.Context, entity *pool.ResourcePool) error {
-	glog.V(2).Infof("Facade.AddResourcePool: %+v", entity)
+	glog.V(0).Infof("Facade.AddResourcePool: %+v", entity)
 	exists, err := f.GetResourcePool(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (f *Facade) RemoveResourcePool(ctx context.Context, id string) error {
 		return errors.New("cannot delete resource pool with hosts")
 	}
 
-	return f.delete(ctx, &f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)
+	return f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)
 }
 
 //GetResourcePools Returns a list of all ResourcePools
@@ -124,7 +124,7 @@ func (f *Facade) CreateDefaultPool(ctx context.Context) error {
 	}
 
 	glog.V(0).Infof("'%s' resource pool not found; creating...", DEFAULT_POOLID)
-	entity = pool.NewResourcePool(DEFAULT_POOLID)
+	entity = pool.New(DEFAULT_POOLID)
 	return f.AddResourcePool(ctx, entity)
 }
 

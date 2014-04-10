@@ -20,8 +20,8 @@ func New() *Facade {
 
 // Facade is an entrypoint to available controlpane methods
 type Facade struct {
-	hostStore host.HostStore
-	poolStore pool.Store
+	hostStore *host.HostStore
+	poolStore *pool.Store
 }
 
 

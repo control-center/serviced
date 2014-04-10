@@ -10,7 +10,6 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/domain/host"
 	"net/rpc"
 )
 
@@ -31,6 +30,6 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 }
 
 // Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(ips []string, host *host.Host) error {
-	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
-}
+//func (a *AgentClient) GetInfo(ips []string, host *host.Host) error {
+//	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
+//}

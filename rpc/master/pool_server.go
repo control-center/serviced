@@ -18,38 +18,47 @@ func (s *Server) GetPoolIPs(poolID string, reply *facade.PoolIPs) error {
 		return err
 	}
 	if response == nil {
-		return errors.New("host not found")
+		return errors.New("pool not found")
 	}
 	*reply = *response
 	return nil
 }
 
-func (s *Server) GetResourcePools() ([]*pool.Pools, error) {
-	return s.f.GetResourcePools(s.context())
+func (s *Server) GetResourcePools(empty interface{}, poolsReply *[]*pool.ResourcePool) error {
+	pools, err := s.f.GetResourcePools(s.context())
+	if err !=nil{
+		return err
+	}
+
+	*poolsReply= pools
+	return nil
+
 }
 
-//
-//func (s *ControlClient) AddResourcePool(pool dao.ResourcePool, poolId *string) (err error) {
-//	return s.rpcClient.Call("ControlPlane.AddResourcePool", pool, poolId)
-//}
-//
-//func (s *ControlClient) UpdateResourcePool(pool dao.ResourcePool, unused *int) (err error) {
-//	return s.rpcClient.Call("ControlPlane.UpdateResourcePool", pool, unused)
-//}
-//
-//func (s *ControlClient) RemoveResourcePool(poolId string, unused *int) (err error) {
-//	return s.rpcClient.Call("ControlPlane.RemoveResourcePool", poolId, unused)
-//}
-//
-//func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao.PoolHost) (err error) {
-//	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
-//}
-//
-//func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {
-//	return s.rpcClient.Call("ControlPlane.AddHostToResourcePool", poolHost, unused)
-//}
-//
-//func (s *ControlClient) RemoveHostFromResourcePool(poolHost dao.PoolHost, unused *int) error {
-//	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
-//}
+// AddPool adds the pool
+func (s *Server) AddResourcePool(pool pool.ResourcePool, _ *struct{}) error {
+	return s.f.AddResourcePool(s.context(), &pool)
+}
 
+// UpdatePool updates the pool
+func (s *Server) UpdateResourcePool(pool pool.ResourcePool, _ *struct{}) error {
+	return s.f.UpdateResourcePool(s.context(), &pool)
+}
+
+// GetPool gets the pool
+func (s *Server) GetResourcePool(poolID string, reply *pool.ResourcePool) error {
+	response, err := s.f.GetResourcePool(s.context(), poolID)
+	if err != nil {
+		return err
+	}
+	if response == nil {
+		return errors.New("pool not found")
+	}
+	*reply = *response
+	return nil
+}
+
+// RemovePool removes the pool
+func (s *Server) RemoveResourcePool(poolID string, _ *struct{}) error {
+	return s.f.RemoveResourcePool(s.context(), poolID)
+}

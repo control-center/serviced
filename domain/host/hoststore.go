@@ -14,11 +14,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"github.com/zenoss/glog"
 )
 
 //NewStore creates a HostStore
-func NewStore() HostStore {
-	return HostStore{}
+func NewStore() *HostStore {
+	return &HostStore{}
 }
 
 //HostStore type for interacting with Host persistent storage
@@ -34,7 +35,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx context.Context, poolID string) ([]
 	}
 
 	q := datastore.NewQuery(ctx)
-	queryString := fmt.Sprintf("PoolId:%s", id)
+	queryString := fmt.Sprintf("PoolID:%s", id)
 	query := search.Query().Search(queryString)
 	search := search.Search("controlplane").Type(kind).Query(query)
 	results, err := q.Execute(search)
@@ -47,7 +48,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx context.Context, poolID string) ([]
 // GetN returns all hosts up to limit.
 func (hs *HostStore) GetN(ctx context.Context, limit uint64) ([]*Host, error) {
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:Id")
+	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -64,12 +65,14 @@ func HostKey(id string) key.Key {
 
 func convert(results datastore.Results) ([]*Host, error) {
 	hosts := make([]*Host, results.Len())
+	glog.Infof("Results are %v", results)
 	for idx := range hosts {
 		var host Host
 		err := results.Get(idx, &host)
 		if err != nil {
 			return nil, err
 		}
+		glog.Infof("Adding %v to hosts", host)
 		hosts[idx] = &host
 	}
 	return hosts, nil

@@ -29,3 +29,8 @@ func NewClient(addr string) (*Client, error) {
 func (c *Client) call(name string, request interface{}, response interface{}) error {
 	return c.rpcClient.Call("Master."+name, request, response)
 }
+
+// Close closes rpc client
+func (c *Client) Close() (err error) {
+	return c.rpcClient.Close()
+}

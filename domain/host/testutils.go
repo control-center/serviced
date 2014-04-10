@@ -4,12 +4,12 @@
 
 package host
 
-import (
-	"testing"
-)
+type errorf interface {
+	Errorf(format string, args ...interface{})
+}
 
 //HostEquals used for testing host equality in tests
-func HostEquals(t *testing.T, h1 *Host, h2 *Host) bool {
+func HostEquals(t errorf, h1 *Host, h2 *Host) bool {
 	equals := true
 	if h1 != nil && h2 == nil {
 		t.Errorf("%v:Cannot compare non nil h1 to nil h2", t)

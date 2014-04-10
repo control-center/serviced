@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/rpc/master"
 
 	"mime"
 	"net/http"
@@ -163,18 +164,18 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"GET", "/test", TestPage},
 		rest.Route{"GET", "/stats", this.IsCollectingStats()},
 		// Hosts
-		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
-		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", this.AuthorizedClient(RestRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", this.AuthorizedClient(RestUpdateHost)},
+		//		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
+		//		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
+		//		rest.Route{"DELETE", "/hosts/:hostId", this.AuthorizedClient(RestRemoveHost)},
+		//		rest.Route{"PUT", "/hosts/:hostId", this.AuthorizedClient(RestUpdateHost)},
 		rest.Route{"GET", "/hosts/:hostId/running", this.AuthorizedClient(RestGetRunningForHost)},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", this.AuthorizedClient(RestKillRunning)},
 		// Pools
-		rest.Route{"POST", "/pools/add", this.AuthorizedClient(RestAddPool)},
-		rest.Route{"GET", "/pools/:poolId/hosts", this.AuthorizedClient(RestGetHostsForResourcePool)},
-		rest.Route{"DELETE", "/pools/:poolId", this.AuthorizedClient(RestRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", this.AuthorizedClient(RestUpdatePool)},
-		rest.Route{"GET", "/pools", this.AuthorizedClient(RestGetPools)},
+		//		rest.Route{"POST", "/pools/add", this.AuthorizedClient(RestAddPool)},
+		//		rest.Route{"GET", "/pools/:poolId/hosts", this.AuthorizedClient(RestGetHostsForResourcePool)},
+		//		rest.Route{"DELETE", "/pools/:poolId", this.AuthorizedClient(RestRemovePool)},
+		//		rest.Route{"PUT", "/pools/:poolId", this.AuthorizedClient(RestUpdatePool)},
+		//		rest.Route{"GET", "/pools", this.AuthorizedClient(RestGetPools)},
 		// Services (Apps)
 		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
 		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
@@ -206,6 +207,15 @@ func (this *ServiceConfig) ServeUI() {
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},
 		rest.Route{"GET", "/static*resource", StaticData},
+	}
+
+	resources := []getRoutes{
+		getHostRoutes,
+		getPoolRoutes,
+	}
+
+	for _, get := range resources {
+		routes = append(routes, get(this)...)
 	}
 
 	// Hardcoding these target URLs for now.
@@ -290,3 +300,69 @@ func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
 	}
 	return c, err
 }
+
+func (sc ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerFunc) HandlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !check(w, r) {
+			return
+		}
+		reqCtx := newRequestContext(sc)
+		defer reqCtx.end()
+		realfunc(w, r, reqCtx)
+	}
+}
+
+func (sc *ServiceConfig) CheckAuth(realfunc CtxHandlerFunc) HandlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		if !LoginOk(r) {
+			RestUnauthorized(w)
+			return false
+		}
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+func (sc *ServiceConfig) NoAuth(realfunc CtxHandlerFunc) HandlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+type Close interface {
+	Close() error
+}
+
+type requestContext struct {
+	sc     ServiceConfig
+	master *master.Client
+}
+
+func newRequestContext(sc ServiceConfig) *requestContext {
+	return &requestContext{}
+}
+
+func (ctx *requestContext) getMasterClient() (*master.Client, error) {
+	if ctx.master != nil {
+		if c, err := master.NewClient(ctx.sc.agentPort); err != nil {
+			glog.Errorf("Could not create a control plane client: %v", err)
+			return nil, err
+		} else {
+			ctx.master = c
+		}
+	}
+	return ctx.master, nil
+}
+
+func (ctx *requestContext) end() error {
+	if ctx.master != nil {
+		return ctx.master.Close()
+	}
+	return nil
+}
+
+type CtxHandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext)
+type CheckFunc func(w *rest.ResponseWriter, r *rest.Request) bool
+
+type getRoutes func(sc *ServiceConfig) []rest.Route

@@ -14,8 +14,8 @@ import (
 )
 
 //NewStore creates a HostStore
-func NewStore() Store {
-	return Store{}
+func NewStore() *Store {
+	return &Store{}
 }
 
 //HostStore type for interacting with Host persistent storage
