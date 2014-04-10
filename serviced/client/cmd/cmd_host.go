@@ -13,18 +13,17 @@ import (
 // initHost is the initializer for serviced host
 func (c *ServicedCli) initHost() {
 	cmd := c.app.AddSubcommand(cli.Command{
-		Name:   "host",
-		Usage:  "Administers host data",
-		Action: cmdDefault,
+		Name:  "host",
+		Usage: "Administers host data",
 	})
 	cmd.Commands = []cli.Command{
 		{
-			Name:  "list",
-			Usage: "Lists all hosts.",
+			Name:   "list",
+			Usage:  "Lists all hosts.",
+			Action: c.cmdHostList,
 			Flags: []cli.Flag{
 				cli.BoolFlag{"verbose, v", "Show JSON format"},
 			},
-			Action: c.cmdHostList,
 		}, {
 			Name:      "add",
 			ShortName: "+",
@@ -35,12 +34,31 @@ func (c *ServicedCli) initHost() {
 			},
 			Action: c.cmdHostAdd,
 		}, {
-			Name:      "remove",
-			ShortName: "rm",
-			Usage:     "Removes an existing host",
-			Args:      []string{"HOSTID"},
-			Action:    c.cmdHostRemove,
+			Name:         "remove",
+			ShortName:    "rm",
+			Usage:        "Removes an existing host",
+			Args:         []string{"HOSTID"},
+			Action:       c.cmdHostRemove,
+			BashComplete: c.printHosts,
 		},
+	}
+}
+
+// printHosts is the completion for each host action
+// usage: serviced host COMMAND --generate-bash-completion
+func (c *ServicedCli) printHosts(ctx *cli.Context) {
+	// Don't do anything if there are set args
+	if len(ctx.Args()) > 0 {
+		return
+	}
+
+	hosts, err := c.driver.ListHosts()
+	if err != nil || hosts == nil || len(hosts) == 0 {
+		return
+	}
+
+	for _, h := range hosts {
+		fmt.Println(h.ID)
 	}
 }
 
@@ -52,19 +70,15 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		fmt.Fprintf(os.Stderr, "error trying to retrieve hosts: %s\n", err)
 		return
 	} else if hosts == nil || len(hosts) == 0 {
-		fmt.Fprintln(os.Stderr, "no hosts installed")
+		fmt.Fprintln(os.Stderr, "no hosts found")
 		return
 	}
 
-	if ctx.Bool("v") {
+	if ctx.Bool("verbose") {
 		if jsonHost, err := json.MarshalIndent(hosts, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal host list: %s", err)
 		} else {
 			fmt.Println(string(jsonHost))
-		}
-	} else if ctx.Bool("complete") {
-		for _, h := range hosts {
-			fmt.Println(h.ID)
 		}
 	} else {
 		tableHost := newTable(0, 8, 2)

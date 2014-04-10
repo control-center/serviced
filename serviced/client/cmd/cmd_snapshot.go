@@ -9,9 +9,8 @@ import (
 // initSnapshot is the initializer for serviced snapshot
 func (c *ServicedCli) initSnapshot() {
 	cmd := c.app.AddSubcommand(cli.Command{
-		Name:   "snapshot",
-		Usage:  "Administers environment snapshots.",
-		Action: cmdDefault,
+		Name:  "snapshot",
+		Usage: "Administers environment snapshots.",
 	})
 	cmd.Commands = []cli.Command{
 		{

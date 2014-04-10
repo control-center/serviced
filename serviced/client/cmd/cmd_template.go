@@ -9,9 +9,8 @@ import (
 // initTemplate is the initializer for serviced template
 func (c *ServicedCli) initTemplate() {
 	cmd := c.app.AddSubcommand(cli.Command{
-		Name:   "template",
-		Usage:  "Administers templates.",
-		Action: cmdDefault,
+		Name:  "template",
+		Usage: "Administers templates.",
 	})
 	cmd.Commands = []cli.Command{
 		{
