@@ -39,7 +39,7 @@ var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, e
 	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
 
 	hostCommand := []string{"/bin/bash", "-c",
-		fmt.Sprintf("cd %s/%s && %s exec %s", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
+		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
 	glog.Infof("ServiceId: %s, Command: %s", state.ServiceId, strings.Join(hostCommand, " "))
 	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
 
