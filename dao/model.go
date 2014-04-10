@@ -151,6 +151,7 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
+	Hostname        string
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []Task
@@ -235,6 +236,7 @@ type ServiceDefinition struct {
 	ImageId       string                 // Docker image hosting the service
 	Instances     MinMax                 // Constraints on the number of instances
 	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	Hostname      string                 // Optional hostname which should be set on run
 	ConfigFiles   map[string]ConfigFile  // Config file templates
 	Context       map[string]interface{} // Context information for the service
 	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
@@ -436,19 +438,19 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 					return fmt.Errorf("Cannot delete last vhost: %s", _vhostName)
 				}
 
-        found := false
+				found := false
 				vhosts := make([]string, 0)
 				for _, vhost := range ep.VHosts {
 					if vhost != _vhostName {
 						vhosts = append(vhosts, vhost)
 					} else {
-            found = true;
-          }
+						found = true
+					}
 				}
-        //error removing an unknown vhost
-        if !found {
-          break;
-        }
+				//error removing an unknown vhost
+				if !found {
+					break
+				}
 
 				ep.VHosts = vhosts
 				return nil
