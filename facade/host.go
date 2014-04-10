@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-var (
-	beforeHostUpdate beforeEvent = "BeforeHostUpdate"
-	afterHostUpdate  afterEvent  = "AfterHostUpdate"
-	beforeHostAdd    beforeEvent = "BeforeHostAdd"
-	afterHostAdd     afterEvent  = "AfterHostAdd"
-	beforeHostDelete beforeEvent = "BeforeHostDelete"
-	afterHostDelete  afterEvent  = "AfterHostDelete"
+const (
+	beforeHostUpdate = beforeEvent("BeforeHostUpdate")
+	afterHostUpdate  = afterEvent("AfterHostUpdate")
+	beforeHostAdd    = beforeEvent("BeforeHostAdd")
+	afterHostAdd     = afterEvent("AfterHostAdd")
+	beforeHostDelete = beforeEvent("BeforeHostDelete")
+	afterHostDelete  = afterEvent("AfterHostDelete")
 )
 
 //---------------------------------------------------------------------------

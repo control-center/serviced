@@ -15,13 +15,13 @@ import (
 	"time"
 )
 
-var (
-	beforePoolUpdate beforeEvent = "BeforePoolUpdate"
-	afterPoolUpdate  afterEvent  = "AfterPoolUpdate"
-	beforePoolAdd    beforeEvent = "BeforePoolAdd"
-	afterPoolAdd     afterEvent  = "AfterPoolAdd"
-	beforePoolDelete beforeEvent = "BeforePoolDelete"
-	afterPoolDelete  afterEvent  = "AfterPoolDelete"
+const (
+	beforePoolUpdate = beforeEvent("BeforePoolUpdate")
+	afterPoolUpdate  = afterEvent("AfterPoolUpdate")
+	beforePoolAdd    = beforeEvent("BeforePoolAdd")
+	afterPoolAdd     = afterEvent("AfterPoolAdd")
+	beforePoolDelete = beforeEvent("BeforePoolDelete")
+	afterPoolDelete  = afterEvent("AfterPoolDelete")
 )
 
 //PoolIPs type for IP resources available in a ResourcePool
