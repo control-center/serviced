@@ -334,7 +334,6 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*d
 }
 
 // Get a service endpoint.
-//JAFC3
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
 	var service dao.Service
