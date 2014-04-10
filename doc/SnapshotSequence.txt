@@ -22,7 +22,7 @@ note right of CLI_Agent: block watch for snapshot result
 
 
 Zookeeper->Leader: new pause request
-Leader->Proxy: lxc-attach quiesce pause
+Leader->Proxy: nsinit quiesce pause
 note right of Leader: interpret exit status as ok or failure
 
 
@@ -32,7 +32,7 @@ CLI_Agent->CLI: snapshot failed
 
 
 note right of Leader: snapshot volume
-Leader->Proxy: deferred lxc-attach quiesce resume
+Leader->Proxy: deferred nsinit quiesce resume
 note right of Leader: interpret exit status as ok or failure
 Leader->Zookeeper: snapshot result ok or failure
 
