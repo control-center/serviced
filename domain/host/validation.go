@@ -17,8 +17,10 @@ import (
 func (h *Host) ValidEntity() error {
 	glog.Info("Validating host")
 
+	trimmedID := strings.TrimSpace(h.ID)
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("Host.ID", h.ID))
+	violations.Add(validation.StringsEqual(h.ID, trimmedID, "leading and trailing spaces not allowed for host id"))
 	violations.Add(validation.NotEmpty("Host.PoolID", h.PoolID))
 	violations.Add(validation.IsIP(h.IPAddr))
 
@@ -38,7 +40,5 @@ func (h *Host) ValidEntity() error {
 	if len(violations.Errors) > 0 {
 		return violations
 	}
-	//Don't like this side effect
-	h.ID = strings.TrimSpace(h.ID)
 	return nil
 }
