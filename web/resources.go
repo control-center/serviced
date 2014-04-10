@@ -1,8 +1,8 @@
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 

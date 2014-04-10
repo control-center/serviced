@@ -3,7 +3,7 @@ package web
 import (
 	"flag"
 	"fmt"
-	"github.com/ant0ine/go-json-rest"
+	"github.com/zenoss/go-json-rest"
 	"net/http"
 	"os"
 	"path"

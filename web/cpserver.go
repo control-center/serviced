@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ant0ine/go-json-rest"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/rpc/master"

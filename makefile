@@ -15,6 +15,8 @@ default: build_binary
 
 install: build_binary
 	go install github.com/zenoss/serviced/serviced
+	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
+
 
 build_binary:
 	cd serviced && make
@@ -29,13 +31,13 @@ pkgs:
 
 dockerbuild_binary: docker_ok
 	docker build -t zenoss/serviced-build build
-	docker run -rm \
+	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
 	echo "Using dock-in-docker cache dir $(dockercache)"
 	mkdir -p $(dockercache)
-	time docker run -rm \
-	-privileged \
+	time docker run --rm \
+	--privileged \
 	-v $(dockercache):/var/lib/docker \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
@@ -46,13 +48,13 @@ dockerbuild_binary: docker_ok
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
-	docker run -rm \
+	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
 	echo "Using dock-in-docker cache dir $(dockercache)"
 	mkdir -p $(dockercache)
-	time docker run -rm \
-	-privileged \
+	time docker run --rm \
+	--privileged \
 	-v $(dockercache):/var/lib/docker \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
@@ -82,7 +84,7 @@ docker_ok:
 clean:
 	cd dao && make clean
 	cd serviced && ./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
-	docker run -rm \
+	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
 
