@@ -69,7 +69,8 @@
 			"Rev": "144872e87874cf77d43d6d341573811737e42173"
 		},
 		{
-			"ImportPath": "gopkg.in/check.v1"
+			"ImportPath": "gopkg.in/check.v1",
+            "Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
 		}
 	]
 }
