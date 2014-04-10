@@ -129,7 +129,7 @@ func (s *S) TestQuery(t *C) {
 type tweettest struct {
 	User      string
 	State     string
-	Post_date string
+	PostDate string
 	Message   string
 }
 

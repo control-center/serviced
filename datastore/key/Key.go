@@ -14,7 +14,7 @@ type Key interface {
 	ID() string
 }
 
-//NewKey returns an initialized Key
+//New returns an initialized Key
 func New(kind string, id string) Key {
 	return &key{id, kind}
 }
