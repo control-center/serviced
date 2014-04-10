@@ -69,6 +69,7 @@ test: build_binary docker_ok
 	cd serviced && go test
 	cd utils && go test
 	cd datastore && make test
+	cd domain && make test
 
 docker_ok:
 	if docker ps >/dev/null; then \

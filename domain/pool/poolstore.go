@@ -15,7 +15,7 @@ func NewStore() *Store {
 	return &Store{}
 }
 
-//HostStore type for interacting with Host persistent storage
+//Store type for interacting with Host persistent storage
 type Store struct {
 	datastore.DataStore
 }
