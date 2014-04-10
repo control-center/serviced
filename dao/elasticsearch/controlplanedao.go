@@ -334,6 +334,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*d
 }
 
 // Get a service endpoint.
+//JAFC3
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
 	var service dao.Service
@@ -371,22 +372,28 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
 			glog.V(2).Infof("Finding exports for import: %+v", endpoint)
-			key := fmt.Sprintf("%s:%d", endpoint.Protocol, endpoint.PortNumber)
-			if _, exists := remoteEndpoints[key]; !exists {
-				remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
-			}
-
 			for _, ss := range states {
-				port := ss.GetHostPort(endpoint.Protocol, endpoint.Application, endpoint.PortNumber)
-				glog.V(2).Info("Remote port: ", port)
-				if port > 0 {
+				hostPort, containerPort, protocol := ss.GetHostEndpointInfo(endpoint.Application)
+				glog.V(2).Info("Remote port: ", containerPort)
+				if hostPort > 0 {
+					// if port/protocol undefined in the import, use the export's values
+					if endpoint.PortNumber != 0 {
+						containerPort = endpoint.PortNumber
+					}
+					if endpoint.Protocol != "" {
+						protocol = endpoint.Protocol
+					}
 					var ep dao.ApplicationEndpoint
 					ep.ServiceId = ss.ServiceId
-					ep.ContainerPort = endpoint.PortNumber
-					ep.HostPort = port
+					ep.ContainerPort = containerPort
+					ep.HostPort = hostPort
 					ep.HostIp = ss.HostIp
 					ep.ContainerIp = ss.PrivateIp
-					ep.Protocol = endpoint.Protocol
+					ep.Protocol = protocol
+					key := fmt.Sprintf("%s:%d", protocol, containerPort)
+					if _, exists := remoteEndpoints[key]; !exists {
+						remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+					}
 					remoteEndpoints[key] = append(remoteEndpoints[key], &ep)
 				}
 			}

@@ -88,8 +88,10 @@ func (sd *ServiceDefinition) normalizeLaunch() error {
 }
 
 func (se ServiceEndpoint) validate() error {
-	if err := portValidation(se.PortNumber); err != nil {
-		return err
+	if se.Purpose != "import" {
+		if err := portValidation(se.PortNumber); err != nil {
+			return err
+		}
 	}
 	trimName := strings.Trim(se.Name, " ")
 	if trimName == "" {
