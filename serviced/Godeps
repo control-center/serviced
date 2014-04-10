@@ -67,6 +67,9 @@
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
 			"Rev": "144872e87874cf77d43d6d341573811737e42173"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1"
 		}
 	]
 }
