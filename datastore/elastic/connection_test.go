@@ -8,6 +8,9 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/datastore/driver"
+	"github.com/zenoss/serviced/datastore/key"
+	. "gopkg.in/check.v1"
 
 	"encoding/json"
 	"reflect"
@@ -15,38 +18,44 @@ import (
 	"time"
 )
 
-var driver ElasticDriver
-
-func getConnection() (ElasticDriver, error) {
-	return InitElasticTest("twitter")
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }
 
-func TestPutGetDelete(t *testing.T) {
+var _ = Suite(&S{ElasticTest{Index: "twitter"}})
 
-	driver, err := getConnection()
-	if err != nil {
-		t.Fatalf("Error initializing driver: %v", err)
-	}
+type S struct {
+	ElasticTest
+}
 
-	conn, err := driver.GetConnection()
+//func TestPutGetDelete(t *testing.T) {
+func (s *S) TestPutGetDelete(t *C) {
+	esdriver := s.Driver()
+	//	driver, err := getConnection()
+	//	if err != nil {
+	//		t.Fatalf("Error initializing driver: %v", err)
+	//	}
+
+	conn, err := esdriver.GetConnection()
 	if err != nil {
 		t.Fatalf("Error getting connection: %v", err)
 	}
 
-	key := datastore.NewKey("tweet", "1")
+	k := key.New("tweet", "1")
 	tweet := map[string]string{
 		"user":      "kimchy",
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
-	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
+	tweetJSON, err := json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	//Get tweet
-	raw, err := conn.Get(key)
+	raw, err := conn.Get(k)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
@@ -60,13 +69,13 @@ func TestPutGetDelete(t *testing.T) {
 	}
 
 	//Delete tweet
-	err = conn.Delete(key)
+	err = conn.Delete(k)
 	if err != nil {
 		t.Errorf("Unexpected delete error: %v", err)
 	}
 
 	//test not found
-	raw, err = conn.Get(key)
+	raw, err = conn.Get(k)
 	if raw != nil {
 		t.Errorf("Expected nil return;")
 	}
@@ -79,40 +88,35 @@ func TestPutGetDelete(t *testing.T) {
 
 }
 
-func TestQuery(t *testing.T) {
-
-	driver, err := getConnection()
-	if err != nil {
-		t.Fatalf("Error initializing driver: %v", err)
-	}
-
-	conn, err := driver.GetConnection()
+func (s *S) TestQuery(t *C) {
+	esdriver := s.Driver()
+	conn, err := esdriver.GetConnection()
 	if err != nil {
 		t.Fatalf("Error getting connection: %v", err)
 	}
 
-	key := datastore.NewKey("tweet", "1")
+	k := key.New("tweet", "1")
 	tweet := map[string]string{
 		"user":      "kimchy",
 		"state":     "NY",
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
-	tweetJson, err := json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
+	tweetJSON, err := json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	key = datastore.NewKey("tweet", "2")
+	k = key.New("tweet", "2")
 	tweet = map[string]string{
 		"user":      "kimchy2",
 		"state":     "NY",
 		"post_date": "2010-11-15T14:12:12",
 		"message":   "trying out Elasticsearch again",
 	}
-	tweetJson, err = json.Marshal(tweet)
-	err = conn.Put(key, datastore.NewJSONMessage(tweetJson))
+	tweetJSON, err = json.Marshal(tweet)
+	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -120,7 +124,7 @@ func TestQuery(t *testing.T) {
 	query := search.Query().Search("_exists_:state")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	msgs, err := conn.Query(testSearch)
 	if err != nil {
 		t.Errorf("Unepected error %v", err)
