@@ -148,6 +148,7 @@ func (sc *ServiceConfig) Serve() {
 	r.HandleFunc("/{path:.*}", uihandler)
 
 	http.Handle("/", r)
+
 	certfile, err := serviced.TempCertFile()
 	if err != nil {
 		glog.Fatal("Could not prepare cert.pem file.")
