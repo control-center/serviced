@@ -782,6 +782,82 @@ func TestAssignAddress(t *testing.T) {
 	}
 }
 
+func TestDao_ServiceTemplate(t *testing.T) {
+	glog.V(0).Infof("TestDao_AddServiceTemplate started")
+	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
+
+	var unused int
+	var templateId string
+	template := dao.ServiceTemplate{
+		Id:          "",
+		Name:        "test_template",
+		Description: "test template",
+	}
+
+	if e := controlPlaneDao.AddServiceTemplate(template, &templateId); e != nil {
+		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
+	}
+
+	var templates map[string]*dao.ServiceTemplate
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+	template.Id = templateId
+	template.Description = "test_template_modified"
+	if e := controlPlaneDao.UpdateServiceTemplate(template, &unused); e != nil {
+		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
+	}
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+	if templates[templateId].Description != "test_template_modified" {
+		t.Fatalf("Expected template to be modified. It hasn't changed!")
+	}
+	if e := controlPlaneDao.RemoveServiceTemplate(templateId, &unused); e != nil {
+		t.Fatalf("Failure removing service template with error: %s", e)
+	}
+	time.Sleep(1 * time.Second) // race condition. :(
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 0 {
+		t.Fatalf("Expected zero templates. Found %d", len(templates))
+	}
+	if e := controlPlaneDao.UpdateServiceTemplate(template, &unused); e != nil {
+		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
+	}
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+}
+
 func TestDao_SnapshotRequest(t *testing.T) {
 	glog.V(0).Infof("TestDao_SnapshotRequest started")
 	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")

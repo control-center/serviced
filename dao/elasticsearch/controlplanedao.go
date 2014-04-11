@@ -40,6 +40,10 @@ import (
 	"time"
 )
 
+const (
+	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+)
+
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
@@ -145,11 +149,12 @@ var (
 	newUser                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
 
 	//model index functions
-	indexHost         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
-	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
-	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
-	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
-	indexUser         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
+	indexHost                   func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "host")
+	indexService                func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
+	indexServiceState           func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
+	indexServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicetemplatewrapper")
+	indexResourcePool           func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
+	indexUser                   func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
 
 	//model delete functions
 	deleteHost                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "host")
@@ -606,6 +611,45 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 
 	}
 	return this.updateService(&service)
+}
+
+var updateServiceTemplate = func(template dao.ServiceTemplate) error {
+	id := strings.TrimSpace(template.Id)
+	if id == "" {
+		return errors.New("empty Template Id not allowed")
+	}
+	template.Id = id
+	if e := template.Validate(); e != nil {
+		return fmt.Errorf("Error validating template: %v", e)
+	}
+	data, e := json.Marshal(template)
+	if e != nil {
+		glog.Errorf("Failed to marshal template")
+		return e
+	}
+	var wrapper dao.ServiceTemplateWrapper
+	templateExists := false
+	if e := getServiceTemplateWrapper(id, &wrapper); e == nil {
+		templateExists = true
+	}
+	wrapper.Id = id
+	wrapper.Name = template.Name
+	wrapper.Description = template.Description
+	wrapper.ApiVersion = 1
+	wrapper.TemplateVersion = 1
+	wrapper.Data = string(data)
+
+	if templateExists {
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
+		response, e := indexServiceTemplateWrapper(id, wrapper)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
+		return e
+	} else {
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
+		response, e := newServiceTemplateWrapper(id, wrapper)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
+		return e
+	}
 }
 
 //
@@ -1448,7 +1492,9 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 }
 
 func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate, unused *int) error {
-	return fmt.Errorf("unimplemented UpdateServiceTemplate")
+	result := updateServiceTemplate(template)
+	go this.reloadLogstashContainer() // don't block the main thread
+	return result
 }
 
 func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error {
