@@ -35,6 +35,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -375,30 +376,46 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
-			glog.V(2).Infof("Finding exports for import: %+v", endpoint)
-			key := fmt.Sprintf("%s:%d", endpoint.Protocol, endpoint.PortNumber)
-			if _, exists := remoteEndpoints[key]; !exists {
-				remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
+			matchedEndpoint := false
+			applicationRegex, err := regexp.Compile(endpoint.Application)
+			if err != nil {
+				continue //Don't spam error message; it was reported at validation time
 			}
-
 			for _, ss := range states {
-				port := ss.GetHostPort(endpoint.Protocol, endpoint.Application, endpoint.PortNumber)
-				glog.V(2).Info("Remote port: ", port)
-				if port > 0 {
+				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(applicationRegex)
+				if match {
+					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
+						service.Name, endpoint.Application, ss.HostIp, hostPort, protocol, containerPort)
+					// if port/protocol undefined in the import, use the export's values
+					if endpoint.PortNumber != 0 {
+						containerPort = endpoint.PortNumber
+					}
+					if endpoint.Protocol != "" {
+						protocol = endpoint.Protocol
+					}
 					var ep dao.ApplicationEndpoint
 					ep.ServiceId = ss.ServiceId
-					ep.ContainerPort = endpoint.PortNumber
-					ep.HostPort = port
+					ep.ContainerPort = containerPort
+					ep.HostPort = hostPort
 					ep.HostIp = ss.HostIp
 					ep.ContainerIp = ss.PrivateIp
-					ep.Protocol = endpoint.Protocol
+					ep.Protocol = protocol
+					key := fmt.Sprintf("%s:%d", protocol, containerPort)
+					if _, exists := remoteEndpoints[key]; !exists {
+						remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+					}
 					remoteEndpoints[key] = append(remoteEndpoints[key], &ep)
+					matchedEndpoint = true
 				}
+			}
+			if !matchedEndpoint {
+				glog.V(1).Infof("Unmatched endpoint %s.%s", service.Name, endpoint.Application)
 			}
 		}
 
 		*response = remoteEndpoints
-		glog.V(1).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
+		glog.V(2).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
 	}
 	return
 }
