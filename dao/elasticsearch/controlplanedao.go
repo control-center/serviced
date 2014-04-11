@@ -372,9 +372,9 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		for _, endpoint := range service_imports {
 			glog.V(2).Infof("Finding exports for import: %+v", endpoint)
 			for _, ss := range states {
-				hostPort, containerPort, protocol := ss.GetHostEndpointInfo(endpoint.Application)
+				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(endpoint.Application)
 				glog.V(2).Info("Remote port: ", containerPort)
-				if hostPort > 0 {
+				if match {
 					// if port/protocol undefined in the import, use the export's values
 					if endpoint.PortNumber != 0 {
 						containerPort = endpoint.PortNumber

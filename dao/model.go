@@ -481,8 +481,8 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 
 
 
-// Retrieve service container port, 0 failure
-func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, containerPort uint16, protocol string) {
+// Retrieve service container port info.
+func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, containerPort uint16, protocol string, match bool) {
 	for _, ep := range ss.Endpoints {
 		if ep.Purpose == "export" {
 			if match, err := path.Match(application, ep.Application); err == nil && match {
@@ -501,12 +501,12 @@ func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, conta
 					glog.Errorf("Portmap parsing failed for %s:%s %v", application, portS, err)
 					break
 				}
-				return uint16(extPort), ep.PortNumber, ep.Protocol
+				return uint16(extPort), ep.PortNumber, ep.Protocol, true
 			}
 		}
 	}
 
-	return 0, 0, ""
+	return 0, 0, "", false
 }
 
 // An instantiation of a Snapshot request
