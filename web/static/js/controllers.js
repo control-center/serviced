@@ -78,6 +78,11 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             }
         };
     }).
+    directive('showIfEmpty', function(){
+        return function(scope, elem, attrs){
+            scope.showIfEmpty();
+        };
+    }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
     factory('statsService', StatsService).
@@ -157,14 +162,17 @@ var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
 
-function EntryControl($scope, authService) {
+function EntryControl($scope, authService, resourcesService) {
     authService.checkLogin($scope);
     $scope.brand_label = "brand_zcp";
     $scope.page_content = "entry_content";
-    $scope.mainlinks = [
-        { url: '#/apps', label: 'nav_apps' },
-        { url: '#/hosts', label: 'nav_hosts' }
-    ];
+    $scope.showIfEmpty = function(){
+        resourcesService.get_services(false, function(topServices, mappedServices){
+            if( topServices.length <= 0 ){
+                $('#addApp').modal('show');
+            }
+        });
+    }
 }
 
 // Used by /login view
@@ -207,8 +215,12 @@ function DeployWizard($scope, resourcesService) {
     $scope.name='wizard';
 
     var validTemplateSelected = function() {
-        return $scope.selectedTemplates().length > 0 && $scope.install.deploymentId.length > 0;
+        return $scope.selectedTemplates().length > 0;
     };
+
+    var validDeploymentId = function() {
+        return $scope.install.deploymentId != undefined && $scope.install.deploymentId != "";
+    }
 
     $scope.steps = [
 /*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
@@ -217,8 +229,14 @@ function DeployWizard($scope, resourcesService) {
             label: 'label_step_select_app',
             validate: validTemplateSelected
         },
-        { content: '/static/partials/wizard-modal-3.html', label: 'label_step_select_pool' },
-        { content: '/static/partials/wizard-modal-4.html', label: 'label_step_deploy' }
+        {
+            content: '/static/partials/wizard-modal-3.html',
+            label: 'label_step_select_pool' },
+        {
+            content: '/static/partials/wizard-modal-4.html',
+            label: 'label_step_deploy',
+            validate: validDeploymentId
+        }
     ];
 
     $scope.install = {
@@ -246,6 +264,9 @@ function DeployWizard($scope, resourcesService) {
         templateSelectedFormDiv: function() {
             return (!nextClicked || validTemplateSelected())?
                 '':'has-error';
+        },
+        deploymentIdFormDiv: function() {
+            return (!nextClicked || validDeploymentId()) ? '':'has-error';
         }
     };
     var nextClicked = false;
@@ -342,6 +363,13 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.wizard_finish = function() {
+        nextClicked = true;
+        if ($scope.steps[step].validate) {
+            if (!$scope.steps[step].validate()) {
+                return;
+            }
+        }
+
         var selected = $scope.selectedTemplates();
         var f = true;
         var dName = "";
@@ -361,7 +389,16 @@ function DeployWizard($scope, resourcesService) {
                 TemplateId: selected[i].Id,
                 DeploymentId: $scope.install.deploymentId
             }, function(result) {
-                refreshServices($scope, resourcesService, false);
+                refreshServices($scope, resourcesService, false, function(){
+                    //start the service if requested
+                    if($scope.install.startNow){
+                        for(var i=0; i < $scope.services.data.length; ++i){
+                            if (result.Detail == $scope.services.data[i].Id){
+                                toggleRunning($scope.services.data[i], "start", resourcesService);
+                            }
+                        }
+                    }
+                });
             });
         }
 
@@ -370,11 +407,12 @@ function DeployWizard($scope, resourcesService) {
             multi: (selected.length > 1),
             class: "deployed alert alert-success",
             show: true,
-            url: "http://localhost:8080/",
             deployment: "ready"
         };
+
         $('#addApp').modal('hide');
         resetStepPage();
+        nextClicked = false;
     };
 
     $scope.detected_hosts = [
@@ -402,15 +440,11 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-    $scope.secondarynav = [
-        { label: 'nav_servicesmap', path: '/servicesmap' }
-    ];
-
     $scope.services = buildTable('PoolId', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
-        { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
+        { id: 'PoolId', name: 'deployed_tbl_pool'},
         { id: 'VirtualHost', name: 'vhost_names'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
         { id: 'DesiredState', name: 'running_tbl_actions' }
@@ -419,6 +453,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
     };
+
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
     };
@@ -537,6 +572,10 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+
+    $scope.modalAddVHost = function() {
+        $('#addVHost').modal('show');
     };
 
     $scope.addVHost = function() {
@@ -706,14 +745,17 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     }
 }
 
-function HostsControl($scope, $routeParams, $location, $filter, $timeout,
-                      resourcesService, authService)
-{
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "hosts";
     $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_hosts', itemClass: 'active' }
+    ];
+
     $scope.toggleCollapsed = function(toggled) {
         toggled.collapsed = !toggled.collapsed;
         if (toggled.children === undefined) {
@@ -1626,10 +1668,13 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
 
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps',
-          sublinks: [ '#/services/', '#/servicesmap' ]
+          sublinks: [ '#/services/', '#/servicesmap' ], target: "_self"
         },
         { url: '#/hosts', label: 'nav_hosts',
-          sublinks: [ '#/hosts/', '#/hostsmap' ]
+          sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
+        },
+        { url: '/static/logview/#/dashboard/file/logstash.json', label: 'nav_logs',
+          sublinks: [], target: "_blank"
         }
     ];
 
@@ -2666,9 +2711,9 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 function toggleRunning(app, status, servicesService) {
     var newState = -1;
     switch(status) {
-    case 'start': newState = 1; break;
-    case 'stop': newState = 0; break;
-    case 'restart': newState = -1; break;
+        case 'start': newState = 1; break;
+        case 'stop': newState = 0; break;
+        case 'restart': newState = -1; break;
     }
     if (newState === app.DesiredState) {
         console.log('Same status. Ignoring click');
