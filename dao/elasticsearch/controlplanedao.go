@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -343,7 +342,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*d
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceEndpoints serviceId=%s", serviceId)
 	var service dao.Service
-	err = getService(serviceId, &service)
+	err = this.GetService(serviceId, &service)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetServiceEndpoints service=%+v err=%s", service, err)
 		return
@@ -353,8 +352,9 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 	if len(service_imports) > 0 {
 		glog.V(2).Infof("%+v service imports=%+v", service, service_imports)
 
+		var request dao.EntityRequest
 		var servicesList []*dao.Service
-		err = getServices(&servicesList)
+		err = this.GetServices(request, &servicesList)
 		if err != nil {
 			return
 		}
@@ -473,11 +473,7 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) error {
-	return getTenantId(serviceId, tenantId)
-}
-
-var getTenantId = func(serviceId string, tenantId *string) (err error) {
+func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
 	id := strings.TrimSpace(serviceId)
 	if id == "" {
@@ -488,7 +484,7 @@ var getTenantId = func(serviceId string, tenantId *string) (err error) {
 
 	traverse = func(id string) (string, error) {
 		var service dao.Service
-		if err := getService(id, &service); err != nil {
+		if err := this.GetService(id, &service); err != nil {
 			return "", err
 		} else if service.ParentServiceId != "" {
 			return traverse(service.ParentServiceId)
@@ -504,10 +500,6 @@ var getTenantId = func(serviceId string, tenantId *string) (err error) {
 
 //
 func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) error {
-	return addService(this, service, serviceId)
-}
-
-var addService = func(this *ControlPlaneDao, service dao.Service, serviceId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", service)
 	id := strings.TrimSpace(service.Id)
 	if id == "" {
@@ -581,7 +573,7 @@ func (this *ControlPlaneDao) UpdateUser(user dao.User, unused *int) error {
 }
 
 // updateService internal method to use when service has been validated
-var updateService = func(this *ControlPlaneDao, service *dao.Service) error {
+func (this *ControlPlaneDao) updateService(service *dao.Service) error {
 	id := strings.TrimSpace(service.Id)
 	if id == "" {
 		return errors.New("empty Service.Id not allowed")
@@ -618,7 +610,7 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 		}
 
 	}
-	return updateService(this, &service)
+	return this.updateService(&service)
 }
 
 var updateServiceTemplate = func(template dao.ServiceTemplate) error {
@@ -630,7 +622,7 @@ var updateServiceTemplate = func(template dao.ServiceTemplate) error {
 	if e := template.Validate(); e != nil {
 		return fmt.Errorf("Error validating template: %v", e)
 	}
-	data, e := jsonMarshal(template)
+	data, e := json.Marshal(template)
 	if e != nil {
 		glog.Errorf("Failed to marshal template")
 		return e
@@ -845,10 +837,6 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 
 //
 func (this *ControlPlaneDao) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) error {
-	return getResourcePools(pools)
-}
-
-var getResourcePools = func(pools *map[string]*dao.ResourcePool) error {
 	glog.V(3).Infof("ControlPlaneDao.GetResourcePools")
 	result, err := searchResourcePoolUri("_exists_:Id")
 	glog.V(3).Info("ControlPlaneDao.GetResourcePools: err=", err)
@@ -898,10 +886,6 @@ func (this *ControlPlaneDao) GetHosts(request dao.EntityRequest, hosts *map[stri
 
 //
 func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*dao.Service) error {
-	return getServices(services)
-}
-
-var getServices = func(services *[]*dao.Service) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServices")
 	query := search.Query().Search("_exists_:Id")
 	results, err := search.Search("controlplane").Type("service").Size("50000").Query(query).Result()
@@ -1073,7 +1057,7 @@ type visit func(service dao.Service) error
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	service := dao.Service{}
-	err := getService(assignmentRequest.ServiceId, &service)
+	err := this.GetService(assignmentRequest.ServiceId, &service)
 	if err != nil {
 		return err
 	}
@@ -1211,7 +1195,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 	visitor := func(service dao.Service) error {
 		//start this service
 		service.DesiredState = dao.SVC_RUN
-		err = updateService(this, &service)
+		err = this.updateService(&service)
 		if err != nil {
 			return err
 		}
@@ -1226,7 +1210,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 func (this *ControlPlaneDao) walkServices(serviceId string, visitFn visit) error {
 	//get the original service
 	service := dao.Service{}
-	err := getService(serviceId, &service)
+	err := this.GetService(serviceId, &service)
 	if err != nil {
 		return err
 	}
@@ -1284,41 +1268,33 @@ func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error
 }
 
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
-	return stopService(this, id)
-}
-
-var stopService func(*ControlPlaneDao, string) error
-
-func init() {
-	stopService = func(this *ControlPlaneDao, id string) error {
-		glog.V(0).Info("ControlPlaneDao.StopService id=", id)
-		var service dao.Service
-		err := getService(id, &service)
-		if err != nil {
-			return err
-		}
-		service.DesiredState = dao.SVC_STOP
-		err = updateService(this, &service)
-		if err != nil {
-			return err
-		}
-		query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
-		subservices, err := this.queryServices(query, "100")
-		if err != nil {
-			return err
-		}
-		for _, service := range subservices {
-			subServiceErr := stopService(this, service.Id)
-			// if we encounter an error log it and keep trying to shut down the services
-			if subServiceErr != nil {
-				// keep track of the last err we encountered so
-				// the client of this method can know that something went wrong
-				err = subServiceErr
-				glog.Errorf("Unable to stop service %s because of error: %s", service.Id, subServiceErr)
-			}
-		}
+	glog.V(0).Info("ControlPlaneDao.StopService id=", id)
+	var service dao.Service
+	err := this.GetService(id, &service)
+	if err != nil {
 		return err
 	}
+	service.DesiredState = dao.SVC_STOP
+	err = this.updateService(&service)
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
+	subservices, err := this.queryServices(query, "100")
+	if err != nil {
+		return err
+	}
+	for _, service := range subservices {
+		subServiceErr := this.StopService(service.Id, unused)
+		// if we encounter an error log it and keep trying to shut down the services
+		if subServiceErr != nil {
+			// keep track of the last err we encountered so
+			// the client of this method can know that something went wrong
+			err = subServiceErr
+			glog.Errorf("Unable to stop service %s because of error: %s", service.Id, subServiceErr)
+		}
+	}
+	return err
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
@@ -1451,7 +1427,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	}
 
 	var serviceId string
-	err = addService(this, svc, &serviceId)
+	err = this.AddService(svc, &serviceId)
 	if err != nil {
 		return err
 	}
@@ -1511,17 +1487,13 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 		err = nil
 	}
 	// this takes a while so don't block the main thread
-	go reloadLogstashContainer(this)
+	go this.reloadLogstashContainer()
 	return err
-}
-
-var jsonMarshal = func(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
 }
 
 func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate, unused *int) error {
 	result := updateServiceTemplate(template)
-	go reloadLogstashContainer(this) // don't block the main thread
+	go this.reloadLogstashContainer() // don't block the main thread
 	return result
 }
 
@@ -1540,7 +1512,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	if err != nil {
 		return err
 	}
-	go reloadLogstashContainer(this)
+	go this.reloadLogstashContainer()
 	return nil
 }
 
@@ -1694,10 +1666,6 @@ func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, end
 }
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {
-	return getServiceTemplates(templates)
-}
-
-var getServiceTemplates = func(templates *map[string]*dao.ServiceTemplate) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates")
 	query := search.Query().Search("_exists_:Id")
 	search_result, err := search.Search("controlplane").Type("servicetemplatewrapper").Size("1000").Query(query).Result()
@@ -1737,7 +1705,7 @@ func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) erro
 }
 
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
-	return deleteSnapshot(this.dfs, snapshotId)
+	return this.dfs.DeleteSnapshot(snapshotId)
 }
 
 func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) error {
@@ -1755,16 +1723,8 @@ func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) erro
 	return this.dfs.DeleteSnapshots(tenantId)
 }
 
-var deleteSnapshot = func(dfs *dfs.DistributedFileSystem, snapshotId string) error {
-	return dfs.DeleteSnapshot(snapshotId)
-}
-
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
-	return rollback(this.dfs, snapshotId)
-}
-
-var rollback = func(dfs *dfs.DistributedFileSystem, snapshotId string) error {
-	return dfs.Rollback(snapshotId)
+	return this.dfs.Rollback(snapshotId)
 }
 
 // Takes a snapshot of the DFS via the host
@@ -1787,10 +1747,6 @@ func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) erro
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
-	return snapshot(this, serviceId, label)
-}
-
-var snapshot = func(this *ControlPlaneDao, serviceId string, label *string) error {
 	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
 	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot for service=%s", serviceId)
 
@@ -1843,24 +1799,20 @@ var snapshot = func(this *ControlPlaneDao, serviceId string, label *string) erro
 }
 
 func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volume) error {
-	return getVolume(this.vfs, serviceId, theVolume)
-}
-
-var getVolume = func(vfs, serviceId string, theVolume *volume.Volume) error {
 	var tenantId string
-	if err := getTenantId(serviceId, &tenantId); err != nil {
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
 	}
 	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v tenantId=%s", serviceId, tenantId)
 	var service dao.Service
-	if err := getService(tenantId, &service); err != nil {
+	if err := this.GetService(tenantId, &service); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
 	}
 	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v poolId=%s", service, service.PoolId)
 
-	aVolume, err := getSubvolume(vfs, service.PoolId, tenantId)
+	aVolume, err := getSubvolume(this.vfs, service.PoolId, tenantId)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
@@ -1911,12 +1863,12 @@ func varPath() string {
 func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {
 
 	var tenantId string
-	if err := getTenantId(serviceId, &tenantId); err != nil {
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err
 	}
 	var service dao.Service
-	err := getService(tenantId, &service)
+	err := this.GetService(tenantId, &service)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err
@@ -1944,624 +1896,6 @@ func (this *ControlPlaneDao) Get(service dao.Service, file *string) error {
 
 func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 	// TODO: implment stub
-	return nil
-}
-
-var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
-	user, e := user.Current()
-	if e != nil {
-		return nil, e
-	}
-	if user.Uid == "0" {
-		return exec.Command(name, arg...), nil
-	}
-	_, e = exec.Command("sudo", "-n", "echo").CombinedOutput()
-	if e != nil {
-		return nil, e
-	}
-	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
-}
-
-var writeDirectoryToTgz = func(src, filename string) error {
-	cmd, e := commandAsRoot("tar", "-czf", filename, "-C", src, ".")
-	if e != nil {
-		return e
-	}
-	return cmd.Run()
-}
-
-var writeDirectoryFromTgz = func(dest, filename string) (err error) {
-	if _, e := osStat(dest); e != nil {
-		if !os.IsNotExist(e) {
-			glog.Errorf("Could not stat %s: %v", dest, e)
-			return e
-		}
-		if e := osMkdirAll(dest, os.ModeDir|0755); e != nil {
-			glog.Errorf("Could not find nor create %s: %v", dest, e)
-			return e
-		}
-		defer func() {
-			if err != nil {
-				if e := osRemoveAll(dest); e != nil {
-					glog.Errorf("Could not remove %s: %v", dest, e)
-				}
-			}
-		}()
-	}
-	cmd, e := commandAsRoot("tar", "-xpUf", filename, "-C", dest, "--numeric-owner")
-	if e != nil {
-		return e
-	}
-	return cmd.Run()
-}
-
-var writeJsonToFile = func(v interface{}, filename string) (err error) {
-	file, e := osCreate(filename)
-	if e != nil {
-		glog.Errorf("Could not create file %s: %v", filename, e)
-		return e
-	}
-	defer func() {
-		if e := file.Close(); e != nil {
-			glog.Errorf("Error while closing file %s: %v", filename, e)
-			if err == nil {
-				err = e
-			}
-		}
-	}()
-	encoder := json.NewEncoder(file)
-	if e := encoder.Encode(v); e != nil {
-		glog.Errorf("Could not write JSON data to %s: %v", filename, e)
-		return e
-	}
-	return nil
-}
-
-var readJsonFromFile = func(v interface{}, filename string) error {
-	file, e := osOpen(filename)
-	if e != nil {
-		glog.Errorf("Could not open file %s: %v", filename, e)
-		return e
-	}
-	defer file.Close()
-	decoder := json.NewDecoder(file)
-	if e := decoder.Decode(v); e != nil {
-		glog.Errorf("Could not read JSON data from %s: %v", filename, e)
-		return e
-	}
-	return nil
-}
-
-var newDockerImporter = func() (dockerImporter, error) {
-	return docker.NewClient(DOCKER_ENDPOINT)
-}
-
-var newDockerExporter = func() (dockerExporter, error) {
-	return docker.NewClient(DOCKER_ENDPOINT)
-}
-
-type dockerExporter interface {
-	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
-	RemoveContainer(docker.RemoveContainerOptions) error
-	ExportContainer(docker.ExportContainerOptions) error
-	ListImages(bool) ([]docker.APIImages, error)
-}
-
-type dockerImporter interface {
-	ImportImage(docker.ImportImageOptions) error
-	InspectImage(string) (*docker.Image, error)
-	TagImage(string, docker.TagImageOptions) error
-}
-
-var getDockerImageNameIds = func(client dockerExporter) (map[string]string, error) {
-	images, e := client.ListImages(true)
-	if e != nil {
-		return nil, e
-	}
-	result := make(map[string]string)
-	for _, image := range images {
-		result[image.ID] = image.ID
-		for _, repotag := range image.RepoTags {
-			repo, tag := repoAndTag(repotag)
-			if tag == "" || tag == "latest" {
-				result[repo] = image.ID
-			} else {
-				result[repotag] = image.ID
-			}
-		}
-	}
-	return result, nil
-}
-
-var exportDockerImageToFile = func(client dockerExporter, imageId, filename string) (err error) {
-	file, e := osCreate(filename)
-	if e != nil {
-		glog.Errorf("Could not create file %s: %v", filename, e)
-		return e
-	}
-
-	// Close (and perhaps delete) file on the way out
-	defer func() {
-		if e := file.Close(); e != nil {
-			glog.Errorf("Error while closing file %s: %v", filename, e)
-			if err == nil {
-				err = e
-			}
-		}
-		if err != nil && file != nil {
-			if e := osRemoveAll(filename); e != nil {
-				glog.Errorf("Error while removing file %s: %v", filename, e)
-			}
-		}
-	}()
-
-	createOpts := docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Cmd:   []string{"echo ''"},
-			Image: imageId,
-		},
-	}
-
-	container, e := client.CreateContainer(createOpts)
-	if e != nil {
-		glog.Errorf("Could not create container from image %s: %v", imageId, e)
-		return e
-	}
-
-	glog.Infof("Created container %s based on image %s", container.ID, imageId)
-
-	// Remove container on the way out
-	defer func() {
-		removeOpts := docker.RemoveContainerOptions{ID: container.ID}
-		if e := client.RemoveContainer(removeOpts); e != nil {
-			glog.Errorf("Could not remove container %s: %v", container.ID, e)
-			if err == nil {
-				err = e
-			}
-		} else {
-			glog.Infof("Removed container %s", container.ID)
-		}
-	}()
-
-	exportOpts := docker.ExportContainerOptions{
-		ID:           container.ID,
-		OutputStream: file,
-	}
-
-	if e = client.ExportContainer(exportOpts); e != nil {
-		glog.Errorf("Could not export container %s: %v", container.ID, e)
-		return e
-	}
-
-	glog.Infof("Exported container %s (based on image %s) to %s", container.ID, imageId, filename)
-	return nil
-}
-
-var repoAndTag = func(imageId string) (string, string) {
-	i := strings.LastIndex(imageId, ":")
-	if i < 0 {
-		return imageId, ""
-	}
-	tag := imageId[i+1:]
-	if strings.Contains(tag, "/") {
-		return imageId, ""
-	}
-	return imageId[:i], tag
-}
-
-var importDockerImageFromFile = func(client dockerImporter, imageId, filename string) (err error) {
-	file, e := os.Open(filename)
-	if e != nil {
-		return e
-	}
-	defer file.Close()
-	repo, tag := repoAndTag(imageId)
-	importOpts := docker.ImportImageOptions{
-		Repository:  repo,
-		Source:      "-",
-		InputStream: file,
-		Tag:         tag,
-	}
-	if e = client.ImportImage(importOpts); e != nil {
-		return e
-	}
-	return nil
-}
-
-var utcNow = func() time.Time {
-	return time.Now().UTC()
-}
-
-// Find all docker images referenced by a template or service
-var dockerImageSet = func(templates map[string]*dao.ServiceTemplate, services []*dao.Service) map[string]bool {
-	imageSet := make(map[string]bool)
-	var visit func(*[]dao.ServiceDefinition)
-	visit = func(defs *[]dao.ServiceDefinition) {
-		for _, serviceDefinition := range *defs {
-			if serviceDefinition.ImageId != "" {
-				imageSet[serviceDefinition.ImageId] = true
-			}
-			visit(&serviceDefinition.Services)
-		}
-	}
-	for _, template := range templates {
-		visit(&template.Services)
-	}
-	for _, service := range services {
-		if service.ImageId != "" {
-			imageSet[service.ImageId] = true
-		}
-	}
-	return imageSet
-}
-
-func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
-	var (
-		templates      map[string]*dao.ServiceTemplate
-		services       []*dao.Service
-		imagesNameTags [][]string
-	)
-	backupName := utcNow().Format("backup-2006-01-02-150405")
-	if backupsDirectory == "" {
-		backupsDirectory = filepath.Join(varPath(), "backups")
-	}
-	*backupFilePath = path.Join(backupsDirectory, backupName+".tgz")
-	defer func() {
-		// Zero-value the backupFilePath if we're returning an error
-		if err != nil && backupFilePath != nil && *backupFilePath != "" {
-			*backupFilePath = ""
-		}
-	}()
-	backupPath := func(relPath ...string) string {
-		return filepath.Join(append([]string{backupsDirectory, backupName}, relPath...)...)
-	}
-	if e := osMkdirAll(backupPath("images"), os.ModeDir|0755); e != nil {
-		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
-		return e
-	}
-	defer func() {
-		if e := osRemoveAll(backupPath()); e != nil {
-			glog.Errorf("Could not remove %s: %v", backupPath(), e)
-			if err == nil {
-				err = e
-			}
-		}
-	}()
-	if e := osMkdirAll(backupPath("snapshots"), os.ModeDir|0755); e != nil {
-		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
-		return e
-	}
-
-	// Dump all template definitions
-	if e := getServiceTemplates(&templates); e != nil {
-		glog.Errorf("Could not get templates: %v", e)
-		return e
-	}
-	if e := writeJsonToFile(templates, backupPath("templates.json")); e != nil {
-		glog.Errorf("Could not write templates.json: %v", e)
-		return e
-	}
-
-	// Dump all service definitions
-	if e := getServices(&services); e != nil {
-		glog.Errorf("Could not get services: %v", e)
-		return e
-	}
-	if e := writeJsonToFile(services, backupPath("services.json")); e != nil {
-		glog.Errorf("Could not write services.json: %v", err)
-		return e
-	}
-
-	// Export each of the referenced docker images
-	client, e := newDockerExporter()
-	if e != nil {
-		glog.Errorf("Could not connect to docker: %v", e)
-		return e
-	}
-	// Note: client does not need to be .Close()'d
-
-	imageNameIds, e := getDockerImageNameIds(client)
-	if e != nil {
-		glog.Errorf("Could not get image tags from docker: %v", e)
-		return e
-	}
-
-	imageIdTags := make(map[string][]string)
-
-	imageNameSet := dockerImageSet(templates, services)
-
-	for imageName, _ := range imageNameSet {
-		imageId := imageNameIds[imageName]
-		imageIdTags[imageId] = []string{}
-	}
-
-	for imageName, imageId := range imageNameIds {
-		if imageName == imageId {
-			continue
-		}
-		tags := imageIdTags[imageId]
-		if tags == nil {
-			continue
-		}
-		imageIdTags[imageId] = append(tags, imageName)
-	}
-
-	i := 0
-	for imageId, imageTags := range imageIdTags {
-		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
-		if e := exportDockerImageToFile(client, imageId, filename); e != nil {
-			if e == docker.ErrNoSuchImage {
-				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageId)
-			} else {
-				glog.Errorf("Error while exporting docker image %s: %v", imageId, e)
-				return e
-			}
-		} else {
-			imageNameWithTags := append([]string{imageId}, imageTags...)
-			imagesNameTags = append(imagesNameTags, imageNameWithTags)
-			i++
-		}
-	}
-
-	if e := writeJsonToFile(imagesNameTags, backupPath("images.json")); e != nil {
-		glog.Errorf("Could not write images.json: %v", e)
-		return e
-	}
-
-	snapshotToTgzFile := func(service *dao.Service) (filename string, err error) {
-		var snapshotId string
-		if e := snapshot(this, service.Id, &snapshotId); e != nil {
-			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
-			return "", e
-		}
-
-		// Delete snapshot on the way out
-		defer func() {
-			if e := deleteSnapshot(this.dfs, snapshotId); e != nil {
-				glog.Errorf("Error while deleting snapshot %s: %v", snapshotId, e)
-				if err == nil {
-					err = e
-				}
-			}
-		}()
-		snapDir, e := getSnapshotPath(this.vfs, service.PoolId, service.Id, snapshotId)
-		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
-			return "", e
-		}
-		snapFile := backupPath("snapshots", fmt.Sprintf("%s.tgz", snapshotId))
-		if e := writeDirectoryToTgz(snapDir, snapFile); e != nil {
-			glog.Errorf("Could not write %s to %s: %v", snapDir, snapFile, e)
-			return "", e
-		}
-		return snapFile, nil
-	}
-
-	for _, service := range services {
-		if service.ParentServiceId == "" {
-			if _, e := snapshotToTgzFile(service); e != nil {
-				glog.Errorf("Could not save snapshot of service %s: %v", service.Id, e)
-				return e
-			}
-			// Note: the deferred RemoveAll (above) will cleanup the file.
-		}
-	}
-
-	if e := writeDirectoryToTgz(backupPath(), *backupFilePath); e != nil {
-		glog.Errorf("Could not write %s to %s: %v", backupPath(), backupFilePath, e)
-		return e
-	}
-
-	return nil
-}
-
-var getSnapshotPath = func(vfs, poolId, serviceId, snapshotId string) (string, error) {
-	volume, e := getSubvolume(vfs, poolId, serviceId)
-	if e != nil {
-		return "", e
-	}
-	return volume.SnapshotPath(snapshotId), nil
-}
-
-func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
-	//TODO: acquire restore mutex, defer release
-	var (
-		doReloadLogstashContainer bool
-		existingServices          []*dao.Service
-		existingPools             map[string]*dao.ResourcePool
-		templates                 map[string]*dao.ServiceTemplate
-		services                  []*dao.Service
-		imagesNameTags            [][]string
-	)
-	defer func() {
-		if doReloadLogstashContainer {
-			go reloadLogstashContainer(this) // don't block the main thread
-		}
-	}()
-	restorePath := func(relPath ...string) string {
-		return filepath.Join(append([]string{varPath(), "restore"}, relPath...)...)
-	}
-
-	if e := osRemoveAll(restorePath()); e != nil {
-		glog.Errorf("Could not remove %s: %v", restorePath(), e)
-		return e
-	}
-
-	if e := osMkdirAll(restorePath(), os.ModeDir|0755); e != nil {
-		glog.Errorf("Could not find nor create %s: %v", restorePath(), e)
-		return e
-	}
-
-	defer func() {
-		if e := osRemoveAll(restorePath()); e != nil {
-			glog.Errorf("Could not remove %s: %v", restorePath(), e)
-			if err == nil {
-				err = e
-			}
-		}
-	}()
-
-	if e := writeDirectoryFromTgz(restorePath(), backupFilePath); e != nil {
-		glog.Errorf("Could not expand %s to %s: %v", backupFilePath, restorePath(), e)
-		return e
-	}
-
-	if e := readJsonFromFile(&templates, restorePath("templates.json")); e != nil {
-		glog.Errorf("Could not read templates from %s: %v", restorePath("templates.json"), e)
-		return e
-	}
-
-	if e := readJsonFromFile(&services, restorePath("services.json")); e != nil {
-		glog.Errorf("Could not read services from %s: %v", restorePath("services.json"), e)
-		return e
-	}
-
-	if e := readJsonFromFile(&imagesNameTags, restorePath("images.json")); e != nil {
-		glog.Errorf("Could not read images from %s: %v", restorePath("images.json"), e)
-		return e
-	}
-
-	// Restore the service templates ...
-	for templateId, template := range templates {
-		template.Id = templateId
-		if e := updateServiceTemplate(*template); e != nil {
-			glog.Errorf("Could not update template %s: %v", templateId, e)
-			return e
-		}
-		doReloadLogstashContainer = true
-	}
-
-	// Restore the services ...
-	if e := getServices(&existingServices); e != nil {
-		glog.Errorf("Could not get existing services: %v", e)
-		return e
-	}
-	if e := getResourcePools(&existingPools); e != nil {
-		glog.Errorf("Could not get existing pools: %v", e)
-		return e
-	}
-	existingServiceMap := make(map[string]*dao.Service)
-	for _, service := range existingServices {
-		existingServiceMap[service.Id] = service
-	}
-	for _, service := range services {
-		if existingService := existingServiceMap[service.Id]; existingService != nil {
-			if e := stopService(this, service.Id); e != nil {
-				glog.Errorf("Could not stop service %s: %v", service.Id, e)
-				return e
-			}
-			service.PoolId = existingService.PoolId
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
-			}
-			if e := updateService(this, service); e != nil {
-				glog.Errorf("Could not update service %s: %v", service.Id, e)
-				return e
-			}
-		} else {
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
-			}
-			var serviceId string
-			if e := addService(this, *service, &serviceId); e != nil {
-				glog.Errorf("Could not add service %s: %v", service.Id, e)
-				return e
-			}
-			if service.Id != serviceId {
-				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.Id, serviceId)
-				glog.Errorf(msg)
-				return errors.New(msg)
-			}
-			existingServiceMap[service.Id] = service
-		}
-	}
-
-	// Restore the docker images ...
-	client, e := newDockerImporter()
-	// Note: client does not need to be .Close()'d
-	if e != nil {
-		glog.Errorf("Could not connect to docker: %v", e)
-		return e
-	}
-	for i, imageNameWithTags := range imagesNameTags {
-		imageId := imageNameWithTags[0]
-		imageTags := imageNameWithTags[1:]
-		filename := restorePath("images", fmt.Sprintf("%d.tar", i))
-		imageName := "imported:" + imageId
-		if e := importDockerImageFromFile(client, imageName, filename); e != nil {
-			glog.Errorf("Could not import docker image %s (%+v) from file %s: %v", imageId, imageTags, filename, e)
-			return e
-		}
-		image, e := client.InspectImage(imageName)
-		if e != nil {
-			glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
-			return e
-		}
-		for _, imageTag := range imageTags {
-			repo, tag := repoAndTag(imageTag)
-			options := docker.TagImageOptions{
-				Repo:  repo,
-				Tag:   tag,
-				Force: true,
-			}
-			if e := client.TagImage(image.ID, options); e != nil {
-				glog.Errorf("Could not tag image %s (%s) options: %+v: %v", image.ID, imageName, options, e)
-				return e
-			}
-		}
-	}
-
-	// Restore the snapshots ...
-	snapFiles, e := readDirFileNames(restorePath("snapshots"))
-	if e != nil {
-		glog.Errorf("Could not list contents of %s: %v", restorePath("snapshots"), e)
-		return e
-	}
-	for _, snapFile := range snapFiles {
-		snapshotId := strings.TrimSuffix(snapFile, ".tgz")
-		if snapshotId == snapFile {
-			continue //the filename does not end with .tgz
-		}
-		parts := strings.Split(snapshotId, "_")
-		if len(parts) != 2 {
-			glog.Warningf("Skipping restoration of snapshot %s, due to malformed ID!", snapshotId)
-			continue
-		}
-		serviceId := parts[0]
-		service := existingServiceMap[serviceId]
-		if service == nil {
-			glog.Warningf("Could not find service %s for snapshot %s. Skipping!", serviceId, snapshotId)
-			continue
-		}
-		snapDir, e := getSnapshotPath(this.vfs, service.PoolId, service.Id, snapshotId)
-		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
-			return e
-		}
-		filename := restorePath("snapshots", snapFile)
-		if e := writeDirectoryFromTgz(snapDir, filename); e != nil {
-			glog.Errorf("Could not write %s from %s: %v", snapDir, filename, e)
-			return e
-		}
-
-		defer func() {
-			if e := deleteSnapshot(this.dfs, snapshotId); e != nil {
-				glog.Errorf("Couldn't delete snapshot %s: %v", snapshotId, e)
-				if err == nil {
-					err = e
-				}
-			}
-		}()
-
-		if e := this.Rollback(snapshotId, unused); e != nil {
-			glog.Errorf("Could not rollback to snapshot %s: %v", snapshotId, e)
-			return e
-		}
-	}
-
-	//TODO: garbage collect (http://jimhoskins.com/2013/07/27/remove-untagged-docker-images.html)
 	return nil
 }
 
@@ -2712,7 +2046,7 @@ func (s *ControlPlaneDao) writeLogstashConfiguration() error {
 // we need to restart the logstash container so it can write out
 // its new filter set.
 // This method depends on the elasticsearch container being up and running.
-var reloadLogstashContainer = func(s *ControlPlaneDao) error {
+func (s *ControlPlaneDao) reloadLogstashContainer() error {
 	err := s.writeLogstashConfiguration()
 	if err != nil {
 		glog.Fatalf("Could not write logstash configuration: %s", err)
@@ -2744,42 +2078,6 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 			}
 		}()
 	}
-}
-
-var readDirFileNames = func(dirname string) ([]string, error) {
-	files, e := ioutil.ReadDir(dirname)
-	result := make([]string, len(files))
-	if e != nil {
-		return result, e
-	}
-	for i, file := range files {
-		result[i] = file.Name()
-	}
-	return result, nil
-}
-
-var ioutilWriteFile = func(filename string, data []byte, perm os.FileMode) error {
-	return ioutil.WriteFile(filename, data, perm)
-}
-
-var osOpen = func(name string) (io.ReadCloser, error) {
-	return os.Open(name)
-}
-
-var osCreate = func(name string) (io.WriteCloser, error) {
-	return os.Create(name)
-}
-
-var osStat = func(name string) (os.FileInfo, error) {
-	return os.Stat(name)
-}
-
-var osMkdirAll = func(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-var osRemoveAll = func(path string) error {
-	return os.RemoveAll(path)
 }
 
 const HOST_ID_CMDString = "/usr/bin/hostid"
