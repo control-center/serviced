@@ -214,8 +214,12 @@ function DeployWizard($scope, resourcesService) {
     $scope.name='wizard';
 
     var validTemplateSelected = function() {
-        return $scope.selectedTemplates().length > 0 && $scope.install.deploymentId.length > 0;
+        return $scope.selectedTemplates().length > 0;
     };
+
+    var validDeploymentId = function() {
+        return $scope.install.deploymentId != undefined && $scope.install.deploymentId != "";
+    }
 
     $scope.steps = [
 /*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
@@ -224,8 +228,14 @@ function DeployWizard($scope, resourcesService) {
             label: 'label_step_select_app',
             validate: validTemplateSelected
         },
-        { content: '/static/partials/wizard-modal-3.html', label: 'label_step_select_pool' },
-        { content: '/static/partials/wizard-modal-4.html', label: 'label_step_deploy' }
+        {
+            content: '/static/partials/wizard-modal-3.html',
+            label: 'label_step_select_pool' },
+        {
+            content: '/static/partials/wizard-modal-4.html',
+            label: 'label_step_deploy',
+            validate: validDeploymentId
+        }
     ];
 
     $scope.install = {
@@ -253,6 +263,9 @@ function DeployWizard($scope, resourcesService) {
         templateSelectedFormDiv: function() {
             return (!nextClicked || validTemplateSelected())?
                 '':'has-error';
+        },
+        deploymentIdFormDiv: function() {
+            return (!nextClicked || validDeploymentId()) ? '':'has-error';
         }
     };
     var nextClicked = false;
@@ -349,6 +362,13 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.wizard_finish = function() {
+        nextClicked = true;
+        if ($scope.steps[step].validate) {
+            if (!$scope.steps[step].validate()) {
+                return;
+            }
+        }
+
         var selected = $scope.selectedTemplates();
         var f = true;
         var dName = "";
@@ -368,7 +388,17 @@ function DeployWizard($scope, resourcesService) {
                 TemplateId: selected[i].Id,
                 DeploymentId: $scope.install.deploymentId
             }, function(result) {
-                refreshServices($scope, resourcesService, false);
+                console.log(result);
+                refreshServices($scope, resourcesService, false, function(){
+                    //start the service if requested
+                    if($scope.install.startNow){
+                        for(var i=0; i < $scope.services.data.length; ++i){
+                            if (result.Detail == $scope.services.data[i].Id){
+                                toggleRunning($scope.services.data[i], "start", resourcesService);
+                            }
+                        }
+                    }
+                });
             });
         }
 
@@ -380,8 +410,10 @@ function DeployWizard($scope, resourcesService) {
             url: "http://localhost:8080/",
             deployment: "ready"
         };
+
         $('#addApp').modal('hide');
         resetStepPage();
+        nextClicked = false;
     };
 
     $scope.detected_hosts = [
@@ -545,6 +577,10 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+
+    $scope.modalAddVHost = function() {
+        $('#addVHost').modal('show');
     };
 
     $scope.addVHost = function() {
@@ -2499,9 +2535,9 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 function toggleRunning(app, status, servicesService) {
     var newState = -1;
     switch(status) {
-    case 'start': newState = 1; break;
-    case 'stop': newState = 0; break;
-    case 'restart': newState = -1; break;
+        case 'start': newState = 1; break;
+        case 'stop': newState = 0; break;
+        case 'restart': newState = -1; break;
     }
     if (newState === app.DesiredState) {
         console.log('Same status. Ignoring click');
