@@ -3,8 +3,8 @@ package dao
 import (
 	"github.com/zenoss/serviced/commons"
 
-	"log"
 	"fmt"
+	"log"
 	"sort"
 	"testing"
 )
@@ -62,10 +62,10 @@ func init() {
 				ImageId: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
 					"/foo/bar.txt": ConfigFile{
-						Filename: "/foo/bar.txt",
-						Owner: "zenoss:zenoss",
+						Filename:    "/foo/bar.txt",
+						Owner:       "zenoss:zenoss",
 						Permissions: "660",
-						Content: "baz\n",
+						Content:     "baz\n",
 					},
 				},
 				Endpoints: []ServiceEndpoint{
