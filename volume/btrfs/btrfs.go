@@ -160,6 +160,25 @@ func (c *BtrfsConn) RemoveSnapshot(label string) error {
 	return err
 }
 
+// Unmount removes the subvolume that houses all of the snapshots
+func (c *BtrfsConn) Unmount() error {
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	for _, snapshot := range snapshots {
+		if err := c.RemoveSnapshot(snapshot); err != nil {
+			return err
+		}
+	}
+
+	c.Lock()
+	defer c.Unlock()
+	_, err = runcmd(c.sudoer, "subvolume", "delete", c.Path())
+	return err
+}
+
 // Rollback rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
 	c.Lock()

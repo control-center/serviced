@@ -143,7 +143,6 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 
 				for key, endpointList := range endpoints {
 					if len(endpointList) <= 0 {
-						glog.Warningf("No endpoints found for %s", key)
 						if proxy, ok := proxies[key]; ok {
 							emptyAddressList := make([]string, 0)
 							proxy.SetNewAddresses(emptyAddressList)
