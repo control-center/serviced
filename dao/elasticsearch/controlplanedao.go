@@ -370,11 +370,12 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
-			glog.V(2).Infof("Finding exports for import: %+v", endpoint)
+			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
 			for _, ss := range states {
 				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(endpoint.Application)
-				glog.V(2).Info("Remote port: ", containerPort)
 				if match {
+					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
+						service.Name, endpoint.Application, ss.HostIp, hostPort, protocol, containerPort)
 					// if port/protocol undefined in the import, use the export's values
 					if endpoint.PortNumber != 0 {
 						containerPort = endpoint.PortNumber
@@ -399,7 +400,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		}
 
 		*response = remoteEndpoints
-		glog.V(1).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
+		glog.V(2).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
 	}
 	return
 }

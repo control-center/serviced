@@ -495,9 +495,7 @@ func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, conta
 				}
 
 				extPort, err := strconv.ParseUint(external[0].HostPort, 10, 16)
-				if err == nil {
-					glog.V(1).Infof("Found %+v for %s:%s", external, application, portS)
-				} else {
+				if err != nil {
 					glog.Errorf("Portmap parsing failed for %s:%s %v", application, portS, err)
 					break
 				}
