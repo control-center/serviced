@@ -101,41 +101,48 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
+	iamRoot := false
+	warnedAboutNonRoot := false
+
 	// Only the root user can pause and resume services
 	if whoami, err := getCurrentUser(); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
 		return "", err
-	} else if USER_ROOT != whoami.Username {
-		glog.Warningf("Unable to pause/resume service - User is not %s - whoami:%+v", USER_ROOT, whoami)
-	} else {
+	} else if USER_ROOT == whoami.Username {
+		iamRoot = true
+	}
 
-		var servicesList []*dao.Service
-		if err := d.client.GetServices(unused, &servicesList); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+	var servicesList []*dao.Service
+	if err := d.client.GetServices(unused, &servicesList); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		return "", err
+	}
+
+	for _, service := range servicesList {
+		if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
+			continue
+		}
+
+		var states []*dao.ServiceState
+		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
+			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", service.Id, err)
 			return "", err
 		}
 
-		for _, service := range servicesList {
-			if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
-				continue
-			}
-
-			var states []*dao.ServiceState
-			if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", service.Id, err)
-				return "", err
-			}
-
-			// Pause all running service states
-			for i, state := range states {
-				glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service.Id, state.DockerId)
-				if state.DockerId != "" {
+		// Pause all running service states
+		for i, state := range states {
+			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service.Id, state.DockerId)
+			if state.DockerId != "" {
+				if iamRoot {
 					err := d.Pause(service, state)
 					defer d.Resume(service, state) // resume service state when snapshot is done
 					if err != nil {
 						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
 						return "", err
 					}
+				} else if !warnedAboutNonRoot {
+					warnedAboutNonRoot = true
+					glog.Warningf("Unable to pause/resume service - User is not %s", USER_ROOT)
 				}
 			}
 		}
