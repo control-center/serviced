@@ -81,7 +81,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 				if err != nil {
 					return err
 				}
-				path := p[len(path)+len(subpath.Name())+1:]
+				path := p[len(path)+len(subpath.Name()) -1:]
 				if _, ok := svc.ConfigFiles[path]; !ok {
 					svc.ConfigFiles[path] = ConfigFile{
 						Filename: path,
@@ -90,6 +90,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 				} else {
 					configFile := svc.ConfigFiles[path]
 					configFile.Content = string(buffer)
+					svc.ConfigFiles[path] = configFile
 				}
 				return nil
 			}
