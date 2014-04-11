@@ -439,10 +439,6 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-//    $scope.secondarynav = [
-//        { label: 'nav_servicesmap', path: '/servicesmap' }
-//    ];
-
     $scope.services = buildTable('PoolId', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
@@ -1657,7 +1653,6 @@ function ResourcesService($http, $location) {
         $http.get('/templates').
             success(function(data, status) {
                 console.log('Retrieved list of app templates');
-                console.log(data);
                 cached_app_templates = data;
                 callback(data);
             }).
