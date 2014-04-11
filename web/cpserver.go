@@ -151,11 +151,11 @@ func (sc *ServiceConfig) Serve() {
 
 	certfile, err := serviced.TempCertFile()
 	if err != nil {
-		glog.Fatal("Could not prepare cert.pem file.")
+		glog.Error("Could not prepare cert.pem file.")
 	}
 	keyfile, err := serviced.TempKeyFile()
 	if err != nil {
-		glog.Fatal("Could not prepare key.pem file.")
+		glog.Error("Could not prepare key.pem file.")
 	}
 	http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
 }
