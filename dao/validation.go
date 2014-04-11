@@ -13,6 +13,7 @@ import (
 
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -88,17 +89,29 @@ func (sd *ServiceDefinition) normalizeLaunch() error {
 }
 
 func (se ServiceEndpoint) validate() error {
-	if se.Purpose != "import" {
-		if err := portValidation(se.PortNumber); err != nil {
-			return err
-		}
-	}
 	trimName := strings.Trim(se.Name, " ")
 	if trimName == "" {
 		return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
 	}
+	if se.Purpose != "import" {
+		if err := portValidation(se.PortNumber); err != nil {
+			return fmt.Errorf("Endpoint '%s': %s", se.Name, err)
+		}
+		if err := applicationValidation(se.Application); err != nil {
+			return fmt.Errorf("Endpoint '%s': %s", se.Name, err)
+		}
+	}
 	return se.AddressConfig.normalize()
 }
+
+func applicationValidation(application string) error {
+	_, err := regexp.Compile(application)
+	if err != nil {
+		err = fmt.Errorf("Illegal application regexp %s", err)
+	}
+	return err
+}
+
 
 func portValidation(port uint16) error {
 	if port == 0 {
