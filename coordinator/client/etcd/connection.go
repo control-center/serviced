@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-etcd/etcd"
+	"github.com/zenoss/go-etcd/etcd"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -24,6 +24,19 @@ type Connection struct {
 	servers []string
 	timeout time.Duration
 	onClose *func()
+}
+
+type Lock struct {
+	lock *etcd.Lock
+}
+
+type Service struct {
+	key      string
+	instance string
+	data     []byte
+	ttl      uint
+	index    string
+	conn     *Connection
 }
 
 const (
@@ -37,6 +50,28 @@ func (conn *Connection) Close() {
 	conn.client.CloseCURL()
 	if conn.onClose != nil {
 		(*conn.onClose)()
+	}
+}
+
+func (conn *Connection) NewLeader(key, value string, ttl uint) client.Leader {
+	return &Leader{
+		leader: conn.client.NewLeader(key, value, uint64(ttl)),
+	}
+}
+
+func (conn *Connection) NewLock(key, value string, ttl uint) client.Lock {
+	return &Lock{
+		lock: conn.client.NewLock(key, value, uint64(ttl)),
+	}
+}
+
+func (conn *Connection) NewService(key, instance string, data []byte, ttl uint) client.Service {
+	return &Service{
+		key:      key,
+		instance: instance,
+		data:     data,
+		ttl:      ttl,
+		conn:     conn,
 	}
 }
 

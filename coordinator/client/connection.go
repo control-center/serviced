@@ -7,6 +7,11 @@ type Driver interface {
 	GetConnection(dsn string) (Connection, error)
 }
 
+type Lock interface {
+	Lock() error
+	Unlock() error
+}
+
 type Connection interface {
 	Close()
 	SetOnClose(func())
@@ -14,6 +19,6 @@ type Connection interface {
 	CreateDir(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
-	Lock(path string) (lockId string, err error)
-	Unlock(path, lockId string) error
+
+	NewLock(path string) (Lock, error)
 }

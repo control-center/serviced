@@ -18,6 +18,19 @@ type Connection struct {
 // Assert that Connection implements client.Connection.
 var _ client.Connection = &Connection{}
 
+func (zk *Connection) NewLock(path string) (client.Lock, error) {
+
+	uuid, err := newUuid()
+	if err != nil {
+		return nil, err
+	}
+	return &Lock{
+		path: path,
+		conn: zk,
+		guid: uuid,
+	}, nil
+}
+
 // Close the zk connection.
 func (zk *Connection) Close() {
 	zk.conn.Close()
@@ -32,14 +45,6 @@ func (zk *Connection) SetOnClose(f func()) {
 func (zk *Connection) Create(path string, data []byte) error {
 	_, err := zk.conn.Create(path, data, 0, zklib.WorldACL(zklib.PermAll))
 	return err
-}
-
-func (zk *Connection) Lock(path string) (lockId string, err error) {
-	return "", nil
-}
-
-func (zk *Connection) Unlock(path, lockId string) error {
-	return nil
 }
 
 // CreateDir creates an empty node at the given path.
