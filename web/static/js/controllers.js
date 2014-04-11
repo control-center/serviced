@@ -388,7 +388,6 @@ function DeployWizard($scope, resourcesService) {
                 TemplateId: selected[i].Id,
                 DeploymentId: $scope.install.deploymentId
             }, function(result) {
-                console.log(result);
                 refreshServices($scope, resourcesService, false, function(){
                     //start the service if requested
                     if($scope.install.startNow){
@@ -407,7 +406,6 @@ function DeployWizard($scope, resourcesService) {
             multi: (selected.length > 1),
             class: "deployed alert alert-success",
             show: true,
-            url: "http://localhost:8080/",
             deployment: "ready"
         };
 
@@ -1659,6 +1657,7 @@ function ResourcesService($http, $location) {
         $http.get('/templates').
             success(function(data, status) {
                 console.log('Retrieved list of app templates');
+                console.log(data);
                 cached_app_templates = data;
                 callback(data);
             }).
