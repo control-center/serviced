@@ -17,7 +17,8 @@ import (
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
-	"encoding/json"
+	docker "github.com/zenoss/go-dockerclient"
+
 	"errors"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ import (
 */
 
 const (
+	DOCKER_ENDPOINT    = "unix:///var/run/docker.sock"
 	circularBufferSize = 1000
 )
 
@@ -180,60 +182,53 @@ func (a *HostAgent) terminateAttached(conn *zk.Conn, procFinished <-chan int, ss
 	return nil
 }
 
-func (a *HostAgent) dockerRemove(dockerId string) error {
-	glog.V(1).Infof("Ensuring that container %s does not exist", dockerId)
-	cmd := exec.Command("docker", "rm", dockerId)
-	err := cmd.Run()
+func (a *HostAgent) dockerRemove(dockerID string) error {
+	glog.V(1).Infof("Ensuring that container %s does not exist", dockerID)
+
+	dc, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
-		glog.V(1).Infof("problem removing container instance %s", dockerId)
+		glog.Errorf("can't create docker client: %v", err)
 		return err
 	}
-	glog.V(2).Infof("Successfully removed %s", dockerId)
+
+	if err = dc.RemoveContainer(docker.RemoveContainerOptions{dockerID, true}); err != nil {
+		glog.Errorf("unable to remove container %s: %v", dockerID, err)
+		return err
+	}
+
+	glog.V(2).Infof("Successfully removed %s", dockerID)
 	return nil
 }
 
-func (a *HostAgent) dockerTerminate(dockerId string) error {
-	glog.V(1).Infof("Killing container %s", dockerId)
+func (a *HostAgent) dockerTerminate(dockerID string) error {
+	glog.V(1).Infof("Killing container %s", dockerID)
 
-	cmd := exec.Command("docker", "kill", dockerId)
-	killout, killerr := cmd.CombinedOutput()
-	if killerr != nil {
-		//verify dockerId no longer exists
-		cmd = exec.Command("docker", "inspect", dockerId)
-		existsout, err := cmd.CombinedOutput()
-		strout := string(existsout)
-		if err != nil && strings.HasPrefix(strout, "Error: No such image or container:") {
-			glog.V(4).Infof("Container does not exist; instance %s, %v", dockerId, strout)
-			return nil
-		}
-		glog.V(1).Infof("problem killing container instance %s, %v;%v", dockerId, string(killout), killerr)
-		return errors.New(string(killout))
+	dc, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		glog.Errorf("can't create docker client: %v", err)
+		return err
 	}
 
-	glog.V(2).Infof("Successfully killed %s", dockerId)
+	if err = dc.KillContainer(dockerID); err != nil {
+		glog.Errorf("unable to kill container %s: %v", dockerID, err)
+		return err
+	}
+
+	glog.V(2).Infof("Successfully killed %s", dockerID)
 	return nil
 }
 
 // Get the state of the docker container given the dockerId
-func getDockerState(dockerId string) (containerState ContainerState, err error) {
-	// get docker status
+func getDockerState(dockerID string) (*docker.Container, error) {
+	glog.V(1).Infof("Inspecting container: %s", dockerID)
 
-	cmd := exec.Command("docker", "inspect", dockerId)
-	output, err := cmd.CombinedOutput()
+	dc, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
-		glog.V(2).Infof("problem getting docker state: %s, err %s", dockerId, string(output))
-		return containerState, err
+		glog.Errorf("can't create docker client: %v", err)
+		return nil, err
 	}
-	var containerStates []ContainerState
-	err = json.Unmarshal(output, &containerStates)
-	if err != nil {
-		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
-		return containerState, dao.ControlPlaneError{"no state"}
-	}
-	if len(containerStates) < 1 {
-		return containerState, dao.ControlPlaneError{"no container"}
-	}
-	return containerStates[0], err
+
+	return dc.InspectContainer(dockerID)
 }
 
 func dumpOut(stdout, stderr io.Reader, size int) {
@@ -302,10 +297,10 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 
 	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
-	var containerState ContainerState
+	var ctr *docker.Container
 	var err error
 	for i := 0; i < 30; i++ {
-		if containerState, err = getDockerState(containerId); err != nil {
+		if ctr, err = getDockerState(dockerId); err != nil {
 			time.Sleep(3 * time.Second) // Sleep to give docker a chance to start
 			glog.V(2).Infof("Problem getting service state for %s :%v", serviceState.Id, err)
 		} else {
@@ -320,11 +315,18 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 
 	var sState *dao.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
-		ss.DockerId = containerState.ID
+		ss.DockerId = ctr.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		ss.PrivateIp = containerState.NetworkSettings.IPAddress
-		ss.PortMapping = containerState.NetworkSettings.Ports
+		ss.PrivateIp = ctr.NetworkSettings.IPAddress
+		ss.PortMapping = make(map[string][]dao.HostIpAndPort)
+		for k, v := range ctr.NetworkSettings.Ports {
+			pm := []dao.HostIpAndPort{}
+			for _, pb := range v {
+				pm = append(pm, dao.HostIpAndPort{pb.HostIp, pb.HostPort})
+			}
+			ss.PortMapping[string(k)] = pm
+		}
 		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
@@ -396,7 +398,14 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIp = containerState.NetworkSettings.IPAddress
-					ss.PortMapping = containerState.NetworkSettings.Ports
+					ss.PortMapping = make(map[string][]dao.HostIpAndPort)
+					for k, v := range ctr.NetworkSettings.Ports {
+						pm := []dao.HostIpAndPort{}
+						for _, pb := range v {
+							pm = append(pm, dao.HostIpAndPort{pb.HostIp, pb.HostPort})
+						}
+						ss.PortMapping[string(k)] = pm
+					}
 					sState = ss
 				}); err != nil {
 					glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
