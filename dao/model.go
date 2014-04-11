@@ -5,7 +5,7 @@ import (
 
 	"errors"
 	"fmt"
-	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -482,21 +482,21 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 
 
 // Retrieve service container port info.
-func (ss *ServiceState) GetHostEndpointInfo(application string) (hostPort, containerPort uint16, protocol string, match bool) {
+func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
 	for _, ep := range ss.Endpoints {
 		if ep.Purpose == "export" {
-			if match, err := path.Match(application, ep.Application); err == nil && match {
+			if applicationRegex.MatchString(ep.Application) {
 				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
 
 				external := ss.PortMapping[portS]
 				if len(external) == 0 {
-					glog.Errorf("Found match for %s:%s, but no portmapping is available", application, portS)
+					glog.Errorf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
 					break
 				}
 
 				extPort, err := strconv.ParseUint(external[0].HostPort, 10, 16)
 				if err != nil {
-					glog.Errorf("Portmap parsing failed for %s:%s %v", application, portS, err)
+					glog.Errorf("Portmap parsing failed for %s:%s %v", applicationRegex, portS, err)
 					break
 				}
 				return uint16(extPort), ep.PortNumber, ep.Protocol, true
