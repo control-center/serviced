@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -101,6 +102,7 @@ type Host struct {
 	IpAddr         string // The IP address the host can be reached at from a serviced master
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	CommitedRam    uint64 // Amount of RAM commited to services
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -149,6 +151,7 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
+	Hostname        string
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []Task
@@ -160,6 +163,8 @@ type Service struct {
 	DisableImage    bool
 	LogConfigs      []LogConfig
 	Snapshot        SnapshotCommands
+	Runs            map[string]string
+	RAMCommitment   uint64
 }
 
 // An endpoint that a Service exposes.
@@ -224,22 +229,25 @@ type ConfigFile struct {
 }
 
 type ServiceDefinition struct {
-	Name        string                 // Name of the defined service
-	Command     string                 // Command which runs the service
-	Description string                 // Description of the service
-	Tags        []string               // Searchable service tags
-	ImageId     string                 // Docker image hosting the service
-	Instances   MinMax                 // Constraints on the number of instances
-	Launch      string                 // Must be "AUTO", the default, or "MANUAL"
-	ConfigFiles map[string]ConfigFile  // Config file templates
-	Context     map[string]interface{} // Context information for the service
-	Endpoints   []ServiceEndpoint      // Comms endpoints used by the service
-	Services    []ServiceDefinition    // Supporting subservices
-	Tasks       []Task                 // Scheduled tasks for celery to find
-	LogFilters  map[string]string      // map of log filter name to log filter definitions
-	Volumes     []Volume               // list of volumes to bind into containers
-	LogConfigs  []LogConfig
-	Snapshot    SnapshotCommands // Snapshot quiesce info for the service: Pause/Resume bash commands
+	Name          string                 // Name of the defined service
+	Command       string                 // Command which runs the service
+	Description   string                 // Description of the service
+	Tags          []string               // Searchable service tags
+	ImageId       string                 // Docker image hosting the service
+	Instances     MinMax                 // Constraints on the number of instances
+	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	Hostname      string                 // Optional hostname which should be set on run
+	ConfigFiles   map[string]ConfigFile  // Config file templates
+	Context       map[string]interface{} // Context information for the service
+	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
+	Services      []ServiceDefinition    // Supporting subservices
+	Tasks         []Task                 // Scheduled tasks for celery to find
+	LogFilters    map[string]string      // map of log filter name to log filter definitions
+	Volumes       []Volume               // list of volumes to bind into containers
+	LogConfigs    []LogConfig
+	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment uint64            // expected RAM commitment to use for scheduling
+	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
@@ -385,6 +393,72 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 	}
 
 	return result
+}
+
+// Add a virtual host for given service, this method avoids duplicates vhosts
+func (s *Service) AddVirtualHost(application, vhostName string) error {
+	if s.Endpoints != nil {
+
+		//find the matching endpoint
+		for i := 0; i < len(s.Endpoints); i += 1 {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				_vhostName := strings.ToLower(vhostName)
+				vhosts := make([]string, 0)
+				for _, vhost := range ep.VHosts {
+					if strings.ToLower(vhost) != _vhostName {
+						vhosts = append(vhosts, vhost)
+					}
+				}
+				ep.VHosts = append(vhosts, _vhostName)
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
+}
+
+// Remove a virtual host for given service
+func (s *Service) RemoveVirtualHost(application, vhostName string) error {
+	if s.Endpoints != nil {
+
+		//find the matching endpoint
+		for i := 0; i < len(s.Endpoints); i += 1 {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				if len(ep.VHosts) == 0 {
+					break
+				}
+
+				_vhostName := strings.ToLower(vhostName)
+				if len(ep.VHosts) == 1 && ep.VHosts[0] == _vhostName {
+					return fmt.Errorf("Cannot delete last vhost: %s", _vhostName)
+				}
+
+				found := false
+				vhosts := make([]string, 0)
+				for _, vhost := range ep.VHosts {
+					if vhost != _vhostName {
+						vhosts = append(vhosts, vhost)
+					} else {
+						found = true
+					}
+				}
+				//error removing an unknown vhost
+				if !found {
+					break
+				}
+
+				ep.VHosts = vhosts
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
 }
 
 func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {

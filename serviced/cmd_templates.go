@@ -57,12 +57,16 @@ func (cli *ServicedCli) CmdCompileTemplate(args ...string) error {
 		mapping[parts[0]] = parts[1]
 	}
 
-	template, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
+	sdefinition, err := dao.ServiceDefinitionFromPath(cmd.Arg(0))
 	if err != nil {
 		return err
 	}
-	mapImageNames(template, mapping)
-	output, err := json.MarshalIndent(template, "", "    ")
+	mapImageNames(sdefinition, mapping)
+	serviceTemplate := dao.ServiceTemplate{}
+	serviceTemplate.Services = make([]dao.ServiceDefinition, 1)
+	serviceTemplate.Services[0] = *sdefinition
+	serviceTemplate.Name = sdefinition.Name
+	output, err := json.MarshalIndent(serviceTemplate, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -206,11 +210,11 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 	cmd := Subcmd("deploy-template", "[OPTIONS] TEMPLATE_ID POOL_ID DEPLOYMENT_ID", "Deploy TEMPLATE_ID into POOL_ID with a new id DEPLOYMENT_ID optional NO_AUTO_ASSIGN_IPS")
 
 	var autoAssignIps bool
-	cmd.BoolVar(&autoAssignIps, "noAutoAssignIps", true, "flag determining whether or not to set IPs automatically")
-
+	cmd.BoolVar(&autoAssignIps, "autoAssignIps", true, "Automatically assign IP addresses to services requiring an external IP address")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
+
 	glog.V(1).Infof("Received %v arguments", len(cmd.Args()))
 	if len(cmd.Args()) != 3 {
 		cmd.Usage()
@@ -231,11 +235,14 @@ func (cli *ServicedCli) CmdDeployTemplate(args ...string) error {
 	glog.V(1).Infof("OK")
 
 	if autoAssignIps {
+		glog.Infof("Assigning IP addresses automatically to services requiring them...")
 		if err := cli.CmdAutoAssignIps(tenantId); err != nil {
 			glog.Fatalf("Could not automatically assign IPs: %v", err)
 			return err
 		}
 		glog.Infof("Automatically assigned IP addresses to service: %v", tenantId)
+	} else {
+		glog.Infof("Not assigning IP addresses to services requiring them. You need to do this manually.")
 	}
 
 	return nil

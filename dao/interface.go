@@ -190,6 +190,9 @@ type ControlPlane interface {
 	// List available snapshots
 	Snapshots(serviceId string, snapshotIds *[]string) error
 
+	// Delete snapshots for a given service
+	DeleteSnapshots(serviceId string, unused *int) error
+
 	// Download a file from a container
 	Get(service Service, file *string) error
 
@@ -204,4 +207,7 @@ type ControlPlane interface {
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
 	ValidateCredentials(user User, result *bool) error
+
+	// Waits for the DFS to be ready
+	ReadyDFS(bool, *int) error
 }

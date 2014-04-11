@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ant0ine/go-json-rest"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 
@@ -188,6 +188,12 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"GET", "/services/:serviceId/snapshot", this.AuthorizedClient(RestSnapshotService)},
 		rest.Route{"PUT", "/services/:serviceId/startService", this.AuthorizedClient(RestStartService)},
 		rest.Route{"PUT", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
+
+		// Services (Virtual Host)
+		rest.Route{"GET", "/vhosts", this.AuthorizedClient(RestGetVirtualHosts)},
+		rest.Route{"POST", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestAddVirtualHost)},
+		rest.Route{"DELETE", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestRemoveVirtualHost)},
+
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
@@ -196,7 +202,6 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"DELETE", "/login", RestLogout},
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", this.AuthorizedClient(RestGetTopServices)},
-
 		rest.Route{"GET", "/running", this.AuthorizedClient(RestGetAllRunning)},
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},

@@ -166,7 +166,7 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 
 	var remote net.Conn
 
-	glog.Infof("Dialing hostAgent:%v to proxy %v<->%v<->%v",
+	glog.V(2).Infof("Dialing hostAgent:%v to proxy %v<->%v<->%v",
 		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
 	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
@@ -183,8 +183,20 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.name, remotePort))
 	}
 
-	glog.Infof("Using   hostAgent:%v to proxy %v<->%v<->%v<->%v",
+	glog.V(2).Infof("Using   hostAgent:%v to proxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
-	go io.Copy(local, remote)
-	go io.Copy(remote, local)
+	go func(address string) {
+		defer local.Close()
+		defer remote.Close()
+		io.Copy(local, remote)
+		glog.V(2).Infof("Closing hostAgent:%v to proxy %v<->%v<->%v<->%v",
+			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
+	}(address)
+	go func(address string) {
+		defer local.Close()
+		defer remote.Close()
+		io.Copy(remote, local)
+		glog.V(2).Infof("closing hostAgent:%v to proxy %v<->%v<->%v<->%v",
+			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
+	}(address)
 }

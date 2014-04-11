@@ -15,6 +15,7 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
@@ -467,29 +468,29 @@ func (this *ControlPlaneDao) AddHost(host dao.Host, hostId *string) error {
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) error {
+func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
 	id := strings.TrimSpace(serviceId)
 	if id == "" {
 		return errors.New("empty serviceId not allowed")
 	}
 
-	var err error
-	var service dao.Service
-	for {
-		err = this.GetService(id, &service)
-		if err == nil {
-			id = service.ParentServiceId
-			if id == "" {
-				*tenantId = service.Id
-				return nil
-			}
+	var traverse func(string) (string, error)
+
+	traverse = func(id string) (string, error) {
+		var service dao.Service
+		if err := this.GetService(id, &service); err != nil {
+			return "", err
+		} else if service.ParentServiceId != "" {
+			return traverse(service.ParentServiceId)
 		} else {
-			return err
+			glog.Infof("parent service: %+v", service)
+			return service.Id, nil
 		}
 	}
 
-	return err
+	*tenantId, err = traverse(id)
+	return
 }
 
 //
@@ -640,6 +641,14 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	this.walkServices(id, func(svc dao.Service) error {
 		this.zkDao.RemoveService(svc.Id)
 		return nil
+	})
+
+	this.walkServices(id, func(svc dao.Service) error {
+		_, err := deleteService(svc.Id)
+		if err != nil {
+			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
+		}
+		return err
 	})
 
 	glog.V(2).Infof("ControlPlaneDao.RemoveService: %s", id)
@@ -958,6 +967,10 @@ func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service, _ 
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}
+	}
+
+	if service.RAMCommitment < 0 {
+		return fmt.Errorf("service RAM commitment cannot be negative")
 	}
 
 	// add additional validation checks to the services
@@ -1309,6 +1322,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
+	svc.Hostname = sd.Hostname
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
@@ -1319,6 +1333,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.DeploymentId = deploymentId
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
+	svc.RAMCommitment = sd.RAMCommitment
+	svc.Runs = sd.Runs
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1328,6 +1344,42 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
 		return err
+	}
+
+	if parentServiceId == "" {
+		*tenantId = svc.Id
+	}
+
+	// Using the tenant id, tag the base image with the tenantID
+	if svc.ImageId != "" {
+		repotag := strings.SplitN(svc.ImageId, ":", 2)
+		path := strings.SplitN(repotag[0], "/", 3)
+		path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
+		repo := strings.Join(path, "/")
+
+		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+		if err != nil {
+			glog.Errorf("unable to start docker client")
+			return err
+		}
+
+		image, err := dockerclient.InspectImage(svc.ImageId)
+		if err != nil {
+			glog.Errorf("could not look up image: %s", sd.ImageId)
+			return err
+		}
+
+		options := docker.TagImageOptions{
+			Repo:  repo,
+			Force: true,
+		}
+
+		if err := dockerclient.TagImage(image.ID, options); err != nil {
+			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			return err
+		}
+
+		svc.ImageId = repo
 	}
 
 	var serviceId string
@@ -1344,9 +1396,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 		return err
 	}
 
-	if parentServiceId == "" {
-		*tenantId = svc.Id
-	}
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
@@ -1610,37 +1659,22 @@ func (this *ControlPlaneDao) ShowCommands(service dao.Service, unused *int) erro
 }
 
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
+	return this.dfs.DeleteSnapshot(snapshotId)
+}
+
+func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) error {
 	var tenantId string
-	parts := strings.Split(snapshotId, "_")
-	if len(parts) != 2 {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot malformed snapshot Id: %s", snapshotId)
-		return errors.New("malformed snapshotId")
-	}
-	serviceId := parts[0]
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
 		return err
 	}
 
-	var service dao.Service
-	err := this.GetService(tenantId, &service)
-	glog.V(2).Infof("Getting service instance: %s", tenantId)
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
-		return err
+	if serviceId != tenantId {
+		glog.Infof("ControlPlaneDao.DeleteSnapshots service is not the parent, service=%s, tenant=%s", serviceId, tenantId)
+		return nil
 	}
 
-	// delete snapshot
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshot service=%+v err=%s", serviceId, err)
-		return err
-	} else {
-		glog.V(2).Infof("deleting snapshot %s", snapshotId)
-		if err := volume.RemoveSnapshot(snapshotId); err != nil {
-			return err
-		}
-	}
-	return nil
+	return this.dfs.DeleteSnapshots(tenantId)
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
@@ -1649,13 +1683,32 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 
 // Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
-	return this.dfs.Snapshot(serviceId, label)
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		return err
+	}
+
+	if id, err := this.dfs.Snapshot(tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		return err
+	} else {
+		*label = id
+	}
+
+	return nil
 }
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
 	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot for service=%s", serviceId)
+
+	var tenantId string
+	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao: dao.LocalSnapshot err=%s", err)
+		return err
+	}
 
 	// request a snapshot by placing request znode in zookeeper - leader will notice
 	snapshotRequest, err := dao.NewSnapshotRequest(serviceId, "")
@@ -1730,7 +1783,14 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 
 // Commits a container to an image and saves it on the DFS
 func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
-	return this.dfs.Commit(containerId, label)
+	if id, err := this.dfs.Commit(containerId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetVolume containerId=%s err=%s", containerId, err)
+		return err
+	} else {
+		*label = id
+	}
+
+	return nil
 }
 
 func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
@@ -1911,6 +1971,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	go s.handleScheduler(hid)
 
 	return s, nil
+}
+
+func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
+	s.dfs.Lock()
+	s.dfs.Unlock()
+	return
 }
 
 // writeLogstashConfiguration takes all the available

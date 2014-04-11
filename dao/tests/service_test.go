@@ -165,7 +165,10 @@ func init() {
 	var err error
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
-	isvcs.Mgr.Wipe()
+	err = isvcs.Mgr.Wipe()
+	if err != nil {
+		glog.Fatalf("could not wipe isvcs(): %s", err)
+	}
 	time.Sleep(time.Second * 5)
 	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses, "/tmp", "rsync"); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)
@@ -341,4 +344,59 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 	defer cp.RemoveService(childService2Id, &unused)
 	defer cp.RemoveService(childService1Id, &unused)
 	defer cp.RemoveService(id, &unused)
+}
+
+func TestAddVirtualHost(t *testing.T) {
+	service := dao.Service{
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Purpose:     "export",
+				Application: "server",
+				VHosts:      nil,
+			},
+		},
+	}
+
+	var err error
+	if err = service.AddVirtualHost("empty_server", "name"); err == nil {
+		t.Errorf("Expected error adding vhost")
+	}
+
+	if err = service.AddVirtualHost("server", "name"); err != nil {
+		t.Errorf("Unexpected error adding vhost: %v", err)
+	}
+
+	//no duplicate hosts can be added... hostnames are case-insensitive
+	if err = service.AddVirtualHost("server", "NAME"); err != nil {
+		t.Errorf("Unexpected error adding vhost: %v", err)
+	}
+
+	if len(service.Endpoints[0].VHosts) != 1 && (service.Endpoints[0].VHosts)[0] != "name" {
+		t.Errorf("Virtualhost incorrect, %+v should contain name", service.Endpoints[0].VHosts)
+	}
+}
+
+func TestRemoveVirtualHost(t *testing.T) {
+	service := dao.Service{
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Purpose:     "export",
+				Application: "server",
+				VHosts:      []string{"name0", "name1"},
+			},
+		},
+	}
+
+	var err error
+	if err = service.RemoveVirtualHost("server", "name0"); err != nil {
+		t.Errorf("Unexpected error adding vhost: %v", err)
+	}
+
+	if len(service.Endpoints[0].VHosts) != 1 && service.Endpoints[0].VHosts[0] != "name1" {
+		t.Errorf("Virtualhost incorrect, %+v should contain one host", service.Endpoints[0].VHosts)
+	}
+
+	if err = service.RemoveVirtualHost("server", "name0"); err == nil {
+		t.Errorf("Expected error removing vhost")
+	}
 }

@@ -63,7 +63,7 @@ func validOwnerSpec(owner string) bool {
 }
 
 // getMemorySize attempts to get the size of the installed RAM.
-func getMemorySize() (size uint64, err error) {
+func GetMemorySize() (size uint64, err error) {
 	file, err := os.Open(meminfoFile)
 	if err != nil {
 		return 0, err
@@ -100,8 +100,8 @@ type RouteEntry struct {
 	Iface       string
 }
 
-// wrapper around the route command
-func routeCmd() (routes []RouteEntry, err error) {
+// RouteCmd wrapper around the route command
+func RouteCmd() (routes []RouteEntry, err error) {
 	output, err := exec.Command("/sbin/route", "-A", "inet").Output()
 	if err != nil {
 		return routes, err
@@ -166,6 +166,27 @@ func GetIPAddress() (ip string, err error) {
 	return ip, err
 }
 
+// GetInterfaceIPAddress attempts to find the IP address based on interface name
+func GetInterfaceIpAddress(_interface string) (string, error) {
+	output, err := exec.Command("/sbin/ip", "-4", "-o", "addr").Output()
+	if err != nil {
+		return "", err
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+
+		if strings.HasPrefix(fields[1], _interface) {
+			return strings.Split(fields[3], "/")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("Unable to find ip for interface: %s", _interface)
+}
+
 // getIPAddrFromHostname returns the ip address associated with hostname -i.
 func getIPAddrFromHostname() (ip string, err error) {
 	output, err := exec.Command("hostname", "-i").Output()
@@ -197,7 +218,7 @@ func getIPAddrFromOutGoingConnection() (ip string, err error) {
 // this method. The passed in poolID is used as the resource pool in the result.
 func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
 	cpus := runtime.NumCPU()
-	memory, err := getMemorySize()
+	memory, err := GetMemorySize()
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +242,7 @@ func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
-	routes, err := routeCmd()
+	routes, err := RouteCmd()
 	if err != nil {
 		return nil, err
 	}
@@ -459,30 +480,34 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
-	// the file globbing checks that /mnt is empty before the copy - should initially be empty
+	// the file globbing checks that /mnt/dfs is empty before the copy - should initially be empty
 	//    we don't want the copy to occur multiple times if restarting services.
 
 	var err error
 	var output []byte
-	for i := 0; i < 1; i++ {
-		docker := exec.Command("docker", "run",
-			"-v", hostPath+":/mnt",
-			imageSpec,
-			"/bin/sh", "-c",
-			fmt.Sprintf(`
-chown %s /mnt && \
-chmod %s /mnt && \
+	command := [...]string{
+		"docker", "run",
+		"-v", hostPath + ":/mnt/dfs",
+		imageSpec,
+		"/bin/bash", "-c",
+		fmt.Sprintf(`
+chown %s /mnt/dfs && \
+chmod %s /mnt/dfs && \
 shopt -s nullglob && \
 shopt -s dotglob && \
-files=(/mnt/*) && \
+files=(/mnt/dfs/*) && \
 if [ ! -d "%s" ]; then
 	echo "ERROR: srcdir %s does not exist in container"
 	exit 2
 elif [ ${#files[@]} -eq 0 ]; then
-	cp -rp %s/* /mnt/
+	cp -rp %s/* /mnt/dfs/
 fi
 sleep 5s
-`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec))
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
+	}
+
+	for i := 0; i < 1; i++ {
+		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
 			return nil
@@ -490,6 +515,6 @@ sleep 5s
 		time.Sleep(time.Second)
 	}
 
-	glog.Errorf("could not create host volume: %s", string(output))
+	glog.Errorf("could not create host volume: %+v, %s", command, string(output))
 	return err
 }

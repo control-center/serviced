@@ -1,17 +1,18 @@
-<div class="modal fade" id="removeService" tabindex="-1" role="dialog" aria-labelledby="removeServiceModalLabel" aria-hidden="true">
+<div class="modal fade" id="removeApp" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title">Remove service</h4>
+        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
+        <h4 class="modal-title">{{'title_remove_service'|translate}}</h4>
       </div>
       <div class="modal-body">
-        The service <span class="highlighted">{{services.current.Name}}</span> ({{services.current.Id}}) will be removed.
+		{{'warning_remove_service'| translate}}
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="remove_service()">Remove</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
+        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="remove_service()">{{'title_remove_service'|translate}}</button>
       </div>
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
+

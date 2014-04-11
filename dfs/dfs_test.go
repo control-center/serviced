@@ -146,19 +146,13 @@ func TestSnapshot(t *testing.T) {
 	setUp()
 	defer tearDown()
 
-	var label string
 	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
 	if err != nil {
 		t.Fatalf("failed to initialize dfs: %+v", err)
 	}
 
-	// * error while acquiring the tenant id
-	if err = dfs.Snapshot("niltenant-snapshot", &label); err.Error() != dfs.client.GetTenantId("niltenant-snapshot", nil).Error() {
-		t.Errorf("error not caught while acquiring the tenant id")
-	}
-
 	// * error while acquiring the service
-	if err = dfs.Snapshot("nilservice-snapshot", &label); err.Error() != dfs.client.GetService("nilservice-snapshot", nil).Error() {
+	if _, err := dfs.Snapshot("nilservice-snapshot"); err.Error() != dfs.client.GetService("nilservice-snapshot", nil).Error() {
 		t.Errorf("error not caught while acquiring the service")
 	}
 }
@@ -167,7 +161,6 @@ func TestSnapshotPauseResume(t *testing.T) {
 	setUp()
 	defer tearDown()
 
-	var label string
 	var services []*dao.Service
 
 	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
@@ -180,7 +173,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 	getCurrentUser = func() (*user.User, error) {
 		return nil, niluser_err
 	}
-	if err = dfs.Snapshot("niluser-snapshot", &label); err.Error() != niluser_err.Error() {
+	if _, err := dfs.Snapshot("niluser-snapshot"); err.Error() != niluser_err.Error() {
 		t.Errorf("error not caught while acquiring the user")
 	}
 
@@ -192,7 +185,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		return
 	}
 
-	if err = dfs.Snapshot("nilvolume-snapshot", &label); err.Error() != dfs.client.GetVolume("nilvolume-snapshot", nil).Error() {
+	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetVolume("nilvolume-snapshot", nil).Error() {
 		t.Errorf("error not caught while acquiring the volume")
 	}
 
@@ -204,7 +197,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		return
 	}
 
-	if err = dfs.Snapshot("nilvolume-snapshot", &label); err.Error() != dfs.client.GetServices(unused, new([]*dao.Service)).Error() {
+	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetServices(unused, new([]*dao.Service)).Error() {
 		t.Errorf("error not caught while acquiring the services")
 	}
 
@@ -233,7 +226,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		},
 	}
 	MockServices = services
-	if err = dfs.Snapshot("nilstate-snapshot", &label); err.Error() != dfs.client.GetVolume("nilstate-snapshot", nil).Error() {
+	if _, err := dfs.Snapshot("nilstate-snapshot"); err.Error() != dfs.client.GetVolume("nilstate-snapshot", nil).Error() {
 		t.Errorf("error not caught while acquiring the volume")
 	}
 
@@ -247,7 +240,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		},
 	}
 	MockServices = services
-	if err = dfs.Snapshot("nilstate-snapshot", &label); err.Error() != dfs.client.GetServiceStates("nilstate-snapshot", nil).Error() {
+	if _, err := dfs.Snapshot("nilstate-snapshot"); err.Error() != dfs.client.GetServiceStates("nilstate-snapshot", nil).Error() {
 		t.Errorf("error not caught while acquiring the service state")
 	}
 
@@ -275,7 +268,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		},
 	}
 	MockServices = services
-	if err = dfs.Snapshot("nilvolume-snapshot", &label); err.Error() != dfs.client.GetVolume("nilvolume-snapshot", nil).Error() {
+	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetVolume("nilvolume-snapshot", nil).Error() {
 		if paused, ok := MockPauseResume[services[0].Id]; paused || !ok {
 			t.Errorf("unexpected state for %s", services[0].Id)
 		} else if paused, ok := MockPauseResume[services[1].Id]; paused || !ok {
@@ -311,7 +304,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 		},
 	}
 	MockServices = services
-	if err = dfs.Snapshot("errsnapshot", &label); err.Error() != MockVolumeInstance.Snapshot(label).Error() {
+	if label, err := dfs.Snapshot("errsnapshot"); err.Error() != MockVolumeInstance.Snapshot(label).Error() {
 		t.Errorf("error not caught while taking the snapshot")
 	} else {
 		if paused, ok := MockPauseResume[services[0].Id]; paused || !ok {
@@ -334,7 +327,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 	MockServices = services
 	MockVolumeInstance.name = "success"
-	if err = dfs.Snapshot("success-snapshot", &label); err != nil {
+	if _, err := dfs.Snapshot("success-snapshot"); err != nil {
 		t.Errorf("unexpected error while capturing the snapshot: %+v", err)
 	}
 }

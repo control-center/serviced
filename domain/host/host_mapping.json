@@ -1,0 +1,22 @@
+{
+    "host": {
+        "properties":{
+            "ID" :            {"type": "string", "index":"not_analyzed"},
+            "Name":           {"type": "string", "index":"not_analyzed"},
+            "PoolID":         {"type": "string", "index":"not_analyzed"},
+            "IPAddr":         {"type": "string", "index":"not_analyzed"},
+            "Cores":          {"type": "long", "index":"not_analyzed"},
+            "Memory":         {"type": "long", "index":"not_analyzed"},
+            "PrivateNetwork": {"type": "string", "index":"not_analyzed"},
+            "CreatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
+            "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
+            "IPs" :{
+                "properties":{
+                    "IP" : {"type": "string", "index":"not_analyzed"},
+                    "InterfaceName" : {"type": "string", "index":"not_analyzed"},
+                    "State" : {"type": "string", "index":"not_analyzed"}
+                }
+            }
+        }
+    }
+}

@@ -26,6 +26,7 @@ type Conn interface {
 	Snapshots() ([]string, error)
 	RemoveSnapshot(label string) error
 	Rollback(label string) error
+	Unmount() error
 }
 
 type Volume struct {

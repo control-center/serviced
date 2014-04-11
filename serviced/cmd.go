@@ -19,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/volume"
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
@@ -34,6 +35,7 @@ import (
 	"os/user"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,6 +47,7 @@ var options struct {
 	port             string
 	listen           string
 	master           bool
+	dockerDns        string
 	agent            bool
 	muxPort          int
 	tls              bool
@@ -71,12 +74,12 @@ var agentIP string
 func getEnvVarInt(envVar string, defaultValue int) int {
 	envVarValue := os.Getenv(envVar)
 	if len(envVarValue) > 0 {
-		if value, err := strconv.Atoi(envVarValue); err != nil {
+		value, err := strconv.Atoi(envVarValue)
+		if err != nil {
 			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
 			return defaultValue
-		} else {
-			return value
 		}
+		return value
 	}
 	return defaultValue
 }
@@ -103,8 +106,10 @@ func init() {
 		panic(err)
 	}
 
+	dockerDns := os.Getenv("SERVICED_DOCKER_DNS")
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
+	flag.StringVar(&options.dockerDns, "dockerDns", dockerDns, "docker dns configuration used for running containers (comma seperated list)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
 	flag.BoolVar(&options.agent, "agent", false, "run in agent mode, ie a host in a resource pool")
 	flag.IntVar(&options.muxPort, "muxport", 22250, "multiplexing port to use")
@@ -126,11 +131,11 @@ func init() {
 	flag.Var(&options.zookeepers, "zk", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181 )")
 	flag.BoolVar(&options.repstats, "reportstats", true, "report container statistics")
 	flag.StringVar(&options.statshost, "statshost", "127.0.0.1:8443", "host:port for container statistics")
-	flag.IntVar(&options.statsperiod, "statsperiod", 5, "Period (minutes) for container statistics reporting")
+	flag.IntVar(&options.statsperiod, "statsperiod", 60, "Period (seconds) for container statistics reporting")
 	flag.StringVar(&options.mcusername, "mcusername", "scott", "Username for the Zenoss metric consumer")
 	flag.StringVar(&options.mcpasswd, "mcpasswd", "tiger", "Password for the Zenoss metric consumer")
 	options.mount = make(ListOpts, 0)
-	flag.Var(&options.mount, "mount", "bind mount: container_image:host_path:container_path (e.g. -mount zenoss/zenoss5x:/home/zenoss/zenhome/zenoss/Products/:/opt/zenoss/Products/)")
+	flag.Var(&options.mount, "mount", "bind mount: dockerImage,hostPath,containerPath (e.g. -mount zenoss/zenoss5x:latest,$HOME/src/europa/src,/mnt/src) dockerImage can be '*'")
 	flag.StringVar(&options.vfs, "vfs", "rsync", "file system for container volumes")
 	flag.StringVar(&options.hostaliases, "hostaliases", "", "list of aliases for this host, e.g., localhost:goldmine:goldmine.net")
 
@@ -174,14 +179,9 @@ func startServer() {
 		glog.Fatalf("Could not determine docker version: %s", err)
 	}
 
-	atLeast := []int{0, 7, 5}
-	atMost := []int{0, 8, 1}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 || compareVersion(atMost, dockerVersion.Client) > 0 {
-		glog.Fatal("serviced needs at least docker >= 0.7.5 or <= 0.8.1 but not 0.8.0")
-	}
-	if compareVersion([]int{0, 8, 0}, dockerVersion.Client) == 0 {
-		glog.Fatal("serviced specifically does not support docker 0.8.0")
-
+	atLeast := []int{0, 8, 1}
+	if compareVersion(atLeast, dockerVersion.Client) < 0 {
+		glog.Fatal("serviced needs at least docker >= 0.8.1")
 	}
 
 	if _, ok := volume.Registered(options.vfs); !ok {
@@ -215,7 +215,8 @@ func startServer() {
 		mux.Port = options.muxPort
 		mux.UseTLS = options.tls
 
-		agent, err := serviced.NewHostAgent(options.port, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+		_dns := strings.Split(options.dockerDns, ",")
+		agent, err := serviced.NewHostAgent(options.port, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
@@ -248,11 +249,10 @@ func startServer() {
 
 	if options.repstats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		sr := StatsReporter{statsdest, options.mcusername, options.mcpasswd}
-
+		statsduration := time.Duration(options.statsperiod) * time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
-		statsduration := time.Duration(options.statsperiod) * time.Minute
-		go sr.Report(statsduration)
+		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
+		defer statsReporter.Close()
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
@@ -277,7 +277,9 @@ func main() {
 			cli.CmdHelp(flag.Args()...)
 			flag.Usage()
 		} else {
-			ParseCommands(flag.Args()...)
+			if err := ParseCommands(flag.Args()...); err != nil {
+				glog.Fatalf("%s", err)
+			}
 		}
 	}
 	glog.Flush()

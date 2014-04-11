@@ -60,6 +60,7 @@ stage: build pkgroot
 	# Stage binary
 	mkdir -p pkgroot$(INSTALL_DIR)/bin
 	cp ../serviced/serviced pkgroot$(INSTALL_DIR)/bin
+	cp ../serviced/nsinit pkgroot$(INSTALL_DIR)/bin
 
 	# Stage web files
 	mkdir -p pkgroot$(INSTALL_DIR)/share/web
@@ -80,6 +81,7 @@ stage: build pkgroot
 
 	# add serviced to the path via symlink
 	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
+	ln -sf $(INSTALL_DIR)/bin/nsinit  pkgroot/usr/bin/nsinit
 
 
 stage_deb: stage
@@ -99,6 +101,7 @@ deb: stage_deb
 		-v $(PKG_VERSION) \
 		-s dir \
 		-d apparmor-utils \
+		-d lxc \
 		-d 'lxc-docker > 0.8.0' \
 		--after-install aa-workaround.sh \
 		-t deb \
