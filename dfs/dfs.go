@@ -29,21 +29,26 @@ var (
 	getCurrentUser = user.Current
 )
 
+// runServiceCommand attaches to a service state container and executes an arbitrary bash command
 var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, error) {
-	lxcAttach, err := exec.LookPath("lxc-attach")
+	nsinitPath, err := exec.LookPath("nsinit")
 	if err != nil {
 		return []byte{}, err
 	}
-	argv := []string{"-n", state.DockerId, "-e", "--", "/bin/bash", "-c", command}
-	glog.V(0).Infof("ServiceId: %s, Command: `%s %s`", state.ServiceId, lxcAttach, argv)
-	cmd := exec.Command(lxcAttach, argv...)
+
+	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
+
+	hostCommand := []string{"/bin/bash", "-c",
+		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
+	glog.Infof("ServiceId: %s, Command: %s", state.ServiceId, strings.Join(hostCommand, " "))
+	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
 		return output, err
 	}
-	glog.V(0).Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
+	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
 	return output, nil
 }
 

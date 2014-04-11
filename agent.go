@@ -629,8 +629,14 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
+	// Add hostname if set
+	hostname := ""
+	if service.Hostname != "" {
+		hostname = fmt.Sprintf("-h %s", service.Hostname)
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)

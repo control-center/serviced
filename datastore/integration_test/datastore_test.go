@@ -10,38 +10,38 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
 
+	. "gopkg.in/check.v1"
+
 	"reflect"
 	"testing"
+	"time"
 )
 
-var driver datastore.Driver
-
-func getContext() (datastore.Context, error) {
-	if driver == nil {
-		esDriver, err := elastic.InitElasticTest("twitter")
-		if err != nil {
-			return nil, err
-		}
-		driver = esDriver
-	}
-	return datastore.NewContext(driver), nil
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }
 
-func TestPutGetDelete(t *testing.T) {
+var _ = Suite(&S{ElasticTest: elastic.ElasticTest{Index: "twitter"}})
 
-	ctx, err := getContext()
-	if err != nil {
-		t.Fatalf("Got error %v", err)
-	}
-	if ctx == nil {
-		t.Fatal("Expected context")
-	}
+type S struct {
+	elastic.ElasticTest
+	ctx datastore.Context
+}
+
+func (s *S) SetUpTest(c *C) {
+	datastore.Register(s.Driver())
+	s.ctx = datastore.Get()
+}
+
+func (s *S) TestPutGetDelete(t *C) {
+	ctx := s.ctx
 	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
 	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch"}
 
-	err = ds.Put(ctx, key, &tweet)
+	err := ds.Put(ctx, key, &tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -74,31 +74,27 @@ func TestPutGetDelete(t *testing.T) {
 	}
 }
 
-func TestQuery(t *testing.T) {
+func (s *S) TestQuery(t *C) {
+	ctx := s.ctx
 
-	ctx, err := getContext()
-	if err != nil {
-		t.Fatalf("Got error %v", err)
-	}
-	if ctx == nil {
-		t.Fatal("Expected context")
-	}
 	ds := datastore.New()
 
-	key := datastore.NewKey("tweet", "1")
+	k := datastore.NewKey("tweet", "1")
 	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch"}
 
-	err = ds.Put(ctx, key, tweet)
+	err := ds.Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	key = datastore.NewKey("tweet", "2")
+	k = datastore.NewKey("tweet", "2")
 	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again"}
-	err = ds.Put(ctx, key, tweet)
+	err = ds.Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
+
+	time.Sleep(2000 * time.Millisecond)
 
 	query := search.Query().Search("_exists_:State")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
@@ -132,7 +128,7 @@ func TestQuery(t *testing.T) {
 type tweettest struct {
 	User      string
 	State     string
-	Post_date string
+	PostDate string
 	Message   string
 }
 
