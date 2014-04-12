@@ -8,7 +8,7 @@ import (
 	"github.com/zenoss/cli"
 )
 
-// initService is the initializer for serviced service
+// Initializer for serviced service subcommands
 func (c *ServicedCli) initService() {
 	cmd := c.app.AddSubcommand(cli.Command{
 		Name:  "service",
@@ -19,7 +19,7 @@ func (c *ServicedCli) initService() {
 			Name:         "list",
 			Usage:        "Lists all services.",
 			Action:       c.cmdServiceList,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
 
 			Args: []string{
 				"[SERVICEID]",
@@ -31,114 +31,195 @@ func (c *ServicedCli) initService() {
 			Name:   "add",
 			Usage:  "Adds a new service.",
 			Action: c.cmdServiceAdd,
+			Action: c.printServiceAdd,
+
+			Args: []string{
+				"NAME", "POOLID", "IMAGEID", "COMMAND",
+			},
+			Flags: []cli.Flag{
+				cli.GenericSliceFlag{"p", new(api.PortOpts), "Expose a port for this service (e.g. -p tcp:3306:mysql )"},
+				cli.GenericSliceFlag{"q", new(api.PortOpts), "Map a remote service port (e.g. -q tcp:3306:mysql )"},
+			},
 		}, {
 			Name:         "remove",
 			ShortName:    "rm",
 			Usage:        "Removes an existing service.",
 			Action:       c.cmdServiceRemove,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesAll,
+
+			Args: []string{
+				"SERVICEID ...",
+			},
 		}, {
 			Name:         "edit",
 			Usage:        "Edits an existing service in a text editor.",
 			Action:       c.cmdServiceEdit,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID",
+			},
+			Flags: []cli.Flags{
+				cli.StringFlag{"editor, e", os.Getenv("EDITOR"), "Editor used to update the service definition"},
+			},
 		}, {
-			Name:         "auto-assign-ips",
-			Usage:        "Automatically assign IP addresses to a service's endpoints requiring an explicit IP address.",
-			Action:       c.cmdServiceAutoIPs,
-			BashComplete: c.printServices,
-		}, {
-			Name:         "manual-assign-ips",
-			Usage:        "Manually assign IP addresses to a service's endpoints requiring an explicit IP address.",
-			Action:       c.cmdServiceManualIPs,
-			BashComplete: c.printServices,
+			Name:         "assign-ip",
+			Usage:        "Assign an IP address to a service's endpoints requiring an explicit IP address.",
+			Action:       c.cmdServiceAssignIP,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID", "[IPADDRESS]",
+			},
 		}, {
 			Name:         "start",
 			Usage:        "Starts a service.",
 			Action:       c.cmdServiceStart,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID",
+			},
 		}, {
 			Name:         "stop",
 			Usage:        "Stops a service.",
 			Action:       c.cmdServiceStop,
-			BashComplete: c.printServices,
-		}, {
-			Name:         "restart",
-			Usage:        "Restarts a service.",
-			Action:       c.cmdServiceRestart,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID",
+			},
 		}, {
 			Name:         "shell",
 			Usage:        "Starts a service instance.",
 			Action:       c.cmdServiceShell,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
 		}, {
 			Name:         "run",
 			Usage:        "Runs a service command.",
 			Action:       c.cmdServiceRun,
-			BashComplete: c.printServiceRuns,
+			BashComplete: c.printServiceRun,
 		}, {
 			Name:         "list-snapshots",
 			Usage:        "Lists the snapshots for a service.",
 			Action:       c.cmdSnapshotList,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
 		}, {
 			Name:         "snapshot",
 			Usage:        "Takes a snapshot of the service.",
 			Action:       c.cmdSnapshotAdd,
-			BashComplete: c.printServices,
+			BashComplete: c.printServicesFirst,
 		},
 	}
 }
 
-// printServices is the generic completion action for the service subcommand
-// usage: serviced service COMMAND --generate-bash-completion
-func (c *ServicedCli) printServices(ctx *cli.Context) {
+// Returns a list of all the available service IDs
+func (c *ServicedCli) services() (data []string) {
+	svcs, err := c.driver.ListServices()
+	if err != nil || svcs == nil || len(svcs) == 0 {
+		return
+	}
+
+	data = make([]string, len(svcs))
+	for i, s := range svcs {
+		data[i] = s.ID
+	}
+
+	return
+}
+
+// Returns a list of runnable commands for a particular service
+func (c *ServicedCli) serviceRuns(id string) (data []string) {
+	svc, err := c.driver.GetService(id)
+	if err != nil || svcs == nil {
+		return
+	}
+
+	data = make([]string, len(svc.Runs))
+	i := 0
+	for r := range svc.Runs {
+		data[i] = r
+		i++
+	}
+
+	return
+}
+
+// Bash-completion command that prints a list of available services as the
+// first argument
+func (c *ServicedCli) printServicesFirst(c *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
 
-	services, err := c.driver.ListServices()
-	if err != nil || services == nil || len(services) == 0 {
-		return
-	}
-
-	for _, s := range services {
-		fmt.Println(s.ID)
+	for _, s := range c.services() {
+		fmt.Println(s)
 	}
 }
 
-// printServiceRuns is the generic completion action for the service run subcommand
-// usage: serviced service run SERVICE COMMAND
-func (c *ServicedCli) printServiceRuns(ctx *cli.Context) {
+// Bash-completion command that prints a list of available services as all
+// arguments
+func (c *ServicedCli) printServicesAll(c *cli.Context) {
+	args := ctx.Args()
+	svcs := c.services()
+
+	// If arg is a service don't add to the list
+	for _, s := range svcs {
+		found := false
+		for _, a := range args {
+			if s == a {
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmt.Println(s)
+		}
+	}
+}
+
+// Bash-completion command that completes the service ID as the first argument
+// and runnable commands as the second argument
+func (c *ServicedCli) printServiceRun(c *cli.Context) {
+	var output []string
+
 	args := ctx.Args()
 	switch len(args) {
 	case 0:
-		services, err := c.driver.ListServices()
-		if err != nil || services == nil || len(services) == 0 {
-			return
-		}
-		for _, s := range services {
-			fmt.Println(s.ID)
-		}
+		output = c.services()
 	case 1:
-		service, err := c.driver.GetService(args[0])
-		if err != nil || service == nil {
-			return
-		}
-		for run, _ := range service.Runs {
-			fmt.Println(run)
-		}
+		output = c.serviceRuns(args[0])
+	}
+
+	for _, o := range output {
+		fmt.Println(o)
 	}
 }
 
-// cmdServiceList is the command-line interaction for serviced service list
-// usage: serviced service list
+// Bash-completion command that completes the pool ID as the first argument
+// and the docker image ID as the second argument
+func (c *ServicedCli) printServiceAdd(c *cli.Context) {
+	var output []string
+
+	args := ctx.Args()
+	switch len(args) {
+	case 1:
+		output := c.pools()
+	case 2:
+		// TODO: get a list of the docker images
+	}
+
+	for _, o := range output {
+		fmt.Println(o)
+	}
+}
+
+// serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		serviceID := ctx.Args()[0]
 		if service, err := c.driver.GetService(serviceID); err != nil {
-			fmt.Fprintf(os.Stderr, "error trying to receive service definition: %s\n", err)
+			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "service not found")
 		} else if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
@@ -151,7 +232,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 
 	services, err := c.driver.ListServices()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error trying to receive service definitions: %s\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if services == nil || len(services) == 0 {
 		fmt.Fprintf(os.Stderr, "no services found")
@@ -165,67 +246,180 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
-		// TODO: print a services map
-		fmt.Println("serviced service list")
+		newServiceMap(services).PrintTree("")
 	}
 }
 
-// cmdServiceAdd is the command-line interaction for serviced service add
-// usage: serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND
+// serviced service add [[-p PORT]...] [[-q REMOTE]...] NAME POOLID IMAGEID COMMAND
 func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
-	fmt.Println("serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND")
+	args := ctx.Args()
+	if len(args) < 4 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add")
+		return
+	}
+
+	cfg := api.ServiceConfig{
+		Name:        args[0],
+		PoolID:      args[1],
+		ImageID:     args[2],
+		Command:     args[3],
+		LocalPorts:  ctx.GenericSlice("p"),
+		RemotePorts: ctx.GenericSlice("q"),
+	}
+
+	if service, err := c.driver.AddService(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service definition")
+	} else {
+		fmt.Println(service.ID)
+	}
 }
 
-// cmdServiceRemove is the command-line interaction for serviced service remove
-// usage: serviced service remove SERVICEID
+// serviced service remove SERVICEID ...
 func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
-	fmt.Println("serviced service remove SERVICEID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove")
+		return
+	}
+
+	for _, id := range args {
+		if err := c.driver.RemoveService(id); err != nil {
+			fmt.Fprintf(os.Stderr, "Error trying to remove %s: %s\n", id, err)
+		} else {
+			fmt.Println(id)
+		}
+	}
 }
 
-// cmdServiceEdit is the command-line interaction for serviced service edit
-// usage: serviced service edit SERVICEID
+// serviced service edit SERVICEID
 func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
-	fmt.Println("serviced service edit SERVICEID")
+	/*
+		// TODO: make me work with channels!
+		var writer io.WriteCloser
+		var reader io.ReadCloser
+
+		r, w, err := c.driver.UpdateService(args[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err)
+		} else if r == nil || w == nil {
+			fmt.Fprintln(os.Stderr, "received nil reader/writer")
+		} else if err := openEditor(r, w, ctx.StringFlag("editor")); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else if err := w.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	*/
 }
 
-// cmdServiceAutoIPs is the command-line interaction for serviced service auto-assign-ips
-// usage: serviced service auto-assign-ips SERVICEID
-func (c *ServicedCli) cmdServiceAutoIPs(ctx *cli.Context) {
-	fmt.Println("serviced service auto-assign-ips SERVICEID")
+// serviced service assign-ip SERVICEID [IPADDRESS]
+func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "assign-ip")
+		return
+	}
+
+	cfg := api.IPConfig{
+		ServiceID: args[0],
+		IPAddress: args[1],
+	}
+
+	if hostResource, err := c.driver.AssignIP(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if hostResource == nil {
+		fmt.Fprintln(os.Stderr, "received nil host resource")
+	} else {
+		fmt.Println(hostResource.IPAddress)
+	}
 }
 
-// cmdServiceManualIPs is the command-line interaction for serviced service manual-assign-ips
-// usage: serviced service manual-assign-ips SERVICEID IPADDRESS
-func (c *ServicedCli) cmdServiceManualIPs(ctx *cli.Context) {
-	fmt.Println("serviced service manual-assign-ips SERVICEID IPADDRESS")
-}
-
-// cmdServiceStart is the command-line interaction for serviced service start
-// usage: serviced service start SERVICEID
+// serviced service start SERVICEID
 func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
-	fmt.Println("serviced service start SERVICEID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "start")
+		return
+	}
+
+	if host, err := c.driver.StartService(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if host == nil {
+		fmt.Fprintln(os.Stderr, "received nil host")
+	} else {
+		fmt.Printf("Service scheduled to start on host: %s", host.ID)
+	}
 }
 
-// cmdServiceStop is the command-line interaction for serviced service stop
-// usage: serviced service stop SERVICEID
+// serviced service stop SERVICEID
 func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
-	fmt.Println("serviced service stop SERVICEID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "stop")
+		return
+	}
+
+	if host, err := c.driver.StopService(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if host == nil {
+		fmt.Fprintln(os.Stderr, "received nil host")
+	} else {
+		fmt.Printf("Service scheduled to stop on host: %s", host.ID)
+	}
 }
 
-// cmdServiceRestart is the command-line interaction for serviced service restart
-// usage: serviced service restart SERVICEID
-func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
-	fmt.Println("serviced service restart SERVICEID")
-}
-
-// cmdServiceShell is the command-line interaction for serviced service shell
-// usage: serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]
+// serviced service shell [--saveas SAVEAS] SERVICEID COMMAND
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) {
-	fmt.Println("serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]")
+	// TODO: Make me work with channels!
+	/*
+		args := ctx.Args()
+		if len(args) < 2 {
+			fmt.Printf("Incorrect Usage.\n\n")
+			cli.ShowCommandHelp(ctx, "shell")
+			return
+		}
+
+		cfg := api.ShellConfig{
+			ServiceID: args[0],
+			IsTTY: ctx.BoolFlag("interactive"),
+			Remove: ctx.BoolFlag("rm"),
+		}
+	*/
 }
 
-// cmdServiceRun is the command-line interaction for serviced service run
-// usage: serviced service run SERVICEID PROGRAM [ARGS ...]
-func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
-	fmt.Println("serviced service run SERVICEID PROGRAM [ARGS ...]")
+// serviced service run SERVICEID COMMAND [ARGS ...]
+func (c *Serviced) cmdServiceRun(ctx *cli.Context) {
+	// TODO: same issue as with shell!
+}
+
+/* OTHER STUFFS */
+
+// TODO: restore to parity!
+type serviceMap map[string][]*service.Service
+
+func newServiceMap(services []service.Service) (m serviceMap) {
+	for _, s := range services {
+		m[s.ParentID] = append(serviceMap[s.ParentID], &s)
+	}
+
+	return
+}
+
+func (m serviceMap) PrintTree(parentID string) {
+	t := newTable(0, 8, 2)
+	t.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPIP")
+
+	nextRow := func(id string, order int) {
+		for _, s := range m[id] {
+			t.PrintRow(s.Name, s.ID, s.Startup, s.Instances, s.ImageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
+			nextRow(s.ID)
+		}
+	}
+	nextRow(parentID, 0)
 }

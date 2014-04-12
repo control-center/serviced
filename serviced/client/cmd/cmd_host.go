@@ -10,7 +10,7 @@ import (
 	"github.com/zenoss/serviced/serviced/client/api"
 )
 
-// initHost is the initializer for serviced host
+// Initializer for serviced host subcommands
 func (c *ServicedCli) initHost() {
 	cmd := c.app.AddSubcommand(cli.Command{
 		Name:  "host",
@@ -21,7 +21,7 @@ func (c *ServicedCli) initHost() {
 			Name:         "list",
 			Usage:        "Lists all hosts.",
 			Action:       c.cmdHostList,
-			BashComplete: c.printHosts,
+			BashComplete: c.printHostsFirst,
 
 			Args: []string{
 				"[HOSTID]",
@@ -30,10 +30,11 @@ func (c *ServicedCli) initHost() {
 				cli.BoolFlag{"verbose, v", "Show JSON format"},
 			},
 		}, {
-			Name:      "add",
-			ShortName: "+",
-			Usage:     "Adds a new host",
-			Action:    c.cmdHostAdd,
+			Name:         "add",
+			ShortName:    "+",
+			Usage:        "Adds a new host",
+			Action:       c.cmdHostAdd,
+			BashComplete: c.printHostAdd,
 
 			Args: []string{
 				"HOST[:PORT]", "RESOURCE_POOL",
@@ -46,35 +47,83 @@ func (c *ServicedCli) initHost() {
 			ShortName:    "rm",
 			Usage:        "Removes an existing host",
 			Action:       c.cmdHostRemove,
-			BashComplete: c.printHosts,
+			BashComplete: c.printHostsAll,
 
 			Args: []string{
-				"HOSTID",
+				"HOSTID ...",
 			},
 		},
 	}
 }
 
-// printHosts is the completion for each host action
-// usage: serviced host COMMAND --generate-bash-completion
-func (c *ServicedCli) printHosts(ctx *cli.Context) {
-	// Don't do anything if there are set args
-	if len(ctx.Args()) > 0 {
-		return
-	}
-
+// Returns a list of all available host IDs
+func (c *ServicedCli) hosts() (data []string) {
 	hosts, err := c.driver.ListHosts()
 	if err != nil || hosts == nil || len(hosts) == 0 {
 		return
 	}
 
+	data = make([]string, len(hosts))
+	for i, h := range hosts {
+		data[i] = h.ID
+	}
+
+	return
+}
+
+// Bash-completion command that prints a list of available hosts as the first
+// argument
+func (c *ServicedCli) printHostsFirst(ctx *cli.Context) {
+	if len(ctx.Args() > 0) {
+		return
+	}
+
+	for _, h := range c.hosts() {
+		fmt.Println(h)
+	}
+
+	return
+}
+
+// Bash-completion command that prints a list of available hosts as all
+// arguments
+func (c *ServicedCli) printHostsAll(ctx *cli.Context) {
+	args := ctx.Args()
+	hosts := c.hosts()
+
+	// If arg is a host, don't add to the list
 	for _, h := range hosts {
-		fmt.Println(h.ID)
+		found := false
+		for _, a := range args {
+			if h == a {
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmt.Println(h)
+		}
 	}
 }
 
-// cmdHostList is the command-line interaction for serviced host list
-// usage: serviced host list
+// Bash-completion command that completes the POOLID as the second argument
+func (c *ServicedCli) printHostAdd(ctx *cli.Context) {
+	var output []string
+
+	args := ctx.Args()
+	switch len(args) {
+	case 1:
+		output = c.pools()
+	}
+
+	for _, o := range output {
+		fmt.Println(o)
+	}
+
+	return
+}
+
+// serviced host list [--verbose, -v] [HOSTID]
 func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		hostID := ctx.Args()[0]
@@ -115,8 +164,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	}
 }
 
-// cmdHostAdd is the command-line interaction for serviced host add
-// usage: serviced host add HOST[:PORT] RESOURCE_POOL [[--ip IP] ...]
+// serviced host add [[--ip IP] ...] HOST[:PORT] POOLID
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -140,8 +188,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	}
 }
 
-// cmdHostRemove is the command-line interaction for serviced host remove
-// usage: serviced host remove HOSTID
+// serviced host remove HOSTID ...
 func (c *ServicedCli) cmdHostRemove(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -150,9 +197,11 @@ func (c *ServicedCli) cmdHostRemove(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.RemoveHost(args.First()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	} else {
-		fmt.Println("Done")
+	for _, id := range args {
+		if err := c.driver.RemoveHost(id); err != nil {
+			fmt.Fprintf(os.Stderr, "Error trying to remove %s: %s\n", id, err)
+		} else {
+			fmt.Println(id)
+		}
 	}
 }
