@@ -113,6 +113,7 @@
     "running_services": "Running Services",
     "running_tbl_actions": "Acciones",
     "running_tbl_docker_id": "Docker Container ID",
+    "running_tbl_instance_id": "Instancia",
     "running_tbl_instances": "Instancias en Ejecuci\u00f3n",
     "running_tbl_running": "Ejecutando",
     "running_tbl_start": "Hora de Comienzo",
