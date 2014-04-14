@@ -30,11 +30,20 @@
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
 			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit",
-			"Rev": "867b2a90c228f62cdcd44907ceef279a2d8f1ac5"
+			"Rev": "e128a606e39fa63c6b4fd6e53a1d88cf00aad868"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gocapability/capability",
 			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/activation",
+			"#### ImportPath also affected:": "github.com/coreos/go-systemd/dbus",
+			"Rev": "8514b9fc57569e6dfc5e88a6411be351afcc69b4"
+		},
+		{
+			"ImportPath": "github.com/godbus/dbus",
+			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
 		},
 		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
