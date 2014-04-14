@@ -14,56 +14,181 @@ func (c *ServicedCli) initSnapshot() {
 	})
 	cmd.Commands = []cli.Command{
 		{
-			Name:   "list",
-			Usage:  "Lists all snapshots.",
-			Action: c.cmdSnapshotList,
+			Name:         "list",
+			Usage:        "Lists all snapshots.",
+			Action:       c.cmdSnapshotList,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"[SERVICEID]",
+			},
 		}, {
-			Name:   "add",
-			Usage:  "Take a snapshot of an existing service.",
-			Action: c.cmdSnapshotAdd,
+			Name:         "add",
+			Usage:        "Take a snapshot of an existing service.",
+			Action:       c.cmdSnapshotAdd,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID",
+			},
 		}, {
-			Name:      "remove",
-			ShortName: "rm",
-			Usage:     "Removes an existing snapshot.",
-			Action:    c.cmdSnapshotRemove,
+			Name:         "remove",
+			ShortName:    "rm",
+			Usage:        "Removes an existing snapshot.",
+			Action:       c.cmdSnapshotRemove,
+			BashComplete: c.printSnapshotsAll,
 		}, {
 			Name:   "commit",
 			Usage:  "Snapshots and commits a given service instance",
 			Action: c.cmdSnapshotCommit,
 		}, {
-			Name:   "rollback",
-			Usage:  "Restores the environment to the state of the given snapshot.",
-			Action: c.cmdSnapshotRollback,
+			Name:         "rollback",
+			Usage:        "Restores the environment to the state of the given snapshot.",
+			Action:       c.cmdSnapshotRollback,
+			BashComplete: c.printSnapshotsFirst,
 		},
 	}
 }
 
-// cmdSnapshotList is the command-line interaction for serviced snapshot list
-// usage: serviced snapshot list [SERVICEID]
+// Returns a list of snapshots as specified by the service ID.  If no service
+// ID is set, then returns a list of all snapshots.
+func (c *ServicedCli) snapshots(id string) []string {
+	var (
+		snapshots []string
+		err       error
+	)
+
+	if id != "" {
+		snapshots, err = c.driver.ListSnapshotsByServiceID(id)
+	} else {
+		snapshots, err = c.driver.ListSnapshots()
+	}
+
+	if err != nil || snapshots == nil || len(snapshots) == 0 {
+		return []string{}
+	}
+
+	return snapshots
+}
+
+// Bash-completion command that prints all the snapshot ids as the first
+// argument
+func (c *ServicedCli) printSnapshotsFirst(ctx *cli.Context) {
+	if len(ctx.Args()) > 0 {
+		return
+	}
+
+	for _, s := range c.snapshots("") {
+		fmt.Println(s)
+	}
+}
+
+// Bash-completion command that prints all the snapshot ids as all arguments.
+func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
+	args := ctx.Args()
+
+	for _, s := range c.snapshots("") {
+		for _, a := range args {
+			if s == a {
+				goto next
+			}
+			fmt.Println(s)
+		next:
+		}
+	}
+}
+
+// serviced snapshot list [SERVICEID]
 func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
-	fmt.Println("serviced snapshot list [SERVICEID]")
+	if len(ctx.Args()) > 0 {
+		serviceID := args[0]
+		if snapshots, err := c.driver.ListSnapshotsByServiceID(serviceID); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else if snapshots == nil || len(snapshots) == 0 {
+			fmt.Fprintln(os.Stderr, "no snapshots found")
+		} else {
+			for _, s := range snapshots {
+				fmt.Println(s)
+			}
+		}
+		return
+	}
+
+	if snapshots, err := c.driver.ListSnapshots(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if snapshots == nil || len(snapshots) == 0 {
+		fmt.Fprintln(os.Stderr, "no snapshots found")
+	} else {
+		for _, s := range snapshots {
+			fmt.Println(s)
+		}
+	}
 }
 
-// cmdSnapshotAdd is the command-line interaction for serviced snapshot add
-// usage: serviced snapshot add SERVICEID
+// serviced snapshot add SERVICEID
 func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
-	fmt.Println("serviced snapshot add SERVICEID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add")
+		return
+	}
+
+	if snapshot, err := c.driver.AddSnapshot(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if snapshot == "" {
+		fmt.Fprintln(os.Stderr, "received nil snapshot")
+	} else {
+		fmt.Println(snapshot)
+	}
 }
 
-// cmdSnapshotRemove is the command-line interaction for serviced snapshot remove
-// usage: serviced snapshot remove SNAPSHOTID
+// serviced snapshot remove SNAPSHOTID ...
 func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
-	fmt.Println("serviced snapshot remove SNAPSHOTID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove")
+		return
+	}
+
+	for _, id := range args {
+		if err := c.driver.RemoveSnapshot(id); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+		} else {
+			fmt.Println(id)
+		}
+	}
 }
 
-// cmdSnapshotCommit is the command-line interaction for serviced snapshot commit
-// usage: serviced snapshot commit DOCKERID
+// serviced snapshot commit DOCKERID
 func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
-	fmt.Println("serviced snapshot commit DOCKERID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "commit")
+		return
+	}
+
+	if snapshot, err := c.driver.CommitSnapshot(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmr.Println(snapshot)
+	}
 }
 
-// cmdSnapshotRollback is the command-line interaction for serviced snapshot rollback
-// usage: serviced snapshot rollback SNAPSHOTID
+// serviced snapshot rollback SNAPSHOTID
 func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
-	fmt.Println("serviced snapshot rollback SNAPSHOTID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "rollback")
+		return
+	}
+
+	if err := c.driver.RollbackSnapshot(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmt.Println(args[0])
+	}
 }

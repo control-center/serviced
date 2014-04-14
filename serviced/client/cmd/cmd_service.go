@@ -165,16 +165,13 @@ func (c *ServicedCli) printServicesAll(c *cli.Context) {
 
 	// If arg is a service don't add to the list
 	for _, s := range svcs {
-		found := false
 		for _, a := range args {
 			if s == a {
-				found = true
-				break
+				goto next
 			}
 		}
-		if !found {
-			fmt.Println(s)
-		}
+		fmt.Println(s)
+	next:
 	}
 }
 
@@ -288,7 +285,7 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 
 	for _, id := range args {
 		if err := c.driver.RemoveService(id); err != nil {
-			fmt.Fprintf(os.Stderr, "Error trying to remove %s: %s\n", id, err)
+			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
 		}
@@ -297,22 +294,42 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 
 // serviced service edit SERVICEID
 func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
-	/*
-		// TODO: make me work with channels!
-		var writer io.WriteCloser
-		var reader io.ReadCloser
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "edit")
+		return
+	}
 
-		r, w, err := c.driver.UpdateService(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, err)
-		} else if r == nil || w == nil {
-			fmt.Fprintln(os.Stderr, "received nil reader/writer")
-		} else if err := openEditor(r, w, ctx.StringFlag("editor")); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		} else if err := w.Close(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	*/
+	service, err := c.driver.GetService(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err)
+		return
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "service not found")
+		return
+	}
+
+	jsonService, err := json.MarshallIndent(service, " ", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
+		return
+	}
+
+	name := fmt.Sprintf("serviced_service_edit_%s", service.ID)
+	reader, err := openEditor(jsonService, name, cli.StringFlag("editor"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if service, err := c.driver.UpdateService(reader); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
 }
 
 // serviced service assign-ip SERVICEID [IPADDRESS]

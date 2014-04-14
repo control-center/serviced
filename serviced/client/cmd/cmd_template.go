@@ -17,50 +17,123 @@ func (c *ServicedCli) initTemplate() {
 			Name:         "list",
 			Usage:        "Lists all templates.",
 			Action:       c.cmdTemplateList,
-			BashComplete: c.printTemplates,
+			BashComplete: c.printTemplatesFirst,
+
+			Args: []string{
+				"[TEMPLATEID]",
+			},
+			Flags: []cli.Flag{
+				cli.BoolFlag{"verbose, v", "Show JSON format"},
+			},
 		}, {
 			Name:   "add",
 			Usage:  "Adds a new template.",
 			Action: c.cmdTemplateAdd,
+
+			Args: []string{
+				"< TEMPLATE",
+			},
+			Flags: []cli.Flag{
+				cli.BoolFlag{"file, f", "Template file name"},
+			},
 		}, {
 			Name:         "remove",
 			ShortName:    "rm",
 			Usage:        "Removes an existing template.",
 			Action:       c.cmdTemplateRemove,
-			BashComplete: c.printTemplates,
+			BashComplete: c.printTemplatesAll,
+
+			Args: []string{
+				"TEMPLATEID ...",
+			},
 		}, {
 			Name:         "deploy",
 			Usage:        "Deploys template into a given pool.",
 			Action:       c.cmdTemplateDeploy,
-			BashComplete: c.printTemplates,
+			BashComplete: c.printTemplateDeploy,
+
+			Args: []string{
+				"TEMPLATEID", "POOLID", "DEPLOYMENTID",
+			},
+			Flags: []cli.Flag{
+				cli.BoolFlag{"manual-assign-ips", "Manually assign IP addresses to services requiring an external IP address"},
+			},
 		}, {
 			Name:         "compile",
 			Usage:        "Reads a given directory of service definitions to compile to a json struct.",
 			Action:       c.cmdTemplateCompile,
 			BashComplete: c.printTemplates,
+
+			Args: []string{
+				"DIR",
+			},
+			Flags: []cli.Flag{
+				cli.GenericSliceFlag{"map", "Map a given image name to another (e.g. -map zenoss/zenoss5x->quay.io/zenoss-core:alpha2)"},
+			},
 		},
 	}
 }
 
-// printTemplates is the default completion for each serviced template subcommand
-// usage: serviced template COMMAND --generate-bash-completion
-func (c *ServicedCli) printTemplates(ctx *cli.Context) {
-	if len(ctx.Args()) > 0 {
-		return
-	}
-
+// Returns a list of all available template IDs
+func (c *ServicedCli) templates() (data []string) {
 	templates, err := c.driver.ListTemplates()
 	if err != nil || templates == nil || len(templates) == 0 {
 		return
 	}
 
-	for _, t := range templates {
-		fmt.Println(t.ID)
+	data = make([]string, len(templates))
+	for i, t := range templates {
+		data[i] = t.ID
+	}
+
+	return
+}
+
+// Bash-completion command that prints the list of templates as the first
+// argument
+func (c *ServicedCli) printTemplatesFirst(ctx *cli.Context) {
+	if len(ctx.Args()) > 0 {
+		return
+	}
+
+	for _, t := range c.templates() {
+		fmt.Println(t)
 	}
 }
 
-// cmdTemplateList is the command-line interaction for serviced template list
-// usage: serviced template list
+// Bash-completion command that prints the command options for
+// serviced template deploy
+func (c *ServicedCli) printTemplateDeploy(ctx *cli.Context) {
+	var output []string
+
+	switch len(ctx.Args()) {
+	case 0:
+		output = c.templates()
+	case 1:
+		output = c.pools()
+	}
+
+	for _, o := range output {
+		fmt.Println(o)
+	}
+}
+
+// Bash-completion command that prints the list of templates as all arguments
+func (c *ServicedCli) printTemplatesAll(ctx cli.Context) {
+	args := ctx.Args()
+
+	for _, t := range c.templates() {
+		for _, a := range args {
+			if t == a {
+				goto next
+			}
+		}
+		fmt.Println(t)
+	next:
+	}
+}
+
+// serviced template list [--verbose, -v] [TEMPLATEID]
 func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		templateID := ctx.Args()[0]
@@ -101,26 +174,87 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	}
 }
 
-// cmdTemplateAdd is the command-line interaction for serviced template add
-// usage: serviced template add
+// serviced template add < [TEMPLATE]
 func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
-	fmt.Println("serviced template add")
+	var input *os.File
+
+	args := ctx.Args()
+
+	if ctx.String("file") != "" {
+		if input, err = os.Open(args[0]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		defer input.Close()
+	} else {
+		input = os.Stdin
+	}
+
+	if template, err := c.driver.AddTemplate(input); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmt.Println(template.ID)
+	}
 }
 
-// cmdTemplateRemove is the command-line interaction for serviced template remove
-// usage: serviced template remove TEMPLATEID
+// serviced template remove TEMPLATEID ...
 func (c *ServicedCli) cmdTemplateRemove(ctx *cli.Context) {
-	fmt.Println("serviced template remove TEMPLATEID")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove")
+		return
+	}
+
+	for _, id := range args {
+		if err := c.driver.RemoveTemplate(id); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+		} else {
+			fmt.Println(id)
+		}
+	}
 }
 
-// cmdTemplateDeploy is the command-line interaction for serviced template deploy
-// usage: serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]
+// serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]
 func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
-	fmt.Println("serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]")
+	args := ctx.Args()
+	if len(args) < 3 {
+		fmt.Println("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "deploy")
+		return
+	}
+
+	cfg := api.DeployTemplateConfig{
+		ID:              args[0],
+		PoolID:          args[1],
+		DeploymentID:    args[2],
+		ManualAssignIPs: ctx.BoolFlag("manual-assign-ips"),
+	}
+
+	if err := c.driver.DeployTemplate(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmt.Println(cfg.DeploymentID)
+	}
 }
 
-// cmdTemplateCompile is the command-line interaction for serviced template compile
-// usage: serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]
+// serviced template compile DIR [[--map IMAGE->IMAGE] ...]
 func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
-	fmt.Println("serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]")
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Println("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "compile")
+		return
+	}
+
+	cfg := api.CompileTemplateConfig{
+		Dir: args[0],
+		Map: ctx.GenericSlice("map"),
+	}
+
+	if template, err := c.driver.CompileTemplate(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if jsonTemplate, err := json.MarshalTemplate(template, " ", "  "); err != nil {
+		fmt.Println(string(jsonTemplate))
+	}
 }

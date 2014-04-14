@@ -99,16 +99,13 @@ func (c *ServicedCli) printPoolsAll(ctx *cli.Context) {
 	pools := c.pools()
 
 	for _, p := range pools {
-		found := false
 		for _, a := range args {
 			if p == a {
-				found = true
-				break
+				goto next
 			}
 		}
-		if !found {
-			fmt.Println(p)
-		}
+		fmt.Println(p)
+	next:
 	}
 }
 
@@ -204,7 +201,7 @@ func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 
 	for _, id := range args {
 		if err := c.driver.RemovePool(args[0]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error trying to remove %s: %s\n", id, err)
+			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
 		}
