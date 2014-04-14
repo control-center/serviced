@@ -199,7 +199,7 @@ func watchService(cpDao dao.ControlPlane, conn *zk.Conn, shutdown <-chan int, do
 		var serviceStates []*dao.ServiceState
 		err = zzk.GetServiceStates(conn, &serviceStates, serviceID)
 		if err != nil {
-			glog.Error("Unable to retrieve running service states: ", err)
+			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
 			return
 		}
 

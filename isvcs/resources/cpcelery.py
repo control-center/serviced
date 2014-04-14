@@ -52,7 +52,7 @@ class LogstashLogger(object):
             self.connect(collisions + 1)
     def disconnect(self):
         self.socket.shutdown(socket.SHUT_WR)
-        self.socket.close();
+        self.socket.close()
     def log(self, data):
         try:
             data = json.dumps(data)
