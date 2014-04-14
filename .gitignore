@@ -13,8 +13,8 @@ _obj
 _test
 pkg/build/
 pkg/pkgroot/
-pkg/serviced-0.1.0-1.x86_64.rpm
-pkg/serviced_0.1.0_amd64.deb
+pkg/serviced*.rpm
+pkg/serviced*.deb
 isvcs/images/
 pkg/templates/
 coordinator/client/zookeeper/zookeeper-3.3.3
