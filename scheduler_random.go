@@ -264,10 +264,12 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 
 }
 
-// Look up running instances of this service and return n unused instance ids.
-// Note: this does NOT validate that instance ids do not exceed max number of
-// instances for the service. We're already doing that check in another, better
-// place. It is guaranteed that either nil or n ids will be returned.
+// getFreeInstanceIds looks up running instances of this service and returns n
+// unused instance ids.
+// Note: getFreeInstanceIds does NOT validate that instance ids do not exceed
+// max number of instances for the service. We're already doing that check in
+// another, better place. It is guaranteed that either nil or n ids will be
+// returned.
 func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
 	var (
 		states []*dao.ServiceState
@@ -296,12 +298,14 @@ func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
 func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, poolhosts []*dao.PoolHost, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(poolhosts))
 
+	// Get numToStart free instance ids
 	freeids, err := getFreeInstanceIds(conn, service, numToStart)
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < numToStart; i++ {
+	// Start up an instance per id
+	for _, i := range freeids {
 		servicehost, err := selectPoolHostForService(cpDao, service, poolhosts)
 		if err != nil {
 			return err
