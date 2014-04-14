@@ -190,6 +190,9 @@ type ControlPlane interface {
 	// List available snapshots
 	Snapshots(serviceId string, snapshotIds *[]string) error
 
+	// Delete snapshots for a given service
+	DeleteSnapshots(serviceId string, unused *int) error
+
 	// Download a file from a container
 	Get(service Service, file *string) error
 

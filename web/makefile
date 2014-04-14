@@ -10,8 +10,7 @@
 default: build
 
 build:
-	go get "github.com/ant0ine/go-json-rest"
-	go get "github.com/zenoss/glog"
+	./godep restore
 	go build
 
 test: build

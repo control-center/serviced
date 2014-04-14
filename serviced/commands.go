@@ -115,6 +115,8 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"snapshot", "Snapshot a service"},
 		{"delete-snapshot", "Snapshot a service"},
 		{"snapshots", "Show snapshots for a service"},
+
+		{"attach", "attach to a running service container and execute arbitrary bash command"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -666,10 +668,16 @@ func (cli *ServicedCli) CmdRemoveService(args ...string) error {
 	controlPlane := getClient()
 
 	var unused int
-	err := controlPlane.RemoveService(cmd.Arg(0), &unused)
+	err := controlPlane.DeleteSnapshots(cmd.Arg(0), &unused)
+	if err != nil {
+		glog.Fatalf("Could not clean up service history: %v", err)
+	}
+
+	err = controlPlane.RemoveService(cmd.Arg(0), &unused)
 	if err != nil {
 		glog.Fatalf("Could not remove service: %v", err)
 	}
+
 	return err
 }
 

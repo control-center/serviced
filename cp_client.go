@@ -246,6 +246,10 @@ func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Snapshots", serviceId, labels)
 }
 
+func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
+}
+
 func (s *ControlClient) Get(service dao.Service, file *string) error {
 	return s.rpcClient.Call("ControlPlane.Get", service, file)
 }
