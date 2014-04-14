@@ -220,6 +220,7 @@ type ServiceState struct {
 	PortMapping map[string][]HostIpAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []ServiceEndpoint
 	HostIp      string
+	InstanceId  int
 }
 
 type ConfigFile struct {
@@ -315,6 +316,7 @@ type RunningService struct {
 	PoolId          string
 	DesiredState    int
 	ParentServiceId string
+	InstanceId      int
 }
 
 // Create a new Service.
@@ -479,9 +481,6 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 	result := se.AddressAssignment
 	return &result
 }
-
-
-
 
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
