@@ -7,63 +7,45 @@ package facade
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/elastic"
 	"github.com/zenoss/serviced/domain/host"
-
-	"testing"
+	"github.com/zenoss/serviced/domain/pool"
+	. "gopkg.in/check.v1"
 )
 
-var (
-	tf  *Facade
-	ctx datastore.Context
-)
-
-func init() {
-
-	esDriver, err := elastic.InitElasticTestMappings("controlplane", map[string]string{"host": "../domain/host/host_mapping.json"})
-	if err != nil {
-		glog.Infof("Error initializing db driver %v", err)
-		return
-	}
-
-	ctx = datastore.NewContext(esDriver)
-	hs := host.NewStore()
-	tf = New(hs)
-}
-
-func Test_HostCRUD(t *testing.T) {
-
-	if tf == nil {
-		t.Fatalf("Test failed to initialize")
-	}
-
+func (s *FacadeTest) Test_HostCRUD(t *C) {
 	testid := "facadetestid"
-	defer tf.RemoveHost(ctx, testid)
+	defer s.facade.RemoveHost(s.ctx, testid)
+
+	//create pool for test
+	pool := pool.New("pool-id")
+	if err := s.facade.AddResourcePool(s.ctx, pool); err != nil {
+		t.Fatalf("Could not add pool for test: %v", err)
+	}
 
 	//fill host with required values
-	h, err := host.Build("", "pool-id", []string{}...)
+	h, err := host.Build("", pool.ID, []string{}...)
 	h.ID = "facadetestid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
 	glog.Infof("Facade test add host %v", h)
-	err = tf.AddHost(ctx, h)
+	err = s.facade.AddHost(s.ctx, h)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	//Test re-add fails
-	err = tf.AddHost(ctx, h)
+	err = s.facade.AddHost(s.ctx, h)
 	if err == nil {
 		t.Errorf("Expected already exists error: %v", err)
 	}
 
-	h2, err := tf.GetHost(ctx, testid)
+	h2, err := s.facade.GetHost(s.ctx, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	if h2 == nil {
-		t.Error("Unexpected nill host")
+		t.Error("Unexpected nil host")
 
 	} else if !host.HostEquals(t, h, h2) {
 		t.Error("Hosts did not match")
@@ -71,8 +53,8 @@ func Test_HostCRUD(t *testing.T) {
 
 	//Test update
 	h.Memory = 1024
-	err = tf.UpdateHost(ctx, h)
-	h2, err = tf.GetHost(ctx, testid)
+	err = s.facade.UpdateHost(s.ctx, h)
+	h2, err = s.facade.GetHost(s.ctx, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -81,8 +63,8 @@ func Test_HostCRUD(t *testing.T) {
 	}
 
 	//test delete
-	err = tf.RemoveHost(ctx, testid)
-	h2, err = tf.GetHost(ctx, testid)
+	err = s.facade.RemoveHost(s.ctx, testid)
+	h2, err = s.facade.GetHost(s.ctx, testid)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -97,20 +79,20 @@ func Test_GetHosts(t *testing.T) {
 	hid1 := "gethosts1"
 	hid2 := "gethosts2"
 
-	defer tf.RemoveHost(ctx, hid1)
-	defer tf.RemoveHost(ctx, hid2)
+	defer s.facade.RemoveHost(s.ctx, hid1)
+	defer s.facade.RemoveHost(s.ctx, hid2)
 
 	host, err := host.Build("", "pool-id", []string{}...)
 	host.Id = "Test_GetHosts1"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = hs.Put(ctx, host)
+	err = hs.Put(s.ctx, host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	time.Sleep(1000 * time.Millisecond)
-	hosts, err := hs.GetUpTo(ctx, 1000)
+	hosts, err := hs.GetUpTo(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(hosts) != 1 {
@@ -118,13 +100,13 @@ func Test_GetHosts(t *testing.T) {
 	}
 
 	host.Id = "Test_GetHosts2"
-	err = hs.Put(ctx, host)
+	err = hs.Put(s.ctx, host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	time.Sleep(1000 * time.Millisecond)
-	hosts, err = hs.GetUpTo(ctx, 1000)
+	hosts, err = hs.GetUpTo(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(hosts) != 2 {

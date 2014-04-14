@@ -10,12 +10,12 @@ import (
 	"github.com/zenoss/serviced/datastore"
 )
 
-//NewStore creates a HostStore
+//NewStore creates a ResourcePool store
 func NewStore() *Store {
 	return &Store{}
 }
 
-//Store type for interacting with Host persistent storage
+//Store type for interacting with ResourcePool persistent storage
 type Store struct {
 	datastore.DataStore
 }
@@ -33,7 +33,7 @@ func (ps *Store) GetResourcePools(ctx datastore.Context) ([]*ResourcePool, error
 	return convert(results)
 }
 
-//Key creates a Key suitable for getting, putting and deleting Hosts
+//Key creates a Key suitable for getting, putting and deleting ResourcePools
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }

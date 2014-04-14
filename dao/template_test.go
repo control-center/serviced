@@ -4,6 +4,7 @@ import (
 	"github.com/zenoss/serviced/commons"
 
 	"fmt"
+	"log"
 	"sort"
 	"testing"
 )
@@ -59,6 +60,14 @@ func init() {
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageId: "ubuntu",
+				ConfigFiles: map[string]ConfigFile{
+					"/foo/bar.txt": ConfigFile{
+						Filename:    "/foo/bar.txt",
+						Owner:       "zenoss:zenoss",
+						Permissions: "660",
+						Content:     "baz\n",
+					},
+				},
 				Endpoints: []ServiceEndpoint{
 					ServiceEndpoint{
 						Protocol:    "tcp",
@@ -122,6 +131,7 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 
 	// check config files
 	if len(a.ConfigFiles) != len(b.ConfigFiles) {
+		log.Printf("s1 :%v  \n\ns2 %s", a.ConfigFiles, b.ConfigFiles)
 		return false, fmt.Sprintf("%s has %d configs, %s has %d configs",
 			a, len(a.ConfigFiles), b, len(b.ConfigFiles))
 	}
