@@ -975,6 +975,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'View', name: 'running_tbl_actions' }
     ]);
 
+    $scope.ip_addresses = buildTable('Interface', [
+        { id: 'Interface', name: 'ip_addresses_interface' },
+        { id: 'Ip', name: 'ip_addresses_ip' }
+    ]);
+
     $scope.graph = buildTable('Name', [
         { id: 'CPU', name: 'graph_tbl_cpu'},
         { id: 'Memory', name: 'graph_tbl_mem'}
