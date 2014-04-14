@@ -5,6 +5,7 @@ import (
 
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -479,33 +480,33 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 	return &result
 }
 
-// Retrieve service container port, 0 failure
-func (ss *ServiceState) GetHostPort(protocol, application string, port uint16) uint16 {
-	for _, ep := range ss.Endpoints {
-		if ep.PortNumber == port && ep.Application == application && ep.Protocol == protocol && ep.Purpose == "export" {
-			if protocol == "Tcp" {
-				protocol = "tcp"
-			} else if protocol == "Udp" {
-				protocol = "udp"
-			}
 
-			portS := fmt.Sprintf("%d/%s", port, protocol)
-			external := ss.PortMapping[portS]
-			if len(external) == 0 {
-				glog.Errorf("Found match for %s, but no portmapping is available", application)
-				break
+
+
+// Retrieve service container port info.
+func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
+	for _, ep := range ss.Endpoints {
+		if ep.Purpose == "export" {
+			if applicationRegex.MatchString(ep.Application) {
+				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
+
+				external := ss.PortMapping[portS]
+				if len(external) == 0 {
+					glog.Errorf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
+					break
+				}
+
+				extPort, err := strconv.ParseUint(external[0].HostPort, 10, 16)
+				if err != nil {
+					glog.Errorf("Portmap parsing failed for %s:%s %v", applicationRegex, portS, err)
+					break
+				}
+				return uint16(extPort), ep.PortNumber, ep.Protocol, true
 			}
-			glog.V(1).Infof("Found %v for %s", external, portS)
-			extPort, err := strconv.Atoi(external[0].HostPort)
-			if err != nil {
-				glog.Errorf("Unable to convert to integer: %v", err)
-				break
-			}
-			return uint16(extPort)
 		}
 	}
 
-	return 0
+	return 0, 0, "", false
 }
 
 // An instantiation of a Snapshot request

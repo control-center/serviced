@@ -85,11 +85,15 @@ func (c *RsyncConn) Path() string {
 	return path.Join(c.root, c.name)
 }
 
+func (c *RsyncConn) SnapshotPath(label string) string {
+	return path.Join(c.root, label)
+}
+
 // Snapshot performs a writable snapshot on the subvolume
 func (c *RsyncConn) Snapshot(label string) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	dest := path.Join(c.root, label)
+	dest := c.SnapshotPath(label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
 			return fmt.Errorf("snapshot %s already exists", label)
@@ -143,7 +147,7 @@ func (c *RsyncConn) RemoveSnapshot(label string) error {
 	if parts[0] != c.name {
 		return fmt.Errorf("label %s refers to some other volume", label)
 	}
-	sh := exec.Command("rm", "-Rf", path.Join(c.root, label))
+	sh := exec.Command("rm", "-Rf", c.SnapshotPath(label))
 	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {
@@ -185,7 +189,7 @@ func (c *RsyncConn) Unmount() error {
 func (c *RsyncConn) Rollback(label string) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	src := path.Join(c.root, label)
+	src := c.SnapshotPath(label)
 	if exists, err := volume.IsDir(src); !exists || err != nil {
 		if !exists {
 			return fmt.Errorf("snapshot %s does not exist", label)
