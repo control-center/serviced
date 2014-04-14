@@ -30,6 +30,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"strconv"
 )
 
 /*
@@ -459,7 +460,17 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	// this will fail if we are not running as root
-	return os.Chown(filename, uid, gid)
+	if err := os.Chown(filename, uid, gid); err != nil {
+		return err
+	}
+	octal, err := strconv.ParseInt(permissions, 8, 32)
+	if err!= nil {
+		return err
+	}
+	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Start a service instance and update the CP with the state.
