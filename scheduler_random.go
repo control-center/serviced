@@ -264,8 +264,43 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 
 }
 
+// Look up running instances of this service and return n unused instance ids.
+// Note: this does NOT validate that instance ids do not exceed max number of
+// instances for the service. We're already doing that check in another, better
+// place. It is guaranteed that n ids will be returned.
+func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
+	var (
+		states []*dao.ServiceState
+		ids    []int
+	)
+	// Look up existing instances
+	err := zzk.GetServiceStates(conn, &states)
+	if err != nil {
+		return ids, err
+	}
+	// Populate the used set
+	used := make(map[int]struct{})
+	for _, s := range states {
+		used[s.InstanceId] = struct{}{}
+	}
+	// Find n unused ids
+	for i := 0; len(ids) < n; i++ {
+		if _, ok := used[i]; !ok {
+			// Id is unused
+			ids = append(ids, i)
+		}
+	}
+	return ids, nil
+}
+
 func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.Service, poolhosts []*dao.PoolHost, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(poolhosts))
+
+	freeids, err := getFreeInstanceIds(conn, service, numToStart)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < numToStart; i++ {
 		servicehost, err := selectPoolHostForService(cpDao, service, poolhosts)
 		if err != nil {
@@ -280,6 +315,7 @@ func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.S
 		}
 
 		serviceState.HostIp = servicehost.HostIp
+		serviceState.InstanceId = freeids[i]
 		err = zzk.AddServiceState(conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)
