@@ -319,7 +319,7 @@ func startServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.S
 		}
 
 		serviceState.HostIp = servicehost.HostIp
-		serviceState.InstanceId = freeids[i]
+		serviceState.InstanceId = i
 		err = zzk.AddServiceState(conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)
