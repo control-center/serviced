@@ -81,8 +81,11 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 				if err != nil {
 					return err
 				}
-				path := p[len(path)+len(subpath.Name())+1:]
-fmt.Fprintln(os.Stderr, "==== ==== ==== ==== 7", subpath.Name(), path)
+				path, err := filepath.Rel(filepath.Join(path, subpath.Name()), p)
+				if err != nil {
+					return err
+				}
+				path = "/" + path
 				if _, ok := svc.ConfigFiles[path]; !ok {
 					svc.ConfigFiles[path] = ConfigFile{
 						Filename: path,

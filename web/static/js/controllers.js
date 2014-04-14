@@ -2853,6 +2853,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
+        $scope.running.sort = 'InstanceId';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
