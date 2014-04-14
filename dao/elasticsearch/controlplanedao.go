@@ -378,7 +378,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		for _, endpoint := range service_imports {
 			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
 			matchedEndpoint := false
-			applicationRegex, err := regexp.Compile(endpoint.Application)
+			applicationRegex, err := regexp.Compile(fmt.Sprintf("^%s$", endpoint.Application))
 			if err != nil {
 				continue //Don't spam error message; it was reported at validation time
 			}
