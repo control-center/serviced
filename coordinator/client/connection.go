@@ -11,6 +11,11 @@ type Lock interface {
 	Lock() error
 	Unlock() error
 }
+type Leader interface {
+	TakeLead() error
+	ReleaseLead() error
+	Current() (data []byte, err error)
+}
 
 type Connection interface {
 	Close()
@@ -20,5 +25,6 @@ type Connection interface {
 	Exists(path string) (bool, error)
 	Delete(path string) error
 
-	NewLock(path string) (Lock, error)
+	NewLock(path string) Lock
+	NewLeader(path string, data []byte) Leader
 }

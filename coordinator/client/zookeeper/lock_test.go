@@ -38,20 +38,13 @@ func TestLock(t *testing.T) {
 	}
 
 	// create  a lock & lock it
-	lock, err := conn.NewLock("/foo/bar")
-	if err != nil {
-		t.Fatalf("unexpected error getting lock: %s", err)
-	}
-
+	lock := conn.NewLock("/foo/bar")
 	if err = lock.Lock(); err != nil {
 		t.Fatalf("unexpected error aquiring lock: %s", err)
 	}
 
 	// create a second lock and test that a locking attempt blocks
-	lock2, err := conn.NewLock("/foo/bar")
-	if err != nil {
-		t.Fatalf("unexpected error creating second lock: %s", err)
-	}
+	lock2 := conn.NewLock("/foo/bar")
 	lock2Response := make(chan error)
 	go func() {
 		lock2Response <- lock2.Lock()

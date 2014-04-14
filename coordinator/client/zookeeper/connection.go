@@ -18,10 +18,18 @@ type Connection struct {
 // Assert that Connection implements client.Connection.
 var _ client.Connection = &Connection{}
 
-func (zk *Connection) NewLock(path string) (client.Lock, error) {
+func (zk *Connection) NewLock(path string) client.Lock {
 	return &Lock{
 		lock: zklib.NewLock(zk.conn, path, zklib.WorldACL(zklib.PermAll)),
-	}, nil
+	}
+}
+
+func (c *Connection) NewLeader(path string, data []byte) client.Leader {
+	return &Leader{
+		c:    c,
+		path: path,
+		data: data,
+	}
 }
 
 // Close the zk connection.
