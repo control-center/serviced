@@ -99,6 +99,10 @@ func (c *ServicedCli) initService() {
 			Usage:        "Runs a service command.",
 			Action:       c.cmdServiceRun,
 			BashComplete: c.printServiceRun,
+
+			Args: []string{
+				"SERVICEID", "[COMMAND [ARGS ...]]",
+			},
 		}, {
 			Name:         "list-snapshots",
 			Usage:        "Lists the snapshots for a service.",
@@ -410,7 +414,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) {
 	*/
 }
 
-// serviced service run SERVICEID COMMAND [ARGS ...]
+// serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *Serviced) cmdServiceRun(ctx *cli.Context) {
 	// TODO: same issue as with shell!
 }
@@ -430,7 +434,7 @@ func newServiceMap(services []service.Service) (m serviceMap) {
 
 func (m serviceMap) PrintTree(parentID string) {
 	t := newTable(0, 8, 2)
-	t.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPIP")
+	t.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
 
 	nextRow := func(id string, order int) {
 		for _, s := range m[id] {

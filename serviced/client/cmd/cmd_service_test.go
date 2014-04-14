@@ -1,91 +1,167 @@
 package cmd
 
 import (
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/serviced/client/api"
 )
 
+var DefaultServiceAPITest = ServiceAPITest{services: DefaultTestServices}
+
+var DefaultTestServices = []service.Service{
+	{
+		ID:           "test-service-id-1",
+		Name:         "Zenoss",
+		StartUp:      "startup command 1",
+		Instances:    0,
+		ImageID:      "quay.io/zenossinc/tenantid1-core5x",
+		PoolID:       "default",
+		DesiredState: 1,
+		Launch:       "auto",
+		DeploymentID: "Zenoss-resmgr",
+		Runs: map[string]string{
+			"hello":   "echo hello world",
+			"goodbye": "echo goodbye world",
+		},
+	}, {
+		ID:           "test-service-id-2",
+		Name:         "Zope",
+		StartUp:      "startup command 2",
+		Instances:    1,
+		ImageID:      "quay.io/zenossinc/tenantid2-core5x",
+		PoolID:       "default",
+		DesiredState: 1,
+		Launch:       "auto",
+		DeploymentID: "Zenoss-core",
+	}, {
+		ID:           "test-service-id-3",
+		Name:         "zencommand",
+		StartUp:      "startup command 3",
+		Instances:    2,
+		ImageID:      "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolID:       "remote",
+		DesiredState: 1,
+		Launch:       "manual",
+		DeploymentID: "Zenoss-core",
+	},
+}
+
+var (
+	ErrNoServiceFound = errors.New("no service found")
+	ErrInvalidService = errors.New("invalid service")
+)
+
+type ServiceAPITest struct {
+	api.API
+	services service.Service
+}
+
+func InitServiceAPITest(args ...string) {
+	New(DefaultServiceAPITest).Run(args)
+}
+
+func (t ServiceAPITest) ListServices() ([]service.Service, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) RemoveService(id string) (*service.Service, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) StartService(id string) error {
+	return nil
+}
+
+func (t ServiceAPITest) StopService(id string) error {
+	return nil
+}
+
+func (t ServiceAPITest) AssignIP(config api.IPConfig) (*host.HostIPResource, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) StartShell(config api.ShellConfig) (*shell.Command, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) ListSnapshots(id string) ([]string, error) {
+	return nil, nil
+}
+
+func (t ServiceAPITest) AddSnapshot(id string) (string, error) {
+	return "", nil
+}
+
 func ExampleServicedCli_cmdServiceList() {
-	New(api.New()).Run([]string{"serviced", "service", "list"})
+	InitServiceAPITest("serviced", "service", "list", "--verbose")
 
 	// Output:
-	// serviced service list
+	//
 }
 
 func ExampleServicedCli_cmdServiceAdd() {
-	New(api.New()).Run([]string{"serviced", "service", "add"})
+	InitServiceAPITest("serviced", "service", "add", "test-service", "someimage", "somecommand")
 
 	// Output:
-	// serviced service add [-p PORT] [-q REMOTE_PORT] NAME POOLID IMAGEID COMMAND
+	//
 }
 
 func ExampleServicedCli_cmdServiceRemove() {
-	New(api.New()).Run([]string{"serviced", "service", "remove"})
-	New(api.New()).Run([]string{"serviced", "service", "rm"})
+	InitServiceAPITest("serviced", "service", "remove", "test-service-id-1")
 
 	// Output:
-	// serviced service remove SERVICEID
-	// serviced service remove SERVICEID
+	// test-service-id-1
 }
 
 func ExampleServicedCli_cmdServiceEdit() {
-	New(api.New()).Run([]string{"serviced", "service", "edit"})
-
-	// Output:
-	// serviced service edit SERVICEID
+	InitServiceAPITest("serviced", "service", "edit", "test-service-id-2")
 }
 
 func ExampleServicedCli_cmdServiceAutoIPs() {
-	New(api.New()).Run([]string{"serviced", "service", "auto-assign-ips"})
+	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-id-1", "10.0.0.1")
 
 	// Output:
-	// serviced service auto-assign-ips SERVICEID
-}
-
-func ExampleServicedCli_cmdServiceManualIPs() {
-	New(api.New()).Run([]string{"serviced", "service", "manual-assign-ips"})
-
-	// Output:
-	// serviced service manual-assign-ips SERVICEID IPADDRESS
+	// 10.0.0.1
 }
 
 func ExampleServicedCli_cmdServiceStart() {
-	New(api.New()).Run([]string{"serviced", "service", "start"})
-
-	// Output:
-	// serviced service start SERVICEID
+	InitServiceAPITest("serviced", "service", "start", "test-service-id-2")
 }
 
 func ExampleServicedCli_cmdServiceStop() {
-	New(api.New()).Run([]string{"serviced", "service", "stop"})
-
-	// Output:
-	// serviced service stop SERVICEID
-}
-
-func ExampleServicedCli_cmdServiceRestart() {
-	New(api.New()).Run([]string{"serviced", "service", "restart"})
-
-	// Output:
-	// serviced service restart SERVICEID
+	InitServiceAPITest("serviced", "service", "stop", "test-service-id-2")
 }
 
 func ExampleServicedCli_cmdServiceShell() {
-	New(api.New()).Run([]string{"serviced", "service", "shell"})
+	InitServiceAPITest("serviced", "service", "shell", "test-service-id-1", "echo", "hello world")
 
 	// Output:
-	// serviced service shell SERVICEID [-rm=false] [-i] COMMAND [ARGS ...]
+	// hello world
 }
 
-func ExampleServicedCli_cmdServiceListCmds() {
-	New(api.New()).Run([]string{"serviced", "service", "list-commands"})
+func ExampleServicedCli_cmdServiceRun_list() {
+	InitServiceAPITest("serviced", "service", "run", "test-service-id-1")
 
 	// Output:
-	// serviced service list-commands SERVICEID
+	// hello
+	// goodbye
 }
 
-func ExampleServicedCli_cmdServiceRun() {
-	New(api.New()).Run([]string{"serviced", "service", "run"})
+func ExampleServicedCli_cmdServiceRun_exec() {
+	InitServiceAPITest("serviced", "service", "run", "test-service-id-1", "hello")
 
 	// Output:
-	// serviced service run SERVICEID PROGRAM [ARGS ...]
+	// hello world
 }
