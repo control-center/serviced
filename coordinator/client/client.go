@@ -70,10 +70,13 @@ type Client struct {
 	connectionFactory Driver               // the current driver under use
 }
 
+// DefaultRetryPolicy return a retry.Policy of retry.NTimes(30, time.Millisecond*50)
 func DefaultRetryPolicy() retry.Policy {
 	return retry.NTimes(30, time.Millisecond*50)
 }
 
+// New returns a client that will create connections using the given driver and
+// connection string. Any retryable operations will use the given retry policy.
 func New(driverName, connectionString string, retryPolicy retry.Policy) (client *Client, err error) {
 
 	var driver Driver
@@ -96,6 +99,8 @@ func New(driverName, connectionString string, retryPolicy retry.Policy) (client 
 	return client, nil
 }
 
+// EnsurePath creates the given path with empty nodes if they don't exist; the
+// last node in the path is only created if makeLastNode is true.
 func EnsurePath(client *Client, path string, makeLastNode bool) error {
 	return client.NewRetryLoop(
 		func(cancelChan chan chan error) chan error {

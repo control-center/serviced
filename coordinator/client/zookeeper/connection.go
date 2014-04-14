@@ -19,15 +19,8 @@ type Connection struct {
 var _ client.Connection = &Connection{}
 
 func (zk *Connection) NewLock(path string) (client.Lock, error) {
-
-	uuid, err := newUuid()
-	if err != nil {
-		return nil, err
-	}
 	return &Lock{
-		path: path,
-		conn: zk,
-		guid: uuid,
+		lock: zklib.NewLock(zk.conn, path, zklib.WorldACL(zklib.PermAll)),
 	}, nil
 }
 
@@ -52,11 +45,13 @@ func (zk *Connection) CreateDir(path string) error {
 	return zk.Create(path, []byte{})
 }
 
+// Exists checks if a node exists at the given path.
 func (zk *Connection) Exists(path string) (bool, error) {
 	exists, _, err := zk.conn.Exists(path)
 	return exists, err
 }
 
+// Delete will delete all nodes at the given path or any subpath
 func (zk *Connection) Delete(path string) error {
 	children, _, err := zk.conn.Children(path)
 	if err != nil {
