@@ -37,6 +37,15 @@
 			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
 		},
 		{
+			"ImportPath": "github.com/coreos/go-systemd/activation",
+			"#### ImportPath also affected:": "github.com/coreos/go-systemd/dbus",
+			"Rev": "8514b9fc57569e6dfc5e88a6411be351afcc69b4"
+		},
+		{
+			"ImportPath": "github.com/godbus/dbus",
+			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
+		},
+		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
 			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
 		},
