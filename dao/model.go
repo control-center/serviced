@@ -316,6 +316,7 @@ type RunningService struct {
 	PoolId          string
 	DesiredState    int
 	ParentServiceId string
+	InstanceId      int
 }
 
 // Create a new Service.

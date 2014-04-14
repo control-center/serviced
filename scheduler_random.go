@@ -267,16 +267,16 @@ func updateServiceInstances(cpDao dao.ControlPlane, conn *zk.Conn, service *dao.
 // Look up running instances of this service and return n unused instance ids.
 // Note: this does NOT validate that instance ids do not exceed max number of
 // instances for the service. We're already doing that check in another, better
-// place. It is guaranteed that n ids will be returned.
+// place. It is guaranteed that either nil or n ids will be returned.
 func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
 	var (
 		states []*dao.ServiceState
 		ids    []int
 	)
 	// Look up existing instances
-	err := zzk.GetServiceStates(conn, &states)
+	err := zzk.GetServiceStates(conn, &states, svc.Id)
 	if err != nil {
-		return ids, err
+		return nil, err
 	}
 	// Populate the used set
 	used := make(map[int]struct{})
