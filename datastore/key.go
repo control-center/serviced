@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package key
+package datastore
 
 import "fmt"
 
@@ -15,7 +15,7 @@ type Key interface {
 }
 
 //NewKey returns an initialized Key
-func New(kind string, id string) Key {
+func NewKey(kind string, id string) Key {
 	return &key{id, kind}
 }
 
@@ -34,6 +34,6 @@ func (k *key) ID() string {
 	return k.id
 }
 
-func (k *key) String()string{
+func (k *key) String() string {
 	return fmt.Sprintf("Key: %s - %s", k.kind, k.id)
 }

@@ -9,16 +9,16 @@ import (
 	"github.com/zenoss/serviced/facade"
 )
 
-func (c *Client) GetPoolIPs(poolId string) (*facade.PoolIPs, error) {
-
+//GetPoolIPs returns a all IPs in a ResourcePool.
+func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
 	var poolIPs facade.PoolIPs
-	if err := c.call("GetPoolsIPInfo", poolId, &poolIPs); err != nil {
+	if err := c.call("GetPoolsIPInfo", poolID, &poolIPs); err != nil {
 		return nil, err
 	}
 	return &poolIPs, nil
 }
 
-//GetHost gets the host for the give hostID or nil
+//GetResourcePool gets the host for the give hostID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
 	if err := c.call("ControlPlane.GetResourcePools", poolID, response); err != nil {
@@ -36,14 +36,17 @@ func (c *Client) GetResourcePools() ([]*pool.ResourcePool, error) {
 	return response, nil
 }
 
+//AddResourcePool adds the ResourcePool
 func (c *Client) AddResourcePool(pool pool.ResourcePool) error {
 	return c.call("AddResourcePool", pool, nil)
 }
 
+//UpdateResourcePool adds the ResourcePool
 func (c *Client) UpdateResourcePool(pool pool.ResourcePool) error {
 	return c.call("UpdateResourcePool", pool, nil)
 }
 
+//RemoveResourcePool removes a ResourcePool
 func (c *Client) RemoveResourcePool(poolID string) error {
 	return c.call("RemoveResourcePool", poolID, nil)
 }

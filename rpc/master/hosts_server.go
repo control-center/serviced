@@ -47,9 +47,10 @@ func (s *Server) GetHost(hostID string, reply *host.Host) error {
 func (s *Server) RemoveHost(hostID string, _ *struct{}) error {
 	return s.f.RemoveHost(s.context(), hostID)
 }
+
 // FindHostsInPool  Returns all Hosts in a pool
 func (s *Server) FindHostsInPool(poolID string, hostReply *[]*host.Host) error {
-	hosts, err := s.f.FindHostsInPool(s.context(),poolID)
+	hosts, err := s.f.FindHostsInPool(s.context(), poolID)
 	if err != nil {
 		return err
 	}

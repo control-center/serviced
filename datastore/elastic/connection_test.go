@@ -8,8 +8,6 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/driver"
-	"github.com/zenoss/serviced/datastore/key"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"
@@ -42,14 +40,14 @@ func (s *S) TestPutGetDelete(t *C) {
 		t.Fatalf("Error getting connection: %v", err)
 	}
 
-	k := key.New("tweet", "1")
+	k := datastore.NewKey("tweet", "1")
 	tweet := map[string]string{
 		"user":      "kimchy",
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -95,7 +93,7 @@ func (s *S) TestQuery(t *C) {
 		t.Fatalf("Error getting connection: %v", err)
 	}
 
-	k := key.New("tweet", "1")
+	k := datastore.NewKey("tweet", "1")
 	tweet := map[string]string{
 		"user":      "kimchy",
 		"state":     "NY",
@@ -103,12 +101,12 @@ func (s *S) TestQuery(t *C) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	k = key.New("tweet", "2")
+	k = datastore.NewKey("tweet", "2")
 	tweet = map[string]string{
 		"user":      "kimchy2",
 		"state":     "NY",
@@ -116,7 +114,7 @@ func (s *S) TestQuery(t *C) {
 		"message":   "trying out Elasticsearch again",
 	}
 	tweetJSON, err = json.Marshal(tweet)
-	err = conn.Put(k, driver.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -124,7 +122,7 @@ func (s *S) TestQuery(t *C) {
 	query := search.Query().Search("_exists_:state")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	msgs, err := conn.Query(testSearch)
 	if err != nil {
 		t.Errorf("Unepected error %v", err)

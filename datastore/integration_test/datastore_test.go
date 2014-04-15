@@ -8,9 +8,8 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/key"
 	"github.com/zenoss/serviced/datastore/elastic"
+
 	. "gopkg.in/check.v1"
 
 	"reflect"
@@ -27,19 +26,19 @@ var _ = Suite(&S{ElasticTest: elastic.ElasticTest{Index: "twitter"}})
 
 type S struct {
 	elastic.ElasticTest
-	ctx context.Context
+	ctx datastore.Context
 }
 
 func (s *S) SetUpTest(c *C) {
-	context.Register(s.Driver())
-	s.ctx = context.Get()
+	datastore.Register(s.Driver())
+	s.ctx = datastore.Get()
 }
 
 func (s *S) TestPutGetDelete(t *C) {
 	ctx := s.ctx
 	ds := datastore.New()
 
-	key := key.New("tweet", "1")
+	key := datastore.NewKey("tweet", "1")
 	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch"}
 
 	err := ds.Put(ctx, key, &tweet)
@@ -80,7 +79,7 @@ func (s *S) TestQuery(t *C) {
 
 	ds := datastore.New()
 
-	k := key.New("tweet", "1")
+	k := datastore.NewKey("tweet", "1")
 	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch"}
 
 	err := ds.Put(ctx, k, tweet)
@@ -88,14 +87,14 @@ func (s *S) TestQuery(t *C) {
 		t.Errorf("%v", err)
 	}
 
-	k = key.New("tweet", "2")
+	k = datastore.NewKey("tweet", "2")
 	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again"}
 	err = ds.Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	query := search.Query().Search("_exists_:State")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
@@ -129,7 +128,7 @@ func (s *S) TestQuery(t *C) {
 type tweettest struct {
 	User      string
 	State     string
-	Post_date string
+	PostDate string
 	Message   string
 }
 

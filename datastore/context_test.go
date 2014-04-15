@@ -2,43 +2,40 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package context
+package datastore
 
 import (
-	"github.com/zenoss/serviced/datastore/key"
-	"github.com/zenoss/serviced/datastore/driver"
-
 	"testing"
 )
 
 type testDriver struct{}
 
-func (d *testDriver) GetConnection() (driver.Connection, error) {
+func (d *testDriver) GetConnection() (Connection, error) {
 	return &testConn{}, nil
 }
 
 type testConn struct{}
 
-func (c testConn) Put(key key.Key, data driver.JSONMessage) error {
+func (c testConn) Put(key Key, data JSONMessage) error {
 	return nil
 }
 
-func (c testConn) Get(key key.Key) (driver.JSONMessage, error) {
+func (c testConn) Get(key Key) (JSONMessage, error) {
 	return nil, nil
 }
 
-func (c testConn) Delete(key key.Key) error {
+func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn) Query(interface{}) ([]driver.JSONMessage, error) {
+func (c testConn) Query(interface{}) ([]JSONMessage, error) {
 	return nil, nil
 }
 
 func TestContext(t *testing.T) {
 
 	driver := testDriver{}
-	ctx := new(&driver)
+	ctx := newCtx(&driver)
 
 	conn, _ := ctx.Connection()
 	if conn == nil {

@@ -10,7 +10,6 @@ import (
 )
 
 // New creates an initialized  Facade instance
-
 func New() *Facade {
 	return &Facade{
 		host.NewStore(),
@@ -23,5 +22,3 @@ type Facade struct {
 	hostStore *host.HostStore
 	poolStore *pool.Store
 }
-
-

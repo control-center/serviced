@@ -5,10 +5,11 @@
 package master
 
 import (
-	"github.com/zenoss/serviced/datastore/context"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/facade"
 )
 
+// NewServer creates a new serviced master rpc server
 func NewServer() *Server {
 	return &Server{facade.New()}
 }
@@ -18,8 +19,8 @@ type Server struct {
 	f *facade.Facade
 }
 
-func (s *Server) context() context.Context {
+func (s *Server) context() datastore.Context {
 	//here in case we ever need to create a per request context
-	return context.Get()
+	return datastore.Get()
 
 }

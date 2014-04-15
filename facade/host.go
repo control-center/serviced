@@ -11,23 +11,22 @@ import (
 
 	"fmt"
 	"time"
-	"github.com/zenoss/serviced/datastore/context"
 )
 
-var (
-	beforeHostUpdate beforeEvent = "BeforeHostUpdate"
-	afterHostUpdate  afterEvent  = "AfterHostUpdate"
-	beforeHostAdd    beforeEvent = "BeforeHostAdd"
-	afterHostAdd     afterEvent  = "AfterHostAdd"
-	beforeHostDelete beforeEvent = "BeforeHostDelete"
-	afterHostDelete  afterEvent  = "AfterHostDelete"
+const (
+	beforeHostUpdate = beforeEvent("BeforeHostUpdate")
+	afterHostUpdate  = afterEvent("AfterHostUpdate")
+	beforeHostAdd    = beforeEvent("BeforeHostAdd")
+	afterHostAdd     = afterEvent("AfterHostAdd")
+	beforeHostDelete = beforeEvent("BeforeHostDelete")
+	afterHostDelete  = afterEvent("AfterHostDelete")
 )
 
 //---------------------------------------------------------------------------
 // Host CRUD
 
 // AddHost register a host with serviced. Returns an error if host already exists
-func (f *Facade) AddHost(ctx context.Context, entity *host.Host) error {
+func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
@@ -60,7 +59,7 @@ func (f *Facade) AddHost(ctx context.Context, entity *host.Host) error {
 }
 
 // UpdateHost information for a registered host
-func (f *Facade) UpdateHost(ctx context.Context, entity *host.Host) error {
+func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	//TODO: make sure pool exists
 	ec := newEventCtx()
@@ -75,7 +74,7 @@ func (f *Facade) UpdateHost(ctx context.Context, entity *host.Host) error {
 }
 
 // RemoveHost removes a Host from serviced
-func (f *Facade) RemoveHost(ctx context.Context, hostID string) error {
+func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	ec := newEventCtx()
 	err := f.beforeEvent(beforeHostDelete, ec, hostID)
@@ -87,7 +86,7 @@ func (f *Facade) RemoveHost(ctx context.Context, hostID string) error {
 }
 
 // GetHost gets a host by id. Returns nil if host not found
-func (f *Facade) GetHost(ctx context.Context, hostID string) (*host.Host, error) {
+func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
 
 	glog.Infof("Facade.GetHost: id=%s", hostID)
@@ -104,11 +103,11 @@ func (f *Facade) GetHost(ctx context.Context, hostID string) (*host.Host, error)
 }
 
 // GetHosts returns a list of all registered hosts
-func (f *Facade) GetHosts(ctx context.Context) ([]*host.Host, error) {
+func (f *Facade) GetHosts(ctx datastore.Context) ([]*host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
 
-// GetHosts returns a list of all registered hosts
-func (f *Facade) FindHostsInPool(ctx context.Context, poolID string) ([]*host.Host, error) {
+// FindHostsInPool returns a list of all hosts with poolID
+func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]*host.Host, error) {
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }

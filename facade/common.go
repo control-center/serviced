@@ -7,8 +7,6 @@ package facade
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/key"
 )
 
 type eventContext map[string]interface{}
@@ -30,7 +28,7 @@ type beforeEvent string
 type afterEvent string
 
 // delete common code for removing an entity and publishes events
-func (f *Facade) delete(ctx context.Context, ds datastore.EntityStore, key key.Key, be beforeEvent, ae afterEvent) error {
+func (f *Facade) delete(ctx datastore.Context, ds datastore.EntityStore, key datastore.Key, be beforeEvent, ae afterEvent) error {
 	glog.V(2).Infof("Facade.delete: %s:%s", key.Kind(), key.ID())
 	ec := newEventCtx()
 	err := f.beforeEvent(be, ec, key.ID())

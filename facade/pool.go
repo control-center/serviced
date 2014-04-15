@@ -5,32 +5,33 @@
 package facade
 
 import (
-	"errors"
-	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+
+	"errors"
+	"fmt"
 	"time"
-	"github.com/zenoss/serviced/datastore/context"
 )
 
-var (
-	beforePoolUpdate beforeEvent = "BeforePoolUpdate"
-	afterPoolUpdate  afterEvent  = "AfterPoolUpdate"
-	beforePoolAdd    beforeEvent = "BeforePoolAdd"
-	afterPoolAdd     afterEvent  = "AfterPoolAdd"
-	beforePoolDelete beforeEvent = "BeforePoolDelete"
-	afterPoolDelete  afterEvent  = "AfterPoolDelete"
+const (
+	beforePoolUpdate = beforeEvent("BeforePoolUpdate")
+	afterPoolUpdate  = afterEvent("AfterPoolUpdate")
+	beforePoolAdd    = beforeEvent("BeforePoolAdd")
+	afterPoolAdd     = afterEvent("AfterPoolAdd")
+	beforePoolDelete = beforeEvent("BeforePoolDelete")
+	afterPoolDelete  = afterEvent("AfterPoolDelete")
 )
 
+//PoolIPs type for IP resources available in a ResourcePool
 type PoolIPs struct {
 	PoolID  string
 	HostIPs []host.HostIPResource
 }
 
 // GetPoolIPs gets all IPs available to a Pool
-func (f *Facade) GetPoolIPs(ctx context.Context, poolID string) (*PoolIPs, error) {
+func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error) {
 	hosts, err := f.FindHostsInPool(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -44,8 +45,8 @@ func (f *Facade) GetPoolIPs(ctx context.Context, poolID string) (*PoolIPs, error
 }
 
 // AddResourcePool add resource pool to index
-func (f *Facade) AddResourcePool(ctx context.Context, entity *pool.ResourcePool) error {
-	glog.V(0).Infof("Facade.AddResourcePool: %+v", entity)
+func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	glog.V(2).Infof("Facade.AddResourcePool: %+v", entity)
 	exists, err := f.GetResourcePool(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -62,12 +63,12 @@ func (f *Facade) AddResourcePool(ctx context.Context, entity *pool.ResourcePool)
 		entity.UpdatedAt = now
 		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
 	}
-	defer f.afterEvent(afterPoolAdd, ec, entity, err)
+	f.afterEvent(afterPoolAdd, ec, entity, err)
 	return err
 }
 
 // GetResourcePool returns  an ResourcePool ip id. nil if not found
-func (f *Facade) GetResourcePool(ctx context.Context, id string) (*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
 	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
 	var entity pool.ResourcePool
 	err := f.poolStore.Get(ctx, pool.Key(id), &entity)
@@ -80,8 +81,8 @@ func (f *Facade) GetResourcePool(ctx context.Context, id string) (*pool.Resource
 	return &entity, nil
 }
 
-// UpdateHost information for a registered host
-func (f *Facade) UpdateResourcePool(ctx context.Context, entity *pool.ResourcePool) error {
+// UpdateResourcePool updates a ResourcePool
+func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	glog.V(2).Infof("Facade.UpdateResourcePool: %+v", entity)
 	ec := newEventCtx()
 	err := f.beforeEvent(beforePoolUpdate, ec, entity)
@@ -90,12 +91,12 @@ func (f *Facade) UpdateResourcePool(ctx context.Context, entity *pool.ResourcePo
 		entity.UpdatedAt = now
 		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
 	}
-	defer f.afterEvent(afterPoolUpdate, ec, entity, err)
+	f.afterEvent(afterPoolUpdate, ec, entity, err)
 	return err
 }
 
 // RemoveResourcePool removes a ResourcePool
-func (f *Facade) RemoveResourcePool(ctx context.Context, id string) error {
+func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
@@ -108,24 +109,24 @@ func (f *Facade) RemoveResourcePool(ctx context.Context, id string) error {
 }
 
 //GetResourcePools Returns a list of all ResourcePools
-func (f *Facade) GetResourcePools(ctx context.Context) ([]*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, error) {
 	return f.poolStore.GetResourcePools(ctx)
 }
 
 //CreateDefaultPool creates the default pool if it does not exists, it is idempotent
-func (f *Facade) CreateDefaultPool(ctx context.Context) error {
-	entity, err := f.GetResourcePool(ctx, DEFAULT_POOLID)
+func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
+	entity, err := f.GetResourcePool(ctx, defaultPoolID)
 	if err != nil {
 		return fmt.Errorf("could not create default pool: %v", err)
 	}
 	if entity != nil {
-		glog.V(4).Infof("'%s' resource pool already exists", DEFAULT_POOLID)
+		glog.V(4).Infof("'%s' resource pool already exists", defaultPoolID)
 		return nil
 	}
 
-	glog.V(0).Infof("'%s' resource pool not found; creating...", DEFAULT_POOLID)
-	entity = pool.New(DEFAULT_POOLID)
+	glog.Infof("'%s' resource pool not found; creating...", defaultPoolID)
+	entity = pool.New(defaultPoolID)
 	return f.AddResourcePool(ctx, entity)
 }
 
-var DEFAULT_POOLID string = "default"
+var defaultPoolID = "default"
