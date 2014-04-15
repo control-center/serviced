@@ -42,6 +42,12 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/jobs', {
                 templateUrl: '/static/partials/celery-log.html',
                 controller: CeleryLogControl}).
+            when('/pools', {
+                templateUrl: '/static/partials/view-pools.html',
+                controller: PoolsControl}).
+            when('/pools/:poolId', {
+                templateUrl: '/static/partials/view-pool-details.html',
+                controller: PoolDetailsControl}).
             when('/devmode', {
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
@@ -743,6 +749,49 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             });
         };
     }
+}
+
+function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "pools";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_pools', itemClass: 'active' }
+    ];
+
+    // Build metadata for displaying a list of pools
+    $scope.pools = buildTable('Id', [
+        { id: 'Id', name: 'Id'}
+    ])
+
+    $scope.click_pool= function(id) {
+        $location.path('/pools/' + id);
+    };
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, true);
+}
+
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "pooldetails";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_pools', itemClass: 'active' }
+    ];
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, true, function() {
+        if ($scope.pools.current) {
+            $scope.breadcrumbs.push({ label: $scope.pools.current.Id, itemClass: 'active' });
+        }
+    });
 }
 
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
@@ -1674,6 +1723,9 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps',
           sublinks: [ '#/services/', '#/servicesmap' ], target: "_self"
+        },
+        { url: '#/pools', label: 'nav_pools',
+          sublinks: [ '#/pools/' ], target: "_self"
         },
         { url: '#/hosts', label: 'nav_hosts',
           sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
