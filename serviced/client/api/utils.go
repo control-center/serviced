@@ -15,6 +15,11 @@ const (
 	DEFAULT_TIMEOUT = 600
 )
 
+var (
+	empty     interface{}
+	unusedInt int
+)
+
 // Returns the agent ip address
 func GetAgentIP() string {
 	if options.Port != "" {

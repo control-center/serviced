@@ -6,10 +6,7 @@ import (
 
 const ()
 
-var (
-	empty     interface{}
-	unusedInt int
-)
+var ()
 
 // HostConfig is the deserialized object from the command-line
 type HostConfig struct {
@@ -33,6 +30,7 @@ func (a *api) ListHosts() ([]host.Host, error) {
 	i := 0
 	for _, h := range hostmap {
 		hosts[i] = *h
+		i++
 	}
 	return hosts, nil
 }
