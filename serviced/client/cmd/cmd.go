@@ -60,7 +60,6 @@ OPTIONS:
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
 	}
 
-	c.initProxy()
 	c.initPool()
 	c.initHost()
 	c.initTemplate()

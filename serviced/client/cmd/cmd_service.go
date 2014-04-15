@@ -90,10 +90,23 @@ func (c *ServicedCli) initService() {
 				"SERVICEID",
 			},
 		}, {
+			Name:         "proxy",
+			Usage:        "Starts a server proxy for a container.",
+			Action:       c.cmdServiceProxy,
+			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID", "COMMAND",
+			},
+		}, {
 			Name:         "shell",
 			Usage:        "Starts a service instance.",
 			Action:       c.cmdServiceShell,
 			BashComplete: c.printServicesFirst,
+
+			Args: []string{
+				"SERVICEID", "COMMAND",
+			},
 		}, {
 			Name:         "run",
 			Usage:        "Runs a service command.",
@@ -395,7 +408,24 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	}
 }
 
-// serviced service shell [--saveas SAVEAS] SERVICEID COMMAND
+// serviced service proxy SERVICED COMMAND
+func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "proxy")
+		return
+	}
+
+	cfg := api.ProxyConfig{
+		ServiceID: args[0],
+		Command:   args[1],
+	}
+
+	c.driver.StartProxy(cfg)
+}
+
+// serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) {
 	// TODO: Make me work with channels!
 	/*

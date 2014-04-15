@@ -92,6 +92,10 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) (*host.HostIPResource, err
 	return nil, nil
 }
 
+func (t ServiceAPITest) StartProxy(config api.ProxyConfig) {
+	return
+}
+
 func (t ServiceAPITest) StartShell(config api.ShellConfig) (*shell.Command, error) {
 	return nil, nil
 }
@@ -142,6 +146,13 @@ func ExampleServicedCli_cmdServiceStart() {
 
 func ExampleServicedCli_cmdServiceStop() {
 	InitServiceAPITest("serviced", "service", "stop", "test-service-id-2")
+}
+
+func ExampleServicedCli_cmdServiceProxy() {
+	InitServiceAPITest("serviced", "service", "proxy", "test-service-id-1", "greet")
+
+	// Output:
+	// greet
 }
 
 func ExampleServicedCli_cmdServiceShell() {

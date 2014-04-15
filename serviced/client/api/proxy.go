@@ -17,9 +17,7 @@ import (
 	"time"
 )
 
-type ProxyOptions struct {
-	ServiceID        string
-	Command          string
+var proxyOptions struct {
 	MuxPort          int
 	Mux              bool
 	TLS              bool
@@ -30,20 +28,25 @@ type ProxyOptions struct {
 	Logstash         bool
 }
 
+type ProxyConfig struct {
+	ServiceID string
+	Command   string
+}
+
 // Start a service proxy
-func (a *api) StartProxy(ops ProxyOptions) {
+func (a *api) StartProxy(cfg ProxyConfig) {
 	config := serviced.MuxConfig{}
-	config.TCPMux.Port = ops.muxport
-	config.TCPMux.Enabled = ops.mux
-	config.TCPMux.UseTLS = ops.tls
-	config.ServiceId = proxyCmd.Arg(0)
-	config.Command = proxyCmd.Arg(1)
+	config.TCPMux.Port = proxyOptions.muxport
+	config.TCPMux.Enabled = proxyOptions.mux
+	config.TCPMux.UseTLS = proxyOptions.tls
+	config.ServiceId = cfg.ServiceID
+	config.Command = cfg.Command
 
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
 	}
 
-	sio := shell.NewProcessForwarderServer(ops.servicedEndpoint)
+	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
 	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
 	go http.ListenAndServe(":50000", sio)
 
@@ -79,7 +82,7 @@ func (a *api) StartProxy(ops ProxyOptions) {
 				procexit <- exitCode
 			case cmderr := <-serviceExit:
 				if cmderr != nil {
-					client, err := serviced.NewLBClient(ops.servicedEndpoint)
+					client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 					message := fmt.Sprintf("Service returned a non-zero exit code: %v. Command: \"%v\" Message: %v", config.ServiceId, config.Command, err)
 					if err == nil {
 						defer client.Close()
@@ -88,12 +91,12 @@ func (a *api) StartProxy(ops ProxyOptions) {
 						// send the log message to the master
 						client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceId, message}, nil)
 					} else {
-						glog.Errorf("Failed to create a client to endpoint %s: %s", ops.servicedEndpoint, err)
+						glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 					}
 
 					glog.Infof("%s", err)
 					glog.Flush()
-					if exiterr, ok := cmderr.(*exec.ExitError); ok && !ops.autorestart {
+					if exiterr, ok := cmderr.(*exec.ExitError); ok && !proxyOptions.autorestart {
 						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 							procexit <- status.ExitStatus()
 						}
@@ -101,7 +104,7 @@ func (a *api) StartProxy(ops ProxyOptions) {
 				}
 			}
 
-			if !ops.autorestart {
+			if !proxyOptions.autorestart {
 				break
 			}
 			glog.V(0).Info("service exited, sleeping...")
@@ -109,7 +112,7 @@ func (a *api) StartProxy(ops ProxyOptions) {
 		}
 	}(config.Command)
 
-	if ops.logstash {
+	if proxyOptions.logstash {
 		go func() {
 			// make sure we pick up any logfile that was modified within the
 			// last three years
@@ -131,9 +134,9 @@ func (a *api) StartProxy(ops ProxyOptions) {
 	go func() {
 		for {
 			func() {
-				client, err := serviced.NewLBClient(ops.servicedEndpoint)
+				client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 				if err != nil {
-					glog.Errorf("Could not create a client to endpoint %s: %s", ops.servicedEndpoint, err)
+					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 					return
 				}
 				defer client.Close()
@@ -197,7 +200,7 @@ func (a *api) StartProxy(ops ProxyOptions) {
 		//loop until successfully identifying this container's tenant id
 		var tenantId string
 		for {
-			client, err := serviced.NewLBClient(ops.servicedEndpoint)
+			client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 			if err == nil {
 				defer client.Close()
 				if err = client.GetTenantId(config.ServiceId, &tenantId); err != nil {
@@ -207,7 +210,7 @@ func (a *api) StartProxy(ops ProxyOptions) {
 					break
 				}
 			} else {
-				glog.Errorf("Failed to create a client to endpoint %s: %s", ops.servicedEndpoint, err)
+				glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
 			}
 		}
 
