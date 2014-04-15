@@ -76,7 +76,6 @@ func (c *ServicedCli) Run(args []string) {
 
 // Starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-
 	options := api.Options{
 		Port:             ctx.GlobalString("port"),
 		Listen:           ctx.GlobalString("listen"),
@@ -102,8 +101,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	// Start server mode
 	if (options.master || options.agent) && len(ctx.Args()) == 0 {
-		c.driver.StartServer(options)
-		return fmt.Errorf("server started")
+		api.LoadOptions(options)
+		c.driver.StartServer()
+		return fmt.Errorf("running server mode")
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/volume"
 )
@@ -39,6 +40,21 @@ type Options struct {
 	HostAliases      string
 }
 
+// Load options overwrites the existing options
+func LoadOptions(ops Options) {
+	*options = ops
+}
+
+// Opens a connection to the control plane
+func connect() (*dao.ControlPlane, error) {
+	// setup the client
+	c, err := serviced.NewControlClient(options.Port)
+	if err != nil {
+		return nil, fmt.Errorf("could not create a control plane client: %s", err)
+	}
+	return c, nil
+}
+
 type api struct {
 }
 
@@ -48,9 +64,7 @@ func New() API {
 }
 
 // Starts the agent or master services on this host
-func (a *api) StartServer(ops Options) {
-	*options = ops
-
+func (a *api) StartServer() {
 	l, err := net.Listen("tcp", options.Listen)
 	if err != nil {
 		glog.Fatalf("could not bind to port: %s. Is another instance running?", err)

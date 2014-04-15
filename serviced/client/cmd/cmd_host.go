@@ -171,7 +171,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	}
 
 	cfg := api.HostConfig{
-		IPAddr: strings.SplitN(args[0], ":", 2)[0],
+		IPAddr: args[0],
 		PoolID: args[1],
 		IPs:    ctx.StringSlice("ip"),
 	}

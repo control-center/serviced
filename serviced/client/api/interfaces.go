@@ -13,8 +13,8 @@ import (
 type API interface {
 
 	// Server
-	StartServer(Options)
-	StartProxy(ProxyOptions)
+	StartServer()
+	StartProxy(ProxyConfig)
 
 	// Hosts
 	ListHosts() ([]host.Host, error)
