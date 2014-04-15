@@ -22,6 +22,7 @@ var _ LoadBalancer = &HostAgent{}
 func TestAddControlPlaneEndpoints(t *testing.T) {
 	agent := &HostAgent{}
 	agent.master = "127.0.0.1:0"
+	agent.uiport = ":443"
 	endpoints := make(map[string][]*dao.ApplicationEndpoint)
 
 	consumer_endpoint := dao.ApplicationEndpoint{}
