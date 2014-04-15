@@ -46,7 +46,7 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 
 // AddResourcePool add resource pool to index
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	glog.V(0).Infof("Facade.AddResourcePool: %+v", entity)
+	glog.V(2).Infof("Facade.AddResourcePool: %+v", entity)
 	exists, err := f.GetResourcePool(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		entity.UpdatedAt = now
 		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
 	}
-	defer f.afterEvent(afterPoolAdd, ec, entity, err)
+	f.afterEvent(afterPoolAdd, ec, entity, err)
 	return err
 }
 
@@ -91,7 +91,7 @@ func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.Resource
 		entity.UpdatedAt = now
 		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
 	}
-	defer f.afterEvent(afterPoolUpdate, ec, entity, err)
+	f.afterEvent(afterPoolUpdate, ec, entity, err)
 	return err
 }
 
@@ -124,7 +124,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
 		return nil
 	}
 
-	glog.V(0).Infof("'%s' resource pool not found; creating...", defaultPoolID)
+	glog.Infof("'%s' resource pool not found; creating...", defaultPoolID)
 	entity = pool.New(defaultPoolID)
 	return f.AddResourcePool(ctx, entity)
 }
