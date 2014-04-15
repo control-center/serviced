@@ -24,6 +24,7 @@ func (s *Server) GetPoolIPs(poolID string, reply *facade.PoolIPs) error {
 	return nil
 }
 
+// GetResourcePools returns all ResourcePools
 func (s *Server) GetResourcePools(empty interface{}, poolsReply *[]*pool.ResourcePool) error {
 	pools, err := s.f.GetResourcePools(s.context())
 	if err != nil {
@@ -32,20 +33,19 @@ func (s *Server) GetResourcePools(empty interface{}, poolsReply *[]*pool.Resourc
 
 	*poolsReply = pools
 	return nil
-
 }
 
-// AddPool adds the pool
+// AddResourcePool adds the pool
 func (s *Server) AddResourcePool(pool pool.ResourcePool, _ *struct{}) error {
 	return s.f.AddResourcePool(s.context(), &pool)
 }
 
-// UpdatePool updates the pool
+// UpdateResourcePool updates the pool
 func (s *Server) UpdateResourcePool(pool pool.ResourcePool, _ *struct{}) error {
 	return s.f.UpdateResourcePool(s.context(), &pool)
 }
 
-// GetPool gets the pool
+// GetResourcePool gets the pool
 func (s *Server) GetResourcePool(poolID string, reply *pool.ResourcePool) error {
 	response, err := s.f.GetResourcePool(s.context(), poolID)
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *Server) GetResourcePool(poolID string, reply *pool.ResourcePool) error 
 	return nil
 }
 
-// RemovePool removes the pool
+// RemoveResourcePool removes the pool
 func (s *Server) RemoveResourcePool(poolID string, _ *struct{}) error {
 	return s.f.RemoveResourcePool(s.context(), poolID)
 }

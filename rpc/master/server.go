@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 )
 
+// NewServer creates a new serviced master rpc server
 func NewServer() *Server {
 	return &Server{facade.New()}
 }

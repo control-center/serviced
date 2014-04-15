@@ -13,7 +13,7 @@ func NewServer() AgentServer {
 	return AgentServer{}
 }
 
-// The Agent type is the API for a serviced agent.  Get the host information from an agent.
+// AgentServer The type is the API for a serviced agent. Get the host information from an agent.
 type AgentServer struct {
 }
 

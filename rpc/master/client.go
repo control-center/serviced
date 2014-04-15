@@ -16,7 +16,7 @@ type Client struct {
 	rpcClient *rpc.Client
 }
 
-// Create a new ControlClient.
+// NewClient Create a new rpc client.
 func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr

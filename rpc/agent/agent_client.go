@@ -10,13 +10,13 @@ import (
 	"net/rpc"
 )
 
-// AgentClient rpc client to interact with agent
+// Client rpc client to interact with agent
 type Client struct {
 	addr      string
 	rpcClient *rpc.Client
 }
 
-// Create a new Client.
+// NewClient Create a new Client.
 func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr
@@ -31,9 +31,9 @@ func (c *Client) Close() (err error) {
 }
 
 // BuildHost creates a Host object from the current host.
-func (a *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
+func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	hostResponse := host.New()
-	if err := a.rpcClient.Call("Master.BuildHost", request, hostResponse); err != nil {
+	if err := c.rpcClient.Call("Master.BuildHost", request, hostResponse); err != nil {
 		return nil, err
 	}
 	return hostResponse, nil
