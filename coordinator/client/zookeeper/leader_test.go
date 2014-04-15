@@ -32,7 +32,7 @@ func TestLeader(t *testing.T) {
 	dsn := string(dsnBytes)
 
 	// create a connection
-	conn, err := drv.GetConnection(dsn)
+	conn, err := drv.GetConnection(dsn, "/bossPath")
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}

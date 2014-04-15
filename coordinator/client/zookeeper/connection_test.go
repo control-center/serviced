@@ -61,6 +61,7 @@ func TestEnsureZkFatjar(t *testing.T) {
 }
 
 func TestZkDriver(t *testing.T) {
+	basePath := "/basePath"
 	tc, err := zklib.StartTestCluster(1)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
@@ -78,7 +79,7 @@ func TestZkDriver(t *testing.T) {
 	}
 	dsn := string(dsnBytes)
 
-	conn, err := drv.GetConnection(dsn)
+	conn, err := drv.GetConnection(dsn, basePath)
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}

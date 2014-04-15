@@ -62,6 +62,7 @@ type opClientRequest struct {
 // Client is a coordination client that abstracts using services like etcd or
 // zookeeper.
 type Client struct {
+	basePath          string               // the base path for every connection
 	connectionString  string               // the driver specific connection string
 	done              chan chan struct{}   // a shutdown channel
 	retryPolicy       retry.Policy         // the default retry policy to use
@@ -77,7 +78,7 @@ func DefaultRetryPolicy() retry.Policy {
 
 // New returns a client that will create connections using the given driver and
 // connection string. Any retryable operations will use the given retry policy.
-func New(driverName, connectionString string, retryPolicy retry.Policy) (client *Client, err error) {
+func New(driverName, connectionString, basePath string, retryPolicy retry.Policy) (client *Client, err error) {
 
 	var driver Driver
 	var exists bool
@@ -157,7 +158,7 @@ func (client *Client) loop() {
 					req.response <- ErrConnectionNotFound
 				}
 			case opClientRequestConnection:
-				c, err := client.connectionFactory.GetConnection(client.connectionString)
+				c, err := client.connectionFactory.GetConnection(client.connectionString, client.basePath)
 				// setting up a callback to close the connection in this client
 				// if someone calls Close() on the driver reference
 				c.SetOnClose(func() {

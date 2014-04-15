@@ -30,7 +30,7 @@ func parseSeq(path string) (uint64, error) {
 }
 
 func (l *Leader) prefix() string {
-	return fmt.Sprintf("%s/leader-", l.path)
+	return join(l.path, "leader-")
 }
 
 func (l *Leader) Current() (data []byte, err error) {

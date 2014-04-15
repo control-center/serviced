@@ -1,18 +1,23 @@
 package zk_driver
 
 import (
+	lpath "path"
+	"strings"
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
+var join = lpath.Join
+
 // Connection is a Zookeeper based implementation of client.Connection.
 type Connection struct {
-	conn    *zklib.Conn
-	servers []string
-	timeout time.Duration
-	onClose *func()
+	basePath string
+	conn     *zklib.Conn
+	servers  []string
+	timeout  time.Duration
+	onClose  *func()
 }
 
 // Assert that Connection implements client.Connection.
@@ -20,14 +25,14 @@ var _ client.Connection = &Connection{}
 
 func (zk *Connection) NewLock(path string) client.Lock {
 	return &Lock{
-		lock: zklib.NewLock(zk.conn, path, zklib.WorldACL(zklib.PermAll)),
+		lock: zklib.NewLock(zk.conn, join(zk.basePath, path), zklib.WorldACL(zklib.PermAll)),
 	}
 }
 
 func (c *Connection) NewLeader(path string, data []byte) client.Leader {
 	return &Leader{
 		c:    c,
-		path: path,
+		path: join(c.basePath, path),
 		data: data,
 	}
 }
@@ -44,7 +49,21 @@ func (zk *Connection) SetOnClose(f func()) {
 
 // Create places data at the node at the given path.
 func (zk *Connection) Create(path string, data []byte) error {
-	_, err := zk.conn.Create(path, data, 0, zklib.WorldACL(zklib.PermAll))
+
+	p := join(zk.basePath, path)
+	_, err := zk.conn.Create(p, data, 0, zklib.WorldACL(zklib.PermAll))
+	if err == zklib.ErrNoNode {
+		// Create parent node.
+		parts := strings.Split(p, "/")
+		pth := ""
+		for _, p := range parts[1:] {
+			pth += "/" + p
+			_, err = zk.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+			if err != nil && err != zklib.ErrNodeExists {
+				return err
+			}
+		}
+	}
 	return err
 }
 
@@ -55,22 +74,22 @@ func (zk *Connection) CreateDir(path string) error {
 
 // Exists checks if a node exists at the given path.
 func (zk *Connection) Exists(path string) (bool, error) {
-	exists, _, err := zk.conn.Exists(path)
+	exists, _, err := zk.conn.Exists(join(zk.basePath, path))
 	return exists, err
 }
 
 // Delete will delete all nodes at the given path or any subpath
 func (zk *Connection) Delete(path string) error {
-	children, _, err := zk.conn.Children(path)
+	children, _, err := zk.conn.Children(join(zk.basePath, path))
 	if err != nil {
 		return err
 	}
 	// recursively delete children
 	for _, child := range children {
-		err = zk.Delete(path + "/" + child)
+		err = zk.Delete(join(path, child))
 		if err != nil {
 			return err
 		}
 	}
-	return zk.conn.Delete(path, 0)
+	return zk.conn.Delete(join(zk.basePath, path), 0)
 }

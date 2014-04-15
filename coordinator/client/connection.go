@@ -4,7 +4,7 @@
 package client
 
 type Driver interface {
-	GetConnection(dsn string) (Connection, error)
+	GetConnection(dsn, basePath string) (Connection, error)
 }
 
 type Lock interface {

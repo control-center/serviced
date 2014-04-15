@@ -42,7 +42,7 @@ func ParseDSN(dsn string) (val DSN, err error) {
 
 // GetConnection returns a Zookeeper connection given the dsn. The caller is
 // responsible for closing the returned connection.
-func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
+func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, error) {
 
 	dsnVal, err := ParseDSN(dsn)
 	if err != nil {
@@ -54,6 +54,7 @@ func (driver *Driver) GetConnection(dsn string) (client.Connection, error) {
 		return nil, err
 	}
 	return &Connection{
+		basePath: basePath,
 		conn:    conn,
 		servers: dsnVal.Servers,
 		timeout: dsnVal.Timeout,
