@@ -38,6 +38,7 @@ OPTIONS:
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"port", api.GetAgentIP() + ":4979", "port for remote serviced (example.com:8080)"},
+		cli.StringFlag{"uiport", ":443", "port for ui"},
 		cli.StringFlag{"listen", ":4979", "port for local serviced (example.com:8080)"},
 		cli.StringFlag{"docker-dns", api.GetDockerDNS(), "docker dns configuration used for running containers (comma separated list)"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
@@ -78,6 +79,7 @@ func (c *ServicedCli) Run(args []string) {
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
 		Port:             ctx.GlobalString("port"),
+		UIPort:           ctx.GlobalString("uiport"),
 		Listen:           ctx.GlobalString("listen"),
 		DockerDNS:        ctx.GlobalString("docker-dns"),
 		Master:           ctx.GlobalBool("master"),

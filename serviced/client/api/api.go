@@ -1,14 +1,26 @@
 package api
 
 import (
+	"fmt"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/web"
 )
 
 var minDockerVersion = version{0, 8, 1}
@@ -17,9 +29,10 @@ var options Options
 
 type Options struct {
 	Port             string
+	UIPort           string
 	Listen           string
 	Master           bool
-	DockerDns        string
+	DockerDNS        string
 	Agent            bool
 	MuxPort          int
 	TLS              bool
@@ -42,11 +55,11 @@ type Options struct {
 
 // Load options overwrites the existing options
 func LoadOptions(ops Options) {
-	*options = ops
+	options = ops
 }
 
 // Opens a connection to the control plane
-func connect() (*dao.ControlPlane, error) {
+func connect() (dao.ControlPlane, error) {
 	// setup the client
 	c, err := serviced.NewControlClient(options.Port)
 	if err != nil {
@@ -87,7 +100,7 @@ func (a *api) StartServer() {
 	}
 
 	if options.Master {
-		master, err := elasticSearch.NewControlSvc("localhost", 9200, options.Zookeepers, options.VarPath, options.VFS)
+		master, err := elasticsearch.NewControlSvc("localhost", 9200, options.Zookeepers, options.VarPath, options.VFS)
 		if err != nil {
 			glog.Fatalf("could not start ControlPlane service: %s", err)
 		}
@@ -112,7 +125,7 @@ func (a *api) StartServer() {
 		}
 
 		dnsList := strings.Split(options.DockerDNS, ",")
-		agent, err := serviced.NewHostAgent(options.Port, dnsList, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.Port, options.UIPort, dnsList, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("could not start ControlPlane agent")
 		}

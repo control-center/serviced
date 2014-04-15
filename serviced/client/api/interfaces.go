@@ -3,9 +3,10 @@ package api
 import (
 	"io"
 
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
+	host "github.com/zenoss/serviced/dao"
+	pool "github.com/zenoss/serviced/dao"
+	service "github.com/zenoss/serviced/dao"
+
 	"github.com/zenoss/serviced/domain/template"
 )
 

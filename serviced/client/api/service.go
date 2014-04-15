@@ -3,8 +3,8 @@ package api
 import (
 	"io"
 
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
+	host "github.com/zenoss/serviced/dao"
+	service "github.com/zenoss/serviced/dao"
 )
 
 const ()
@@ -17,40 +17,8 @@ type ServiceConfig struct {
 	PoolID      string
 	ImageID     string
 	Command     string
-	LocalPorts  PortOpts
-	RemotePorts PortOpts
-}
-
-type PortOpts map[string]service.ServiceEndpoint
-
-func (p *PortOpts) Set(value string) error {
-	parts := strings.Split(value, ":")
-	if len(parts) != 3 {
-		return fmt.Errorf("malformed port specification (%s)", value)
-	}
-	protocol := parts[0]
-	if protocol != "tcp" || protocol != "udp" {
-		return fmt.Errorf("unsupported protocol for port specification: %s (%s)", protocol, value)
-	}
-	portNum, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return fmt.Errorf("invalid port number: %s (%s)", parts[1], value)
-	}
-	portName = parts[2]
-	if portName == "" {
-		return fmt.Errorf("endpoint name cannot be empty (%s)", value)
-	}
-	port := fmt.Sprintf("%s:%s", protocol, portNum)
-	(*opts)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: portNum, Application: portName}
-	return nil
-}
-
-func (p *PortOpts) String() string {
-	return fmt.Sprintf("%s", *p)
-}
-
-func (p *PortOpts) Value() interface{} {
-	return *p
+	LocalPorts  PortMap
+	RemotePorts PortMap
 }
 
 // IPConfig is the deserialized object from the command-line
