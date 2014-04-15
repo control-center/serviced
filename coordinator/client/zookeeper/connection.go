@@ -60,36 +60,81 @@ func (zk *Connection) Create(path string, data []byte) error {
 			pth += "/" + p
 			_, err = zk.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
 			if err != nil && err != zklib.ErrNodeExists {
-				return err
+				return xlateError(err)
 			}
 		}
 	}
-	return err
+	return xlateError(err)
 }
 
 // CreateDir creates an empty node at the given path.
 func (zk *Connection) CreateDir(path string) error {
-	return zk.Create(path, []byte{})
+	return xlateError(zk.Create(path, []byte{}))
 }
 
 // Exists checks if a node exists at the given path.
 func (zk *Connection) Exists(path string) (bool, error) {
 	exists, _, err := zk.conn.Exists(join(zk.basePath, path))
-	return exists, err
+	return exists, xlateError(err)
 }
 
 // Delete will delete all nodes at the given path or any subpath
 func (zk *Connection) Delete(path string) error {
 	children, _, err := zk.conn.Children(join(zk.basePath, path))
 	if err != nil {
-		return err
+		return xlateError(err)
 	}
 	// recursively delete children
 	for _, child := range children {
 		err = zk.Delete(join(path, child))
 		if err != nil {
-			return err
+			return xlateError(err)
 		}
 	}
 	return zk.conn.Delete(join(zk.basePath, path), 0)
+}
+
+func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
+	echan := make(chan client.Event)
+	go func() {
+		e := <-zkEvent
+		echan <- client.Event{
+			Type: client.EventType(e.Type),
+		}
+	}()
+	return echan
+}
+
+func (zk *Connection) ChildrenW(path string) (children []string, event <-chan client.Event, err error) {
+	children, _, zkEvent, err := zk.conn.ChildrenW(join(zk.basePath, path))
+	if err != nil {
+		return children, nil, err
+	}
+	return children, toClientEvent(zkEvent), xlateError(err)
+}
+
+func (zk *Connection) GetW(path string) (data []byte, event <-chan client.Event, err error) {
+	data, _, zkEvent, err := zk.conn.GetW(join(zk.basePath, path))
+	if err != nil {
+		return data, nil, err
+	}
+	return data, toClientEvent(zkEvent), xlateError(err)
+}
+
+func (zk *Connection) Children(path string) (children []string, err error) {
+	children, _, err = zk.conn.Children(join(zk.basePath, path))
+	if err != nil {
+		return children, xlateError(err)
+	}
+	return children, xlateError(err)
+}
+
+func (zk *Connection) Get(path string) (data []byte, err error) {
+	data, _, err = zk.conn.Get(path)
+	return data, xlateError(err)
+}
+
+func (zk *Connection) Set(path string, data []byte) error {
+	_, err := zk.conn.Set(path, data, 0)
+	return xlateError(err)
 }

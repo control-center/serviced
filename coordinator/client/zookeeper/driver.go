@@ -49,14 +49,15 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		return nil, err
 	}
 
-	conn, _, err := zklib.Connect(dsnVal.Servers, dsnVal.Timeout)
+	conn, event, err := zklib.Connect(dsnVal.Servers, dsnVal.Timeout)
 	if err != nil {
 		return nil, err
 	}
+	<-event // wait for connected event, or anything really
 	return &Connection{
 		basePath: basePath,
-		conn:    conn,
-		servers: dsnVal.Servers,
-		timeout: dsnVal.Timeout,
+		conn:     conn,
+		servers:  dsnVal.Servers,
+		timeout:  dsnVal.Timeout,
 	}, nil
 }

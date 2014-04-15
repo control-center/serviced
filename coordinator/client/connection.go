@@ -24,6 +24,11 @@ type Connection interface {
 	CreateDir(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
+	ChildrenW(path string) (children []string, event <-chan Event, err error)
+	Children(path string) (children []string, err error)
+	Get(path string) (data []byte, err error)
+	GetW(path string) (data []byte, event <-chan Event, err error)
+	Set(path string, data []byte) error
 
 	NewLock(path string) Lock
 	NewLeader(path string, data []byte) Leader

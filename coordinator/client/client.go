@@ -12,6 +12,23 @@ import (
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
+type EventType int32
+
+type Event struct {
+	Type EventType
+	Path string // For non-session events, the path of the watched node.
+	Err  error
+}
+
+var (
+	EventNodeCreated         = EventType(1)
+	EventNodeDeleted         = EventType(2)
+	EventNodeDataChanged     = EventType(3)
+	EventNodeChildrenChanged = EventType(4)
+	EventSession             = EventType(-1)
+	EventNotWatching         = EventType(-2)
+)
+
 var (
 	ErrInvalidDSN         = errors.New("coord-client: invalid DSN")
 	ErrDriverDoesNotExist = errors.New("coord-client: driver does not exist")
@@ -20,6 +37,23 @@ var (
 	ErrInvalidMachine     = errors.New("coord-client: invalid machine")
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 	ErrConnectionNotFound = errors.New("coord-client: connection not found")
+)
+
+var (
+	ErrConnectionClosed        = errors.New("coord-client: connection closed")
+	ErrUnknown                 = errors.New("coord-client: unknown error")
+	ErrAPIError                = errors.New("coord-client: api error")
+	ErrNoNode                  = errors.New("coord-client: node does not exist")
+	ErrNoAuth                  = errors.New("coord-client: not authenticated")
+	ErrBadVersion              = errors.New("coord-client: version conflict")
+	ErrNoChildrenForEphemerals = errors.New("coord-client: ephemeral nodes may not have children")
+	ErrNotEmpty                = errors.New("coord-client: node has children")
+	ErrSessionExpired          = errors.New("coord-client: session has been expired by the server")
+	ErrInvalidACL              = errors.New("coord-client: invalid ACL specified")
+	ErrAuthFailed              = errors.New("coord-client: client authentication failed")
+	ErrClosing                 = errors.New("coord-client: zookeeper is closing")
+	ErrNothing                 = errors.New("coord-client: no server responsees to process")
+	ErrSessionMoved            = errors.New("coord-client: session moved to another server, so operation is ignored")
 )
 
 type opClientRequestType int
