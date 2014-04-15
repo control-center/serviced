@@ -166,6 +166,7 @@ type Service struct {
 	Snapshot        SnapshotCommands
 	Runs            map[string]string
 	RAMCommitment   uint64
+	Actions         map[string]string
 }
 
 // An endpoint that a Service exposes.
@@ -250,6 +251,7 @@ type ServiceDefinition struct {
 	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment uint64            // expected RAM commitment to use for scheduling
 	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
+	Actions       map[string]string // Map of commands that can be executed with 'serviced action ...'
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field

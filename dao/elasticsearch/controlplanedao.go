@@ -1396,6 +1396,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
+	svc.Actions = sd.Actions
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
