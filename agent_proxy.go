@@ -16,6 +16,7 @@ import (
 
 	"errors"
 	"strings"
+	"strconv"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -75,12 +76,17 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 
 // addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
-	key := "tcp:8787"
+	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceId = "controlplane"
 	endpoint.ContainerIp = "127.0.0.1"
-	endpoint.ContainerPort = 8787
-	endpoint.HostPort = 8787
+	port, err := strconv.Atoi(a.uiport[1:])
+	if err != nil {
+		glog.Errorf("Unable to interpret ui port.")
+		return
+	}
+	endpoint.ContainerPort = uint16(port)
+	endpoint.HostPort = uint16(port)
 	endpoint.HostIp = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)

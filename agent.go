@@ -48,6 +48,7 @@ const (
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string   // the connection string to the master agent
+	uiport			string   // the port to the ui (legacy was port 8787, now default 443)
 	hostId          string   // the hostID of the current host
 	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
@@ -65,10 +66,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.uiport = uiport
 	agent.dockerDns = dockerDns
 	agent.varPath = varPath
 	agent.mount = mount

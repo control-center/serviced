@@ -31,9 +31,6 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	if hostaliases != "" {
 		cfg.hostaliases = strings.Split(hostaliases, ":")
 	}
-	if len(cfg.bindPort) == 0 {
-		cfg.bindPort = ":8787"
-	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}

@@ -35,8 +35,8 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	controlplane_endpoint := dao.ApplicationEndpoint{}
 	controlplane_endpoint.ServiceId = "controlplane"
 	controlplane_endpoint.ContainerIp = "127.0.0.1"
-	controlplane_endpoint.ContainerPort = 8787
-	controlplane_endpoint.HostPort = 8787
+	controlplane_endpoint.ContainerPort = 443
+	controlplane_endpoint.HostPort = 443
 	controlplane_endpoint.HostIp = "127.0.0.1"
 	controlplane_endpoint.Protocol = "tcp"
 
@@ -47,23 +47,23 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 		t.Fatalf(" mapping failed missing key[\"tcp:8444\"]")
 	}
 
-	if _, ok := endpoints["tcp:8787"]; !ok {
-		t.Fatalf(" mapping failed missing key[\"tcp:8787\"]")
+	if _, ok := endpoints["tcp:443"]; !ok {
+		t.Fatalf(" mapping failed missing key[\"tcp:443\"]")
 	}
 
 	if len(endpoints["tcp:8444"]) != 1 {
 		t.Fatalf(" mapping failed len(\"tcp:8444\"])=%d expected 1", len(endpoints["tcp:8444"]))
 	}
 
-	if len(endpoints["tcp:8787"]) != 1 {
-		t.Fatalf(" mapping failed len(\"tcp:8787\"])=%d expected 1", len(endpoints["tcp:8787"]))
+	if len(endpoints["tcp:443"]) != 1 {
+		t.Fatalf(" mapping failed len(\"tcp:443\"])=%d expected 1", len(endpoints["tcp:443"]))
 	}
 
 	if *endpoints["tcp:8444"][0] != consumer_endpoint {
 		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8444"][0], consumer_endpoint)
 	}
 
-	if *endpoints["tcp:8787"][0] != controlplane_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8787"][0], controlplane_endpoint)
+	if *endpoints["tcp:443"][0] != controlplane_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:443"][0], controlplane_endpoint)
 	}
 }
