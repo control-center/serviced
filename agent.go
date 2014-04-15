@@ -27,10 +27,10 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
-	"strconv"
 )
 
 /*
@@ -229,10 +229,10 @@ func getDockerState(dockerId string) (containerState ContainerState, err error) 
 	err = json.Unmarshal(output, &containerStates)
 	if err != nil {
 		glog.Errorf("bad state	happened: %v,	\n\n\n%s", err, string(output))
-		return containerState, dao.ControlPlaneError{"no state"}
+		return containerState, dao.ControlPlaneError{Msg: "no state"}
 	}
 	if len(containerStates) < 1 {
-		return containerState, dao.ControlPlaneError{"no container"}
+		return containerState, dao.ControlPlaneError{Msg: "no container"}
 	}
 	return containerStates[0], err
 }
@@ -343,8 +343,8 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
 					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
 
-					frontEnd := proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}
-					backEnd := proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}
+					frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
+					backEnd := proxy.ProxyAddress{IP: sState.PrivateIp, Port: endpoint.PortNumber}
 
 					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
 					if err != nil {
@@ -464,7 +464,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	octal, err := strconv.ParseInt(permissions, 8, 32)
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {
@@ -522,7 +522,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 		sv, err := getSubvolume(a.varPath, service.PoolId, tenantId, a.vfs)
 		if err != nil {
-			glog.Fatal("Could not create subvolume: %s", err)
+			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
 
 			glog.Infof("sv: %v", sv)
@@ -531,7 +531,7 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
-				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
+				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
 
 			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {

@@ -149,7 +149,7 @@ func watchServices(cpDao dao.ControlPlane, conn *zk.Conn) {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)
 		serviceIds, _, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
 		if err != nil {
-			glog.Errorf("Leader unable to find any services: ", err)
+			glog.Errorf("Leader unable to find any services: %s", err)
 			return
 		}
 		for _, serviceID := range serviceIds {
