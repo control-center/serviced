@@ -38,7 +38,6 @@ func (c *Client) RemoveHost(hostId string) error {
 	return c.call("RemoveHost", hostId, nil)
 }
 
-
 // FindHostsInPool returns all hosts in a pool
 func (c *Client) FindHostsInPool(poolID string) ([]*host.Host, error) {
 	response := make([]*host.Host, 0)

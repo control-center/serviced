@@ -26,11 +26,11 @@ func (s *Server) GetPoolIPs(poolID string, reply *facade.PoolIPs) error {
 
 func (s *Server) GetResourcePools(empty interface{}, poolsReply *[]*pool.ResourcePool) error {
 	pools, err := s.f.GetResourcePools(s.context())
-	if err !=nil{
+	if err != nil {
 		return err
 	}
 
-	*poolsReply= pools
+	*poolsReply = pools
 	return nil
 
 }
