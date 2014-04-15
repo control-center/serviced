@@ -957,7 +957,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.visualization = zenoss.visualization;
-    $scope.visualization.url = 'http://' + $location.host() + ':8787';
+    $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
     $scope.visualization.urlPath = '/metrics/static/performance/query/';
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
     $scope.visualization.debug = false;
@@ -973,6 +973,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Name', name: 'running_tbl_running' },
         { id: 'StartedAt', name: 'running_tbl_start' },
         { id: 'View', name: 'running_tbl_actions' }
+    ]);
+
+    $scope.ip_addresses = buildTable('Interface', [
+        { id: 'Interface', name: 'ip_addresses_interface' },
+        { id: 'Ip', name: 'ip_addresses_ip' }
     ]);
 
     $scope.graph = buildTable('Name', [
@@ -2853,6 +2858,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
+        $scope.running.sort = 'InstanceId';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace

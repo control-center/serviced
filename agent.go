@@ -30,6 +30,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"strconv"
 )
 
 /*
@@ -47,6 +48,7 @@ const (
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string   // the connection string to the master agent
+	uiport			string   // the port to the ui (legacy was port 8787, now default 443)
 	hostId          string   // the hostID of the current host
 	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
@@ -64,10 +66,11 @@ var _ Agent = &HostAgent{}
 
 // Create a new HostAgent given the connection string to the
 
-func NewHostAgent(master string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.uiport = uiport
 	agent.dockerDns = dockerDns
 	agent.varPath = varPath
 	agent.mount = mount
@@ -459,7 +462,17 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	// this will fail if we are not running as root
-	return os.Chown(filename, uid, gid)
+	if err := os.Chown(filename, uid, gid); err != nil {
+		return err
+	}
+	octal, err := strconv.ParseInt(permissions, 8, 32)
+	if err!= nil {
+		return err
+	}
+	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Start a service instance and update the CP with the state.

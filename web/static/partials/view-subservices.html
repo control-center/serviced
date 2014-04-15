@@ -148,6 +148,7 @@
     <table class="table table-striped table-bordered table-hover" ng-show="running.data.length > 0">
       <thead>
         <tr>
+          <th>{{'running_tbl_instance_id'|translate}}</th>
           <th>{{'label_service_name'|translate}}</th>
 		  <th>{{'host'|translate}}</th>
 		  <th>{{'running_tbl_docker_id'|translate}}</th>
@@ -156,6 +157,7 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in running.data | orderBy:running.sort">
+          <td>{{app.InstanceId}}</td>
           <td>{{app.Name}}</td>
           <td>{{app.hostName}}</td>
           <td>{{app.DockerId}}</td>

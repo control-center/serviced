@@ -71,6 +71,7 @@ test: build_binary docker_ok
 	cd datastore && make test
 	cd domain && make test
 	cd facade && go test
+	cd rpc && make test
 
 docker_ok:
 	if docker ps >/dev/null; then \
