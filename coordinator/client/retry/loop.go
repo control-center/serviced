@@ -4,7 +4,6 @@
 package retry
 
 import (
-	"log"
 	"time"
 )
 
@@ -43,7 +42,6 @@ func (loop *Loop) loop() {
 	for {
 		select {
 		case err = <-loopRun:
-			log.Printf("runnloop: %s", err)
 			if err == nil {
 				loopRun = nil
 				go func() {
