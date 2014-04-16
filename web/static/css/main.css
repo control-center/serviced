@@ -755,3 +755,7 @@ rect {
 .control-buttons {
     margin-top: 20px;
 }
+
+.popover table{
+    white-space: nowrap;
+}
