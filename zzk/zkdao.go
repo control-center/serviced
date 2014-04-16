@@ -11,6 +11,7 @@ import (
 )
 
 const SERVICE_PATH = "/services"
+const HOSTS_PATH = "/hosts"
 const SCHEDULER_PATH = "/scheduler"
 const SNAPSHOT_PATH = "/snapshots"
 const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
@@ -287,7 +288,7 @@ func (zkdao *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error 
 }
 
 func HostPath(hostId string) string {
-	return SCHEDULER_PATH + "/" + hostId
+	return HOSTS_PATH + "/" + hostId
 }
 
 func ServicePath(serviceId string) string {

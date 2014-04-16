@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/serviced/coordinator/client"
 )
 
 var (
@@ -61,15 +62,14 @@ func (l *Leader) Current() (data []byte, err error) {
 	return data, err
 }
 
-func (l *Leader) TakeLead() error {
+func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	if l.lockPath != "" {
-		return ErrDeadlock
+		return nil, ErrDeadlock
 	}
 
 	prefix := l.prefix()
 
 	path := ""
-	var err error
 	for i := 0; i < 3; i++ {
 		path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, l.data, zklib.WorldACL(zklib.PermAll))
 		if err == zklib.ErrNoNode {
@@ -80,27 +80,27 @@ func (l *Leader) TakeLead() error {
 				pth += "/" + p
 				_, err := l.c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
 				if err != nil && err != zklib.ErrNodeExists {
-					return err
+					return nil, err
 				}
 			}
 		} else if err == nil {
 			break
 		} else {
-			return err
+			return nil, err
 		}
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	seq, err := parseSeq(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for {
 		children, _, err := l.c.conn.Children(l.path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		lowestSeq := seq
@@ -109,7 +109,7 @@ func (l *Leader) TakeLead() error {
 		for _, p := range children {
 			s, err := parseSeq(p)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if s < lowestSeq {
 				lowestSeq = s
@@ -128,7 +128,7 @@ func (l *Leader) TakeLead() error {
 		// Wait on the node next in line for the lock
 		_, _, ch, err := l.c.conn.GetW(l.path + "/" + prevSeqPath)
 		if err != nil && err != zklib.ErrNoNode {
-			return err
+			return nil, err
 		} else if err != nil && err == zklib.ErrNoNode {
 			// try again
 			continue
@@ -136,13 +136,18 @@ func (l *Leader) TakeLead() error {
 
 		ev := <-ch
 		if ev.Err != nil {
-			return ev.Err
+			return nil, ev.Err
 		}
 	}
 
-	l.seq = seq
-	l.lockPath = path
-	return nil
+	_, event, err := l.c.GetW(path)
+	if err == nil {
+		l.seq = seq
+		l.lockPath = path
+	} else {
+		l.c.Delete(path)
+	}
+	return event, err
 }
 
 func (l *Leader) ReleaseLead() error {

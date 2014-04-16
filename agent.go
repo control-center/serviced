@@ -770,9 +770,12 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 
 	for {
 
+		conn.CreateDir(hostPath)
+
+		glog.V(3).Infof("getting children of %s", hostPath)
 		children, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
-			glog.V(0).Infoln("Unable to read children, retrying.")
+			glog.V(0).Infof("Unable to read children, retrying: %s", err)
 			select {
 			case <-time.After(3 * time.Second):
 				return true

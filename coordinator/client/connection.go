@@ -12,7 +12,7 @@ type Lock interface {
 	Unlock() error
 }
 type Leader interface {
-	TakeLead() error
+	TakeLead() (<-chan Event, error)
 	ReleaseLead() error
 	Current() (data []byte, err error)
 }

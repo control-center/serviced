@@ -17,6 +17,9 @@ import (
 // Lead is executed by the "leader" of the control plane cluster to handle its
 // service/snapshot management responsibilities.
 func Lead(dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
+
+	glog.V(0).Info("Entering Lead()!")
+	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 	for {
 		if shutdownmode {
@@ -146,6 +149,7 @@ func watchServices(cpDao dao.ControlPlane, conn coordclient.Connection) {
 		}
 	}()
 
+	conn.CreateDir(zzk.SERVICE_PATH)
 	for {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)
 		serviceIds, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
