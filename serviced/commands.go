@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -120,6 +121,8 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"snapshots", "Show snapshots for a service"},
 
 		{"attach", "attach to a running service container and execute arbitrary bash command"},
+		{"backup", "Dump templates, services, images, and shared file system to a tgz file"},
+		{"restore", "Import templates, services, images, and shared files sytems from a tgz file"},
 	} {
 		help += fmt.Sprintf("    %-30.30s%s\n", command[0], command[1])
 	}
@@ -367,7 +370,7 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 		for _, pool := range pools {
 			fmt.Printf(outfmt,
 				pool.ID,
-				pool.ParentId,
+				pool.ParentID,
 				pool.CoreLimit,
 				pool.MemoryLimit,
 				pool.Priority)
@@ -1103,4 +1106,45 @@ func (cli *ServicedCli) CmdRecv(args ...string) error {
 	files = cmd.Args()[1:]
 	err := controlPlane.Send(service, &files)
 	return err
+}
+
+// Dump all templates and services to a tgz file.
+// This includes a snapshot of all shared file systems
+// and exports of all docker images the services depend on.
+func (cli *ServicedCli) CmdBackup(args ...string) error {
+	cmd := Subcmd("backup", "[BACKUP_DIRECTORY]", "Dump all templates and services to a tgz file")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	controlPlane := getClient()
+	var backupFilePath string
+	if err := controlPlane.Backup(cmd.Arg(0), &backupFilePath); err != nil {
+		glog.Fatalf("%v", err)
+		return err
+	} else {
+		fmt.Println("Backup saved to", backupFilePath)
+		return nil
+	}
+}
+
+// Restore templates, services, snapshots, and docker images from a tgz file.
+// This is the inverse of CmdBackup.
+func (cli *ServicedCli) CmdRestore(args ...string) error {
+	cmd := Subcmd("backup", "[BACKUP_FILE_PATH}]", "Restore services from a tgz file")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if len(cmd.Args()) != 1 {
+		cmd.Usage()
+		return nil
+	}
+	controlPlane := getClient()
+	var unused int
+	path, e := filepath.Abs(cmd.Arg(0))
+	if e != nil {
+		glog.Fatalf("Could not convert '%s' to an absolute file path: %v", cmd.Arg(0), e)
+		return e
+	}
+	path = filepath.Clean(path)
+	return controlPlane.Restore(filepath.Clean(path), &unused)
 }

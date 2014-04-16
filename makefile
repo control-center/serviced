@@ -68,10 +68,10 @@ test: build_binary docker_ok
 	cd web && go test
 	cd serviced && go test
 	cd utils && go test
-	cd datastore && test
-	cd domain && test
-	cd facade && test
-	cd rpc && test
+	cd datastore && make test
+	cd domain && make test
+	cd facade && go test
+	cd rpc && make test
 
 docker_ok:
 	if docker ps >/dev/null; then \

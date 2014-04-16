@@ -9,7 +9,7 @@ import "time"
 // ResourcePool A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	ID          string // Unique identifier for resource pool, eg "default"
-	ParentId    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
+	ParentID    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
 	Priority    int    // relative priority of resource pools, used for CPU priority
 	CoreLimit   int    // Number of cores on the host available to serviced
 	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
@@ -17,7 +17,7 @@ type ResourcePool struct {
 	UpdatedAt   time.Time
 }
 
-// NewResourcePool creates new ResourcePool
+// New creates new ResourcePool
 func New(id string) *ResourcePool {
 	pool := &ResourcePool{}
 	pool.ID = id

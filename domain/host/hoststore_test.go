@@ -6,7 +6,6 @@ package host
 
 import (
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
 	"github.com/zenoss/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
@@ -27,13 +26,13 @@ var _ = Suite(&S{
 
 type S struct {
 	elastic.ElasticTest
-	ctx context.Context
+	ctx datastore.Context
 	hs  *HostStore
 }
 
 func (s *S) SetUpTest(c *C) {
-	context.Register(s.Driver())
-	s.ctx = context.Get()
+	datastore.Register(s.Driver())
+	s.ctx = datastore.Get()
 	s.hs = NewStore()
 }
 
@@ -96,6 +95,35 @@ func (s *S) Test_HostCRUD(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
+}
+
+func (s *S) TestDaoGetHostWithIPs(t *C) {
+	//Add host to test scenario where host exists but no IP resource registered
+	h, err := Build("", "pool-id", []string{}...)
+	h.ID = "TestDaoGetHostWithIPs"
+	h.IPs = []HostIPResource{
+		HostIPResource{h.ID, "testip", "ifname"},
+		HostIPResource{h.ID, "testip2", "ifname"},
+	}
+	err = s.hs.Put(s.ctx, HostKey(h.ID), h)
+	defer s.hs.Delete(s.ctx, HostKey(h.ID))
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return
+	}
+
+	var resultHost Host
+	err = s.hs.Get(s.ctx, HostKey(h.ID), &resultHost)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return
+	}
+	if len(resultHost.IPs) != 2 {
+		t.Errorf("Expected %v IPs, got %v", 2, len(resultHost.IPs))
+	}
+	if !HostEquals(t, h, &resultHost) {
+		t.Error("Hosts did not match")
+	}
 }
 
 func (s *S) Test_GetHosts(t *C) {

@@ -8,26 +8,23 @@ import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/key"
-
 )
 
-//NewStore creates a HostStore
+//NewStore creates a ResourcePool store
 func NewStore() *Store {
 	return &Store{}
 }
 
-//HostStore type for interacting with Host persistent storage
+//Store type for interacting with ResourcePool persistent storage
 type Store struct {
 	datastore.DataStore
 }
 
 //GetResourcePools Get a list of all the resource pools
-func (ps *Store) GetResourcePools(ctx context.Context) ([]*ResourcePool, error) {
+func (ps *Store) GetResourcePools(ctx datastore.Context) ([]*ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:Id")
+	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -36,9 +33,9 @@ func (ps *Store) GetResourcePools(ctx context.Context) ([]*ResourcePool, error) 
 	return convert(results)
 }
 
-//Key creates a Key suitable for getting, putting and deleting Hosts
-func Key(id string) key.Key {
-	return key.New(kind, id)
+//Key creates a Key suitable for getting, putting and deleting ResourcePools
+func Key(id string) datastore.Key {
+	return datastore.NewKey(kind, id)
 }
 
 func convert(results datastore.Results) ([]*ResourcePool, error) {

@@ -32,10 +32,12 @@ type PoolIPs struct {
 
 // GetPoolIPs gets all IPs available to a Pool
 func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error) {
+	glog.V(0).Infof("Facade.GetPoolIPs: %+v", poolID)
 	hosts, err := f.FindHostsInPool(ctx, poolID)
 	if err != nil {
 		return nil, err
 	}
+	glog.V(0).Infof("Facade.GetPoolIPs: found hosts %v", hosts)
 	hostIPs := make([]host.HostIPResource, 0)
 	for _, h := range hosts {
 		hostIPs = append(hostIPs, h.IPs...)

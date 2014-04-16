@@ -43,7 +43,7 @@ func GetIPAddress() (ip string, err error) {
 	return ip, err
 }
 
-// getMemorySize attempts to get the size of the installed RAM.
+// GetMemorySize attempts to get the size of the installed RAM.
 func GetMemorySize() (size uint64, err error) {
 	file, err := os.Open(meminfoFile)
 	if err != nil {

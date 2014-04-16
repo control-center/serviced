@@ -191,9 +191,30 @@ func (ed *elasticDriver) postMappings() error {
 	return nil
 }
 
+func (ed *elasticDriver) deleteIndex() error {
+	url := ed.indexURL()
+	glog.Infof("Deleting Index %v", url)
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil{
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil{
+		return err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	glog.Infof("Delete response %s", body)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ed *elasticDriver) postIndex() error {
 	url := ed.indexURL()
-	glog.Infof("Posting Index to %s", url)
+	glog.Infof("Posting Index to %v", url)
 
 	config := make(map[string]interface{})
 	config["settings"] = ed.settings
@@ -242,3 +263,4 @@ func (ed *elasticDriver) postIndex() error {
 	}
 	return nil
 }
+

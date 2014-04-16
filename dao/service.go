@@ -38,6 +38,9 @@ func (a *Service) Equals(b *Service) bool {
 	if a.Launch != b.Launch {
 		return false
 	}
+	if a.Hostname != b.Hostname {
+		return false
+	}
 	if a.ParentServiceId != b.ParentServiceId {
 		return false
 	}

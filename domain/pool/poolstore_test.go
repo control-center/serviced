@@ -5,14 +5,12 @@
 package pool
 
 import (
-	//	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"testing"
-	//	"time"
-	"github.com/zenoss/serviced/datastore"
+	"time"
 )
 
 // This plumbs gocheck into testing
@@ -28,13 +26,13 @@ var _ = Suite(&S{
 
 type S struct {
 	elastic.ElasticTest
-	ctx context.Context
+	ctx datastore.Context
 	ps  *Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	context.Register(s.Driver())
-	s.ctx = context.Get()
+	datastore.Register(s.Driver())
+	s.ctx = datastore.Get()
 	s.ps = NewStore()
 }
 
@@ -44,7 +42,7 @@ func (s *S) Test_PoolCRUD(t *C) {
 	pool := New("testID")
 	pool2 := ResourcePool{}
 
-	if err:= s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err){
+	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
 
@@ -74,39 +72,42 @@ func (s *S) Test_PoolCRUD(t *C) {
 
 }
 
-//func (s *S) Test_GetPools(t *C) {
-//	defer s.ps.Delete(s.ctx, Key("Test_GetHosts1"))
-//	defer s.ps.Delete(s.ctx, Key("Test_GetHosts2"))
-//
-//	pool, err := Build("", "pool-id", []string{}...)
-//	pool.ID = "Test_GetHosts1"
-//	if err != nil {
-//		t.Fatalf("Unexpected error building pool: %v", err)
-//	}
-//	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	}
-//	time.Sleep(1000 * time.Millisecond)
-//	pools, err := s.ps.GetN(s.ctx, 1000)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	} else if len(pools) != 1 {
-//		t.Errorf("Expected %v results, got %v :%v", 1, len(pools), pools)
-//	}
-//
-//	pool.ID = "Test_GetHosts2"
-//	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	}
-//
-//	time.Sleep(1000 * time.Millisecond)
-//	pools, err = s.ps.GetN(s.ctx, 1000)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	} else if len(pools) != 2 {
-//		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
-//	}
-//
-//}
+func (s *S) Test_GetPools(t *C) {
+	defer s.ps.Delete(s.ctx, Key("Test_GetPools1"))
+	defer s.ps.Delete(s.ctx, Key("Test_GetPools2"))
+
+	pools, err := s.ps.GetResourcePools(s.ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 0 {
+		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
+	}
+
+	pool := New("Test_GetPools1")
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	time.Sleep(2000 * time.Millisecond)
+	pools, err = s.ps.GetResourcePools(s.ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 1 {
+		t.Errorf("Expected %v results, got %v :%v", 1, len(pools), pools)
+	}
+
+	pool.ID = "Test_GetHosts2"
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	time.Sleep(2000 * time.Millisecond)
+	pools, err = s.ps.GetResourcePools(s.ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 2 {
+		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
+	}
+
+}

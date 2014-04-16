@@ -11,10 +11,10 @@
 			"ImportPath": "github.com/zenoss/go-json-rest",
 			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
 		},
-        {
-            "ImportPath": "github.com/googollee/go-socket.io",
-            "Rev": "7a2b443286222187f996ceede5d353469be6853a"
-        },
+		{
+			"ImportPath": "github.com/googollee/go-socket.io",
+			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
+		},
 		{
 			"ImportPath": "github.com/araddon/gou",
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
@@ -30,11 +30,20 @@
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
 			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit",
-			"Rev": "867b2a90c228f62cdcd44907ceef279a2d8f1ac5"
+			"Rev": "e128a606e39fa63c6b4fd6e53a1d88cf00aad868"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gocapability/capability",
 			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/activation",
+			"#### ImportPath also affected:": "github.com/coreos/go-systemd/dbus",
+			"Rev": "8514b9fc57569e6dfc5e88a6411be351afcc69b4"
+		},
+		{
+			"ImportPath": "github.com/godbus/dbus",
+			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
 		},
 		{
 			"ImportPath": "github.com/mattbaird/elastigo/api",
@@ -66,7 +75,11 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Rev": "144872e87874cf77d43d6d341573811737e42173"
+			"Rev": "e2b728adb2052b6809b1b504fd2fc2a774ae1b83"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+			"Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
 		}
 	]
 }

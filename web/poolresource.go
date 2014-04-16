@@ -5,7 +5,7 @@
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/pool"
 

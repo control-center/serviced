@@ -30,6 +30,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"strconv"
 )
 
 /*
@@ -455,7 +456,17 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	// this will fail if we are not running as root
-	return os.Chown(filename, uid, gid)
+	if err := os.Chown(filename, uid, gid); err != nil {
+		return err
+	}
+	octal, err := strconv.ParseInt(permissions, 8, 32)
+	if err!= nil {
+		return err
+	}
+	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Start a service instance and update the CP with the state.
@@ -625,8 +636,14 @@ func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats
 		}
 	}
 
+	// Add hostname if set
+	hostname := ""
+	if service.Hostname != "" {
+		hostname = fmt.Sprintf("-h %s", service.Hostname)
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)

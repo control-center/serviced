@@ -198,6 +198,7 @@ func (this *ServiceConfig) ServeUI() {
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
+
 		// Login
 		rest.Route{"POST", "/login", this.UnAuthorizedClient(RestLogin)},
 		rest.Route{"DELETE", "/login", RestLogout},

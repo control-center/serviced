@@ -1,0 +1,25 @@
+<div class="modal fade" id="addVHost" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
+                <span class="modal-title">{{'add_vhost' | translate}}</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="add_vhost_vhost">{{'add_vhost_name'|translate}}</label>
+                    <input type="text" id="add_vhost_vhost" ng-model="vhosts.add.name" class="form-control"></input>
+                </div>
+
+                <div class="form-group">
+                    <label for="add_vhost_application">{{'add_vhost_application_endpoint'|translate}}</label>
+                    <select id="add_vhost_application" ng-model="vhosts.add.app_ep" ng-options="opt as opt.Value for opt in vhosts.options"  class="form-control"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
+                <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="addVHost()">{{'btn_add'|translate}}</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->

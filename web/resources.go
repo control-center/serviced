@@ -51,7 +51,7 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	glog.Infof("Automatically assigned IP addresses to service: %v", tenantId)
 	// end of automatic IP assignment
 
-	w.WriteJson(&SimpleResponse{"Deployed app template", servicesLinks()})
+	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
 
 //

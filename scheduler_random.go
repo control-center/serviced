@@ -10,7 +10,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore/context"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/domain/host"
@@ -20,7 +20,7 @@ type leader struct {
 	facade  *facade.Facade
 	dao     dao.ControlPlane
 	conn    *zk.Conn
-	context context.Context
+	context datastore.Context
 }
 
 // Lead is executed by the "leader" of the control plane cluster to handle its
@@ -211,7 +211,7 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		var serviceStates []*dao.ServiceState
 		err = zzk.GetServiceStates(l.conn, &serviceStates, serviceID)
 		if err != nil {
-			glog.Error("Unable to retrieve running service states: ", err)
+			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
 			return
 		}
 
@@ -277,9 +277,47 @@ func (l *leader) updateServiceInstances( service *dao.Service, serviceStates []*
 
 }
 
+// getFreeInstanceIds looks up running instances of this service and returns n
+// unused instance ids.
+// Note: getFreeInstanceIds does NOT validate that instance ids do not exceed
+// max number of instances for the service. We're already doing that check in
+// another, better place. It is guaranteed that either nil or n ids will be
+// returned.
+func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
+	var (
+		states []*dao.ServiceState
+		ids    []int
+	)
+	// Look up existing instances
+	err := zzk.GetServiceStates(conn, &states, svc.Id)
+	if err != nil {
+		return nil, err
+	}
+	// Populate the used set
+	used := make(map[int]struct{})
+	for _, s := range states {
+		used[s.InstanceId] = struct{}{}
+	}
+	// Find n unused ids
+	for i := 0; len(ids) < n; i++ {
+		if _, ok := used[i]; !ok {
+			// Id is unused
+			ids = append(ids, i)
+		}
+	}
+	return ids, nil
+}
 func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart	, len(hosts))
-	for i := 0; i < numToStart; i++ {
+
+	// Get numToStart free instance ids
+	freeids, err := getFreeInstanceIds(l.conn, service, numToStart)
+	if err != nil {
+		return err
+	}
+
+	// Start up an instance per id
+	for _, i := range freeids {
 		servicehost, err := l.selectPoolHostForService(service, hosts)
 		if err != nil {
 			return err
@@ -293,6 +331,7 @@ func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host,
 		}
 
 		serviceState.HostIp = servicehost.IPAddr
+		serviceState.InstanceId = i
 		err = zzk.AddServiceState(l.conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)

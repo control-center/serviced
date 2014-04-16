@@ -18,9 +18,9 @@
           <div class="col-md-8 content">
             <div ng-include="step_page" class="scroll"></div>
             <div class="navigation">
-              <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">{{'btn_next'|translate}}</button>
-              <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-show="hasFinish()">{{'btn_start_now'|translate}}</button>
               <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()">{{'btn_back'|translate}}</button>
+              <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">{{'btn_next'|translate}}</button>
+              <button type="button" class="btn btn-primary" ng-click="wizard_finish()" ng-show="hasFinish()">{{'btn_save'|translate}}</button>
             </div>
           </div>
         </div>

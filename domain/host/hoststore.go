@@ -7,14 +7,12 @@ package host
 import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/key"
+	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"github.com/zenoss/glog"
 )
 
 //NewStore creates a HostStore
@@ -28,7 +26,7 @@ type HostStore struct {
 }
 
 // FindHostsWithPoolID returns all hosts with the given poolid.
-func (hs *HostStore) FindHostsWithPoolID(ctx context.Context, poolID string) ([]*Host, error) {
+func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]*Host, error) {
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolId not allowed")
@@ -46,7 +44,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx context.Context, poolID string) ([]
 }
 
 // GetN returns all hosts up to limit.
-func (hs *HostStore) GetN(ctx context.Context, limit uint64) ([]*Host, error) {
+func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]*Host, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
@@ -58,9 +56,9 @@ func (hs *HostStore) GetN(ctx context.Context, limit uint64) ([]*Host, error) {
 }
 
 //HostKey creates a Key suitable for getting, putting and deleting Hosts
-func HostKey(id string) key.Key {
+func HostKey(id string) datastore.Key {
 	id = strings.TrimSpace(id)
-	return key.New(kind, id)
+	return datastore.NewKey(kind, id)
 }
 
 func convert(results datastore.Results) ([]*Host, error) {

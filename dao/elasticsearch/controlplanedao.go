@@ -16,7 +16,7 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore/context"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
@@ -34,9 +34,14 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
 )
 
 //assert interface
@@ -130,27 +135,24 @@ var (
 	//model existance functions
 	serviceExists      func(string) (bool, error) = exists(&Pretty, "controlplane", "service")
 	serviceStateExists func(string) (bool, error) = exists(&Pretty, "controlplane", "servicestate")
-	//	resourcePoolExists func(string) (bool, error) = exists(&Pretty, "controlplane", "resourcepool")
-	userExists func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
+	userExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
 	//model index functions
-	newService func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
-	//	newResourcePool           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "resourcepool")
+	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
 	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
 	newUser                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
 
 	//model index functions
-	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
-	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
-	//	indexResourcePool func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "resourcepool")
-	indexUser func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
+	indexService                func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
+	indexServiceState           func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
+	indexServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicetemplatewrapper")
+	indexUser                   func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
 
 	//model delete functions
-	deleteService      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
-	deleteServiceState func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
-	//	deleteResourcePool           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "resourcepool")
+	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
+	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
 	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
 	deleteAddressAssignment      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
 	deleteUser                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
@@ -339,30 +341,46 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
-			glog.V(2).Infof("Finding exports for import: %+v", endpoint)
-			key := fmt.Sprintf("%s:%d", endpoint.Protocol, endpoint.PortNumber)
-			if _, exists := remoteEndpoints[key]; !exists {
-				remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
+			matchedEndpoint := false
+			applicationRegex, err := regexp.Compile(fmt.Sprintf("^%s$", endpoint.Application))
+			if err != nil {
+				continue //Don't spam error message; it was reported at validation time
 			}
-
 			for _, ss := range states {
-				port := ss.GetHostPort(endpoint.Protocol, endpoint.Application, endpoint.PortNumber)
-				glog.V(2).Info("Remote port: ", port)
-				if port > 0 {
+				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(applicationRegex)
+				if match {
+					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
+						service.Name, endpoint.Application, ss.HostIp, hostPort, protocol, containerPort)
+					// if port/protocol undefined in the import, use the export's values
+					if endpoint.PortNumber != 0 {
+						containerPort = endpoint.PortNumber
+					}
+					if endpoint.Protocol != "" {
+						protocol = endpoint.Protocol
+					}
 					var ep dao.ApplicationEndpoint
 					ep.ServiceId = ss.ServiceId
-					ep.ContainerPort = endpoint.PortNumber
-					ep.HostPort = port
+					ep.ContainerPort = containerPort
+					ep.HostPort = hostPort
 					ep.HostIp = ss.HostIp
 					ep.ContainerIp = ss.PrivateIp
-					ep.Protocol = endpoint.Protocol
+					ep.Protocol = protocol
+					key := fmt.Sprintf("%s:%d", protocol, containerPort)
+					if _, exists := remoteEndpoints[key]; !exists {
+						remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+					}
 					remoteEndpoints[key] = append(remoteEndpoints[key], &ep)
+					matchedEndpoint = true
 				}
+			}
+			if !matchedEndpoint {
+				glog.V(1).Infof("Unmatched endpoint %s.%s", service.Name, endpoint.Application)
 			}
 		}
 
 		*response = remoteEndpoints
-		glog.V(1).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
+		glog.V(2).Infof("Return for %s is %+v", serviceId, remoteEndpoints)
 	}
 	return
 }
@@ -528,6 +546,45 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 
 	}
 	return this.updateService(&service)
+}
+
+var updateServiceTemplate = func(template dao.ServiceTemplate) error {
+	id := strings.TrimSpace(template.Id)
+	if id == "" {
+		return errors.New("empty Template Id not allowed")
+	}
+	template.Id = id
+	if e := template.Validate(); e != nil {
+		return fmt.Errorf("Error validating template: %v", e)
+	}
+	data, e := json.Marshal(template)
+	if e != nil {
+		glog.Errorf("Failed to marshal template")
+		return e
+	}
+	var wrapper dao.ServiceTemplateWrapper
+	templateExists := false
+	if e := getServiceTemplateWrapper(id, &wrapper); e == nil {
+		templateExists = true
+	}
+	wrapper.Id = id
+	wrapper.Name = template.Name
+	wrapper.Description = template.Description
+	wrapper.ApiVersion = 1
+	wrapper.TemplateVersion = 1
+	wrapper.Data = string(data)
+
+	if templateExists {
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
+		response, e := indexServiceTemplateWrapper(id, wrapper)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
+		return e
+	} else {
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
+		response, e := newServiceTemplateWrapper(id, wrapper)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
+		return e
+	}
 }
 
 //
@@ -776,7 +833,7 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 //		return errors.New("Illegal poolId: empty poolId not allowed")
 //	}
 //
-//	hosts, err := this.facade.FindHostsInPool(context.Get(), id)
+//	hosts, err := this.facade.FindHostsInPool(datastore.Get(), id)
 //	if err != nil {
 //		return err
 //	}
@@ -867,7 +924,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	}
 
 	// populate poolsIpInfo
-	poolIPs, err := this.facade.GetPoolIPs(context.Get(), service.PoolId)
+	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), service.PoolId)
 	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
@@ -1113,7 +1170,7 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 		return err
 	}
 
-	pool, err := this.facade.GetResourcePool(context.Get(), request.PoolId)
+	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolId)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", request.PoolId)
 		return err
@@ -1171,6 +1228,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
+	svc.Hostname = sd.Hostname
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
@@ -1296,7 +1354,9 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 }
 
 func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate, unused *int) error {
-	return fmt.Errorf("unimplemented UpdateServiceTemplate")
+	result := updateServiceTemplate(template)
+	go this.reloadLogstashContainer() // don't block the main thread
+	return result
 }
 
 func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error {
@@ -1387,7 +1447,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 
 func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 
-	host, err := this.facade.GetHost(context.Get(), hostId)
+	host, err := this.facade.GetHost(datastore.Get(), hostId)
 	if err != nil {
 		return err
 	}

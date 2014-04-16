@@ -12,8 +12,8 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -24,7 +24,7 @@ import (
 
 	"reflect"
 	"strconv"
-
+	"strings"
 	"testing"
 	"time"
 )
@@ -47,26 +47,14 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
-		Index: "controlplane",
-		Mappings: map[string]string{
-			"host":         "../../domain/host/host_mapping.json",
-			"resourcepool": "../../domain/pool/pool_mapping.json",
-		},
-	}})
+var _ = Suite(&daoTest{facade.FacadeTest{DomainPath: "../../domain"}})
 
-type S struct {
-	elastic.ElasticTest
-	ctx context.Context
-	tf  *facade.Facade
+type daoTest struct {
+	facade.FacadeTest
 }
 
-func (s *S) SetUpSuite(c *C) {
-	s.ElasticTest.SetUpSuite(c)
-	context.Register(s.Driver())
-	s.ctx = context.Get()
-	s.tf = facade.New()
+func (dt *daoTest) SetUpSuite(c *C) {
+	dt.FacadeTest.SetUpSuite(c)
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	isvcs.Mgr.Wipe()
@@ -76,11 +64,11 @@ func (s *S) SetUpSuite(c *C) {
 		c.Fatalf("Could not start es container: %s", err)
 	}
 
-	if err := s.tf.CreateDefaultPool(s.ctx); err != nil {
+	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
 		c.Fatalf("could not create default pool")
 	}
 	var err error
-	controlPlaneDao, err = NewControlSvc("localhost", 9200, s.tf, addresses, "/tmp", "rsync")
+	controlPlaneDao, err = NewControlSvc("localhost", 9200, dt.Facade, addresses, "/tmp", "rsync")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -93,214 +81,9 @@ func (s *S) SetUpSuite(c *C) {
 			controlPlaneDao.RemoveService(id, &unused)
 		}
 	}
-
 }
 
-//func (s *S) TestNewControlPlaneDao(t *C) {
-//	if err != nil {
-//		t.Errorf("Did not expect error: %s", err)
-//		t.Fail()
-//	}
-//}
-
-//func (s *S) TestDao_NewResourcePool(t *C) {
-//	controlPlaneDao.RemoveResourcePool("default", &unused)
-//	pool := dao.ResourcePool{}
-//	err := controlPlaneDao.AddResourcePool(pool, &id)
-//	if err == nil {
-//		t.Errorf("Expected failure to create resource pool %-v", pool)
-//		t.Fail()
-//	}
-//
-//	pool.Id = "default"
-//	err = controlPlaneDao.AddResourcePool(pool, &id)
-//	if err != nil {
-//		t.Errorf("Failure creating resource pool %-v with error: %s", pool, err)
-//		t.Fail()
-//	}
-//
-//	err = controlPlaneDao.AddResourcePool(pool, &id)
-//	if err == nil {
-//		t.Errorf("Expected error creating redundant resource pool %-v", pool)
-//		t.Fail()
-//	}
-//}
-//func (s *S) TestDao_UpdateResourcePool(t *C) {
-//	controlPlaneDao.RemoveResourcePool("default", &unused)
-//
-//	pool, _ := dao.NewResourcePool("default")
-//	controlPlaneDao.AddResourcePool(*pool, &id)
-//
-//	pool.Priority = 1
-//	pool.CoreLimit = 1
-//	pool.MemoryLimit = 1
-//	err := controlPlaneDao.UpdateResourcePool(*pool, &unused)
-//
-//	if err != nil {
-//		t.Errorf("Failure updating resource pool %-v with error: %s", pool, err)
-//		t.Fail()
-//	}
-//
-//	result := dao.ResourcePool{}
-//	controlPlaneDao.GetResourcePool("default", &result)
-//	result.CreatedAt = pool.CreatedAt
-//	result.UpdatedAt = pool.UpdatedAt
-//	if *pool != result {
-//		t.Errorf("%+v != %+v", *pool, result)
-//		t.Fail()
-//	}
-//}
-//
-//func (s *S) TestDao_GetResourcePool(t *C) {
-//	controlPlaneDao.RemoveResourcePool("default", &unused)
-//	pool, _ := dao.NewResourcePool("default")
-//	pool.Priority = 1
-//	pool.CoreLimit = 1
-//	pool.MemoryLimit = 1
-//	controlPlaneDao.AddResourcePool(*pool, &id)
-//
-//	result := dao.ResourcePool{}
-//	err := controlPlaneDao.GetResourcePool("default", &result)
-//	result.CreatedAt = pool.CreatedAt
-//	result.UpdatedAt = pool.UpdatedAt
-//	if err == nil {
-//		if *pool != result {
-//			t.Errorf("Unexpected ResourcePool: expected=%+v, actual=%+v", pool, result)
-//		}
-//	} else {
-//		t.Errorf("Unexpected Error Retrieving ResourcePool: err=%s", err)
-//	}
-//}
-//
-//func (s *S) TestDao_GetResourcePools(t *C) {
-//	controlPlaneDao.RemoveResourcePool("default", &unused)
-//
-//	pool, _ := dao.NewResourcePool("default")
-//	pool.Priority = 1
-//	pool.CoreLimit = 2
-//	pool.MemoryLimit = 3
-//	controlPlaneDao.AddResourcePool(*pool, &id)
-//
-//	var result map[string]*dao.ResourcePool
-//	err := controlPlaneDao.GetResourcePools(new(dao.EntityRequest), &result)
-//	if err == nil && len(result) == 1 {
-//		result["default"].CreatedAt = pool.CreatedAt
-//		result["default"].UpdatedAt = pool.UpdatedAt
-//		if *result["default"] != *pool {
-//			t.Errorf("expected [%+v] actual=%s", *pool, result)
-//			t.Fail()
-//		}
-//	} else {
-//		t.Errorf("Unexpected Error Retrieving ResourcePools: err=%s", result)
-//		t.Fail()
-//	}
-//}
-
-//func (s *S) TestDao_AddHost(t *C) {
-//	host := dao.Host{}
-//	controlPlaneDao.RemoveHost("default", &unused)
-//	err := controlPlaneDao.AddHost(host, &id)
-//	if err == nil {
-//		t.Errorf("Expected failure to create host %-v", host)
-//		t.Fail()
-//	}
-//
-//	host.Id = "default"
-//	err = controlPlaneDao.AddHost(host, &id)
-//	if err != nil {
-//		t.Errorf("Failure creating host %-v with error: %s", host, err)
-//		t.Fail()
-//	}
-//
-//	err = controlPlaneDao.AddHost(host, &id)
-//	if err == nil {
-//		t.Errorf("Expected error creating redundant host %-v", host)
-//		t.Fail()
-//	}
-//}
-//func (s *S) TestDao_UpdateHost(t *C) {
-//	controlPlaneDao.RemoveHost("default", &unused)
-//
-//	host := dao.NewHost()
-//	host.Id = "default"
-//	controlPlaneDao.AddHost(*host, &id)
-//
-//	host.Name = "hostname"
-//	host.IpAddr = "127.0.0.1"
-//	err := controlPlaneDao.UpdateHost(*host, &unused)
-//	if err != nil {
-//		t.Errorf("Failure updating host %-v with error: %s", host, err)
-//		t.Fail()
-//	}
-//
-//	var result = dao.Host{}
-//	controlPlaneDao.GetHost("default", &result)
-//	result.CreatedAt = host.CreatedAt
-//	result.UpdatedAt = host.UpdatedAt
-//
-//	if !reflect.DeepEqual(*host, result) {
-//		t.Errorf("%+v != %+v", result, host)
-//		t.Fail()
-//	}
-//}
-//
-//func (s *S) TestDao_GetHost(t *C) {
-//	controlPlaneDao.RemoveHost("default", &unused)
-//
-//	host := dao.NewHost()
-//	host.Id = "default"
-//	controlPlaneDao.AddHost(*host, &id)
-//
-//	var result = dao.Host{}
-//	err := controlPlaneDao.GetHost("default", &result)
-//	result.CreatedAt = host.CreatedAt
-//	result.UpdatedAt = host.UpdatedAt
-//	if err == nil {
-//		if !reflect.DeepEqual(*host, result) {
-//			t.Errorf("Unexpected Host: expected=%+v, actual=%+v", host, result)
-//		}
-//	} else {
-//		t.Errorf("Unexpected Error Retrieving Host: err=%s", err)
-//	}
-//}
-//
-//func (s *S) TestDao_GetHosts(t *C) {
-//	controlPlaneDao.RemoveHost("0", &unused)
-//	controlPlaneDao.RemoveHost("1", &unused)
-//	controlPlaneDao.RemoveHost("default", &unused)
-//
-//	host := dao.NewHost()
-//	host.Id = "default"
-//	host.Name = "hostname"
-//	host.IpAddr = "127.0.0.1"
-//	err := controlPlaneDao.AddHost(*host, &id)
-//	if err == nil {
-//		t.Errorf("Expected error on host having loopback ip address")
-//		t.Fail()
-//	}
-//	host.IpAddr = "10.0.0.1"
-//	err = controlPlaneDao.AddHost(*host, &id)
-//	if err != nil {
-//		t.Errorf("Unexpected error on adding host: %s", err)
-//		t.Fail()
-//	}
-//
-//	var hosts map[string]*dao.Host
-//	err = controlPlaneDao.GetHosts(new(dao.EntityRequest), &hosts)
-//	if err == nil && len(hosts) == 1 {
-//		hosts["default"].CreatedAt = host.CreatedAt
-//		hosts["default"].UpdatedAt = host.UpdatedAt
-//		if !reflect.DeepEqual(*hosts["default"], *host) {
-//			t.Errorf("expected [%+v] actual=%s", host, hosts)
-//			t.Fail()
-//		}
-//	} else {
-//		t.Errorf("Unexpected Error Retrieving Hosts: hosts=%+v, err=%s", hosts, err)
-//		t.Fail()
-//	}
-//}
-
-func (s *S) TestDao_NewService(t *C) {
+func (dt *daoTest) TestDao_NewService(t *C) {
 	service := dao.Service{}
 	controlPlaneDao.RemoveService("default", &unused)
 	err := controlPlaneDao.AddService(service, &id)
@@ -323,7 +106,7 @@ func (s *S) TestDao_NewService(t *C) {
 	}
 }
 
-func (s *S) TestDao_UpdateService(t *C) {
+func (dt *daoTest) TestDao_UpdateService(t *C) {
 	controlPlaneDao.RemoveService("default", &unused)
 
 	service, _ := dao.NewService()
@@ -349,7 +132,7 @@ func (s *S) TestDao_UpdateService(t *C) {
 	}
 }
 
-func (s *S) TestDao_GetService(t *C) {
+func (dt *daoTest) TestDao_GetService(t *C) {
 	controlPlaneDao.RemoveService("default", &unused)
 
 	service, _ := dao.NewService()
@@ -371,7 +154,7 @@ func (s *S) TestDao_GetService(t *C) {
 	}
 }
 
-func (s *S) TestDao_GetServices(t *C) {
+func (dt *daoTest) TestDao_GetServices(t *C) {
 	controlPlaneDao.RemoveService("0", &unused)
 	controlPlaneDao.RemoveService("1", &unused)
 	controlPlaneDao.RemoveService("2", &unused)
@@ -406,7 +189,7 @@ func (s *S) TestDao_GetServices(t *C) {
 	}
 }
 
-func (s *S) TestDao_StartService(t *C) {
+func (dt *daoTest) TestDao_StartService(t *C) {
 	controlPlaneDao.RemoveService("0", &unused)
 	controlPlaneDao.RemoveService("01", &unused)
 	controlPlaneDao.RemoveService("011", &unused)
@@ -464,7 +247,7 @@ func (s *S) TestDao_StartService(t *C) {
 	}
 }
 
-func (s *S) TestDao_GetTenantId(t *C) {
+func (dt *daoTest) TestDao_GetTenantId(t *C) {
 	controlPlaneDao.RemoveService("0", &unused)
 	controlPlaneDao.RemoveService("01", &unused)
 	controlPlaneDao.RemoveService("011", &unused)
@@ -514,25 +297,7 @@ func (s *S) TestDao_GetTenantId(t *C) {
 	}
 }
 
-//func testDaoHostExists(t *C) {
-//	found, err := hostExists("blam")
-//	if found || err != nil {
-//		t.Errorf("Found %v; error: %v", found, err)
-//		t.FailNow()
-//	}
-//
-//	host := dao.Host{}
-//	host.Id = "existsTest"
-//	err = controlPlaneDao.AddHost(host, &id)
-//	defer controlPlaneDao.RemoveHost("existsTest", &unused)
-//
-//	found, err = hostExists(id)
-//	if !found || err != nil {
-//		t.Errorf("Found %v; error: %v", found, err)
-//	}
-//}
-
-func (s *S) TestDaoValidServiceForStart(t *C) {
+func (dt *daoTest) TestDaoValidServiceForStart(t *C) {
 	testService := dao.Service{
 		Id: "TestDaoValidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
@@ -551,7 +316,7 @@ func (s *S) TestDaoValidServiceForStart(t *C) {
 	}
 }
 
-func (s *S) TestDaoInvalidServiceForStart(t *C) {
+func (dt *daoTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := dao.Service{
 		Id: "TestDaoInvalidServiceForStart_ServiceId",
 		Endpoints: []dao.ServiceEndpoint{
@@ -574,172 +339,79 @@ func (s *S) TestDaoInvalidServiceForStart(t *C) {
 	}
 }
 
-//func (s *S) TestDaoGetPoolsIPInfo(t *C) {
-//	assignIPsPool, _ := dao.NewResourcePool("assignIPsPoolID")
-//	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
-//	if err != nil {
-//		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
-//		t.Fail()
-//	}
-//
-//	ipAddress1 := "192.168.100.10"
-//	ipAddress2 := "10.50.9.1"
-//
-//	assignIPsHostIPResources := []dao.HostIPResource{}
-//	oneHostIPResource := dao.HostIPResource{}
-//	oneHostIPResource.HostId = HOSTID
-//	oneHostIPResource.IPAddress = ipAddress1
-//	oneHostIPResource.InterfaceName = "eth0"
-//	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
-//	oneHostIPResource.HostId = HOSTID
-//	oneHostIPResource.IPAddress = ipAddress2
-//	oneHostIPResource.InterfaceName = "eth1"
-//	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
-//
-//	assignIPsHost := dao.Host{}
-//	assignIPsHost.Id = HOSTID
-//	assignIPsHost.PoolId = assignIPsPool.Id
-//	assignIPsHost.IPs = assignIPsHostIPResources
-//	err = controlPlaneDao.AddHost(assignIPsHost, &id)
-//
-//	var poolsIpInfo []dao.HostIPResource
-//	err := controlPlaneDao.GetPoolsIPInfo(assignIPsPool.Id, &poolsIpInfo)
-//	if err != nil {
-//		t.Error("GetPoolIps failed")
-//	}
-//	if len(poolsIpInfo) != 2 {
-//		t.Error("Expected number of addresses: ", len(poolsIpInfo))
-//	}
-//
-//	if poolsIpInfo[0].IPAddress != ipAddress1 {
-//		t.Error("Unexpected IP address: ", poolsIpInfo[0].IPAddress)
-//	}
-//	if poolsIpInfo[1].IPAddress != ipAddress2 {
-//		t.Error("Unexpected IP address: ", poolsIpInfo[1].IPAddress)
-//	}
-//
-//	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
-//	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
-//}
+func (dt *daoTest) TestDaoAutoAssignIPs(t *C) {
+	assignIPsPool := pool.New("assignIPsPoolID")
+	fmt.Printf("%s\n", assignIPsPool.ID)
+	err := dt.Facade.AddResourcePool(dt.CTX, assignIPsPool)
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
 
-//func (s *S) TestDaoAutoAssignIPs(t *C) {
-//	assignIPsPool := pool.New("assignIPsPoolID")
-//	fmt.Printf("%s\n", assignIPsPool.Id)
-//	err = controlPlaneDao.AddResourcePool(*assignIPsPool, &id)
-//	if err != nil {
-//		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
-//		t.Fail()
-//	}
-//
-//	ipAddress1 := "192.168.100.10"
-//	ipAddress2 := "10.50.9.1"
-//
-//	assignIPsHostIPResources := []host.HostIPResource{}
-//	oneHostIPResource := host.HostIPResource{}
-//	oneHostIPResource.HostId = HOSTID
-//	oneHostIPResource.IPAddress = ipAddress1
-//	oneHostIPResource.InterfaceName = "eth0"
-//	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
-//	oneHostIPResource.HostId = HOSTID
-//	oneHostIPResource.IPAddress = ipAddress2
-//	oneHostIPResource.InterfaceName = "eth1"
-//	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
-//
-//	assignIPsHost := host.Host{}
-//	assignIPsHost.Id = HOSTID
-//	assignIPsHost.PoolId = assignIPsPool.Id
-//	assignIPsHost.IPs = assignIPsHostIPResources
-//	err = controlPlaneDao.AddHost(assignIPsHost, &id)
-//
-//	testService := dao.Service{
-//		Id:     "assignIPsServiceID",
-//		PoolId: assignIPsPool.Id,
-//		Endpoints: []dao.ServiceEndpoint{
-//			dao.ServiceEndpoint{
-//				Name:        "AssignIPsEndpointName",
-//				Protocol:    "tcp",
-//				PortNumber:  8081,
-//				Application: "websvc",
-//				Purpose:     "import",
-//				AddressConfig: dao.AddressResourceConfig{
-//					Port:     8081,
-//					Protocol: commons.TCP,
-//				},
-//			},
-//		},
-//	}
-//
-//	err = controlPlaneDao.AddService(testService, &id)
-//	if err != nil {
-//		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
-//	}
-//
-//	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
-//	err := controlPlaneDao.AssignIPs(assignmentRequest, nil)
-//	if err != nil {
-//		t.Error("AssignIPs failed: %v", err)
-//	}
-//
-//	assignments := []dao.AddressAssignment{}
-//	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
-//	if err != nil {
-//		t.Error("GetServiceAddressAssignments failed: %v", err)
-//	}
-//	if len(assignments) != 1 {
-//		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
-//	}
-//
-//	defer controlPlaneDao.RemoveService(testService.Id, &unused)
-//	defer controlPlaneDao.RemoveResourcePool(assignIPsPool.Id, &unused)
-//	defer controlPlaneDao.RemoveHost(assignIPsHost.Id, &unused)
-//}
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
 
-//func (s *S) TestDaoGetHostNoIPs(t *C) {
-//	//Add host to test scenario where host exists but no IP resource registered
-//	host := dao.Host{}
-//	host.Id = HOSTID
-//	err = controlPlaneDao.AddHost(host, &id)
-//	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//		return
-//	}
-//
-//	resultHost := dao.Host{}
-//	err = controlPlaneDao.GetHost(HOSTID, &resultHost)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//		return
-//	}
-//	if len(resultHost.IPs) != 0 {
-//		t.Errorf("Expected %v IPs, got %v", 0, len(resultHost.IPs))
-//	}
-//}
-//
-//func (s *S) TestDaoGetHostWithIPs(t *C) {
-//	//Add host to test scenario where host exists but no IP resource registered
-//	host := dao.Host{}
-//	host.Id = HOSTID
-//	host.IPs = []dao.HostIPResource{dao.HostIPResource{HOSTID, "testip", "ifname"}}
-//	err = controlPlaneDao.AddHost(host, &id)
-//	defer controlPlaneDao.RemoveHost(HOSTID, &unused)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//		return
-//	}
-//
-//	resultHost := dao.Host{}
-//	err = controlPlaneDao.GetHost(HOSTID, &resultHost)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//		return
-//	}
-//	if len(resultHost.IPs) != 1 {
-//		t.Errorf("Expected %v IPs, got %v", 1, len(resultHost.IPs))
-//	}
-//}
+	assignIPsHostIPResources := []host.HostIPResource{}
+	oneHostIPResource := host.HostIPResource{}
+	oneHostIPResource.HostID = HOSTID
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostID = HOSTID
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-func (s *S) TestRemoveAddressAssignment(t *C) {
+	assignIPsHost := host.New()
+	assignIPsHost.ID = HOSTID
+	assignIPsHost.PoolID = assignIPsPool.ID
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
+
+	testService := dao.Service{
+		Id:     "assignIPsServiceID",
+		PoolId: assignIPsPool.ID,
+		Endpoints: []dao.ServiceEndpoint{
+			dao.ServiceEndpoint{
+				Name:        "AssignIPsEndpointName",
+				Protocol:    "tcp",
+				PortNumber:  8081,
+				Application: "websvc",
+				Purpose:     "import",
+				AddressConfig: dao.AddressResourceConfig{
+					Port:     8081,
+					Protocol: commons.TCP,
+				},
+			},
+		},
+	}
+
+	err = controlPlaneDao.AddService(testService, &id)
+	if err != nil {
+		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
+	}
+
+	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
+	err = controlPlaneDao.AssignIPs(assignmentRequest, nil)
+	if err != nil {
+		t.Error("AssignIPs failed: %v", err)
+	}
+
+	assignments := []dao.AddressAssignment{}
+	err = controlPlaneDao.GetServiceAddressAssignments(testService.Id, &assignments)
+	if err != nil {
+		t.Error("GetServiceAddressAssignments failed: %v", err)
+	}
+	if len(assignments) != 1 {
+		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
+	}
+
+	defer controlPlaneDao.RemoveService(testService.Id, &unused)
+	defer dt.Facade.RemoveResourcePool(dt.CTX, assignIPsPool.ID)
+	defer dt.Facade.RemoveHost(dt.CTX, assignIPsHost.ID)
+}
+
+func (dt *daoTest) TestRemoveAddressAssignment(t *C) {
 	//test removing address when not present
 	err := controlPlaneDao.RemoveAddressAssignment("fake", nil)
 	if err == nil {
@@ -747,83 +419,159 @@ func (s *S) TestRemoveAddressAssignment(t *C) {
 	}
 }
 
-//func (s *S) TestAssignAddress(t *C) {
-//	aa := dao.AddressAssignment{}
-//	aid := ""
-//	err := controlPlaneDao.AssignAddress(aa, &aid)
-//	if err == nil {
-//		t.Error("Expected error")
-//	}
-//
-//	//set up host with IP
-//	hostid := "TestHost"
-//	ip := "testip"
-//	endpoint := "default"
-//	serviceId := ""
-//	host := dao.Host{}
-//	host.Id = hostid
-//	host.IPs = []dao.HostIPResource{dao.HostIPResource{hostid, ip, "ifname"}}
-//	err = controlPlaneDao.AddHost(host, &id)
-//	if err != nil {
-//		t.Errorf("Unexpected error adding host: %v", err)
-//		return
-//	}
-//	defer controlPlaneDao.RemoveHost(hostid, &unused)
-//
-//	//set up service with endpoint
-//	service, _ := dao.NewService()
-//	ep := dao.ServiceEndpoint{}
-//	ep.Name = endpoint
-//	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
-//	service.Endpoints = []dao.ServiceEndpoint{ep}
-//	controlPlaneDao.AddService(*service, &serviceId)
-//	if err != nil {
-//		t.Errorf("Unexpected error adding service: %v", err)
-//		return
-//	}
-//	defer controlPlaneDao.RemoveService(serviceId, &unused)
-//
-//	//test for bad service id
-//	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
-//	aid = ""
-//	err = controlPlaneDao.AssignAddress(aa, &aid)
-//	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
-//		t.Errorf("Expected error adding address %v", err)
-//	}
-//
-//	//test for bad endpoint id
-//	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
-//	aid = ""
-//	err = controlPlaneDao.AssignAddress(aa, &aid)
-//	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
-//		t.Errorf("Expected error adding address %v", err)
-//	}
-//
-//	// Valid assignment
-//	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
-//	aid = ""
-//	err = controlPlaneDao.AssignAddress(aa, &aid)
-//	if err != nil {
-//		t.Errorf("Unexpected error adding address %v", err)
-//		return
-//	}
-//
-//	// try to reassign; should fail
-//	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
-//	other_aid := ""
-//	err = controlPlaneDao.AssignAddress(aa, &other_aid)
-//	if err == nil || "Address Assignment already exists" != err.Error() {
-//		t.Errorf("Expected error adding address %v", err)
-//	}
-//
-//	//test removing address
-//	err = controlPlaneDao.RemoveAddressAssignment(aid, nil)
-//	if err != nil {
-//		t.Errorf("Unexpected error removing address %v", err)
-//	}
-//}
+func (dt *daoTest) TestAssignAddress(t *C) {
+	aa := dao.AddressAssignment{}
+	aid := ""
+	err := controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil {
+		t.Error("Expected error")
+	}
 
-func (s *S) TestDao_SnapshotRequest(t *C) {
+	//set up host with IP
+	hostid := "TestHost"
+	ip := "testip"
+	endpoint := "default"
+	serviceId := ""
+	h := host.New()
+	h.ID = hostid
+	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname"}}
+	err = dt.Facade.AddHost(dt.CTX, h)
+	if err != nil {
+		t.Errorf("Unexpected error adding host: %v", err)
+		return
+	}
+	defer dt.Facade.RemoveHost(dt.CTX, hostid)
+
+	//set up service with endpoint
+	service, _ := dao.NewService()
+	ep := dao.ServiceEndpoint{}
+	ep.Name = endpoint
+	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
+	service.Endpoints = []dao.ServiceEndpoint{ep}
+	controlPlaneDao.AddService(*service, &serviceId)
+	if err != nil {
+		t.Errorf("Unexpected error adding service: %v", err)
+		return
+	}
+	defer controlPlaneDao.RemoveService(serviceId, &unused)
+
+	//test for bad service id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test for bad endpoint id
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	// Valid assignment
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aid = ""
+	err = controlPlaneDao.AssignAddress(aa, &aid)
+	if err != nil {
+		t.Errorf("Unexpected error adding address %v", err)
+		return
+	}
+
+	// try to reassign; should fail
+	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	other_aid := ""
+	err = controlPlaneDao.AssignAddress(aa, &other_aid)
+	if err == nil || "Address Assignment already exists" != err.Error() {
+		t.Errorf("Expected error adding address %v", err)
+	}
+
+	//test removing address
+	err = controlPlaneDao.RemoveAddressAssignment(aid, nil)
+	if err != nil {
+		t.Errorf("Unexpected error removing address %v", err)
+	}
+}
+
+func (dt *daoTest) TestDao_ServiceTemplate(t *C) {
+	glog.V(0).Infof("TestDao_AddServiceTemplate started")
+	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
+
+	var unused int
+	var templateId string
+	template := dao.ServiceTemplate{
+		Id:          "",
+		Name:        "test_template",
+		Description: "test template",
+	}
+
+	if e := controlPlaneDao.AddServiceTemplate(template, &templateId); e != nil {
+		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
+	}
+
+	var templates map[string]*dao.ServiceTemplate
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+	template.Id = templateId
+	template.Description = "test_template_modified"
+	if e := controlPlaneDao.UpdateServiceTemplate(template, &unused); e != nil {
+		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
+	}
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+	if templates[templateId].Description != "test_template_modified" {
+		t.Fatalf("Expected template to be modified. It hasn't changed!")
+	}
+	if e := controlPlaneDao.RemoveServiceTemplate(templateId, &unused); e != nil {
+		t.Fatalf("Failure removing service template with error: %s", e)
+	}
+	time.Sleep(1 * time.Second) // race condition. :(
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 0 {
+		t.Fatalf("Expected zero templates. Found %d", len(templates))
+	}
+	if e := controlPlaneDao.UpdateServiceTemplate(template, &unused); e != nil {
+		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
+	}
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("Expected 1 template. Found %d", len(templates))
+	}
+	if templates[templateId] == nil {
+		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
+	}
+	if templates[templateId].Name != "test_template" {
+		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
+	}
+}
+
+func (dt *daoTest) TestDao_SnapshotRequest(t *C) {
 	glog.V(0).Infof("TestDao_SnapshotRequest started")
 	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
 
@@ -869,7 +617,7 @@ func (s *S) TestDao_SnapshotRequest(t *C) {
 	}
 }
 
-func (s *S) TestDao_NewSnapshot(t *C) {
+func (dt *daoTest) TestDao_NewSnapshot(t *C) {
 	// this is technically not a unit test since it depends on the leader
 	// starting a watch for snapshot requests and the code here is time
 	// dependent waiting for that leader to start the watch
@@ -928,23 +676,15 @@ func (s *S) TestDao_NewSnapshot(t *C) {
 	time.Sleep(10 * time.Second)
 }
 
-func (s *S) TestDao_TestingComplete(t *C) {
+func (dt *daoTest) TestDao_TestingComplete(t *C) {
 	controlPlaneDao.RemoveService("default", &unused)
 	controlPlaneDao.RemoveService("0", &unused)
 	controlPlaneDao.RemoveService("01", &unused)
 	controlPlaneDao.RemoveService("011", &unused)
 	controlPlaneDao.RemoveService("02", &unused)
-
-	//	controlPlaneDao.RemoveResourcePool("default", &unused)
-	//
-	//	controlPlaneDao.RemoveHost("default", &unused)
-	//	controlPlaneDao.RemoveHost("0", &unused)
-	//	controlPlaneDao.RemoveHost("1", &unused)
-	//	controlPlaneDao.RemoveHost("existsTest", &unused)
-	//	controlPlaneDao.RemoveHost(HOSTID, &unused)
 }
 
-func (s *S) TestUser_UserOperations(t *C) {
+func (dt *daoTest) TestUser_UserOperations(t *C) {
 	user := dao.User{
 		Name:     "Pepe",
 		Password: "Pepe",
@@ -978,7 +718,7 @@ func (s *S) TestUser_UserOperations(t *C) {
 	}
 }
 
-func (s *S) TestUser_ValidateCredentials(t *C) {
+func (dt *daoTest) TestUser_ValidateCredentials(t *C) {
 	user := dao.User{
 		Name:     "Pepe",
 		Password: "Pepe",

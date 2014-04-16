@@ -10,8 +10,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
-	"github.com/zenoss/serviced/datastore/context"
-	"github.com/zenoss/serviced/datastore/driver"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
@@ -44,8 +43,8 @@ func startDaemon() {
 
 type daemon struct {
 	cpDao     dao.ControlPlane
-	dsDriver  driver.Driver
-	dsContext context.Context
+	dsDriver  datastore.Driver
+	dsContext datastore.Context
 	facade    *facade.Facade
 	hostID    string
 }
@@ -111,9 +110,9 @@ func (d *daemon) start() {
 	http.Serve(l, nil) // start the server
 }
 
-func (d *daemon) initContext() (context.Context, error) {
-	context.Register(d.dsDriver)
-	ctx := context.Get()
+func (d *daemon) initContext() (datastore.Context, error) {
+	datastore.Register(d.dsDriver)
+	ctx := datastore.Get()
 	if ctx != nil {
 		return nil, errors.New("context not available")
 	}
@@ -207,7 +206,7 @@ func (d *daemon) regiseterMasterRPC() error {
 	}
 	return nil
 }
-func (d *daemon) initDriver() (driver.Driver, error) {
+func (d *daemon) initDriver() (datastore.Driver, error) {
 
 	//TODO: figure out elastic mappings
 	eDriver := elastic.New("localhost", 9200, "controlplane")

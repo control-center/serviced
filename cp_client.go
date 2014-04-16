@@ -271,3 +271,11 @@ func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
 func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
 	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint)
 }
+
+func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) error {
+	return s.rpcClient.Call("ControlPlane.Backup", backupDirectory, backupFilePath)
+}
+
+func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
