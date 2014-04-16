@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/serviced/client/api"
@@ -12,48 +11,39 @@ import (
 
 // Initializer for serviced host subcommands
 func (c *ServicedCli) initHost() {
-	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "host",
-		Usage: "Administers host data",
-	})
-	cmd.Commands = []cli.Command{
-		{
-			Name:         "list",
-			Usage:        "Lists all hosts.",
-			Action:       c.cmdHostList,
-			BashComplete: c.printHostsFirst,
-
-			Args: []string{
-				"[HOSTID]",
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"verbose, v", "Show JSON format"},
-			},
-		}, {
-			Name:         "add",
-			ShortName:    "+",
-			Usage:        "Adds a new host",
-			Action:       c.cmdHostAdd,
-			BashComplete: c.printHostAdd,
-
-			Args: []string{
-				"HOST[:PORT]", "RESOURCE_POOL",
-			},
-			Flags: []cli.Flag{
-				cli.StringSliceFlag{"ip", new(cli.StringSlice), "List of available endpoints. Default: host IP address"},
-			},
-		}, {
-			Name:         "remove",
-			ShortName:    "rm",
-			Usage:        "Removes an existing host",
-			Action:       c.cmdHostRemove,
-			BashComplete: c.printHostsAll,
-
-			Args: []string{
-				"HOSTID ...",
+	c.app.Commands = append(c.app.Commands, cli.Command{
+		Name:        "host",
+		Usage:       "Administers host data",
+		Description: "",
+		Subcommands: []cli.Command{
+			{
+				Name:         "list",
+				Usage:        "Lists all hosts",
+				Description:  "serviced host list [SERVICEID]",
+				BashComplete: c.printHostsFirst,
+				Action:       c.cmdHostList,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
+			}, {
+				Name:         "add",
+				Usage:        "Adds a new host",
+				Description:  "serviced host add HOST:PORT RESOURCE_POOL",
+				BashComplete: c.printHostAdd,
+				Action:       c.cmdHostAdd,
+				Flags: []cli.Flag{
+					cli.StringSliceFlag{"ip", &cli.StringSlice{}, "List of available endpoints"},
+				},
+			}, {
+				Name:         "remove",
+				ShortName:    "rm",
+				Usage:        "Removes an existing host",
+				Description:  "serviced host remove HOSTID ...",
+				BashComplete: c.printHostsAll,
+				Action:       c.cmdHostRemove,
 			},
 		},
-	}
+	})
 }
 
 // Returns a list of all available host IDs
@@ -65,7 +55,7 @@ func (c *ServicedCli) hosts() (data []string) {
 
 	data = make([]string, len(hosts))
 	for i, h := range hosts {
-		data[i] = h.ID
+		data[i] = h.Id
 	}
 
 	return
@@ -74,7 +64,7 @@ func (c *ServicedCli) hosts() (data []string) {
 // Bash-completion command that prints a list of available hosts as the first
 // argument
 func (c *ServicedCli) printHostsFirst(ctx *cli.Context) {
-	if len(ctx.Args() > 0) {
+	if len(ctx.Args()) > 0 {
 		return
 	}
 
@@ -155,13 +145,13 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		tableHost := newTable(0, 8, 2)
 		tableHost.PrintRow("ID", "POOL", "NAME", "ADDR", "CORES", "MEM", "NETWORK")
 		for _, h := range hosts {
-			tableHost.PrintRow(h.ID, h.PoolID, h.Name, h.IPAddr, h.Cores, h.Memory, h.PrivateNetwork)
+			tableHost.PrintRow(h.Id, h.PoolId, h.Name, h.IpAddr, h.Cores, h.Memory, h.PrivateNetwork)
 		}
 		tableHost.Flush()
 	}
 }
 
-// serviced host add [[--ip IP] ...] HOST[:PORT] POOLID
+// serviced host add [[--ip IP] ...] HOST:PORT POOLID
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -170,10 +160,16 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		return
 	}
 
+	var address api.URL
+	if err := address.Set(args[0]); err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	cfg := api.HostConfig{
-		IPAddr: args[0],
-		PoolID: args[1],
-		IPs:    ctx.StringSlice("ip"),
+		Address: address,
+		PoolID:  args[1],
+		IPs:     ctx.StringSlice("ip"),
 	}
 
 	if host, err := c.driver.AddHost(cfg); err != nil {
@@ -181,7 +177,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Println(host.ID)
+		fmt.Println(host.Id)
 	}
 }
 

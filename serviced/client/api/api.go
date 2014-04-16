@@ -41,8 +41,8 @@ type Options struct {
 	VarPath          string
 	ResourcePath     string
 	Zookeepers       []string
-	RepStats         bool
-	StatsHost        string
+	ReportStats      bool
+	HostStats        string
 	StatsPeriod      int
 	MCUsername       string
 	MCPasswd         string
@@ -50,7 +50,7 @@ type Options struct {
 	ResourcePeriod   int
 	VFS              string
 	ESStartupTimeout int
-	HostAliases      string
+	HostAliases      []string
 }
 
 // Load options overwrites the existing options
@@ -117,7 +117,9 @@ func (a *api) StartServer() {
 		rpc.RegisterName("ControlPlane", master)
 
 		// TODO: make bind port for web server optional?
-		cpserver := web.NewServiceConfig(":8787", options.Port, options.Zookeepers, options.RepStats, options.HostAliases)
+		aliases := strings.Join(options.HostAliases, ",")
+
+		cpserver := web.NewServiceConfig(":8787", options.Port, options.Zookeepers, options.ReportStats, aliases)
 		go cpserver.ServeUI()
 		go cpserver.Serve()
 	}
@@ -163,8 +165,8 @@ func (a *api) StartServer() {
 
 	rpc.HandleHTTP()
 
-	if options.RepStats {
-		path := fmt.Sprintf("http://%s/api/metrics/store", options.StatsHost)
+	if options.ReportStats {
+		path := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 		duration := time.Duration(options.StatsPeriod) * time.Second
 		glog.V(1).Infof("Starting container statistics reporter")
 		reporter := stats.NewStatsReporter(path, duration)

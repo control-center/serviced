@@ -8,6 +8,10 @@ var ()
 
 // ShellConfig is the deserialized object from the command-line
 type ShellConfig struct {
+	ServiceID string
+	Command   string
+	SaveAs    string
+	IsTTY     bool
 }
 
 // ListCommands lists all of the commands for a given service

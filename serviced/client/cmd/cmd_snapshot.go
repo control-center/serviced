@@ -2,52 +2,51 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/zenoss/cli"
 )
 
 // initSnapshot is the initializer for serviced snapshot
 func (c *ServicedCli) initSnapshot() {
-	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "snapshot",
-		Usage: "Administers environment snapshots.",
-	})
-	cmd.Commands = []cli.Command{
-		{
-			Name:         "list",
-			Usage:        "Lists all snapshots.",
-			Action:       c.cmdSnapshotList,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"[SERVICEID]",
+	c.app.Commands = append(c.app.Commands, cli.Command{
+		Name:        "snapshot",
+		Usage:       "Administers environment snapshots",
+		Description: "",
+		Subcommands: []cli.Command{
+			{
+				Name:         "list",
+				Usage:        "Lists all snapshots",
+				Description:  "serviced snapshot list [SERVICEID]",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdSnapshotList,
+			}, {
+				Name:         "add",
+				Usage:        "Take a snapshot of an existing service",
+				Description:  "serviced snapshot add SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdSnapshotAdd,
+			}, {
+				Name:         "remove",
+				ShortName:    "rm",
+				Usage:        "Removes an existing snapshot",
+				Description:  "serviced snapshot remove SNAPSHOTID ...",
+				BashComplete: c.printSnapshotsAll,
+				Action:       c.cmdSnapshotRemove,
+			}, {
+				Name:        "commit",
+				Usage:       "Snapshots and commits a given service instance",
+				Description: "serviced snapshot commit DOCKERID",
+				Action:      c.cmdSnapshotCommit,
+			}, {
+				Name:         "rollback",
+				Usage:        "Restores the environment to the state of the given snapshot",
+				Description:  "serviced snapshot rollback SNAPSHOTID",
+				BashComplete: c.printSnapshotsFirst,
+				Action:       c.cmdSnapshotRollback,
 			},
-		}, {
-			Name:         "add",
-			Usage:        "Take a snapshot of an existing service.",
-			Action:       c.cmdSnapshotAdd,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID",
-			},
-		}, {
-			Name:         "remove",
-			ShortName:    "rm",
-			Usage:        "Removes an existing snapshot.",
-			Action:       c.cmdSnapshotRemove,
-			BashComplete: c.printSnapshotsAll,
-		}, {
-			Name:   "commit",
-			Usage:  "Snapshots and commits a given service instance",
-			Action: c.cmdSnapshotCommit,
-		}, {
-			Name:         "rollback",
-			Usage:        "Restores the environment to the state of the given snapshot.",
-			Action:       c.cmdSnapshotRollback,
-			BashComplete: c.printSnapshotsFirst,
 		},
-	}
+	})
 }
 
 // Returns a list of snapshots as specified by the service ID.  If no service
@@ -101,7 +100,7 @@ func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
 // serviced snapshot list [SERVICEID]
 func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		serviceID := args[0]
+		serviceID := ctx.Args().First()
 		if snapshots, err := c.driver.ListSnapshotsByServiceID(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if snapshots == nil || len(snapshots) == 0 {
@@ -170,10 +169,10 @@ func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
 		return
 	}
 
-	if snapshot, err := c.driver.CommitSnapshot(args[0]); err != nil {
+	if snapshot, err := c.driver.Commit(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fmr.Println(snapshot)
+		fmt.Println(snapshot)
 	}
 }
 
@@ -186,7 +185,7 @@ func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.RollbackSnapshot(args[0]); err != nil {
+	if err := c.driver.Rollback(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Println(args[0])

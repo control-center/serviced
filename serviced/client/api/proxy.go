@@ -34,7 +34,7 @@ type ProxyConfig struct {
 }
 
 // Start a service proxy
-func (a *api) StartProxy(cfg ProxyConfig) {
+func (a *api) StartProxy(cfg ProxyConfig) error {
 	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
@@ -228,6 +228,7 @@ func (a *api) StartProxy(cfg ProxyConfig) {
 
 	glog.Flush()
 	os.Exit(exitcode)
+	return nil
 }
 
 var proxies map[string]*serviced.Proxy

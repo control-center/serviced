@@ -1,77 +1,63 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/serviced/serviced/client/api"
 )
 
 // initTemplate is the initializer for serviced template
 func (c *ServicedCli) initTemplate() {
-	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "template",
-		Usage: "Administers templates.",
-	})
-	cmd.Commands = []cli.Command{
-		{
-			Name:         "list",
-			Usage:        "Lists all templates.",
-			Action:       c.cmdTemplateList,
-			BashComplete: c.printTemplatesFirst,
-
-			Args: []string{
-				"[TEMPLATEID]",
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"verbose, v", "Show JSON format"},
-			},
-		}, {
-			Name:   "add",
-			Usage:  "Adds a new template.",
-			Action: c.cmdTemplateAdd,
-
-			Args: []string{
-				"< TEMPLATE",
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"file, f", "Template file name"},
-			},
-		}, {
-			Name:         "remove",
-			ShortName:    "rm",
-			Usage:        "Removes an existing template.",
-			Action:       c.cmdTemplateRemove,
-			BashComplete: c.printTemplatesAll,
-
-			Args: []string{
-				"TEMPLATEID ...",
-			},
-		}, {
-			Name:         "deploy",
-			Usage:        "Deploys template into a given pool.",
-			Action:       c.cmdTemplateDeploy,
-			BashComplete: c.printTemplateDeploy,
-
-			Args: []string{
-				"TEMPLATEID", "POOLID", "DEPLOYMENTID",
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"manual-assign-ips", "Manually assign IP addresses to services requiring an external IP address"},
-			},
-		}, {
-			Name:         "compile",
-			Usage:        "Reads a given directory of service definitions to compile to a json struct.",
-			Action:       c.cmdTemplateCompile,
-			BashComplete: c.printTemplates,
-
-			Args: []string{
-				"DIR",
-			},
-			Flags: []cli.Flag{
-				cli.GenericSliceFlag{"map", "Map a given image name to another (e.g. -map zenoss/zenoss5x->quay.io/zenoss-core:alpha2)"},
+	c.app.Commands = append(c.app.Commands, cli.Command{
+		Name:        "template",
+		Usage:       "Administers templates",
+		Description: "",
+		Subcommands: []cli.Command{
+			{
+				Name:         "list",
+				Usage:        "Lists all templates",
+				Description:  "serviced template list [TEMPLATEID]",
+				BashComplete: c.printTemplatesFirst,
+				Action:       c.cmdTemplateList,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
+			}, {
+				Name:        "add",
+				Usage:       "Add a new template",
+				Description: "serviced template add < FILE",
+				Action:      c.cmdTemplateAdd,
+				Flags: []cli.Flag{
+					cli.StringFlag{"file, f", "", "Template definition file"},
+				},
+			}, {
+				Name:         "remove",
+				ShortName:    "rm",
+				Usage:        "Remove an existing template",
+				Description:  "serviced template remove TEMPLATEID ...",
+				BashComplete: c.printTemplatesAll,
+				Action:       c.cmdTemplateRemove,
+			}, {
+				Name:         "deploy",
+				Usage:        "Deploys a template's services to a pool",
+				Description:  "serviced template deploy TEMPLATEID POOLID DEPLOYMENTID",
+				BashComplete: c.printTemplateDeploy,
+				Action:       c.cmdTemplateDeploy,
+			}, {
+				Name:        "compile",
+				Usage:       "Convert a directory of service definitions into a template",
+				Description: "serviced template compile PATH",
+				Action:      c.cmdTemplateCompile,
+				Flags: []cli.Flag{
+					cli.GenericFlag{
+						"map", &api.ImageMap{}, "Map a given image name to another (e.g. -map zenoss/zenoss5x:quay.io/zenoss-core:alpha2)"},
+				},
 			},
 		},
-	}
+	})
 }
 
 // Returns a list of all available template IDs
@@ -83,7 +69,7 @@ func (c *ServicedCli) templates() (data []string) {
 
 	data = make([]string, len(templates))
 	for i, t := range templates {
-		data[i] = t.ID
+		data[i] = t.Id
 	}
 
 	return
@@ -119,7 +105,7 @@ func (c *ServicedCli) printTemplateDeploy(ctx *cli.Context) {
 }
 
 // Bash-completion command that prints the list of templates as all arguments
-func (c *ServicedCli) printTemplatesAll(ctx cli.Context) {
+func (c *ServicedCli) printTemplatesAll(ctx *cli.Context) {
 	args := ctx.Args()
 
 	for _, t := range c.templates() {
@@ -168,9 +154,9 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		tableTemplate := newTable(0, 8, 2)
 		tableTemplate.PrintRow("TEMPLATE ID", "NAME", "DESCRIPTION")
 		for _, t := range templates {
-			tableTemplate.PrintRow(t.ID, t.Name, t.Description)
+			tableTemplate.PrintRow(t.Id, t.Name, t.Description)
 		}
-		table.Template.Flush()
+		tableTemplate.Flush()
 	}
 }
 
@@ -181,6 +167,7 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	args := ctx.Args()
 
 	if ctx.String("file") != "" {
+		var err error
 		if input, err = os.Open(args[0]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -193,7 +180,7 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	if template, err := c.driver.AddTemplate(input); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fmt.Println(template.ID)
+		fmt.Println(template.Id)
 	}
 }
 
@@ -228,7 +215,7 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 		ID:              args[0],
 		PoolID:          args[1],
 		DeploymentID:    args[2],
-		ManualAssignIPs: ctx.BoolFlag("manual-assign-ips"),
+		ManualAssignIPs: ctx.Bool("manual-assign-ips"),
 	}
 
 	if err := c.driver.DeployTemplate(cfg); err != nil {
@@ -249,12 +236,12 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 
 	cfg := api.CompileTemplateConfig{
 		Dir: args[0],
-		Map: ctx.GenericSlice("map"),
+		Map: ctx.Generic("map").(api.ImageMap),
 	}
 
 	if template, err := c.driver.CompileTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if jsonTemplate, err := json.MarshalTemplate(template, " ", "  "); err != nil {
+	} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
 		fmt.Println(string(jsonTemplate))
 	}
 }

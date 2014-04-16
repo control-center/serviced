@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -104,8 +105,7 @@ func openEditor(data []byte, name, editor string) (io.Reader, error) {
 
 		reader = bufio.NewReader(f)
 	} else {
-		_, err = os.Stdout.Write(data)
-		if err != nil {
+		if _, err := os.Stdout.Write(data); err != nil {
 			return nil, fmt.Errorf("could not write to stdout: %s", err)
 		}
 		reader = os.Stdin

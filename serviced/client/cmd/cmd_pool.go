@@ -12,55 +12,42 @@ import (
 
 // Initializer for serviced pool subcommands
 func (c *ServicedCli) initPool() {
-	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "pool",
-		Usage: "Administers pool data",
+	c.app.Commands = append(c.app.Commands, cli.Command{
+		Name:        "pool",
+		Usage:       "Administers pool data",
+		Description: "",
+		Subcommands: []cli.Command{
+			{
+				Name:         "list",
+				Usage:        "Lists all pools",
+				Description:  "serviced pool list [POOLID]",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdPoolList,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
+			}, {
+				Name:         "add",
+				Usage:        "Adds a new resource pool",
+				Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
+				BashComplete: nil,
+				Action:       c.cmdPoolAdd,
+			}, {
+				Name:         "remove",
+				ShortName:    "rm",
+				Usage:        "Removes an existing resource pool",
+				Description:  "serviced pool remove POOLID ...",
+				BashComplete: c.printPoolsAll,
+				Action:       c.cmdPoolRemove,
+			}, {
+				Name:         "list-ips",
+				Usage:        "Lists the IP addresses for a resource pool",
+				Description:  "serviced pool list-ips POOLID",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdPoolListIPs,
+			},
+		},
 	})
-	cmd.Commands = []cli.Command{
-		{
-			Name:         "list",
-			Usage:        "Lists all pools",
-			Action:       c.cmdPoolList,
-			BashComplete: c.printPoolsFirst,
-
-			Args: []string{
-				"[POOLID]",
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"verbose, v", "Show JSON format"},
-			},
-		},
-		{
-			Name:   "add",
-			Usage:  "Adds a new resource pool",
-			Action: c.cmdPoolAdd,
-
-			Args: []string{
-				"POOLID", "CORE_LIMIT", "MEMORY_LIMIT", "PRIORITY",
-			},
-		},
-		{
-			Name:         "remove",
-			ShortName:    "rm",
-			Usage:        "Removes an existing resource pool",
-			Action:       c.cmdPoolRemove,
-			BashComplete: c.printPoolsAll,
-
-			Args: []string{
-				"POOLID ...",
-			},
-		},
-		{
-			Name:         "list-ips",
-			Usage:        "Lists the IP addresses for a resource pool",
-			Action:       c.cmdPoolListIPs,
-			BashComplete: c.printPoolsFirst,
-
-			Args: []string{
-				"POOLID",
-			},
-		},
-	}
 }
 
 // Returns a list of available pools
@@ -72,7 +59,7 @@ func (c *ServicedCli) pools() (data []string) {
 
 	data = make([]string, len(pools))
 	for i, p := range pools {
-		data[i] = p.ID
+		data[i] = p.Id
 	}
 
 	return
@@ -144,7 +131,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		tablePool := newTable(0, 8, 2)
 		tablePool.PrintRow("ID", "PARENT", "CORE", "MEM", "PRI")
 		for _, p := range pools {
-			tablePool.PrintRow(p.ID, p.ParentID, p.CoreLimit, p.MemoryLimit, p.Priority)
+			tablePool.PrintRow(p.Id, p.ParentId, p.CoreLimit, p.MemoryLimit, p.Priority)
 		}
 		tablePool.Flush()
 	}
@@ -187,7 +174,7 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	} else if pool == nil {
 		fmt.Fprintln(os.Stderr, "received nil resource pool")
 	} else {
-		fmt.Println(pool.ID)
+		fmt.Println(pool.Id)
 	}
 }
 

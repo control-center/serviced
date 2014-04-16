@@ -6,8 +6,7 @@ import (
 	host "github.com/zenoss/serviced/dao"
 	pool "github.com/zenoss/serviced/dao"
 	service "github.com/zenoss/serviced/dao"
-
-	"github.com/zenoss/serviced/domain/template"
+	template "github.com/zenoss/serviced/dao"
 )
 
 // API is the intermediary between the command-line interface and the dao layer
@@ -15,7 +14,7 @@ type API interface {
 
 	// Server
 	StartServer()
-	StartProxy(ProxyConfig)
+	StartProxy(ProxyConfig) error
 
 	// Hosts
 	ListHosts() ([]host.Host, error)
@@ -53,9 +52,10 @@ type API interface {
 	Rollback(string) error
 
 	// Templates
-	ListTemplates() ([]template.Template, error)
-	AddTemplate(io.Reader) (*template.Template, error)
+	ListTemplates() ([]template.ServiceTemplate, error)
+	GetTemplate(string) (*template.ServiceTemplate, error)
+	AddTemplate(io.Reader) (*template.ServiceTemplate, error)
 	RemoveTemplate(string) error
-	CompileTemplate(string) (io.Reader, error)
-	DeployTemplate(string) error
+	CompileTemplate(CompileTemplateConfig) (io.Reader, error)
+	DeployTemplate(DeployTemplateConfig) error
 }

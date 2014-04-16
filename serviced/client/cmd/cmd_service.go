@@ -4,130 +4,113 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/serviced/serviced/client/api"
 )
 
 // Initializer for serviced service subcommands
 func (c *ServicedCli) initService() {
-	cmd := c.app.AddSubcommand(cli.Command{
-		Name:  "service",
-		Usage: "Administers services",
-	})
-	cmd.Commands = []cli.Command{
-		{
-			Name:         "list",
-			Usage:        "Lists all services.",
-			Action:       c.cmdServiceList,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"[SERVICEID]",
+	c.app.Commands = append(c.app.Commands, cli.Command{
+		Name:        "service",
+		Usage:       "Administers services",
+		Description: "",
+		Subcommands: []cli.Command{
+			{
+				Name:         "list",
+				Usage:        "Lists all services",
+				Description:  "serviced service list [SERVICEID]",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceList,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
+			}, {
+				Name:         "add",
+				Usage:        "Adds a new service",
+				Description:  "serviced service list NAME POOLID IMAGEID COMMAND",
+				BashComplete: c.printServiceAdd,
+				Action:       c.cmdServiceAdd,
+				Flags: []cli.Flag{
+					cli.GenericFlag{"p", &api.PortMap{}, "Expose a port for this service (e.g. -p tcp:3306:mysql)"},
+					cli.GenericFlag{"q", &api.PortMap{}, "Map a remote service port (e.g. -q tcp:3306:mysql)"},
+				},
+			}, {
+				Name:         "remove",
+				ShortName:    "rm",
+				Usage:        "Removes an existing service",
+				Description:  "serviced service remove SERVICEID ...",
+				BashComplete: c.printServicesAll,
+				Action:       c.cmdServiceRemove,
+			}, {
+				Name:         "edit",
+				Usage:        "Edits an existing service in a text editor",
+				Description:  "serviced service edit SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceEdit,
+				Flags: []cli.Flag{
+					cli.StringFlag{"editor, e", os.Getenv("EDITOR"), "Editor used to update the service definition"},
+				},
+			}, {
+				Name:         "assign-ip",
+				Usage:        "Assigns an IP address to a service's endpoints requiring an explicit IP address",
+				Description:  "serviced service assign-ip SERVICEID [IPADDRESS]",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceAssignIP,
+			}, {
+				Name:         "start",
+				Usage:        "Starts a service",
+				Description:  "serviced service start SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceStart,
+			}, {
+				Name:         "stop",
+				Usage:        "Stops a service",
+				Description:  "serviced service stop SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceStop,
+			}, {
+				Name:         "proxy",
+				Usage:        "Starts a server proxy for a container",
+				Description:  "serviced service proxy SERVICEID COMMAND",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceProxy,
+			}, {
+				Name:         "shell",
+				Usage:        "Starts a service instance",
+				Description:  "serviced service shell SERVICEID COMMAND",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceShell,
+				Flags: []cli.Flag{
+					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
+					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+				},
+			}, {
+				Name:         "run",
+				Usage:        "Runs a service command in a service instance",
+				Description:  "serviced service run SERVICEID [COMMAND]",
+				BashComplete: c.printServiceRun,
+				Before:       c.cmdServiceRun,
+				Flags: []cli.Flag{
+					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
+					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+				},
+			}, {
+				Name:         "list-snapshots",
+				Usage:        "Lists the snapshots for a service",
+				Description:  "serviced service list-snapshots SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdSnapshotList,
+			}, {
+				Name:         "snapshot",
+				Usage:        "Takes a snapshot of the service",
+				Description:  "serviced service snapshot SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdSnapshotAdd,
 			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{"verbose, v", "Show JSON format"},
-			},
-		}, {
-			Name:   "add",
-			Usage:  "Adds a new service.",
-			Action: c.cmdServiceAdd,
-			Action: c.printServiceAdd,
-
-			Args: []string{
-				"NAME", "POOLID", "IMAGEID", "COMMAND",
-			},
-			Flags: []cli.Flag{
-				cli.GenericSliceFlag{"p", new(api.PortOpts), "Expose a port for this service (e.g. -p tcp:3306:mysql )"},
-				cli.GenericSliceFlag{"q", new(api.PortOpts), "Map a remote service port (e.g. -q tcp:3306:mysql )"},
-			},
-		}, {
-			Name:         "remove",
-			ShortName:    "rm",
-			Usage:        "Removes an existing service.",
-			Action:       c.cmdServiceRemove,
-			BashComplete: c.printServicesAll,
-
-			Args: []string{
-				"SERVICEID ...",
-			},
-		}, {
-			Name:         "edit",
-			Usage:        "Edits an existing service in a text editor.",
-			Action:       c.cmdServiceEdit,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID",
-			},
-			Flags: []cli.Flags{
-				cli.StringFlag{"editor, e", os.Getenv("EDITOR"), "Editor used to update the service definition"},
-			},
-		}, {
-			Name:         "assign-ip",
-			Usage:        "Assign an IP address to a service's endpoints requiring an explicit IP address.",
-			Action:       c.cmdServiceAssignIP,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID", "[IPADDRESS]",
-			},
-		}, {
-			Name:         "start",
-			Usage:        "Starts a service.",
-			Action:       c.cmdServiceStart,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID",
-			},
-		}, {
-			Name:         "stop",
-			Usage:        "Stops a service.",
-			Action:       c.cmdServiceStop,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID",
-			},
-		}, {
-			Name:         "proxy",
-			Usage:        "Starts a server proxy for a container.",
-			Action:       c.cmdServiceProxy,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID", "COMMAND",
-			},
-		}, {
-			Name:         "shell",
-			Usage:        "Starts a service instance.",
-			Action:       c.cmdServiceShell,
-			BashComplete: c.printServicesFirst,
-
-			Args: []string{
-				"SERVICEID", "COMMAND",
-			},
-		}, {
-			Name:         "run",
-			Usage:        "Runs a service command.",
-			Action:       c.cmdServiceRun,
-			BashComplete: c.printServiceRun,
-
-			Args: []string{
-				"SERVICEID", "[COMMAND [ARGS ...]]",
-			},
-		}, {
-			Name:         "list-snapshots",
-			Usage:        "Lists the snapshots for a service.",
-			Action:       c.cmdSnapshotList,
-			BashComplete: c.printServicesFirst,
-		}, {
-			Name:         "snapshot",
-			Usage:        "Takes a snapshot of the service.",
-			Action:       c.cmdSnapshotAdd,
-			BashComplete: c.printServicesFirst,
 		},
-	}
+	})
 }
 
 // Returns a list of all the available service IDs
@@ -139,7 +122,7 @@ func (c *ServicedCli) services() (data []string) {
 
 	data = make([]string, len(svcs))
 	for i, s := range svcs {
-		data[i] = s.ID
+		data[i] = s.Id
 	}
 
 	return
@@ -148,7 +131,7 @@ func (c *ServicedCli) services() (data []string) {
 // Returns a list of runnable commands for a particular service
 func (c *ServicedCli) serviceRuns(id string) (data []string) {
 	svc, err := c.driver.GetService(id)
-	if err != nil || svcs == nil {
+	if err != nil || svc == nil {
 		return
 	}
 
@@ -164,7 +147,7 @@ func (c *ServicedCli) serviceRuns(id string) (data []string) {
 
 // Bash-completion command that prints a list of available services as the
 // first argument
-func (c *ServicedCli) printServicesFirst(c *cli.Context) {
+func (c *ServicedCli) printServicesFirst(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
@@ -176,7 +159,7 @@ func (c *ServicedCli) printServicesFirst(c *cli.Context) {
 
 // Bash-completion command that prints a list of available services as all
 // arguments
-func (c *ServicedCli) printServicesAll(c *cli.Context) {
+func (c *ServicedCli) printServicesAll(ctx *cli.Context) {
 	args := ctx.Args()
 	svcs := c.services()
 
@@ -194,7 +177,7 @@ func (c *ServicedCli) printServicesAll(c *cli.Context) {
 
 // Bash-completion command that completes the service ID as the first argument
 // and runnable commands as the second argument
-func (c *ServicedCli) printServiceRun(c *cli.Context) {
+func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 	var output []string
 
 	args := ctx.Args()
@@ -212,13 +195,13 @@ func (c *ServicedCli) printServiceRun(c *cli.Context) {
 
 // Bash-completion command that completes the pool ID as the first argument
 // and the docker image ID as the second argument
-func (c *ServicedCli) printServiceAdd(c *cli.Context) {
+func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 	var output []string
 
 	args := ctx.Args()
 	switch len(args) {
 	case 1:
-		output := c.pools()
+		output = c.pools()
 	case 2:
 		// TODO: get a list of the docker images
 	}
@@ -260,7 +243,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
-		newServiceMap(services).PrintTree("")
+		//newServiceMap(services).PrintTree("")
 	}
 }
 
@@ -278,8 +261,8 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 		PoolID:      args[1],
 		ImageID:     args[2],
 		Command:     args[3],
-		LocalPorts:  ctx.GenericSlice("p"),
-		RemotePorts: ctx.GenericSlice("q"),
+		LocalPorts:  ctx.Generic("p").(api.PortMap),
+		RemotePorts: ctx.Generic("q").(api.PortMap),
 	}
 
 	if service, err := c.driver.AddService(cfg); err != nil {
@@ -287,7 +270,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
-		fmt.Println(service.ID)
+		fmt.Println(service.Id)
 	}
 }
 
@@ -320,21 +303,21 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 
 	service, err := c.driver.GetService(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "service not found")
 		return
 	}
 
-	jsonService, err := json.MarshallIndent(service, " ", "  ")
+	jsonService, err := json.MarshalIndent(service, " ", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
 		return
 	}
 
-	name := fmt.Sprintf("serviced_service_edit_%s", service.ID)
-	reader, err := openEditor(jsonService, name, cli.StringFlag("editor"))
+	name := fmt.Sprintf("serviced_service_edit_%s", service.Id)
+	reader, err := openEditor(jsonService, name, ctx.String("editor"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -345,7 +328,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
 	} else {
-		fmt.Println(service.ID)
+		fmt.Println(service.Id)
 	}
 }
 
@@ -386,7 +369,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to start on host: %s", host.ID)
+		fmt.Printf("Service scheduled to start on host: %s", host.Id)
 	}
 }
 
@@ -404,54 +387,75 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to stop on host: %s", host.ID)
+		fmt.Printf("Service scheduled to stop on host: %s", host.Id)
 	}
 }
 
 // serviced service proxy SERVICED COMMAND
-func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) < 2 {
+func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
+	if len(ctx.Args()) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "proxy")
-		return
+		return nil
 	}
 
 	cfg := api.ProxyConfig{
-		ServiceID: args[0],
-		Command:   args[1],
+		ServiceID: ctx.Args().First(),
+		Command:   strings.Join(ctx.Args().Tail(), " "),
 	}
 
-	c.driver.StartProxy(cfg)
+	if err := c.driver.StartProxy(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service proxy")
 }
 
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
-func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) {
-	// TODO: Make me work with channels!
-	/*
-		args := ctx.Args()
-		if len(args) < 2 {
-			fmt.Printf("Incorrect Usage.\n\n")
-			cli.ShowCommandHelp(ctx, "shell")
-			return
-		}
+func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
+	if len(ctx.Args()) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		return nil
+	}
 
-		cfg := api.ShellConfig{
-			ServiceID: args[0],
-			IsTTY: ctx.BoolFlag("interactive"),
-			Remove: ctx.BoolFlag("rm"),
-		}
-	*/
+	cfg := api.ShellConfig{
+		ServiceID: ctx.Args().First(),
+		Command:   strings.Join(ctx.Args().Tail(), " "),
+		SaveAs:    ctx.GlobalString("saveas"),
+		IsTTY:     ctx.GlobalBool("interactive"),
+	}
+
+	if err := c.driver.StartShell(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service shell")
 }
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
-func (c *Serviced) cmdServiceRun(ctx *cli.Context) {
-	// TODO: same issue as with shell!
+func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
+	if len(ctx.Args()) < 2 {
+		fmt.Printf("IncorrectUsage.\n\n")
+		return nil
+	}
+
+	cfg := api.ShellConfig{
+		ServiceID: ctx.Args().First(),
+		Command:   strings.Join(ctx.Args().Tail(), " "),
+		SaveAs:    ctx.GlobalString("saveas"),
+		IsTTY:     ctx.GlobalBool("interactive"),
+	}
+
+	if err := c.driver.StartShell(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service run")
 }
 
 /* OTHER STUFFS */
 
 // TODO: restore to parity!
+/*
 type serviceMap map[string][]*service.Service
 
 func newServiceMap(services []service.Service) (m serviceMap) {
@@ -473,4 +477,4 @@ func (m serviceMap) PrintTree(parentID string) {
 		}
 	}
 	nextRow(parentID, 0)
-}
+}*/

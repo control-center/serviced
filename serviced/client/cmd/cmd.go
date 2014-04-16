@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/serviced/client/api"
 )
@@ -45,14 +47,14 @@ OPTIONS:
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", 22250, "multiplexing port"},
 		cli.BoolFlag{"tls", "enable TLS"},
-		cli.StringFlag{"var", api.GetVarpath(), "path to store serviced data"},
+		cli.StringFlag{"var", api.GetVarPath(), "path to store serviced data"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-		cli.StringSliceFlag{"zk", "", "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
-		cli.StringSliceFlag{"mount", "", "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
+		cli.StringSliceFlag{"zk", &cli.StringSlice{}, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
+		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
-		cli.StringSliceFlag{"alias", "list of aliases for this host, e.g., localhost"},
-		cli.IntVar{"es-start-timeout", api.GetESStartupTimeout(), "time to wait on elasticsearch startup before bailing"},
+		cli.StringSliceFlag{"alias", &cli.StringSlice{}, "list of aliases for this host, e.g., localhost"},
+		cli.IntFlag{"es-start-timeout", api.GetESStartupTimeout(), "time to wait on elasticsearch startup before bailing"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},
@@ -92,17 +94,17 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Zookeepers:       ctx.GlobalStringSlice("zk"),
 		Mount:            ctx.GlobalStringSlice("mount"),
 		VFS:              ctx.GlobalString("vfs"),
-		Alias:            ctx.GlobalStringSlice("alias"),
+		HostAliases:      ctx.GlobalStringSlice("alias"),
 		ESStartupTimeout: ctx.GlobalInt("es-startup-timeout"),
 		ReportStats:      ctx.GlobalBool("report-stats"),
 		HostStats:        ctx.GlobalString("host-stats"),
 		StatsPeriod:      ctx.GlobalInt("stats-period"),
 		MCUsername:       ctx.GlobalString("mc-username"),
-		MCPassword:       ctx.GlobalString("mc-password"),
+		MCPasswd:         ctx.GlobalString("mc-password"),
 	}
 
 	// Start server mode
-	if (options.master || options.agent) && len(ctx.Args()) == 0 {
+	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
 		api.LoadOptions(options)
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
