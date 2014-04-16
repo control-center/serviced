@@ -697,12 +697,22 @@ func (a *HostAgent) start() {
 
 			connc := make(chan coordclient.Connection)
 			var conn coordclient.Connection
+			done := make(chan struct{}, 1)
+			defer func() {
+				done <- struct{}{}
+			}()
 			go func() {
 				for {
 					c, err := a.zkClient.GetConnection()
 					if err == nil {
 						connc <- c
 						return
+					}
+					// exit when our parent exits
+					select {
+					case <-done:
+						return
+					case <-time.After(time.Second):
 					}
 				}
 				close(connc)
