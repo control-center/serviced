@@ -45,6 +45,7 @@ import (
 // Store the command line options
 var options struct {
 	port             string
+	uiport			 string
 	listen           string
 	master           bool
 	dockerDns        string
@@ -108,6 +109,7 @@ func init() {
 
 	dockerDns := os.Getenv("SERVICED_DOCKER_DNS")
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
+	flag.StringVar(&options.uiport, "uiport", ":443", "port for ui")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.StringVar(&options.dockerDns, "dockerDns", dockerDns, "docker dns configuration used for running containers (comma seperated list)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
@@ -201,8 +203,7 @@ func startServer() {
 		rpc.RegisterName("LoadBalancer", master)
 		rpc.RegisterName("ControlPlane", master)
 
-		// TODO: Make bind port for web server optional?
-		cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats, options.hostaliases)
+		cpserver := web.NewServiceConfig(options.uiport, options.port, options.zookeepers, options.repstats, options.hostaliases)
 		go cpserver.ServeUI()
 		go cpserver.Serve()
 	}
@@ -216,7 +217,7 @@ func startServer() {
 		mux.UseTLS = options.tls
 
 		_dns := strings.Split(options.dockerDns, ",")
-		agent, err := serviced.NewHostAgent(options.port, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+		agent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 		if err != nil {
 			glog.Fatalf("Could not start ControlPlane agent: %v", err)
 		}
