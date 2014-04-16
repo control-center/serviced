@@ -18,14 +18,14 @@ import (
 )
 
 var proxyOptions struct {
-	MuxPort          int
-	Mux              bool
-	TLS              bool
-	KeyPEMFile       string
-	CertPEMFile      string
-	ServicedEndpoint string
-	AutoRestart      bool
-	Logstash         bool
+	muxport          int
+	mux              bool
+	tls              bool
+	keyPEMfile       string
+	certPEMfile      string
+	servicedEndpoint string
+	autorestart      bool
+	logstash         bool
 }
 
 type ProxyConfig struct {
@@ -228,7 +228,6 @@ func (a *api) StartProxy(cfg ProxyConfig) {
 
 	glog.Flush()
 	os.Exit(exitcode)
-	return nil
 }
 
 var proxies map[string]*serviced.Proxy

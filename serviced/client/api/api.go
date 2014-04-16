@@ -46,7 +46,7 @@ type Options struct {
 	StatsPeriod      int
 	MCUsername       string
 	MCPasswd         string
-	Mount            VolumeMap
+	Mount            []string
 	ResourcePeriod   int
 	VFS              string
 	ESStartupTimeout int
@@ -56,6 +56,12 @@ type Options struct {
 // Load options overwrites the existing options
 func LoadOptions(ops Options) {
 	options = ops
+
+	// Check option boundaries
+	if options.ESStartupTimeout < MIN_TIMEOUT {
+		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", MIN_TIMEOUT)
+		options.ESStartupTimeout = MIN_TIMEOUT
+	}
 }
 
 // Opens a connection to the control plane

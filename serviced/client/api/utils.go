@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	MIN_TIMEOUT     = 30
 	DEFAULT_TIMEOUT = 600
 )
 
@@ -55,15 +56,23 @@ func GetVarPath() string {
 
 // Returns the Elastic Search Startup Timeout
 func GetESStartupTimeout() int {
-	if options.ESStartupTimeout != "" {
-		return options.ESStartupTimeout
+	var timeout int = 0
+
+	if t := options.ESStartupTimeout; t > 0 {
+		timeout = options.ESStartupTimeout
 	} else if t := os.Getenv("ES_STARTUP_TIMEOUT"); t != "" {
-		if result, err := strconv.Atoi(t); err == nil {
-			return result
+		if res, err := strconv.Atoi(t); err != nil {
+			timeout = res
 		}
 	}
 
-	return DEFAULT_TIMEOUT
+	if timeout == 0 {
+		timeout = DEFAULT_TIMEOUT
+	} else if timeout < MIN_TIMEOUT {
+		timeout = MIN_TIMEOUT
+	}
+
+	return timeout
 }
 
 type version []int

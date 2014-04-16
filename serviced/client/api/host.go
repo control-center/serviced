@@ -1,6 +1,10 @@
 package api
 
 import (
+	"fmt"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	host "github.com/zenoss/serviced/dao"
 )
 
@@ -52,7 +56,7 @@ func (a *api) GetHost(id string) (*host.Host, error) {
 // AddHost adds a new host
 func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 	// Add the IP used to connect
-	agentClient, err := serviced.NewAgentClient(string(config.Address))
+	agentClient, err := serviced.NewAgentClient(fmt.Sprintf("%s", config.Address))
 	if err != nil {
 		return nil, fmt.Errorf("could not create host connection: %s", err)
 	}
@@ -76,7 +80,7 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 
 	// Get information about the host that was added
 	var hostmap map[string]*host.Host
-	if err := client.GetHosts(&empty, hostmap); err != nil {
+	if err := client.GetHosts(&empty, &hostmap); err != nil {
 		return nil, fmt.Errorf("could not get hosts: %s", err)
 	}
 
@@ -91,7 +95,7 @@ func (a *api) RemoveHost(id string) error {
 	}
 
 	if err := client.RemoveHost(id, &unusedInt); err != nil {
-		return nil, fmt.Errorf("could not remove host: %s", err)
+		return fmt.Errorf("could not remove host: %s", err)
 	}
 
 	return nil

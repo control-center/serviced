@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	host "github.com/zenoss/serviced/dao"
 	pool "github.com/zenoss/serviced/dao"
 )
@@ -62,7 +64,7 @@ func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
 	}
 
 	p := pool.ResourcePool{
-		PoolId:      config.PoolID,
+		Id:          config.PoolID,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
 		Priority:    config.Priority,
@@ -84,7 +86,7 @@ func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
 func (a *api) RemovePool(id string) error {
 	client, err := connect()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := client.RemoveResourcePool(id, &unusedInt); err != nil {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/zenoss/serviced/dao"
@@ -43,34 +44,10 @@ func (m *ImageMap) Set(value string) error {
 
 func (m *ImageMap) String() string {
 	var mapping []string
-	for k, v := range m {
+	for k, v := range *m {
 		mapping = append(mapping, k+","+v)
 	}
 
-	return strings.Join(mapping, " ")
-}
-
-// Mapping of mounted volumes to docker image ids
-type VolumeMap map[string][2]string
-
-func (m *VolumeMap) Set(value string) error {
-	parts := strings.Split(value, ",")
-	if len(parts) != 3 {
-		return fmt.Errorf("bad format: %s; must be IMAGE_ID,HOST_PATH,DOCKER_PATH", value)
-	}
-	image := parts[0]
-	host := parts[1]
-	docker := parts[2]
-
-	(*m)[image] = []string{host, docker}
-	return nil
-}
-
-func (m *VolumeMap) String() string {
-	var mapping []string
-	for k, v := range m {
-		mapping = append(mapping, fmt.Sprintf("%s,%s,%s", k, v[0], v[1]))
-	}
 	return strings.Join(mapping, " ")
 }
 
@@ -96,14 +73,14 @@ func (m *PortMap) Set(value string) error {
 	if portname == "" {
 		return fmt.Errorf("port name cannot be empty")
 	}
-	port := protocol + ":" + portnum
-	(*m)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: portnum, Application: portname}
+	port := fmt.Sprintf("%s:%d", protocol, portnum)
+	(*m)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portnum), Application: portname}
 	return nil
 }
 
 func (m *PortMap) String() string {
 	var mapping []string
-	for _, v := range m {
+	for _, v := range *m {
 		mapping = append(mapping, fmt.Sprintf("%s:%s:%s", v.Protocol, v.PortNumber, v.Application))
 	}
 	return strings.Join(mapping, " ")
