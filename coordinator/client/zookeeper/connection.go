@@ -7,7 +7,6 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -50,12 +49,10 @@ func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 
 // Close the zk connection.
 func (zk *Connection) Close() {
-	glog.Infof("connection %s closed", zk)
 	zk.conn.Close()
 	if zk.onClose != nil {
 		f := *zk.onClose
 		zk.onClose = nil
-		glog.Infof("calling callback %v", f)
 		f(zk.id)
 	}
 }
@@ -120,7 +117,11 @@ func (zk *Connection) Delete(path string) error {
 			return xlateError(err)
 		}
 	}
-	return zk.conn.Delete(join(zk.basePath, path), 0)
+	_, stat, err := zk.conn.Get(join(zk.basePath, path))
+	if err != nil {
+		return xlateError(err)
+	}
+	return xlateError(zk.conn.Delete(join(zk.basePath, path), stat.Version))
 }
 
 func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
@@ -174,7 +175,6 @@ func (zk *Connection) get(path string, node client.Node) (err error) {
 	if err != nil {
 		return err
 	}
-	glog.Infof("path %s, data %v", path, data)
 	err = json.Unmarshal(data, node)
 	node.SetVersion(stat.Version)
 	return xlateError(err)

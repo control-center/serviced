@@ -188,7 +188,7 @@ func TestDao_UpdateHost(t *testing.T) {
 	controlPlaneDao.AddHost(*host, &id)
 
 	host.Name = "hostname"
-	host.IpAddr = "127.0.0.1"
+	host.IpAddr = "172.17.42.1"
 	err := controlPlaneDao.UpdateHost(*host, &unused)
 	if err != nil {
 		t.Errorf("Failure updating host %-v with error: %s", host, err)

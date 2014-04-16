@@ -471,7 +471,7 @@ func LoadServiceW(conn coordclient.Connection, serviceId string, s *dao.Service)
 	sn := ServiceNode{}
 	event, err := conn.GetW(ServicePath(serviceId), &sn)
 	if err != nil {
-		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
+		//glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
 		return nil, err
 	}
 	*s = *sn.Service

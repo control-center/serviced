@@ -184,7 +184,7 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 		var service dao.Service
 		zkEvent, err := zzk.LoadServiceW(conn, serviceID, &service)
 		if err != nil {
-			glog.Errorf("Unable to load service %s: %v", serviceID, err)
+			//glog.Errorf("Unable to load service %s: %v", serviceID, err)
 			return
 		}
 		_, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceID))
