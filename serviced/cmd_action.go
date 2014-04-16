@@ -66,6 +66,11 @@ func (cli *ServicedCli) CmdAction(args ...string) error {
 		glog.Fatalf("no service found for serviceID: %s", serviceID)
 	}
 
+	// Evaluate service Actions for templates
+	if err := service.EvaluateActionTemplate(cp); err != nil {
+		glog.Fatalf("error evaluating service:%s Actions:%+v  error:%s", service.Id, service.Actions, err)
+	}
+
 	// Parse the command
 	command, ok := service.Actions[action]
 	if !ok {
@@ -76,7 +81,11 @@ func (cli *ServicedCli) CmdAction(args ...string) error {
 	// Perform the action on all service states of this service
 	var states []*dao.ServiceState
 	if err := cp.GetServiceStates(service.Id, &states); err != nil {
-		return err
+		glog.Fatalf("unable to retrieve service states for serviceID:%s", service.Id)
+	}
+
+	if len(states) < 1 {
+		glog.Fatalf("unable to find service states for serviceID:%s", service.Id)
 	}
 
 	for _, state := range states {
