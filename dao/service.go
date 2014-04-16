@@ -70,8 +70,8 @@ func context(cp ControlPlane) func(s Service) (ctx map[string]interface{}, err e
 	}
 }
 
-// EvaluateActionTemplate parses and evaluates the Actions string of a service.
-func (service *Service) EvaluateActionTemplate(cp ControlPlane) (err error) {
+// EvaluateActionsTemplate parses and evaluates the Actions string of a service.
+func (service *Service) EvaluateActionsTemplate(cp ControlPlane) (err error) {
 	for key, value := range service.Actions {
 		result := service.evaluateTemplate(cp, value)
 		if result != "" {

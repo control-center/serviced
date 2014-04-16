@@ -67,7 +67,7 @@ func (cli *ServicedCli) CmdAction(args ...string) error {
 	}
 
 	// Evaluate service Actions for templates
-	if err := service.EvaluateActionTemplate(cp); err != nil {
+	if err := service.EvaluateActionsTemplate(cp); err != nil {
 		glog.Fatalf("error evaluating service:%s Actions:%+v  error:%s", service.Id, service.Actions, err)
 	}
 
@@ -81,7 +81,7 @@ func (cli *ServicedCli) CmdAction(args ...string) error {
 	// Perform the action on all service states of this service
 	var states []*dao.ServiceState
 	if err := cp.GetServiceStates(service.Id, &states); err != nil {
-		glog.Fatalf("unable to retrieve service states for serviceID:%s", service.Id)
+		glog.Fatalf("unable to retrieve service states for serviceID:%s error:%s", service.Id, err)
 	}
 
 	if len(states) < 1 {
