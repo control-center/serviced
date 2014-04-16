@@ -67,10 +67,8 @@ func (cli *ServicedCli) CmdAction(args ...string) error {
 	}
 
 	// Parse the command
-	var command string
-	if bashCommand, ok := service.Actions[action]; ok {
-		command = fmt.Sprintf("su - zenoss -c '%s'", bashCommand)
-	} else {
+	command, ok := service.Actions[action]
+	if !ok {
 		glog.Infof("service: %+v", service)
 		glog.Fatalf("cannot access action: %s", action)
 	}
