@@ -159,7 +159,7 @@ func (d *daemon) startAgent() error {
 	mux.UseTLS = options.tls
 
 	_dns := strings.Split(options.dockerDns, ",")
-	agent, err := serviced.NewHostAgent(options.port, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+	agent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -234,7 +234,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 
 	// TODO: Make bind port for web server optional?
-	cpserver := web.NewServiceConfig(":8787", options.port, options.zookeepers, options.repstats, options.hostaliases)
+	cpserver := web.NewServiceConfig(options.uiport, options.port, options.zookeepers, options.repstats, options.hostaliases)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 

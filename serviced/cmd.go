@@ -29,6 +29,7 @@ import (
 // Store the command line options
 var options struct {
 	port             string
+	uiport			 string
 	listen           string
 	master           bool
 	dockerDns        string
@@ -92,6 +93,7 @@ func init() {
 
 	dockerDns := os.Getenv("SERVICED_DOCKER_DNS")
 	flag.StringVar(&options.port, "port", agentIP+":4979", "port for remote serviced (example.com:8080)")
+	flag.StringVar(&options.uiport, "uiport", ":443", "port for ui")
 	flag.StringVar(&options.listen, "listen", ":4979", "port for local serviced (example.com:8080)")
 	flag.StringVar(&options.dockerDns, "dockerDns", dockerDns, "docker dns configuration used for running containers (comma seperated list)")
 	flag.BoolVar(&options.master, "master", false, "run in master mode, ie the control plane service")
