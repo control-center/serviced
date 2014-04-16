@@ -301,18 +301,6 @@ function DeployWizard($scope, resourcesService) {
         return templates;
     };
 
-    $scope.getRequiredResources = function() {
-        var requiredResources = {RAM: 0, CPU: 0};
-        for (var i=0; i < $scope.install.templateData.length; i++) {
-            var template = $scope.install.templateData[i];
-            if ($scope.install.selected[template.Id]) {
-                requiredResources.RAM += template.RAMCommitment;
-                requiredResources.CPU += template.CPUCommitment;
-            }
-        }
-        return requiredResources;
-    };
-
     var step = 0;
     var resetStepPage = function() {
         step = 0;
@@ -999,13 +987,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
             $('#pool_menu_' + index).removeClass('tempvis');
         }, 600);
     };
-
-    $scope.viewPool = function(id){
-        $('#viewPool').modal('show');
-        resourcesService.get_pools(true, function(pools){
-            $scope.viewedPool = pools[id];
-        });
-    }
 
     var hostCallback = function() {
         $scope.hosts.page = 1;
