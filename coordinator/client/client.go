@@ -178,8 +178,8 @@ func (client *Client) loop() {
 
 	// keep track of outstanding connections
 	connections := make(map[int]*Connection)
-	// connectionIds are for local identificatin
-	var connectionId int
+	// connectionIDs are for local identificatin
+	var connectionID int
 
 	for {
 		select {
@@ -197,12 +197,12 @@ func (client *Client) loop() {
 				c, err := client.connectionFactory.GetConnection(client.connectionString, client.basePath)
 				if err == nil {
 					// save a reference to the connection locally
-					connections[connectionId] = &c
-					c.SetId(connectionId)
+					connections[connectionID] = &c
+					c.SetId(connectionID)
 					c.SetOnClose(func(id int) {
 						client.closeConnection(id)
 					})
-					connectionId++
+					connectionID++
 					// setting up a callback to close the connection in this client
 					// if someone calls Close() on the driver reference
 					req.response <- c
@@ -230,8 +230,8 @@ func (client *Client) loop() {
 }
 
 // closeConnection will request that the main loop close the given connection.
-func (client *Client) closeConnection(connectionId int) error {
-	request := newOpClientRequest(opClientCloseConnection, connectionId)
+func (client *Client) closeConnection(connectionID int) error {
+	request := newOpClientRequest(opClientCloseConnection, connectionID)
 	client.opRequests <- request
 	response := <-request.response
 	return response.(error)
