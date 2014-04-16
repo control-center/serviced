@@ -118,6 +118,7 @@ func (cli *ServicedCli) CmdHelp(args ...string) error {
 		{"snapshots", "Show snapshots for a service"},
 
 		{"attach", "attach to a running service container and execute arbitrary bash command"},
+		{"action", "attach to service instances and perform the predefined action"},
 		{"backup", "Dump templates, services, images, and shared file system to a tgz file"},
 		{"restore", "Import templates, services, images, and shared files sytems from a tgz file"},
 	} {
