@@ -25,7 +25,7 @@ func NewLoop(policy Policy, cancelable func(chan chan error) chan error) Loop {
 		startTime:   time.Now(),
 		retryPolicy: policy,
 		cancelable:  cancelable,
-		waiting:     make(chan error),
+		waiting:     make(chan error, 1),
 		closing:     make(chan chan error),
 	}
 	go loop.loop()
@@ -44,23 +44,17 @@ func (loop *Loop) loop() {
 		case err = <-loopRun:
 			if err == nil {
 				loopRun = nil
-				go func() {
-					loop.waiting <- nil
-				}()
+				loop.waiting <- nil
 				continue
 			}
 			if quit {
-				go func() {
-					loop.waiting <- err
-				}()
+				loop.waiting <- err
 				return
 			}
 			loopRun = nil
 			tryAgain, timeToSleep := loop.retryPolicy.AllowRetry(loop.retryCount, time.Since(loop.startTime))
 			if !tryAgain {
-				go func() {
-					loop.waiting <- err
-				}()
+				loop.waiting <- err
 				return
 			}
 			loop.retryCount++
@@ -71,9 +65,7 @@ func (loop *Loop) loop() {
 		case errc := <-loop.closing:
 			quit = true
 			if loopSleep != nil {
-				go func() {
-					loop.waiting <- err
-				}()
+				loop.waiting <- err
 				errc <- err
 				return
 			}
