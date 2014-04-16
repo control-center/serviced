@@ -872,12 +872,16 @@ func TestDao_SnapshotRequest(t *testing.T) {
 	cclient, _ := coordclient.New("zookeeper", dsn.String(), "", nil)
 	zkDao := zzk.NewZkDao(cclient)
 
-	srExpected := dao.SnapshotRequest{Id: "request13",
-		ServiceId: "12345", SnapshotLabel: "foo", SnapshotError: "bar"}
+	srExpected := dao.SnapshotRequest{
+		Id:            "request13",
+		ServiceId:     "12345",
+		SnapshotLabel: "foo",
+		SnapshotError: "bar",
+	}
 	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
 		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
 	}
-	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: zk: node already exists")
+	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: node already exists")
 	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
 		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
 	}
@@ -907,8 +911,8 @@ func TestDao_SnapshotRequest(t *testing.T) {
 	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
 		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
 	}
-	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
-		t.Fatalf("Failure removing non-existant snapshot request %+v", srExpected)
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err == nil {
+		t.Fatalf("Failure removing non-existant snapshot request expected %+v", srExpected)
 	}
 }
 

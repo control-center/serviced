@@ -632,11 +632,15 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 		exists, err := conn.Exists(path)
 		if err != nil {
 			if err == coordclient.ErrNoNode {
-				conn.CreateDir(path)
+				if err := conn.CreateDir(path); err != nil && err != coordclient.ErrNodeExists {
+					return err
+				}
 			}
 		}
 		if !exists {
-			conn.CreateDir(path)
+			if err := conn.CreateDir(path); err != nil && err != coordclient.ErrNodeExists {
+				return err
+			}
 		}
 	}
 
@@ -647,6 +651,7 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
 	if err := conn.Create(snapshotRequestsPath, &srn); err != nil {
 		glog.Errorf("Unable to create snapshot request %s: %v", snapshotRequestsPath, err)
+		return err
 	}
 
 	glog.V(3).Infof("Successfully created snapshot request %s", snapshotRequestsPath)
