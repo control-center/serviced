@@ -6,6 +6,7 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -17,7 +18,8 @@ type Connection struct {
 	conn     *zklib.Conn
 	servers  []string
 	timeout  time.Duration
-	onClose  *func()
+	onClose  *func(int)
+	id       int
 }
 
 // Assert that Connection implements client.Connection.
@@ -27,6 +29,14 @@ func (zk *Connection) NewLock(path string) client.Lock {
 	return &Lock{
 		lock: zklib.NewLock(zk.conn, join(zk.basePath, path), zklib.WorldACL(zklib.PermAll)),
 	}
+}
+
+func (c *Connection) Id() int {
+	return c.id
+}
+
+func (c *Connection) SetId(id int) {
+	c.id = id
 }
 
 func (c *Connection) NewLeader(path string, data []byte) client.Leader {
@@ -39,11 +49,18 @@ func (c *Connection) NewLeader(path string, data []byte) client.Leader {
 
 // Close the zk connection.
 func (zk *Connection) Close() {
+	glog.Infof("connection %s closed", zk)
 	zk.conn.Close()
+	if zk.onClose != nil {
+		f := *zk.onClose
+		zk.onClose = nil
+		glog.Infof("calling callback %v", f)
+		f(zk.id)
+	}
 }
 
 // SetOnClose sets the callback f to be called when Close is called on zk.
-func (zk *Connection) SetOnClose(f func()) {
+func (zk *Connection) SetOnClose(f func(int)) {
 	zk.onClose = &f
 }
 

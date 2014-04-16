@@ -10,8 +10,19 @@ import (
 	"time"
 )
 
+const SERVICE_PATH = "/services"
+const SCHEDULER_PATH = "/scheduler"
+const SNAPSHOT_PATH = "/snapshots"
+const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
+
 type ZkDao struct {
-	client coordclient.Client
+	client *coordclient.Client
+}
+
+func NewZkDao(client *coordclient.Client) *ZkDao {
+	return &ZkDao{
+		client: client,
+	}
 }
 
 type ZkConn struct {

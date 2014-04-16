@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
@@ -176,32 +177,33 @@ func (client *Client) loop() {
 	// keep track of outstanding connections
 	connections := make(map[int]*Connection)
 	// connectionIds are for local identificatin
-	connectionId := 0
+	var connectionId int
 
 	for {
 		select {
 		case req := <-client.opRequests:
 			switch req.op {
 			case opClientCloseConnection:
-				connectionId := req.args.(int)
-				if connection, found := connections[connectionId]; found {
-					(*connection).Close()
-					delete(connections, connectionId)
+				id := req.args.(int)
+				delete(connections, id)
+				if _, found := connections[id]; found {
+
 					req.response <- nil
 				} else {
 					req.response <- ErrConnectionNotFound
 				}
 			case opClientRequestConnection:
 				c, err := client.connectionFactory.GetConnection(client.connectionString, client.basePath)
-				// setting up a callback to close the connection in this client
-				// if someone calls Close() on the driver reference
-				c.SetOnClose(func() {
-					client.closeConnection(connectionId)
-				})
 				if err == nil {
 					// save a reference to the connection locally
 					connections[connectionId] = &c
+					c.SetId(connectionId)
+					c.SetOnClose(func(id int) {
+						client.closeConnection(id)
+					})
 					connectionId++
+					// setting up a callback to close the connection in this client
+					// if someone calls Close() on the driver reference
 					req.response <- c
 				} else {
 					req.response <- err
@@ -210,8 +212,15 @@ func (client *Client) loop() {
 
 		case req := <-client.done:
 			// during a shutdown request, close all outstanding connections
-			for _, c := range connections {
-				(*c).Close()
+			for id, _ := range connections {
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							glog.Errorf("recovered from: %s", r)
+						}
+					}()
+					(*connections[id]).Close()
+				}()
 			}
 			req <- struct{}{}
 			return
@@ -240,6 +249,7 @@ func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) 
 // Callers should call close() on thier connections when done. The client will also
 // close connections if close is called on the client.
 func (client *Client) GetConnection() (Connection, error) {
+
 	request := newOpClientRequest(opClientRequestConnection, nil)
 	client.opRequests <- request
 	response := <-request.response

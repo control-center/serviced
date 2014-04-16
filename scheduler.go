@@ -58,7 +58,7 @@ func (s *scheduler) loop() {
 	glog.V(3).Infoln("entering scheduler")
 
 	var err error
-	var this_node string
+	//var this_node string
 	defer func() {
 		glog.V(3).Infoln("leaving scheduler")
 		s.shutdown <- err

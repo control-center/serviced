@@ -694,7 +694,7 @@ func (a *HostAgent) start() {
 					c, err := a.zkClient.GetConnection()
 					if err == nil {
 						connc <- c
-						break
+						return
 					}
 				}
 				close(connc)
@@ -710,7 +710,6 @@ func (a *HostAgent) start() {
 				glog.V(1).Info("Got a connected client")
 			}
 			defer conn.Close()
-
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {
@@ -772,8 +771,15 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 		children, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
 			glog.V(0).Infoln("Unable to read children, retrying.")
-			time.Sleep(3 * time.Second)
-			return true
+			select {
+			case <-time.After(3 * time.Second):
+				return true
+			case errc := <-a.closing:
+				glog.V(1).Info("Agent received interrupt")
+				err = waitForSsNodes(processing, ssDone)
+				errc <- err
+				return false
+			}
 		}
 		a.startMissingChildren(conn, children, processing, ssDone)
 

@@ -19,7 +19,9 @@ type Leader interface {
 
 type Connection interface {
 	Close()
-	SetOnClose(func())
+	SetId(int)
+	Id() int
+	SetOnClose(func(int))
 	Create(path string, data []byte) error
 	CreateDir(path string) error
 	Exists(path string) (bool, error)
