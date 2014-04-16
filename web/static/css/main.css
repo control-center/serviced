@@ -756,6 +756,10 @@ rect {
     margin-top: 20px;
 }
 
+.popover{
+    max-width: none;
+}
+
 .popover table{
     white-space: nowrap;
 }

@@ -13,7 +13,7 @@
       </div>
 
       <ul class="nav-tree root">
-        <li ng-repeat="pool in pools.flattened" 
+        <li ng-repeat="pool in pools.flattened"
             data-pool-id="{{pool.Id}}"
             data-drop="true" 
             data-jqyoui-options="{greedy: true, hoverClass: 'active'}"
@@ -35,5 +35,3 @@
             </span>
         </li>
       </ul>
-
-      <div ng-include="'/static/partials/view-pool.html'"></div>

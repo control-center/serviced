@@ -9,14 +9,14 @@
             <th>{{"label_app_ram_commitment"|translate}}</th>
             <th>{{"label_app_cpu_commitment"|translate}}</th>
         </tr>
-        <tr ng-repeat="template in install.templateData" ng-class="install.templateClass(template)">
+        <tr ng-repeat="template in install.templateData | orderBy: 'Name'" ng-class="install.templateClass(template)">
             <td><input type="checkbox"
                    ng-model="install.selected[template.Id]"
                    ng-disabled="install.templateDisabled(template)"
                    ng-change="install.templateSelected(template)"></td>
             <td>{{template.Name}}</td>
-            <td>{{template.Services[0].RAMCommitment}}</td>
-            <td>{{template.Services[0].CPUCommitment}}</td>
+            <td>{{getTemplateRequiredResources(template).RAMCommitment}} GB</td>
+            <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
         </tr>
     </table>
   </div>

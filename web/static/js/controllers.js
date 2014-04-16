@@ -301,6 +301,16 @@ function DeployWizard($scope, resourcesService) {
         return templates;
     };
 
+    $scope.getTemplateRequiredResources = function(template){
+        var ret = {CPUCommitment:0, RAMCommitment:0};
+        for (var i=0; i<template.Services.length; ++i){
+            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
+            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+        }
+
+        return ret;
+    }
+
     var step = 0;
     var resetStepPage = function() {
         step = 0;
