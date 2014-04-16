@@ -187,9 +187,8 @@ func (client *Client) loop() {
 			switch req.op {
 			case opClientCloseConnection:
 				id := req.args.(int)
-				delete(connections, id)
 				if _, found := connections[id]; found {
-
+					delete(connections, id)
 					req.response <- nil
 				} else {
 					req.response <- ErrConnectionNotFound
