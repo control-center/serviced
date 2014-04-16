@@ -287,7 +287,6 @@ function DeployWizard($scope, resourcesService) {
             template.Id = key;
             templates[templates.length] = template;
         }
-        console.log(templates);
         $scope.install.templateData = templates;
     });
 
