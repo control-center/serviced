@@ -83,6 +83,16 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             scope.showIfEmpty();
         };
     }).
+    directive('popover', function(){
+        return function(scope, elem, attrs){
+            $(elem).popover({
+                title: attrs.popoverTitle,
+                trigger: "hover",
+                html: true,
+                content: attrs.popover
+            });
+        }
+    }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
     factory('statsService', StatsService).
@@ -243,13 +253,6 @@ function DeployWizard($scope, resourcesService) {
         selected: {
             pool: 'default'
         },
-        templateClass: function(template) {
-            var cls = "block-data control-group";
-            if (template.depends) {
-                cls += " indented";
-            }
-            return cls;
-        },
         templateSelected: function(template) {
             if (template.depends) {
                 $scope.install.selected[template.depends] = true;
@@ -278,6 +281,7 @@ function DeployWizard($scope, resourcesService) {
             template.Id = key;
             templates[templates.length] = template;
         }
+        console.log(templates);
         $scope.install.templateData = templates;
     });
 
@@ -290,6 +294,18 @@ function DeployWizard($scope, resourcesService) {
             }
         }
         return templates;
+    };
+
+    $scope.getRequiredResources = function() {
+        var requiredResources = {RAM: 0, CPU: 0};
+        for (var i=0; i < $scope.install.templateData.length; i++) {
+            var template = $scope.install.templateData[i];
+            if ($scope.install.selected[template.Id]) {
+                requiredResources.RAM += template.RAMCommitment;
+                requiredResources.CPU += template.CPUCommitment;
+            }
+        }
+        return requiredResources;
     };
 
     var step = 0;
@@ -936,6 +952,13 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         }, 600);
     };
 
+    $scope.viewPool = function(id){
+        $('#viewPool').modal('show');
+        resourcesService.get_pools(true, function(pools){
+            $scope.viewedPool = pools[id];
+        });
+    }
+
     var hostCallback = function() {
         $scope.hosts.page = 1;
         $scope.hosts.pageSize = 10;
@@ -1368,6 +1391,10 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     $scope.params = $routeParams;
     $scope.itemClass = itemClass;
     $scope.indent = indentClass;
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_hosts', url: '#/hosts' },
+        { label: 'breadcrumb_hosts_map', itemClass: 'active' }
+    ];
 
     $scope.addSubpool = function(poolId) {
         $scope.newPool.ParentId = poolId;

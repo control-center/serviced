@@ -751,3 +751,7 @@ rect {
 .node.service text { 
     fill: white;
 }
+
+.control-buttons {
+    margin-top: 20px;
+}
