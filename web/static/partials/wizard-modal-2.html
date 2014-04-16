@@ -2,15 +2,22 @@
   <div ng-class="install.templateSelectedFormDiv()">
 
     <label class="control-label">{{'label_wizard_select_app'|translate}}</label>
-    <div ng-repeat="template in install.templateData" 
-         ng-class="install.templateClass(template)">
-      <label>
-        <input type="checkbox"
-               ng-model="install.selected[template.Id]" 
-               ng-disabled="install.templateDisabled(template)"
-               ng-change="install.templateSelected(template)">
-        {{template.Name}}
-      </label>
-    </div>
+    <table class="table table-striped">
+        <tr>
+            <th>&nbsp;</th>
+            <th>{{"label_app_name"|translate}}</th>
+            <th>{{"label_app_ram_commitment"|translate}}</th>
+            <th>{{"label_app_cpu_commitment"|translate}}</th>
+        </tr>
+        <tr ng-repeat="template in install.templateData" ng-class="install.templateClass(template)">
+            <td><input type="checkbox"
+                   ng-model="install.selected[template.Id]"
+                   ng-disabled="install.templateDisabled(template)"
+                   ng-change="install.templateSelected(template)"></td>
+            <td>{{template.Name}}</td>
+            <td>{{template.Services[0].RAMCommitment}}</td>
+            <td>{{template.Services[0].CPUCommitment}}</td>
+        </tr>
+    </table>
   </div>
 
