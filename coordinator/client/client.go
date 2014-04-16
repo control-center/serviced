@@ -1,4 +1,3 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 package client
@@ -178,7 +177,7 @@ func (client *Client) loop() {
 
 	// keep track of outstanding connections
 	connections := make(map[int]*Connection)
-	// connectionIDs are for local identificatin
+	// connectionIDs are for local identification
 	var connectionID int
 
 	for {
