@@ -14,7 +14,12 @@ type Lock interface {
 type Leader interface {
 	TakeLead() (<-chan Event, error)
 	ReleaseLead() error
-	Current() (data []byte, err error)
+	Current(node Node) error
+}
+
+type Node interface {
+	Version() int32
+	SetVersion(int32)
 }
 
 type Connection interface {
@@ -22,16 +27,16 @@ type Connection interface {
 	SetId(int)
 	Id() int
 	SetOnClose(func(int))
-	Create(path string, data []byte) error
+	Create(path string, node Node) error
 	CreateDir(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
 	ChildrenW(path string) (children []string, event <-chan Event, err error)
 	Children(path string) (children []string, err error)
-	Get(path string) (data []byte, err error)
-	GetW(path string) (data []byte, event <-chan Event, err error)
-	Set(path string, data []byte) error
+	Get(path string, node Node) error
+	GetW(path string, node Node) (<-chan Event, error)
+	Set(path string, node Node) error
 
 	NewLock(path string) Lock
-	NewLeader(path string, data []byte) Leader
+	NewLeader(path string, data Node) Leader
 }

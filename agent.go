@@ -153,27 +153,33 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 
 func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
 	ssPath := zzk.ServiceStatePath(hss.ServiceId, hss.ServiceStateId)
-	_, err := conn.Get(ssPath)
+	exists, err := conn.Exists(ssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get service state %s for delete because: %v", ssPath, err)
 		return
 	}
-	err = conn.Delete(ssPath)
-	if err != nil {
-		glog.V(0).Infof("Unable to delete service state %s because: %v", ssPath, err)
-		return
+	if exists {
+		err = conn.Delete(ssPath)
+		if err != nil {
+			glog.V(0).Infof("Unable to delete service state %s because: %v", ssPath, err)
+			return
+		}
 	}
 
 	hssPath := zzk.HostServiceStatePath(hss.HostId, hss.ServiceStateId)
-	_, err = conn.Get(hssPath)
+	exists, err = conn.Exists(hssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get host service state %s for delete becaus: %v", hssPath, err)
 		return
 	}
-	err = conn.Delete(hssPath)
-	if err != nil {
-		glog.V(0).Infof("Unable to delete host service state %s", hssPath)
+	if exists {
+		err = conn.Delete(hssPath)
+		if err != nil {
+			glog.V(0).Infof("Unable to delete host service state %s", hssPath)
+		}
+
 	}
+	return
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.

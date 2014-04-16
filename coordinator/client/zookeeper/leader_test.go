@@ -38,18 +38,23 @@ func TestLeader(t *testing.T) {
 	}
 
 	// create  a leader and TakeLead
-	leader1Str := "leader1"
-	leader1 := conn.NewLeader("/like/a/boss", []byte(leader1Str))
-	err = leader1.TakeLead()
+	leader1Node := &testNodeT{
+		Name: "leader1",
+	}
+	leader1 := conn.NewLeader("/like/a/boss", leader1Node)
+	_, err = leader1.TakeLead()
 	if err != nil {
-		t.Fatal("could not take lead! %s", err)
+		t.Fatalf("could not take lead! %s", err)
 	}
 
-	leader2Str := "leader2"
-	leader2 := conn.NewLeader("/like/a/boss", []byte(leader2Str))
+	leader2Node := &testNodeT{
+		Name: "leader2",
+	}
+	leader2 := conn.NewLeader("/like/a/boss", leader2Node)
 	leader2Response := make(chan error)
 	go func() {
-		leader2Response <- leader2.TakeLead()
+		_, err := leader2.TakeLead()
+		leader2Response <- err
 	}()
 
 	select {
@@ -58,15 +63,18 @@ func TestLeader(t *testing.T) {
 	case <-time.After(time.Second):
 	}
 
+	currentLeaderNode := &testNodeT{
+		Name: "",
+	}
 	// get current Leader
-	currentLeader := conn.NewLeader("/like/a/boss", []byte{})
-	currentLeaderBytes, err := currentLeader.Current()
+	currentLeader := conn.NewLeader("/like/a/boss", nil)
+	err = currentLeader.Current(currentLeaderNode)
 	if err != nil {
 		t.Fatalf("unexpected error getting current leader:%s", err)
 	}
 
-	if string(currentLeaderBytes) != leader1Str {
-		t.Fatalf("expected leader %s , got %s", leader1Str, string(currentLeaderBytes))
+	if currentLeaderNode.Name != leader1Node.Name {
+		t.Fatalf("expected leader %s , got %s", currentLeaderNode.Name, leader1Node.Name)
 	}
 
 	// let the first leader go

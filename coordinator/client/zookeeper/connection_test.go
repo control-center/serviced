@@ -60,6 +60,14 @@ func TestEnsureZkFatjar(t *testing.T) {
 	ensureZkFatjar()
 }
 
+type testNodeT struct {
+	Name    string
+	version int32
+}
+
+func (n *testNodeT) SetVersion(version int32) { n.version = version }
+func (n *testNodeT) Version() int32           { return n.version }
+
 func TestZkDriver(t *testing.T) {
 	basePath := "/basePath"
 	tc, err := zklib.StartTestCluster(1)
@@ -101,7 +109,10 @@ func TestZkDriver(t *testing.T) {
 		t.Fatalf("creating /foo should work: %s", err)
 	}
 
-	err = conn.Create("/foo/bar", []byte("test"))
+	testNode := &testNodeT{
+		Name: "test",
+	}
+	err = conn.Create("/foo/bar", testNode)
 	if err != nil {
 		t.Fatalf("creating /foo/bar should work: %s", err)
 	}
@@ -112,7 +123,19 @@ func TestZkDriver(t *testing.T) {
 	}
 
 	if !exists {
-		t.Fatal("/foo/bar should not exist")
+		t.Fatal("/foo/bar should  exist")
+	}
+
+	testNode2 := &testNodeT{
+		Name: "baz",
+	}
+	err = conn.Get("/foo/bar", testNode2)
+	if err != nil {
+		t.Fatalf("could not get /foo/bar node: %s", err)
+	}
+
+	if testNode.Name != testNode2.Name {
+		t.Fatalf("expected testNodes to match %s  --- %s", testNode.Name, testNode2.Name)
 	}
 
 	err = conn.Delete("/foo")

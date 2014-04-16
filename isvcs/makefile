@@ -47,7 +47,7 @@ $(REPO_EXISTS): $(REPO_DIR) $(COMPONENT_ARCHIVES)
 	docker images $(REPO) | grep $(TAG) 2>&1 > /dev/null && touch $(REPO_EXISTS)
 
 $(BUILD_DIR)/%.tar.gz:
-	docker run -rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
+	docker run --rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
 		bash -c "make TARGET=/tmp/out; chown -R $(UID):$(UID) /tmp/out/$(notdir $(@))"
 
 clean:

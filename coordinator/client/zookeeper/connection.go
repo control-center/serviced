@@ -1,6 +1,7 @@
 package zk_driver
 
 import (
+	"encoding/json"
 	lpath "path"
 	"strings"
 	"time"
@@ -39,11 +40,11 @@ func (c *Connection) SetId(id int) {
 	c.id = id
 }
 
-func (c *Connection) NewLeader(path string, data []byte) client.Leader {
+func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 	return &Leader{
 		c:    c,
 		path: join(c.basePath, path),
-		data: data,
+		node: node,
 	}
 }
 
@@ -65,10 +66,16 @@ func (zk *Connection) SetOnClose(f func(int)) {
 }
 
 // Create places data at the node at the given path.
-func (zk *Connection) Create(path string, data []byte) error {
+func (zk *Connection) Create(path string, node client.Node) error {
 
 	p := join(zk.basePath, path)
-	_, err := zk.conn.Create(p, data, 0, zklib.WorldACL(zklib.PermAll))
+
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		return client.ErrSerialization
+	}
+
+	_, err = zk.conn.Create(p, bytes, node.Version(), zklib.WorldACL(zklib.PermAll))
 	if err == zklib.ErrNoNode {
 		// Create parent node.
 		parts := strings.Split(p, "/")
@@ -84,9 +91,14 @@ func (zk *Connection) Create(path string, data []byte) error {
 	return xlateError(err)
 }
 
+type dirNode struct{}
+
+func (d *dirNode) Version() int32   { return 0 }
+func (d *dirNode) SetVersion(int32) {}
+
 // CreateDir creates an empty node at the given path.
 func (zk *Connection) CreateDir(path string) error {
-	return xlateError(zk.Create(path, []byte{}))
+	return xlateError(zk.Create(path, &dirNode{}))
 }
 
 // Exists checks if a node exists at the given path.
@@ -130,12 +142,19 @@ func (zk *Connection) ChildrenW(path string) (children []string, event <-chan cl
 	return children, toClientEvent(zkEvent), xlateError(err)
 }
 
-func (zk *Connection) GetW(path string) (data []byte, event <-chan client.Event, err error) {
-	data, _, zkEvent, err := zk.conn.GetW(join(zk.basePath, path))
+func (zk *Connection) GetW(path string, node client.Node) (event <-chan client.Event, err error) {
+	return zk.getW(join(zk.basePath, path), node)
+}
+
+func (zk *Connection) getW(path string, node client.Node) (event <-chan client.Event, err error) {
+
+	data, stat, zkEvent, err := zk.conn.GetW(path)
 	if err != nil {
-		return data, nil, err
+		return nil, err
 	}
-	return data, toClientEvent(zkEvent), xlateError(err)
+	err = json.Unmarshal(data, node)
+	node.SetVersion(stat.Version)
+	return toClientEvent(zkEvent), xlateError(err)
 }
 
 func (zk *Connection) Children(path string) (children []string, err error) {
@@ -146,12 +165,26 @@ func (zk *Connection) Children(path string) (children []string, err error) {
 	return children, xlateError(err)
 }
 
-func (zk *Connection) Get(path string) (data []byte, err error) {
-	data, _, err = zk.conn.Get(path)
-	return data, xlateError(err)
+func (zk *Connection) Get(path string, node client.Node) (err error) {
+	return zk.get(join(zk.basePath, path), node)
 }
 
-func (zk *Connection) Set(path string, data []byte) error {
-	_, err := zk.conn.Set(path, data, 0)
+func (zk *Connection) get(path string, node client.Node) (err error) {
+	data, stat, err := zk.conn.Get(path)
+	if err != nil {
+		return err
+	}
+	glog.Infof("path %s, data %v", path, data)
+	err = json.Unmarshal(data, node)
+	node.SetVersion(stat.Version)
+	return xlateError(err)
+}
+
+func (zk *Connection) Set(path string, node client.Node) error {
+	data, err := json.Marshal(node)
+	if err != nil {
+		return err
+	}
+	_, err = zk.conn.Set(path, data, node.Version())
 	return xlateError(err)
 }

@@ -1,6 +1,7 @@
 package zk_driver
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -22,7 +24,7 @@ type Leader struct {
 	path     string
 	lockPath string
 	seq      uint64
-	data     []byte
+	node     client.Node
 }
 
 func parseSeq(path string) (uint64, error) {
@@ -34,11 +36,11 @@ func (l *Leader) prefix() string {
 	return join(l.path, "leader-")
 }
 
-func (l *Leader) Current() (data []byte, err error) {
+func (l *Leader) Current(node client.Node) (err error) {
 
 	children, _, err := l.c.conn.Children(l.path)
 	if err != nil {
-		return data, err
+		return err
 	}
 
 	var lowestSeq uint64
@@ -47,7 +49,7 @@ func (l *Leader) Current() (data []byte, err error) {
 	for _, p := range children {
 		s, err := parseSeq(p)
 		if err != nil {
-			return data, err
+			return err
 		}
 		if s < lowestSeq {
 			lowestSeq = s
@@ -55,11 +57,13 @@ func (l *Leader) Current() (data []byte, err error) {
 		}
 	}
 	if lowestSeq == math.MaxUint64 {
-		return data, ErrNoLeaderFound
+		return ErrNoLeaderFound
 	}
 	path = fmt.Sprintf("%s/%s", l.path, path)
-	data, _, err = l.c.conn.Get(path)
-	return data, err
+	data, stat, err := l.c.conn.Get(path)
+	err = json.Unmarshal(data, node)
+	node.SetVersion(stat.Version)
+	return xlateError(err)
 }
 
 func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
@@ -69,9 +73,15 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 
 	prefix := l.prefix()
 
+	data, err := json.Marshal(l.node)
+	if err != nil {
+		return nil, err
+	}
+
 	path := ""
 	for i := 0; i < 3; i++ {
-		path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, l.data, zklib.WorldACL(zklib.PermAll))
+		path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, data, zklib.WorldACL(zklib.PermAll))
+
 		if err == zklib.ErrNoNode {
 			// Create parent node.
 			parts := strings.Split(l.path, "/")
@@ -140,14 +150,16 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 		}
 	}
 
-	_, event, err := l.c.GetW(path)
+	glog.Infof("w %s", path)
+	_, _, event, err := l.c.conn.GetW(path)
+	glog.Infof("calling wait on %s: %s", path, err)
 	if err == nil {
 		l.seq = seq
 		l.lockPath = path
 	} else {
 		l.c.Delete(path)
 	}
-	return event, err
+	return toClientEvent(event), err
 }
 
 func (l *Leader) ReleaseLead() error {

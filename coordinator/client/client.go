@@ -31,6 +31,8 @@ var (
 )
 
 var (
+	ErrInvalidNodeType    = errors.New("coord-client: invalid node type")
+	ErrSerialization      = errors.New("coord-client: serialization error")
 	ErrInvalidDSN         = errors.New("coord-client: invalid DSN")
 	ErrDriverDoesNotExist = errors.New("coord-client: driver does not exist")
 	ErrNodeExists         = errors.New("coord-client: node exists")

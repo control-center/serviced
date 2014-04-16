@@ -5,7 +5,6 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 
-	"encoding/json"
 	"errors"
 	"time"
 )
@@ -35,6 +34,15 @@ type HostServiceState struct {
 	ServiceId      string
 	ServiceStateId string
 	DesiredState   int
+	version        int32
+}
+
+func (hss *HostServiceState) Version() int32 {
+	return hss.version
+}
+
+func (hss *HostServiceState) SetVersion(version int32) {
+	hss.version = version
 }
 
 // Communicates to the agent that this service instance should stop
@@ -72,22 +80,45 @@ func (zkdao *ZkDao) AddService(service *dao.Service) error {
 	return AddService(conn, service)
 }
 
+type ServiceNode struct {
+	Service *dao.Service
+	version int32
+}
+
+func (s *ServiceNode) Version() int32 {
+	return s.version
+}
+
+func (s *ServiceNode) SetVersion(version int32) {
+	s.version = version
+}
+
 func AddService(conn coordclient.Connection, service *dao.Service) error {
 	glog.V(2).Infof("Creating new service %s", service.Id)
 
-	servicePath := ServicePath(service.Id)
-	sBytes, err := json.Marshal(service)
-	if err != nil {
-		glog.Errorf("Unable to marshal data for %s", servicePath)
-		return err
+	svcNode := &ServiceNode{
+		Service: service,
 	}
-
-	if err := conn.Create(servicePath, sBytes); err != nil {
+	servicePath := ServicePath(service.Id)
+	if err := conn.Create(servicePath, svcNode); err != nil {
 		glog.Errorf("Unable to create service for %s: %v", servicePath, err)
 	}
 
 	glog.V(2).Infof("Successfully created %s", servicePath)
-	return err
+	return nil
+}
+
+type ServiceStateNode struct {
+	ServiceState *dao.ServiceState
+	version      int32
+}
+
+func (s *ServiceStateNode) Version() int32 {
+	return s.version
+}
+
+func (s *ServiceStateNode) SetVersion(version int32) {
+	s.version = version
 }
 
 func (zkdao *ZkDao) AddServiceState(state *dao.ServiceState) error {
@@ -102,28 +133,22 @@ func (zkdao *ZkDao) AddServiceState(state *dao.ServiceState) error {
 
 func AddServiceState(conn coordclient.Connection, state *dao.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
-	ssBytes, err := json.Marshal(state)
-	if err != nil {
-		glog.Errorf("Unable to marshal data for %s", serviceStatePath)
-		return err
+
+	serviceStateNode := &ServiceStateNode{
+		ServiceState: state,
 	}
 
-	if err := conn.Create(serviceStatePath, ssBytes); err != nil {
+	if err := conn.Create(serviceStatePath, serviceStateNode); err != nil {
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
 	hostServicePath := HostServiceStatePath(state.HostId, state.Id)
-	hssBytes, err := json.Marshal(SsToHss(state))
-	if err != nil {
-		glog.Errorf("Unable to marshal data for %s", hostServicePath)
-		return err
-	}
-	if err := conn.Create(hostServicePath, hssBytes); err != nil {
+	hss := SsToHss(state)
+	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
 		return err
 	}
-	return err
-
+	return nil
 }
 
 func (zkdao *ZkDao) UpdateServiceState(state *dao.ServiceState) error {
@@ -133,16 +158,13 @@ func (zkdao *ZkDao) UpdateServiceState(state *dao.ServiceState) error {
 	}
 	defer conn.Close()
 
-	ssBytes, err := json.Marshal(state)
-	if err != nil {
-		return err
-	}
-
 	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
-	if _, err := conn.Get(serviceStatePath); err != nil {
+	ssn := ServiceStateNode{}
+	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
 	}
-	return conn.Set(serviceStatePath, ssBytes)
+	ssn.ServiceState = state
+	return conn.Set(serviceStatePath, &ssn)
 }
 
 func (zkdao *ZkDao) UpdateService(service *dao.Service) error {
@@ -154,19 +176,16 @@ func (zkdao *ZkDao) UpdateService(service *dao.Service) error {
 
 	servicePath := ServicePath(service.Id)
 
-	sBytes, err := json.Marshal(service)
-	if err != nil {
-		return err
-	}
-
-	if _, err := conn.Get(servicePath); err != nil {
+	sn := ServiceNode{}
+	if err := conn.Get(servicePath, &sn); err != nil {
 		glog.V(0).Infof("Unexpectedly could not retrieve %s", servicePath)
 		err = AddService(conn, service)
 		return err
 	}
+	sn.Service = service
 	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicePath, service)
 
-	return conn.Set(servicePath, sBytes)
+	return conn.Set(servicePath, &sn)
 }
 
 func (zkdao *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
@@ -179,11 +198,13 @@ func (zkdao *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId st
 }
 
 func GetServiceState(conn coordclient.Connection, serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
-	serviceStateNode, err := conn.Get(ServiceStatePath(serviceId, serviceStateId))
+	serviceStateNode := ServiceStateNode{}
+	err := conn.Get(ServiceStatePath(serviceId, serviceStateId), &serviceStateNode)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(serviceStateNode, serviceState)
+	*serviceState = *serviceStateNode.ServiceState
+	return nil
 }
 
 func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
@@ -300,7 +321,7 @@ func ServiceStatePath(serviceId string, serviceStateId string) string {
 }
 
 func HostServiceStatePath(hostId string, serviceStateId string) string {
-	return SCHEDULER_PATH + "/" + hostId + "/" + serviceStateId
+	return HOSTS_PATH + "/" + hostId + "/" + serviceStateId
 }
 
 func (zkdao *ZkDao) RemoveService(id string) error {
@@ -375,7 +396,8 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 	}
 
 	hssPath := HostServiceStatePath(ss.HostId, serviceStateId)
-	if _, err := conn.Get(hssPath); err != nil {
+	hss := HostServiceState{}
+	if err := conn.Get(hssPath, &hss); err != nil {
 		glog.Errorf("Unable to get host service state %s for delete because: %v", hssPath, err)
 		return err
 	}
@@ -416,15 +438,9 @@ func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningSer
 
 func LoadHostServiceState(conn coordclient.Connection, hostId string, hssId string, hss *HostServiceState) error {
 	hssPath := HostServiceStatePath(hostId, hssId)
-	hssBytes, err := conn.Get(hssPath)
+	err := conn.Get(hssPath, hss)
 	if err != nil {
 		glog.Errorf("Unable to retrieve host service state %s: %v", hssPath, err)
-		return err
-	}
-
-	err = json.Unmarshal(hssBytes, &hss)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s", hssPath)
 		return err
 	}
 	return nil
@@ -432,60 +448,45 @@ func LoadHostServiceState(conn coordclient.Connection, hostId string, hssId stri
 
 func LoadHostServiceStateW(conn coordclient.Connection, hostId string, hssId string, hss *HostServiceState) (<-chan coordclient.Event, error) {
 	hssPath := HostServiceStatePath(hostId, hssId)
-	hssBytes, event, err := conn.GetW(hssPath)
+	event, err := conn.GetW(hssPath, hss)
 	if err != nil {
 		glog.Errorf("Unable to retrieve host service state %s: %v", hssPath, err)
-		return nil, err
-	}
-
-	err = json.Unmarshal(hssBytes, &hss)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s", hssPath)
 		return nil, err
 	}
 	return event, nil
 }
 
 func LoadService(conn coordclient.Connection, serviceId string, s *dao.Service) error {
-	sBytes, err := conn.Get(ServicePath(serviceId))
+	sn := ServiceNode{}
+	err := conn.Get(ServicePath(serviceId), &sn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
 		return err
 	}
-	err = json.Unmarshal(sBytes, &s)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
-		return err
-	}
+	*s = *sn.Service
 	return nil
 }
 
 func LoadServiceW(conn coordclient.Connection, serviceId string, s *dao.Service) (<-chan coordclient.Event, error) {
-	sBytes, event, err := conn.GetW(ServicePath(serviceId))
+	sn := ServiceNode{}
+	event, err := conn.GetW(ServicePath(serviceId), &sn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
 		return nil, err
 	}
-	err = json.Unmarshal(sBytes, &s)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal service %s: %v", serviceId, err)
-		return nil, err
-	}
+	*s = *sn.Service
 	return event, nil
 }
 
 func LoadServiceState(conn coordclient.Connection, serviceId string, serviceStateId string, ss *dao.ServiceState) error {
 	ssPath := ServiceStatePath(serviceId, serviceStateId)
-	ssBytes, err := conn.Get(ssPath)
+	ssn := ServiceStateNode{}
+	err := conn.Get(ssPath, &ssn)
 	if err != nil {
 		glog.Errorf("Got error for %s: %v", ssPath, err)
 		return err
 	}
-	err = json.Unmarshal(ssBytes, &ss)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s", ssPath)
-		return err
-	}
+	*ss = *ssn.ServiceState
 	return nil
 }
 
@@ -498,18 +499,13 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 	_ss := make([]*dao.ServiceState, len(childNodes))
 	for i, childId := range childNodes {
 		childPath := servicePath + "/" + childId
-		serviceStateNode, err := conn.Get(childPath)
+		ssn := ServiceStateNode{}
+		err := conn.Get(childPath, &ssn)
 		if err != nil {
 			glog.Errorf("Got error for %s: %v", childId, err)
 			return err
 		}
-		var serviceState dao.ServiceState
-		err = json.Unmarshal(serviceStateNode, &serviceState)
-		if err != nil {
-			glog.Errorf("Unable to unmarshal %s", childId)
-			return err
-		}
-		_ss[i] = &serviceState
+		_ss[i] = ssn.ServiceState
 	}
 	*serviceStates = append(*serviceStates, _ss...)
 	return nil
@@ -521,27 +517,16 @@ type ssMutator func(*dao.ServiceState)
 
 func LoadAndUpdateServiceState(conn coordclient.Connection, serviceId string, ssId string, mutator ssMutator) error {
 	ssPath := ServiceStatePath(serviceId, ssId)
-	var ss dao.ServiceState
 
-	serviceStateNode, err := conn.Get(ssPath)
+	ssn := ServiceStateNode{}
+	err := conn.Get(ssPath, &ssn)
 	if err != nil {
 		// Should it really be an error if we can't find anything?
 		glog.Errorf("Unable to find data %s: %v", ssPath, err)
 		return err
 	}
-	err = json.Unmarshal(serviceStateNode, &ss)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s: %v", ssPath, err)
-		return err
-	}
-
-	mutator(&ss)
-	ssBytes, err := json.Marshal(&ss)
-	if err != nil {
-		glog.Errorf("Unable to marshal %s: %v", ssPath, err)
-		return err
-	}
-	if err := conn.Set(ssPath, ssBytes); err != nil {
+	mutator(ssn.ServiceState)
+	if err := conn.Set(ssPath, &ssn); err != nil {
 		glog.Errorf("Unable to update service state %s: %v", ssPath, err)
 		return err
 	}
@@ -550,26 +535,16 @@ func LoadAndUpdateServiceState(conn coordclient.Connection, serviceId string, ss
 
 func loadAndUpdateService(conn coordclient.Connection, serviceId string, mutator serviceMutator) error {
 	servicePath := ServicePath(serviceId)
-	var service dao.Service
 
-	serviceNode, err := conn.Get(servicePath)
+	serviceNode := ServiceNode{}
+	err := conn.Get(servicePath, &serviceNode)
 	if err != nil {
 		glog.Errorf("Unable to find data %s: %v", servicePath, err)
 		return err
 	}
-	err = json.Unmarshal(serviceNode, &service)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s: %v", servicePath, err)
-		return err
-	}
 
-	mutator(&service)
-	serviceBytes, err := json.Marshal(service)
-	if err != nil {
-		glog.Errorf("Unable to marshal %s: %v", servicePath, err)
-		return err
-	}
-	if err := conn.Set(servicePath, serviceBytes); err != nil {
+	mutator(serviceNode.Service)
+	if err := conn.Set(servicePath, &serviceNode); err != nil {
 		glog.Errorf("Unable to update service %s: %v", servicePath, err)
 		return err
 	}
@@ -580,25 +555,15 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 	hssPath := HostServiceStatePath(hostId, hssId)
 	var hss HostServiceState
 
-	hostStateNode, err := conn.Get(hssPath)
+	err := conn.Get(hssPath, &hss)
 	if err != nil {
 		// Should it really be an error if we can't find anything?
 		glog.Errorf("Unable to find data %s: %v", hssPath, err)
 		return err
 	}
-	err = json.Unmarshal(hostStateNode, &hss)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal %s: %v", hssPath, err)
-		return err
-	}
 
 	mutator(&hss)
-	hssBytes, err := json.Marshal(hss)
-	if err != nil {
-		glog.Errorf("Unable to marshal %s: %v", hssPath, err)
-		return err
-	}
-	if err := conn.Set(hssPath, hssBytes); err != nil {
+	if err := conn.Set(hssPath, &hss); err != nil {
 		glog.Errorf("Unable to update host service state %s: %v", hssPath, err)
 		return err
 	}
@@ -607,7 +572,12 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 
 // ServiceState to HostServiceState
 func SsToHss(ss *dao.ServiceState) *HostServiceState {
-	return &HostServiceState{ss.HostId, ss.ServiceId, ss.Id, dao.SVC_RUN}
+	return &HostServiceState{
+		HostId:         ss.HostId,
+		ServiceId:      ss.ServiceId,
+		ServiceStateId: ss.Id,
+		DesiredState:   dao.SVC_RUN,
+	}
 }
 
 // Service & ServiceState to RunningService
@@ -645,6 +615,14 @@ func (zkdao *ZkDao) AddSnapshotRequest(snapshotRequest *dao.SnapshotRequest) err
 	return AddSnapshotRequest(conn, snapshotRequest)
 }
 
+type SnapShotRequestNode struct {
+	SnapshotRequest *dao.SnapshotRequest
+	version         int32
+}
+
+func (s *SnapShotRequestNode) Version() int32           { return s.version }
+func (s *SnapShotRequestNode) SetVersion(version int32) { s.version = version }
+
 func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
 	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.Id)
 
@@ -663,19 +641,16 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	}
 
 	// add the request to the snapshot request path
-	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
-	sBytes, err := json.Marshal(snapshotRequest)
-	if err != nil {
-		glog.Errorf("Unable to marshal data for snapshot request %s", snapshotRequestsPath)
-		return err
+	srn := SnapShotRequestNode{
+		SnapshotRequest: snapshotRequest,
 	}
-
-	if err := conn.Create(snapshotRequestsPath, sBytes); err != nil {
+	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
+	if err := conn.Create(snapshotRequestsPath, &srn); err != nil {
 		glog.Errorf("Unable to create snapshot request %s: %v", snapshotRequestsPath, err)
 	}
 
 	glog.V(3).Infof("Successfully created snapshot request %s", snapshotRequestsPath)
-	return err
+	return nil
 }
 
 func (zkdao *ZkDao) LoadSnapshotRequest(requestId string, sr *dao.SnapshotRequest) error {
@@ -689,16 +664,14 @@ func (zkdao *ZkDao) LoadSnapshotRequest(requestId string, sr *dao.SnapshotReques
 }
 
 func LoadSnapshotRequest(conn coordclient.Connection, requestId string, sr *dao.SnapshotRequest) error {
-	sBytes, err := conn.Get(SnapshotRequestsPath(requestId))
+
+	srn := SnapShotRequestNode{}
+	err := conn.Get(SnapshotRequestsPath(requestId), &srn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestId, err)
 		return err
 	}
-	err = json.Unmarshal(sBytes, &sr)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal snapshot request %s: %v", requestId, err)
-		return err
-	}
+	*sr = *srn.SnapshotRequest
 	return nil
 }
 
@@ -713,16 +686,13 @@ func (zkdao *ZkDao) LoadSnapshotRequestW(requestId string, sr *dao.SnapshotReque
 }
 
 func LoadSnapshotRequestW(conn coordclient.Connection, requestId string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
-	sBytes, event, err := conn.GetW(SnapshotRequestsPath(requestId))
+	srn := SnapShotRequestNode{}
+	event, err := conn.GetW(SnapshotRequestsPath(requestId), &srn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestId, err)
 		return nil, err
 	}
-	err = json.Unmarshal(sBytes, &sr)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal snapshot request %s: %v", requestId, err)
-		return nil, err
-	}
+	*sr = *srn.SnapshotRequest
 	return event, nil
 }
 
@@ -737,9 +707,9 @@ func (zkdao *ZkDao) UpdateSnapshotRequest(snapshotRequest *dao.SnapshotRequest) 
 }
 
 func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
-	ssBytes, err := json.Marshal(snapshotRequest)
-	if err != nil {
-		return err
+
+	srn := SnapShotRequestNode{
+		SnapshotRequest: snapshotRequest,
 	}
 
 	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
@@ -753,10 +723,11 @@ func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Sna
 		return AddSnapshotRequest(conn, snapshotRequest)
 	}
 
-	if _, err := conn.Get(snapshotRequestsPath); err != nil {
+	if err := conn.Get(snapshotRequestsPath, &srn); err != nil {
 		return err
 	}
-	return conn.Set(snapshotRequestsPath, ssBytes)
+	srn.SnapshotRequest = snapshotRequest
+	return conn.Set(snapshotRequestsPath, &srn)
 }
 
 func (zkdao *ZkDao) RemoveSnapshotRequest(requestId string) error {
@@ -771,14 +742,6 @@ func (zkdao *ZkDao) RemoveSnapshotRequest(requestId string) error {
 
 func RemoveSnapshotRequest(conn coordclient.Connection, requestId string) error {
 	snapshotRequestsPath := SnapshotRequestsPath(requestId)
-	if _, err := conn.Get(snapshotRequestsPath); err != nil {
-		if err == coordclient.ErrNoNode {
-			return nil
-		}
-		glog.Errorf("Unable to retrieve SnapshotRequest znode:%s error:%v", snapshotRequestsPath, err)
-		return err
-	}
-
 	if err := conn.Delete(snapshotRequestsPath); err != nil {
 		glog.Errorf("Unable to delete SnapshotRequest znode:%s error:%v", snapshotRequestsPath, err)
 		return err
