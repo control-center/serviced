@@ -30,6 +30,7 @@ var (
 )
 
 var (
+	ErrInvalidPath        = errors.New("coord-client: invalid path")
 	ErrInvalidNodeType    = errors.New("coord-client: invalid node type")
 	ErrSerialization      = errors.New("coord-client: serialization error")
 	ErrInvalidDSN         = errors.New("coord-client: invalid DSN")
@@ -139,6 +140,18 @@ func New(driverName, connectionString, basePath string, retryPolicy retry.Policy
 // EnsurePath creates the given path with empty nodes if they don't exist; the
 // last node in the path is only created if makeLastNode is true.
 func EnsurePath(client *Client, path string, makeLastNode bool) error {
+
+	pp := strings.Split(path, "/")
+	last := len(pp)
+	if last == 0 {
+		return ErrInvalidPath
+	}
+	if makeLastNode {
+		pp = pp[1:last]
+	} else {
+		pp = pp[1 : last-1]
+	}
+
 	return client.NewRetryLoop(
 		func(cancelChan chan chan error) chan error {
 			errc := make(chan error)
@@ -149,21 +162,13 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 					return
 				}
 
-				parts := strings.Split(path, "/")
-				lastPartId := len(parts) - 1
-				currentPath := ""
-				for i, part := range parts {
-					if lastPartId == i || i == 0 {
-						continue
+				p := ""
+				for _, part := range pp {
+					p += "/" + part
+					if err := conn.CreateDir(p); !(err == nil || err == ErrNodeExists) {
+						errc <- err
+						return
 					}
-					currentPath += "/" + part
-
-					err = conn.CreateDir(currentPath)
-					if err == ErrNodeExists {
-						continue
-					}
-					errc <- err
-					return
 				}
 				errc <- nil
 			}()
