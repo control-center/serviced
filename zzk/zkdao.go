@@ -654,7 +654,7 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 		return err
 	}
 
-	glog.V(3).Infof("Successfully created snapshot request %s", snapshotRequestsPath)
+	glog.V(0).Infof("Successfully created snapshot request %s", snapshotRequestsPath)
 	return nil
 }
 
@@ -732,6 +732,7 @@ func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Sna
 		return err
 	}
 	srn.SnapshotRequest = snapshotRequest
+	glog.Infof("Setting snapshotrequest: %v, %s", srn, snapshotRequest)
 	return conn.Set(snapshotRequestsPath, &srn)
 }
 

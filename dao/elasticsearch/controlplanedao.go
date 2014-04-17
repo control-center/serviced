@@ -1789,30 +1789,35 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	//	requestId := snapshotRequest.Id
 	//	defer this.zkDao.RemoveSnapshotRequest(requestId)
 
-	glog.V(1).Infof("added snapshot request: %+v", snapshotRequest)
+	glog.V(0).Infof("added snapshot request: %+v", snapshotRequest)
 
 	// wait for completion of snapshot request
-	timeout := 60
-	for i := 0; i < timeout; i++ {
-		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
-		_, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
-		switch {
-		case err != nil:
-			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", err)
-			return err
-		case snapshotRequest.SnapshotError != "":
+	glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
+
+	eventChan, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+	if err != nil {
+		return err
+	}
+	timeOutValue := time.Second * 60
+	timeout := time.After(timeOutValue)
+	for {
+		if snapshotRequest.SnapshotError != "" {
 			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", snapshotRequest.SnapshotError)
 			return errors.New(snapshotRequest.SnapshotError)
-		case snapshotRequest.SnapshotLabel != "":
+		} else if snapshotRequest.SnapshotLabel != "" {
 			*label = snapshotRequest.SnapshotLabel
 			glog.V(1).Infof("completed snapshot request: %+v", snapshotRequest)
 			return nil
 		}
 
-		time.Sleep(time.Second)
+		select {
+		case <-eventChan:
+			eventChan, err = this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+		case <-timeout:
+			break
+		}
 	}
-
-	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", time.Duration(timeout), snapshotRequest))
+	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest))
 	glog.Error(err)
 	return err
 }
