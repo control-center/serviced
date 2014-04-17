@@ -56,6 +56,6 @@ type API interface {
 	GetTemplate(string) (*template.ServiceTemplate, error)
 	AddTemplate(io.Reader) (*template.ServiceTemplate, error)
 	RemoveTemplate(string) error
-	CompileTemplate(CompileTemplateConfig) (io.Reader, error)
-	DeployTemplate(DeployTemplateConfig) error
+	CompileTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
+	DeployTemplate(DeployTemplateConfig) (*service.Service, error)
 }

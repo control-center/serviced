@@ -220,10 +220,10 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 		ManualAssignIPs: ctx.Bool("manual-assign-ips"),
 	}
 
-	if err := c.driver.DeployTemplate(cfg); err != nil {
+	if service, err := c.driver.DeployTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fmt.Println(cfg.DeploymentID)
+		fmt.Println(service.Id)
 	}
 }
 
