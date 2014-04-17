@@ -28,8 +28,3 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 	s.rpcClient = rpcClient
 	return s, err
 }
-
-// Return the standard host information from the referenced agent.
-//func (a *AgentClient) GetInfo(ips []string, host *host.Host) error {
-//	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
-//}

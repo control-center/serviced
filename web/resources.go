@@ -54,78 +54,6 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
 
-//
-//func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-//	var poolsMap map[string]*pool.ResourcePool
-//	err := client.GetResourcePools(&empty, &poolsMap)
-//	if err != nil {
-//		glog.Error("Could not get resource pools: ", err)
-//		RestServerError(w)
-//		return
-//	}
-//	w.WriteJson(&poolsMap)
-//}
-//
-//func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-//	var payload pool.ResourcePool
-//	var poolId string
-//	err := r.DecodeJsonPayload(&payload)
-//	if err != nil {
-//		glog.V(1).Info("Could not decode pool payload: ", err)
-//		RestBadRequest(w)
-//		return
-//	}
-//	err = client.AddResourcePool(payload, &poolId)
-//	if err != nil {
-//		glog.Error("Unable to add pool: ", err)
-//		RestServerError(w)
-//		return
-//	}
-//	glog.V(0).Info("Added pool ", poolId)
-//	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(poolId)})
-//}
-//
-//func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-//	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
-//	if err != nil {
-//		RestBadRequest(w)
-//		return
-//	}
-//	var payload pool.ResourcePool
-//	var unused int
-//	err = r.DecodeJsonPayload(&payload)
-//	if err != nil {
-//		glog.V(1).Info("Could not decode pool payload: ", err)
-//		RestBadRequest(w)
-//		return
-//	}
-//	err = client.UpdateResourcePool(payload, &unused)
-//	if err != nil {
-//		glog.Error("Unable to update pool: ", err)
-//		RestServerError(w)
-//		return
-//	}
-//	glog.V(1).Info("Updated pool ", poolId)
-//	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
-//}
-//
-//func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-//	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
-//	if err != nil {
-//		RestBadRequest(w)
-//		return
-//	}
-//	var unused int
-//	err = client.RemoveResourcePool(poolId, &unused)
-//	if err != nil {
-//		glog.Error("Could not remove resource pool: ", err)
-//		RestServerError(w)
-//		return
-//	}
-//	glog.V(0).Info("Removed pool ", poolId)
-//	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
-//}
-
 func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
@@ -445,28 +373,6 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *serviced
 	glog.V(0).Info("Removed service ", serviceId)
 	w.WriteJson(&SimpleResponse{"Removed service", servicesLinks()})
 }
-
-//func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-//	var poolHosts []*dao.PoolHost
-//	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
-//	if err != nil {
-//		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
-//		RestBadRequest(w)
-//		return
-//	}
-//	err = client.GetHostsForResourcePool(poolId, &poolHosts)
-//	if err != nil {
-//		glog.Errorf("Could not get hosts: %v", err)
-//		RestServerError(w)
-//		return
-//	}
-//	if poolHosts == nil {
-//		glog.V(3).Info("Pool hosts was nil, returning empty list instead")
-//		poolHosts = []*dao.PoolHost{}
-//	}
-//	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolId)
-//	w.WriteJson(&poolHosts)
-//}
 
 func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))

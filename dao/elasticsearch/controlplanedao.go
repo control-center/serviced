@@ -160,14 +160,12 @@ var (
 	//model get functions
 	getService      func(string, interface{}) error = getSource("controlplane", "service")
 	getServiceState func(string, interface{}) error = getSource("controlplane", "servicestate")
-	//	getResourcePool           func(string, interface{}) error = getSource("controlplane", "resourcepool")
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
 	getUser                   func(string, interface{}) error = getSource("controlplane", "user")
 
 	//model search functions, using uri based query
 	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
 	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
-	//	searchResourcePoolUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "resourcepool")
 	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
 	searchUserUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "user")
 )
@@ -182,7 +180,7 @@ type ControlPlaneDao struct {
 	port       int
 	varpath    string
 	vfs        string
-//	zookeepers []string
+	zookeepers []string
 	zkDao      *zzk.ZkDao
 	dfs        *dfs.DistributedFileSystem
 
@@ -385,24 +383,6 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 	return
 }
 
-//// add resource pool to index
-//func (this *ControlPlaneDao) AddResourcePool(pool dao.ResourcePool, poolId *string) error {
-//	glog.V(2).Infof("ControlPlaneDao.NewResourcePool: %+v", pool)
-//	id := strings.TrimSpace(pool.Id)
-//	if id == "" {
-//		return errors.New("empty ResourcePool.Id not allowed")
-//	}
-//
-//	pool.Id = id
-//	response, err := newResourcePool(id, pool)
-//	glog.V(2).Infof("ControlPlaneDao.NewResourcePool response: %+v", response)
-//	if response.Ok {
-//		*poolId = id
-//		return nil
-//	}
-//	return err
-//}
-
 //hashPassword returns the sha-1 of a password
 func hashPassword(password string) string {
 	h := sha1.New()
@@ -468,24 +448,6 @@ func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) 
 	}
 	return err
 }
-
-//
-//func (this *ControlPlaneDao) UpdateResourcePool(pool dao.ResourcePool, unused *int) error {
-//	glog.V(2).Infof("ControlPlaneDao.UpdateResourcePool: %+v", pool)
-//
-//	id := strings.TrimSpace(pool.Id)
-//	if id == "" {
-//		return errors.New("empty ResourcePool.Id not allowed")
-//	}
-//
-//	pool.Id = id
-//	response, err := indexResourcePool(id, pool)
-//	glog.V(2).Infof("ControlPlaneDao.UpdateResourcePool response: %+v", response)
-//	if response.Ok {
-//		return nil
-//	}
-//	return err
-//}
 
 //UpdateUser updates the user entry in elastic search. NOTE: It is assumed the
 //pasword is NOT hashed when updating the user record
@@ -575,28 +537,17 @@ var updateServiceTemplate = func(template dao.ServiceTemplate) error {
 	wrapper.Data = string(data)
 
 	if templateExists {
-		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
 		response, e := indexServiceTemplateWrapper(id, wrapper)
-		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
 		return e
 	} else {
-		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
 		response, e := newServiceTemplateWrapper(id, wrapper)
-		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
+		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
 		return e
 	}
 }
-
-//
-//func (this *ControlPlaneDao) RemoveResourcePool(id string, unused *int) error {
-//	glog.V(2).Infof("ControlPlaneDao.RemoveResourcePool: %s", id)
-//	response, err := deleteResourcePool(id)
-//	glog.V(2).Infof("ControlPlaneDao.RemoveResourcePool response: %+v", response)
-//
-//	//TODO: remove AddressAssignments with this host
-//
-//	return err
-//}
 
 // RemoveUser removes the user specified by the userName string
 func (this *ControlPlaneDao) RemoveUser(userName string, unused *int) error {
@@ -631,19 +582,6 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	//TODO: remove AddressAssignments with this Service
 	return nil
 }
-
-//
-//func (this *ControlPlaneDao) GetResourcePool(id string, pool *dao.ResourcePool) error {
-//	glog.V(2).Infof("ControlPlaneDao.GetResourcePool: id=%s", id)
-//	if len(id) == 0 {
-//		return errors.New("Must specify a pool ID")
-//	}
-//	request := dao.ResourcePool{}
-//	err := getResourcePool(id, &request)
-//	glog.V(2).Infof("ControlPlaneDao.GetResourcePool: id=%s, resourcepool=%+v, err=%s", id, request, err)
-//	*pool = request
-//	return err
-//}
 
 func (this *ControlPlaneDao) GetUser(userName string, user *dao.User) error {
 	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s", userName)
@@ -752,31 +690,6 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 }
 
 //
-//func (this *ControlPlaneDao) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) error {
-//	glog.V(3).Infof("ControlPlaneDao.GetResourcePools")
-//	result, err := searchResourcePoolUri("_exists_:Id")
-//	glog.V(3).Info("ControlPlaneDao.GetResourcePools: err=", err)
-//
-//	var resourcePools map[string]*dao.ResourcePool
-//	if err != nil {
-//		return err
-//	}
-//	var total = len(result.Hits.Hits)
-//	resourcePools = make(map[string]*dao.ResourcePool)
-//	for i := 0; i < total; i += 1 {
-//		var pool dao.ResourcePool
-//		err := json.Unmarshal(result.Hits.Hits[i].Source, &pool)
-//		if err != nil {
-//			return err
-//		}
-//		resourcePools[pool.Id] = &pool
-//	}
-//
-//	*pools = resourcePools
-//	return nil
-//}
-
-//
 func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*dao.Service) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServices")
 	query := search.Query().Search("_exists_:Id")
@@ -826,31 +739,6 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 		return err
 	}
 }
-
-//func (this *ControlPlaneDao) GetHostsForResourcePool(poolId string, poolHosts *[]*dao.PoolHost) error {
-//	id := strings.TrimSpace(poolId)
-//	if id == "" {
-//		return errors.New("Illegal poolId: empty poolId not allowed")
-//	}
-//
-//	hosts, err := this.facade.FindHostsInPool(datastore.Get(), id)
-//	if err != nil {
-//		return err
-//	}
-//	if len(hosts) == 0 {
-//		errorMessage := fmt.Sprintf("Illegal poolId:%s was not found", id)
-//		return errors.New(errorMessage)
-//	}
-//
-//	var response []*dao.PoolHost = make([]*dao.PoolHost, len(hosts))
-//	for i := 0; i < len(hosts); i += 1 {
-//		poolHost := dao.PoolHost{hosts[i].ID, hosts[i].PoolID, hosts[i].IPAddr}
-//		response[i] = &poolHost
-//	}
-//
-//	*poolHosts = response
-//	return nil
-//}
 
 func (this *ControlPlaneDao) initializedAddressConfig(endpoint dao.ServiceEndpoint) bool {
 	// has nothing defined in the service definition
@@ -1779,24 +1667,6 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	return dao, nil
 }
 
-//func createDefaultPool(s *ControlPlaneDao) error {
-//	var pool dao.ResourcePool
-//	// does the default pool exist
-//	if err := s.GetResourcePool("default", &pool); err != nil {
-//		glog.Errorf("%s", err)
-//		glog.V(0).Info("'default' resource pool not found; creating...")
-//
-//		// create it
-//		default_pool := dao.ResourcePool{}
-//		default_pool.Id = "default"
-//		var poolId string
-//		if err := s.AddResourcePool(default_pool, &poolId); err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
-
 //createSystemUser updates the running instance password as well as the user record in elastic
 func createSystemUser(s *ControlPlaneDao) error {
 	user := dao.User{}
@@ -1842,11 +1712,11 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers 
 	s.varpath = varpath
 	s.vfs = vfs
 
-	//	if len(zookeepers) == 0 {
-	//		s.zookeepers = []string{"127.0.0.1:2181"}
-	//	} else {
-	//		s.zookeepers = zookeepers
-	//	}
+		if len(zookeepers) == 0 {
+			s.zookeepers = []string{"127.0.0.1:2181"}
+		} else {
+			s.zookeepers = zookeepers
+		}
 	s.zkDao = &zzk.ZkDao{zookeepers}
 
 	// create the account credentials

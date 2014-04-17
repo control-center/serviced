@@ -61,9 +61,6 @@ type HostAgent struct {
 	proxyRegistry   proxy.ProxyRegistry
 }
 
-// assert that this implemenents the Agent interface
-//var _ Agent = &HostAgent{}
-
 // Create a new HostAgent given the connection string to the
 
 func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
