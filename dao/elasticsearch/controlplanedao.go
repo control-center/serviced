@@ -2012,6 +2012,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	s.vfs = vfs
 
 	dsn := coordzk.NewDSN(zookeepers, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
 	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
 
 	s.zclient = zclient

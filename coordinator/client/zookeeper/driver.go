@@ -27,10 +27,14 @@ type DSN struct {
 
 // NewDSN returns a new DSN object from servers and timeout.
 func NewDSN(servers []string, timeout time.Duration) DSN {
-	return DSN{
+	dsn := DSN{
 		Servers: servers,
 		Timeout: timeout,
 	}
+	if dsn.Servers == nil || len(dsn.Servers) == 0 {
+		dsn.Servers = []string{"127.0.0.1:2181"}
+	}
+	return dsn
 }
 
 // String creates a parsable (JSON) string represenation of this DSN.

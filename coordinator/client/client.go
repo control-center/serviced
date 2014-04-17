@@ -239,7 +239,10 @@ func (client *Client) closeConnection(connectionID int) error {
 	request := newOpClientRequest(opClientCloseConnection, connectionID)
 	client.opRequests <- request
 	response := <-request.response
-	return response.(error)
+	if val, ok := response.(error); ok {
+		return val
+	}
+	return nil
 }
 
 // NewRetryLoop returns a retry loop that will call the given cancelable function.
