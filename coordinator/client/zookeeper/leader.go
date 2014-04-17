@@ -118,6 +118,8 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 		return nil, err
 	}
 
+	// This implements the leader election recipe recommeded by ZooKeeper
+	// https://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection
 	for {
 		children, _, err := l.c.conn.Children(l.path)
 		if err != nil {
@@ -127,6 +129,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 		lowestSeq := seq
 		var prevSeq uint64
 		prevSeqPath := ""
+		// find the lowest sequenced node
 		for _, p := range children {
 			s, err := parseSeq(p)
 			if err != nil {
