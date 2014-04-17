@@ -43,6 +43,7 @@ var (
 )
 
 var (
+	ErrClosedConnection        = errors.New("coord-client: connection is closed")
 	ErrConnectionClosed        = errors.New("coord-client: connection closed")
 	ErrUnknown                 = errors.New("coord-client: unknown error")
 	ErrAPIError                = errors.New("coord-client: api error")

@@ -143,4 +143,5 @@ func TestZkDriver(t *testing.T) {
 		t.Fatalf("delete of /foo should work: %s", err)
 	}
 
+	conn.Close()
 }

@@ -53,13 +53,16 @@ func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 	}
 }
 
-// Close the zk connection.
+// Close the zk connection. Calling close() twice will result in a panic.
 func (c *Connection) Close() {
-	c.conn.Close()
-	if c.onClose != nil {
-		f := *c.onClose
-		c.onClose = nil
-		f(c.id)
+	if c.conn != nil {
+		c.conn.Close()
+		c.conn = nil
+		if c.onClose != nil {
+			f := *c.onClose
+			c.onClose = nil
+			f(c.id)
+		}
 	}
 }
 
@@ -70,6 +73,9 @@ func (c *Connection) SetOnClose(f func(int)) {
 
 // Create places data at the node at the given path.
 func (c *Connection) Create(path string, node client.Node) error {
+	if c.conn == nil {
+		return client.ErrClosedConnection
+	}
 
 	p := join(c.basePath, path)
 
@@ -101,17 +107,26 @@ func (d *dirNode) SetVersion(int32) {}
 
 // CreateDir creates an empty node at the given path.
 func (c *Connection) CreateDir(path string) error {
+	if c.conn == nil {
+		return client.ErrClosedConnection
+	}
 	return xlateError(c.Create(path, &dirNode{}))
 }
 
 // Exists checks if a node exists at the given path.
 func (c *Connection) Exists(path string) (bool, error) {
+	if c.conn == nil {
+		return false, client.ErrClosedConnection
+	}
 	exists, _, err := c.conn.Exists(join(c.basePath, path))
 	return exists, xlateError(err)
 }
 
 // Delete will delete all nodes at the given path or any subpath
 func (c *Connection) Delete(path string) error {
+	if c.conn == nil {
+		return client.ErrClosedConnection
+	}
 	children, _, err := c.conn.Children(join(c.basePath, path))
 	if err != nil {
 		return xlateError(err)
@@ -144,6 +159,9 @@ func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
 // ChildrenW returns the children of the node at the give path and a channel of
 // events that will yield the next event at that node.
 func (c *Connection) ChildrenW(path string) (children []string, event <-chan client.Event, err error) {
+	if c.conn == nil {
+		return children, event, client.ErrClosedConnection
+	}
 	children, _, zkEvent, err := c.conn.ChildrenW(join(c.basePath, path))
 	if err != nil {
 		return children, nil, err
@@ -153,6 +171,9 @@ func (c *Connection) ChildrenW(path string) (children []string, event <-chan cli
 
 // GetW gets the node at the given path and return a channel to watch for events on that node.
 func (c *Connection) GetW(path string, node client.Node) (event <-chan client.Event, err error) {
+	if c.conn == nil {
+		return nil, client.ErrClosedConnection
+	}
 	return c.getW(join(c.basePath, path), node)
 }
 
@@ -169,6 +190,9 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 
 // Children returns the children of the node at the give path.
 func (c *Connection) Children(path string) (children []string, err error) {
+	if c.conn == nil {
+		return children, client.ErrClosedConnection
+	}
 	children, _, err = c.conn.Children(join(c.basePath, path))
 	if err != nil {
 		return children, xlateError(err)
@@ -178,6 +202,9 @@ func (c *Connection) Children(path string) (children []string, err error) {
 
 // Get returns the node at the given path.
 func (c *Connection) Get(path string, node client.Node) (err error) {
+	if c.conn == nil {
+		return client.ErrClosedConnection
+	}
 	return c.get(join(c.basePath, path), node)
 }
 
@@ -193,6 +220,9 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 
 // Set serializes the give node and places it at the given path.
 func (c *Connection) Set(path string, node client.Node) error {
+	if c.conn == nil {
+		return client.ErrClosedConnection
+	}
 	data, err := json.Marshal(node)
 	if err != nil {
 		return err
