@@ -203,7 +203,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 
 	exitChan := make(chan error, 1)
 	args := make([]string, 0)
-	args = append(args, "run", "-rm", "-name", containerName)
+	args = append(args, "run", "--rm", "-name", containerName)
 
 	// attach all exported ports
 	for _, port := range c.Ports {
