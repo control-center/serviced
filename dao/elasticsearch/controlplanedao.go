@@ -1995,17 +1995,6 @@ func createSystemUser(s *ControlPlaneDao) error {
 	return s.UpdateUser(user, &unused)
 }
 
-func getZkDSN(zookeepers []string) string {
-	if len(zookeepers) == 0 {
-		zookeepers = []string{"127.0.0.1:2181"}
-	}
-	dsn := coordzk.DSN{
-		Servers: zookeepers,
-		Timeout: time.Second * 15,
-	}
-	return dsn.String()
-}
-
 func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
@@ -2022,7 +2011,7 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	s.varpath = varpath
 	s.vfs = vfs
 
-	dsn := getZkDSN(zookeepers)
+	dsn := coordzk.NewDSN(zookeepers, time.Second*15).String()
 	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
 
 	s.zclient = zclient
