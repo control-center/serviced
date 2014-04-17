@@ -61,32 +61,6 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
-//// A collection of computing resources with optional quotas.
-//type ResourcePool struct {
-//	Id          string // Unique identifier for resource pool, eg "default"
-//	ParentId    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
-//	Priority    int    // relative priority of resource pools, used for CPU priority
-//	CoreLimit   int    // Number of cores on the host available to serviced
-//	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
-//	CreatedAt   time.Time
-//	UpdatedAt   time.Time
-//}
-//
-//// A new ResourcePool
-//func NewResourcePool(id string) (*ResourcePool, error) {
-//	pool := &ResourcePool{}
-//	pool.Id = id
-//	return pool, nil
-//}
-
-//func (pool *ResourcePool) MakeSubpool(id string) *ResourcePool {
-//	subpool := *pool
-//	subpool.Id = id
-//	subpool.ParentId = pool.Id
-//	subpool.Priority = 0
-//	return &subpool
-//}
-
 // Desired states of services.
 const (
 	SVC_RUN     = 1

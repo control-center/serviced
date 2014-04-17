@@ -751,3 +751,15 @@ rect {
 .node.service text { 
     fill: white;
 }
+
+.control-buttons {
+    margin-top: 20px;
+}
+
+.popover{
+    max-width: none;
+}
+
+.popover table{
+    white-space: nowrap;
+}
