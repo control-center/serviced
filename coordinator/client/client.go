@@ -202,7 +202,7 @@ func (client *Client) loop() {
 				if err == nil {
 					// save a reference to the connection locally
 					connections[connectionID] = &c
-					c.SetId(connectionID)
+					c.SetID(connectionID)
 					c.SetOnClose(func(id int) {
 						client.closeConnection(id)
 					})

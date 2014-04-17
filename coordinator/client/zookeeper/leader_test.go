@@ -1,4 +1,4 @@
-package zk_driver
+package zookeeper
 
 import (
 	"encoding/json"

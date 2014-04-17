@@ -24,8 +24,8 @@ type Node interface {
 
 type Connection interface {
 	Close()
-	SetId(int)
-	Id() int
+	SetID(int)
+	ID() int
 	SetOnClose(func(int))
 	Create(path string, node Node) error
 	CreateDir(path string) error

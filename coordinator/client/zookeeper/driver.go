@@ -1,4 +1,4 @@
-package zk_driver
+package zookeeper
 
 import (
 	"encoding/json"
@@ -18,11 +18,19 @@ func init() {
 	client.RegisterDriver("zookeeper", &Driver{})
 }
 
-// DNS is a Zookeeper specific struct used for connections. It can be
+// DSN is a Zookeeper specific struct used for connections. It can be
 // serialized.
 type DSN struct {
 	Servers []string
 	Timeout time.Duration
+}
+
+// NewDSN returns a new DSN object from servers and timeout.
+func NewDSN(servers []string, timeout time.Duration) DSN {
+	return DSN{
+		Servers: servers,
+		Timeout: timeout,
+	}
 }
 
 // String creates a parsable (JSON) string represenation of this DSN.

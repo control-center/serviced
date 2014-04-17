@@ -1,4 +1,4 @@
-package zk_driver
+package zookeeper
 
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
@@ -6,8 +6,6 @@ import (
 
 	"errors"
 )
-
-var ErrUnimplemented = errors.New("unimplemented")
 
 func xlateError(err error) error {
 

@@ -1,4 +1,4 @@
-package zk_driver
+package zookeeper
 
 import (
 	"encoding/json"
@@ -14,11 +14,18 @@ import (
 )
 
 var (
-	ErrDeadlock      = errors.New("zk: trying to acquire a lock twice")
-	ErrNotLocked     = errors.New("zk: not locked")
+	// ErrDeadlock is returned when a lock is aquired twice on the same object.
+	ErrDeadlock = errors.New("zk: trying to acquire a lock twice")
+
+	// ErrNotLocked is returned when a caller attempts to release a lock that
+	// has not been aquired
+	ErrNotLocked = errors.New("zk: not locked")
+
+	// ErrNoLeaderFound is returned when a leader has not been elected
 	ErrNoLeaderFound = errors.New("zk: no leader found")
 )
 
+// Leader is an object to facilitate creating an election in zookeeper.
 type Leader struct {
 	c        *Connection
 	path     string
@@ -36,6 +43,8 @@ func (l *Leader) prefix() string {
 	return join(l.path, "leader-")
 }
 
+// Current returns the currect elected leader and deserializes it in to node.
+// It will return ErrNoLeaderFound if no leader has been elected.
 func (l *Leader) Current(node client.Node) (err error) {
 
 	children, _, err := l.c.conn.Children(l.path)
@@ -66,6 +75,8 @@ func (l *Leader) Current(node client.Node) (err error) {
 	return xlateError(err)
 }
 
+// TakeLead attempts to aquire the leader role. When aquired it return a
+// channel on the leader node so the caller can react to changes in zookeeper
 func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	if l.lockPath != "" {
 		return nil, ErrDeadlock
@@ -162,6 +173,8 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	return toClientEvent(event), err
 }
 
+// ReleaseLead release the current leader role. It will return ErrNotLocked if
+// the current object is not locked.
 func (l *Leader) ReleaseLead() error {
 	if l.lockPath == "" {
 		return ErrNotLocked
