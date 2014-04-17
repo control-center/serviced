@@ -113,7 +113,7 @@ func (d *daemon) start() {
 func (d *daemon) initContext() (datastore.Context, error) {
 	datastore.Register(d.dsDriver)
 	ctx := datastore.Get()
-	if ctx != nil {
+	if ctx == nil {
 		return nil, errors.New("context not available")
 	}
 	return ctx, nil

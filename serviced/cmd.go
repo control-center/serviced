@@ -162,7 +162,10 @@ func main() {
 	// parse the command line flags
 	flag.Parse()
 	ensureMinimumInt("ES_STARTUP_TIMEOUT", "esStartupTimeout", 30)
-
+	if len(options.zookeepers)==0{
+		options.zookeepers = []string{"127.0.0.1:2181"}
+		glog.V(4).Infof("setting zookeeprs to default %v", options.zookeepers)
+	}
 	// are we in server mode
 	if (options.master || options.agent) && len(flag.Args()) == 0 {
 		startServer()

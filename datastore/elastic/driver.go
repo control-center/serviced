@@ -268,7 +268,7 @@ func (ed *elasticDriver) postIndex() error {
 		err = json.Unmarshal(body, &result)
 		if err == nil {
 			if errString, found := result["error"]; found {
-				glog.Infof("Found error in response: %v", errString)
+				glog.V(4).Infof("Found error in response: %v", errString)
 				switch errString.(type) {
 				case string:
 					if strings.HasPrefix(errString.(string), "IndexAlreadyExistsException") {

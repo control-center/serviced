@@ -182,7 +182,7 @@ type ControlPlaneDao struct {
 	port       int
 	varpath    string
 	vfs        string
-	zookeepers []string
+//	zookeepers []string
 	zkDao      *zzk.ZkDao
 	dfs        *dfs.DistributedFileSystem
 
@@ -1842,12 +1842,12 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers 
 	s.varpath = varpath
 	s.vfs = vfs
 
-	if len(zookeepers) == 0 {
-		s.zookeepers = []string{"127.0.0.1:2181"}
-	} else {
-		s.zookeepers = zookeepers
-	}
-	s.zkDao = &zzk.ZkDao{s.zookeepers}
+	//	if len(zookeepers) == 0 {
+	//		s.zookeepers = []string{"127.0.0.1:2181"}
+	//	} else {
+	//		s.zookeepers = zookeepers
+	//	}
+	s.zkDao = &zzk.ZkDao{zookeepers}
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {
