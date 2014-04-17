@@ -786,8 +786,22 @@ func TestDao_ServiceTemplate(t *testing.T) {
 	glog.V(0).Infof("TestDao_AddServiceTemplate started")
 	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
 
-	var unused int
-	var templateId string
+	var (
+		unused     int
+		templateId string
+		templates  map[string]*dao.ServiceTemplate
+	)
+
+	// Clean up old templates...
+	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+		t.Fatalf("Failure getting service templates with error: %s", e)
+	}
+	for id, _ := range templates {
+		if e := controlPlaneDao.RemoveServiceTemplate(id, &unused); e != nil {
+			t.Fatalf("Failure removing service template %s with error: %s", id, e)
+		}
+	}
+
 	template := dao.ServiceTemplate{
 		Id:          "",
 		Name:        "test_template",
@@ -798,7 +812,6 @@ func TestDao_ServiceTemplate(t *testing.T) {
 		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
 	}
 
-	var templates map[string]*dao.ServiceTemplate
 	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}

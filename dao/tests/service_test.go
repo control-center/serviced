@@ -55,6 +55,7 @@ var startup_testcases = []struct {
 			Pause:  "",
 			Resume: "",
 		},
+		Actions: map[string]string{"debug": "{{.Name}} debug", "stats": "{{.Name}} stats"},
 	}, ""},
 	{dao.Service{
 		Id:              "1",
@@ -73,6 +74,7 @@ var startup_testcases = []struct {
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []dao.LogConfig{},
 		Snapshot:        dao.SnapshotCommands{},
+		Actions:         map[string]string{},
 	}, ""},
 	{dao.Service{
 		Id:              "2",
@@ -219,6 +221,24 @@ func TestEvaluateStartupTemplate(t *testing.T) {
 		result := testcase.service.Startup
 		if result != testcase.expected {
 			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
+		}
+	}
+}
+
+// TestEvaluateActionsTemplate makes sure that the Actions templates can be
+// parsed and evaluated correctly.
+func TestEvaluateActionsTemplate(t *testing.T) {
+	var err error
+	for _, testcase := range startup_testcases {
+		glog.Infof("Service.Actions before: %s", testcase.service.Actions)
+		err = testcase.service.EvaluateActionsTemplate(cp)
+		glog.Infof("Service.Actions after: %s, error=%s", testcase.service.Actions, err)
+		for key, result := range testcase.service.Actions {
+			expected := fmt.Sprintf("%s %s", testcase.service.Name, key)
+			if result != expected {
+				t.Errorf("Expecting \"%s\" got \"%s\"\n", expected, result)
+			}
+			glog.Infof("Expecting \"%s\" got \"%s\"\n", expected, result)
 		}
 	}
 }
