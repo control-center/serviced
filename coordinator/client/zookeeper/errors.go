@@ -3,8 +3,6 @@ package zookeeper
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/coordinator/client"
-
-	"errors"
 )
 
 func xlateError(err error) error {
