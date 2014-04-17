@@ -54,21 +54,19 @@ type daoTest struct {
 }
 
 func (dt *daoTest) SetUpSuite(c *C) {
-	dt.FacadeTest.SetUpSuite(c)
+	dt.Port = 9202
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	isvcs.Mgr.Wipe()
-	//	func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
-
 	if err := isvcs.Mgr.Start(); err != nil {
 		c.Fatalf("Could not start es container: %s", err)
 	}
+	dt.MappingsFile = "controlplane.json"
+	dt.FacadeTest.SetUpSuite(c)
+	//	func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 
-	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
-		c.Fatalf("could not create default pool")
-	}
 	var err error
-	controlPlaneDao, err = NewControlSvc("localhost", 9200, dt.Facade, addresses, "/tmp", "rsync")
+	controlPlaneDao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, addresses, "/tmp", "rsync")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -80,6 +78,22 @@ func (dt *daoTest) SetUpSuite(c *C) {
 			id := strconv.Itoa(i)
 			controlPlaneDao.RemoveService(id, &unused)
 		}
+	}
+}
+
+func (dt *daoTest) SetUpTest(c *C) {
+	dt.FacadeTest.SetUpTest(c)
+	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
+		c.Fatalf("could not create default pool:", err)
+	}
+
+	// create the account credentials
+	if err := createSystemUser(controlPlaneDao); err != nil {
+		c.Fatalf("could not create systemuser:", err)
+	}
+
+	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
+		c.Fatalf("could not create default pool:", err)
 	}
 }
 
@@ -219,7 +233,9 @@ func (dt *daoTest) TestDao_StartService(t *C) {
 	controlPlaneDao.AddService(*s011, &id)
 	controlPlaneDao.AddService(*s02, &id)
 
-	controlPlaneDao.StartService("0", &unusedStr)
+	if err:= controlPlaneDao.StartService("0", &unusedStr); err !=nil{
+		t.Fatalf("could not start services: %v", err)
+	}
 
 	service := dao.Service{}
 	controlPlaneDao.GetService("0", &service)
@@ -432,7 +448,8 @@ func (dt *daoTest) TestAssignAddress(t *C) {
 	ip := "testip"
 	endpoint := "default"
 	serviceId := ""
-	h := host.New()
+	h, err := host.Build("", "default", []string{}...)
+	t.Assert(err, IsNil)
 	h.ID = hostid
 	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname"}}
 	err = dt.Facade.AddHost(dt.CTX, h)

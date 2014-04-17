@@ -575,14 +575,14 @@ var updateServiceTemplate = func(template dao.ServiceTemplate) error {
 	wrapper.Data = string(data)
 
 	if templateExists {
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
+		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
 		response, e := indexServiceTemplateWrapper(id, wrapper)
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
+		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
 		return e
 	} else {
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
+		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
 		response, e := newServiceTemplateWrapper(id, wrapper)
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
+		glog.V(0).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
 		return e
 	}
 }
@@ -649,7 +649,7 @@ func (this *ControlPlaneDao) GetUser(userName string, user *dao.User) error {
 	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s", userName)
 	request := dao.User{}
 	err := getUser(userName, &request)
-	glog.V(2).Infof("ControlPlaneDao.GetHost: userName=%s, user=%+v, err=%s", userName, request, err)
+	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s, user=%+v, err=%s", userName, request, err)
 	*user = request
 	return err
 }

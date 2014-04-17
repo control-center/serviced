@@ -13,8 +13,8 @@ import (
 //FacadeTest used for running tests where a facade type is needed.
 type FacadeTest struct {
 	elastic.ElasticTest
-	CTX    datastore.Context
-	Facade *Facade
+	CTX        datastore.Context
+	Facade     *Facade
 	DomainPath string
 }
 
@@ -22,13 +22,15 @@ type FacadeTest struct {
 func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
-	if ft.DomainPath == ""{
+	if ft.DomainPath == "" {
 		ft.DomainPath = "../domain"
 	}
-	ft.Mappings = map[string]string{
-		"host":         ft.DomainPath+"/host/host_mapping.json",
-		"resourcepool": ft.DomainPath+"/pool/pool_mapping.json",
+	if ft.Mappings == nil {
+		ft.Mappings = make(map[string]string)
 	}
+	ft.Mappings["host"] = ft.DomainPath + "/host/host_mapping.json"
+	ft.Mappings["resourcepool"] = ft.DomainPath + "/pool/pool_mapping.json"
+
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
 	ft.CTX = datastore.Get()

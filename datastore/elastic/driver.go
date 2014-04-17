@@ -75,7 +75,7 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 
 	select {
 	case <-healthy:
-		glog.Infof("Got response from Elastic")
+		glog.V(4).Infof("Got response from Elastic")
 	case <-time.After(timeout):
 		return errors.New("timed Out waiting for response from Elastic")
 	}
@@ -97,6 +97,30 @@ func (ed *elasticDriver) SetProperty(name string, prop interface{}) error {
 
 func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
 	ed.mappings[name] = mapping
+	return nil
+}
+
+func (ed *elasticDriver) AddMappingsFile(path string) error {
+	glog.Infof("AddMappingsFiles %v", path)
+
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	glog.V(4).Infof("AddMappingsFiles: content %v", string(bytes))
+
+	type mapFile struct {
+		Mappings map[string]interface{}
+		Settings interface{}
+	}
+	var allMappings mapFile
+	err = json.Unmarshal(bytes, &allMappings)
+	if err != nil {
+		return err
+	}
+	for key, mapping := range allMappings.Mappings {
+		ed.AddMapping(key, mapping)
+	}
 	return nil
 }
 
@@ -144,15 +168,15 @@ func (ed *elasticDriver) postMappings() error {
 
 	post := func(typeName string, mappingBytes []byte) error {
 		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexURL(), typeName)
-		glog.Infof("Posting mapping to %s", mapURL)
+		glog.V(4).Infof("Posting mapping to %s", mapURL)
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
 		if err != nil {
 			return fmt.Errorf("error mapping %s: %s", typeName, err)
 		}
-		glog.Infof("Response %v", resp)
+		glog.V(4).Infof("Response %v", resp)
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
-		glog.Infof("Post result %s", body)
+		glog.V(4).Infof("Post result %s", body)
 		if err != nil {
 			return err
 		}
@@ -167,7 +191,7 @@ func (ed *elasticDriver) postMappings() error {
 		if err != nil {
 			return err
 		}
-		glog.Infof("mappping %v to  %v", path, string(bytes))
+		glog.V(4).Infof("mappping %v to  %v", path, string(bytes))
 		err = post(typeName, bytes)
 		if err != nil {
 			return err
@@ -180,7 +204,7 @@ func (ed *elasticDriver) postMappings() error {
 			return err
 		}
 
-		glog.Infof("mappping %v to  %v", typeName, string(mappingBytes))
+		glog.V(4).Infof("mappping %v to  %v", typeName, string(mappingBytes))
 		err = post(typeName, mappingBytes)
 		if err != nil {
 			return err
@@ -196,16 +220,16 @@ func (ed *elasticDriver) deleteIndex() error {
 	glog.Infof("Deleting Index %v", url)
 
 	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	glog.Infof("Delete response %s", body)
+	glog.V(4).Infof("Delete response %s", body)
 	if err != nil {
 		return err
 	}
@@ -214,12 +238,12 @@ func (ed *elasticDriver) deleteIndex() error {
 
 func (ed *elasticDriver) postIndex() error {
 	url := ed.indexURL()
-	glog.Infof("Posting Index to %v", url)
+	glog.V(4).Infof("Posting Index to %v", url)
 
 	config := make(map[string]interface{})
 	config["settings"] = ed.settings
 	configBytes, err := json.Marshal(config)
-	glog.Infof("Config is %v", string(configBytes))
+	glog.V(4).Infof("Config is %v", string(configBytes))
 
 	if err != nil {
 		return err
@@ -229,17 +253,16 @@ func (ed *elasticDriver) postIndex() error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("Response %v", resp)
+	glog.V(4).Infof("Response %v", resp)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	glog.Infof("Post result %s", body)
 	if err != nil {
 		return err
 	}
 
 	errResponse := true
 	if resp.StatusCode == 400 {
-		glog.Info("400 response code")
+		glog.V(4).Info("400 response code")
 		//ignore if 400 and IndexAlreadyExistsException
 		var result map[string]interface{}
 		err = json.Unmarshal(body, &result)
@@ -263,4 +286,3 @@ func (ed *elasticDriver) postIndex() error {
 	}
 	return nil
 }
-
