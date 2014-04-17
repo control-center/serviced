@@ -5,8 +5,10 @@
 package elasticsearch
 
 import (
-	"fmt"
+	. "gopkg.in/check.v1"
 	"github.com/zenoss/serviced/dao"
+
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,6 +18,10 @@ import (
 	"strings"
 	"testing"
 )
+
+type log interface{
+	Log(args ...interface{})
+}
 
 func TestBackup_writeDirectoryToAndFromTgz(t *testing.T) {
 	//FIXME: Should also test that files are restored with the original owner
@@ -171,7 +177,7 @@ func docker_scratch_image() (string, error) {
 	return strings.TrimSpace(string(imageId)), nil
 }
 
-func delete_docker_image(t *testing.T, imageId string) error {
+func delete_docker_image(t log, imageId string) error {
 	dockerCmd := exec.Command("docker", "rmi", imageId)
 	if out, e := dockerCmd.CombinedOutput(); e != nil {
 		t.Log(out)
@@ -180,7 +186,7 @@ func delete_docker_image(t *testing.T, imageId string) error {
 	return nil
 }
 
-func all_docker_images(t *testing.T) (map[string]bool, error) {
+func all_docker_images(t log) (map[string]bool, error) {
 	dockerCmd := exec.Command("docker", "images", "-q", "-a")
 	out, e := dockerCmd.CombinedOutput()
 	if e != nil {
@@ -198,7 +204,7 @@ func all_docker_images(t *testing.T) (map[string]bool, error) {
 	return result, nil
 }
 
-func get_docker_image_tags(t *testing.T, imageId string) (map[string]bool, error) {
+func get_docker_image_tags(t log, imageId string) (map[string]bool, error) {
 	client, e := newDockerExporter()
 	if e != nil {
 		t.Log("Failure getting docker client")
@@ -221,7 +227,9 @@ func get_docker_image_tags(t *testing.T, imageId string) (map[string]bool, error
 	return nil, fmt.Errorf("No such docker image: %s", imageId)
 }
 
-func TestBackup_IntegrationTest(t *testing.T) {
+
+func (dt *daoTest) TestBackup_IntegrationTest(t *C) {
+//func TestBackup_IntegrationTest(t *testing.T) {
 	var (
 		unused         int
 		request        dao.EntityRequest
