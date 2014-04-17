@@ -101,13 +101,13 @@ func (c *ServicedCli) initService() {
 				Usage:        "Lists the snapshots for a service",
 				Description:  "serviced service list-snapshots SERVICEID",
 				BashComplete: c.printServicesFirst,
-				Action:       c.cmdSnapshotList,
+				Action:       c.cmdServiceListSnapshots,
 			}, {
 				Name:         "snapshot",
 				Usage:        "Takes a snapshot of the service",
 				Description:  "serviced service snapshot SERVICEID",
 				BashComplete: c.printServicesFirst,
-				Action:       c.cmdSnapshotAdd,
+				Action:       c.cmdServiceSnapshot,
 			},
 		},
 	})
@@ -232,7 +232,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if services == nil || len(services) == 0 {
-		fmt.Fprintf(os.Stderr, "no services found")
+		fmt.Fprintln(os.Stderr, "no services found")
 		return
 	}
 
@@ -261,8 +261,8 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 		PoolID:      args[1],
 		ImageID:     args[2],
 		Command:     args[3],
-		LocalPorts:  ctx.Generic("p").(api.PortMap),
-		RemotePorts: ctx.Generic("q").(api.PortMap),
+		LocalPorts:  ctx.Generic("p").(*api.PortMap),
+		RemotePorts: ctx.Generic("q").(*api.PortMap),
 	}
 
 	if service, err := c.driver.AddService(cfg); err != nil {
@@ -341,9 +341,15 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
+	var serviceID, ipAddress string
+	serviceID = args[0]
+	if len(args) > 1 {
+		ipAddress = args[1]
+	}
+
 	cfg := api.IPConfig{
-		ServiceID: args[0],
-		IPAddress: args[1],
+		ServiceID: serviceID,
+		IPAddress: ipAddress,
 	}
 
 	if hostResource, err := c.driver.AssignIP(cfg); err != nil {
@@ -394,7 +400,9 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 // serviced service proxy SERVICED COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		fmt.Printf("Incorrect Usage.\n\n")
+		if len(ctx.Args()) > 0 {
+			fmt.Printf("Incorrect Usage.\n\n")
+		}
 		return nil
 	}
 
@@ -413,7 +421,9 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		fmt.Printf("Incorrect Usage.\n\n")
+		if len(ctx.Args()) > 0 {
+			fmt.Printf("Incorrect Usage.\n\n")
+		}
 		return nil
 	}
 
@@ -434,7 +444,9 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		fmt.Printf("IncorrectUsage.\n\n")
+		if len(ctx.Args()) > 0 {
+			fmt.Printf("Incorrect Usage.\n\n")
+		}
 		return nil
 	}
 
@@ -450,6 +462,42 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	return fmt.Errorf("serviced service run")
+}
+
+// serviced service list-snapshot SERVICEID
+func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
+	if len(ctx.Args()) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "list-snapshots")
+		return
+	}
+
+	if snapshots, err := c.driver.ListSnapshotsByServiceID(ctx.Args().First()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if snapshots == nil || len(snapshots) == 0 {
+		fmt.Fprintln(os.Stderr, "no snapshots found")
+	} else {
+		for _, s := range snapshots {
+			fmt.Println(s)
+		}
+	}
+}
+
+// serviced service snapshot SERVICEID
+func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
+	if len(ctx.Args()) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "snapshot")
+		return
+	}
+
+	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if snapshot == "" {
+		fmt.Fprintln(os.Stderr, "received nil snapshot")
+	} else {
+		fmt.Println(snapshot)
+	}
 }
 
 /* OTHER STUFFS */

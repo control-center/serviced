@@ -14,7 +14,7 @@ var ()
 
 // HostConfig is the deserialized object from the command-line
 type HostConfig struct {
-	Address URL
+	Address *URL
 	PoolID  string
 	IPs     []string
 }

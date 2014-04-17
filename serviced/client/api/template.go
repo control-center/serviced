@@ -19,7 +19,7 @@ type DeployTemplateConfig struct {
 
 type CompileTemplateConfig struct {
 	Dir string
-	Map ImageMap
+	Map *ImageMap
 }
 
 // ListTemplates lists all available service templates

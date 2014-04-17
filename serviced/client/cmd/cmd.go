@@ -15,21 +15,6 @@ type ServicedCli struct {
 
 // New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
-
-	cli.CommandHelpTemplate = `NAME:
-    {{.Name}} - {{.Usage}}                                                         
-                                                                                     
-USAGE:                                                                            
-    command {{.Name}} [command options] {{range .Args}}{{.}} {{end}}               
-	                                                                                    
-DESCRIPTION:                                                                      
-	{{.Description}}                                                               
-		                                                                                   
-OPTIONS:                                                                          
-	{{range .Flags}}{{.}}                                                          
-	{{end}}                                                                        
-`
-
 	c := &ServicedCli{
 		driver: driver,
 		app:    cli.NewApp(),
@@ -37,9 +22,10 @@ OPTIONS:
 
 	c.app.Name = "serviced"
 	c.app.Usage = "A container-based management system"
+	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{
-		cli.StringFlag{"port", api.GetAgentIP() + ":4979", "port for remote serviced (example.com:8080)"},
+		cli.StringFlag{"port", api.GetAgentIP(), "port for remote serviced (example.com:8080)"},
 		cli.StringFlag{"uiport", ":443", "port for ui"},
 		cli.StringFlag{"listen", ":4979", "port for local serviced (example.com:8080)"},
 		cli.StringFlag{"docker-dns", api.GetDockerDNS(), "docker dns configuration used for running containers (comma separated list)"},

@@ -179,6 +179,8 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 
 	if template, err := c.driver.AddTemplate(input); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if template == nil {
+		fmt.Fprintln(os.Stderr, "received nil template")
 	} else {
 		fmt.Println(template.Id)
 	}
@@ -225,7 +227,7 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	}
 }
 
-// serviced template compile DIR [[--map IMAGE->IMAGE] ...]
+// serviced template compile DIR [[--map IMAGE,IMAGE] ...]
 func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -236,11 +238,13 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 
 	cfg := api.CompileTemplateConfig{
 		Dir: args[0],
-		Map: ctx.Generic("map").(api.ImageMap),
+		Map: ctx.Generic("map").(*api.ImageMap),
 	}
 
 	if template, err := c.driver.CompileTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if template == nil {
+		fmt.Fprintln(os.Stderr, "received nil template")
 	} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
 		fmt.Println(string(jsonTemplate))
 	}

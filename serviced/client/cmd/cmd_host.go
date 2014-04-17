@@ -115,7 +115,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		hostID := ctx.Args()[0]
 		if host, err := c.driver.GetHost(hostID); err != nil {
-			fmt.Fprintf(os.Stderr, "error trying to retrieve host: %s\n", err)
+			fmt.Fprintln(os.Stderr, err)
 		} else if host == nil {
 			fmt.Fprintln(os.Stderr, "host not found")
 		} else if jsonHost, err := json.MarshalIndent(host, " ", "  "); err != nil {
@@ -128,7 +128,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 
 	hosts, err := c.driver.ListHosts()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error trying to retrieve hosts: %s\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if hosts == nil || len(hosts) == 0 {
 		fmt.Fprintln(os.Stderr, "no hosts found")
@@ -167,7 +167,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	}
 
 	cfg := api.HostConfig{
-		Address: address,
+		Address: &address,
 		PoolID:  args[1],
 		IPs:     ctx.StringSlice("ip"),
 	}

@@ -101,7 +101,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		poolID := ctx.Args()[0]
 		if pool, err := c.driver.GetPool(poolID); err != nil {
-			fmt.Fprintf(os.Stderr, "error trying to retrieve resource pool: %s\n", err)
+			fmt.Fprintln(os.Stderr, err)
 		} else if pool == nil {
 			fmt.Fprintf(os.Stderr, "pool not found")
 		} else if jsonPool, err := json.MarshalIndent(pool, " ", "  "); err != nil {
@@ -114,7 +114,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 
 	pools, err := c.driver.ListPools()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error trying to retrieve resource pools: %s\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if pools == nil || len(pools) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pools found")
@@ -201,10 +201,11 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "list-ips")
+		return
 	}
 
 	if ips, err := c.driver.ListPoolIPs(args[0]); err != nil {
-		fmt.Fprintf(os.Stderr, "error trying to retrieve resource pool ips: %s\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if ips == nil || len(ips) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pool ips found")

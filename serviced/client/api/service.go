@@ -17,8 +17,8 @@ type ServiceConfig struct {
 	PoolID      string
 	ImageID     string
 	Command     string
-	LocalPorts  PortMap
-	RemotePorts PortMap
+	LocalPorts  *PortMap
+	RemotePorts *PortMap
 }
 
 // IPConfig is the deserialized object from the command-line

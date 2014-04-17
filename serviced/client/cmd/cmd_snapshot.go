@@ -171,6 +171,8 @@ func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
 
 	if snapshot, err := c.driver.Commit(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if snapshot == "" {
+		fmt.Fprintln(os.Stderr, "received nil snapshot")
 	} else {
 		fmt.Println(snapshot)
 	}
