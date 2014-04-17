@@ -567,17 +567,25 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	for i, imageNameWithTags := range imagesNameTags {
 		imageId := imageNameWithTags[0]
 		imageTags := imageNameWithTags[1:]
-		filename := restorePath("images", fmt.Sprintf("%d.tar", i))
 		imageName := "imported:" + imageId
-		if e := importDockerImageFromFile(client, imageName, filename); e != nil {
-			glog.Errorf("Could not import docker image %s (%+v) from file %s: %v", imageId, imageTags, filename, e)
-			return e
-		}
-		image, e := client.InspectImage(imageName)
+		image, e := client.InspectImage(imageId)
 		if e != nil {
-			glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
-			return e
+			if e != docker.ErrNoSuchImage {
+				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageId, e)
+				return e
+			}
+			filename := restorePath("images", fmt.Sprintf("%d.tar", i))
+			if e := importDockerImageFromFile(client, imageName, filename); e != nil {
+				glog.Errorf("Could not import docker image %s (%+v) from file %s: %v", imageId, imageTags, filename, e)
+				return e
+			}
+			image, e = client.InspectImage(imageName)
+			if e != nil {
+				glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
+				return e
+			}
 		}
+
 		for _, imageTag := range imageTags {
 			repo, tag := repoAndTag(imageTag)
 			options := docker.TagImageOptions{
@@ -655,10 +663,6 @@ var readDirFileNames = func(dirname string) ([]string, error) {
 		result[i] = file.Name()
 	}
 	return result, nil
-}
-
-var ioutilWriteFile = func(filename string, data []byte, perm os.FileMode) error {
-	return ioutil.WriteFile(filename, data, perm)
 }
 
 var osOpen = func(name string) (io.ReadCloser, error) {
