@@ -89,6 +89,16 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             scope.showIfEmpty();
         };
     }).
+    directive('popover', function(){
+        return function(scope, elem, attrs){
+            $(elem).popover({
+                title: attrs.popoverTitle,
+                trigger: "hover",
+                html: true,
+                content: attrs.popover
+            });
+        }
+    }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
     factory('statsService', StatsService).
@@ -249,13 +259,6 @@ function DeployWizard($scope, resourcesService) {
         selected: {
             pool: 'default'
         },
-        templateClass: function(template) {
-            var cls = "block-data control-group";
-            if (template.depends) {
-                cls += " indented";
-            }
-            return cls;
-        },
         templateSelected: function(template) {
             if (template.depends) {
                 $scope.install.selected[template.depends] = true;
@@ -297,6 +300,16 @@ function DeployWizard($scope, resourcesService) {
         }
         return templates;
     };
+
+    $scope.getTemplateRequiredResources = function(template){
+        var ret = {CPUCommitment:0, RAMCommitment:0};
+        for (var i=0; i<template.Services.length; ++i){
+            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
+            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+        }
+
+        return ret;
+    }
 
     var step = 0;
     var resetStepPage = function() {
@@ -1417,6 +1430,10 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     $scope.params = $routeParams;
     $scope.itemClass = itemClass;
     $scope.indent = indentClass;
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_hosts', url: '#/hosts' },
+        { label: 'breadcrumb_hosts_map', itemClass: 'active' }
+    ];
 
     $scope.addSubpool = function(poolId) {
         $scope.newPool.ParentId = poolId;
