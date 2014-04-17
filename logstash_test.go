@@ -118,7 +118,7 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 
 	var dat map[string]interface{}
 	if err := json.Unmarshal(contents, &dat); err != nil {
-		t.Errorf("Error decoding config file %s with err", string(contents), err)
+		t.Errorf("Error decoding config file %s with err %s", string(contents), err)
 		return
 	}
 
@@ -126,7 +126,7 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 
 	// make sure path to logfile is present
 	if !strings.Contains(string(contents), "path/to/log/file") {
-		t.Errorf("The logfile path was not in the configuration", string(contents), err)
+		t.Errorf("The logfile path was not in the configuration: err %s, %s", err, string(contents))
 	}
 }
 

@@ -13,10 +13,11 @@ import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/search"
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/isvcs"
@@ -189,13 +190,13 @@ var SYSTEM_USER_NAME = "system_user"
 var INSTANCE_PASSWORD string
 
 type ControlPlaneDao struct {
-	hostName   string
-	port       int
-	varpath    string
-	vfs        string
-	zookeepers []string
-	zkDao      *zzk.ZkDao
-	dfs        *dfs.DistributedFileSystem
+	hostName string
+	port     int
+	varpath  string
+	vfs      string
+	zclient  *coordclient.Client
+	zkDao    *zzk.ZkDao
+	dfs      *dfs.DistributedFileSystem
 }
 
 // convert search result of json host to dao.Host array
@@ -1794,7 +1795,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	timeout := 60
 	for i := 0; i < timeout; i++ {
 		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
-		_, _, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+		_, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
 		switch {
 		case err != nil:
 			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", err)
@@ -2011,12 +2012,11 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	s.varpath = varpath
 	s.vfs = vfs
 
-	if len(zookeepers) == 0 {
-		s.zookeepers = []string{"127.0.0.1:2181"}
-	} else {
-		s.zookeepers = zookeepers
-	}
-	s.zkDao = &zzk.ZkDao{s.zookeepers}
+	dsn := coordzk.NewDSN(zookeepers, time.Second*15).String()
+	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+
+	s.zclient = zclient
+	s.zkDao = zzk.NewZkDao(zclient)
 
 	if err = createDefaultPool(s); err != nil {
 		return nil, err
@@ -2082,9 +2082,8 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 
 	for {
 		func() {
-			conn, _, err := zk.Connect(s.zookeepers, time.Second*10)
+			conn, err := s.zclient.GetConnection()
 			if err != nil {
-				time.Sleep(time.Second * 3)
 				return
 			}
 			defer conn.Close()
@@ -2095,6 +2094,7 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 			case <-shutdown:
 			}
 		}()
+		time.Sleep(time.Second * 3)
 	}
 }
 

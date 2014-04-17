@@ -2,7 +2,7 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
+	rest "github.com/zenoss/go-json-rest"
 
 	"io"
 	"net/http"
@@ -26,7 +26,11 @@ func NewMetricForwarder(port, metricsRedirectUrl string) (config MetricForwarder
 // Then starts the server.  This method blocks.
 func (forwarder *MetricForwarder) Serve() {
 	routes := []rest.Route{
-		rest.Route{"POST", "/api/metrics/store", post_api_metrics_store(forwarder.MetricsRedirectUrl)},
+		rest.Route{
+			HttpMethod: "POST",
+			PathExp:    "/api/metrics/store",
+			Func:       post_api_metrics_store(forwarder.MetricsRedirectUrl),
+		},
 	}
 
 	handler := rest.ResourceHandler{}

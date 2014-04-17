@@ -152,7 +152,7 @@ func (m *Manager) wipe() error {
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
-		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
+		"run", "--rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
 	return cmd.Run()
 }
 

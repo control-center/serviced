@@ -9,19 +9,22 @@ package elasticsearch
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/zzk"
-	"reflect"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (
@@ -185,7 +188,7 @@ func TestDao_UpdateHost(t *testing.T) {
 	controlPlaneDao.AddHost(*host, &id)
 
 	host.Name = "hostname"
-	host.IpAddr = "127.0.0.1"
+	host.IpAddr = "172.17.42.1"
 	err := controlPlaneDao.UpdateHost(*host, &unused)
 	if err != nil {
 		t.Errorf("Failure updating host %-v with error: %s", host, err)
@@ -875,20 +878,29 @@ func TestDao_SnapshotRequest(t *testing.T) {
 	glog.V(0).Infof("TestDao_SnapshotRequest started")
 	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
 
-	zkDao := &zzk.ZkDao{[]string{"127.0.0.1:2181"}}
+	dsn := coordzk.DSN{
+		Servers: []string{"127.0.0.1:2181"},
+		Timeout: time.Second * 10,
+	}
+	cclient, _ := coordclient.New("zookeeper", dsn.String(), "", nil)
+	zkDao := zzk.NewZkDao(cclient)
 
-	srExpected := dao.SnapshotRequest{Id: "request13",
-		ServiceId: "12345", SnapshotLabel: "foo", SnapshotError: "bar"}
+	srExpected := dao.SnapshotRequest{
+		Id:            "request13",
+		ServiceId:     "12345",
+		SnapshotLabel: "foo",
+		SnapshotError: "bar",
+	}
 	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
 		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
 	}
-	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: zk: node already exists")
+	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: node already exists")
 	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
 		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
 	}
 
 	srResult := dao.SnapshotRequest{}
-	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+	if err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
 		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
 	}
 	if !reflect.DeepEqual(srExpected, srResult) {
@@ -902,7 +914,7 @@ func TestDao_SnapshotRequest(t *testing.T) {
 		t.Fatalf("Failure updating snapshot request %+v with error: %s", srResult, err)
 	}
 
-	if _, err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
+	if err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
 		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
 	}
 	if !reflect.DeepEqual(srExpected, srResult) {
@@ -912,8 +924,8 @@ func TestDao_SnapshotRequest(t *testing.T) {
 	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
 		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
 	}
-	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
-		t.Fatalf("Failure removing non-existant snapshot request %+v", srExpected)
+	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err == nil {
+		t.Fatalf("Failure removing non-existant snapshot request expected %+v", srExpected)
 	}
 }
 

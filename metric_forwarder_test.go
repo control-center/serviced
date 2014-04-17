@@ -63,6 +63,6 @@ func TestMetricForwarding(t *testing.T) {
 			t.Error("Forwarding Expected ", expected, ", But Got ", buf.String())
 		}
 	} else {
-		t.Error("Request failed: %s", err)
+		t.Errorf("Request failed: %s", err)
 	}
 }
