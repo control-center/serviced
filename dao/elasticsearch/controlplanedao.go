@@ -158,14 +158,14 @@ var (
 	deleteUser                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
 
 	//model get functions
-	getService      func(string, interface{}) error = getSource("controlplane", "service")
-	getServiceState func(string, interface{}) error = getSource("controlplane", "servicestate")
+	getService                func(string, interface{}) error = getSource("controlplane", "service")
+	getServiceState           func(string, interface{}) error = getSource("controlplane", "servicestate")
 	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
 	getUser                   func(string, interface{}) error = getSource("controlplane", "user")
 
 	//model search functions, using uri based query
-	searchServiceUri      func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
-	searchServiceStateUri func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
+	searchServiceUri        func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
+	searchServiceStateUri   func(string) (core.SearchResult, error) = searchUri("controlplane", "servicestate")
 	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
 	searchUserUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "user")
 )
@@ -1712,12 +1712,12 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers 
 	s.varpath = varpath
 	s.vfs = vfs
 
-		if len(zookeepers) == 0 {
-			s.zookeepers = []string{"127.0.0.1:2181"}
-		} else {
-			s.zookeepers = zookeepers
-		}
-	s.zkDao = &zzk.ZkDao{zookeepers}
+	if len(zookeepers) == 0 {
+		s.zookeepers = []string{"127.0.0.1:2181"}
+	} else {
+		s.zookeepers = zookeepers
+	}
+	s.zkDao = &zzk.ZkDao{s.zookeepers}
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {
