@@ -89,6 +89,6 @@ func TestParseContainerState(t *testing.T) {
 
 	err := json.Unmarshal([]byte(example_state), &testState)
 	if err != nil {
-		t.Fatalf("Problem unmarshaling test state: ", err)
+		t.Fatalf("Problem unmarshaling test state: %s", err)
 	}
 }

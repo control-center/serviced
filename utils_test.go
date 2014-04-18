@@ -72,7 +72,7 @@ Last stable version: 0.6.6
 		t.Fatalf("Problem parsing example docker version: %s", err)
 	}
 	if !version.equals(&exampleVersion) {
-		t.Fatalf("unexpected version: %s vs %s", version, exampleVersion)
+		t.Fatalf("unexpected version: %v vs %v", version, exampleVersion)
 	}
 
 	version, err = parseDockerVersion(exampleOutput2)
@@ -80,6 +80,6 @@ Last stable version: 0.6.6
 		t.Fatalf("Problem parsing example2 docker version: %s", err)
 	}
 	if !version.equals(&exampleVersion) {
-		t.Fatalf("unexpected version: %s vs %s", version, exampleVersion)
+		t.Fatalf("unexpected version: %v vs %v", version, exampleVersion)
 	}
 }

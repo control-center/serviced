@@ -5,10 +5,11 @@
 package main
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
@@ -47,6 +48,8 @@ type daemon struct {
 	dsContext datastore.Context
 	facade    *facade.Facade
 	hostID    string
+	zclient  *coordclient.Client
+
 }
 
 func newDaemon() *daemon {
@@ -134,6 +137,10 @@ func (d *daemon) startMaster() error {
 	}
 
 	d.facade = d.initFacade()
+
+	if d.zclient, err = d.initZK(); err != nil{
+		return err
+	}
 
 	if d.cpDao, err = d.initDAO(); err != nil {
 		return err
@@ -227,8 +234,15 @@ func (d *daemon) initISVCS() error {
 	return isvcs.Mgr.Start()
 }
 
+func (d *daemon)initZK() (*coordclient.Client, error){
+	dsn := coordzk.NewDSN(options.zookeepers, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	return zclient, err
+}
+
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.zookeepers, options.varPath, options.vfs)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.varPath, options.vfs)
 }
 
 func (d *daemon) initWeb() {
@@ -240,20 +254,19 @@ func (d *daemon) initWeb() {
 
 }
 func (d *daemon) startScheduler() {
-	go runScheduler(d.cpDao, d.hostID)
+	go d.runScheduler()
 }
 
-func runScheduler(cpDao dao.ControlPlane, hostID string) {
+func (d *daemon) runScheduler() {
 	for {
 		func() {
-			conn, _, err := zk.Connect(options.zookeepers, time.Second*10)
+			conn, err := d.zclient.GetConnection()
 			if err != nil {
-				time.Sleep(time.Second * 3)
 				return
 			}
 			defer conn.Close()
 
-			sched, shutdown := serviced.NewScheduler("", conn, hostID, cpDao)
+			sched, shutdown := serviced.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:

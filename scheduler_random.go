@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/facade"
@@ -19,15 +19,18 @@ import (
 type leader struct {
 	facade  *facade.Facade
 	dao     dao.ControlPlane
-	conn    *zk.Conn
+	conn coordclient.Connection
 	context datastore.Context
 }
 
 // Lead is executed by the "leader" of the control plane cluster to handle its
 // service/snapshot management responsibilities.
-func Lead(dao dao.ControlPlane, conn *zk.Conn, zkEvent <-chan zk.Event) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
+
+	glog.V(0).Info("Entering Lead()!")
+	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
-	leader := leader{facade: nil, dao: dao, conn: conn}
+	leader := leader{facade: facade, dao: dao, conn: conn}
 	for {
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
@@ -68,10 +71,10 @@ func (l *leader) watchSnapshotRequests() {
 	// make sure toplevel paths exist
 	paths := []string{zzk.SNAPSHOT_PATH, zzk.SNAPSHOT_REQUEST_PATH}
 	for _, path := range paths {
-		exists, _, _, err := conn.ExistsW(path)
+		exists, err := conn.Exists(path)
 		if err != nil {
-			if err == zk.ErrNoNode {
-				if err := zzk.CreateNode(path, conn); err != nil {
+			if err == coordclient.ErrNoNode {
+				if err := conn.CreateDir(path); err != nil {
 					glog.Errorf("Leader unable to create znode:%s error: %s", path, err)
 					return
 				}
@@ -81,7 +84,7 @@ func (l *leader) watchSnapshotRequests() {
 			}
 		}
 		if !exists {
-			if err := zzk.CreateNode(path, conn); err != nil {
+			if err := conn.CreateDir(path); err != nil {
 				glog.Errorf("Leader unable to create znode:%s error: %s", path, err)
 				return
 			}
@@ -91,14 +94,14 @@ func (l *leader) watchSnapshotRequests() {
 	// watch for snapshot requests and perform snapshots
 	glog.V(0).Info("Leader watching for snapshot requests to ", zzk.SNAPSHOT_REQUEST_PATH)
 	for {
-		requestIds, _, zkEvent, err := conn.ChildrenW(zzk.SNAPSHOT_REQUEST_PATH)
+		requestIds, zkEvent, err := conn.ChildrenW(zzk.SNAPSHOT_REQUEST_PATH)
 		if err != nil {
 			glog.Errorf("Leader unable to watch for snapshot requests to %s error: %s", zzk.SNAPSHOT_REQUEST_PATH, err)
 			return
 		}
 		for _, requestID := range requestIds {
 			snapshotRequest := dao.SnapshotRequest{}
-			if _, err := zzk.LoadSnapshotRequest(conn, requestID, &snapshotRequest); err != nil {
+			if err := zzk.LoadSnapshotRequest(conn, requestID, &snapshotRequest); err != nil {
 				glog.Errorf("Leader unable to load snapshot request: %s  error: %s", requestID, err)
 				snapshotRequest.SnapshotError = err.Error()
 				zzk.UpdateSnapshotRequest(conn, &snapshotRequest)
@@ -157,11 +160,12 @@ func (l *leader) watchServices() {
 		}
 	}()
 
+	conn.CreateDir(zzk.SERVICE_PATH)
 	for {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)
-		serviceIds, _, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
+		serviceIds, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
 		if err != nil {
-			glog.Errorf("Leader unable to find any services: ", err)
+			glog.Errorf("Leader unable to find any services: %s", err)
 			return
 		}
 		for _, serviceID := range serviceIds {
@@ -183,22 +187,23 @@ func (l *leader) watchServices() {
 }
 
 func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID string) {
+	conn := l.conn
 	defer func() {
 		glog.V(3).Info("Exiting function watchService ", serviceID)
 		done <- serviceID
 	}()
 	for {
 		var service dao.Service
-		_, zkEvent, err := zzk.LoadServiceW(l.conn, serviceID, &service)
+		zkEvent, err := zzk.LoadServiceW(conn, serviceID, &service)
 		if err != nil {
 			glog.Errorf("Unable to load service %s: %v", serviceID, err)
 			return
 		}
-		_, _, childEvent, err := l.conn.ChildrenW(zzk.ServicePath(serviceID))
+		_, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceID))
 
 		glog.V(1).Info("Leader watching for changes to service ", service.Name)
 
-		switch exists, _, err := l.conn.Exists(path.Join("/services", serviceID)); {
+		switch exists, err := conn.Exists(path.Join("/services", serviceID)); {
 		case err != nil:
 			glog.Errorf("conn.Exists failed (%v)", err)
 			return
@@ -227,7 +232,7 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 		select {
 		case evt := <-zkEvent:
-			if evt.Type == zk.EventNodeDeleted {
+			if evt.Type == coordclient.EventNodeDeleted {
 				glog.V(0).Info("Shutting down due to node delete ", serviceID)
 				shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
 				return
@@ -254,9 +259,7 @@ func (l *leader) updateServiceInstances( service *dao.Service, serviceStates []*
 	if len(serviceStates) < service.Instances {
 		instancesToStart := service.Instances - len(serviceStates)
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
-//		var poolHosts []*dao.PoolHost
 		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolId)
-//		err = l.dao.GetHostsForResourcePool(service.PoolId, &poolHosts)
 		if err != nil {
 			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolId, err)
 			return err
@@ -283,7 +286,7 @@ func (l *leader) updateServiceInstances( service *dao.Service, serviceStates []*
 // max number of instances for the service. We're already doing that check in
 // another, better place. It is guaranteed that either nil or n ids will be
 // returned.
-func getFreeInstanceIds(conn *zk.Conn, svc *dao.Service, n int) ([]int, error) {
+func getFreeInstanceIds(conn coordclient.Connection, svc *dao.Service, n int) ([]int, error) {
 	var (
 		states []*dao.ServiceState
 		ids    []int
@@ -342,7 +345,7 @@ func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host,
 	return nil
 }
 
-func shutdownServiceInstances(conn *zk.Conn, serviceStates []*dao.ServiceState, numToKill int) {
+func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*dao.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	for i := 0; i < numToKill; i++ {
 		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostId, serviceStates[i].Id)
