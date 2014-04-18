@@ -91,14 +91,13 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 		return
 	}
 	var payload dao.ResourcePool
-	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode pool payload: ", err)
 		RestBadRequest(w)
 		return
 	}
-	err = client.UpdateResourcePool(payload, &unused)
+	err = client.UpdateResourcePool(payload, nil)
 	if err != nil {
 		glog.Error("Unable to update pool: ", err)
 		RestServerError(w)

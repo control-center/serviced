@@ -21,6 +21,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/validation"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -535,7 +536,7 @@ func (this *ControlPlaneDao) AddService(service dao.Service, serviceId *string) 
 }
 
 //
-func (this *ControlPlaneDao) UpdateResourcePool(pool dao.ResourcePool, unused *int) error {
+func (this *ControlPlaneDao) UpdateResourcePool(pool dao.ResourcePool, _ *struct{}) error {
 	glog.V(2).Infof("ControlPlaneDao.UpdateResourcePool: %+v", pool)
 
 	id := strings.TrimSpace(pool.Id)
@@ -1039,7 +1040,34 @@ func (this *ControlPlaneDao) validateServicesForStarting(service dao.Service, _ 
 	return nil
 }
 
-// Show pool IP address information
+// Retrieve pool IP address information (virtual and static)
+func (this *ControlPlaneDao) RetrievePoolIPs(poolId string, IPsInfo *[]dao.IPInfo) error {
+	// get all the static IP addresses
+	var poolsIpInfo []dao.HostIPResource
+	err := this.GetPoolsIPInfo(poolId, &poolsIpInfo)
+	if err != nil {
+		fmt.Printf("GetPoolsIPInfo failed: %v", err)
+		return err
+	}
+	for _, ipInfo := range poolsIpInfo {
+		*IPsInfo = append(*IPsInfo, dao.IPInfo{ipInfo.InterfaceName, ipInfo.IPAddress, "static"})
+	}
+
+	// get all the virtual IP addresses
+	var pool dao.ResourcePool
+	if err := this.GetResourcePool(poolId, &pool); err != nil {
+		glog.Errorf("Unable to load resource pool: %v", poolId)
+		return err
+	}
+	for _, virtualIP := range pool.VirtualIPs {
+		// TODO: Fill in the interface name?
+		*IPsInfo = append(*IPsInfo, dao.IPInfo{"", virtualIP, "virtual"})
+	}
+
+	return nil
+}
+
+// Retrieve a pool's static IP addresses
 func (this *ControlPlaneDao) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) error {
 	// retrieve all the hosts that are in the requested pool
 	var poolHosts []*dao.PoolHost
@@ -1548,6 +1576,75 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func Exists(someStrings []string, aString string) (bool, int) {
+	for index, currentString := range someStrings {
+		if currentString == aString {
+			return true, index
+		}
+	}
+	return false, -1
+}
+
+func ValidVirtualIp(aString string) error {
+	violations := validation.NewValidationError()
+	violations.Add(validation.IsIP(aString))
+	if len(violations.Errors) > 0 {
+		return violations
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) AddVirtualIp(requestedVirtualIp dao.VirtualIP, _ *struct{}) error {
+	var pool dao.ResourcePool
+	if err := this.GetResourcePool(requestedVirtualIp.PoolId, &pool); err != nil {
+		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIp.PoolId)
+		return err
+	}
+
+	if err := ValidVirtualIp(requestedVirtualIp.IP); err != nil {
+		return err
+	}
+
+	ipAddressAlreadyExists, position := Exists(pool.VirtualIPs, requestedVirtualIp.IP)
+	if ipAddressAlreadyExists && position != -1 {
+		errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIp.IP, requestedVirtualIp.PoolId)
+		return errors.New(errMsg)
+	}
+
+	pool.VirtualIPs = append(pool.VirtualIPs, requestedVirtualIp.IP)
+	if err := this.UpdateResourcePool(pool, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (this *ControlPlaneDao) RemoveVirtualIp(requestedVirtualIp dao.VirtualIP, _ *struct{}) error {
+	var pool dao.ResourcePool
+	if err := this.GetResourcePool(requestedVirtualIp.PoolId, &pool); err != nil {
+		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIp.PoolId)
+		return err
+	}
+
+	if err := ValidVirtualIp(requestedVirtualIp.IP); err != nil {
+		return err
+	}
+
+	ipAddressAlreadyExists, position := Exists(pool.VirtualIPs, requestedVirtualIp.IP)
+	if !ipAddressAlreadyExists && position == -1 {
+		errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v as it does not exist in pool: %v", requestedVirtualIp.IP, requestedVirtualIp.PoolId)
+		return errors.New(errMsg)
+	}
+
+	// delete the ith element
+	pool.VirtualIPs = append(pool.VirtualIPs[:position], pool.VirtualIPs[position+1:]...)
+	if err := this.UpdateResourcePool(pool, nil); err != nil {
+		return err
+	}
+
 	return nil
 }
 

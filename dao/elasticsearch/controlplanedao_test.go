@@ -96,7 +96,7 @@ func TestDao_UpdateResourcePool(t *testing.T) {
 	pool.Priority = 1
 	pool.CoreLimit = 1
 	pool.MemoryLimit = 1
-	err := controlPlaneDao.UpdateResourcePool(*pool, &unused)
+	err := controlPlaneDao.UpdateResourcePool(*pool, nil)
 
 	if err != nil {
 		t.Errorf("Failure updating resource pool %-v with error: %s", pool, err)

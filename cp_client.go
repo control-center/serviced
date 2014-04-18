@@ -98,6 +98,14 @@ func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, u
 	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
 }
 
+func (s *ControlClient) AddVirtualIp(requestedVirtualIp dao.VirtualIP, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.AddVirtualIp", requestedVirtualIp, nil)
+}
+
+func (s *ControlClient) RemoveVirtualIp(requestedVirtualIp dao.VirtualIP, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.RemoveVirtualIp", requestedVirtualIp, nil)
+}
+
 func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
@@ -162,8 +170,8 @@ func (s *ControlClient) AddResourcePool(pool dao.ResourcePool, poolId *string) (
 	return s.rpcClient.Call("ControlPlane.AddResourcePool", pool, poolId)
 }
 
-func (s *ControlClient) UpdateResourcePool(pool dao.ResourcePool, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.UpdateResourcePool", pool, unused)
+func (s *ControlClient) UpdateResourcePool(pool dao.ResourcePool, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.UpdateResourcePool", pool, nil)
 }
 
 func (s *ControlClient) RemoveResourcePool(poolId string, unused *int) (err error) {
@@ -174,8 +182,8 @@ func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao
 	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
 }
 
-func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
+func (s *ControlClient) RetrievePoolIPs(poolId string, IPsInfo *[]dao.IPInfo) (err error) {
+	return s.rpcClient.Call("ControlPlane.RetrievePoolIPs", poolId, IPsInfo)
 }
 
 func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {

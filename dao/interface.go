@@ -78,6 +78,12 @@ type ControlPlane interface {
 	// Deploy a service
 	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
+	// Add a virtual IP address to a pool
+	AddVirtualIp(requestedVirtualIp VirtualIP, _ *struct{}) (err error)
+
+	// Remove a virtual IP address from a pool
+	RemoveVirtualIp(requestedVirtualIp VirtualIP, _ *struct{}) (err error)
+
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
@@ -124,7 +130,7 @@ type ControlPlane interface {
 	AddResourcePool(pool ResourcePool, poolId *string) error
 
 	// Update a service pool definition
-	UpdateResourcePool(pool ResourcePool, unused *int) error
+	UpdateResourcePool(pool ResourcePool, _ *struct{}) error
 
 	// Remove a service pool
 	RemoveResourcePool(poolId string, unused *int) error
@@ -139,8 +145,8 @@ type ControlPlane interface {
 	// Get of a list of hosts that are in the given resource pool
 	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
 
-	// Get a map of the HostIPResources (key is the hostId) contained in a pool
-	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
+	// Get a list of IPInfo objects (includes a pool's IP address' information... both virtual and static)
+	RetrievePoolIPs(poolId string, IPsInfo *[]IPInfo) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

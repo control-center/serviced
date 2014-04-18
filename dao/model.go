@@ -61,6 +61,12 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
+type IPInfo struct {
+	Interface string
+	IP        string
+	Type      string
+}
+
 //HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
 //to Services
 type HostIPResource struct {
@@ -69,11 +75,17 @@ type HostIPResource struct {
 	InterfaceName string
 }
 
+type VirtualIP struct {
+	PoolId string
+	IP     string
+}
+
 // A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	Id          string // Unique identifier for resource pool, eg "default"
 	Description string
 	ParentId    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
+	VirtualIPs  []string
 	Priority    int    // relative priority of resource pools, used for CPU priority
 	CoreLimit   int    // Number of cores on the host available to serviced
 	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
@@ -108,7 +120,7 @@ type Host struct {
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	IPs            []HostIPResource // The static IP resourceavailable for services to use
+	IPs            []HostIPResource // The static IP resource available for services to use
 }
 
 // Create a new host.
