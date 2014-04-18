@@ -81,10 +81,11 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 		driver.AddMappingFile(name, path)
 	}
 
-	if err := driver.AddMappingsFile(et.MappingsFile); err != nil {
-		c.Fatalf("error in SetUpSuite: %v", err)
+	if et.MappingsFile != "" {
+		if err := driver.AddMappingsFile(et.MappingsFile); err != nil {
+			c.Fatalf("error in SetUpSuite: %v", err)
+		}
 	}
-
 	err := driver.Initialize(time.Second * et.InitTimeout)
 	if err != nil {
 		c.Fatalf("error in SetUpSuite: %v", err)
@@ -108,7 +109,6 @@ func (et *ElasticTest) SetUpTest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	err = et.driver.Initialize(time.Second * et.InitTimeout)
 	c.Assert(err, gocheck.IsNil)
-
 }
 
 //Driver returns the initialized driver

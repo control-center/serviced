@@ -14,6 +14,9 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
+
 
 	"fmt"
 	"testing"
@@ -171,8 +174,19 @@ func init() {
 	if err != nil {
 		glog.Fatalf("could not wipe isvcs(): %s", err)
 	}
+	if err := isvcs.Mgr.Start(); err != nil {
+		glog.Fatalf("Could not start es container: %s", err)
+	}
+
+	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	if err != nil {
+		glog.Fatalf("Could not start es container: %s", err)
+	}
+
 	time.Sleep(time.Second * 5)
-	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, addresses, "/tmp", "rsync"); err != nil {
+	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil,zclient, "/tmp", "rsync"); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)
 	}
 
