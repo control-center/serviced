@@ -107,8 +107,9 @@ func TestDao_UpdateResourcePool(t *testing.T) {
 	controlPlaneDao.GetResourcePool("default", &result)
 	result.CreatedAt = pool.CreatedAt
 	result.UpdatedAt = pool.UpdatedAt
-	if *pool != result {
-		t.Errorf("%+v != %+v", *pool, result)
+
+	if !reflect.DeepEqual(*pool, result) {
+		t.Errorf("%+v != %+v", result, pool)
 		t.Fail()
 	}
 }
@@ -126,11 +127,13 @@ func TestDao_GetResourcePool(t *testing.T) {
 	result.CreatedAt = pool.CreatedAt
 	result.UpdatedAt = pool.UpdatedAt
 	if err == nil {
-		if *pool != result {
+		if !reflect.DeepEqual(*pool, result) {
 			t.Errorf("Unexpected ResourcePool: expected=%+v, actual=%+v", pool, result)
+			t.Fail()
 		}
 	} else {
 		t.Errorf("Unexpected Error Retrieving ResourcePool: err=%s", err)
+		t.Fail()
 	}
 }
 
@@ -148,7 +151,7 @@ func TestDao_GetResourcePools(t *testing.T) {
 	if err == nil && len(result) == 1 {
 		result["default"].CreatedAt = pool.CreatedAt
 		result["default"].UpdatedAt = pool.UpdatedAt
-		if *result["default"] != *pool {
+		if !reflect.DeepEqual(*pool, *result["default"]) {
 			t.Errorf("expected [%+v] actual=%s", *pool, result)
 			t.Fail()
 		}
