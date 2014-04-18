@@ -529,7 +529,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	}
 	defer em.Close()
 
-	config, hostconfig, err := configureContainer(a, client, conn, procFinished, ssStats, service, serviceState)
+	config, hostconfig, err := configureContainer(a, client, conn, procFinished, service, serviceState)
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
 		return false, err
@@ -574,7 +574,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	return true, nil
 }
 
-func configureContainer(a *HostAgent, client *ControlClient, conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (*docker.Config, *docker.HostConfig, error) {
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (*docker.Config, *docker.HostConfig, error) {
 	cfg := &docker.Config{}
 	hcfg := &docker.HostConfig{}
 
