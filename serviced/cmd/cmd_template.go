@@ -164,11 +164,9 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	var input *os.File
 
-	args := ctx.Args()
-
-	if ctx.String("file") != "" {
+	if filepath := ctx.String("file"); filepath != "" {
 		var err error
-		if input, err = os.Open(args[0]); err != nil {
+		if input, err = os.Open(filepath); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
@@ -246,6 +244,8 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
 	} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to marshal template: %s", err)
+	} else {
 		fmt.Println(string(jsonTemplate))
 	}
 }

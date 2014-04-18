@@ -39,7 +39,8 @@ func (a *api) ListTemplates() ([]template.ServiceTemplate, error) {
 	}
 	templates := make([]template.ServiceTemplate, len(templatemap))
 	i := 0
-	for _, t := range templatemap {
+	for id, t := range templatemap {
+		(*t).Id = id
 		templates[i] = *t
 		i++
 	}
@@ -59,7 +60,10 @@ func (a *api) GetTemplate(id string) (*template.ServiceTemplate, error) {
 		return nil, fmt.Errorf("could not get service templates: %s", err)
 	}
 
-	return templatemap[id], nil
+	t := templatemap[id]
+	(*t).Id = id
+
+	return t, nil
 }
 
 // AddTemplate adds a new template
@@ -87,8 +91,10 @@ func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
 		return nil, fmt.Errorf("could not get service templates: %s", err)
 	}
+	t = *templatemap[id]
+	t.Id = id
 
-	return templatemap[id], nil
+	return &t, nil
 }
 
 // RemoveTemplate removes an existing template by its template ID
@@ -113,12 +119,12 @@ func (a *api) CompileTemplate(config CompileTemplateConfig) (*template.ServiceTe
 	}
 
 	var mapImageNames func(*service.ServiceDefinition)
-	mapImageNames = func(service *service.ServiceDefinition) {
-		if _, found := (*config.Map)[service.ImageId]; found {
-			service.ImageId = (*config.Map)[service.ImageId]
+	mapImageNames = func(svc *service.ServiceDefinition) {
+		if imageID, found := (*config.Map)[svc.ImageId]; found {
+			(*svc).ImageId = imageID
 		}
-		for _, s := range service.Services {
-			mapImageNames(&s)
+		for i := range (*svc).Services {
+			mapImageNames(&svc.Services[i])
 		}
 	}
 	mapImageNames(sd)
