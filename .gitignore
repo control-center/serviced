@@ -21,6 +21,7 @@ pkg/templates/
 
 # emacs tags file
 TAGS
+tags
 
 # Architecture specific extensions/prefixes
 *.[568vq]
