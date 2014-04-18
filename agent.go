@@ -9,9 +9,10 @@
 package serviced
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
@@ -28,6 +29,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -48,42 +50,56 @@ const (
 
 // An instance of the control plane Agent.
 type HostAgent struct {
-	master          string   // the connection string to the master agent
-	hostId          string   // the hostID of the current host
-	dockerDns       []string // docker dns addresses
-	varPath         string   // directory to store serviced	 data
-	mount           []string // each element is in the form: dockerImage,hostPath,containerPath
-	vfs             string   // driver for container volumes
-	zookeepers      []string
+	master          string               // the connection string to the master agent
+	uiport          string               // the port to the ui (legacy was port 8787, now default 443)
+	hostId          string               // the hostID of the current host
+	dockerDns       []string             // docker dns addresses
+	varPath         string               // directory to store serviced	 data
+	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
+	vfs             string               // driver for container volumes
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             TCPMux
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
+	zkClient        *coordclient.Client
 }
 
 // assert that this implemenents the Agent interface
 var _ Agent = &HostAgent{}
 
-// Create a new HostAgent given the connection string to the
+func getZkDSN(zookeepers []string) string {
+	if len(zookeepers) == 0 {
+		zookeepers = []string{"127.0.0.1:2181"}
+	}
+	dsn := coordzk.DSN{
+		Servers: zookeepers,
+		Timeout: time.Second * 15,
+	}
+	return dsn.String()
+}
 
-func NewHostAgent(master string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+// Create a new HostAgent given the connection string to the
+func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
+	agent.uiport = uiport
 	agent.dockerDns = dockerDns
 	agent.varPath = varPath
 	agent.mount = mount
 	agent.vfs = vfs
-	agent.zookeepers = zookeepers
-	if len(agent.zookeepers) == 0 {
-		defaultZK := "127.0.0.1:2181"
-		glog.V(1).Infoln("Zookeepers not specified: using default of ", defaultZK)
-		agent.zookeepers = []string{defaultZK}
-	}
 	agent.mux = mux
 	if agent.mux.Enabled {
 		go agent.mux.ListenAndMux()
 	}
+
+	dsn := getZkDSN(zookeepers)
+	basePath := ""
+	zkClient, err := coordclient.New("zookeeper", dsn, basePath, nil)
+	if err != nil {
+		return nil, err
+	}
+	agent.zkClient = zkClient
 
 	agent.closing = make(chan chan error)
 	hostId, err := HostID()
@@ -116,7 +132,7 @@ func (a *HostAgent) Shutdown() error {
 }
 
 // Attempts to attach to a running container
-func (a *HostAgent) attachToService(conn *zk.Conn, procFinished chan<- int, serviceState *dao.ServiceState, hss *zzk.HostServiceState) (bool, error) {
+func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *dao.ServiceState, hss *zzk.HostServiceState) (bool, error) {
 
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerId)
@@ -137,33 +153,39 @@ func (a *HostAgent) attachToService(conn *zk.Conn, procFinished chan<- int, serv
 	return true, nil
 }
 
-func markTerminated(conn *zk.Conn, hss *zzk.HostServiceState) {
+func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
 	ssPath := zzk.ServiceStatePath(hss.ServiceId, hss.ServiceStateId)
-	_, stats, err := conn.Get(ssPath)
+	exists, err := conn.Exists(ssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get service state %s for delete because: %v", ssPath, err)
 		return
 	}
-	err = conn.Delete(ssPath, stats.Version)
-	if err != nil {
-		glog.V(0).Infof("Unable to delete service state %s because: %v", ssPath, err)
-		return
+	if exists {
+		err = conn.Delete(ssPath)
+		if err != nil {
+			glog.V(0).Infof("Unable to delete service state %s because: %v", ssPath, err)
+			return
+		}
 	}
 
 	hssPath := zzk.HostServiceStatePath(hss.HostId, hss.ServiceStateId)
-	_, stats, err = conn.Get(hssPath)
+	exists, err = conn.Exists(hssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get host service state %s for delete becaus: %v", hssPath, err)
 		return
 	}
-	err = conn.Delete(hssPath, stats.Version)
-	if err != nil {
-		glog.V(0).Infof("Unable to delete host service state %s", hssPath)
+	if exists {
+		err = conn.Delete(hssPath)
+		if err != nil {
+			glog.V(0).Infof("Unable to delete host service state %s", hssPath)
+		}
+
 	}
+	return
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(conn *zk.Conn, serviceState *dao.ServiceState) error {
+func (a *HostAgent) terminateInstance(conn coordclient.Connection, serviceState *dao.ServiceState) error {
 	err := a.dockerTerminate(serviceState.Id)
 	if err != nil {
 		return err
@@ -172,7 +194,7 @@ func (a *HostAgent) terminateInstance(conn *zk.Conn, serviceState *dao.ServiceSt
 	return nil
 }
 
-func (a *HostAgent) terminateAttached(conn *zk.Conn, procFinished <-chan int, ss *dao.ServiceState) error {
+func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished <-chan int, ss *dao.ServiceState) error {
 	err := a.dockerTerminate(ss.Id)
 	if err != nil {
 		return err
@@ -248,7 +270,7 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
+func (a *HostAgent) waitForProcessToDie(conn coordclient.Connection, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
 
 	defer func() {
 		procFinished <- 1
@@ -335,7 +357,7 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 
 		//start IP resource proxy for each endpoint
 		var service dao.Service
-		if _, err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
+		if err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
 			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
 		} else {
 			glog.V(4).Infof("Looking for address assignment in service %s:%s", service.Name, service.Id)
@@ -344,8 +366,8 @@ func (a *HostAgent) waitForProcessToDie(conn *zk.Conn, containerId string, procF
 					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
 					proxyId := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
 
-					frontEnd := proxy.ProxyAddress{addressConfig.IPAddr, addressConfig.Port}
-					backEnd := proxy.ProxyAddress{sState.PrivateIp, endpoint.PortNumber}
+					frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
+					backEnd := proxy.ProxyAddress{IP: sState.PrivateIp, Port: endpoint.PortNumber}
 
 					err = a.proxyRegistry.CreateProxy(proxyId, endpoint.Protocol, frontEnd, backEnd)
 					if err != nil {
@@ -468,11 +490,21 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	// this will fail if we are not running as root
-	return os.Chown(filename, uid, gid)
+	if err := os.Chown(filename, uid, gid); err != nil {
+		return err
+	}
+	octal, err := strconv.ParseInt(permissions, 8, 32)
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {
+		return err
+	}
+	return nil
 }
 
-// startService starts a service instance and updates the CP with the state.
-func (a *HostAgent) startService(conn *zk.Conn, procFinished chan<- int, ssStats *zk.Stat, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
+// Start a service instance and update the CP with the state.
+func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -594,7 +626,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn *zk.Conn, proc
 	for _, volume := range service.Volumes {
 		sv, err := getSubvolume(a.varPath, service.PoolId, tenantId, a.vfs)
 		if err != nil {
-			glog.Fatal("Could not create subvolume: %s", err)
+			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
 			glog.Infof("sv: %v", sv)
 			glog.Infof("Path: %s", sv.Path())
@@ -602,7 +634,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn *zk.Conn, proc
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
-				glog.Fatal("Could not create resource path: %s, %s", resourcePath, err)
+				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
 
 			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
@@ -738,33 +770,40 @@ func (a *HostAgent) start() {
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
-			conn, zkEvt, err := zk.Connect(a.zookeepers, time.Second*10)
-			if err != nil {
-				glog.V(0).Info("Unable to connect, retrying.")
-				return true
-			}
 
-			connectEvent := false
-			for !connectEvent {
-				select {
-				case errc := <-a.closing:
-					glog.V(0).Info("Received shutdown notice")
-					errc <- errors.New("Unable to connect to zookeeper")
-					return false
-
-				case evt := <-zkEvt:
-					glog.V(1).Infof("Got ZK connect event: %v", evt)
-					if evt.State == zk.StateConnected {
-						connectEvent = true
+			connc := make(chan coordclient.Connection)
+			var conn coordclient.Connection
+			done := make(chan struct{}, 1)
+			defer func() {
+				done <- struct{}{}
+			}()
+			go func() {
+				for {
+					c, err := a.zkClient.GetConnection()
+					if err == nil {
+						connc <- c
+						return
+					}
+					// exit when our parent exits
+					select {
+					case <-done:
+						return
+					case <-time.After(time.Second):
 					}
 				}
-			}
-			defer conn.Close() // Executed after lambda function finishes
+				close(connc)
+			}()
+			select {
+			case errc := <-a.closing:
+				glog.V(0).Info("Received shutdown notice")
+				a.zkClient.Close()
+				errc <- errors.New("Unable to connect to zookeeper")
+				return false
 
-			zzk.CreateNode(zzk.SCHEDULER_PATH, conn)
-			node_path := zzk.HostPath(a.hostId)
-			zzk.CreateNode(node_path, conn)
-			glog.V(0).Infof("Connected to zookeeper node %s", node_path)
+			case conn = <-connc:
+				glog.V(1).Info("Got a connected client")
+			}
+			defer conn.Close()
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {
@@ -781,7 +820,7 @@ type stateResult struct {
 // startMissingChildren accepts a zookeeper connection (conn) and a slice of service instance ids (children),
 // a map of channels to signal running children stop, and a stateResult channel for children to signal when
 // they shutdown
-func (a *HostAgent) startMissingChildren(conn *zk.Conn, children []string, processing map[string]chan int, ssDone chan stateResult) {
+func (a *HostAgent) startMissingChildren(conn coordclient.Connection, children []string, processing map[string]chan int, ssDone chan stateResult) {
 	glog.V(1).Infof("Agent for %s processing %d children", a.hostId, len(children))
 	for _, childName := range children {
 		if processing[childName] == nil {
@@ -815,7 +854,7 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 	return
 }
 
-func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
+func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 	processing := make(map[string]chan int)
 	ssDone := make(chan stateResult, 25)
 
@@ -823,11 +862,21 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
 
 	for {
 
-		children, _, zkEvent, err := conn.ChildrenW(hostPath)
+		conn.CreateDir(hostPath)
+
+		glog.V(3).Infof("getting children of %s", hostPath)
+		children, zkEvent, err := conn.ChildrenW(hostPath)
 		if err != nil {
-			glog.V(0).Infoln("Unable to read children, retrying.")
-			time.Sleep(3 * time.Second)
-			return true
+			glog.V(0).Infof("Unable to read children, retrying: %s", err)
+			select {
+			case <-time.After(3 * time.Second):
+				return true
+			case errc := <-a.closing:
+				glog.V(1).Info("Agent received interrupt")
+				err = waitForSsNodes(processing, ssDone)
+				errc <- err
+				return false
+			}
 		}
 		a.startMissingChildren(conn, children, processing, ssDone)
 
@@ -849,13 +898,13 @@ func (a *HostAgent) processChildrenAndWait(conn *zk.Conn) bool {
 	}
 }
 
-func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done chan<- stateResult, ssId string) {
+func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-chan int, done chan<- stateResult, ssId string) {
 	procFinished := make(chan int, 1)
 	var attached bool
 
 	for {
 		var hss zzk.HostServiceState
-		hssStats, zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
+		zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostId, ssId, &hss)
 		if err != nil {
 			errS := fmt.Sprintf("Unable to load host service state %s: %v", ssId, err)
 			glog.Error(errS)
@@ -870,15 +919,13 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		}
 
 		var ss dao.ServiceState
-		ssStats, err := zzk.LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss)
-		if err != nil {
+		if err := zzk.LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service state %s", ssId)
 			glog.Error(errS)
 			// This goroutine is watching a node for a service state that does not
 			// exist or could not be loaded. We should *probably* delete this node.
 			hssPath := zzk.HostServiceStatePath(a.hostId, ssId)
-			err = conn.Delete(hssPath, hssStats.Version)
-			if err != nil {
+			if err := conn.Delete(hssPath); err != nil {
 				glog.Warningf("Unable to delete host service state %s", hssPath)
 			}
 			done <- stateResult{ssId, errors.New(errS)}
@@ -886,8 +933,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 		}
 
 		var service dao.Service
-		_, err = zzk.LoadService(conn, ss.ServiceId, &service)
-		if err != nil {
+		if err := zzk.LoadService(conn, ss.ServiceId, &service); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
 			glog.Errorf(errS)
 			done <- stateResult{ssId, errors.New(errS)}
@@ -917,7 +963,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			ss.Started.Year() <= 1 || ss.Terminated.Year() > 2:
 			// Should run, and either not started or process died
 			glog.V(1).Infof("Service %s does not appear to be running; starting", service.Name)
-			attached, err = a.startService(conn, procFinished, ssStats, &service, &ss)
+			attached, err = a.startService(conn, procFinished, &service, &ss)
 
 		case ss.Started.Year() > 1 && ss.Terminated.Year() <= 1:
 			// Service superficially seems to be running. We need to attach
@@ -955,7 +1001,7 @@ func (a *HostAgent) processServiceState(conn *zk.Conn, shutdown <-chan int, done
 			continue
 
 		case evt := <-zkEvent:
-			if evt.Type == zk.EventNodeDeleted {
+			if evt.Type == coordclient.EventNodeDeleted {
 				glog.V(0).Info("Host service state deleted: ", ssId)
 				err = a.terminateAttached(conn, procFinished, &ss)
 				if err != nil {

@@ -72,6 +72,7 @@ type HostIPResource struct {
 // A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	Id          string // Unique identifier for resource pool, eg "default"
+	Description string
 	ParentId    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
 	Priority    int    // relative priority of resource pools, used for CPU priority
 	CoreLimit   int    // Number of cores on the host available to serviced
@@ -166,6 +167,7 @@ type Service struct {
 	Snapshot        SnapshotCommands
 	Runs            map[string]string
 	RAMCommitment   uint64
+	Actions         map[string]string
 }
 
 // An endpoint that a Service exposes.
@@ -220,6 +222,7 @@ type ServiceState struct {
 	PortMapping map[string][]HostIpAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []ServiceEndpoint
 	HostIp      string
+	InstanceId  int
 }
 
 type ConfigFile struct {
@@ -249,6 +252,7 @@ type ServiceDefinition struct {
 	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment uint64            // expected RAM commitment to use for scheduling
 	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
+	Actions       map[string]string // Map of commands that can be executed with 'serviced action ...'
 }
 
 // AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
@@ -315,6 +319,7 @@ type RunningService struct {
 	PoolId          string
 	DesiredState    int
 	ParentServiceId string
+	InstanceId      int
 }
 
 // Create a new Service.
@@ -479,9 +484,6 @@ func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
 	result := se.AddressAssignment
 	return &result
 }
-
-
-
 
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {

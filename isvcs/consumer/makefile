@@ -1,5 +1,5 @@
 TARGET := $(shell pwd)
-CONSUMER_VERSION := 0.0.5-SNAPSHOT
+CONSUMER_VERSION := 0.0.5
 
 .PHONY: default tarball
 

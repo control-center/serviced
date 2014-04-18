@@ -42,6 +42,12 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/jobs', {
                 templateUrl: '/static/partials/celery-log.html',
                 controller: CeleryLogControl}).
+            when('/pools', {
+                templateUrl: '/static/partials/view-pools.html',
+                controller: PoolsControl}).
+            when('/pools/:poolId', {
+                templateUrl: '/static/partials/view-pool-details.html',
+                controller: PoolDetailsControl}).
             when('/devmode', {
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
@@ -82,6 +88,16 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
         return function(scope, elem, attrs){
             scope.showIfEmpty();
         };
+    }).
+    directive('popover', function(){
+        return function(scope, elem, attrs){
+            $(elem).popover({
+                title: attrs.popoverTitle,
+                trigger: "hover",
+                html: true,
+                content: attrs.popover
+            });
+        }
     }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
@@ -243,13 +259,6 @@ function DeployWizard($scope, resourcesService) {
         selected: {
             pool: 'default'
         },
-        templateClass: function(template) {
-            var cls = "block-data control-group";
-            if (template.depends) {
-                cls += " indented";
-            }
-            return cls;
-        },
         templateSelected: function(template) {
             if (template.depends) {
                 $scope.install.selected[template.depends] = true;
@@ -291,6 +300,16 @@ function DeployWizard($scope, resourcesService) {
         }
         return templates;
     };
+
+    $scope.getTemplateRequiredResources = function(template){
+        var ret = {CPUCommitment:0, RAMCommitment:0};
+        for (var i=0; i<template.Services.length; ++i){
+            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
+            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+        }
+
+        return ret;
+    }
 
     var step = 0;
     var resetStepPage = function() {
@@ -745,6 +764,49 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     }
 }
 
+function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "pools";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_pools', itemClass: 'active' }
+    ];
+
+    // Build metadata for displaying a list of pools
+    $scope.pools = buildTable('Id', [
+        { id: 'Id', name: 'Id'}
+    ])
+
+    $scope.click_pool= function(id) {
+        $location.path('/pools/' + id);
+    };
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, true);
+}
+
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "pooldetails";
+    $scope.params = $routeParams;
+
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_pools', itemClass: 'active' }
+    ];
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, true, function() {
+        if ($scope.pools.current) {
+            $scope.breadcrumbs.push({ label: $scope.pools.current.Id, itemClass: 'active' });
+        }
+    });
+}
+
 function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
     // Ensure logged in
     authService.checkLogin($scope);
@@ -957,7 +1019,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.visualization = zenoss.visualization;
-    $scope.visualization.url = 'http://' + $location.host() + ':8787';
+    $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
     $scope.visualization.urlPath = '/metrics/static/performance/query/';
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
     $scope.visualization.debug = false;
@@ -973,6 +1035,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Name', name: 'running_tbl_running' },
         { id: 'StartedAt', name: 'running_tbl_start' },
         { id: 'View', name: 'running_tbl_actions' }
+    ]);
+
+    $scope.ip_addresses = buildTable('Interface', [
+        { id: 'Interface', name: 'ip_addresses_interface' },
+        { id: 'Ip', name: 'ip_addresses_ip' }
     ]);
 
     $scope.graph = buildTable('Name', [
@@ -1363,6 +1430,10 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     $scope.params = $routeParams;
     $scope.itemClass = itemClass;
     $scope.indent = indentClass;
+    $scope.breadcrumbs = [
+        { label: 'breadcrumb_hosts', url: '#/hosts' },
+        { label: 'breadcrumb_hosts_map', itemClass: 'active' }
+    ];
 
     $scope.addSubpool = function(poolId) {
         $scope.newPool.ParentId = poolId;
@@ -1669,6 +1740,9 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps',
           sublinks: [ '#/services/', '#/servicesmap' ], target: "_self"
+        },
+        { url: '#/pools', label: 'nav_pools',
+          sublinks: [ '#/pools/' ], target: "_self"
         },
         { url: '#/hosts', label: 'nav_hosts',
           sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
@@ -2853,6 +2927,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
+        $scope.running.sort = 'InstanceId';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
