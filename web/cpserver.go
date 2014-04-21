@@ -168,6 +168,7 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"GET", "/", MainPage},
 		rest.Route{"GET", "/test", TestPage},
 		rest.Route{"GET", "/stats", this.IsCollectingStats()},
+
 		// Hosts
 		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
@@ -175,12 +176,18 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"PUT", "/hosts/:hostId", this.AuthorizedClient(RestUpdateHost)},
 		rest.Route{"GET", "/hosts/:hostId/running", this.AuthorizedClient(RestGetRunningForHost)},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", this.AuthorizedClient(RestKillRunning)},
+
 		// Pools
 		rest.Route{"POST", "/pools/add", this.AuthorizedClient(RestAddPool)},
 		rest.Route{"GET", "/pools/:poolId/hosts", this.AuthorizedClient(RestGetHostsForResourcePool)},
 		rest.Route{"DELETE", "/pools/:poolId", this.AuthorizedClient(RestRemovePool)},
 		rest.Route{"PUT", "/pools/:poolId", this.AuthorizedClient(RestUpdatePool)},
 		rest.Route{"GET", "/pools", this.AuthorizedClient(RestGetPools)},
+
+		// Pools (VirtualIp)
+		rest.Route{"PUT", "/pools/:poolId/virtualip/*ip", this.AuthorizedClient(RestAddPoolVirtualIp)},
+		rest.Route{"DELETE", "/pools/:poolId/virtualip/*ip", this.AuthorizedClient(RestRemovePoolVirtualIp)},
+
 		// Services (Apps)
 		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
 		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
@@ -196,9 +203,9 @@ func (this *ServiceConfig) ServeUI() {
 		rest.Route{"PUT", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
 
 		// Services (Virtual Host)
-		rest.Route{"GET", "/vhosts", this.AuthorizedClient(RestGetVirtualHosts)},
-		rest.Route{"POST", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestAddVirtualHost)},
-		rest.Route{"DELETE", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestRemoveVirtualHost)},
+		rest.Route{"GET", "/services/vhosts", this.AuthorizedClient(RestGetVirtualHosts)},
+		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", this.AuthorizedClient(RestAddVirtualHost)},
+		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", this.AuthorizedClient(RestRemoveVirtualHost)},
 
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
