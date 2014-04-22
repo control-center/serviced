@@ -21,7 +21,7 @@ type HostConfig struct {
 
 // ListHosts returns a list of all hosts
 func (a *api) ListHosts() ([]host.Host, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -41,16 +41,16 @@ func (a *api) ListHosts() ([]host.Host, error) {
 
 // GetHost looks up a host by its id
 func (a *api) GetHost(id string) (*host.Host, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
 
-	hostmap := make(map[string]*host.Host)
-	if err := client.GetHosts(&empty, &hostmap); err != nil {
+	var h host.Host
+	if err := client.GetHost(id, &h); err != nil {
 		return nil, fmt.Errorf("could not get hosts: %s", err)
 	}
-	return hostmap[id], nil
+	return &h, nil
 }
 
 // AddHost adds a new host
@@ -69,7 +69,7 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 
 	// Add the host
 	glog.V(0).Infof("Got info for host: %v", remoteHost)
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -78,18 +78,12 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 		return nil, fmt.Errorf("could not add host: %s", err)
 	}
 
-	// Get information about the host that was added
-	var hostmap map[string]*host.Host
-	if err := client.GetHosts(&empty, &hostmap); err != nil {
-		return nil, fmt.Errorf("could not get hosts: %s", err)
-	}
-
-	return hostmap[id], nil
+	return a.GetHost(id)
 }
 
 // RemoveHost removes an existing host by its id
 func (a *api) RemoveHost(id string) error {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return err
 	}

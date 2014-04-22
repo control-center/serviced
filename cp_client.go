@@ -154,6 +154,10 @@ func (s *ControlClient) UpdateServiceState(state dao.ServiceState, unused *int) 
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
+func (s *ControlClient) GetServiceAddressAssignments(serviceId string, addresses *[]dao.AddressAssignment) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceId, addresses)
+}
+
 func (s *ControlClient) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetResourcePools", request, pools)
 }

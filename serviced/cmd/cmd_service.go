@@ -243,7 +243,33 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
-		//newServiceMap(services).PrintTree("")
+		servicemap := api.NewServiceMap(&services)
+		tableService := newTable(0, 8, 2)
+		tableService.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
+
+		var printTree func(string)
+		printTree = func(root string) {
+			services := servicemap.Get(root)
+			for i, s := range services {
+				tableService.PrintTreeRow(
+					!(i+1 < len(services)),
+					s.Name,
+					s.Id,
+					s.Startup,
+					s.Instances,
+					s.ImageId,
+					s.PoolId,
+					s.DesiredState,
+					s.Launch,
+					s.DeploymentId,
+				)
+				tableService.Indent()
+				printTree(s.Id)
+				tableService.Dedent()
+			}
+		}
+		printTree("")
+		tableService.Flush()
 	}
 }
 
@@ -352,12 +378,14 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		IPAddress: ipAddress,
 	}
 
-	if hostResource, err := c.driver.AssignIP(cfg); err != nil {
+	if addresses, err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if hostResource == nil {
+	} else if addresses == nil || len(addresses) == 0 {
 		fmt.Fprintln(os.Stderr, "received nil host resource")
 	} else {
-		fmt.Println(hostResource.IPAddress)
+		for _, a := range addresses {
+			fmt.Println(a.IPAddr)
+		}
 	}
 }
 
@@ -375,7 +403,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to start on host: %s", host.Id)
+		fmt.Printf("Service scheduled to start on host: %s\n", host.Id)
 	}
 }
 
@@ -388,21 +416,17 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if host, err := c.driver.StopService(args[0]); err != nil {
+	if err := c.driver.StopService(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if host == nil {
-		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to stop on host: %s", host.Id)
+		fmt.Printf("Service scheduled to stop.\n")
 	}
 }
 
 // serviced service proxy SERVICED COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		if len(ctx.Args()) > 0 {
-			fmt.Printf("Incorrect Usage.\n\n")
-		}
+		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
@@ -421,9 +445,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		if len(ctx.Args()) > 0 {
-			fmt.Printf("Incorrect Usage.\n\n")
-		}
+		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
@@ -444,9 +466,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
-		if len(ctx.Args()) > 0 {
-			fmt.Printf("Incorrect Usage.\n\n")
-		}
+		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 

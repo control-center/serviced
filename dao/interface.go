@@ -81,6 +81,9 @@ type ControlPlane interface {
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
+	// Get the IP addresses assigned to an service
+	GetServiceAddressAssignments(serviceID string, addresses *[]AddressAssignment) error
+
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
 

@@ -66,17 +66,8 @@ func LoadOptions(ops Options) {
 	}
 }
 
-// Opens a connection to the control plane
-func connect() (dao.ControlPlane, error) {
-	// setup the client
-	c, err := serviced.NewControlClient(options.Port)
-	if err != nil {
-		return nil, fmt.Errorf("could not create a control plane client: %s", err)
-	}
-	return c, nil
-}
-
 type api struct {
+	client dao.ControlPlane
 }
 
 // New creates a new API type
@@ -177,4 +168,18 @@ func (a *api) StartServer() {
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	http.Serve(l, nil) // Start the server
+}
+
+// Opens a connection to the control plane if not already connected
+func (a *api) connect() (dao.ControlPlane, error) {
+	if a.client == nil {
+		var err error
+
+		// setup the client
+		a.client, err = serviced.NewControlClient(options.Port)
+		if err != nil {
+			return nil, fmt.Errorf("could not create a control plane client: %s", err)
+		}
+	}
+	return a.client, nil
 }

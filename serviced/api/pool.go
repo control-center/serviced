@@ -21,7 +21,7 @@ type PoolConfig struct {
 
 // ListPools returns a list of all pools
 func (a *api) ListPools() ([]pool.ResourcePool, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (a *api) ListPools() ([]pool.ResourcePool, error) {
 
 // GetPool gets information about a pool given a PoolID
 func (a *api) GetPool(id string) (*pool.ResourcePool, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (a *api) GetPool(id string) (*pool.ResourcePool, error) {
 
 // AddPool adds a new pool
 func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -74,17 +74,12 @@ func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
 		return nil, fmt.Errorf("could not add resource pool: %s", err)
 	}
 
-	var poolmap map[string]*pool.ResourcePool
-	if err := client.GetResourcePools(&empty, &poolmap); err != nil {
-		return nil, fmt.Errorf("could not get resource pools: %s", err)
-	}
-
-	return poolmap[id], nil
+	return a.GetPool(id)
 }
 
 // RemovePool removes an existing pool
 func (a *api) RemovePool(id string) error {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return err
 	}
@@ -98,7 +93,7 @@ func (a *api) RemovePool(id string) error {
 
 // ListPoolIPs returns a list of Host IPs for a given pool
 func (a *api) ListPoolIPs(id string) ([]host.HostIPResource, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}

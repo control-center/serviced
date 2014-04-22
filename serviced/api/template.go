@@ -28,7 +28,7 @@ type CompileTemplateConfig struct {
 
 // ListTemplates lists all available service templates
 func (a *api) ListTemplates() ([]template.ServiceTemplate, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (a *api) ListTemplates() ([]template.ServiceTemplate, error) {
 
 // GetTemplate gets a particular serviced template by id
 func (a *api) GetTemplate(id string) (*template.ServiceTemplate, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 	}
 
 	// Connect to the client
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -86,20 +86,12 @@ func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 		return nil, fmt.Errorf("could not add service template: %s", err)
 	}
 
-	// Get the service template that was added
-	templatemap := make(map[string]*template.ServiceTemplate)
-	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
-		return nil, fmt.Errorf("could not get service templates: %s", err)
-	}
-	t = *templatemap[id]
-	t.Id = id
-
-	return &t, nil
+	return a.GetTemplate(id)
 }
 
 // RemoveTemplate removes an existing template by its template ID
 func (a *api) RemoveTemplate(id string) error {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return err
 	}
@@ -139,7 +131,7 @@ func (a *api) CompileTemplate(config CompileTemplateConfig) (*template.ServiceTe
 
 // DeployTemplate deploys a template given its template ID
 func (a *api) DeployTemplate(config DeployTemplateConfig) (*service.Service, error) {
-	client, err := connect()
+	client, err := a.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -155,19 +147,19 @@ func (a *api) DeployTemplate(config DeployTemplateConfig) (*service.Service, err
 		return nil, fmt.Errorf("could not deploy template: %s", err)
 	}
 
-	var s service.Service
-	if err := client.GetService(id, &s); err != nil {
-		return nil, fmt.Errorf("could not get service definition: %s", err)
+	s, err := a.GetService(id)
+	if err != nil {
+		return nil, err
 	}
 
 	if !config.ManualAssignIPs {
 		glog.V(0).Infof("Assigning IP addresses automatically to services requiring them.")
-		if err := client.AssignIPs(service.AssignmentRequest{id, "", true}, nil); err != nil {
-			return &s, fmt.Errorf("could not automatically assign IPs: %s", err)
+		if _, err := a.AssignIP(IPConfig{id, ""}); err != nil {
+			return s, err
 		}
 	} else {
 		glog.V(0).Infof("Not assigning IP address to services requiring them.  You need to do this manually.")
 	}
 
-	return &s, nil
+	return s, nil
 }

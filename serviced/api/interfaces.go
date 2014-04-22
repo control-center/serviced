@@ -36,8 +36,8 @@ type API interface {
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
-	StopService(string) (*host.Host, error)
-	AssignIP(IPConfig) (*host.HostIPResource, error)
+	StopService(string) error
+	AssignIP(IPConfig) ([]service.AddressAssignment, error)
 
 	// Shell
 	ListCommands(string) ([]string, error)

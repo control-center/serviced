@@ -28,11 +28,8 @@ func (c *ServicedCli) initTemplate() {
 			}, {
 				Name:        "add",
 				Usage:       "Add a new template",
-				Description: "serviced template add < FILE",
+				Description: "serviced template add FILE",
 				Action:      c.cmdTemplateAdd,
-				Flags: []cli.Flag{
-					cli.StringFlag{"file, f", "", "Template definition file"},
-				},
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
@@ -160,11 +157,11 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	}
 }
 
-// serviced template add < [TEMPLATE]
+// serviced template add TEMPLATE
 func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	var input *os.File
 
-	if filepath := ctx.String("file"); filepath != "" {
+	if filepath := ctx.Args().First(); filepath != "" {
 		var err error
 		if input, err = os.Open(filepath); err != nil {
 			fmt.Fprintln(os.Stderr, err)
