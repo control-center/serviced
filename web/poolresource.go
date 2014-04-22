@@ -36,10 +36,11 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 		RestServerError(w)
 		return
 	}
-	var poolsMap map[string]*pool.ResourcePool
+	poolsMap := make(map[string]*pool.ResourcePool)
 	for _, pool := range pools {
 		poolsMap[pool.ID] = pool
 	}
+	glog.V(4).Infof("RestGetPools: pools %#v", poolsMap)
 	w.WriteJson(&poolsMap)
 }
 

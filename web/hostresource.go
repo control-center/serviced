@@ -5,8 +5,8 @@
 package web
 
 import (
-	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
@@ -24,7 +24,7 @@ func getHostRoutes(sc *ServiceConfig) []rest.Route {
 }
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	var response map[string]*host.Host
+	response := make(map[string]*host.Host)
 	client, err := ctx.getMasterClient()
 	if err != nil {
 		RestServerError(w)

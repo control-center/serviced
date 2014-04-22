@@ -297,7 +297,7 @@ func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
 	return c, err
 }
 
-func (sc ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerFunc) HandlerFunc {
+func (sc *ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerFunc) HandlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !check(w, r) {
 			return
@@ -331,18 +331,18 @@ type Close interface {
 }
 
 type requestContext struct {
-	sc     ServiceConfig
+	sc     *ServiceConfig
 	master *master.Client
 }
 
-func newRequestContext(sc ServiceConfig) *requestContext {
-	return &requestContext{}
+func newRequestContext(sc *ServiceConfig) *requestContext {
+	return &requestContext{sc: sc}
 }
 
 func (ctx *requestContext) getMasterClient() (*master.Client, error) {
-	if ctx.master != nil {
+	if ctx.master == nil {
 		if c, err := master.NewClient(ctx.sc.agentPort); err != nil {
-			glog.Errorf("Could not create a control plane client: %v", err)
+			glog.Errorf("Could not create a control plane client to %v: %v", ctx.sc.agentPort, err)
 			return nil, err
 		} else {
 			ctx.master = c

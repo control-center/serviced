@@ -156,6 +156,7 @@ func ParseCommands(args ...string) error {
 
 func getMasterClient() *master.Client {
 	//TODO: port is a horrible name for this option
+	glog.V(4).Infof("Getting client to master %v", options.port)
 	client, err := master.NewClient(options.port)
 	if err != nil {
 		glog.Fatalf("Could not create client for master%v", err)

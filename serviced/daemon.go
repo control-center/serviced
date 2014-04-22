@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/rpc/master"
+	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/utils"
@@ -146,6 +147,10 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
+	if err = d.facade.CreateDefaultPool(d.dsContext); err!= nil{
+		return err
+	}
+
 	if err = d.regiseterMasterRPC(); err != nil {
 		return err
 	}
@@ -166,20 +171,26 @@ func (d *daemon) startAgent() error {
 	mux.UseTLS = options.tls
 
 	_dns := strings.Split(options.dockerDns, ",")
-	agent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+	hostAgent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
 	// register the API
 	glog.V(0).Infoln("registering ControlPlaneAgent service")
-	rpc.RegisterName("ControlPlaneAgent", agent)
+	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil{
+		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
+	}
+	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil{
+		glog.Fatalf("could not register Agent RPC server: %v", err)
+	}
+
 
 	go func() {
 		signalChan := make(chan os.Signal, 10)
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 		<-signalChan
 		glog.V(0).Info("Shutting down due to interrupt")
-		err = agent.Shutdown()
+		err = hostAgent.Shutdown()
 		if err != nil {
 			glog.V(1).Infof("Agent shutdown with error: %v", err)
 		}
@@ -246,8 +257,8 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 }
 
 func (d *daemon) initWeb() {
-
 	// TODO: Make bind port for web server optional?
+	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.uiport, options.port, options.zookeepers)
 	cpserver := web.NewServiceConfig(options.uiport, options.port, options.zookeepers, options.repstats, options.hostaliases)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
