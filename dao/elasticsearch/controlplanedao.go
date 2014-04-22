@@ -1385,6 +1385,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
 	svc.Hostname = sd.Hostname
+	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
