@@ -27,10 +27,10 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
-	"strconv"
 )
 
 /*
@@ -48,7 +48,7 @@ const (
 // An instance of the control plane Agent.
 type HostAgent struct {
 	master          string   // the connection string to the master agent
-	uiport			string   // the port to the ui (legacy was port 8787, now default 443)
+	uiport          string   // the port to the ui (legacy was port 8787, now default 443)
 	hostId          string   // the hostID of the current host
 	dockerDns       []string // docker dns addresses
 	varPath         string   // directory to store serviced	 data
@@ -466,7 +466,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return err
 	}
 	octal, err := strconv.ParseInt(permissions, 8, 32)
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 	if err := os.Chmod(filename, os.FileMode(octal)); err != nil {

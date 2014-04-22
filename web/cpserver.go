@@ -117,6 +117,11 @@ func (sc *ServiceConfig) Serve() {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
 					rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)})
+					realDirector := rp.Director
+					rp.Director = func(req *http.Request) {
+						req.Host = fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)
+						realDirector(req)
+					}
 					rp.ServeHTTP(w, r)
 					return
 				}
@@ -218,6 +223,7 @@ func (this *ServiceConfig) ServeUI() {
 	// Hardcoding these target URLs for now.
 	// TODO: When internal services are allowed to run on other hosts, look that up.
 	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
+	routes = routeToInternalServiceProxy("/api/control/elastic", "http://127.0.0.1:9200/", routes)
 	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
 
 	handler.SetRoutes(routes...)
