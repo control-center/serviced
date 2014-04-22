@@ -154,6 +154,7 @@ type Service struct {
 	PoolId          string
 	DesiredState    int
 	Hostname        string
+	Privileged      bool
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []Task
@@ -241,6 +242,7 @@ type ServiceDefinition struct {
 	Instances     MinMax                 // Constraints on the number of instances
 	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
 	Hostname      string                 // Optional hostname which should be set on run
+	Privileged    bool                   // Whether to run the container with extended privileges
 	ConfigFiles   map[string]ConfigFile  // Config file templates
 	Context       map[string]interface{} // Context information for the service
 	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
