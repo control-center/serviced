@@ -50,6 +50,7 @@
         "PoolId":          {"type": "string", "index":"not_analyzed"},
         "Launch":          {"type": "string", "index":"not_analyzed"},
         "Hostname":        {"type": "string", "index":"not_analyzed"},
+        "Privileged":      {"type": "string", "index":"not_analyzed"},
         "ParentServiceId": {"type": "string", "index":"not_analyzed"},
         "Volume":          {
           "properties":    {
