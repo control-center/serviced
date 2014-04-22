@@ -536,8 +536,25 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	}
 
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
-	if err != nil {
-		glog.Errorf("can't create container: %v", err)
+	switch {
+	case err == docker.ErrNoSuchImage:
+		pullopts := docker.PullImageOptions{
+			Repository:   service.ImageId,
+			OutputStream: os.NewFile(uintptr(syscall.Stdout), "/dev/stdout"),
+		}
+		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
+		if pullerr != nil {
+			glog.Errorf("can't pull container: %v", err)
+			return false, err
+		}
+
+		ctr, err = dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
+		if err != nil {
+			glog.Errorf("can't create containter after pulling: %v", err)
+			return false, err
+		}
+	case err != nil:
+		glog.Errorf("can't create contatiner: %v", err)
 		return false, err
 	}
 
