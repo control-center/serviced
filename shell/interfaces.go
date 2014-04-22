@@ -28,7 +28,7 @@ type ProcessConfig struct {
 
 type Result struct {
 	ExitCode    int
-	Error       error
+	Error       string
 	Termination Termination
 }
 
