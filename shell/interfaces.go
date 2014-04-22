@@ -39,7 +39,6 @@ type ProcessInstance struct {
 	Stdin  chan byte
 	Stdout chan byte
 	Stderr chan byte
-	Signal chan int
 	Result chan Result
 }
 

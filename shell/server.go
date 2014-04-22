@@ -97,8 +97,6 @@ func onForwarderDisconnect(ns *socketio.NameSpace) {
 
 func onExecutorDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-	// Client disconnected, so kill the process
-	inst.Signal <- int(syscall.SIGKILL)
 	inst.Disconnect()
 }
 
@@ -108,11 +106,6 @@ func (p *ProcessInstance) Disconnect() {
 		close(p.Stdin)
 		p.Stdin = nil
 	}
-	if p.Result != nil {
-		close(p.Result)
-		p.Result = nil
-	}
-	//close(p.Signal)
 }
 
 func (p *ProcessInstance) Close() {
@@ -125,6 +118,7 @@ func (p *ProcessInstance) Close() {
 		close(p.Stderr)
 		p.Stderr = nil
 	}
+	// do not close Result channel
 }
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
@@ -132,8 +126,6 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 		glog.V(4).Infof("received signal %d", signal)
 		if p.disconnected {
 			glog.Warning("disconnected; cannot send signal: %s", signal)
-		} else {
-			p.Signal <- signal
 		}
 	})
 
@@ -153,19 +145,13 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up input channels!")
-	for p.Stdin != nil || p.Signal != nil {
+	for p.Stdin != nil {
 		select {
 		case m, ok := <-p.Stdin:
 			if !ok {
 				p.Stdin = nil
 			} else {
 				ns.Emit("stdin", m)
-			}
-		case s, ok := <-p.Signal:
-			if !ok {
-				p.Signal = nil
-			} else {
-				ns.Emit("signal", s)
 			}
 		}
 	}
@@ -255,7 +241,6 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 		Stdin:  make(chan byte, 1024),
 		Stdout: make(chan byte, 1024),
 		Stderr: make(chan byte, 1024),
-		Signal: make(chan int),
 		Result: make(chan Result),
 	}
 
@@ -282,7 +267,6 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Stdin:  make(chan byte, 1024),
 		Stdout: make(chan byte, 1024),
 		Stderr: make(chan byte, 1024),
-		Signal: make(chan int),
 		Result: make(chan Result, 2),
 	}
 
@@ -317,8 +301,6 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 
 func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-	// Client disconnected, so kill the process
-	inst.Signal <- int(syscall.SIGKILL)
 	inst.Disconnect()
 	ns.Session.Values[PROCESSKEY] = nil
 }
