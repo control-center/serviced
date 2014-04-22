@@ -15,19 +15,26 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/", MainPage},
 		rest.Route{"GET", "/test", TestPage},
 		rest.Route{"GET", "/stats", sc.IsCollectingStats()},
-		//Hosts
+
+		// Hosts
 		rest.Route{"GET", "/hosts", sc.CheckAuth(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", sc.CheckAuth(RestAddHost)},
 		rest.Route{"DELETE", "/hosts/:hostId", sc.CheckAuth(RestRemoveHost)},
 		rest.Route{"PUT", "/hosts/:hostId", sc.CheckAuth(RestUpdateHost)},
 		rest.Route{"GET", "/hosts/:hostId/running", sc.AuthorizedClient(RestGetRunningForHost)},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.AuthorizedClient(RestKillRunning)},
-		//Pools
+
+		// Pools
 		rest.Route{"POST", "/pools/add", sc.CheckAuth(RestAddPool)},
 		rest.Route{"GET", "/pools/:poolId/hosts", sc.CheckAuth(RestGetHostsForResourcePool)},
 		rest.Route{"DELETE", "/pools/:poolId", sc.CheckAuth(RestRemovePool)},
 		rest.Route{"PUT", "/pools/:poolId", sc.CheckAuth(RestUpdatePool)},
 		rest.Route{"GET", "/pools", sc.CheckAuth(RestGetPools)},
+
+		// Pools (VirtualIp)
+		rest.Route{"PUT", "/pools/:poolId/virtualip/*ip", sc.AuthorizedClient(RestAddPoolVirtualIp)},
+		rest.Route{"DELETE", "/pools/:poolId/virtualip/*ip", sc.AuthorizedClient(RestRemovePoolVirtualIp)},
+
 		// Services (Apps)
 		rest.Route{"GET", "/services", sc.AuthorizedClient(RestGetAllServices)},
 		rest.Route{"GET", "/services/:serviceId", sc.AuthorizedClient(RestGetService)},
@@ -43,9 +50,9 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/stopService", sc.AuthorizedClient(RestStopService)},
 
 		// Services (Virtual Host)
-		rest.Route{"GET", "/vhosts", sc.AuthorizedClient(RestGetVirtualHosts)},
-		rest.Route{"POST", "/vhosts/:serviceId/:application/:vhostName", sc.AuthorizedClient(RestAddVirtualHost)},
-		rest.Route{"DELETE", "/vhosts/:serviceId/:application/:vhostName", sc.AuthorizedClient(RestRemoveVirtualHost)},
+		rest.Route{"GET", "/services/vhosts", sc.AuthorizedClient(RestGetVirtualHosts)},
+		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestAddVirtualHost)},
+		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestRemoveVirtualHost)},
 
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", sc.AuthorizedClient(RestGetAppTemplates)},
