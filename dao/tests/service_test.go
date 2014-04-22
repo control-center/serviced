@@ -11,12 +11,11 @@ package tests
 
 import (
 	"github.com/zenoss/glog"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/isvcs"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
-
 
 	"fmt"
 	"testing"
@@ -186,7 +185,7 @@ func init() {
 	}
 
 	time.Sleep(time.Second * 5)
-	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil,zclient, "/tmp", "rsync"); err != nil {
+	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil, zclient, "/tmp", "rsync"); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)
 	}
 
