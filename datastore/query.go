@@ -45,7 +45,8 @@ type query struct {
 }
 
 func (q *query) Execute(query interface{}) (Results, error) {
-	conn, err := q.ctx.Connection()
+	ctx := q.ctx
+	conn, err := ctx.Connection()
 	if err != nil {
 		return nil, err
 	}

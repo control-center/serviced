@@ -11,7 +11,7 @@ import (
 )
 
 // GetHosts  Returns all Hosts
-func (s *Server) GetHosts(empty interface{}, hostReply *[]*host.Host) error {
+func (s *Server) GetHosts(empty struct{}, hostReply *[]*host.Host) error {
 	hosts, err := s.f.GetHosts(s.context())
 	if err != nil {
 		return err

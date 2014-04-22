@@ -10,6 +10,10 @@ import (
 	"net/rpc"
 )
 
+var (
+	empty = struct{}{}
+)
+
 // Client a client for interacting with the serviced master
 type Client struct {
 	addr      string

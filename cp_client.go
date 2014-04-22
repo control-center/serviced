@@ -45,27 +45,6 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
-// Return the matching hosts.
-func (s *ControlClient) GetHosts(request dao.EntityRequest, replyHosts *map[string]*dao.Host) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetHosts", request, replyHosts)
-}
-
-func (s *ControlClient) AddHost(host dao.Host, hostId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddHost", host, hostId)
-}
-
-func (s *ControlClient) UpdateHost(host dao.Host, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.UpdateHost", host, unused)
-}
-
-func (s *ControlClient) GetHost(hostId string, host *dao.Host) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetHost", hostId, host)
-}
-
-func (s *ControlClient) RemoveHost(hostId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RemoveHost", hostId, unused)
-}
-
 func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
@@ -152,38 +131,6 @@ func (s *ControlClient) StopService(serviceId string, unused *int) (err error) {
 
 func (s *ControlClient) UpdateServiceState(state dao.ServiceState, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
-}
-
-func (s *ControlClient) GetResourcePools(request dao.EntityRequest, pools *map[string]*dao.ResourcePool) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetResourcePools", request, pools)
-}
-
-func (s *ControlClient) AddResourcePool(pool dao.ResourcePool, poolId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddResourcePool", pool, poolId)
-}
-
-func (s *ControlClient) UpdateResourcePool(pool dao.ResourcePool, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.UpdateResourcePool", pool, unused)
-}
-
-func (s *ControlClient) RemoveResourcePool(poolId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RemoveResourcePool", poolId, unused)
-}
-
-func (s *ControlClient) GetHostsForResourcePool(poolId string, poolHosts *[]*dao.PoolHost) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetHostsForResourcePool", poolId, poolHosts)
-}
-
-func (s *ControlClient) GetPoolsIPInfo(poolId string, poolsIpInfo *[]dao.HostIPResource) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetPoolsIPInfo", poolId, poolsIpInfo)
-}
-
-func (s *ControlClient) AddHostToResourcePool(poolHost dao.PoolHost, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.AddHostToResourcePool", poolHost, unused)
-}
-
-func (s *ControlClient) RemoveHostFromResourcePool(poolHost dao.PoolHost, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveHostFromResourcePool", poolHost, unused)
 }
 
 func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
