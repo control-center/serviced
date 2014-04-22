@@ -318,17 +318,6 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
-	// Dump all service definitions
-	var request dao.EntityRequest
-	if e := this.GetServices(request, &services); e != nil {
-		glog.Errorf("Could not get services: %v", e)
-		return e
-	}
-	if e := writeJsonToFile(services, backupPath("services.json")); e != nil {
-		glog.Errorf("Could not write services.json: %v", err)
-		return e
-	}
-
 	// Export each of the referenced docker images
 	client, e := newDockerExporter()
 	if e != nil {

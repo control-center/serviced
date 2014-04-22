@@ -8,10 +8,14 @@ import (
 
 	docker "github.com/zenoss/go-dockerclient"
 
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -179,7 +183,16 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	glog.V(2).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
+	// Dump all service definitions
+	snapshotPath := func(relPath ...string) string {
+		return filepath.Join(append([]string{theVolume.SnapshotPath(label)}, relPath...)...)
+	}
+	if e := writeJsonToFile(servicesList, snapshotPath("services.json")); e != nil {
+		glog.Errorf("Could not write services.json: %v", e)
+		return "", e
+	}
+
+	glog.V(0).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
 	return label, nil
 }
 
@@ -457,5 +470,31 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 		}
 	}
 
+	return nil
+}
+
+var osCreate = func(name string) (io.WriteCloser, error) {
+	return os.Create(name)
+}
+
+var writeJsonToFile = func(v interface{}, filename string) (err error) {
+	file, e := osCreate(filename)
+	if e != nil {
+		glog.Errorf("Could not create file %s: %v", filename, e)
+		return e
+	}
+	defer func() {
+		if e := file.Close(); e != nil {
+			glog.Errorf("Error while closing file %s: %v", filename, e)
+			if err == nil {
+				err = e
+			}
+		}
+	}()
+	encoder := json.NewEncoder(file)
+	if e := encoder.Encode(v); e != nil {
+		glog.Errorf("Could not write JSON data to %s: %v", filename, e)
+		return e
+	}
 	return nil
 }
