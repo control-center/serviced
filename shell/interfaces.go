@@ -28,7 +28,7 @@ type ProcessConfig struct {
 
 type Result struct {
 	ExitCode    int
-	Error       error
+	Error       string
 	Termination Termination
 }
 
@@ -39,7 +39,6 @@ type ProcessInstance struct {
 	Stdin  chan byte
 	Stdout chan byte
 	Stderr chan byte
-	Signal chan int
 	Result chan Result
 }
 
