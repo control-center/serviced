@@ -411,6 +411,80 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 
+	// Restore service definitions and services
+	if err := d.rollbackServices(theVolume.SnapshotPath(snapshotId)); err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
+		return err
+	}
+
+	return nil
+}
+
+func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
+	glog.Infof("DistributedFileSystem.rollbackServices from path: %s", restorePath)
+
+	var (
+		existingServices []*dao.Service
+		existingPools    map[string]*dao.ResourcePool
+		services         []*dao.Service
+	)
+
+	// Read the service definitions
+	servicesPath := filepath.Join(restorePath, "services.json")
+	if e := readJsonFromFile(&services, servicesPath); e != nil {
+		glog.Errorf("Could not read services from %s: %v", servicesPath, e)
+		return e
+	}
+
+	// Restore the services ...
+	var request dao.EntityRequest
+	if e := d.client.GetServices(request, &existingServices); e != nil {
+		glog.Errorf("Could not get existing services: %v", e)
+		return e
+	}
+	if e := d.client.GetResourcePools(request, &existingPools); e != nil {
+		glog.Errorf("Could not get existing pools: %v", e)
+		return e
+	}
+	existingServiceMap := make(map[string]*dao.Service)
+	for _, service := range existingServices {
+		existingServiceMap[service.Id] = service
+	}
+	for _, service := range services {
+		if existingService := existingServiceMap[service.Id]; existingService != nil {
+			var unused *int
+			if e := d.client.StopService(service.Id, unused); e != nil {
+				glog.Errorf("Could not stop service %s: %v", service.Id, e)
+				return e
+			}
+			service.PoolId = existingService.PoolId
+			if existingPools[service.PoolId] == nil {
+				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
+				service.PoolId = "default"
+			}
+			if e := d.client.UpdateService(*service, unused); e != nil {
+				glog.Errorf("Could not update service %s: %v", service.Id, e)
+				return e
+			}
+		} else {
+			if existingPools[service.PoolId] == nil {
+				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
+				service.PoolId = "default"
+			}
+			var serviceId string
+			if e := d.client.AddService(*service, &serviceId); e != nil {
+				glog.Errorf("Could not add service %s: %v", service.Id, e)
+				return e
+			}
+			if service.Id != serviceId {
+				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.Id, serviceId)
+				glog.Errorf(msg)
+				return errors.New(msg)
+			}
+			existingServiceMap[service.Id] = service
+		}
+	}
+
 	return nil
 }
 
@@ -494,6 +568,25 @@ var writeJsonToFile = func(v interface{}, filename string) (err error) {
 	encoder := json.NewEncoder(file)
 	if e := encoder.Encode(v); e != nil {
 		glog.Errorf("Could not write JSON data to %s: %v", filename, e)
+		return e
+	}
+	return nil
+}
+
+var osOpen = func(name string) (io.ReadCloser, error) {
+	return os.Open(name)
+}
+
+var readJsonFromFile = func(v interface{}, filename string) error {
+	file, e := osOpen(filename)
+	if e != nil {
+		glog.Errorf("Could not open file %s: %v", filename, e)
+		return e
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(file)
+	if e := decoder.Decode(v); e != nil {
+		glog.Errorf("Could not read JSON data from %s: %v", filename, e)
 		return e
 	}
 	return nil
