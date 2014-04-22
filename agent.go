@@ -667,8 +667,14 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		hostname = fmt.Sprintf("-h %s", service.Hostname)
 	}
 
+	// Add privileged flag
+	privileged := ""
+	if service.Privileged {
+		privileged = "--privileged"
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", privileged, dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)

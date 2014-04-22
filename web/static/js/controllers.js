@@ -770,6 +770,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     $scope.name = "pools";
     $scope.params = $routeParams;
+    $scope.newPool = {};
 
     $scope.breadcrumbs = [
         { label: 'breadcrumb_pools', itemClass: 'active' }
@@ -777,17 +778,50 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Build metadata for displaying a list of pools
     $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'Id'}
+        { id: 'Id', name: 'pools_tbl_id'},
+        { id: 'Priority', name: 'pools_tbl_priority'},
+        { id: 'CoreLimit', name: 'pools_tbl_core_limit'},
+        { id: 'MemoryLimit', name: 'pools_tbl_memory_limit'},
+        { id: 'CreatedAt', name: 'pools_tbl_created_at'},
+        { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
+        { id: 'Actions', name: 'pools_tbl_actions'}
     ])
 
-    $scope.click_pool= function(id) {
+    $scope.click_pool = function(id) {
         $location.path('/pools/' + id);
+    };
+
+    // Function to remove a pool
+    $scope.clickRemovePool = function(poolId) {
+        console.log( "Click Remove pool w/id: ", poolId);
+        resourcesService.remove_pool(poolId, function(data) {
+            refreshPools($scope, resourcesService, false);
+        });
+    };
+
+    // Function for opening add pool modal
+    $scope.modalAddPool = function() {
+        $scope.newPool = {};
+        $('#addPool').modal('show');
+    };
+
+    // Function for adding new pools - through modal
+    $scope.add_pool = function() {
+        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
+        resourcesService.add_pool($scope.newPool, function(data) {
+            refreshPools($scope, resourcesService, false);
+        });
+        // Reset for another add
+        $scope.newPool = {};
     };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, true);
 }
 
+/**
+ * PoolDetailsControl provides angular references for managing a single pool in (view-pool-details.html)
+ */
 function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -796,13 +830,46 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.breadcrumbs = [
-        { label: 'breadcrumb_pools', itemClass: 'active' }
+        { label: 'breadcrumb_pools', itemClass: 'active'}
     ];
+
+    // Build metadata for displaying a pool's virtual ips
+    $scope.virtual_ip_addresses = buildTable('Address', [
+        { id: 'Address', name: 'pool_tbl_virtual_ip_address'},
+        { id: 'Actions', name: 'pool_tbl_virtual_ip_address_action'}
+    ]);
+
+    // Scope methods
+    $scope.clickRemoveVirtualIp = function(pool, ip) {
+        console.log( "Removing pool's virtual ip address: ", pool, ip);
+        resourcesService.remove_pool_virtual_ip(pool.Id, ip, function() {
+            refreshPools($scope, resourcesService, false);
+        });
+    };
+
+    $scope.modalAddVirtualIp = function(pool) {
+        $scope.pools.add_virtual_ip = {'id': pool.Id, 'ip':""};
+        $('#poolAddVirtualIp').modal('show');
+    };
+
+    $scope.AddVirtualIp = function(pool) {
+        var poolId = $scope.pools.add_virtual_ip.id;
+        var ip = $scope.pools.add_virtual_ip.ip;
+        resourcesService.add_pool_virtual_ip(poolId, ip, function() {
+            $scope.pools.add_virtual_ip.ip = "";
+        });
+        $('#poolAddVirtualIp').modal('hide');
+    };
+
+    $scope.CancelAddVirtualIp = function(pool) {
+        $scope.pools.add_virtual_ip = null;
+        $('#poolAddVirtualIp').modal('hide');
+    };
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, true, function() {
         if ($scope.pools.current) {
-            $scope.breadcrumbs.push({ label: $scope.pools.current.Id, itemClass: 'active' });
+            $scope.breadcrumbs.push({label: $scope.pools.current.Id, itemClass: 'active'});
         }
     });
 }
@@ -1901,7 +1968,6 @@ function ResourcesService($http, $location) {
                 if (status === 401) {
                     unauthorized($location);
                 }
-
             });
     };
 
@@ -2033,9 +2099,11 @@ function ResourcesService($http, $location) {
         /*
          * add a virtual host,
          */
-        add_vhost: function(serviceId, serviceEndpoint, virtualhost, callback) {
-            var ep = serviceId + "/" + serviceEndpoint + "/" + virtualhost;
-            $http.post('/vhosts/' + ep).
+        add_vhost: function(serviceId, application, virtualhost, callback) {
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var object = {'ServiceId':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
+            var payload = JSON.stringify( object);
+            $http.put(ep, payload).
                 success(function(data, status) {
                     console.log('Added virtual host: %s, %s', ep, JSON.stringify(data));
                     callback(data);
@@ -2052,9 +2120,9 @@ function ResourcesService($http, $location) {
         /*
          * Remove a virtual host
          */
-        delete_vhost: function(serviceId, serviceEndpoint, virtualhost, callback) {
-            var ep = serviceId + "/" + serviceEndpoint + "/" + virtualhost;
-            $http.delete('/vhosts/' + ep).
+        delete_vhost: function(serviceId, application, virtualhost, callback) {
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            $http.delete(ep).
                 success(function(data, status) {
                     console.log('Removed virtual host: %s, %s', ep, JSON.stringify(data));
                     callback(data);
@@ -2168,6 +2236,51 @@ function ResourcesService($http, $location) {
                 error(function(data, status) {
                     // TODO error screen
                     console.error('Removing pool failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+        /*
+         * Puts new resource pool virtual ip
+         *
+         * @param {string} pool id to add virtual ip
+         * @param {string} ip virtual ip to add to pool
+         * @param {function} callback Add result passed to callback on success.
+         */
+        add_pool_virtual_ip: function(pool, ip, callback) {
+            var payload = JSON.stringify( {'PoolId':pool,'VirtualIp':ip})
+            console.log('Adding pool virtual ip: %s', payload);
+            $http.put('/pools/' + pool + '/virtualip/' + ip, payload).
+                success(function(data, status) {
+                    console.log('Added new pool virtual ip');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Adding pool virtual ip failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+        /*
+         * Delete resource pool virtual ip
+         *
+         * @param {string} pool id to remove virtual ip
+         * @param {string} ip virtual ip to remove from pool
+         * @param {function} callback Add result passed to callback on success.
+         */
+        remove_pool_virtual_ip: function(pool, ip, callback) {
+            console.log('Removing pool virtual ip: PoolId:%s VirtualIp:%s', pool, ip);
+            $http.delete('/pools/' + pool + '/virtualip/' + ip).
+                success(function(data, status) {
+                    console.log('Removed pool virtual ip');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Remove pool virtual ip failed: %s', JSON.stringify(data));
                     if (status === 401) {
                         unauthorized($location);
                     }
