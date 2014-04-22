@@ -11,15 +11,15 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/domain/host"
 )
 
 type leader struct {
 	facade  *facade.Facade
 	dao     dao.ControlPlane
-	conn coordclient.Connection
+	conn    coordclient.Connection
 	context datastore.Context
 }
 
@@ -30,7 +30,7 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
-	leader := leader{facade: facade, dao: dao, conn: conn}
+	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
 	for {
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
@@ -253,8 +253,8 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 }
 
-func (l *leader) updateServiceInstances( service *dao.Service, serviceStates []*dao.ServiceState) error {
-//	var err error
+func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*dao.ServiceState) error {
+	//	var err error
 	// pick services instances to start
 	if len(serviceStates) < service.Instances {
 		instancesToStart := service.Instances - len(serviceStates)
@@ -311,7 +311,7 @@ func getFreeInstanceIds(conn coordclient.Connection, svc *dao.Service, n int) ([
 	return ids, nil
 }
 func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host, numToStart int) error {
-	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart	, len(hosts))
+	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
 	freeids, err := getFreeInstanceIds(l.conn, service, numToStart)
@@ -380,7 +380,7 @@ func (l *leader) selectPoolHostForService(s *dao.Service, hosts []*host.Host) (*
 func poolHostFromAddressAssignments(hostid string, hosts []*host.Host) (*host.Host, error) {
 	// ensure the assigned host is in the pool
 	for _, h := range hosts {
-		if h.ID== hostid {
+		if h.ID == hostid {
 			return h, nil
 		}
 	}
