@@ -15,7 +15,11 @@ var (
 	//ErrNilContext returned when Context parameter is nil
 	ErrNilContext = errors.New("nil Context")
 	//ErrNilKind returned when Kind parameter is nil
-	ErrNilKind = errors.New("nil Kind")
+	ErrNilKey = errors.New("nil Key")
+	//ErrEmptyKindID returned when a key has an empty ID
+	ErrEmptyKindID = errors.New("empty Kind id")
+	//ErrEmptyKind returned when a key has an empty kind
+	ErrEmptyKind = errors.New("empty Kind")
 )
 
 // EntityStore interface for storing and retrieving data types from a datastore.
@@ -50,11 +54,15 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 		return ErrNilContext
 	}
 	if key == nil {
-		return ErrNilKind
+		return ErrNilKey
 	}
 	if entity == nil {
 		return ErrNilEntity
 	}
+	if err := validKey(key); err != nil {
+		return err
+	}
+
 	if err := entity.ValidEntity(); err != nil {
 		return err
 	}
@@ -76,11 +84,15 @@ func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 		return ErrNilContext
 	}
 	if key == nil {
-		return ErrNilKind
+		return ErrNilKey
 	}
 	if entity == nil {
 		return ErrNilEntity
 	}
+	if err := validKey(key); err != nil {
+		return err
+	}
+
 	conn, err := ctx.Connection()
 	if err != nil {
 		return err
@@ -101,7 +113,10 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 		return ErrNilContext
 	}
 	if key == nil {
-		return ErrNilKind
+		return ErrNilKey
+	}
+	if err := validKey(key); err != nil {
+		return err
 	}
 	conn, err := ctx.Connection()
 	if err != nil {
@@ -123,4 +138,14 @@ func (ds *DataStore) serialize(kind string, entity interface{}) (JSONMessage, er
 func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity interface{}) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
 	return SafeUnmarshal(jsonMsg.Bytes(), entity)
+}
+
+func validKey(k Key) error {
+	if k.ID() == "" {
+		return ErrEmptyKindID
+	}
+	if k.Kind() == "" {
+		return ErrEmptyKind
+	}
+	return nil
 }

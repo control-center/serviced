@@ -5,7 +5,7 @@
 package elastic
 
 import (
-	check "gopkg.in/check.v1"
+	gocheck "gopkg.in/check.v1"
 
 	"fmt"
 	"log"
@@ -16,15 +16,15 @@ import (
 	"time"
 )
 
-var (
-	esVersion = "0.90.0"
+const (
+	esVersion = "0.90.13"
 )
 
 // ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
 // embed ElasticTest to create a test suite that will automatically start and stop elasticsearch. See gocheck
 // documentation for more infomration about writing gocheck tests.
 type ElasticTest struct {
-	driver ElasticDriver
+	driver *elasticDriver
 	server *testCluster
 	//InitTimeout in seconds to wait for elastic to start
 	InitTimeout time.Duration
@@ -34,10 +34,12 @@ type ElasticTest struct {
 	Port uint16
 	//Mappings are elastic mappings to initialize
 	Mappings map[string]string
+	//MappingsFile path to a file that contains multiple mappings
+	MappingsFile string
 }
 
 //setDefaults sets up sane defaults for what it can. Fatal if required values not set.
-func (et *ElasticTest) setDefaults(c *check.C) {
+func (et *ElasticTest) setDefaults(c *gocheck.C) {
 	if et.Index == "" {
 		c.Fatal("index required to run ElasticTest")
 	}
@@ -50,8 +52,8 @@ func (et *ElasticTest) setDefaults(c *check.C) {
 }
 
 //SetUpSuite Run once when the suite starts running.
-func (et *ElasticTest) SetUpSuite(c *check.C) {
-	log.Print("ElasticTest SetUpSuite called")
+func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
+	log.Printf("ElasticTest SetUpSuite called: %v\n", et)
 	et.setDefaults(c)
 	driver := new("localhost", et.Port, et.Index)
 	et.driver = driver
@@ -79,6 +81,11 @@ func (et *ElasticTest) SetUpSuite(c *check.C) {
 		driver.AddMappingFile(name, path)
 	}
 
+	if et.MappingsFile != "" {
+		if err := driver.AddMappingsFile(et.MappingsFile); err != nil {
+			c.Fatalf("error in SetUpSuite: %v", err)
+		}
+	}
 	err := driver.Initialize(time.Second * et.InitTimeout)
 	if err != nil {
 		c.Fatalf("error in SetUpSuite: %v", err)
@@ -91,10 +98,17 @@ func (et *ElasticTest) SetUpSuite(c *check.C) {
 }
 
 //TearDownSuite Run once after all tests or benchmarks have finished running.
-func (et *ElasticTest) TearDownSuite(c *check.C) {
+func (et *ElasticTest) TearDownSuite(c *gocheck.C) {
 	log.Print("ElasticTest TearDownSuite called")
 
 	et.stop()
+}
+
+func (et *ElasticTest) SetUpTest(c *gocheck.C) {
+	err := et.driver.deleteIndex()
+	c.Assert(err, gocheck.IsNil)
+	err = et.driver.Initialize(time.Second * et.InitTimeout)
+	c.Assert(err, gocheck.IsNil)
 }
 
 //Driver returns the initialized driver

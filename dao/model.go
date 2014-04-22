@@ -61,62 +61,6 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
-//HostIPResource contains information about a specific IP on a host. Also track spcecific ports that have been assigned
-//to Services
-type HostIPResource struct {
-	HostId        string
-	IPAddress     string
-	InterfaceName string
-}
-
-// A collection of computing resources with optional quotas.
-type ResourcePool struct {
-	Id          string // Unique identifier for resource pool, eg "default"
-	Description string
-	ParentId    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
-	Priority    int    // relative priority of resource pools, used for CPU priority
-	CoreLimit   int    // Number of cores on the host available to serviced
-	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-// A new ResourcePool
-func NewResourcePool(id string) (*ResourcePool, error) {
-	pool := &ResourcePool{}
-	pool.Id = id
-	return pool, nil
-}
-
-func (pool *ResourcePool) MakeSubpool(id string) *ResourcePool {
-	subpool := *pool
-	subpool.Id = id
-	subpool.ParentId = pool.Id
-	subpool.Priority = 0
-	return &subpool
-}
-
-// A host that runs the control plane agent.
-type Host struct {
-	Id             string // Unique identifier, default to hostid
-	Name           string // A label for the host, eg hostname, role
-	PoolId         string // Pool that the Host belongs to
-	IpAddr         string // The IP address the host can be reached at from a serviced master
-	Cores          int    // Number of cores available to serviced
-	Memory         uint64 // Amount of RAM (bytes) available to serviced
-	CommitedRam    uint64 // Amount of RAM commited to services
-	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	IPs            []HostIPResource // The static IP resourceavailable for services to use
-}
-
-// Create a new host.
-func NewHost() *Host {
-	host := &Host{}
-	return host
-}
-
 // Desired states of services.
 const (
 	SVC_RUN     = 1

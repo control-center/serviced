@@ -97,22 +97,28 @@ func onForwarderDisconnect(ns *socketio.NameSpace) {
 
 func onExecutorDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-	// Client disconnected, so kill the process
-	inst.Signal <- int(syscall.SIGKILL)
 	inst.Disconnect()
 }
 
 func (p *ProcessInstance) Disconnect() {
 	p.disconnected = true
-	close(p.Stdin)
-	close(p.Signal)
+	if p.Stdin != nil {
+		close(p.Stdin)
+		p.Stdin = nil
+	}
 }
 
 func (p *ProcessInstance) Close() {
 	p.closed = true
-	close(p.Stdout)
-	close(p.Stderr)
-	close(p.Result)
+	if p.Stdout != nil {
+		close(p.Stdout)
+		p.Stdout = nil
+	}
+	if p.Stderr != nil {
+		close(p.Stderr)
+		p.Stderr = nil
+	}
+	// do not close Result channel
 }
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
@@ -120,8 +126,6 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 		glog.V(4).Infof("received signal %d", signal)
 		if p.disconnected {
 			glog.Warning("disconnected; cannot send signal: %s", signal)
-		} else {
-			p.Signal <- signal
 		}
 	})
 
@@ -141,19 +145,13 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 	glog.V(0).Info("Hooking up input channels!")
-	for p.Stdin != nil || p.Signal != nil {
+	for p.Stdin != nil {
 		select {
 		case m, ok := <-p.Stdin:
 			if !ok {
 				p.Stdin = nil
 			} else {
 				ns.Emit("stdin", m)
-			}
-		case s, ok := <-p.Signal:
-			if !ok {
-				p.Signal = nil
-			} else {
-				ns.Emit("signal", s)
 			}
 		}
 	}
@@ -198,14 +196,14 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 			if !ok {
 				p.Stdout = nil
 			} else {
-				glog.Infof("Emitting stdout: %s", m)
+				glog.V(2).Infof("Emitting stdout: %3s %c", m, m)
 				ns.Emit("stdout", m)
 			}
 		case m, ok := <-p.Stderr:
 			if !ok {
 				p.Stderr = nil
 			} else {
-				glog.Infof("Emitting stderr: %s", m)
+				glog.V(2).Infof("Emitting stderr: %3s %c", m, m)
 				ns.Emit("stderr", m)
 			}
 		}
@@ -243,7 +241,6 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 		Stdin:  make(chan byte, 1024),
 		Stdout: make(chan byte, 1024),
 		Stderr: make(chan byte, 1024),
-		Signal: make(chan int),
 		Result: make(chan Result),
 	}
 
@@ -270,13 +267,12 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Stdin:  make(chan byte, 1024),
 		Stdout: make(chan byte, 1024),
 		Stderr: make(chan byte, 1024),
-		Signal: make(chan int),
-		Result: make(chan Result),
+		Result: make(chan Result, 2),
 	}
 
 	cmd, err := StartDocker(cfg, e.port)
 	if err != nil {
-		p.Result <- Result{0, err, ABNORMAL}
+		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
 	}
 
@@ -290,13 +286,13 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		if err := cmd.Run(); err != nil {
 			if exiterr, ok := err.(*exec.ExitError); ok {
 				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					p.Result <- Result{status.ExitStatus(), err, NORMAL}
+					p.Result <- Result{status.ExitStatus(), err.Error(), NORMAL}
 					return
 				}
 			}
-			p.Result <- Result{0, err, ABNORMAL}
+			p.Result <- Result{0, err.Error(), ABNORMAL}
 		} else {
-			p.Result <- Result{0, nil, NORMAL}
+			p.Result <- Result{0, "", NORMAL}
 		}
 	}()
 
@@ -305,8 +301,6 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 
 func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
-	// Client disconnected, so kill the process
-	inst.Signal <- int(syscall.SIGKILL)
 	inst.Disconnect()
 	ns.Session.Values[PROCESSKEY] = nil
 }
@@ -363,11 +357,13 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	if cfg.SaveAs != "" {
 		argv = append(argv, fmt.Sprintf("--name=%s", cfg.SaveAs))
 	} else {
-		argv = append(argv, "-rm")
+		argv = append(argv, "--rm")
 	}
 
 	if cfg.IsTTY {
 		argv = append(argv, "-i", "-t")
+	} else {
+		argv = append(argv, "-t")
 	}
 
 	argv = append(argv, service.ImageId)

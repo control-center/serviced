@@ -12,7 +12,7 @@ import (
 //GetPoolIPs returns a all IPs in a ResourcePool.
 func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
 	var poolIPs facade.PoolIPs
-	if err := c.call("GetPoolsIPInfo", poolID, &poolIPs); err != nil {
+	if err := c.call("GetPoolIPs", poolID, &poolIPs); err != nil {
 		return nil, err
 	}
 	return &poolIPs, nil
@@ -21,7 +21,7 @@ func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
 //GetResourcePool gets the host for the give hostID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
-	if err := c.call("ControlPlane.GetResourcePools", poolID, response); err != nil {
+	if err := c.call("GetResourcePools", poolID, response); err != nil {
 		return nil, err
 	}
 	return response, nil
@@ -30,7 +30,7 @@ func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 // GetResourcePools returns all pools or empty array
 func (c *Client) GetResourcePools() ([]*pool.ResourcePool, error) {
 	response := make([]*pool.ResourcePool, 0)
-	if err := c.rpcClient.Call("GetResourcePools", nil, &response); err != nil {
+	if err := c.call("GetResourcePools", empty, &response); err != nil {
 		return []*pool.ResourcePool{}, err
 	}
 	return response, nil

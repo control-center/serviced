@@ -45,27 +45,6 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
-// Return the matching hosts.
-func (s *ControlClient) GetHosts(request dao.EntityRequest, replyHosts *map[string]*dao.Host) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetHosts", request, replyHosts)
-}
-
-func (s *ControlClient) AddHost(host dao.Host, hostId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddHost", host, hostId)
-}
-
-func (s *ControlClient) UpdateHost(host dao.Host, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.UpdateHost", host, unused)
-}
-
-func (s *ControlClient) GetHost(hostId string, host *dao.Host) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetHost", hostId, host)
-}
-
-func (s *ControlClient) RemoveHost(hostId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RemoveHost", hostId, unused)
-}
-
 func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
@@ -154,6 +133,7 @@ func (s *ControlClient) UpdateServiceState(state dao.ServiceState, unused *int) 
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
+<<<<<<< HEAD
 func (s *ControlClient) GetServiceAddressAssignments(serviceId string, addresses *[]dao.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceId, addresses)
 }
