@@ -13,10 +13,11 @@ import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/search"
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/isvcs"
@@ -189,13 +190,13 @@ var SYSTEM_USER_NAME = "system_user"
 var INSTANCE_PASSWORD string
 
 type ControlPlaneDao struct {
-	hostName   string
-	port       int
-	varpath    string
-	vfs        string
-	zookeepers []string
-	zkDao      *zzk.ZkDao
-	dfs        *dfs.DistributedFileSystem
+	hostName string
+	port     int
+	varpath  string
+	vfs      string
+	zclient  *coordclient.Client
+	zkDao    *zzk.ZkDao
+	dfs      *dfs.DistributedFileSystem
 }
 
 // convert search result of json host to dao.Host array
@@ -1396,6 +1397,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
+	svc.Actions = sd.Actions
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1787,30 +1789,35 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	//	requestId := snapshotRequest.Id
 	//	defer this.zkDao.RemoveSnapshotRequest(requestId)
 
-	glog.V(1).Infof("added snapshot request: %+v", snapshotRequest)
+	glog.V(0).Infof("added snapshot request: %+v", snapshotRequest)
 
 	// wait for completion of snapshot request
-	timeout := 60
-	for i := 0; i < timeout; i++ {
-		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
-		_, _, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
-		switch {
-		case err != nil:
-			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", err)
-			return err
-		case snapshotRequest.SnapshotError != "":
+	glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
+
+	eventChan, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+	if err != nil {
+		return err
+	}
+	timeOutValue := time.Second * 60
+	timeout := time.After(timeOutValue)
+	for {
+		if snapshotRequest.SnapshotError != "" {
 			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", snapshotRequest.SnapshotError)
 			return errors.New(snapshotRequest.SnapshotError)
-		case snapshotRequest.SnapshotLabel != "":
+		} else if snapshotRequest.SnapshotLabel != "" {
 			*label = snapshotRequest.SnapshotLabel
 			glog.V(1).Infof("completed snapshot request: %+v", snapshotRequest)
 			return nil
 		}
 
-		time.Sleep(time.Second)
+		select {
+		case <-eventChan:
+			eventChan, err = this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+		case <-timeout:
+			break
+		}
 	}
-
-	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", time.Duration(timeout), snapshotRequest))
+	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest))
 	glog.Error(err)
 	return err
 }
@@ -2010,12 +2017,12 @@ func NewControlSvc(hostName string, port int, zookeepers []string, varpath, vfs 
 	s.varpath = varpath
 	s.vfs = vfs
 
-	if len(zookeepers) == 0 {
-		s.zookeepers = []string{"127.0.0.1:2181"}
-	} else {
-		s.zookeepers = zookeepers
-	}
-	s.zkDao = &zzk.ZkDao{s.zookeepers}
+	dsn := coordzk.NewDSN(zookeepers, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+
+	s.zclient = zclient
+	s.zkDao = zzk.NewZkDao(zclient)
 
 	if err = createDefaultPool(s); err != nil {
 		return nil, err
@@ -2081,9 +2088,8 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 
 	for {
 		func() {
-			conn, _, err := zk.Connect(s.zookeepers, time.Second*10)
+			conn, err := s.zclient.GetConnection()
 			if err != nil {
-				time.Sleep(time.Second * 3)
 				return
 			}
 			defer conn.Close()
@@ -2094,6 +2100,7 @@ func (s *ControlPlaneDao) handleScheduler(hostId string) {
 			case <-shutdown:
 			}
 		}()
+		time.Sleep(time.Second * 3)
 	}
 }
 
