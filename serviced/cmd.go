@@ -45,7 +45,7 @@ import (
 // Store the command line options
 var options struct {
 	port             string
-	uiport			 string
+	uiport           string
 	listen           string
 	master           bool
 	dockerDns        string
