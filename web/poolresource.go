@@ -5,14 +5,15 @@
 package web
 
 import (
-	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced/domain/pool"
 
 	"github.com/zenoss/serviced/dao"
 	"net/url"
 )
 
+//RestGetPools retrieves all Resource Pools. Response is map[pool-id]ResourcePool
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	client, err := ctx.getMasterClient()
 	if err != nil {
@@ -34,6 +35,7 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	w.WriteJson(&poolsMap)
 }
 
+//RestAddPool add a resource pool. Request input is pool.ResourcePool
 func RestAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload pool.ResourcePool
 	err := r.DecodeJsonPayload(&payload)
@@ -58,8 +60,9 @@ func RestAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(payload.ID)})
 }
 
+//RestUpdatePool updates a resource pool. Request input is pool.ResourcePool
 func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		RestBadRequest(w)
 		return
@@ -82,12 +85,13 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		RestServerError(w)
 		return
 	}
-	glog.V(1).Info("Updated pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
+	glog.V(1).Info("Updated pool ", poolID)
+	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolID)})
 }
 
+//RestRemovePool removes a resource pool using pool-id
 func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		RestBadRequest(w)
 		return
@@ -97,19 +101,20 @@ func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		RestServerError(w)
 		return
 	}
-	err = client.RemoveResourcePool(poolId)
+	err = client.RemoveResourcePool(poolID)
 	if err != nil {
 		glog.Error("Could not remove resource pool: ", err)
 		RestServerError(w)
 		return
 	}
-	glog.V(0).Info("Removed pool ", poolId)
+	glog.V(0).Info("Removed pool ", poolID)
 	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
 }
 
+//RestGetHostsForResourcePool gets all Hosts in a resource pool. response is [dao.PoolHost]
 func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolHosts := make([]*dao.PoolHost, 0)
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
 		RestBadRequest(w)
@@ -120,7 +125,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		RestServerError(w)
 		return
 	}
-	hosts, err := client.FindHostsInPool(poolId)
+	hosts, err := client.FindHostsInPool(poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
 		RestServerError(w)
@@ -129,11 +134,11 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	for _, host := range hosts {
 		ph := dao.PoolHost{
 			HostId: host.ID,
-			PoolId: poolId,
+			PoolId: poolID,
 			HostIp: host.IPAddr,
 		}
 		poolHosts = append(poolHosts, &ph)
 	}
-	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolId)
+	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolID)
 	w.WriteJson(&poolHosts)
 }
