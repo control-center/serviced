@@ -9,6 +9,7 @@ import "time"
 // ResourcePool A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	ID          string // Unique identifier for resource pool, eg "default"
+	Description string // Description of the resource pool
 	ParentID    string // The pool id of the parent pool, if this pool is embeded in another pool. An empty string means it is not embeded.
 	Priority    int    // relative priority of resource pools, used for CPU priority
 	CoreLimit   int    // Number of cores on the host available to serviced

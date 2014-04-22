@@ -15,8 +15,8 @@ import (
 	"github.com/zenoss/serviced/dao"
 
 	"errors"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface

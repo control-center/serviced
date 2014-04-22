@@ -85,6 +85,14 @@ func RestBadRequest(w *rest.ResponseWriter) {
 }
 
 /*
+ * Write 200 success
+ */
+func RestSuccess(w *rest.ResponseWriter) {
+	w.WriteHeader(200)
+	return
+}
+
+/*
  * Writes struct as JSON with specified HTTP status code
  */
 func WriteJson(w *rest.ResponseWriter, v interface{}, code int) {

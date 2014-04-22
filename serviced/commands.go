@@ -29,6 +29,9 @@ import (
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/shell"
 )
 
@@ -151,6 +154,16 @@ func ParseCommands(args ...string) error {
 	return cli.CmdHelp(args...)
 }
 
+func getMasterClient() *master.Client {
+	//TODO: port is a horrible name for this option
+	glog.V(4).Infof("Getting client to master %v", options.port)
+	client, err := master.NewClient(options.port)
+	if err != nil {
+		glog.Fatalf("Could not create client for master%v", err)
+	}
+	return client
+}
+
 // Create a client to the control plane.
 func getClient() (c dao.ControlPlane) {
 	// setup the client
@@ -215,11 +228,9 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 		return err
 	}
 
-	client := getClient()
+	masterClient := getMasterClient()
 
-	var hosts map[string]*dao.Host
-
-	err := client.GetHosts(&empty, &hosts)
+	hosts, err := masterClient.GetHosts()
 	if err != nil {
 		glog.Fatalf("Could not get hosts %v", err)
 	}
@@ -242,10 +253,10 @@ func (cli *ServicedCli) CmdHosts(args ...string) error {
 
 		for _, h := range hosts {
 			fmt.Printf(outfmt,
-				h.Id,
-				h.PoolId,
+				h.ID,
+				h.PoolID,
 				h.Name,
-				h.IpAddr,
+				h.IPAddr,
 				h.Cores,
 				h.Memory,
 				h.PrivateNetwork)
@@ -276,30 +287,28 @@ func (cli *ServicedCli) CmdAddHost(args ...string) error {
 		return nil
 	}
 
-	client, err := serviced.NewAgentClient(cmd.Arg(0))
+	agentClient, err := agent.NewClient(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not create connection to host %s: %v", args[0], err)
 	}
 
-	var remoteHost dao.Host
-	//Add the IP used to connect
-	err = client.GetInfo(ipOpts, &remoteHost)
+	parts := strings.Split(cmd.Arg(0), ":")
+	ip := parts[0]
+	poolID := cmd.Arg(1)
+
+	request := agent.BuildHostRequest{IP: ip, PoolID: poolID, IPResources: ipOpts}
+	remoteHost, err := agentClient.BuildHost(request)
 	if err != nil {
 		glog.Fatalf("Could not get remote host info: %v", err)
 	}
-	parts := strings.Split(cmd.Arg(0), ":")
-	remoteHost.IpAddr = parts[0]
-	remoteHost.PoolId = cmd.Arg(1)
 	glog.V(0).Infof("Got host info: %v", remoteHost)
 
-	controlPlane := getClient()
-
-	var hostId string
-	err = controlPlane.AddHost(remoteHost, &hostId)
+	masterClient := getMasterClient()
+	err = masterClient.AddHost(*remoteHost)
 	if err != nil {
 		glog.Fatalf("Could not add host: %v", err)
 	}
-	fmt.Println(hostId)
+	fmt.Println(remoteHost.ID)
 	return err
 }
 
@@ -314,19 +323,18 @@ func (cli *ServicedCli) CmdRemoveHost(args ...string) error {
 		return nil
 	}
 
-	controlPlane := getClient()
-	var unused int
-	err := controlPlane.RemoveHost(cmd.Arg(0), &unused)
-	if err != nil {
+	masterClient := getMasterClient()
+	hostID := strings.TrimSpace(cmd.Arg(0))
+	if err := masterClient.RemoveHost(hostID); err != nil {
 		glog.Fatalf("Could not remove host: %v", err)
 	}
-	glog.V(0).Infof("Host %s removed.", cmd.Arg(0))
-	return err
+	glog.V(0).Infof("Host %s removed.", hostID)
+	return nil
 }
 
 // A convinience struct for printing to command line
 type poolWithHost struct {
-	dao.ResourcePool
+	pool.ResourcePool
 	Hosts []string
 }
 
@@ -343,9 +351,11 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	controlPlane := getClient()
-	var pools map[string]*dao.ResourcePool
-	err := controlPlane.GetResourcePools(&empty, &pools)
+	master := getMasterClient()
+
+	//	controlPlane := getClient()
+	//	var pools map[string]*pool.ResourcePool
+	pools, err := master.GetResourcePools()
 	if err != nil {
 		glog.Fatalf("Could not get resource pools: %v", err)
 	}
@@ -361,8 +371,8 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 
 		for _, pool := range pools {
 			fmt.Printf(outfmt,
-				pool.Id,
-				pool.ParentId,
+				pool.ID,
+				pool.ParentID,
 				pool.CoreLimit,
 				pool.MemoryLimit,
 				pool.Priority)
@@ -370,17 +380,16 @@ func (cli *ServicedCli) CmdPools(args ...string) error {
 	} else {
 		poolsWithHost := make(map[string]poolWithHost)
 		for _, pool := range pools {
-			// get pool hosts
-			var poolHosts []*dao.PoolHost
-			err = controlPlane.GetHostsForResourcePool(pool.Id, &poolHosts)
+			// get hosts
+			hosts, err := master.FindHostsInPool(pool.ID)
 			if err != nil {
-				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.Id, err)
+				glog.Fatalf("Could not get hosts for Pool %s: %v", pool.ID, err)
 			}
-			hosts := make([]string, len(poolHosts))
-			for i, hostPool := range poolHosts {
-				hosts[i] = hostPool.HostId
+			hostIDs := make([]string, len(hosts))
+			for i, host := range hosts {
+				hostIDs[i] = host.ID
 			}
-			poolsWithHost[pool.Id] = poolWithHost{*pool, hosts}
+			poolsWithHost[pool.ID] = poolWithHost{*pool, hostIDs}
 		}
 		poolsWithHostJson, err := json.MarshalIndent(poolsWithHost, " ", "  ")
 		if err == nil {
@@ -400,7 +409,7 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	pool, _ := dao.NewResourcePool(cmd.Arg(0))
+	pool:= pool.New(cmd.Arg(0))
 	coreLimit, err := strconv.Atoi(cmd.Arg(1))
 	if err != nil {
 		glog.Fatalf("Bad core limit %s: %v", cmd.Arg(1), err)
@@ -411,13 +420,12 @@ func (cli *ServicedCli) CmdAddPool(args ...string) error {
 		glog.Fatalf("Bad memory limit %s: %v", cmd.Arg(2), err)
 	}
 	pool.MemoryLimit = uint64(memoryLimit)
-	controlPlane := getClient()
-	var poolId string
-	err = controlPlane.AddResourcePool(*pool, &poolId)
+	master := getMasterClient()
+	err = master.AddResourcePool(*pool)
 	if err != nil {
 		glog.Fatalf("Could not add resource pool: %v", err)
 	}
-	fmt.Printf("%s\n", poolId)
+	fmt.Printf("%s\n", pool.ID)
 	return err
 }
 
@@ -431,9 +439,8 @@ func (cli *ServicedCli) CmdRemovePool(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	controlPlane := getClient()
-	var unused int
-	err := controlPlane.RemoveResourcePool(cmd.Arg(0), &unused)
+	master := getMasterClient()
+	err := master.RemoveResourcePool(cmd.Arg(0))
 	if err != nil {
 		glog.Fatalf("Could not remove resource pool: %v", err)
 	}
@@ -451,20 +458,19 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	controlPlane := getClient()
+	masterClient := getMasterClient()
 	poolId := cmd.Arg(0)
 
-	var poolsIpInfo []dao.HostIPResource
-	err := controlPlane.GetPoolsIPInfo(poolId, &poolsIpInfo)
+	poolIPs, err := masterClient.GetPoolIPs(poolId)
 	if err != nil {
-		fmt.Printf("GetPoolsIPInfo failed: %v", err)
+		fmt.Printf("GetPoolIPs failed: %v", err)
 		return err
 	}
 
 	// print the interface info (name, IP)
 	outfmt := "%-16s %-30s\n"
 	fmt.Printf(outfmt, "Interface Name", "IP Address")
-	for _, hostIPResource := range poolsIpInfo {
+	for _, hostIPResource := range poolIPs.HostIPs {
 		fmt.Printf(outfmt, hostIPResource.InterfaceName, hostIPResource.IPAddress)
 	}
 

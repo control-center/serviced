@@ -5,8 +5,10 @@
 package elasticsearch
 
 import (
-	"fmt"
+	. "gopkg.in/check.v1"
 	"github.com/zenoss/serviced/dao"
+
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,6 +18,10 @@ import (
 	"strings"
 	"testing"
 )
+
+type log interface{
+	Log(args ...interface{})
+}
 
 func TestBackup_writeDirectoryToAndFromTgz(t *testing.T) {
 	t.Skip("TODO: fix this test")
@@ -173,7 +179,7 @@ func docker_scratch_image() (string, error) {
 	return strings.TrimSpace(string(imageId)), nil
 }
 
-func delete_docker_image(t *testing.T, imageId string) error {
+func delete_docker_image(t log, imageId string) error {
 	dockerCmd := exec.Command("docker", "rmi", imageId)
 	if out, e := dockerCmd.CombinedOutput(); e != nil {
 		t.Log(out)
@@ -182,7 +188,7 @@ func delete_docker_image(t *testing.T, imageId string) error {
 	return nil
 }
 
-func all_docker_images(t *testing.T) (map[string]bool, error) {
+func all_docker_images(t log) (map[string]bool, error) {
 	dockerCmd := exec.Command("docker", "images", "-q", "-a")
 	out, e := dockerCmd.CombinedOutput()
 	if e != nil {
@@ -200,7 +206,7 @@ func all_docker_images(t *testing.T) (map[string]bool, error) {
 	return result, nil
 }
 
-func get_docker_image_tags(t *testing.T, imageId string) (map[string]bool, error) {
+func get_docker_image_tags(t log, imageId string) (map[string]bool, error) {
 	client, e := newDockerExporter()
 	if e != nil {
 		t.Log("Failure getting docker client")
@@ -223,8 +229,9 @@ func get_docker_image_tags(t *testing.T, imageId string) (map[string]bool, error
 	return nil, fmt.Errorf("No such docker image: %s", imageId)
 }
 
-func TestBackup_IntegrationTest(t *testing.T) {
-	t.Skip("TODO: fix this test")
+
+func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
+	t.Skip("TODO: fix this test")	
 	var (
 		unused         int
 		request        dao.EntityRequest
@@ -243,21 +250,21 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	defer delete_docker_image(t, imageId)
 
 	// Clean up old templates...
-	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	for id, _ := range templates {
-		if e := controlPlaneDao.RemoveServiceTemplate(id, &unused); e != nil {
+		if e := dt.Dao.RemoveServiceTemplate(id, &unused); e != nil {
 			t.Fatalf("Failure removing service template %s with error: %s", id, e)
 		}
 	}
 
 	// Clean up old services...
-	if e := controlPlaneDao.GetServices(request, &services); e != nil {
+	if e := dt.Dao.GetServices(request, &services); e != nil {
 		t.Fatalf("Failure getting services: %s", e)
 	}
 	for _, service := range services {
-		if e := controlPlaneDao.RemoveService(service.Id, &unused); e != nil {
+		if e := dt.Dao.RemoveService(service.Id, &unused); e != nil {
 			t.Fatalf("Failure removing service (%s): %s", service.Id, e)
 		}
 	}
@@ -307,23 +314,23 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Create a minimal service template which uses the image and a DFS.
-	if e := controlPlaneDao.AddServiceTemplate(template, &templateId); e != nil {
+	if e := dt.Dao.AddServiceTemplate(template, &templateId); e != nil {
 		t.Fatalf("Failed to add service template (%+v): %s", template, e)
 	}
 	template.Id = templateId
-	defer controlPlaneDao.RemoveServiceTemplate(templateId, &unused)
+	defer dt.Dao.RemoveServiceTemplate(templateId, &unused)
 
 	// Create a minimal service, based on the template.
-	if e := controlPlaneDao.AddService(service, &serviceId); e != nil {
+	if e := dt.Dao.AddService(service, &serviceId); e != nil {
 		t.Fatalf("Failed to add service (%+v): %s", service, e)
 	}
-	defer controlPlaneDao.RemoveService(serviceId, &unused)
-	if e := controlPlaneDao.GetService(serviceId, &service); e != nil {
+	defer dt.Dao.RemoveService(serviceId, &unused)
+	if e := dt.Dao.GetService(serviceId, &service); e != nil {
 		t.Fatalf("Failed to find serviced that was just added: %s", e)
 	}
 
 	// Write some data to the DFS
-	volume, e := getSubvolume(controlPlaneDao.vfs, "default", serviceId)
+	volume, e := getSubvolume(dt.Dao.vfs, "default", serviceId)
 	if e != nil {
 		t.Fatalf("Failed to get subvolume: %s", e)
 	}
@@ -336,7 +343,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	defer os.RemoveAll(dataFile)
 
 	// Backup
-	if e := controlPlaneDao.Backup("", &backupFilePath); e != nil {
+	if e := dt.Dao.Backup("", &backupFilePath); e != nil {
 		t.Fatalf("Failed while making a backup: %s", e)
 	}
 	defer os.RemoveAll(backupFilePath)
@@ -349,7 +356,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 	defer os.RemoveAll(otherFile)
 
-	controlPlaneDao.Restore(backupFilePath, &unused)
+	dt.Dao.Restore(backupFilePath, &unused)
 
 	// Check: old docker image still there, no new docker images
 	currentImageIds, e := all_docker_images(t)
@@ -363,7 +370,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Check: find the old service, and no new services
-	if e := controlPlaneDao.GetServices(request, &services); e != nil {
+	if e := dt.Dao.GetServices(request, &services); e != nil {
 		t.Fatalf("Failure getting services: %s", e)
 	}
 	if len(services) != 1 {
@@ -374,7 +381,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Check: find the old template, and no new templates
-	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
 		t.Fatalf("Failed to get templates: %s", e)
 	}
 	if len(templates) != 1 {
@@ -397,12 +404,12 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Delete the service
-	if e := controlPlaneDao.RemoveService(serviceId, &unused); e != nil {
+	if e := dt.Dao.RemoveService(serviceId, &unused); e != nil {
 		t.Fatalf("Failure removing service %s: %s", serviceId, e)
 	}
 
 	// Delete the template
-	if e := controlPlaneDao.RemoveServiceTemplate(templateId, &unused); e != nil {
+	if e := dt.Dao.RemoveServiceTemplate(templateId, &unused); e != nil {
 		t.Fatalf("Failure removing template %s: %s", templateId, e)
 	}
 
@@ -418,7 +425,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 		}
 	}
 
-	controlPlaneDao.Restore(backupFilePath, &unused)
+	dt.Dao.Restore(backupFilePath, &unused)
 
 	// Check: new docker image imported, with same tags as old.
 	// TODO: (Is there some way to compare the contents of the images?)
@@ -453,7 +460,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Check: find the old service, and no new services
-	if e = controlPlaneDao.GetServices(request, &services); e != nil {
+	if e = dt.Dao.GetServices(request, &services); e != nil {
 		t.Fatalf("Failure getting services: %s", e)
 	}
 	if len(services) != 1 {
@@ -464,7 +471,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 	}
 
 	// Check: find the old template, and no new templates
-	if e := controlPlaneDao.GetServiceTemplates(0, &templates); e != nil {
+	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
 		t.Fatalf("Failed to get templates: %s", e)
 	}
 	if len(templates) != 1 {

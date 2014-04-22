@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/rpc/master"
 
 	"mime"
 	"net/http"
@@ -164,62 +165,7 @@ func (this *ServiceConfig) ServeUI() {
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
-	routes := []rest.Route{
-		rest.Route{"GET", "/", MainPage},
-		rest.Route{"GET", "/test", TestPage},
-		rest.Route{"GET", "/stats", this.IsCollectingStats()},
-		// Hosts
-		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
-		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", this.AuthorizedClient(RestRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", this.AuthorizedClient(RestUpdateHost)},
-		rest.Route{"GET", "/hosts/:hostId/running", this.AuthorizedClient(RestGetRunningForHost)},
-		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", this.AuthorizedClient(RestKillRunning)},
-		// Pools
-		rest.Route{"POST", "/pools/add", this.AuthorizedClient(RestAddPool)},
-		rest.Route{"GET", "/pools/:poolId/hosts", this.AuthorizedClient(RestGetHostsForResourcePool)},
-		rest.Route{"DELETE", "/pools/:poolId", this.AuthorizedClient(RestRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", this.AuthorizedClient(RestUpdatePool)},
-		rest.Route{"GET", "/pools", this.AuthorizedClient(RestGetPools)},
-		// Services (Apps)
-		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
-		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
-		rest.Route{"GET", "/services/:serviceId/running", this.AuthorizedClient(RestGetRunningForService)},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", this.AuthorizedClient(RestGetRunningService)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", this.AuthorizedClient(RestGetServiceStateLogs)},
-		rest.Route{"POST", "/services/add", this.AuthorizedClient(RestAddService)},
-		rest.Route{"DELETE", "/services/:serviceId", this.AuthorizedClient(RestRemoveService)},
-		rest.Route{"GET", "/services/:serviceId/logs", this.AuthorizedClient(RestGetServiceLogs)},
-		rest.Route{"PUT", "/services/:serviceId", this.AuthorizedClient(RestUpdateService)},
-		rest.Route{"GET", "/services/:serviceId/snapshot", this.AuthorizedClient(RestSnapshotService)},
-		rest.Route{"PUT", "/services/:serviceId/startService", this.AuthorizedClient(RestStartService)},
-		rest.Route{"PUT", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
-
-		// Services (Virtual Host)
-		rest.Route{"GET", "/vhosts", this.AuthorizedClient(RestGetVirtualHosts)},
-		rest.Route{"POST", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestAddVirtualHost)},
-		rest.Route{"DELETE", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestRemoveVirtualHost)},
-
-		// Service templates (App templates)
-		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
-		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
-
-		// Login
-		rest.Route{"POST", "/login", this.UnAuthorizedClient(RestLogin)},
-		rest.Route{"DELETE", "/login", RestLogout},
-		// "Misc" stuff
-		rest.Route{"GET", "/top/services", this.AuthorizedClient(RestGetTopServices)},
-		rest.Route{"GET", "/running", this.AuthorizedClient(RestGetAllRunning)},
-		// Generic static data
-		rest.Route{"GET", "/favicon.ico", FavIcon},
-		rest.Route{"GET", "/static*resource", StaticData},
-	}
-
-	// Hardcoding these target URLs for now.
-	// TODO: When internal services are allowed to run on other hosts, look that up.
-	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
-	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
-
+	routes := this.getRoutes()
 	handler.SetRoutes(routes...)
 
 	http.ListenAndServe(":7878", &handler)
@@ -297,3 +243,69 @@ func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
 	}
 	return c, err
 }
+
+func (sc *ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerFunc) HandlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !check(w, r) {
+			return
+		}
+		reqCtx := newRequestContext(sc)
+		defer reqCtx.end()
+		realfunc(w, r, reqCtx)
+	}
+}
+
+func (sc *ServiceConfig) CheckAuth(realfunc CtxHandlerFunc) HandlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		if !LoginOk(r) {
+			RestUnauthorized(w)
+			return false
+		}
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+func (sc *ServiceConfig) NoAuth(realfunc CtxHandlerFunc) HandlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+type Close interface {
+	Close() error
+}
+
+type requestContext struct {
+	sc     *ServiceConfig
+	master *master.Client
+}
+
+func newRequestContext(sc *ServiceConfig) *requestContext {
+	return &requestContext{sc: sc}
+}
+
+func (ctx *requestContext) getMasterClient() (*master.Client, error) {
+	if ctx.master == nil {
+		if c, err := master.NewClient(ctx.sc.agentPort); err != nil {
+			glog.Errorf("Could not create a control plane client to %v: %v", ctx.sc.agentPort, err)
+			return nil, err
+		} else {
+			ctx.master = c
+		}
+	}
+	return ctx.master, nil
+}
+
+func (ctx *requestContext) end() error {
+	if ctx.master != nil {
+		return ctx.master.Close()
+	}
+	return nil
+}
+
+type CtxHandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext)
+type CheckFunc func(w *rest.ResponseWriter, r *rest.Request) bool
+
+type getRoutes func(sc *ServiceConfig) []rest.Route

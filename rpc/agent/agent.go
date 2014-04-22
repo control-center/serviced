@@ -9,8 +9,8 @@ import (
 )
 
 // NewServer returns a new AgentServer
-func NewServer() AgentServer {
-	return AgentServer{}
+func NewServer() *AgentServer {
+	return &AgentServer{}
 }
 
 // AgentServer The type is the API for a serviced agent. Get the host information from an agent.

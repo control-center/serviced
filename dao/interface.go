@@ -31,24 +31,6 @@ type HostServiceRequest struct {
 type ControlPlane interface {
 
 	//---------------------------------------------------------------------------
-	// Host CRUD
-
-	// Register a host with serviced
-	AddHost(host Host, hostId *string) error
-
-	// Update Host information for a registered host
-	UpdateHost(host Host, ununsed *int) error
-
-	// Remove a Host from serviced
-	RemoveHost(hostId string, unused *int) error
-
-	// Get Host by id
-	GetHost(hostId string, host *Host) error
-
-	// Get a list of registered hosts
-	GetHosts(request EntityRequest, hosts *map[string]*Host) error
-
-	//---------------------------------------------------------------------------
 	// Service CRUD
 
 	//for a service, get it's tenant Id
@@ -116,31 +98,6 @@ type ControlPlane interface {
 
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
-
-	//---------------------------------------------------------------------------
-	// ResourcePool CRUD
-
-	// Add a new service pool to serviced
-	AddResourcePool(pool ResourcePool, poolId *string) error
-
-	// Update a service pool definition
-	UpdateResourcePool(pool ResourcePool, unused *int) error
-
-	// Remove a service pool
-	RemoveResourcePool(poolId string, unused *int) error
-
-	//TODO does this belong here
-	// Get a list of all the resource pools
-	//GetResourcePool(poolId string, pool *ResourcePool) error
-
-	// Get a list of all the resource pools
-	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
-
-	// Get of a list of hosts that are in the given resource pool
-	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
-
-	// Get a map of the HostIPResources (key is the hostId) contained in a pool
-	GetPoolsIPInfo(poolId string, poolsIpInfo *[]HostIPResource) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

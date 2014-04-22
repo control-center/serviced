@@ -51,5 +51,10 @@ func HostEquals(t errorf, h1 *Host, h2 *Host) bool {
 		t.Errorf("Host UpdatedAt %v did not equal %v", h1.UpdatedAt, h2.UpdatedAt)
 		equals = false
 	}
+
+	if len(h1.IPs) != len(h2.IPs){
+		t.Errorf("Host IPs %v does not match %v", h1.IPs, h2.IPs)
+		equals = false
+	}
 	return equals
 }
