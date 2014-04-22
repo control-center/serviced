@@ -13,16 +13,6 @@ import (
 	"net/url"
 )
 
-func getPoolRoutes(sc *ServiceConfig) []rest.Route {
-	return []rest.Route{
-		rest.Route{"POST", "/pools/add", sc.CheckAuth(RestAddPool)},
-		rest.Route{"GET", "/pools/:poolId/hosts", sc.CheckAuth(RestGetHostsForResourcePool)},
-		rest.Route{"DELETE", "/pools/:poolId", sc.CheckAuth(RestRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", sc.CheckAuth(RestUpdatePool)},
-		rest.Route{"GET", "/pools", sc.CheckAuth(RestGetPools)},
-	}
-}
-
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	client, err := ctx.getMasterClient()
 	if err != nil {

@@ -165,60 +165,7 @@ func (this *ServiceConfig) ServeUI() {
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
-	routes := []rest.Route{
-		rest.Route{"GET", "/", MainPage},
-		rest.Route{"GET", "/test", TestPage},
-		rest.Route{"GET", "/stats", this.IsCollectingStats()},
-		rest.Route{"GET", "/hosts/:hostId/running", this.AuthorizedClient(RestGetRunningForHost)},
-		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", this.AuthorizedClient(RestKillRunning)},
-		// Services (Apps)
-		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
-		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
-		rest.Route{"GET", "/services/:serviceId/running", this.AuthorizedClient(RestGetRunningForService)},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", this.AuthorizedClient(RestGetRunningService)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", this.AuthorizedClient(RestGetServiceStateLogs)},
-		rest.Route{"POST", "/services/add", this.AuthorizedClient(RestAddService)},
-		rest.Route{"DELETE", "/services/:serviceId", this.AuthorizedClient(RestRemoveService)},
-		rest.Route{"GET", "/services/:serviceId/logs", this.AuthorizedClient(RestGetServiceLogs)},
-		rest.Route{"PUT", "/services/:serviceId", this.AuthorizedClient(RestUpdateService)},
-		rest.Route{"GET", "/services/:serviceId/snapshot", this.AuthorizedClient(RestSnapshotService)},
-		rest.Route{"PUT", "/services/:serviceId/startService", this.AuthorizedClient(RestStartService)},
-		rest.Route{"PUT", "/services/:serviceId/stopService", this.AuthorizedClient(RestStopService)},
-
-		// Services (Virtual Host)
-		rest.Route{"GET", "/vhosts", this.AuthorizedClient(RestGetVirtualHosts)},
-		rest.Route{"POST", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestAddVirtualHost)},
-		rest.Route{"DELETE", "/vhosts/:serviceId/:application/:vhostName", this.AuthorizedClient(RestRemoveVirtualHost)},
-
-		// Service templates (App templates)
-		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
-		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
-
-		// Login
-		rest.Route{"POST", "/login", this.UnAuthorizedClient(RestLogin)},
-		rest.Route{"DELETE", "/login", RestLogout},
-		// "Misc" stuff
-		rest.Route{"GET", "/top/services", this.AuthorizedClient(RestGetTopServices)},
-		rest.Route{"GET", "/running", this.AuthorizedClient(RestGetAllRunning)},
-		// Generic static data
-		rest.Route{"GET", "/favicon.ico", FavIcon},
-		rest.Route{"GET", "/static*resource", StaticData},
-	}
-
-	resources := []getRoutes{
-		getHostRoutes,
-		getPoolRoutes,
-	}
-
-	for _, get := range resources {
-		routes = append(routes, get(this)...)
-	}
-
-	// Hardcoding these target URLs for now.
-	// TODO: When internal services are allowed to run on other hosts, look that up.
-	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
-	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
-
+	routes := this.getRoutes()
 	handler.SetRoutes(routes...)
 
 	http.ListenAndServe(":7878", &handler)

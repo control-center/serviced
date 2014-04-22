@@ -5,23 +5,14 @@
 package web
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
 	"net/url"
 	"strings"
 )
-
-func getHostRoutes(sc *ServiceConfig) []rest.Route {
-	return []rest.Route{
-		rest.Route{"GET", "/hosts", sc.CheckAuth(RestGetHosts)},
-		rest.Route{"POST", "/hosts/add", sc.CheckAuth(RestAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", sc.CheckAuth(RestRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", sc.CheckAuth(RestUpdateHost)},
-	}
-}
 
 func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	response := make(map[string]*host.Host)
