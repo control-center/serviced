@@ -48,13 +48,16 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
+//Instantiate the gocheck suite. Initialize the DaoTest and the embedded FacadeTest
 var _ = Suite(&DaoTest{facade.FacadeTest{DomainPath: "../../domain"}, nil})
 
+//DaoTest gocheck test type for setting up isvcs and other resources needed by tests
 type DaoTest struct {
 	facade.FacadeTest
 	Dao *ControlPlaneDao
 }
 
+//SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.Port = 9202
 	isvcs.Init()
@@ -65,7 +68,6 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	}
 	dt.MappingsFile = "controlplane.json"
 	dt.FacadeTest.SetUpSuite(c)
-	//	func NewControlSvc(hostName string, port int, facade *facade.Facade, zookeepers []string, varpath, vfs string) (*ControlPlaneDao, error) {
 
 	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
@@ -88,8 +90,12 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	}
 }
 
+//SetUpTest run before each test.
 func (dt *DaoTest) SetUpTest(c *C) {
+	//Facade tests delete the contents of the database for every test
 	dt.FacadeTest.SetUpTest(c)
+	//DAO tests expect default pool and system user
+
 	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
 		c.Fatalf("could not create default pool:", err)
 	}
@@ -97,10 +103,6 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	// create the account credentials
 	if err := createSystemUser(dt.Dao); err != nil {
 		c.Fatalf("could not create systemuser:", err)
-	}
-
-	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
-		c.Fatalf("could not create default pool:", err)
 	}
 }
 
