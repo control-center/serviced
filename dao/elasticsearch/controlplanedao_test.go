@@ -423,7 +423,6 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	if err != nil {
 		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
 	}
-//TODO: fix this test!!!!!
 	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
 	err = dt.Dao.AssignIPs(assignmentRequest, nil)
 	if err != nil {

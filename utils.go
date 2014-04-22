@@ -11,9 +11,7 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-//	"github.com/zenoss/serviced/dao"
 
-//	"bufio"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,7 +22,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
-//	"runtime"
 	"strconv"
 	"strings"
 	"sync"
