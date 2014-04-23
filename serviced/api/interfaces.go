@@ -3,10 +3,11 @@ package api
 import (
 	"io"
 
-	host "github.com/zenoss/serviced/dao"
-	pool "github.com/zenoss/serviced/dao"
 	service "github.com/zenoss/serviced/dao"
 	template "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/facade"
 )
 
 // API is the intermediary between the command-line interface and the dao layer
@@ -17,20 +18,20 @@ type API interface {
 	StartProxy(ProxyConfig) error
 
 	// Hosts
-	ListHosts() ([]host.Host, error)
+	GetHosts() ([]*host.Host, error)
 	GetHost(string) (*host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
 
 	// Pools
-	ListPools() ([]pool.ResourcePool, error)
-	GetPool(string) (*pool.ResourcePool, error)
-	AddPool(PoolConfig) (*pool.ResourcePool, error)
-	RemovePool(string) error
-	ListPoolIPs(string) ([]host.HostIPResource, error)
+	GetResourcePools() ([]*pool.ResourcePool, error)
+	GetResourcePool(string) (*pool.ResourcePool, error)
+	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
+	RemoveResourcePool(string) error
+	GetPoolIPs(string) (*facade.PoolIPs, error)
 
 	// Services
-	ListServices() ([]service.Service, error)
+	GetServices() ([]*service.Service, error)
 	GetService(string) (*service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
@@ -40,22 +41,22 @@ type API interface {
 	AssignIP(IPConfig) ([]service.AddressAssignment, error)
 
 	// Shell
-	ListCommands(string) ([]string, error)
 	StartShell(ShellConfig) error
+	RunShell(ShellConfig) error
 
 	// Snapshots
-	ListSnapshots() ([]string, error)
-	ListSnapshotsByServiceID(string) ([]string, error)
+	GetSnapshots() ([]string, error)
+	GetSnapshotsByServiceID(string) ([]string, error)
 	AddSnapshot(string) (string, error)
 	RemoveSnapshot(string) error
 	Commit(string) (string, error)
 	Rollback(string) error
 
 	// Templates
-	ListTemplates() ([]template.ServiceTemplate, error)
-	GetTemplate(string) (*template.ServiceTemplate, error)
-	AddTemplate(io.Reader) (*template.ServiceTemplate, error)
-	RemoveTemplate(string) error
-	CompileTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
-	DeployTemplate(DeployTemplateConfig) (*service.Service, error)
+	GetServiceTemplates() ([]*template.ServiceTemplate, error)
+	GetServiceTemplate(string) (*template.ServiceTemplate, error)
+	AddServiceTemplate(io.Reader) (*template.ServiceTemplate, error)
+	RemoveServiceTemplate(string) error
+	CompileServiceTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
+	DeployServiceTemplate(DeployTemplateConfig) (*service.Service, error)
 }

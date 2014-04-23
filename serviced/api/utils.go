@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/utils"
 )
 
 const (
@@ -26,7 +26,7 @@ func GetAgentIP() string {
 	if options.Port != "" {
 		return options.Port
 	}
-	agentIP, err := serviced.GetIPAddress()
+	agentIP, err := utils.GetIPAddress()
 	if err != nil {
 		panic(err)
 	}
@@ -34,11 +34,13 @@ func GetAgentIP() string {
 }
 
 // Returns the docker dns address
-func GetDockerDNS() string {
-	if options.DockerDNS != "" {
+func GetDockerDNS() []string {
+	if len(options.DockerDNS) > 0 {
 		return options.DockerDNS
 	}
-	return os.Getenv("SERVICED_DOCKER_DNS")
+
+	dockerdns := os.Getenv("SERVICED_DOCKER_DNS")
+	return strings.Split(dockerdns, ",")
 }
 
 // Returns the serviced varpath

@@ -1,10 +1,8 @@
 package api
 
 import (
-	"fmt"
-
-	host "github.com/zenoss/serviced/dao"
-	pool "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/facade"
 )
 
 const ()
@@ -19,89 +17,63 @@ type PoolConfig struct {
 	Priority    int
 }
 
-// ListPools returns a list of all pools
-func (a *api) ListPools() ([]pool.ResourcePool, error) {
-	client, err := a.connect()
+// Returns a list of all pools
+func (a *api) GetResourcePools() ([]*pool.ResourcePool, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var poolmap map[string]*pool.ResourcePool
-	if err := client.GetResourcePools(&empty, &poolmap); err != nil {
-		return nil, fmt.Errorf("could not get resource pools: %s", err)
-	}
-
-	pools := make([]pool.ResourcePool, len(poolmap))
-	i := 0
-	for _, p := range poolmap {
-		pools[i] = *p
-		i++
-	}
-
-	return pools, nil
+	return client.GetResourcePools()
 }
 
-// GetPool gets information about a pool given a PoolID
-func (a *api) GetPool(id string) (*pool.ResourcePool, error) {
-	client, err := a.connect()
+// Gets information about a pool given a PoolID
+func (a *api) GetResourcePool(id string) (*pool.ResourcePool, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var poolmap map[string]*pool.ResourcePool
-	if err := client.GetResourcePools(&empty, &poolmap); err != nil {
-		return nil, fmt.Errorf("could not get resource pools: %s", err)
-	}
-
-	return poolmap[id], nil
+	return client.GetResourcePool(id)
 }
 
-// AddPool adds a new pool
-func (a *api) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
-	client, err := a.connect()
+// Adds a new pool
+func (a *api) AddResourcePool(config PoolConfig) (*pool.ResourcePool, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
 	p := pool.ResourcePool{
-		Id:          config.PoolID,
+		ID:          config.PoolID,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
 		Priority:    config.Priority,
 	}
-	var id string
-	if err := client.AddResourcePool(p, &id); err != nil {
-		return nil, fmt.Errorf("could not add resource pool: %s", err)
+
+	if err := client.AddResourcePool(p); err != nil {
+		return nil, err
 	}
 
-	return a.GetPool(id)
+	return a.GetResourcePool(p.ID)
 }
 
-// RemovePool removes an existing pool
-func (a *api) RemovePool(id string) error {
-	client, err := a.connect()
+// Removes an existing pool
+func (a *api) RemoveResourcePool(id string) error {
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	if err := client.RemoveResourcePool(id, &unusedInt); err != nil {
-		fmt.Errorf("could not remove resource pool: %s", err)
-	}
-
-	return nil
+	return client.RemoveResourcePool(id)
 }
 
-// ListPoolIPs returns a list of Host IPs for a given pool
-func (a *api) ListPoolIPs(id string) ([]host.HostIPResource, error) {
-	client, err := a.connect()
+// Returns a list of Host IPs for a given pool
+func (a *api) GetPoolIPs(id string) (*facade.PoolIPs, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var ipinfo []host.HostIPResource
-	if err := client.GetPoolsIPInfo(id, &ipinfo); err != nil {
-		return nil, fmt.Errorf("could not obtain pool IP info: %s", err)
-	}
-
-	return ipinfo, nil
+	return client.GetPoolIPs(id)
 }

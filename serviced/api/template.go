@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
 	template "github.com/zenoss/serviced/dao"
 )
@@ -26,38 +25,38 @@ type CompileTemplateConfig struct {
 	Map *ImageMap
 }
 
-// ListTemplates lists all available service templates
-func (a *api) ListTemplates() ([]template.ServiceTemplate, error) {
-	client, err := a.connect()
+// Gets all available service templates
+func (a *api) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
 	templatemap := make(map[string]*template.ServiceTemplate)
 	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
-		return nil, fmt.Errorf("could not get service templates: %s", err)
+		return nil, err
 	}
-	templates := make([]template.ServiceTemplate, len(templatemap))
+	templates := make([]*template.ServiceTemplate, len(templatemap))
 	i := 0
 	for id, t := range templatemap {
 		(*t).Id = id
-		templates[i] = *t
+		templates[i] = t
 		i++
 	}
 
 	return templates, nil
 }
 
-// GetTemplate gets a particular serviced template by id
-func (a *api) GetTemplate(id string) (*template.ServiceTemplate, error) {
-	client, err := a.connect()
+// Gets a particular serviced template by its template ID
+func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
 	templatemap := make(map[string]*template.ServiceTemplate)
 	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
-		return nil, fmt.Errorf("could not get service templates: %s", err)
+		return nil, err
 	}
 
 	t := templatemap[id]
@@ -66,8 +65,8 @@ func (a *api) GetTemplate(id string) (*template.ServiceTemplate, error) {
 	return t, nil
 }
 
-// AddTemplate adds a new template
-func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
+// Adds a new service template
+func (a *api) AddServiceTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 	// Unmarshal JSON from the reader
 	var t template.ServiceTemplate
 	if err := json.NewDecoder(reader).Decode(&t); err != nil {
@@ -75,7 +74,7 @@ func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 	}
 
 	// Connect to the client
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
@@ -83,31 +82,31 @@ func (a *api) AddTemplate(reader io.Reader) (*template.ServiceTemplate, error) {
 	// Add the template
 	var id string
 	if err := client.AddServiceTemplate(t, &id); err != nil {
-		return nil, fmt.Errorf("could not add service template: %s", err)
+		return nil, err
 	}
 
-	return a.GetTemplate(id)
+	return a.GetServiceTemplate(id)
 }
 
 // RemoveTemplate removes an existing template by its template ID
-func (a *api) RemoveTemplate(id string) error {
-	client, err := a.connect()
+func (a *api) RemoveServiceTemplate(id string) error {
+	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
 	if err := client.RemoveServiceTemplate(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not remove service template: %s", err)
+		return err
 	}
 
 	return nil
 }
 
 // CompileTemplate builds a template given a source path
-func (a *api) CompileTemplate(config CompileTemplateConfig) (*template.ServiceTemplate, error) {
+func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.ServiceTemplate, error) {
 	sd, err := service.ServiceDefinitionFromPath(config.Dir)
 	if err != nil {
-		return nil, fmt.Errorf("could not get the service definition: %s", err)
+		return nil, err
 	}
 
 	var mapImageNames func(*service.ServiceDefinition)
@@ -130,8 +129,8 @@ func (a *api) CompileTemplate(config CompileTemplateConfig) (*template.ServiceTe
 }
 
 // DeployTemplate deploys a template given its template ID
-func (a *api) DeployTemplate(config DeployTemplateConfig) (*service.Service, error) {
-	client, err := a.connect()
+func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Service, error) {
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func (a *api) DeployTemplate(config DeployTemplateConfig) (*service.Service, err
 
 	var id string
 	if err := client.DeployTemplate(req, &id); err != nil {
-		return nil, fmt.Errorf("could not deploy template: %s", err)
+		return nil, err
 	}
 
 	s, err := a.GetService(id)
@@ -153,12 +152,9 @@ func (a *api) DeployTemplate(config DeployTemplateConfig) (*service.Service, err
 	}
 
 	if !config.ManualAssignIPs {
-		glog.V(0).Infof("Assigning IP addresses automatically to services requiring them.")
 		if _, err := a.AssignIP(IPConfig{id, ""}); err != nil {
 			return s, err
 		}
-	} else {
-		glog.V(0).Infof("Not assigning IP address to services requiring them.  You need to do this manually.")
 	}
 
 	return s, nil

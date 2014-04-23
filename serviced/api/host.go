@@ -1,11 +1,8 @@
 package api
 
 import (
-	"fmt"
-
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
-	host "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/rpc/agent"
 )
 
 const ()
@@ -19,78 +16,62 @@ type HostConfig struct {
 	IPs     []string
 }
 
-// ListHosts returns a list of all hosts
-func (a *api) ListHosts() ([]host.Host, error) {
-	client, err := a.connect()
+// Returns a list of all hosts
+func (a *api) GetHosts() ([]*host.Host, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	hostmap := make(map[string]*host.Host)
-	if err := client.GetHosts(&empty, &hostmap); err != nil {
-		return nil, fmt.Errorf("could not get hosts: %s", err)
-	}
-	hosts := make([]host.Host, len(hostmap))
-	i := 0
-	for _, h := range hostmap {
-		hosts[i] = *h
-		i++
-	}
-	return hosts, nil
+	return client.GetHosts()
 }
 
-// GetHost looks up a host by its id
+// Get host information by its id
 func (a *api) GetHost(id string) (*host.Host, error) {
-	client, err := a.connect()
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var h host.Host
-	if err := client.GetHost(id, &h); err != nil {
-		return nil, fmt.Errorf("could not get hosts: %s", err)
-	}
-	return &h, nil
+	return client.GetHost(id)
 }
 
-// AddHost adds a new host
+// Adds a new host
 func (a *api) AddHost(config HostConfig) (*host.Host, error) {
-	// Add the IP used to connect
-	agentClient, err := serviced.NewAgentClient(fmt.Sprintf("%s", config.Address))
-	if err != nil {
-		return nil, fmt.Errorf("could not create host connection: %s", err)
-	}
-	var remoteHost host.Host
-	if err := agentClient.GetInfo(config.IPs, &remoteHost); err != nil {
-		return nil, fmt.Errorf("could not get remote host info: %s", err)
-	}
-	remoteHost.IpAddr = config.Address.Host
-	remoteHost.PoolId = config.PoolID
-
-	// Add the host
-	glog.V(0).Infof("Got info for host: %v", remoteHost)
-	client, err := a.connect()
+	agentClient, err := a.connectAgent()
 	if err != nil {
 		return nil, err
 	}
-	var id string
-	if err := client.AddHost(remoteHost, &id); err != nil {
-		return nil, fmt.Errorf("could not add host: %s", err)
+
+	req := agent.BuildHostRequest{
+		IP:          config.Address.String(),
+		PoolID:      config.PoolID,
+		IPResources: config.IPs,
 	}
 
-	return a.GetHost(id)
+	h, err := agentClient.BuildHost(req)
+	if err != nil {
+		return nil, err
+	}
+
+	masterClient, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := masterClient.AddHost(*h); err != nil {
+		return nil, err
+	}
+
+	return a.GetHost(h.ID)
 }
 
-// RemoveHost removes an existing host by its id
+// Removes an existing host by its id
 func (a *api) RemoveHost(id string) error {
-	client, err := a.connect()
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	if err := client.RemoveHost(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not remove host: %s", err)
-	}
-
-	return nil
+	return client.RemoveHost(id)
 }

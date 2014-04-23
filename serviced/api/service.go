@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	host "github.com/zenoss/serviced/dao"
 	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/host"
 )
 
 const ()
@@ -29,44 +29,39 @@ type IPConfig struct {
 	IPAddress string
 }
 
-// ListServices lists all of the available services
-func (a *api) ListServices() ([]service.Service, error) {
-	client, err := a.connect()
+// Gets all of the available services
+func (a *api) GetServices() ([]*service.Service, error) {
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var servicemap []*service.Service
-	if err := client.GetServices(&empty, &servicemap); err != nil {
-		return nil, fmt.Errorf("could not get services: %s", err)
-	}
-
-	services := make([]service.Service, len(servicemap))
-	for i, s := range servicemap {
-		services[i] = *s
+	var services []*service.Service
+	if err := client.GetServices(&empty, &services); err != nil {
+		return nil, err
 	}
 
 	return services, nil
 }
 
-// GetService gets the service definition identified by its service ID
+// Gets the service definition identified by its service ID
 func (a *api) GetService(id string) (*service.Service, error) {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
 	var s service.Service
 	if err := client.GetService(id, &s); err != nil {
-		return nil, fmt.Errorf("could not get service definition: %s", err)
+		return nil, err
 	}
 
 	return &s, nil
 }
 
-// AddService adds a new service
+// Adds a new service
 func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +90,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 
 	var id string
 	if err := client.AddService(s, &id); err != nil {
-		return nil, fmt.Errorf("could not add service: %s", err)
+		return nil, err
 	}
 
 	return a.GetService(id)
@@ -103,7 +98,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 
 // RemoveService removes an existing service
 func (a *api) RemoveService(id string) error {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
@@ -128,14 +123,14 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 	}
 
 	// Connect to the client
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the service
 	if err := client.UpdateService(s, &unusedInt); err != nil {
-		return nil, fmt.Errorf("could not update service definition: %s", err)
+		return nil, err
 	}
 
 	return a.GetService(s.Id)
@@ -143,14 +138,14 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 
 // StartService starts a service
 func (a *api) StartService(id string) (*host.Host, error) {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
 	var hostID string
 	if err := client.StartService(id, &hostID); err != nil {
-		return nil, fmt.Errorf("could not start service: %s", err)
+		return nil, err
 	}
 
 	return a.GetHost(hostID)
@@ -158,13 +153,13 @@ func (a *api) StartService(id string) (*host.Host, error) {
 
 // StopService stops a service
 func (a *api) StopService(id string) error {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
 	if err := client.StopService(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not stop service: %s", err)
+		return err
 	}
 
 	return nil
@@ -172,7 +167,7 @@ func (a *api) StopService(id string) error {
 
 // AssignIP assigns an IP address to a service
 func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
-	client, err := a.connect()
+	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
@@ -184,12 +179,12 @@ func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
 	}
 
 	if err := client.AssignIPs(req, nil); err != nil {
-		return nil, fmt.Errorf("could not assign IP: %s", err)
+		return nil, err
 	}
 
 	var addresses []service.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
-		return nil, fmt.Errorf("could not get address assignments: %s", err)
+		return nil, err
 	}
 
 	return addresses, nil

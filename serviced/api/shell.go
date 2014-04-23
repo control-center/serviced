@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/zenoss/serviced/shell"
 )
@@ -22,17 +24,17 @@ type ShellConfig struct {
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
 	command := []string{config.Command}
-	command = append(command, args...)
+	command = append(command, config.Args...)
 
 	cfg := shell.ProcessConfig{
 		ServiceId: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Command:   strings.Join(command),
+		Command:   strings.Join(command, " "),
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.port)
+	cmd, err := shell.StartDocker(&cfg, options.Port)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -63,11 +65,11 @@ func (a *api) RunShell(config ShellConfig) error {
 		ServiceId: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", strings.Join(command)),
+		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", strings.Join(command, " ")),
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.port)
+	cmd, err := shell.StartDocker(&cfg, options.Port)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
