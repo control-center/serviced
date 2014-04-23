@@ -45,6 +45,9 @@ func (c *ServicedCli) initPool() {
 				Description:  "serviced pool list-ips POOLID",
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdPoolListIPs,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
 			},
 		},
 	})
@@ -187,7 +190,7 @@ func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 	}
 
 	for _, id := range args {
-		if err := c.driver.RemoveResourcePool(args[0]); err != nil {
+		if err := c.driver.RemoveResourcePool(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
@@ -210,6 +213,12 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 	} else if ips.HostIPs == nil || len(ips.HostIPs) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pool ips found")
 		return
+	} else if ctx.Bool("verbose") {
+		if jsonPoolIP, err := json.MarshalIndent(ips.HostIPs, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal resource pool ips: %s", err)
+		} else {
+			fmt.Println(string(jsonPoolIP))
+		}
 	} else {
 		tableIPs := newTable(0, 8, 2)
 		tableIPs.PrintRow("Interface Name", "IP Address")

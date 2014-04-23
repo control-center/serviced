@@ -10,7 +10,7 @@ import (
 
 var DefaultHostAPITest = HostAPITest{hosts: DefaultTestHosts}
 
-var DefaultTestHosts = []host.Host{
+var DefaultTestHosts = []*host.Host{
 	{
 		ID:             "test-host-id-1",
 		PoolID:         "default",
@@ -45,21 +45,21 @@ var (
 
 type HostAPITest struct {
 	api.API
-	hosts []host.Host
+	hosts []*host.Host
 }
 
 func InitHostAPITest(args ...string) {
 	New(DefaultHostAPITest).Run(args)
 }
 
-func (t HostAPITest) ListHosts() ([]host.Host, error) {
+func (t HostAPITest) GetHosts() ([]*host.Host, error) {
 	return t.hosts, nil
 }
 
 func (t HostAPITest) GetHost(id string) (*host.Host, error) {
 	for _, h := range t.hosts {
 		if h.ID == id {
-			return &h, nil
+			return h, nil
 		}
 	}
 
@@ -67,12 +67,12 @@ func (t HostAPITest) GetHost(id string) (*host.Host, error) {
 }
 
 func (t HostAPITest) AddHost(config api.HostConfig) (*host.Host, error) {
-	if config.IPAddr == "" || config.PoolID == "" {
+	if config.Address.String() == "" || config.PoolID == "" {
 		return nil, ErrInvalidHost
 	}
 
 	h := host.New()
-	h.ID = fmt.Sprintf("%s-%s", config.IPAddr, config.PoolID)
+	h.ID = fmt.Sprintf("%s-%s", config.Address.Host, config.PoolID)
 	return h, nil
 }
 
@@ -131,11 +131,9 @@ func ExampleServicedCli_cmdHostList() {
 }
 
 func ExampleServicedCli_cmdHostAdd() {
-	InitHostAPITest("serviced", "host", "+", "10.0.0.1", "testpool")
 	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default")
 
 	// Output:
-	// 10.0.0.1-testpool
 	// 127.0.0.1-default
 }
 
@@ -143,5 +141,5 @@ func ExampleServicedCli_cmdHostRemove() {
 	InitHostAPITest("serviced", "host", "remove", "test-host-id-3")
 
 	// Output:
-	// Done
+	// test-host-id-3
 }

@@ -1,42 +1,73 @@
 package cmd
 
 import (
+	"errors"
+	"io"
+
+	service "github.com/zenoss/serviced/dao"
+	template "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/serviced/api"
 )
 
-func ExampleServicedCli_cmdTemplateList() {
-	New(api.New()).Run([]string{"serviced", "template", "list"})
+var DefaultTemplateAPITest = TemplateAPITest{}
 
-	// Output:
-	// serviced template list
+var DefaultTestTemplates = []*template.ServiceTemplate{}
+
+var (
+	ErrNoTemplateFound = errors.New("no templates found")
+	ErrInvalidTemplate = errors.New("invalid template")
+)
+
+type TemplateAPITest struct {
+	api.API
+	templates []*template.ServiceTemplate
+}
+
+func InitTemplateAPITest(args ...string) {
+	New(DefaultTemplateAPITest).Run(args)
+}
+
+func (t TemplateAPITest) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
+	return nil, nil
+}
+
+func (t TemplateAPITest) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
+	return nil, nil
+}
+
+func (t TemplateAPITest) AddServiceTemplate(r io.Reader) (*template.ServiceTemplate, error) {
+	return nil, nil
+}
+
+func (t TemplateAPITest) RemoveServiceTemplate(id string) error {
+	return nil
+}
+
+func (t TemplateAPITest) CompileServiceTemplate(cfg api.CompileTemplateConfig) (*template.ServiceTemplate, error) {
+	return nil, nil
+}
+
+func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) (*service.Service, error) {
+	return nil, nil
+}
+
+func ExampleServicedCli_cmdTemplateList() {
+	InitTemplateAPITest("serviced", "template", "list")
 }
 
 func ExampleServicedCli_cmdTemplateAdd() {
-	New(api.New()).Run([]string{"serviced", "template", "add"})
-
-	// Output:
-	// serviced template add
+	InitTemplateAPITest("serviced", "template", "add")
 }
 
 func ExampleServicedCli_cmdTemplateRemove() {
-	New(api.New()).Run([]string{"serviced", "template", "remove"})
-	New(api.New()).Run([]string{"serviced", "template", "rm"})
-
-	// Output:
-	// serviced template remove TEMPLATEID
-	// serviced template remove TEMPLATEID
+	InitTemplateAPITest("serviced", "template", "remove")
+	InitTemplateAPITest("serviced", "template", "rm")
 }
 
 func ExampleServicedCli_cmdTemplateDeploy() {
-	New(api.New()).Run([]string{"serviced", "template", "deploy"})
-
-	// Output:
-	// serviced template deploy TEMPLATEID POOLID DEPLOYMENTID [--manual-assign-ips]
+	InitTemplateAPITest("serviced", "template", "deploy")
 }
 
 func ExampleServicedCli_cmdTemplateCompile() {
-	New(api.New()).Run([]string{"serviced", "template", "compile"})
-
-	// Output:
-	// serviced template compile DIRPATH [[--map IMAGE,IMAGE] ...]
+	InitTemplateAPITest("serviced", "template", "compile")
 }

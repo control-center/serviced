@@ -2,16 +2,16 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/serviced/api"
 )
 
 var DefaultPoolAPITest = PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
 
-var DefaultTestPools = []pool.ResourcePool{
+var DefaultTestPools = []*pool.ResourcePool{
 	{
 		ID:          "test-pool-id-1",
 		ParentID:    "",
@@ -40,7 +40,7 @@ var DefaultTestHostIPs = []host.HostIPResource{
 		InterfaceName: "test-interface-name-1",
 	}, {
 		HostID:        "test-host-id-2",
-		IpAddress:     "192.168.0.1",
+		IPAddress:     "192.168.0.1",
 		InterfaceName: "test-interface-name-2",
 	}, {
 		HostID:        "test-host-id-3",
@@ -56,7 +56,7 @@ var (
 
 type PoolAPITest struct {
 	api.API
-	pools   []pool.ResourcePool
+	pools   []*pool.ResourcePool
 	hostIPs []host.HostIPResource
 }
 
@@ -64,31 +64,24 @@ func InitPoolAPITest(args ...string) {
 	New(DefaultPoolAPITest).Run(args)
 }
 
-func ExampleServicedCli_cmdPoolList() {
-	New(api.New()).Run([]string{"serviced", "pool", "list"})
-
-	// Output:
-	// serviced pool list
-}
-
-func (t PoolAPITest) ListPools() ([]pool.ResourcePool, error) {
+func (t PoolAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
 	return t.pools, nil
 }
 
-func (t PoolAPITest) GetPool(id string) (*pool.ResourcePool, error) {
-	for _, p := range p.pools {
+func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
+	for _, p := range t.pools {
 		if p.ID == id {
-			return &p
+			return p, nil
 		}
 	}
 
-	return ErrNoPoolFound
+	return nil, ErrNoPoolFound
 }
 
-func (t PoolAPITest) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
+func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool, error) {
 	for _, p := range t.pools {
 		if p.ID == config.PoolID {
-			return ErrInvalidPool
+			return nil, ErrInvalidPool
 		}
 	}
 
@@ -97,37 +90,64 @@ func (t PoolAPITest) AddPool(config PoolConfig) (*pool.ResourcePool, error) {
 		ParentID:    "",
 		Priority:    0,
 		CoreLimit:   config.CoreLimit,
-		MemoryLimit: cfg.MemoryLimit,
+		MemoryLimit: config.MemoryLimit,
 	}
 
-	return p
+	return p, nil
 }
 
-func (t PoolAPITest) RemovePool(id string) error {
+func (t PoolAPITest) RemoveResourcePool(id string) error {
+	_, err := t.GetResourcePool(id)
+	return err
+}
+
+func (t PoolAPITest) GetPoolIPs(id string) (*facade.PoolIPs, error) {
 	for _, p := range t.pools {
 		if p.ID == id {
-			return nil
+			return &facade.PoolIPs{HostIPs: t.hostIPs}, nil
 		}
 	}
 
-	return ErrNoPoolFound
-}
-
-func (t PoolAPITest) ListIPs(id string) ([]host.HostIPResource, error) {
-	for _, p := range t.pools {
-		if p.ID == id {
-			return t.hostIPs, nil
-		}
-	}
-
-	return ErrNoPoolFound
+	return nil, ErrNoPoolFound
 }
 
 func ExampleServicedCli_cmdPoolList() {
-	InitPoolAPITest("serviced", "pool", "list")
+	InitPoolAPITest("serviced", "pool", "list", "-v")
 
 	// Output:
-	//
+
+	// [
+	//    {
+	//      "ID": "test-pool-id-1",
+	//      "Description": "",
+	//      "ParentID": "",
+	//      "Priority": 1,
+	//      "CoreLimit": 8,
+	//      "MemoryLimit": 0,
+	//      "CreatedAt": "0001-01-01T00:00:00Z",
+	//      "UpdatedAt": "0001-01-01T00:00:00Z"
+	//    },
+	//    {
+	//      "ID": "test-pool-id-2",
+	//      "Description": "",
+	//      "ParentID": "test-pool-id-1",
+	//      "Priority": 2,
+	//      "CoreLimit": 4,
+	//      "MemoryLimit": 4294967296,
+	//      "CreatedAt": "0001-01-01T00:00:00Z",
+	//      "UpdatedAt": "0001-01-01T00:00:00Z"
+	//    },
+	//    {
+	//      "ID": "test-pool-id-3",
+	//      "Description": "",
+	//      "ParentID": "test-pool-id-1",
+	//      "Priority": 3,
+	//      "CoreLimit": 2,
+	//      "MemoryLimit": 536870912,
+	//      "CreatedAt": "0001-01-01T00:00:00Z",
+	//      "UpdatedAt": "0001-01-01T00:00:00Z"
+	//    }
+	//  ]
 }
 
 func ExampleServicedCli_cmdPoolAdd() {
@@ -138,15 +158,32 @@ func ExampleServicedCli_cmdPoolAdd() {
 }
 
 func ExampleServicedCli_cmdPoolRemove() {
-	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1")
+	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1", "test-pool-id-2", "test-pool-id-0")
 
 	// Output:
 	// test-pool-id-1
+	// test-pool-id-2
 }
 
 func ExampleServicedCli_cmdPoolListIPs() {
-	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1")
+	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1", "--verbose")
 
 	// Output:
-	//
+	// [
+	//    {
+	//      "HostID": "test-host-id-1",
+	//      "IPAddress": "127.0.0.1",
+	//      "InterfaceName": "test-interface-name-1"
+	//    },
+	//    {
+	//      "HostID": "test-host-id-2",
+	//      "IPAddress": "192.168.0.1",
+	//      "InterfaceName": "test-interface-name-2"
+	//    },
+	//    {
+	//      "HostID": "test-host-id-3",
+	//      "IPAddress": "0.0.0.0",
+	//      "InterfaceName": "test-interface-name-3"
+	//    }
+	//  ]
 }
