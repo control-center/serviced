@@ -549,8 +549,29 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 			continue
 		}
 		serviceId := parts[0]
-		var service dao.Service
-		if err := this.GetService(serviceId, &service); err != nil {
+
+		snapFilePath := restorePath("snapshots", snapFile)
+		snapDirTemp := restorePath("snapshots", snapshotId)
+		if e := writeDirectoryFromTgz(snapDirTemp, snapFilePath); e != nil {
+			glog.Errorf("Could not write %s from %s: %v", snapDirTemp, snapFilePath, e)
+			return e
+		}
+
+		servicesPath := restorePath("snapshots", snapshotId, "services.json")
+		var services []*dao.Service
+		if e := readJsonFromFile(&services, servicesPath); e != nil {
+			glog.Errorf("Could not read services from %s: %v", servicesPath, e)
+			continue
+		}
+
+		var service *dao.Service = nil
+		for _, svc := range services {
+			if serviceId == svc.Id {
+				service = svc
+				break
+			}
+		}
+		if service == nil {
 			glog.Warningf("Could not find service %s for snapshot %s. Skipping!", serviceId, snapshotId)
 			continue
 		}
@@ -560,9 +581,11 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
 			return e
 		}
-		filename := restorePath("snapshots", snapFile)
-		if e := writeDirectoryFromTgz(snapDir, filename); e != nil {
-			glog.Errorf("Could not write %s from %s: %v", snapDir, filename, e)
+
+		// TODO: mv snapDirTemp to snapDir instead of restoring a 2nd time
+		glog.Errorf("TODO: mv snapDirTemp:%s to snapDir:%s instead of duplicate untar", snapDirTemp, snapDir)
+		if e := writeDirectoryFromTgz(snapDir, snapFilePath); e != nil {
+			glog.Errorf("Could not write %s from %s: %v", snapDir, snapFilePath, e)
 			return e
 		}
 
