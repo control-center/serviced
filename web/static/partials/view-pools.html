@@ -16,6 +16,12 @@
 </h3>
 
 <div class="control-buttons pull-right">
+  <span class="add-control">
+    <button class="btn-link" ng-click="modalAddPool()">
+      <span class="glyphicon glyphicon-plus-sign"></span>
+      {{'modal_add_pool'|translate}}
+    </button>
+  </span>
 </div>
 
 <table class="table table-striped table-bordered table-hover" id="apps_data" >
@@ -30,6 +36,14 @@
   <tbody>
     <tr ng-repeat="pool in pools.data | orderBy:pools.sort" class="link">		  
       <td ng-click="click_pool(pool.Id)">{{pool.Id}}</td>
+      <td>{{pool.Priority}}</td>
+      <td>{{pool.CoreLimit}}</td>
+      <td>{{pool.MemoryLimit}}</td>
+      <td>{{pool.CreatedAt}}</td>
+      <td>{{pool.UpdatedAt}}</td>
+      <td> <button ng-click="clickRemovePool(pool.Id)" class="btn btn-link">Delete</button> </td>
     </tr>
   </tbody>
 </table>
+
+<div ng-include="'/static/partials/add-pool.html'"></div>

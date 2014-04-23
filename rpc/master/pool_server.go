@@ -25,7 +25,7 @@ func (s *Server) GetPoolIPs(poolID string, reply *facade.PoolIPs) error {
 }
 
 // GetResourcePools returns all ResourcePools
-func (s *Server) GetResourcePools(empty interface{}, poolsReply *[]*pool.ResourcePool) error {
+func (s *Server) GetResourcePools(empty struct{}, poolsReply *[]*pool.ResourcePool) error {
 	pools, err := s.f.GetResourcePools(s.context())
 	if err != nil {
 		return err

@@ -1,0 +1,16 @@
+<div class="modal fade" id="poolAddVirtualIp" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <p class="header">  
+          <label for="new_pool_virtual_ip">{{'modal_pool_add_virtual_ip' | translate}}</label>
+          <input class="form-control" name="new_virtual_ip" id="new_virtual_ip" type="text" ng-model="pools.add_virtual_ip.ip" />
+        </p>
+        <p>
+          <button class="btn btn-primary" ng-click="AddVirtualIp()">Add</button>
+          <button class="btn btn-link" ng-click="CancelAddVirtualIp()">Cancel</button>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

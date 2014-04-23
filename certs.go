@@ -1,8 +1,8 @@
 package serviced
 
 import (
-    "io/ioutil"
-    "fmt"
+	"fmt"
+	"io/ioutil"
 )
 
 var (
@@ -43,23 +43,23 @@ sl9SYPJBOM7G8o1p
 // TempCertFile creates a temp file with the contents set to proxyCertPEM
 // and returns the temp file path.
 func TempCertFile() (string, error) {
-    f, err := ioutil.TempFile("", "zenoss_cert.")
-    if err != nil {
-        return "", err
-    }
-    defer f.Close()
-    fmt.Fprint(f, proxyCertPEM)
-    return f.Name(), nil
+	f, err := ioutil.TempFile("", "zenoss_cert.")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	fmt.Fprint(f, proxyCertPEM)
+	return f.Name(), nil
 }
 
 // TempKeyFile creates a temp file with the contents set to proxyCertPEM
 // and returns the temp file path.
 func TempKeyFile() (string, error) {
-    f, err := ioutil.TempFile("", "zenoss_key.")
-    if err != nil {
-        return "", err
-    }
-    defer f.Close()
-    fmt.Fprint(f, proxyKeyPEM)
-    return f.Name(), nil
+	f, err := ioutil.TempFile("", "zenoss_key.")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	fmt.Fprint(f, proxyKeyPEM)
+	return f.Name(), nil
 }

@@ -33,7 +33,7 @@ func (c *Client) Close() (err error) {
 // BuildHost creates a Host object from the current host.
 func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	hostResponse := host.New()
-	if err := c.rpcClient.Call("Master.BuildHost", request, hostResponse); err != nil {
+	if err := c.rpcClient.Call("Agent.BuildHost", request, hostResponse); err != nil {
 		return nil, err
 	}
 	return hostResponse, nil

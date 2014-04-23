@@ -10,7 +10,6 @@
 package serviced
 
 import (
-	"github.com/zenoss/serviced/dao"
 	"net/rpc"
 )
 
@@ -21,9 +20,6 @@ type AgentClient struct {
 	rpcClient *rpc.Client
 }
 
-// assert that this implemenents the Agent interface
-var _ Agent = &AgentClient{}
-
 // Create a new AgentClient.
 func NewAgentClient(addr string) (s *AgentClient, err error) {
 	s = new(AgentClient)
@@ -31,9 +27,4 @@ func NewAgentClient(addr string) (s *AgentClient, err error) {
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err
-}
-
-// Return the standard host information from the referenced agent.
-func (a *AgentClient) GetInfo(ips []string, host *dao.Host) error {
-	return a.rpcClient.Call("ControlPlaneAgent.GetInfo", ips, host)
 }

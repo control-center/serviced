@@ -29,4 +29,3 @@ func TestGetMemorySize(t *testing.T) {
 		t.Fail()
 	}
 }
-

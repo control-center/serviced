@@ -1,7 +1,7 @@
-FROM ubuntu:12.04
+FROM ubuntu:trusty
 MAINTAINER Zenoss <dev@zenoss.com>
 
-RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get upgrade -y
 

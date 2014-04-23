@@ -92,11 +92,3 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 }
-
-// The Agent interface is the API for a serviced agent.  Get the host information from an agent.
-// The ips argument is a list of IPs whose information should be included with the Host struct. If any of the IPs are
-// not valid on the host and error will be returned.  If the ips argument is empty a default IP will be chosen and returned
-// with thoe Host info
-type Agent interface {
-	GetInfo(ips []string, host *dao.Host) error
-}

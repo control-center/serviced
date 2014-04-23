@@ -17,13 +17,13 @@ import (
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/utils"
 
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -63,7 +63,7 @@ type HostAgent struct {
 }
 
 // assert that this implemenents the Agent interface
-var _ Agent = &HostAgent{}
+
 
 func getZkDSN(zookeepers []string) string {
 	if len(zookeepers) == 0 {
@@ -100,7 +100,7 @@ func NewHostAgent(master string, uiport string, dockerDns []string, varPath stri
 	agent.zkClient = zkClient
 
 	agent.closing = make(chan chan error)
-	hostId, err := HostID()
+	hostId, err := utils.HostID()
 	if err != nil {
 		panic("Could not get hostid")
 	}
@@ -667,8 +667,14 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		hostname = fmt.Sprintf("-h %s", service.Hostname)
 	}
 
+	// Add privileged flag
+	privileged := ""
+	if service.Privileged {
+		privileged = "--privileged"
+	}
+
 	proxyCmd := fmt.Sprintf("/serviced/%s proxy %s '%s'", binary, service.Id, service.Startup)
-	cmdString := fmt.Sprintf("docker run %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
+	cmdString := fmt.Sprintf("docker run %s %s %s %s -d --name=%s %s -v %s %s %s %s %s %s %s", privileged, dns, portOps, hostname, serviceState.Id, environmentVariables, volumeBinding, requestedMount, logstashForwarderMount, volumeOpts, configFiles, service.ImageId, proxyCmd)
 	glog.V(0).Infof("Starting: %s", cmdString)
 
 	a.dockerTerminate(serviceState.Id)
@@ -939,77 +945,4 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			continue
 		}
 	}
-}
-
-// GetInfo creates a Host object from the host this function is running on.
-func (a *HostAgent) GetInfo(ips []string, host *dao.Host) error {
-	hostInfo, err := CurrentContextAsHost("UNKNOWN")
-	if err != nil {
-		return err
-	}
-	if len(ips) == 0 {
-		// use the default IP of the host if specific IPs have not been requested
-		ips = append(ips, hostInfo.IpAddr)
-	}
-	hostIPs, err := getIPResources(hostInfo.Id, ips...)
-	if err != nil {
-		return err
-	}
-	hostInfo.IPs = hostIPs
-	*host = *hostInfo
-	return nil
-}
-
-// getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(hostId string, ipaddress ...string) ([]dao.HostIPResource, error) {
-
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		glog.Error("Problem reading interfaces: ", err)
-		return []dao.HostIPResource{}, err
-	}
-	//make a  of all ipaddresses to interface
-	ips := make(map[string]net.Interface)
-	for _, iface := range interfaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			glog.Error("Problem reading interfaces: ", err)
-			return []dao.HostIPResource{}, err
-		}
-		for _, ip := range addrs {
-			normalIP := strings.SplitN(ip.String(), "/", 2)[0]
-			normalIP = strings.Trim(strings.ToLower(normalIP), " ")
-
-			ips[normalIP] = iface
-		}
-	}
-
-	glog.V(4).Infof("Interfaces on this host %v", ips)
-
-	hostIPResources := make([]dao.HostIPResource, 0, len(interfaces))
-
-	validate := func(iface net.Interface, ip string) error {
-		if (uint(iface.Flags) & (1 << uint(net.FlagLoopback))) == 0 {
-			return fmt.Errorf("Loopback address %v cannot be used to register a host", ip)
-		}
-		return nil
-	}
-
-	for _, ipaddr := range ipaddress {
-		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
-		iface, found := ips[normalIP]
-		if !found {
-			return []dao.HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
-		}
-		err = validate(iface, normalIP)
-		if err != nil {
-			return []dao.HostIPResource{}, err
-		}
-		hostIp := dao.HostIPResource{}
-		hostIp.HostId = hostId
-		hostIp.IPAddress = ipaddr
-		hostIp.InterfaceName = iface.Name
-		hostIPResources = append(hostIPResources, hostIp)
-	}
-	return hostIPResources, nil
 }

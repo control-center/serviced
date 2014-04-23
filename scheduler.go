@@ -5,9 +5,10 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	//"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/facade"
 )
 
-type leaderFunc func(dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event)
+type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event)
 
 type scheduler struct {
 	conn         coordclient.Connection // the coordination service client connection
@@ -18,9 +19,10 @@ type scheduler struct {
 	shutdown     chan error             // A error is placed on this channel when the scheduler shuts down
 	started      bool                   // is the loop running
 	zkleaderFunc leaderFunc             // multiple implementations of leader function possible
+	facade       *facade.Facade
 }
 
-func NewScheduler(cluster_path string, conn coordclient.Connection, instance_id string, cpDao dao.ControlPlane) (s *scheduler, shutdown <-chan error) {
+func NewScheduler(cluster_path string, conn coordclient.Connection, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
 		conn:         conn,
 		cpDao:        cpDao,
@@ -29,6 +31,7 @@ func NewScheduler(cluster_path string, conn coordclient.Connection, instance_id 
 		closing:      make(chan chan error),
 		shutdown:     make(chan error, 1),
 		zkleaderFunc: Lead, // random scheduler implementation
+		facade:       facade,
 	}
 	return s, s.shutdown
 }
@@ -80,5 +83,5 @@ func (s *scheduler) loop() {
 		return
 	}
 	defer leader.ReleaseLead()
-	s.zkleaderFunc(s.cpDao, s.conn, events)
+	s.zkleaderFunc(s.facade, s.cpDao, s.conn, events)
 }

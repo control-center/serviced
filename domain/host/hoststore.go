@@ -7,12 +7,12 @@ package host
 import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"github.com/zenoss/glog"
 )
 
 //NewStore creates a HostStore

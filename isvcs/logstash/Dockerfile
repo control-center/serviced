@@ -1,7 +1,7 @@
-FROM ubuntu:latest
+FROM ubuntu:trusty
 MAINTAINER jhanson@zenoss.com
 
-RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/sources.list
 RUN apt-get -y update
 RUN apt-get -y upgrade
 

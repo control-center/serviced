@@ -5,12 +5,15 @@
 package elasticsearch
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/pool"
+
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -446,7 +449,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	var (
 		doReloadLogstashContainer bool
 		existingServices          []*dao.Service
-		existingPools             map[string]*dao.ResourcePool
+		existingPools             map[string]*pool.ResourcePool
 		templates                 map[string]*dao.ServiceTemplate
 		services                  []*dao.Service
 		imagesNameTags            [][]string
@@ -515,9 +518,13 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		glog.Errorf("Could not get existing services: %v", e)
 		return e
 	}
-	if e := this.GetResourcePools(request, &existingPools); e != nil {
+	if pools, e := this.facade.GetResourcePools(datastore.Get()); e != nil {
 		glog.Errorf("Could not get existing pools: %v", e)
 		return e
+	} else {
+		for _, pool := range pools {
+			existingPools[pool.ID] = pool
+		}
 	}
 	existingServiceMap := make(map[string]*dao.Service)
 	for _, service := range existingServices {

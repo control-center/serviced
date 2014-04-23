@@ -14,32 +14,16 @@ package main
 
 //svc "github.com/zenoss/serviced/svc"
 import (
-	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/dao/elasticsearch"
-	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/shell"
-	"github.com/zenoss/serviced/stats"
-	"github.com/zenoss/serviced/volume"
-	_ "github.com/zenoss/serviced/volume/btrfs"
-	_ "github.com/zenoss/serviced/volume/rsync"
-	"github.com/zenoss/serviced/web"
+	"github.com/zenoss/serviced/utils"
+	"github.com/zenoss/glog"
 
 	"flag"
 	"fmt"
-	"net"
-	"net/http"
-	"net/rpc"
 	"os"
-	"os/signal"
 	"os/user"
 	"path"
 	"strconv"
-	"strings"
-	"syscall"
-	"time"
 
-	"github.com/zenoss/glog"
 )
 
 // Store the command line options
@@ -102,7 +86,7 @@ func ensureMinimumInt(envVar string, flagName string, minimum int) {
 // Setup flag options (static block)
 func init() {
 	var err error
-	agentIP, err = serviced.GetIPAddress()
+	agentIP, err = utils.GetIPAddress()
 	if err != nil {
 		panic(err)
 	}
@@ -168,96 +152,8 @@ func compareVersion(a, b []int) int {
 
 // Start the agent or master services on this host.
 func startServer() {
-	l, err := net.Listen("tcp", options.listen)
-	if err != nil {
-		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
-	}
-
-	isvcs.Init()
-	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
-
-	dockerVersion, err := serviced.GetDockerVersion()
-	if err != nil {
-		glog.Fatalf("Could not determine docker version: %s", err)
-	}
-
-	atLeast := []int{0, 8, 1}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker >= 0.8.1")
-	}
-
-	if _, ok := volume.Registered(options.vfs); !ok {
-		glog.Fatalf("no driver registered for %s", options.vfs)
-	}
-
-	if options.master {
-		var master dao.ControlPlane
-		var err error
-		master, err = elasticsearch.NewControlSvc("localhost", 9200, options.zookeepers, options.varPath, options.vfs)
-
-		if err != nil {
-			glog.Fatalf("Could not start ControlPlane service: %v", err)
-		}
-		// register the API
-		glog.V(0).Infoln("registering ControlPlane service")
-		rpc.RegisterName("LoadBalancer", master)
-		rpc.RegisterName("ControlPlane", master)
-
-		cpserver := web.NewServiceConfig(options.uiport, options.port, options.zookeepers, options.repstats, options.hostaliases)
-		go cpserver.ServeUI()
-		go cpserver.Serve()
-	}
-	if options.agent {
-		mux := serviced.TCPMux{}
-
-		mux.CertPEMFile = options.certPEMFile
-		mux.KeyPEMFile = options.keyPEMFile
-		mux.Enabled = true
-		mux.Port = options.muxPort
-		mux.UseTLS = options.tls
-
-		_dns := strings.Split(options.dockerDns, ",")
-		agent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
-		if err != nil {
-			glog.Fatalf("Could not start ControlPlane agent: %v", err)
-		}
-		// register the API
-		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		rpc.RegisterName("ControlPlaneAgent", agent)
-
-		go func() {
-			signalChan := make(chan os.Signal, 10)
-			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-			<-signalChan
-			glog.V(0).Info("Shutting down due to interrupt")
-			err = agent.Shutdown()
-			if err != nil {
-				glog.V(1).Infof("Agent shutdown with error: %v", err)
-			}
-			isvcs.Mgr.Stop()
-			os.Exit(0)
-		}()
-
-		// TODO: Integrate this server into the rpc server, or something.
-		// Currently its only use is for command execution.
-		go func() {
-			sio := shell.NewProcessExecutorServer(options.port)
-			http.ListenAndServe(":50000", sio)
-		}()
-	}
-
-	rpc.HandleHTTP()
-
-	if options.repstats {
-		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		statsduration := time.Duration(options.statsperiod) * time.Second
-		glog.V(1).Infoln("Staring container statistics reporter")
-		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
-		defer statsReporter.Close()
-	}
-
-	glog.V(0).Infof("Listening on %s", l.Addr().String())
-	http.Serve(l, nil) // start the server
+	daemon := newDaemon()
+	daemon.start()
 }
 
 // main entry point of the product
@@ -266,7 +162,10 @@ func main() {
 	// parse the command line flags
 	flag.Parse()
 	ensureMinimumInt("ES_STARTUP_TIMEOUT", "esStartupTimeout", 30)
-
+	if len(options.zookeepers)==0{
+		options.zookeepers = []string{"127.0.0.1:2181"}
+		glog.V(4).Infof("setting zookeeprs to default %v", options.zookeepers)
+	}
 	// are we in server mode
 	if (options.master || options.agent) && len(flag.Args()) == 0 {
 		startServer()

@@ -10,9 +10,14 @@ type ShellReader struct {
 
 func (r ShellReader) Read(p []byte) (n int, err error) {
 	for n, _ = range p {
-		if b, ok := <-r.buffer; ok {
-			p[n] = b
-		} else {
+		select {
+		case b, ok := <-r.buffer:
+			if ok {
+				p[n] = b
+			} else {
+				return n, io.EOF
+			}
+		default:
 			return n, io.EOF
 		}
 	}
