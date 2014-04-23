@@ -795,7 +795,25 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.clickRemovePool = function(poolID) {
         console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
+            refreshPools($scope, resourcesService, false,
+                function(){
+                    // clear out the pool we just deleted in case it is stuck in a database index
+                    for(var i=0; i < $scope.pools.data.length; ++i){
+                        if($scope.pools.data[i].ID === poolID){
+                            $scope.pools.data.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.flattened.length; ++i){
+                        if($scope.pools.flattened[i].ID === poolID){
+                            $scope.pools.flattened.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.tree.length; ++i){
+                        if($scope.pools.tree[i].ID === poolID){
+                            $scope.pools.tree.splice(i, 1);
+                        }
+                    }
+            });
         });
     };
 
@@ -921,17 +939,17 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
                 function(){
                     // clear out the pool we just deleted in case it is stuck in a database index
                     for(var i=0; i < $scope.pools.data.length; ++i){
-                        if($scope.pools.data[i].Id === poolID){
+                        if($scope.pools.data[i].ID === poolID){
                             $scope.pools.data.splice(i, 1);
                         }
                     }
                     for(var i=0; i < $scope.pools.flattened.length; ++i){
-                        if($scope.pools.flattened[i].Id === poolID){
+                        if($scope.pools.flattened[i].ID === poolID){
                             $scope.pools.flattened.splice(i, 1);
                         }
                     }
                     for(var i=0; i < $scope.pools.tree.length; ++i){
-                        if($scope.pools.tree[i].Id === poolID){
+                        if($scope.pools.tree[i].ID === poolID){
                             $scope.pools.tree.splice(i, 1);
                         }
                     }
@@ -1094,7 +1112,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
-    console.log($scope.hosts);
 }
 
 function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
@@ -1531,17 +1548,17 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
                 function(){
                     // clear out the pool we just deleted in case it is stuck in a database index
                     for(var i=0; i < $scope.pools.data.length; ++i){
-                        if($scope.pools.data[i].Id === poolID){
+                        if($scope.pools.data[i].ID === poolID){
                             $scope.pools.data.splice(i, 1);
                         }
                     }
                     for(var i=0; i < $scope.pools.flattened.length; ++i){
-                        if($scope.pools.flattened[i].Id === poolID){
+                        if($scope.pools.flattened[i].ID === poolID){
                             $scope.pools.flattened.splice(i, 1);
                         }
                     }
                     for(var i=0; i < $scope.pools.tree.length; ++i){
-                        if($scope.pools.tree[i].Id === poolID){
+                        if($scope.pools.tree[i].ID === poolID){
                             $scope.pools.tree.splice(i, 1);
                         }
                     }
@@ -2894,7 +2911,6 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
         $scope.pools.tree = [];
 
         var flatroot = { children: [] };
-
         for (var key in allPools) {
             var p = allPools[key];
             p.collapsed = false;
