@@ -58,9 +58,9 @@ func (c *ServicedCli) snapshots(id string) []string {
 	)
 
 	if id != "" {
-		snapshots, err = c.driver.ListSnapshotsByServiceID(id)
+		snapshots, err = c.driver.GetSnapshotsByServiceID(id)
 	} else {
-		snapshots, err = c.driver.ListSnapshots()
+		snapshots, err = c.driver.GetSnapshots()
 	}
 
 	if err != nil || snapshots == nil || len(snapshots) == 0 {
@@ -101,7 +101,7 @@ func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
 func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		serviceID := ctx.Args().First()
-		if snapshots, err := c.driver.ListSnapshotsByServiceID(serviceID); err != nil {
+		if snapshots, err := c.driver.GetSnapshotsByServiceID(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if snapshots == nil || len(snapshots) == 0 {
 			fmt.Fprintln(os.Stderr, "no snapshots found")
@@ -113,7 +113,7 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 		return
 	}
 
-	if snapshots, err := c.driver.ListSnapshots(); err != nil {
+	if snapshots, err := c.driver.GetSnapshots(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")

@@ -52,14 +52,14 @@ func (c *ServicedCli) initPool() {
 
 // Returns a list of available pools
 func (c *ServicedCli) pools() (data []string) {
-	pools, err := c.driver.ListPools()
+	pools, err := c.driver.GetResourcePools()
 	if err != nil || pools == nil || len(pools) == 0 {
 		return
 	}
 
 	data = make([]string, len(pools))
 	for i, p := range pools {
-		data[i] = p.Id
+		data[i] = p.ID
 	}
 
 	return
@@ -100,7 +100,7 @@ func (c *ServicedCli) printPoolsAll(ctx *cli.Context) {
 func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		poolID := ctx.Args()[0]
-		if pool, err := c.driver.GetPool(poolID); err != nil {
+		if pool, err := c.driver.GetResourcePool(poolID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if pool == nil {
 			fmt.Fprintf(os.Stderr, "pool not found")
@@ -112,7 +112,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		return
 	}
 
-	pools, err := c.driver.ListPools()
+	pools, err := c.driver.GetResourcePools()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -131,7 +131,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		tablePool := newTable(0, 8, 2)
 		tablePool.PrintRow("ID", "PARENT", "CORE", "MEM", "PRI")
 		for _, p := range pools {
-			tablePool.PrintRow(p.Id, p.ParentId, p.CoreLimit, p.MemoryLimit, p.Priority)
+			tablePool.PrintRow(p.ID, p.ParentID, p.CoreLimit, p.MemoryLimit, p.Priority)
 		}
 		tablePool.Flush()
 	}
@@ -169,12 +169,12 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 		return
 	}
 
-	if pool, err := c.driver.AddPool(cfg); err != nil {
+	if pool, err := c.driver.AddResourcePool(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if pool == nil {
 		fmt.Fprintln(os.Stderr, "received nil resource pool")
 	} else {
-		fmt.Println(pool.Id)
+		fmt.Println(pool.ID)
 	}
 }
 
@@ -187,7 +187,7 @@ func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 	}
 
 	for _, id := range args {
-		if err := c.driver.RemovePool(args[0]); err != nil {
+		if err := c.driver.RemoveResourcePool(args[0]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
@@ -204,16 +204,16 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 		return
 	}
 
-	if ips, err := c.driver.ListPoolIPs(args[0]); err != nil {
+	if ips, err := c.driver.GetPoolIPs(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
-	} else if ips == nil || len(ips) == 0 {
+	} else if ips.HostIPs == nil || len(ips.HostIPs) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pool ips found")
 		return
 	} else {
 		tableIPs := newTable(0, 8, 2)
 		tableIPs.PrintRow("Interface Name", "IP Address")
-		for _, ip := range ips {
+		for _, ip := range ips.HostIPs {
 			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress)
 		}
 		tableIPs.Flush()

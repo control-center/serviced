@@ -15,6 +15,13 @@ type ServicedCli struct {
 
 // New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
+	var (
+		agentIP          string          = api.GetAgentIP()
+		varPath          string          = api.GetVarPath()
+		esStartupTimeout int             = api.GetESStartupTimeout()
+		dockerDNS        cli.StringSlice = api.GetDockerDNS()
+	)
+
 	c := &ServicedCli{
 		driver: driver,
 		app:    cli.NewApp(),
@@ -25,22 +32,22 @@ func New(driver api.API) *ServicedCli {
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{
-		cli.StringFlag{"port", api.GetAgentIP(), "port for remote serviced (example.com:8080)"},
+		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},
 		cli.StringFlag{"uiport", ":443", "port for ui"},
 		cli.StringFlag{"listen", ":4979", "port for local serviced (example.com:8080)"},
-		cli.StringFlag{"docker-dns", api.GetDockerDNS(), "docker dns configuration used for running containers (comma separated list)"},
+		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", 22250, "multiplexing port"},
 		cli.BoolFlag{"tls", "enable TLS"},
-		cli.StringFlag{"var", api.GetVarPath(), "path to store serviced data"},
+		cli.StringFlag{"var", varPath, "path to store serviced data"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", &cli.StringSlice{}, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &cli.StringSlice{}, "list of aliases for this host, e.g., localhost"},
-		cli.IntFlag{"es-startup-timeout", api.GetESStartupTimeout(), "time to wait on elasticsearch startup before bailing"},
+		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},
@@ -69,7 +76,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Port:             ctx.GlobalString("port"),
 		UIPort:           ctx.GlobalString("uiport"),
 		Listen:           ctx.GlobalString("listen"),
-		DockerDNS:        ctx.GlobalString("docker-dns"),
+		DockerDNS:        ctx.GlobalStringSlice("docker-dns"),
 		Master:           ctx.GlobalBool("master"),
 		Agent:            ctx.GlobalBool("agent"),
 		MuxPort:          ctx.GlobalInt("mux"),

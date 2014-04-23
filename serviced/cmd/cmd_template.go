@@ -59,7 +59,7 @@ func (c *ServicedCli) initTemplate() {
 
 // Returns a list of all available template IDs
 func (c *ServicedCli) templates() (data []string) {
-	templates, err := c.driver.ListTemplates()
+	templates, err := c.driver.GetServiceTemplates()
 	if err != nil || templates == nil || len(templates) == 0 {
 		return
 	}
@@ -120,7 +120,7 @@ func (c *ServicedCli) printTemplatesAll(ctx *cli.Context) {
 func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		templateID := ctx.Args()[0]
-		if template, err := c.driver.GetTemplate(templateID); err != nil {
+		if template, err := c.driver.GetServiceTemplate(templateID); err != nil {
 			fmt.Fprintf(os.Stderr, "error trying to retrieve template: %s\n", err)
 		} else if template == nil {
 			fmt.Fprintln(os.Stderr, "template not found")
@@ -132,7 +132,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		return
 	}
 
-	templates, err := c.driver.ListTemplates()
+	templates, err := c.driver.GetServiceTemplates()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error trying to retrieve templates: %s\n", err)
 		return
@@ -172,7 +172,7 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 		input = os.Stdin
 	}
 
-	if template, err := c.driver.AddTemplate(input); err != nil {
+	if template, err := c.driver.AddServiceTemplate(input); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
@@ -191,7 +191,7 @@ func (c *ServicedCli) cmdTemplateRemove(ctx *cli.Context) {
 	}
 
 	for _, id := range args {
-		if err := c.driver.RemoveTemplate(id); err != nil {
+		if err := c.driver.RemoveServiceTemplate(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
@@ -215,7 +215,7 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 		ManualAssignIPs: ctx.Bool("manual-assign-ips"),
 	}
 
-	if service, err := c.driver.DeployTemplate(cfg); err != nil {
+	if service, err := c.driver.DeployServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Println(service.Id)
@@ -236,7 +236,7 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 		Map: ctx.Generic("map").(*api.ImageMap),
 	}
 
-	if template, err := c.driver.CompileTemplate(cfg); err != nil {
+	if template, err := c.driver.CompileServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")

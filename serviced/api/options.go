@@ -91,18 +91,18 @@ func (m *PortMap) String() string {
 type ServiceMap map[string][]*dao.Service
 
 // Creates a new service map from a slice of services
-func NewServiceMap(services *[]dao.Service) ServiceMap {
+func NewServiceMap(services []*dao.Service) ServiceMap {
 	var m = make(ServiceMap)
-	for _, s := range *services {
-		m.Add(s)
+	for i := range services {
+		m.Add(services[i])
 	}
 	return m
 }
 
 // Appends a service to the service map
-func (m *ServiceMap) Add(service dao.Service) {
+func (m *ServiceMap) Add(service *dao.Service) {
 	list := (*m)[service.ParentServiceId]
-	(*m)[service.ParentServiceId] = append(list, &service)
+	(*m)[service.ParentServiceId] = append(list, service)
 }
 
 // Gets the services by parent id

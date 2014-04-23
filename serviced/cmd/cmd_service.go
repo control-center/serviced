@@ -115,7 +115,7 @@ func (c *ServicedCli) initService() {
 
 // Returns a list of all the available service IDs
 func (c *ServicedCli) services() (data []string) {
-	svcs, err := c.driver.ListServices()
+	svcs, err := c.driver.GetServices()
 	if err != nil || svcs == nil || len(svcs) == 0 {
 		return
 	}
@@ -227,7 +227,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		return
 	}
 
-	services, err := c.driver.ListServices()
+	services, err := c.driver.GetServices()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -243,7 +243,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
-		servicemap := api.NewServiceMap(&services)
+		servicemap := api.NewServiceMap(services)
 		tableService := newTable(0, 8, 2)
 		tableService.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
 
@@ -403,7 +403,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to start on host: %s\n", host.Id)
+		fmt.Printf("Service scheduled to start on host: %s\n", host.ID)
 	}
 }
 
@@ -492,7 +492,7 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	if snapshots, err := c.driver.ListSnapshotsByServiceID(ctx.Args().First()); err != nil {
+	if snapshots, err := c.driver.GetSnapshotsByServiceID(ctx.Args().First()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
@@ -519,30 +519,3 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		fmt.Println(snapshot)
 	}
 }
-
-/* OTHER STUFFS */
-
-// TODO: restore to parity!
-/*
-type serviceMap map[string][]*service.Service
-
-func newServiceMap(services []service.Service) (m serviceMap) {
-	for _, s := range services {
-		m[s.ParentID] = append(serviceMap[s.ParentID], &s)
-	}
-
-	return
-}
-
-func (m serviceMap) PrintTree(parentID string) {
-	t := newTable(0, 8, 2)
-	t.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-
-	nextRow := func(id string, order int) {
-		for _, s := range m[id] {
-			t.PrintRow(s.Name, s.ID, s.Startup, s.Instances, s.ImageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
-			nextRow(s.ID)
-		}
-	}
-	nextRow(parentID, 0)
-}*/

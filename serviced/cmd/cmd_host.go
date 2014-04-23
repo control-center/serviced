@@ -48,14 +48,14 @@ func (c *ServicedCli) initHost() {
 
 // Returns a list of all available host IDs
 func (c *ServicedCli) hosts() (data []string) {
-	hosts, err := c.driver.ListHosts()
+	hosts, err := c.driver.GetHosts()
 	if err != nil || hosts == nil || len(hosts) == 0 {
 		return
 	}
 
 	data = make([]string, len(hosts))
 	for i, h := range hosts {
-		data[i] = h.Id
+		data[i] = h.ID
 	}
 
 	return
@@ -126,7 +126,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		return
 	}
 
-	hosts, err := c.driver.ListHosts()
+	hosts, err := c.driver.GetHosts()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -145,7 +145,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		tableHost := newTable(0, 8, 2)
 		tableHost.PrintRow("ID", "POOL", "NAME", "ADDR", "CORES", "MEM", "NETWORK")
 		for _, h := range hosts {
-			tableHost.PrintRow(h.Id, h.PoolId, h.Name, h.IpAddr, h.Cores, h.Memory, h.PrivateNetwork)
+			tableHost.PrintRow(h.ID, h.PoolID, h.Name, h.IPAddr, h.Cores, h.Memory, h.PrivateNetwork)
 		}
 		tableHost.Flush()
 	}
@@ -177,7 +177,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Println(host.Id)
+		fmt.Println(host.ID)
 	}
 }
 
