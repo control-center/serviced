@@ -67,6 +67,8 @@
     "label_host_pool": "Grupo de Recursos",
     "label_hosts": "SERVIDORES",
     "label_hosts_search": "Buscar",
+    "label_host_kernel_version": "Versi\u00f3n del kernel",
+    "label_host_kernel_release": "Revisi\u00f3n del kernel",
     "label_owner": "Due\u00f1o",
     "label_permissions": "Permisos",
     "label_pool_created_at": "Creado en",

@@ -45,7 +45,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/pools', {
                 templateUrl: '/static/partials/view-pools.html',
                 controller: PoolsControl}).
-            when('/pools/:poolId', {
+            when('/pools/:poolID', {
                 templateUrl: '/static/partials/view-pool-details.html',
                 controller: PoolDetailsControl}).
             when('/devmode', {
@@ -327,8 +327,8 @@ function DeployWizard($scope, resourcesService) {
     }
 
     $scope.addHostFinish = function() {
-        $scope.newHost.Name = $scope.newHost.IpAddr;
-        $scope.newHost.Id = 'fakefakefake';
+        $scope.newHost.Name = $scope.newHost.IPAddr;
+        $scope.newHost.ID = 'fakefakefake';
         $scope.newHost.selected = true;
         $scope.detected_hosts.push($scope.newHost);
         $scope.step_page = $scope.steps[step].content;
@@ -404,7 +404,7 @@ function DeployWizard($scope, resourcesService) {
             dName += selected[i].Name;
 
             resourcesService.deploy_app_template({
-                PoolId: $scope.install.selected.pool,
+                poolID: $scope.install.selected.pool,
                 TemplateId: selected[i].Id,
                 DeploymentId: $scope.install.deploymentId
             }, function(result) {
@@ -435,10 +435,10 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.detected_hosts = [
-        { Name: 'Hostname A', IpAddr: '192.168.34.1', Id: 'A071BF1' },
-        { Name: 'Hostname B', IpAddr: '192.168.34.25', Id: 'B770DAD' },
-        { Name: 'Hostname C', IpAddr: '192.168.33.99', Id: 'CCD090B' },
-        { Name: 'Hostname D', IpAddr: '192.168.33.129', Id: 'DCDD3F0' }
+        { Name: 'Hostname A', IPAddr: '192.168.34.1', Id: 'A071BF1' },
+        { Name: 'Hostname B', IPAddr: '192.168.34.25', Id: 'B770DAD' },
+        { Name: 'Hostname C', IPAddr: '192.168.33.99', Id: 'CCD090B' },
+        { Name: 'Hostname D', IPAddr: '192.168.33.129', Id: 'DCDD3F0' }
     ];
     $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
 
@@ -459,11 +459,11 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-    $scope.services = buildTable('PoolId', [
+    $scope.services = buildTable('poolID', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
-        { id: 'PoolId', name: 'deployed_tbl_pool'},
+        { id: 'poolID', name: 'deployed_tbl_pool'},
         { id: 'VirtualHost', name: 'vhost_names'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
         { id: 'DesiredState', name: 'running_tbl_actions' }
@@ -525,7 +525,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
 
     var setupNewService = function() {
         $scope.newService = {
-            PoolId: 'default',
+            poolID: 'default',
             ParentServiceId: '',
             DesiredState: 1,
             Launch: 'auto',
@@ -727,7 +727,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     var setupNewService = function() {
         $scope.newService = {
-            PoolId: 'default',
+            poolID: 'default',
             ParentServiceId: $scope.params.serviceId,
             DesiredState: 1,
             Launch: 'auto',
@@ -792,9 +792,9 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
 
     // Function to remove a pool
-    $scope.clickRemovePool = function(poolId) {
-        console.log( "Click Remove pool w/id: ", poolId);
-        resourcesService.remove_pool(poolId, function(data) {
+    $scope.clickRemovePool = function(poolID) {
+        console.log( "Click Remove pool w/id: ", poolID);
+        resourcesService.remove_pool(poolID, function(data) {
             refreshPools($scope, resourcesService, false);
         });
     };
@@ -807,7 +807,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function for adding new pools - through modal
     $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
+        console.log('Adding pool %s as child of pool %s', $scope.newPool.ID, $scope.params.poolID);
         resourcesService.add_pool($scope.newPool, function(data) {
             refreshPools($scope, resourcesService, false);
         });
@@ -842,20 +842,20 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Scope methods
     $scope.clickRemoveVirtualIp = function(pool, ip) {
         console.log( "Removing pool's virtual ip address: ", pool, ip);
-        resourcesService.remove_pool_virtual_ip(pool.Id, ip, function() {
+        resourcesService.remove_pool_virtual_ip(pool.ID, ip, function() {
             refreshPools($scope, resourcesService, false);
         });
     };
 
     $scope.modalAddVirtualIp = function(pool) {
-        $scope.pools.add_virtual_ip = {'id': pool.Id, 'ip':""};
+        $scope.pools.add_virtual_ip = {'id': pool.ID, 'ip':""};
         $('#poolAddVirtualIp').modal('show');
     };
 
     $scope.AddVirtualIp = function(pool) {
-        var poolId = $scope.pools.add_virtual_ip.id;
+        var poolID = $scope.pools.add_virtual_ip.id;
         var ip = $scope.pools.add_virtual_ip.ip;
-        resourcesService.add_pool_virtual_ip(poolId, ip, function() {
+        resourcesService.add_pool_virtual_ip(poolID, ip, function() {
             $scope.pools.add_virtual_ip.ip = "";
         });
         $('#poolAddVirtualIp').modal('hide');
@@ -907,17 +907,35 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         });
         // Reset for another add
         $scope.newHost = {
-            PoolId: $scope.params.poolId
+            poolID: $scope.params.poolID
         };
     };
 
-    $scope.addSubpool = function(poolId) {
-        $scope.newPool.ParentId = poolId;
+    $scope.addSubpool = function(poolID) {
+        $scope.newPool.ParentId = poolID;
         $('#addPool').modal('show');
     };
-    $scope.delSubpool = function(poolId) {
-        resourcesService.remove_pool(poolId, function() {
-            refreshPools($scope, resourcesService, false);
+    $scope.delSubpool = function(poolID) {
+        resourcesService.remove_pool(poolID, function(data) {
+            refreshPools($scope, resourcesService, false,
+                function(){
+                    // clear out the pool we just deleted in case it is stuck in a database index
+                    for(var i=0; i < $scope.pools.data.length; ++i){
+                        if($scope.pools.data[i].Id === poolID){
+                            $scope.pools.data.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.flattened.length; ++i){
+                        if($scope.pools.flattened[i].Id === poolID){
+                            $scope.pools.flattened.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.tree.length; ++i){
+                        if($scope.pools.tree[i].Id === poolID){
+                            $scope.pools.tree.splice(i, 1);
+                        }
+                    }
+                });
         });
     };
 
@@ -950,9 +968,9 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         $location.path('/hosts/' + hostId);
     };
 
-    $scope.clickPool = function(poolId) {
-        var topPool = $scope.pools.mapped[poolId];
-        if (!topPool || $scope.selectedPool === poolId) {
+    $scope.clickPool = function(poolID) {
+        var topPool = $scope.pools.mapped[poolID];
+        if (!topPool || $scope.selectedPool === poolID) {
             $scope.clearSelectedPool();
             return;
         }
@@ -962,7 +980,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         var allowed = {};
         addChildren(allowed, topPool);
         $scope.subPools = allowed;
-        $scope.selectedPool = poolId;
+        $scope.selectedPool = poolID;
         hostCallback();
     };
 
@@ -977,7 +995,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         // Run search filter, built in
         var filtered = $filter('filter')(ordered, $scope.hosts.search);
         // Run filter for pool and child pools, custom
-        var treeFiltered = $filter('treeFilter')(filtered, 'PoolId', $scope.subPools);
+        var treeFiltered = $filter('treeFilter')(filtered, 'poolID', $scope.subPools);
 
         // As a side effect, save number of hosts before paging
         if (treeFiltered) {
@@ -1007,18 +1025,18 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
 
     $scope.dropIt = function(event, ui) {
-        var poolId = $(event.target).attr('data-pool-id');
-        var pool = $scope.pools.mapped[poolId];
+        var poolID = $(event.target).attr('data-pool-id');
+        var pool = $scope.pools.mapped[poolID];
         var host = $scope.dropped[0];
 
-        if (poolId === host.PoolId) {
+        if (poolID === host.poolID) {
             // Nothing changed. Don't bother showing the dialog.
             return;
         }
 
         $scope.move = {
             host: host,
-            newpool: poolId
+            newpool: poolID
         };
         $scope.dropped = [];
         $('#confirmMove').modal('show');
@@ -1027,15 +1045,15 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.confirmMove = function() {
         console.log('Reassigning %s to %s', $scope.move.host.Name, $scope.move.newpool);
         var modifiedHost = $.extend({}, $scope.move.host);
-        modifiedHost.PoolId = $scope.move.newpool;
-        resourcesService.update_host(modifiedHost.Id, modifiedHost, function() {
+        modifiedHost.poolID = $scope.move.newpool;
+        resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
             refreshHosts($scope, resourcesService, false, hostCallback);
         });
     };
 
     // Function for adding new pools
     $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.Id, $scope.params.poolId);
+        console.log('Adding pool %s as child of pool %s', $scope.newPool.ID, $scope.params.poolID);
         resourcesService.add_pool($scope.newPool, function(data) {
             // After adding, refresh our list
             refreshPools($scope, resourcesService, false);
@@ -1046,8 +1064,8 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function for removing the current pool
     $scope.remove_pool = function() {
-        console.log('Removing pool %s', $scope.params.poolId);
-        resourcesService.remove_pool($scope.params.poolId, function(data) {
+        console.log('Removing pool %s', $scope.params.poolID);
+        resourcesService.remove_pool($scope.params.poolID, function(data) {
             refreshPools($scope, resourcesService, false);
         });
     };
@@ -1076,6 +1094,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     refreshPools($scope, resourcesService, false);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
+    console.log($scope.hosts);
 }
 
 function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
@@ -1349,7 +1368,7 @@ function CeleryLogControl($scope, authService) {
                             }
                         }
                     }
-                }    
+                }
             }
         };
     };
@@ -1376,7 +1395,7 @@ function CeleryLogControl($scope, authService) {
                             }
                         }
                     }
-                }    
+                }
             }
         };
     };
@@ -1404,8 +1423,8 @@ function CeleryLogControl($scope, authService) {
                                 }
                             ]
                         }
-                    }          
-                }            
+                    }
+                }
             }
         };
     };
@@ -1442,7 +1461,7 @@ function CeleryLogControl($scope, authService) {
                     var hit = body.hits.hits[i]._source;
                     jobmapping[hit.jobid].exitcode = hit.exitcode;
                     jobmapping[hit.jobid].endtime = hit['@timestamp'];
-                } 
+                }
                 $scope.logs.data = jobrecords;
                 $scope.$apply();
                 $("abbr.timeago").timeago();
@@ -1502,13 +1521,31 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         { label: 'breadcrumb_hosts_map', itemClass: 'active' }
     ];
 
-    $scope.addSubpool = function(poolId) {
-        $scope.newPool.ParentId = poolId;
+    $scope.addSubpool = function(poolID) {
+        $scope.newPool.ParentId = poolID;
         $('#addPool').modal('show');
     };
-    $scope.delSubpool = function(poolId) {
-        resourcesService.remove_pool(poolId, function() {
-            refreshPools($scope, resourcesService, false);
+    $scope.delSubpool = function(poolID) {
+        resourcesService.remove_pool(poolID, function(data) {
+            refreshPools($scope, resourcesService, false,
+                function(){
+                    // clear out the pool we just deleted in case it is stuck in a database index
+                    for(var i=0; i < $scope.pools.data.length; ++i){
+                        if($scope.pools.data[i].Id === poolID){
+                            $scope.pools.data.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.flattened.length; ++i){
+                        if($scope.pools.flattened[i].Id === poolID){
+                            $scope.pools.flattened.splice(i, 1);
+                        }
+                    }
+                    for(var i=0; i < $scope.pools.tree.length; ++i){
+                        if($scope.pools.tree[i].Id === poolID){
+                            $scope.pools.tree.splice(i, 1);
+                        }
+                    }
+            });
         });
     };
     $scope.newPool = {};
@@ -1540,16 +1577,16 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         return count;
     };
 
-    $scope.clickPool = function(poolId) {
-        var topPool = $scope.pools.mapped[poolId];
-        if (!topPool || $scope.selectedPool === poolId) {
+    $scope.clickPool = function(poolID) {
+        var topPool = $scope.pools.mapped[poolID];
+        if (!topPool || $scope.selectedPool === poolID) {
             $scope.clearSelectedPool();
             return;
         }
         clearLastStyle();
         topPool.current = true;
 
-        $scope.selectedPool = poolId;
+        $scope.selectedPool = poolID;
         $scope.hosts.filteredCount = countFromPool(topPool);
         selectNewRoot(topPool);
     };
@@ -1646,7 +1683,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         hostsAddedToPools = true;
         for(var key in $scope.hosts.mapped) {
             var host = $scope.hosts.mapped[key];
-            var pool = $scope.pools.mapped[host.PoolId];
+            var pool = $scope.pools.mapped[host.poolID];
             if (pool.children === undefined) {
                 pool.children = [];
             }
@@ -2004,16 +2041,16 @@ function ResourcesService($http, $location) {
             });
     };
 
-    var _get_hosts_for_pool = function(poolId, callback) {
-        $http.get('/pools/' + poolId + '/hosts').
+    var _get_hosts_for_pool = function(poolID, callback) {
+        $http.get('/pools/' + poolID + '/hosts').
             success(function(data, status) {
-                console.log('Retrieved hosts for pool %s', poolId);
-                cached_hosts_for_pool[poolId] = data;
+                console.log('Retrieved hosts for pool %s', poolID);
+                cached_hosts_for_pool[poolID] = data;
                 callback(data);
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve hosts for pool %s', poolId);
+                console.error('Unable to retrieve hosts for pool %s', poolID);
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -2063,7 +2100,7 @@ function ResourcesService($http, $location) {
         get_running_services_for_service: function(serviceId, callback) {
             $http.get('/services/' + serviceId + '/running').
                 success(function(data, status) {
-                    console.log('Got running services for %s', serviceId);
+                    console.log('Retrieved running services for %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -2145,7 +2182,7 @@ function ResourcesService($http, $location) {
         get_running_services_for_host: function(hostId, callback) {
             $http.get('/hosts/' + hostId + '/running').
                 success(function(data, status) {
-                    console.log('Got running services for %s', hostId);
+                    console.log('Retrieved running services for %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -2202,14 +2239,14 @@ function ResourcesService($http, $location) {
         /*
          * Updates existing resource pool.
          *
-         * @param {string} poolId Unique identifier for pool to be edited.
-         * @param {object} editedPool New pool details for provided poolId.
+         * @param {string} poolID Unique identifier for pool to be edited.
+         * @param {object} editedPool New pool details for provided poolID.
          * @param {function} callback Update result passed to callback on success.
          */
-        update_pool: function(poolId, editedPool, callback) {
-            $http.put('/pools/' + poolId, editedPool).
+        update_pool: function(poolID, editedPool, callback) {
+            $http.put('/pools/' + poolID, editedPool).
                 success(function(data, status) {
-                    console.log('Updated pool %s', poolId);
+                    console.log('Updated pool %s', poolID);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -2224,13 +2261,13 @@ function ResourcesService($http, $location) {
         /*
          * Deletes existing resource pool.
          *
-         * @param {string} poolId Unique identifier for pool to be removed.
+         * @param {string} poolID Unique identifier for pool to be removed.
          * @param {function} callback Delete result passed to callback on success.
          */
-        remove_pool: function(poolId, callback) {
-            $http.delete('/pools/' + poolId).
+        remove_pool: function(poolID, callback) {
+            $http.delete('/pools/' + poolID).
                 success(function(data, status) {
-                    console.log('Removed pool %s', poolId);
+                    console.log('Removed pool %s', poolID);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -2249,7 +2286,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Add result passed to callback on success.
          */
         add_pool_virtual_ip: function(pool, ip, callback) {
-            var payload = JSON.stringify( {'PoolId':pool,'VirtualIp':ip})
+            var payload = JSON.stringify( {'poolID':pool,'VirtualIp':ip})
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip/' + ip, payload).
                 success(function(data, status) {
@@ -2272,7 +2309,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Add result passed to callback on success.
          */
         remove_pool_virtual_ip: function(pool, ip, callback) {
-            console.log('Removing pool virtual ip: PoolId:%s VirtualIp:%s', pool, ip);
+            console.log('Removing pool virtual ip: poolID:%s VirtualIp:%s', pool, ip);
             $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
                     console.log('Removed pool virtual ip');
@@ -2394,14 +2431,14 @@ function ResourcesService($http, $location) {
          * Get the list of hosts belonging to a specified pool.
          *
          * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {string} poolId Unique identifier for pool to use.
+         * @param {string} poolID Unique identifier for pool to use.
          * @param {function} callback List of hosts pass to callback on success.
          */
-        get_hosts_for_pool: function(cacheOk, poolId, callback) {
-            if (cacheOk && cached_hosts_for_pool[poolId]) {
-                callback(cached_hosts_for_pool[poolId]);
+        get_hosts_for_pool: function(cacheOk, poolID, callback) {
+            if (cacheOk && cached_hosts_for_pool[poolID]) {
+                callback(cached_hosts_for_pool[poolID]);
             } else {
-                _get_hosts_for_pool(poolId, callback);
+                _get_hosts_for_pool(poolID, callback);
             }
         },
 
@@ -2831,9 +2868,9 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
 
 function getFullPath(allPools, pool) {
     if (!allPools || !pool.ParentId || !allPools[pool.ParentId]) {
-        return pool.Id;
+        return pool.ID;
     }
-    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.Id;
+    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.ID;
 }
 
 function getServiceLineage(mappedServices, service) {
@@ -2878,12 +2915,12 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
             } else {
                 flatroot.children.push(p);
                 $scope.pools.tree.push(p);
-                p.fullPath = p.Id;
+                p.fullPath = p.ID;
             }
         }
 
-        if ($scope.params && $scope.params.poolId) {
-            $scope.pools.current = allPools[$scope.params.poolId];
+        if ($scope.params && $scope.params.poolID) {
+            $scope.pools.current = allPools[$scope.params.poolID];
             $scope.editPool = $.extend({}, $scope.pools.current);
         }
 
@@ -3057,7 +3094,7 @@ function fix_pool_paths($scope) {
     if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
         for(var i=0; i < $scope.hosts.all.length; i++) {
             var host = $scope.hosts.all[i];
-            host.fullPath = $scope.pools.mapped[host.PoolId].fullPath;
+            host.fullPath = $scope.pools.mapped[host.PoolID].fullPath;
         }
     } else {
         console.log('Unable to update host pool paths');

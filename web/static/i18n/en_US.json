@@ -75,6 +75,8 @@
     "label_host_pool": "Resource Pool",
     "label_hosts": "HOSTS",
     "label_hosts_search": "Search",
+    "label_host_kernel_version": "Kernel Version",
+    "label_host_kernel_release": "Kernel Release",
     "label_owner": "Owner",
     "label_permissions": "Permissions",
     "label_pool_id": "Pool Id",

@@ -22,7 +22,7 @@
             ng-class="itemClass(pool)">
             <span ng-class="indent(pool.zendepth)">&nbsp;</span>
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
-            <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
+            <a class="main" ng-click="clickPool(pool.ID)">{{pool.ID}}</a>
 
             <span class="dropdown extended pull-right" id="pool_menu_{{$index}}">
               <button class="btn-link glyphicon glyphicon-info-sign" popover='<table class="table table-striped"><tr><th>Description</th><td>{{pool.Description}}</td></tr><tr><th>Core Limit</th><td>{{pool.CoreLimit}}</td></tr><tr><th>Memory Limit</th><td>{{pool.MemoryLimit}}</td></tr></table>' popover-title="{{pool.Id}}"></button>
