@@ -307,6 +307,13 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	// Retrieve all service definitions
+	var request dao.EntityRequest
+	if e := this.GetServices(request, &services); e != nil {
+		glog.Errorf("Could not get services: %v", e)
+		return e
+	}
+
 	// Dump all template definitions
 	if e := this.GetServiceTemplates(0, &templates); e != nil {
 		glog.Errorf("Could not get templates: %v", e)
@@ -373,7 +380,9 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	// Dump all snapshots
 	snapshotToTgzFile := func(service *dao.Service) (filename string, err error) {
+		glog.V(2).Infof("snapshotToTgzFile(%v)", service.Id)
 		var snapshotId string
 		if e := this.Snapshot(service.Id, &snapshotId); e != nil {
 			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
@@ -400,9 +409,12 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 			glog.Errorf("Could not write %s to %s: %v", snapDir, snapFile, e)
 			return "", e
 		}
+
+		glog.V(2).Infof("Saved snapshot of service:%v from dir:%v to snapFile:%v", service.Id, snapDir, snapFile)
 		return snapFile, nil
 	}
 
+	glog.Infof("Snapshot all top level services (count:%d)", len(services))
 	for _, service := range services {
 		if service.ParentServiceId == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
