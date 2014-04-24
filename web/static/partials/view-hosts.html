@@ -31,8 +31,10 @@
           <tr>
             <th>{{'label_host_id' | translate}}</th>
             <th>{{'label_pool_name'| translate}}</th>
-            <th>{{'label_host_kernel_version' | translate}}</th>
+            <th>{{'label_host_memory' | translate}}</th>
+            <th>{{'label_host_cores' | translate}}</th>
             <th>{{'label_host_kernel_release' | translate}}</th>
+
           </tr>
           <tr ng-repeat="host in hosts.filtered">
             <td data-drag="true" ng-model="host" ng-click="clickHost(host.ID)"
@@ -40,8 +42,9 @@
                 jqyoui-draggable="{index: {{$index}}, placeholder: 'keep'}"
                 class="link">{{host.Name}}</td>
             <td>{{host.fullPath}}</td>
-              <td>{{host.KernelVersion}}</td>
-              <td>{{host.KernelRelease}}</td>
+            <td>{{host.Memory | toGB}}</td>
+            <td>{{host.Cores}}</td>
+            <td>{{host.KernelRelease}}</td>
           </tr>
         </tbody>
       </table>

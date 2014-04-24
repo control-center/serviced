@@ -132,6 +132,11 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             return items.splice(start, pageSize);
         };
     }).
+    filter('toGB', function(){
+        return function(input){
+            return (input/1073741824).toFixed(2) + " GB";
+        }
+    }).
     directive('scroll', function($rootScope, $window, $timeout) {
         return {
             link: function(scope, elem, attr) {
