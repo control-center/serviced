@@ -601,8 +601,8 @@ func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
 }
 
 // Snapshot section start
-func SnapshotRequestsPath(requestId string) string {
-	return SNAPSHOT_REQUEST_PATH + "/" + requestId
+func SnapshotRequestsPath(requestID string) string {
+	return SNAPSHOT_REQUEST_PATH + "/" + requestID
 }
 
 func (zkdao *ZkDao) AddSnapshotRequest(snapshotRequest *dao.SnapshotRequest) error {
@@ -658,43 +658,43 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	return nil
 }
 
-func (zkdao *ZkDao) LoadSnapshotRequest(requestId string, sr *dao.SnapshotRequest) error {
+func (zkdao *ZkDao) LoadSnapshotRequest(requestID string, sr *dao.SnapshotRequest) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	return LoadSnapshotRequest(conn, requestId, sr)
+	return LoadSnapshotRequest(conn, requestID, sr)
 }
 
-func LoadSnapshotRequest(conn coordclient.Connection, requestId string, sr *dao.SnapshotRequest) error {
+func LoadSnapshotRequest(conn coordclient.Connection, requestID string, sr *dao.SnapshotRequest) error {
 
 	srn := SnapShotRequestNode{}
-	err := conn.Get(SnapshotRequestsPath(requestId), &srn)
+	err := conn.Get(SnapshotRequestsPath(requestID), &srn)
 	if err != nil {
-		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestId, err)
+		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestID, err)
 		return err
 	}
 	*sr = *srn.SnapshotRequest
 	return nil
 }
 
-func (zkdao *ZkDao) LoadSnapshotRequestW(requestId string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
+func (zkdao *ZkDao) LoadSnapshotRequestW(requestID string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	return LoadSnapshotRequestW(conn, requestId, sr)
+	return LoadSnapshotRequestW(conn, requestID, sr)
 }
 
-func LoadSnapshotRequestW(conn coordclient.Connection, requestId string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
+func LoadSnapshotRequestW(conn coordclient.Connection, requestID string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
 	srn := SnapShotRequestNode{}
-	event, err := conn.GetW(SnapshotRequestsPath(requestId), &srn)
+	event, err := conn.GetW(SnapshotRequestsPath(requestID), &srn)
 	if err != nil {
-		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestId, err)
+		glog.Errorf("Unable to retrieve snapshot request %s: %v", requestID, err)
 		return nil, err
 	}
 	*sr = *srn.SnapshotRequest
@@ -733,18 +733,18 @@ func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Sna
 	return conn.Set(snapshotRequestsPath, &srn)
 }
 
-func (zkdao *ZkDao) RemoveSnapshotRequest(requestId string) error {
+func (zkdao *ZkDao) RemoveSnapshotRequest(requestID string) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	return RemoveSnapshotRequest(conn, requestId)
+	return RemoveSnapshotRequest(conn, requestID)
 }
 
-func RemoveSnapshotRequest(conn coordclient.Connection, requestId string) error {
-	snapshotRequestsPath := SnapshotRequestsPath(requestId)
+func RemoveSnapshotRequest(conn coordclient.Connection, requestID string) error {
+	snapshotRequestsPath := SnapshotRequestsPath(requestID)
 	if err := conn.Delete(snapshotRequestsPath); err != nil {
 		glog.Errorf("Unable to delete SnapshotRequest znode:%s error:%v", snapshotRequestsPath, err)
 		return err
