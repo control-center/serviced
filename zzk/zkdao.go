@@ -712,11 +712,7 @@ func (zkdao *ZkDao) UpdateSnapshotRequest(snapshotRequest *dao.SnapshotRequest) 
 }
 
 func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
-
-	srn := SnapShotRequestNode{
-		SnapshotRequest: snapshotRequest,
-	}
-
+	glog.V(3).Infof("UpdateSnapshotRequest with snapshotrequest: %+v", snapshotRequest)
 	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
 	exists, err := conn.Exists(snapshotRequestsPath)
 	if err != nil {
@@ -728,11 +724,12 @@ func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Sna
 		return AddSnapshotRequest(conn, snapshotRequest)
 	}
 
+	srn := SnapShotRequestNode{}
 	if err := conn.Get(snapshotRequestsPath, &srn); err != nil {
 		return err
 	}
 	srn.SnapshotRequest = snapshotRequest
-	glog.Infof("Setting snapshotrequest: %v, %s", srn, snapshotRequest)
+	glog.Infof("Setting snapshotrequest: %+v, %+v", srn, srn.SnapshotRequest)
 	return conn.Set(snapshotRequestsPath, &srn)
 }
 
