@@ -29,9 +29,10 @@ var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	if user.Uid == "0" {
 		return exec.Command(name, arg...), nil
 	}
-	_, e = exec.Command("sudo", "-n", "echo").CombinedOutput()
-	if e != nil {
-		return nil, e
+	cmd := exec.Command("sudo", "-n", "echo")
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to run as root cmd:%+v", cmd)
+		return nil, err
 	}
 	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
 }
@@ -42,7 +43,11 @@ var writeDirectoryToTgz = func(src, filename string) error {
 	if e != nil {
 		return e
 	}
-	return cmd.Run()
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+		return err
+	}
+	return nil
 }
 
 var writeDirectoryFromTgz = func(dest, filename string) (err error) {
@@ -67,7 +72,11 @@ var writeDirectoryFromTgz = func(dest, filename string) (err error) {
 	if e != nil {
 		return e
 	}
-	return cmd.Run()
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+		return err
+	}
+	return nil
 }
 
 var writeJsonToFile = func(v interface{}, filename string) (err error) {
@@ -382,7 +391,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 
 	// Dump all snapshots
 	snapshotToTgzFile := func(service *dao.Service) (filename string, err error) {
-		glog.V(2).Infof("snapshotToTgzFile(%v)", service.Id)
+		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
 		var snapshotId string
 		if e := this.Snapshot(service.Id, &snapshotId); e != nil {
 			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
@@ -430,6 +439,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	glog.Infof("Created backup from dir:%s to file:%s", backupPath(), backupFilePath)
 	return nil
 }
 
