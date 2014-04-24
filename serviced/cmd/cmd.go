@@ -16,10 +16,10 @@ type ServicedCli struct {
 // New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
 	var (
-		agentIP          string          = api.GetAgentIP()
-		varPath          string          = api.GetVarPath()
-		esStartupTimeout int             = api.GetESStartupTimeout()
-		dockerDNS        cli.StringSlice = api.GetDockerDNS()
+		agentIP          = api.GetAgentIP()
+		varPath          = api.GetVarPath()
+		esStartupTimeout = api.GetESStartupTimeout()
+		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
 	)
 
 	c := &ServicedCli{
@@ -65,12 +65,12 @@ func New(driver api.API) *ServicedCli {
 	return c
 }
 
-// Builds the command-line interface for serviced and runs.
+// Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
 	c.app.Run(args)
 }
 
-// Starts the server if no subcommands are called
+// cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
 		Port:             ctx.GlobalString("port"),

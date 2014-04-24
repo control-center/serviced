@@ -21,7 +21,9 @@ import (
 	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
+	// Need to do btrfs driver initializations
 	_ "github.com/zenoss/serviced/volume/btrfs"
+	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 

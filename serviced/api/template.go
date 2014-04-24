@@ -9,10 +9,7 @@ import (
 	template "github.com/zenoss/serviced/dao"
 )
 
-const ()
-
-var ()
-
+// DeployTemplateConfig is the configuration object to deploy a template
 type DeployTemplateConfig struct {
 	ID              string
 	PoolID          string
@@ -20,6 +17,7 @@ type DeployTemplateConfig struct {
 	ManualAssignIPs bool
 }
 
+// CompileTemplateConfig is the configuration object to conpile a template directory
 type CompileTemplateConfig struct {
 	Dir string
 	Map *ImageMap

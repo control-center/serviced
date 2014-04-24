@@ -9,12 +9,13 @@ import (
 	"github.com/zenoss/serviced/dao"
 )
 
-// Handles URL data
+// URL parses and handles URL typed options
 type URL struct {
 	Host string
 	Port string
 }
 
+// Set converts a URL string to a URL object
 func (u *URL) Set(value string) error {
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 {
@@ -30,9 +31,10 @@ func (u *URL) String() string {
 	return fmt.Sprintf("%s:%s", u.Host, u.Port)
 }
 
-// Mapping of docker image data
+// ImageMap parses docker image data
 type ImageMap map[string]string
 
+// Set converts a docker image mapping into an ImageMap
 func (m *ImageMap) Set(value string) error {
 	parts := strings.Split(value, ",")
 	if len(parts) != 2 {
@@ -52,9 +54,10 @@ func (m *ImageMap) String() string {
 	return strings.Join(mapping, " ")
 }
 
-// Mapping of port data
+// PortMap parses remote and local port data from the command line
 type PortMap map[string]dao.ServiceEndpoint
 
+// Set converts a port mapping string from the command line to a PortMap object
 func (m *PortMap) Set(value string) error {
 	parts := strings.Split(value, ":")
 	if len(parts) != 3 {
@@ -87,10 +90,10 @@ func (m *PortMap) String() string {
 	return strings.Join(mapping, " ")
 }
 
-// Tree Mapping of service data
+// ServiceMap maps services to their parent
 type ServiceMap map[string][]*dao.Service
 
-// Creates a new service map from a slice of services
+// NewServiceMap creates a new service map from a slice of services
 func NewServiceMap(services []*dao.Service) ServiceMap {
 	var m = make(ServiceMap)
 	for i := range services {
@@ -99,16 +102,16 @@ func NewServiceMap(services []*dao.Service) ServiceMap {
 	return m
 }
 
-// Appends a service to the service map
+// Add appends a service to the service map
 func (m *ServiceMap) Add(service *dao.Service) {
 	list := (*m)[service.ParentServiceId]
 	(*m)[service.ParentServiceId] = append(list, service)
 }
 
-// Gets the services by parent id
-func (m *ServiceMap) Get(parentId string) []*dao.Service {
+// Get procures services by parent id
+func (m *ServiceMap) Get(parentID string) []*dao.Service {
 	ss := NewServiceSlice(m.getDepths())
-	ss.services = (*m)[parentId]
+	ss.services = (*m)[parentID]
 
 	if !sort.IsSorted(ss) {
 		sort.Sort(ss)
@@ -143,20 +146,23 @@ func (m *ServiceMap) getDepths() map[string]int {
 	return depths
 }
 
-// A list of service pointers
+// ServiceSlice organizes a list of service pointers by depth and alphabetically
 type ServiceSlice struct {
 	depths   map[string]int
 	services []*dao.Service
 }
 
+// NewServiceSlice initializes a new service slice object
 func NewServiceSlice(depths map[string]int) *ServiceSlice {
 	return &ServiceSlice{depths: depths}
 }
 
-func (s *ServiceSlice) Append(service *dao.Service) {
+// Add appends a new service to the object
+func (s *ServiceSlice) Add(service *dao.Service) {
 	s.services = append(s.services, service)
 }
 
+// Get procures a service by index
 func (s *ServiceSlice) Get(i int) *dao.Service {
 	return s.services[i]
 }

@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -28,9 +29,10 @@ var proxyOptions struct {
 	logstash         bool
 }
 
+// ProxyConfig is the config object for starting a proxy server
 type ProxyConfig struct {
 	ServiceID string
-	Command   string
+	Command   []string
 }
 
 // Start a service proxy
@@ -40,7 +42,7 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
 	config.ServiceId = cfg.ServiceID
-	config.Command = cfg.Command
+	config.Command = strings.Join(cfg.Command, " ")
 
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
@@ -198,12 +200,12 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 	//setup container metric forwarder
 	go func() {
 		//loop until successfully identifying this container's tenant id
-		var tenantId string
+		var tenantID string
 		for {
 			client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 			if err == nil {
 				defer client.Close()
-				if err = client.GetTenantId(config.ServiceId, &tenantId); err != nil {
+				if err = client.GetTenantId(config.ServiceId, &tenantID); err != nil {
 					glog.Errorf("Failed to get tenant id: %s", err)
 				} else {
 					//success
@@ -215,12 +217,12 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 		}
 
 		//build metric redirect url -- assumes 8444 is port mapped
-		metric_redirect := "http://localhost:8444/api/metrics/store"
-		metric_redirect += "?controlplane_tenant_id=" + tenantId
-		metric_redirect += "&controlplane_service_id=" + config.ServiceId
+		metricRedirect := "http://localhost:8444/api/metrics/store"
+		metricRedirect += "?controlplane_tenant_id=" + tenantID
+		metricRedirect += "&controlplane_service_id=" + config.ServiceId
 
 		//build and serve the container metric forwarder
-		forwarder, _ := serviced.NewMetricForwarder(":22350", metric_redirect)
+		forwarder, _ := serviced.NewMetricForwarder(":22350", metricRedirect)
 		forwarder.Serve()
 	}()
 

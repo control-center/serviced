@@ -8,10 +8,6 @@ import (
 	"github.com/zenoss/serviced/shell"
 )
 
-const ()
-
-var ()
-
 // ShellConfig is the deserialized object from the command-line
 type ShellConfig struct {
 	ServiceID string
@@ -47,6 +43,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	return nil
 }
 
+// RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig) error {
 	service, err := a.GetService(config.ServiceID)
 	if err != nil {
@@ -54,11 +51,12 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	var command []string
-	if exec, ok := service.Runs[config.Command]; !ok {
+	exec, ok := service.Runs[config.Command]
+	if !ok {
 		return fmt.Errorf("command not found for service")
-	} else {
-		command = []string{exec}
 	}
+
+	command = append(command, exec)
 	command = append(command, config.Args...)
 
 	cfg := shell.ProcessConfig{

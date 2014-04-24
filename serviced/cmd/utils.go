@@ -14,22 +14,22 @@ import (
 	"code.google.com/p/go.crypto/ssh/terminal"
 )
 
-var tree_charset map[string]string
-var tree_utf8 map[string]string
-var tree_ascii map[string]string
+var treeCharset map[string]string
+var treeUtf8 map[string]string
+var treeASCII map[string]string
 
 func init() {
-	tree_utf8 := make(map[string]string)
-	tree_utf8["bar"] = "│ "
-	tree_utf8["middle"] = "├─"
-	tree_utf8["last"] = "└─"
+	treeUTF8 := make(map[string]string)
+	treeUTF8["bar"] = "│ "
+	treeUTF8["middle"] = "├─"
+	treeUTF8["last"] = "└─"
 
-	tree_ascii := make(map[string]string)
-	tree_ascii["bar"] = "| "
-	tree_ascii["middle"] = "|-"
-	tree_ascii["last"] = "+-"
+	treeASCII := make(map[string]string)
+	treeASCII["bar"] = "| "
+	treeASCII["middle"] = "|-"
+	treeASCII["last"] = "+-"
 
-	tree_charset = tree_utf8 // default charset for tree
+	treeCharset = treeUTF8 // default charset for tree
 }
 
 type table struct {
@@ -50,9 +50,9 @@ func (t *table) PrintRow(columns ...interface{}) {
 
 func (t *table) PrintTreeRow(lastrow bool, columns ...interface{}) {
 	t.lastrow = lastrow
-	var charset = tree_charset["middle"]
+	var charset = treeCharset["middle"]
 	if t.lastrow {
-		charset = tree_charset["last"]
+		charset = treeCharset["last"]
 	}
 	columns[0] = fmt.Sprintf("%s%s%v", strings.Join(t.indent, ""), charset, columns[0])
 	t.PrintRow(columns...)
@@ -62,7 +62,7 @@ func (t *table) Indent() {
 	if t.lastrow {
 		t.indent = append(t.indent, "  ")
 	} else {
-		t.indent = append(t.indent, tree_charset["bar"])
+		t.indent = append(t.indent, treeCharset["bar"])
 	}
 }
 

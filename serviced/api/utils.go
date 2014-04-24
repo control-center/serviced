@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	MIN_TIMEOUT     = 30
-	DEFAULT_TIMEOUT = 600
+	minTimeout     = 30
+	defaultTimeout = 600
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 	unusedInt int
 )
 
-// Returns the agent ip address
+// GetAgentIP returns the agent ip address
 func GetAgentIP() string {
 	if options.Port != "" {
 		return options.Port
@@ -33,7 +33,7 @@ func GetAgentIP() string {
 	return agentIP + ":4979"
 }
 
-// Returns the docker dns address
+// GetDockerDNS returns the docker dns address
 func GetDockerDNS() []string {
 	if len(options.DockerDNS) > 0 {
 		return options.DockerDNS
@@ -43,7 +43,7 @@ func GetDockerDNS() []string {
 	return strings.Split(dockerdns, ",")
 }
 
-// Returns the serviced varpath
+// GetVarPath returns the serviced varpath
 func GetVarPath() string {
 	if options.VarPath != "" {
 		return options.VarPath
@@ -51,14 +51,13 @@ func GetVarPath() string {
 		return path.Join(home, "var")
 	} else if user, err := user.Current(); err == nil {
 		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
-	} else {
-		return path.Join(os.TempDir(), "serviced")
 	}
+	return path.Join(os.TempDir(), "serviced")
 }
 
-// Returns the Elastic Search Startup Timeout
+// GetESStartupTimeout returns the Elastic Search Startup Timeout
 func GetESStartupTimeout() int {
-	var timeout int = 0
+	var timeout int
 
 	if t := options.ESStartupTimeout; t > 0 {
 		timeout = options.ESStartupTimeout
@@ -69,9 +68,9 @@ func GetESStartupTimeout() int {
 	}
 
 	if timeout == 0 {
-		timeout = DEFAULT_TIMEOUT
-	} else if timeout < MIN_TIMEOUT {
-		timeout = MIN_TIMEOUT
+		timeout = defaultTimeout
+	} else if timeout < minTimeout {
+		timeout = minTimeout
 	}
 
 	return timeout
@@ -79,9 +78,9 @@ func GetESStartupTimeout() int {
 
 type version []int
 
-func (v version) String() string {
-	var format = make([]string, len(v))
-	for idx, value := range v {
+func (a version) String() string {
+	var format = make([]string, len(a))
+	for idx, value := range a {
 		format[idx] = fmt.Sprintf("%d", value)
 	}
 	return strings.Join(format, ".")

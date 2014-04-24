@@ -12,6 +12,7 @@ import (
 
 var options Options
 
+// Options are the server options
 type Options struct {
 	Port             string
 	UIPort           string
@@ -38,14 +39,14 @@ type Options struct {
 	HostAliases      []string
 }
 
-// Load options overwrites the existing options
+// LoadOptions overwrites the existing server options
 func LoadOptions(ops Options) {
 	options = ops
 
 	// Check option boundaries
-	if options.ESStartupTimeout < MIN_TIMEOUT {
-		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", MIN_TIMEOUT)
-		options.ESStartupTimeout = MIN_TIMEOUT
+	if options.ESStartupTimeout < minTimeout {
+		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", minTimeout)
+		options.ESStartupTimeout = minTimeout
 	}
 }
 
