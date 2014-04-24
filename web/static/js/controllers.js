@@ -795,25 +795,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.clickRemovePool = function(poolID) {
         console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false,
-                function(){
-                    // clear out the pool we just deleted in case it is stuck in a database index
-                    for(var i=0; i < $scope.pools.data.length; ++i){
-                        if($scope.pools.data[i].ID === poolID){
-                            $scope.pools.data.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.flattened.length; ++i){
-                        if($scope.pools.flattened[i].ID === poolID){
-                            $scope.pools.flattened.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.tree.length; ++i){
-                        if($scope.pools.tree[i].ID === poolID){
-                            $scope.pools.tree.splice(i, 1);
-                        }
-                    }
-            });
+            refreshPools($scope, resourcesService, false, function(){removePool($scope, poolID)});
         });
     };
 
@@ -935,25 +917,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false,
-                function(){
-                    // clear out the pool we just deleted in case it is stuck in a database index
-                    for(var i=0; i < $scope.pools.data.length; ++i){
-                        if($scope.pools.data[i].ID === poolID){
-                            $scope.pools.data.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.flattened.length; ++i){
-                        if($scope.pools.flattened[i].ID === poolID){
-                            $scope.pools.flattened.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.tree.length; ++i){
-                        if($scope.pools.tree[i].ID === poolID){
-                            $scope.pools.tree.splice(i, 1);
-                        }
-                    }
-                });
+            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID) });
         });
     };
 
@@ -1544,25 +1508,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false,
-                function(){
-                    // clear out the pool we just deleted in case it is stuck in a database index
-                    for(var i=0; i < $scope.pools.data.length; ++i){
-                        if($scope.pools.data[i].ID === poolID){
-                            $scope.pools.data.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.flattened.length; ++i){
-                        if($scope.pools.flattened[i].ID === poolID){
-                            $scope.pools.flattened.splice(i, 1);
-                        }
-                    }
-                    for(var i=0; i < $scope.pools.tree.length; ++i){
-                        if($scope.pools.tree[i].ID === poolID){
-                            $scope.pools.tree.splice(i, 1);
-                        }
-                    }
-            });
+            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID); });
         });
     };
     $scope.newPool = {};
@@ -3210,4 +3156,23 @@ function itemClass(item) {
         cls += ' hidden';
     }
     return cls;
+}
+
+function removePool(scope, poolID){
+    // clear out the pool we just deleted in case it is stuck in a database index
+    for(var i=0; i < scope.pools.data.length; ++i){
+        if(scope.pools.data[i].ID === poolID){
+            scope.pools.data.splice(i, 1);
+        }
+    }
+    for(var i=0; i < scope.pools.flattened.length; ++i){
+        if(scope.pools.flattened[i].ID === poolID){
+            scope.pools.flattened.splice(i, 1);
+        }
+    }
+    for(var i=0; i < scope.pools.tree.length; ++i){
+        if(scope.pools.tree[i].ID === poolID){
+            scope.pools.tree.splice(i, 1);
+        }
+    }
 }
