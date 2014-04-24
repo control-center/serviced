@@ -1750,12 +1750,12 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		glog.Errorf("ControlPlaneDao.LocalSnapshot err=%s", err)
 		return err
 	}
 
 	if id, err := this.dfs.Snapshot(tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		glog.Errorf("ControlPlaneDao.LocalSnapshot err=%s", err)
 		return err
 	} else {
 		*label = id

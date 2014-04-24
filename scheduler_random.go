@@ -80,7 +80,7 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn coordclient.Connection) 
 	}
 
 	// watch for snapshot requests and perform snapshots
-	glog.V(0).Info("Leader watching for snapshot requests to ", zzk.SNAPSHOT_REQUEST_PATH)
+	glog.Info("Leader watching for snapshot requests to ", zzk.SNAPSHOT_REQUEST_PATH)
 	for {
 		requestIds, zkEvent, err := conn.ChildrenW(zzk.SNAPSHOT_REQUEST_PATH)
 		if err != nil {
@@ -104,19 +104,16 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn coordclient.Connection) 
 				continue
 			}
 
-			glog.V(0).Infof("Leader starting snapshot for request: %+v", snapshotRequest)
+			glog.Infof("Leader starting snapshot for request: %+v", snapshotRequest)
 
-			// TODO: perform snapshot request here
+			// perform snapshot request here
 			snapLabel := ""
 			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceId, &snapLabel); err != nil {
-				glog.V(0).Infof("watchSnapshotRequests: snaps.ExecuteSnapshot err=%s", err)
+				glog.Errorf("watchSnapshotRequests: cpDao.LocalSnapshot error: %s", err)
 				snapshotRequest.SnapshotError = err.Error()
-				snapshotRequest.SnapshotLabel = snapLabel
-				zzk.UpdateSnapshotRequest(conn, &snapshotRequest)
-				continue
 			}
-
 			snapshotRequest.SnapshotLabel = snapLabel
+
 			if err := zzk.UpdateSnapshotRequest(conn, &snapshotRequest); err != nil {
 				glog.Errorf("Leader unable to update snapshot request: %+v  error: %s", snapshotRequest, err)
 				snapshotRequest.SnapshotError = err.Error()
@@ -124,7 +121,7 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn coordclient.Connection) 
 				continue
 			}
 
-			glog.V(0).Infof("Leader finished snapshot for request: %+v", snapshotRequest)
+			glog.Infof("Leader finished snapshot for request: %+v", snapshotRequest)
 		}
 		select {
 		case evt := <-zkEvent:
