@@ -97,6 +97,7 @@ type Service struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
+	HostPolicy      HostPolicy
 	Hostname        string
 	Privileged      bool
 	Launch          string
@@ -185,6 +186,7 @@ type ServiceDefinition struct {
 	ImageId       string                 // Docker image hosting the service
 	Instances     MinMax                 // Constraints on the number of instances
 	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
+	HostPolicy    HostPolicy             // Policy for starting up instances
 	Hostname      string                 // Optional hostname which should be set on run
 	Privileged    bool                   // Whether to run the container with extended privileges
 	ConfigFiles   map[string]ConfigFile  // Config file templates
@@ -475,4 +477,30 @@ func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest
 		snapshotRequest.SnapshotError = ""
 	}
 	return snapshotRequest, err
+}
+
+// HostPolicy represents the optional policy used to determine which hosts on
+// which to run instances of a service. Default is to run on the available
+// host with the most uncommitted RAM.
+type HostPolicy string
+
+const (
+	DEFAULT          HostPolicy = ""
+	LEAST_COMMITTED             = "LEAST_COMMITTED"
+	PREFER_SEPARATE             = "PREFER_SEPARATE"
+	REQUIRE_SEPARATE            = "REQUIRE_SEPARATE"
+)
+
+// UnmarshalText implements the encoding/TextUnmarshaler interface
+func (p *HostPolicy) UnmarshalText(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	switch s {
+	case LEAST_COMMITTED, PREFER_SEPARATE, REQUIRE_SEPARATE:
+		*p = HostPolicy(s)
+	case "":
+		*p = DEFAULT
+	default:
+		return errors.New("Invalid HostPolicy: " + s)
+	}
+	return nil
 }
