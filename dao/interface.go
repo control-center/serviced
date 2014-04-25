@@ -135,9 +135,8 @@ type ControlPlane interface {
 	// Remove a service pool
 	RemoveResourcePool(poolId string, unused *int) error
 
-	//TODO does this belong here
-	// Get a list of all the resource pools
-	//GetResourcePool(poolId string, pool *ResourcePool) error
+	// Get a single resource pool
+	GetResourcePool(id string, pool *ResourcePool) error
 
 	// Get a list of all the resource pools
 	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
