@@ -101,7 +101,9 @@ func ExampleServicedCli_cmdHostList() {
 	//      "PrivateNetwork": "172.16.42.0/24",
 	//      "CreatedAt": "0001-01-01T00:00:00Z",
 	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "IPs": null
+	//      "IPs": null,
+	//      "KernelVersion": "",
+	//      "KernelRelease": ""
 	//    },
 	//    {
 	//      "ID": "test-host-id-2",
@@ -113,7 +115,9 @@ func ExampleServicedCli_cmdHostList() {
 	//      "PrivateNetwork": "10.0.0.1/66",
 	//      "CreatedAt": "0001-01-01T00:00:00Z",
 	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "IPs": null
+	//      "IPs": null,
+	//      "KernelVersion": "",
+	//      "KernelRelease": ""
 	//    },
 	//    {
 	//      "ID": "test-host-id-3",
@@ -125,7 +129,9 @@ func ExampleServicedCli_cmdHostList() {
 	//      "PrivateNetwork": "158.16.4.27/9090",
 	//      "CreatedAt": "0001-01-01T00:00:00Z",
 	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "IPs": null
+	//      "IPs": null,
+	//      "KernelVersion": "",
+	//      "KernelRelease": ""
 	//    }
 	//  ]
 }
