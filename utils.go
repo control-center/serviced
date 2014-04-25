@@ -82,6 +82,68 @@ func getIPAddrFromOutGoingConnection() (ip string, err error) {
 	return parts[0], nil
 }
 
+// CurrentContextAsHost creates a dao.Host object of the host running
+// this method. The passed in poolID is used as the resource pool in the result.
+func CurrentContextAsHost(poolID string) (host *dao.Host, err error) {
+	cpus := runtime.NumCPU()
+	memory, err := GetMemorySize()
+	if err != nil {
+		return nil, err
+	}
+	host = dao.NewHost()
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	host.Name = hostname
+	hostidStr, err := HostID()
+	if err != nil {
+		return nil, err
+	}
+
+	host.IpAddr, err = GetIPAddress()
+	if err != nil {
+		return host, err
+	}
+
+	host.Id = hostidStr
+	host.Cores = cpus
+	host.Memory = memory
+	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
+	if err != nil {
+		return nil, err
+	}
+
+	routes, err := RouteCmd()
+	if err != nil {
+		return nil, err
+	}
+	for _, route := range routes {
+		if route.Iface == "docker0" {
+			host.PrivateNetwork = route.Destination + "/" + route.Genmask
+			break
+		}
+	}
+
+	host.PoolId = poolID
+	return host, err
+}
+
+func getOSKernelData() (string, string, error) {
+	output, err := exec.Command("uname", "-r", "-v").Output()
+	if err != nil{
+		return "There was an error retrieving kernel data", "There was an error retrieving kernel data", err
+	}
+
+	kernelVersion, kernelRelease := parseOSKernelData(string(output))
+	return kernelVersion, kernelRelease, err
+}
+
+func parseOSKernelData(data string) (string, string){
+	parts := strings.Split(data, " ");
+	return parts[1], parts[0]
+}
+
 // ExecPath returns the path to the currently running executable.
 func ExecPath() (string, string, error) {
 	path, err := os.Readlink("/proc/self/exe")

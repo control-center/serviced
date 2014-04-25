@@ -202,7 +202,7 @@ grunt.initConfig({
 				"jquery-*.js",
 				"MIT-LICENSE.txt",
 				"README.md",
-				"Gruntfile.js",
+				"Gruntfile.js.js",
 				"package.json",
 				"*.jquery.json",
 				"ui/**/*",
@@ -335,7 +335,7 @@ grunt.initConfig({
 				jshintrc: ".jshintrc"
 			},
 			files: {
-				src: [ "Gruntfile.js", "build/**/*.js" ]
+				src: [ "Gruntfile.js.js", "build/**/*.js" ]
 			}
 		},
 		tests: {
