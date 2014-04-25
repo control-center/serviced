@@ -1,8 +1,14 @@
+/*
+PriorityQueue implementation take from golang std library container/heap documentation example
+*/
 package scheduler
 
 import (
 	"github.com/zenoss/serviced/domain/host"
 )
+
+// PriorityQueue implements the heap.Interface and holds hostitems
+type PriorityQueue []*hostitem
 
 // hostitem is what is stored in the least commited RAM scheduler's priority queue
 type hostitem struct {
@@ -10,13 +16,6 @@ type hostitem struct {
 	priority uint64 // the host's available RAM
 	index    int    // the index of the hostitem in the heap
 }
-
-// PriorityQueue implements the heap.Interface and holds hostitems
-type PriorityQueue []*hostitem
-
-/*
-PriorityQueue implementation take from golang std library container/heap documentation example
-*/
 
 // Len is the number of elements in the collection.
 func (pq PriorityQueue) Len() int {

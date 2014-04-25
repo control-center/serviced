@@ -15,26 +15,19 @@ import (
 type HostInfo interface {
 	AvailableRAM(*host.Host, chan *hostitem, <-chan bool)
 	PrioritizeByMemory([]*host.Host) ([]*host.Host, error)
-	FirstFreeHost(*dao.Service, []*host.Host) *host.Host
+	ServicesOnHost(*host.Host) []*dao.RunningService
 }
 
 type DAOHostInfo struct {
 	dao dao.ControlPlane
 }
 
-func (hi *DAOHostInfo) FirstFreeHost(svc *dao.Service, hosts []*host.Host) *host.Host {
-	for _, host := range hosts {
-		rss := []*dao.RunningService{}
-		if err := hi.dao.GetRunningServicesForHost(host.ID, &rss); err != nil {
-			glog.Errorf("cannot retrieve running services for host: %s (%v)", host.ID, err)
-		}
-		for _, rs := range rss {
-			if rs.ServiceId != svc.Id {
-				return host
-			}
-		}
+func (hi *DAOHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
+	rss := []*dao.RunningService{}
+	if err := hi.dao.GetRunningServicesForHost(h.ID, &rss); err != nil {
+		glog.Errorf("cannot retrieve running services for host: %s (%v)", h.ID, err)
 	}
-	return nil
+	return rss
 }
 
 // AvailableRAM computes the amount of RAM available on a given host by
