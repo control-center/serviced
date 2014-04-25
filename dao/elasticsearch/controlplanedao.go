@@ -1482,12 +1482,12 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) error {
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		glog.Errorf("ControlPlaneDao.LocalSnapshot err=%s", err)
 		return err
 	}
 
 	if id, err := this.dfs.Snapshot(tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.LocalSnapshot err=%s", err)
+		glog.Errorf("ControlPlaneDao.LocalSnapshot err=%s", err)
 		return err
 	} else {
 		*label = id
@@ -1521,35 +1521,33 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	//	requestId := snapshotRequest.Id
 	//	defer this.zkDao.RemoveSnapshotRequest(requestId)
 
-	glog.V(0).Infof("added snapshot request: %+v", snapshotRequest)
+	glog.Infof("added snapshot request: %+v", snapshotRequest)
 
-	// wait for completion of snapshot request
-	glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
-
-	eventChan, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
-	if err != nil {
-		return err
-	}
+	// wait for completion of snapshot request - check only once a second
+	// BEWARE: this.zkDao.LoadSnapshotRequestW does not block like it should
+	//         thus cannot use idiomatic select on eventChan and time.After() channels
 	timeOutValue := time.Second * 60
-	timeout := time.After(timeOutValue)
-	for {
-		if snapshotRequest.SnapshotError != "" {
-			glog.V(2).Infof("ControlPlaneDao: watch snapshot request err=%s", snapshotRequest.SnapshotError)
+	endTime := time.Now().Add(timeOutValue)
+	for time.Now().Before(endTime) {
+		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
+		_, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
+		switch {
+		case err != nil:
+			glog.Infof("failed snapshot request: %+v  error: %s", snapshotRequest, err)
+			return err
+		case snapshotRequest.SnapshotError != "":
+			glog.Infof("failed snapshot request: %+v  error: %s", snapshotRequest, snapshotRequest.SnapshotError)
 			return errors.New(snapshotRequest.SnapshotError)
-		} else if snapshotRequest.SnapshotLabel != "" {
+		case snapshotRequest.SnapshotLabel != "":
 			*label = snapshotRequest.SnapshotLabel
-			glog.V(1).Infof("completed snapshot request: %+v", snapshotRequest)
+			glog.Infof("completed snapshot request: %+v  label: %s", snapshotRequest, *label)
 			return nil
 		}
 
-		select {
-		case <-eventChan:
-			eventChan, err = this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
-		case <-timeout:
-			break
-		}
+		time.Sleep(1 * time.Second)
 	}
-	err = errors.New(fmt.Sprintf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest))
+
+	err = fmt.Errorf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest)
 	glog.Error(err)
 	return err
 }
