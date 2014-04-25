@@ -485,19 +485,20 @@ func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest
 type HostPolicy string
 
 const (
-	LEAST_COMMITTED  = "LEAST_COMMITTED"
-	PREFER_SEPARATE  = "PREFER_SEPARATE"
-	REQUIRE_SEPARATE = "REQUIRE_SEPARATE"
+	DEFAULT          HostPolicy = ""
+	LEAST_COMMITTED             = "LEAST_COMMITTED"
+	PREFER_SEPARATE             = "PREFER_SEPARATE"
+	REQUIRE_SEPARATE            = "REQUIRE_SEPARATE"
 )
 
 // UnmarshalText implements the encoding/TextUnmarshaler interface
 func (p *HostPolicy) UnmarshalText(b []byte) error {
 	s := strings.Trim(string(b), `"`)
-	switch HostPolicy(s) {
+	switch s {
 	case LEAST_COMMITTED, PREFER_SEPARATE, REQUIRE_SEPARATE:
 		*p = HostPolicy(s)
 	case "":
-		*p = LEAST_COMMITTED
+		*p = DEFAULT
 	default:
 		return errors.New("Invalid HostPolicy: " + s)
 	}
