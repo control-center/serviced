@@ -1116,6 +1116,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
+	svc.HostPolicy = sd.HostPolicy
 	svc.Hostname = sd.Hostname
 	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
