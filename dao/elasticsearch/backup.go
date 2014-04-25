@@ -8,11 +8,8 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/pool"
 
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,9 +30,10 @@ var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	if user.Uid == "0" {
 		return exec.Command(name, arg...), nil
 	}
-	_, e = exec.Command("sudo", "-n", "echo").CombinedOutput()
-	if e != nil {
-		return nil, e
+	cmd := exec.Command("sudo", "-n", "echo")
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to run as root cmd:%+v", cmd)
+		return nil, err
 	}
 	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
 }
@@ -46,7 +44,11 @@ var writeDirectoryToTgz = func(src, filename string) error {
 	if e != nil {
 		return e
 	}
-	return cmd.Run()
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+		return err
+	}
+	return nil
 }
 
 var writeDirectoryFromTgz = func(dest, filename string) (err error) {
@@ -71,7 +73,11 @@ var writeDirectoryFromTgz = func(dest, filename string) (err error) {
 	if e != nil {
 		return e
 	}
-	return cmd.Run()
+	if _, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+		return err
+	}
+	return nil
 }
 
 var writeJsonToFile = func(v interface{}, filename string) (err error) {
@@ -311,6 +317,13 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	// Retrieve all service definitions
+	var request dao.EntityRequest
+	if e := this.GetServices(request, &services); e != nil {
+		glog.Errorf("Could not get services: %v", e)
+		return e
+	}
+
 	// Dump all template definitions
 	if e := this.GetServiceTemplates(0, &templates); e != nil {
 		glog.Errorf("Could not get templates: %v", e)
@@ -318,17 +331,6 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	}
 	if e := writeJsonToFile(templates, backupPath("templates.json")); e != nil {
 		glog.Errorf("Could not write templates.json: %v", e)
-		return e
-	}
-
-	// Dump all service definitions
-	var request dao.EntityRequest
-	if e := this.GetServices(request, &services); e != nil {
-		glog.Errorf("Could not get services: %v", e)
-		return e
-	}
-	if e := writeJsonToFile(services, backupPath("services.json")); e != nil {
-		glog.Errorf("Could not write services.json: %v", err)
 		return e
 	}
 
@@ -388,7 +390,9 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	// Dump all snapshots
 	snapshotToTgzFile := func(service *dao.Service) (filename string, err error) {
+		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
 		var snapshotId string
 		if e := this.Snapshot(service.Id, &snapshotId); e != nil {
 			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
@@ -415,9 +419,12 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 			glog.Errorf("Could not write %s to %s: %v", snapDir, snapFile, e)
 			return "", e
 		}
+
+		glog.V(2).Infof("Saved snapshot of service:%v from dir:%v to snapFile:%v", service.Id, snapDir, snapFile)
 		return snapFile, nil
 	}
 
+	glog.Infof("Snapshot all top level services (count:%d)", len(services))
 	for _, service := range services {
 		if service.ParentServiceId == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
@@ -433,6 +440,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		return e
 	}
 
+	glog.Infof("Created backup from dir:%s to file:%s", backupPath(), backupFilePath)
 	return nil
 }
 
@@ -448,10 +456,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
-		existingServices          []*dao.Service
-		existingPools             map[string]*pool.ResourcePool
 		templates                 map[string]*dao.ServiceTemplate
-		services                  []*dao.Service
 		imagesNameTags            [][]string
 	)
 	defer func() {
@@ -492,11 +497,6 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		return e
 	}
 
-	if e := readJsonFromFile(&services, restorePath("services.json")); e != nil {
-		glog.Errorf("Could not read services from %s: %v", restorePath("services.json"), e)
-		return e
-	}
-
 	if e := readJsonFromFile(&imagesNameTags, restorePath("images.json")); e != nil {
 		glog.Errorf("Could not read images from %s: %v", restorePath("images.json"), e)
 		return e
@@ -510,58 +510,6 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 			return e
 		}
 		doReloadLogstashContainer = true
-	}
-
-	// Restore the services ...
-	var request dao.EntityRequest
-	if e := this.GetServices(request, &existingServices); e != nil {
-		glog.Errorf("Could not get existing services: %v", e)
-		return e
-	}
-	if pools, e := this.facade.GetResourcePools(datastore.Get()); e != nil {
-		glog.Errorf("Could not get existing pools: %v", e)
-		return e
-	} else {
-		for _, pool := range pools {
-			existingPools[pool.ID] = pool
-		}
-	}
-	existingServiceMap := make(map[string]*dao.Service)
-	for _, service := range existingServices {
-		existingServiceMap[service.Id] = service
-	}
-	for _, service := range services {
-		if existingService := existingServiceMap[service.Id]; existingService != nil {
-			if e := this.StopService(service.Id, unused); e != nil {
-				glog.Errorf("Could not stop service %s: %v", service.Id, e)
-				return e
-			}
-			service.PoolId = existingService.PoolId
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
-			}
-			if e := this.updateService(service); e != nil {
-				glog.Errorf("Could not update service %s: %v", service.Id, e)
-				return e
-			}
-		} else {
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
-			}
-			var serviceId string
-			if e := this.AddService(*service, &serviceId); e != nil {
-				glog.Errorf("Could not add service %s: %v", service.Id, e)
-				return e
-			}
-			if service.Id != serviceId {
-				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.Id, serviceId)
-				glog.Errorf(msg)
-				return errors.New(msg)
-			}
-			existingServiceMap[service.Id] = service
-		}
 	}
 
 	// Restore the docker images ...
@@ -624,19 +572,43 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 			continue
 		}
 		serviceId := parts[0]
-		service := existingServiceMap[serviceId]
+
+		snapFilePath := restorePath("snapshots", snapFile)
+		snapDirTemp := restorePath("snapshots", snapshotId)
+		if e := writeDirectoryFromTgz(snapDirTemp, snapFilePath); e != nil {
+			glog.Errorf("Could not write %s from %s: %v", snapDirTemp, snapFilePath, e)
+			return e
+		}
+
+		servicesPath := restorePath("snapshots", snapshotId, "services.json")
+		var services []*dao.Service
+		if e := readJsonFromFile(&services, servicesPath); e != nil {
+			glog.Errorf("Could not read services from %s: %v", servicesPath, e)
+			continue
+		}
+
+		var service *dao.Service = nil
+		for _, svc := range services {
+			if serviceId == svc.Id {
+				service = svc
+				break
+			}
+		}
 		if service == nil {
 			glog.Warningf("Could not find service %s for snapshot %s. Skipping!", serviceId, snapshotId)
 			continue
 		}
+
 		snapDir, e := getSnapshotPath(this.vfs, service.PoolId, service.Id, snapshotId)
 		if e != nil {
 			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
 			return e
 		}
-		filename := restorePath("snapshots", snapFile)
-		if e := writeDirectoryFromTgz(snapDir, filename); e != nil {
-			glog.Errorf("Could not write %s from %s: %v", snapDir, filename, e)
+
+		// TODO: mv snapDirTemp to snapDir instead of restoring a 2nd time
+		glog.Errorf("TODO: mv snapDirTemp:%s to snapDir:%s instead of duplicate untar", snapDirTemp, snapDir)
+		if e := writeDirectoryFromTgz(snapDir, snapFilePath); e != nil {
+			glog.Errorf("Could not write %s from %s: %v", snapDir, snapFilePath, e)
 			return e
 		}
 
