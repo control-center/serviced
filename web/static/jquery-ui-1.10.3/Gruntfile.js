@@ -202,7 +202,7 @@ grunt.initConfig({
 				"jquery-*.js",
 				"MIT-LICENSE.txt",
 				"README.md",
-				"Gruntfile.js.js",
+				"Gruntfile.js",
 				"package.json",
 				"*.jquery.json",
 				"ui/**/*",
