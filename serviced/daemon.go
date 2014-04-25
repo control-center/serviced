@@ -7,16 +7,17 @@ package main
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/zenoss/serviced/rpc/master"
+	"github.com/zenoss/serviced/scheduler"
 	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/utils"
@@ -49,8 +50,7 @@ type daemon struct {
 	dsContext datastore.Context
 	facade    *facade.Facade
 	hostID    string
-	zclient  *coordclient.Client
-
+	zclient   *coordclient.Client
 }
 
 func newDaemon() *daemon {
@@ -139,7 +139,7 @@ func (d *daemon) startMaster() error {
 
 	d.facade = d.initFacade()
 
-	if d.zclient, err = d.initZK(); err != nil{
+	if d.zclient, err = d.initZK(); err != nil {
 		return err
 	}
 
@@ -147,7 +147,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.facade.CreateDefaultPool(d.dsContext); err!= nil{
+	if err = d.facade.CreateDefaultPool(d.dsContext); err != nil {
 		return err
 	}
 
@@ -177,13 +177,12 @@ func (d *daemon) startAgent() error {
 	}
 	// register the API
 	glog.V(0).Infoln("registering ControlPlaneAgent service")
-	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil{
+	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 	}
-	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil{
+	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
-
 
 	go func() {
 		signalChan := make(chan os.Signal, 10)
@@ -245,7 +244,7 @@ func (d *daemon) initISVCS() error {
 	return isvcs.Mgr.Start()
 }
 
-func (d *daemon)initZK() (*coordclient.Client, error){
+func (d *daemon) initZK() (*coordclient.Client, error) {
 	dsn := coordzk.NewDSN(options.zookeepers, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
@@ -277,7 +276,7 @@ func (d *daemon) runScheduler() {
 			}
 			defer conn.Close()
 
-			sched, shutdown := serviced.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
+			sched, shutdown := scheduler.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:
