@@ -28,20 +28,6 @@ go:
 
 pkgs:
 	cd pkg && make rpm && make deb
-	
-javascipt:
-	sed -e "s/%UID%/$$(id -u)/g" -e "s/%GID%/$$(id -g)/g" < jsbuild/Dockerfile.in > jsbuild/Dockerfile && docker build -t zenoss/jsbuild jsbuild
-	$(DOCKER) rm zenossinstall 2>/dev/null || echo
-	$(DOCKER) run                \
-		--name zenossinstall     \
-		-v $$ZENHOME:/opt/zenoss \
-		-v $$SRCROOT:/mnt/src    \
-		-v $$PWD:/mnt/build      \
-		-w /mnt/build            \
-		-e SRCROOT=/mnt/src      \
-		zendev/devimg /bin/bash -c "exec /tmp/install_core.sh"
-	$(DOCKER) commit zenossinstall zendev/devimg
-	$(DOCKER) rm zenossinstall
 
 dockerbuild_binary: docker_ok
 	docker build -t zenoss/serviced-build build
