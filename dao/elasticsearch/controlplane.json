@@ -20,6 +20,8 @@
       "properties":{
         "ID" :            {"type": "string", "index":"not_analyzed"},
         "Name":           {"type": "string", "index":"not_analyzed"},
+        "KernelVersion":  {"type": "string", "index":"not_analyzed"},
+        "KernelRelease":  {"type": "string", "index":"not_analyzed"},
         "PoolId":         {"type": "string", "index":"not_analyzed"},
         "IpAddr":         {"type": "string", "index":"not_analyzed"},
         "Cores":          {"type": "long", "index":"not_analyzed"},
