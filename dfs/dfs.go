@@ -4,8 +4,9 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
-	//"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
 
 	docker "github.com/zenoss/go-dockerclient"
@@ -62,10 +63,11 @@ type DistributedFileSystem struct {
 	sync.Mutex
 	client       dao.ControlPlane
 	dockerClient *docker.Client
+	facade       *facade.Facade
 }
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
-func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, error) {
+func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade) (*DistributedFileSystem, error) {
 	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
 		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
@@ -75,6 +77,7 @@ func NewDistributedFileSystem(client dao.ControlPlane) (*DistributedFileSystem, 
 	return &DistributedFileSystem{
 		client:       client,
 		dockerClient: dockerClient,
+		facade:       facade,
 	}, nil
 }
 
@@ -427,7 +430,6 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 
 	var (
 		existingServices []*dao.Service
-		existingPools    map[string]*pool.ResourcePool
 		services         []*dao.Service
 	)
 
@@ -445,17 +447,16 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 		return e
 	}
 
-	/*
-		// TODO: populate existingPools using facade
-		if pools, e := this.facade.GetResourcePools(datastore.Get()); e != nil {
-			glog.Errorf("Could not get existing pools: %v", e)
-			return e
-		} else {
-			for _, pool := range pools {
-				existingPools[pool.ID] = pool
-			}
+	existingPools := make(map[string]*pool.ResourcePool)
+	if pools, e := d.facade.GetResourcePools(datastore.Get()); e != nil {
+		glog.Errorf("Could not get existing pools: %v", e)
+		return e
+	} else {
+		for _, pool := range pools {
+			glog.Infof("caching to existingPools: %v", pool)
+			existingPools[pool.ID] = pool
 		}
-	*/
+	}
 
 	existingServiceMap := make(map[string]*dao.Service)
 	for _, service := range existingServices {
