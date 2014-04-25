@@ -335,7 +335,7 @@ grunt.initConfig({
 				jshintrc: ".jshintrc"
 			},
 			files: {
-				src: [ "Gruntfile.js.js", "build/**/*.js" ]
+				src: [ "Gruntfile.js", "build/**/*.js" ]
 			}
 		},
 		tests: {
