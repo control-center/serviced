@@ -17,8 +17,8 @@ var DefaultTestSnapshots = []string{
 }
 
 var (
-	ErrNoServiceFound  = errors.New("no service found")
 	ErrNoSnapshotFound = errors.New("no snapshot found")
+	ErrInvalidSnapshot = errors.New("invalid snapshot")
 )
 
 type SnapshotAPITest struct {

@@ -149,7 +149,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		}
 	} else {
 		tableTemplate := newTable(0, 8, 2)
-		tableTemplate.PrintRow("TEMPLATE ID", "NAME", "DESCRIPTION")
+		tableTemplate.PrintRow("TEMPLATEID", "NAME", "DESCRIPTION")
 		for _, t := range templates {
 			tableTemplate.PrintRow(t.Id, t.Name, t.Description)
 		}
