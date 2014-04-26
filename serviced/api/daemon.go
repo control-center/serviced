@@ -17,6 +17,7 @@ import (
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
+	"github.com/zenoss/serviced/scheduler"
 	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/utils"
@@ -277,7 +278,7 @@ func (d *daemon) runScheduler() {
 			}
 			defer conn.Close()
 
-			sched, shutdown := serviced.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
+			sched, shutdown := scheduler.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:
