@@ -151,7 +151,13 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 
 	}
 
-	go a.waitForProcessToDie(conn, serviceState.DockerId, procFinished, serviceState)
+	dc, err := docker.NewClient(dockerEndpoint)
+	if err != nil {
+		glog.Errorf("can't create docker client: %v", err)
+		return false, err
+	}
+
+	go a.waitForProcessToDie(dc, conn, serviceState.DockerId, procFinished, serviceState)
 	return true, nil
 }
 
@@ -272,7 +278,7 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitForProcessToDie(conn coordclient.Connection, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
+func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Connection, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
 
 	defer func() {
 		procFinished <- 1
@@ -281,16 +287,13 @@ func (a *HostAgent) waitForProcessToDie(conn coordclient.Connection, containerId
 	exited := make(chan error)
 
 	go func() {
-		var err error
-		cmd := exec.Command("docker", "wait", containerId)
-		var output []byte
-		output, err = cmd.CombinedOutput()
+		rc, err := dc.WaitContainer(containerId)
 		if err != nil {
-			glog.Errorf("docker wait exited with: %s : %s", err, string(output))
+			glog.Errorf("docker wait exited with: %v : %d", err, rc)
 			// TODO: output of docker logs is potentially very large
 			// this should be implemented another way, perhaps a docker attach
 			// or extend docker to give the last N seconds
-			cmd = exec.Command("docker", "logs", containerId)
+			cmd := exec.Command("docker", "logs", containerId)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				glog.Errorf("Could not get logs for container %s", containerId)
@@ -309,7 +312,7 @@ func (a *HostAgent) waitForProcessToDie(conn coordclient.Connection, containerId
 		}
 		glog.Infof("docker wait %s exited", containerId)
 		// get rid of the container
-		if rmErr := exec.Command("docker", "rm", containerId).Run(); rmErr != nil {
+		if rmErr := dc.RemoveContainer(docker.RemoveContainerOptions{ID: containerId, RemoveVolumes: true}); rmErr != nil {
 			glog.Errorf("Could not remove container: %s: %s", containerId, rmErr)
 		}
 		exited <- err
@@ -604,7 +607,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, fmt.Errorf("start timed out")
 	}
 
-	go a.waitForProcessToDie(conn, ctr.ID, procFinished, serviceState)
+	go a.waitForProcessToDie(dc, conn, ctr.ID, procFinished, serviceState)
 
 	return true, nil
 }
