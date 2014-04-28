@@ -43,6 +43,9 @@ func (c *ServicedCli) initTemplate() {
 				Description:  "serviced template deploy TEMPLATEID POOLID DEPLOYMENTID",
 				BashComplete: c.printTemplateDeploy,
 				Action:       c.cmdTemplateDeploy,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"manual-assign-ips", "Manually assign IP addresses"},
+				},
 			}, {
 				Name:        "compile",
 				Usage:       "Convert a directory of service definitions into a template",
