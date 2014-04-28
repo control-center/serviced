@@ -76,7 +76,7 @@ type HostIPResource struct {
 }
 
 type VirtualIP struct {
-	//ID            string
+	Id            string
 	PoolId        string
 	IP            string
 	Netmask       string

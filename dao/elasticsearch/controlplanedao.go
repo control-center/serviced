@@ -1061,7 +1061,7 @@ func (this *ControlPlaneDao) RetrievePoolIPs(poolId string, IPsInfo *[]dao.IPInf
 	}
 	for _, virtualIP := range pool.VirtualIPs {
 		// TODO: Fill in the interface name?
-		*IPsInfo = append(*IPsInfo, dao.IPInfo{"", virtualIP.IP, "virtual"})
+		*IPsInfo = append(*IPsInfo, dao.IPInfo{virtualIP.Id, virtualIP.IP, "virtual"})
 	}
 
 	return nil
@@ -1620,6 +1620,10 @@ func (this *ControlPlaneDao) AddVirtualIp(requestedVirtualIp dao.VirtualIP, _ *s
 		return errors.New(errMsg)
 	}
 
+	// generate a UUID as a unique ID for the virtual IP
+	virtualIpuuid, _ := dao.NewUuid()
+	requestedVirtualIp.Id = virtualIpuuid
+
 	pool.VirtualIPs = append(pool.VirtualIPs, requestedVirtualIp)
 	if err := this.UpdateResourcePool(pool, nil); err != nil {
 		return err
@@ -1635,21 +1639,22 @@ func (this *ControlPlaneDao) RemoveVirtualIp(requestedVirtualIp dao.VirtualIP, _
 		return err
 	}
 
-	if err := ValidIp(requestedVirtualIp.IP); err != nil {
-		return err
-	}
-	if err := ValidIp(requestedVirtualIp.Netmask); err != nil {
-		return err
+	virtualIpExists := false
+	virtualIpToRemovePosition := 0
+	for virtualIPIndex, virtualIP := range pool.VirtualIPs {
+		if requestedVirtualIp.Id == virtualIP.Id {
+			virtualIpExists = true
+			virtualIpToRemovePosition = virtualIPIndex
+		}
 	}
 
-	ipAddressAlreadyExists, position := VirtualIPExists(requestedVirtualIp, pool.VirtualIPs)
-	if !ipAddressAlreadyExists && position == -1 {
+	if !virtualIpExists {
 		errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v as it does not exist in pool: %v", requestedVirtualIp, requestedVirtualIp.PoolId)
 		return errors.New(errMsg)
 	}
 
 	// delete the positionth element
-	pool.VirtualIPs = append(pool.VirtualIPs[:position], pool.VirtualIPs[position+1:]...)
+	pool.VirtualIPs = append(pool.VirtualIPs[:virtualIpToRemovePosition], pool.VirtualIPs[virtualIpToRemovePosition+1:]...)
 	if err := this.UpdateResourcePool(pool, nil); err != nil {
 		return err
 	}

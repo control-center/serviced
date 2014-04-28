@@ -463,8 +463,8 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 		return err
 	}
 
-	outfmt := "%-20s %-20s %-20s\n"
-	fmt.Printf(outfmt, "Interface Name", "IP Address", "Type")
+	outfmt := "%-40s %-20s %-20s\n"
+	fmt.Printf(outfmt, "Interface Name/ID", "IP Address", "Type")
 	for _, IPInfo := range IPsInfo {
 		fmt.Printf(outfmt, IPInfo.Interface, IPInfo.IP, IPInfo.Type)
 	}
@@ -489,7 +489,7 @@ func (cli *ServicedCli) CmdAddVirtualIp(args ...string) error {
 	bindInterface := cmd.Arg(3)
 	glog.Infof("Attempting to add virtual IP address %v to pool: %v", requestedIP, poolId)
 
-	requestedVirtualIP := dao.VirtualIP{poolId, requestedIP, netmask, bindInterface, ""}
+	requestedVirtualIP := dao.VirtualIP{"", poolId, requestedIP, netmask, bindInterface, ""}
 	err := controlPlane.AddVirtualIp(requestedVirtualIP, nil)
 	if err != nil {
 		glog.Fatalf("Could not add virtual IP address: %v due to: %v", requestedVirtualIP, err)
@@ -501,30 +501,28 @@ func (cli *ServicedCli) CmdAddVirtualIp(args ...string) error {
 }
 
 func (cli *ServicedCli) CmdRemoveVirtualIp(args ...string) error {
-	cmd := Subcmd("remove-virtual-ip", "[options] POOLID IPADDRESS NETMASK BINDINTERFACE", "Remove a virtual IP address from a pool")
+	cmd := Subcmd("remove-virtual-ip", "[options] POOLID VIRTUALIPID", "Remove a virtual IP address from a pool")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if len(cmd.Args()) != 4 {
+	if len(cmd.Args()) != 2 {
 		cmd.Usage()
 		return nil
 	}
 	controlPlane := getClient()
 
 	poolId := cmd.Arg(0)
-	requestedIP := cmd.Arg(1)
-	netmask := cmd.Arg(2)
-	bindInterface := cmd.Arg(3)
-	glog.Infof("Attempting to remove virtual IP address %v from pool: %v", requestedIP, poolId)
+	virtualIpId := cmd.Arg(1)
+	glog.Infof("Attempting to remove virtual IP address: %v from pool: %v", virtualIpId, poolId)
 
-	requestedVirtualIP := dao.VirtualIP{poolId, requestedIP, netmask, bindInterface, ""}
+	requestedVirtualIP := dao.VirtualIP{virtualIpId, poolId, "", "", "", ""}
 	err := controlPlane.RemoveVirtualIp(requestedVirtualIP, nil)
 	if err != nil {
-		glog.Fatalf("Could not remove virtual IP address: %v due to: %v", requestedVirtualIP, err)
+		glog.Fatalf("Could not remove virtual IP address: %v due to: %v", virtualIpId, err)
 		return err
 	}
 
-	glog.Infof("Removed virtual IP address %v from pool: %v", requestedVirtualIP, poolId)
+	glog.Infof("Removed virtual IP address %v from pool: %v", virtualIpId, poolId)
 	return nil
 }
 
