@@ -5,8 +5,8 @@
 package elastic_test
 
 import (
-	. "gopkg.in/check.v1"
 	"github.com/zenoss/serviced/datastore/elastic"
+	. "gopkg.in/check.v1"
 
 	"encoding/json"
 	"io/ioutil"
@@ -36,8 +36,8 @@ func (s *mt) TestJSON(c *C) {
 	c.Assert(len(mapping.Entries), Equals, 1)
 
 	c.Assert(mapping.Entries["properties"], NotNil)
-	var props map[string]interface {}
-	props = mapping.Entries["properties"].(map[string]interface {})
+	var props map[string]interface{}
+	props = mapping.Entries["properties"].(map[string]interface{})
 	c.Assert(len(props), Equals, 2)
 	c.Assert(props["ID"], NotNil)
 	c.Assert(props["Name"], NotNil)

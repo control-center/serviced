@@ -40,7 +40,7 @@ var unused int
 var unusedStr string
 var id string
 var addresses []string
-//var controlPlaneDao *ControlPlaneDao
+
 var err error
 
 // This plumbs gocheck into testing
@@ -106,9 +106,6 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 }
 
-
-
-	
 func (dt *DaoTest) TestDao_NewService(t *C) {
 	service := dao.Service{}
 	dt.Dao.RemoveService("default", &unused)
@@ -245,7 +242,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	dt.Dao.AddService(*s011, &id)
 	dt.Dao.AddService(*s02, &id)
 
-	if err:= dt.Dao.StartService("0", &unusedStr); err !=nil{
+	if err := dt.Dao.StartService("0", &unusedStr); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 
@@ -391,7 +388,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
 	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
-	if err != nil{
+	if err != nil {
 		t.Fatalf("Error creating host: %v", err)
 	}
 	assignIPsHost.ID = HOSTID
@@ -619,7 +616,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 
 func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
 	t.Skip("TODO: fix this test")
-	
+
 	glog.V(0).Infof("TestDao_SnapshotRequest started")
 	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
 

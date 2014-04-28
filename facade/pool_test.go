@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	. "gopkg.in/check.v1"
 
-	"fmt"
 	"time"
 )
 

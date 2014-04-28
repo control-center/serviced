@@ -56,7 +56,7 @@ type elasticDriver struct {
 	port     uint16
 	settings map[string]interface{}
 	mappings []Mapping
-	index string
+	index    string
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {

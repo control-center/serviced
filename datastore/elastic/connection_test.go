@@ -5,10 +5,10 @@
 package elastic_test
 
 import (
-	. "github.com/zenoss/serviced/datastore/elastic"
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
+	. "github.com/zenoss/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"
