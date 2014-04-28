@@ -49,7 +49,7 @@ func Test(t *testing.T) {
 }
 
 //Instantiate the gocheck suite. Initialize the DaoTest and the embedded FacadeTest
-var _ = Suite(&DaoTest{facade.FacadeTest{DomainPath: "../../domain"}, nil})
+var _ = Suite(&DaoTest{})
 
 //DaoTest gocheck test type for setting up isvcs and other resources needed by tests
 type DaoTest struct {

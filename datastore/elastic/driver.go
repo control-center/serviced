@@ -23,8 +23,7 @@ import (
 type ElasticDriver interface {
 	SetProperty(name string, prop interface{}) error
 	// AddMapping add a document mapping to be registered with ElasticSearch
-	AddMapping(name string, mapping interface{}) error
-	AddMappingFile(name string, path string) error
+	AddMapping(mapping Mapping) error
 	//Initialize the driver, register mappings with elasticserach. Timeout in ms to wait for elastic to be available.
 	Initialize(timeout time.Duration) error
 	GetConnection() (datastore.Connection, error)
@@ -32,10 +31,10 @@ type ElasticDriver interface {
 
 // New creates a new ElasticDriver
 func New(host string, port uint16, index string) ElasticDriver {
-	return new(host, port, index)
+	return newDriver(host, port, index)
 }
 
-func new(host string, port uint16, index string) *elasticDriver {
+func newDriver(host string, port uint16, index string) *elasticDriver {
 	api.Domain = host
 	api.Port = fmt.Sprintf("%v", port)
 	//TODO: singleton since elastigo doesn't support multiple endpoints
@@ -45,8 +44,7 @@ func new(host string, port uint16, index string) *elasticDriver {
 	driver.port = port
 	driver.index = index
 	driver.settings = map[string]interface{}{"number_of_shards": 1}
-	driver.mappings = make(map[string]interface{})
-	driver.mappingPaths = make(map[string]string)
+	driver.mappings = make([]Mapping, 0)
 	return driver
 }
 
@@ -54,12 +52,11 @@ func new(host string, port uint16, index string) *elasticDriver {
 var _ datastore.Driver = &elasticDriver{}
 
 type elasticDriver struct {
-	host         string
-	port         uint16
-	settings     map[string]interface{}
-	mappings     map[string]interface{}
-	mappingPaths map[string]string
-	index        string
+	host     string
+	port     uint16
+	settings map[string]interface{}
+	mappings []Mapping
+	index string
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
@@ -95,8 +92,8 @@ func (ed *elasticDriver) SetProperty(name string, prop interface{}) error {
 	return nil
 }
 
-func (ed *elasticDriver) AddMapping(name string, mapping interface{}) error {
-	ed.mappings[name] = mapping
+func (ed *elasticDriver) AddMapping(mapping Mapping) error {
+	ed.mappings = append(ed.mappings, mapping)
 	return nil
 }
 
@@ -110,22 +107,29 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 	glog.V(4).Infof("AddMappingsFiles: content %v", string(bytes))
 
 	type mapFile struct {
-		Mappings map[string]interface{}
-		Settings interface{}
+		Mappings map[string]map[string]interface{}
+		Settings map[string]interface{}
 	}
 	var allMappings mapFile
 	err = json.Unmarshal(bytes, &allMappings)
 	if err != nil {
 		return err
 	}
-	for key, mapping := range allMappings.Mappings {
-		ed.AddMapping(key, mapping)
+	for key, val := range allMappings.Settings {
+		ed.settings[key] = val
 	}
-	return nil
-}
+	for key, mapping := range allMappings.Mappings {
 
-func (ed *elasticDriver) AddMappingFile(name string, path string) error {
-	ed.mappingPaths[name] = path
+		var rawMapping = make(map[string]map[string]interface{})
+		rawMapping[key] = mapping
+		if value, err := newMapping(rawMapping); err != nil {
+			glog.Errorf("%v; could not create mapping from: %v", err, rawMapping)
+			return err
+		} else {
+			ed.AddMapping(value)
+		}
+	}
+
 	return nil
 }
 
@@ -186,30 +190,17 @@ func (ed *elasticDriver) postMappings() error {
 		return nil
 	}
 
-	for typeName, path := range ed.mappingPaths {
-		bytes, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		glog.V(4).Infof("mappping %v to  %v", path, string(bytes))
-		err = post(typeName, bytes)
-		if err != nil {
-			return err
-		}
-	}
-
-	for typeName, mapping := range ed.mappings {
+	for _, mapping := range ed.mappings {
 		mappingBytes, err := json.Marshal(mapping)
 		if err != nil {
 			return err
 		}
 
-		glog.V(4).Infof("mappping %v to  %v", typeName, string(mappingBytes))
-		err = post(typeName, mappingBytes)
+		glog.V(4).Infof("mappping %v to  %v", mapping.Name, string(mappingBytes))
+		err = post(mapping.Name, mappingBytes)
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil

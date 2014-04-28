@@ -2,9 +2,10 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package elastic
+package elastic_test
 
 import (
+	. "github.com/zenoss/serviced/datastore/elastic"
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"

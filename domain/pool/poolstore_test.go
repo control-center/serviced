@@ -21,7 +21,7 @@ func Test(t *testing.T) {
 var _ = Suite(&S{
 	ElasticTest: elastic.ElasticTest{
 		Index:    "controlplane",
-		Mappings: map[string]string{"pool": "./pool_mapping.json"},
+		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
@@ -88,7 +88,7 @@ func (s *S) Test_GetPools(t *C) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(2000*time.Millisecond)
 	pools, err = s.ps.GetResourcePools(s.ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -102,7 +102,7 @@ func (s *S) Test_GetPools(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(2000*time.Millisecond)
 	pools, err = s.ps.GetResourcePools(s.ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

@@ -8,6 +8,8 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
 	gocheck "gopkg.in/check.v1"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 )
 
 //FacadeTest used for running tests where a facade type is needed.
@@ -15,21 +17,17 @@ type FacadeTest struct {
 	elastic.ElasticTest
 	CTX        datastore.Context
 	Facade     *Facade
-	DomainPath string
 }
 
 //SetUpSuite sets up test suite
 func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
-	if ft.DomainPath == "" {
-		ft.DomainPath = "../domain"
-	}
 	if ft.Mappings == nil {
-		ft.Mappings = make(map[string]string)
+		ft.Mappings = make([]elastic.Mapping,0)
 	}
-	ft.Mappings["host"] = ft.DomainPath + "/host/host_mapping.json"
-	ft.Mappings["resourcepool"] = ft.DomainPath + "/pool/pool_mapping.json"
+	ft.Mappings = append(ft.Mappings, host.MAPPING)
+	ft.Mappings = append(ft.Mappings, pool.MAPPING)
 
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
