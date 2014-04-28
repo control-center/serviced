@@ -5,8 +5,8 @@
 package elasticsearch
 
 import (
-	. "gopkg.in/check.v1"
 	"github.com/zenoss/serviced/dao"
+	. "gopkg.in/check.v1"
 
 	"fmt"
 	"io"
@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-type log interface{
+type log interface {
 	Log(args ...interface{})
 }
 
@@ -229,9 +229,8 @@ func get_docker_image_tags(t log, imageId string) (map[string]bool, error) {
 	return nil, fmt.Errorf("No such docker image: %s", imageId)
 }
 
-
 func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
-	t.Skip("TODO: fix this test")	
+	t.Skip("TODO: fix this test")
 	var (
 		unused         int
 		request        dao.EntityRequest
@@ -356,7 +355,9 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	}
 	defer os.RemoveAll(otherFile)
 
-	dt.Dao.Restore(backupFilePath, &unused)
+	if e := dt.Dao.Restore(backupFilePath, &unused); e != nil {
+		t.Fatalf("Failed restore from backup %s  error: %s", backupFilePath, e)
+	}
 
 	// Check: old docker image still there, no new docker images
 	currentImageIds, e := all_docker_images(t)

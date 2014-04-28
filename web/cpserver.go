@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
@@ -27,11 +26,8 @@ type ServiceConfig struct {
 	hostaliases []string
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases string) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string) *ServiceConfig {
 	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats, []string{}}
-	if hostaliases != "" {
-		cfg.hostaliases = strings.Split(hostaliases, ":")
-	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
