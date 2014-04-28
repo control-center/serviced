@@ -59,6 +59,60 @@ func (a *api) GetService(id string) (*service.Service, error) {
 	return &s, nil
 }
 
+// Gets the service definition identified by its service Name
+func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
+	allServices, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*service.Service
+	for i, s := range allServices {
+		if s.Name == name {
+			services = append(services, allServices[i])
+		}
+	}
+
+	return services, nil
+}
+
+// Gets the service states for a service identified by its service ID
+func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var states []*service.ServiceState
+	if err := client.GetServiceStates(id, &states); err != nil {
+		return nil, err
+	}
+
+	return states, nil
+}
+
+// Gets the service states for a service identified by the docker ID
+func (a *api) GetServiceStatesByDockerID(id string) (*service.ServiceState, error) {
+	services, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range services {
+		states, err := a.GetServiceStatesByServiceID(s.Id)
+		if err != nil {
+			return nil, err
+		}
+		for i, ss := range states {
+			if ss.DockerId == id {
+				return states[i], nil
+			}
+		}
+	}
+
+	return nil, nil
+}
+
 // Adds a new service
 func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	client, err := a.connectDAO()

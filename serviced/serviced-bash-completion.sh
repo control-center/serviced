@@ -1,5 +1,7 @@
 #! /bin/bash
 
+PROG=serviced
+
 _cli_bash_autocomplete() {
      local cur prev opts base
      COMPREPLY=()
@@ -8,6 +10,6 @@ _cli_bash_autocomplete() {
      opts=$( ${COMP_WORDS[@]:0:COMP_CWORD} --generate-bash-completion )
      COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
      return 0
- }
+}
   
- complete -F _cli_bash_autocomplete $PROG
+complete -F _cli_bash_autocomplete $PROG
