@@ -146,6 +146,11 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
 
 func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
 	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, pool.ID)
+
+	if err != nil {
+		return err
+	}
+
 	coreCapacity := 0
 	memCapacity := uint64(0)
 	for _, host := range hosts {

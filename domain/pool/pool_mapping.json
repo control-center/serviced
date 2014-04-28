@@ -32,6 +32,14 @@
             "UpdatedAt": {
                 "type": "date",
                 "format": "dateOptionalTime"
+            },
+            "CoreCapacity": {
+                "type": "long",
+                "format": "not_analyzed"
+            },
+            "MemoryCapacity": {
+                "type": "long",
+                "format": "not_analyzed"
             }
         }
     }
