@@ -165,6 +165,7 @@ func (this *ServiceConfig) ServeUI() {
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
+
 	routes := this.getRoutes()
 	handler.SetRoutes(routes...)
 

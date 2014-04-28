@@ -67,7 +67,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "a2eac79392188053422ed0d0a270f2235cf17776"
+			"Rev": "7260ad6fc4187824ee7f57d4d14ad447301a25eb"
 		},
 		{
 			"ImportPath": "github.com/rcrowley/go-metrics",

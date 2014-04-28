@@ -22,6 +22,8 @@ type Host struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	IPs            []HostIPResource // The static IP resources available on the host
+	KernelVersion  string
+	KernelRelease  string
 }
 
 //HostIPResource contains information about a specific IP available as a resource
@@ -61,5 +63,11 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	}
 	host.IPs = hostIPs
 	*host = *host
+
+	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
+	if err != nil {
+		return nil, err
+	}
+
 	return host, nil
 }

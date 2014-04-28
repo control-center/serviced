@@ -37,6 +37,15 @@ func sendMuxError(conn net.Conn, source, facility, msg string, err error) {
 	}
 }
 
+// sendMuxWarning logs an error message and attempts to write it to the connected
+// endpoint
+func sendMuxWarning(conn net.Conn, source, facility, msg string, err error) {
+	glog.Warningf("%s Error (%s): %v\n", source, facility, err)
+	if _, e := conn.Write([]byte(msg)); e != nil {
+		glog.Warningf("%s", e)
+	}
+}
+
 // muxConnection takes an inbound connection reads MIME headers from it and
 // then attempts to set up a connection to the service specified by the
 // Zen-Service header. If the Zen-Service header is missing or the requested
@@ -68,7 +77,7 @@ func (mux TCPMux) MuxConnection(conn net.Conn) {
 
 	svc, err := net.Dial("tcp4", fmt.Sprintf("172.17.42.1:%d", port))
 	if err != nil {
-		sendMuxError(conn, "MuxConnection", "net.Dial", "cannot connect to service", err)
+		sendMuxWarning(conn, "MuxConnection", "net.Dial", "cannot connect to service", err)
 		conn.Close()
 		return
 	}
