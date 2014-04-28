@@ -30,20 +30,7 @@ type ServiceDefinition struct {
 	Actions       map[string]string // Map of commands that can be executed with 'serviced action ...'
 }
 
-type HostIpAndPort struct {
-	HostIp   string
-	HostPort string
-}
 
-type User struct {
-	Name     string // the unique identifier for a user
-	Password string // no requirements on passwords yet
-}
-
-type MinMax struct {
-	Min int
-	Max int
-}
 
 // Desired states of services.
 const (
@@ -137,24 +124,4 @@ type ServiceDeployment struct {
 	TemplateId string    // id of template being deployed
 	ServiceId  string    // id of service created by deployment
 	DeployedAt time.Time // when the template was deployed
-}
-
-// An instantiation of a Snapshot request
-type SnapshotRequest struct {
-	Id            string
-	ServiceId     string
-	SnapshotLabel string
-	SnapshotError string
-}
-
-// A new snapshot request instance (SnapshotRequest)
-func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
-	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.Id, err = utils.NewUuid()
-	if err == nil {
-		snapshotRequest.ServiceId = serviceId
-		snapshotRequest.SnapshotLabel = snapshotLabel
-		snapshotRequest.SnapshotError = ""
-	}
-	return snapshotRequest, err
 }
