@@ -785,8 +785,8 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.pools = buildTable('Id', [
         { id: 'Id', name: 'pools_tbl_id'},
         { id: 'Priority', name: 'pools_tbl_priority'},
-        { id: 'CoreLimit', name: 'pools_tbl_core_limit'},
-        { id: 'MemoryLimit', name: 'pools_tbl_memory_limit'},
+        { id: 'CoreLimit', name: 'pools_tbl_core_capacity'},
+        { id: 'MemoryLimit', name: 'pools_tbl_memory_capacity'},
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
         { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
         { id: 'Actions', name: 'pools_tbl_actions'}
