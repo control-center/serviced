@@ -31,8 +31,8 @@ var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 		return exec.Command(name, arg...), nil
 	}
 	cmd := exec.Command("sudo", "-n", "echo")
-	if _, err := cmd.CombinedOutput(); err != nil {
-		glog.Errorf("Unable to run as root cmd:%+v", cmd)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to run as root cmd:%+v  error:%v  output:%s", cmd, err, string(output))
 		return nil, err
 	}
 	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
@@ -44,8 +44,8 @@ var writeDirectoryToTgz = func(src, filename string) error {
 	if e != nil {
 		return e
 	}
-	if _, err := cmd.CombinedOutput(); err != nil {
-		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd:%+v  error:%v  output:%s", cmd, err, string(output))
 		return err
 	}
 	return nil
@@ -73,8 +73,8 @@ var writeDirectoryFromTgz = func(dest, filename string) (err error) {
 	if e != nil {
 		return e
 	}
-	if _, err := cmd.CombinedOutput(); err != nil {
-		glog.Errorf("Unable to writeDirectoryToTgz cmd: %+v", cmd)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to writeDirectoryToTgz cmd:%+v  error:%v  output:%s", cmd, err, string(output))
 		return err
 	}
 	return nil
