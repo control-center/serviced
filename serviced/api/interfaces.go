@@ -42,6 +42,7 @@ type API interface {
 	StartService(string) (*host.Host, error)
 	StopService(string) error
 	AssignIP(IPConfig) ([]service.AddressAssignment, error)
+	ServiceAttach(ServiceAttachConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error

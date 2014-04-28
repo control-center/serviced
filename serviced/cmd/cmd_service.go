@@ -97,6 +97,12 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 				},
 			}, {
+				Name:         "attach",
+				Usage:        "Attaches to a service instance",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID } COMMAND",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceAttach,
+			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
 				Description:  "serviced service list-snapshots SERVICEID",
@@ -482,6 +488,27 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	return fmt.Errorf("serviced service run")
+}
+
+// serviced service attach { SERVICEID | SERVICENAME | DOCKERID } COMMAND
+func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.  attach needs at least 2 args\n\n")
+		cli.ShowCommandHelp(ctx, "attach")
+		return nil
+	}
+
+	cfg := api.ServiceAttachConfig{
+		ServiceSpec: ctx.Args().First(),
+		Command:     strings.Join(ctx.Args().Tail(), " "),
+	}
+
+	if err := c.driver.ServiceAttach(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service attach")
 }
 
 // serviced service list-snapshot SERVICEID
