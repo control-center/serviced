@@ -59,4 +59,8 @@ type API interface {
 	RemoveServiceTemplate(string) error
 	CompileServiceTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
 	DeployServiceTemplate(DeployTemplateConfig) (*service.Service, error)
+
+	// Backup & Restore
+	Backup(string) (string, error)
+	Restore(string) error
 }

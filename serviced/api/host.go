@@ -5,10 +5,6 @@ import (
 	"github.com/zenoss/serviced/rpc/agent"
 )
 
-const ()
-
-var ()
-
 // HostConfig is the deserialized object from the command-line
 type HostConfig struct {
 	Address *URL
