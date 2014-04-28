@@ -80,6 +80,13 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 	if err != nil {
 		return nil, err
 	}
+
+	f.calcPoolCapacity(ctx, &entity)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &entity, nil
 }
 
@@ -112,7 +119,13 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 
 //GetResourcePools Returns a list of all ResourcePools
 func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, error) {
-	return f.poolStore.GetResourcePools(ctx)
+	pools, err := f.poolStore.GetResourcePools(ctx)
+
+	for _, pool := range pools {
+		f.calcPoolCapacity(ctx, pool)
+	}
+
+	return pools, err
 }
 
 //CreateDefaultPool creates the default pool if it does not exists, it is idempotent
@@ -129,6 +142,21 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
 	glog.V(4).Infof("'%s' resource pool not found; creating...", defaultPoolID)
 	entity = pool.New(defaultPoolID)
 	return f.AddResourcePool(ctx, entity)
+}
+
+func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
+	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, pool.ID)
+	coreCapacity := 0
+	memCapacity := uint64(0)
+	for _, host := range hosts {
+		coreCapacity = coreCapacity + host.Cores;
+		memCapacity = memCapacity + host.Memory;
+	}
+
+	pool.CoreCapacity = coreCapacity
+	pool.MemoryCapacity = memCapacity
+
+	return err
 }
 
 var defaultPoolID = "default"
