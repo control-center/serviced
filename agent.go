@@ -583,7 +583,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	emc := make(chan struct{})
 
 	s.Handle(docker.Start, func(e docker.Event) error {
-		glog.V(3).Infof("container %s started", e["id"])
+		glog.V(1).Infof("container %s starting", e["id"])
 		emc <- struct{}{}
 		return nil
 	})
@@ -598,11 +598,13 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	tout := time.After(10 * time.Second)
 	select {
 	case <-emc:
-		glog.V(3).Infof("container %s started", ctr.ID)
+		glog.V(1).Infof("container %s started", ctr.ID)
 	case <-tout:
 		glog.Errorf("container start timed out")
 		return false, fmt.Errorf("start timed out")
 	}
+
+	go a.waitForProcessToDie(conn, ctr.ID, procFinished, serviceState)
 
 	return true, nil
 }
