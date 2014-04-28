@@ -40,7 +40,12 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 	}
 
 	req := agent.BuildHostRequest{
-		IP:          config.Address.String(),
+		// HACK BEGIN: domain/host HostAdd fails when IP is set to IP_ADDR:PORT
+		//			when given config.Address.String().  As a temporary workaround,
+		//			simply pass IP_ADDR via config.Address.Host
+		IP: config.Address.Host,
+		// HACK END
+
 		PoolID:      config.PoolID,
 		IPResources: config.IPs,
 	}
