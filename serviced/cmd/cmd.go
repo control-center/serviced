@@ -29,6 +29,7 @@ func New(driver api.API) *ServicedCli {
 
 	c.app.Name = "serviced"
 	c.app.Usage = "A container-based management system"
+	c.app.Version = "1.0.0"
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{
@@ -61,6 +62,7 @@ func New(driver api.API) *ServicedCli {
 	c.initTemplate()
 	c.initService()
 	c.initSnapshot()
+	c.initBackup()
 
 	return c
 }
