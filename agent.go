@@ -9,6 +9,8 @@
 package serviced
 
 import (
+	"regexp"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
@@ -21,6 +23,7 @@ import (
 
 	docker "github.com/zenoss/go-dockerclient"
 
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -534,26 +537,40 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
+	cjson, _ := json.MarshalIndent(config, "", "     ")
+	glog.V(3).Infof(">>> CreateContainerOptions:\n%s", string(cjson))
+
+	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
+	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
+
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
 	case err == docker.ErrNoSuchImage:
+		// get rid of the snapshot UUID from the ImageID before trying to pull it
+		re := regexp.MustCompile("(?P<head>[[:alpha:]\\.]+\\/[[:alpha:]]+\\/)[[:alpha:][:digit:]-]+_(?P<tail>[[:alnum:]-]+)")
+		if ok := re.MatchString(service.ImageId); !ok {
+			glog.Errorf("can't determine repo from image id %s: %v", service.ImageId, err)
+			return false, err
+		}
+		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageId, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
+
 		pullopts := docker.PullImageOptions{
-			Repository:   service.ImageId,
+			Repository:   repo,
 			OutputStream: os.NewFile(uintptr(syscall.Stdout), "/dev/stdout"),
 		}
 		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
 		if pullerr != nil {
-			glog.Errorf("can't pull container: %v", err)
+			glog.Errorf("can't pull container %s: %v", service.ImageId, err)
 			return false, err
 		}
 
 		ctr, err = dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 		if err != nil {
-			glog.Errorf("can't create containter after pulling: %v", err)
+			glog.Errorf("can't create containter after pulling %v: %v", config, err)
 			return false, err
 		}
 	case err != nil:
-		glog.Errorf("can't create contatiner: %v", err)
+		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
 	}
 
@@ -610,6 +627,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
+	cfg.Image = service.ImageId
+
 	// get the endpoints
 	cfg.ExposedPorts = make(map[docker.Port]struct{})
 	hcfg.PortBindings = make(map[docker.Port][]docker.PortBinding)
@@ -621,9 +640,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 				var p string
 				switch endpoint.Protocol {
 				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "/udp")
+					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
 				default:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "/tcp")
+					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
 				}
 				cfg.ExposedPorts[docker.Port(p)] = struct{}{}
 				hcfg.PortBindings[docker.Port(p)] = append(hcfg.PortBindings[docker.Port(p)], docker.PortBinding{})
@@ -659,7 +678,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 			binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
 			cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-			hcfg.Binds = append(hcfg.Binds, binding)
+			hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 		}
 	}
 
@@ -670,7 +689,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
 	cfg.Volumes[strings.Split(volumeBinding, ":")[1]] = struct{}{}
-	hcfg.Binds = append(hcfg.Binds, volumeBinding)
+	hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(volumeBinding))
 
 	if err := injectContext(service, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
@@ -690,9 +709,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		}
 
 		// everything worked!
-		binding := fmt.Sprintf("%s:%s", f.Name, filename)
+		binding := fmt.Sprintf("%s:%s", f.Name(), filename)
 		cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-		hcfg.Binds = append(hcfg.Binds, binding)
+		hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 	}
 
 	// if this container is going to produce any logs, create the config and get the bind mounts
@@ -708,7 +727,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		for _, binding := range strings.Split(lsbms, "-v") {
 			if len(binding) > 0 {
 				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-				hcfg.Binds = append(hcfg.Binds, binding)
+				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 			}
 		}
 	}
@@ -745,7 +764,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 				// requestedMount += " -v " + hostPath + ":" + containerPath
 				binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
 				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-				hcfg.Binds = append(hcfg.Binds, binding)
+				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 			}
 		} else {
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
@@ -774,6 +793,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	cfg.Cmd = append([]string{},
 		fmt.Sprintf("/serviced/%s", binary),
+		"proxy",
 		service.Id,
 		service.Startup)
 
