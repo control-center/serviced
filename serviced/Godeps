@@ -78,6 +78,10 @@
 			"Rev": "e2b728adb2052b6809b1b504fd2fc2a774ae1b83"
 		},
 		{
+			"ImportPath": "github.com/zenoss/cli",
+			"Rev": "1a3a1837e14ff3e902f6a33e3cbed5d46bf957b2"
+		},
+		{
 			"ImportPath": "gopkg.in/check.v1",
 			"Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
 		}

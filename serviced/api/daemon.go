@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package main
+package api
 
 import (
 	"github.com/zenoss/glog"
@@ -22,7 +22,9 @@ import (
 	"github.com/zenoss/serviced/stats"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
+	// Need to do btrfs driver initializations
 	_ "github.com/zenoss/serviced/volume/btrfs"
+	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 
@@ -33,10 +35,12 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
-	"strings"
+	"path"
 	"syscall"
 	"time"
 )
+
+var minDockerVersion = version{0, 8, 1}
 
 // startDaemon starts the agent or master services on this host.
 func startDaemon() {
@@ -64,7 +68,7 @@ func (d *daemon) start() {
 		glog.Fatalf("Could not get hostid", err)
 	}
 
-	l, err := net.Listen("tcp", options.listen)
+	l, err := net.Listen("tcp", options.Listen)
 	if err != nil {
 		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
 	}
@@ -72,29 +76,28 @@ func (d *daemon) start() {
 	//This asserts isvcs
 	//TODO: should this just be in startMaster
 	isvcs.Init()
-	isvcs.Mgr.SetVolumesDir(options.varPath + "/isvcs")
+	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
 		glog.Fatalf("Could not determine docker version: %s", err)
 	}
 
-	atLeast := []int{0, 8, 1}
-	if compareVersion(atLeast, dockerVersion.Client) < 0 {
+	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
 		glog.Fatal("serviced needs at least docker >= 0.8.1")
 	}
 
 	//TODO: is this needed for both agent and master?
-	if _, ok := volume.Registered(options.vfs); !ok {
-		glog.Fatalf("no driver registered for %s", options.vfs)
+	if _, ok := volume.Registered(options.VFS); !ok {
+		glog.Fatalf("no driver registered for %s", options.VFS)
 	}
 
-	if options.master {
+	if options.Master {
 		if err = d.startMaster(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
-	if options.agent {
+	if options.Agent {
 		if err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
@@ -102,9 +105,9 @@ func (d *daemon) start() {
 
 	rpc.HandleHTTP()
 
-	if options.repstats {
-		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.statshost)
-		statsduration := time.Duration(options.statsperiod) * time.Second
+	if options.ReportStats {
+		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+		statsduration := time.Duration(options.StatsPeriod) * time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
 		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
 		defer statsReporter.Close()
@@ -164,14 +167,13 @@ func (d *daemon) startMaster() error {
 func (d *daemon) startAgent() error {
 	mux := serviced.TCPMux{}
 
-	mux.CertPEMFile = options.certPEMFile
-	mux.KeyPEMFile = options.keyPEMFile
+	mux.CertPEMFile = options.CertPEMFile
+	mux.KeyPEMFile = options.KeyPEMFile
 	mux.Enabled = true
-	mux.Port = options.muxPort
-	mux.UseTLS = options.tls
+	mux.Port = options.MuxPort
+	mux.UseTLS = options.TLS
 
-	_dns := strings.Split(options.dockerDns, ",")
-	hostAgent, err := serviced.NewHostAgent(options.port, options.uiport, _dns, options.varPath, options.mount, options.vfs, options.zookeepers, mux)
+	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -200,7 +202,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.port)
+		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
 	return nil
@@ -245,20 +247,20 @@ func (d *daemon) initISVCS() error {
 }
 
 func (d *daemon) initZK() (*coordclient.Client, error) {
-	dsn := coordzk.NewDSN(options.zookeepers, time.Second*15).String()
+	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
 	return zclient, err
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.varPath, options.vfs)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS)
 }
 
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
-	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.uiport, options.port, options.zookeepers)
-	cpserver := web.NewServiceConfig(options.uiport, options.port, options.zookeepers, options.repstats, options.hostaliases)
+	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Port, options.Zookeepers)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 
