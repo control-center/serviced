@@ -31,6 +31,12 @@ type IPConfig struct {
 	IPAddress string
 }
 
+// RunningService contains the service for a state
+type RunningService struct {
+	Service *service.Service
+	State   *service.ServiceState
+}
+
 // Gets all of the available services
 func (a *api) GetServices() ([]*service.Service, error) {
 	client, err := a.connectDAO()
@@ -78,8 +84,8 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 	return services, nil
 }
 
-// GetServiceMapWithIDAsKey returns all services as a map with service.Id as key
-func (a *api) GetServicesWithIDKey() (map[string]*service.Service, error) {
+// getServiceMapWithIDAsKey returns all services as a map with service.Id as key
+func (a *api) getServicesWithIDKey() (map[string]*service.Service, error) {
 	var serviceMap map[string]*service.Service
 	services, err := a.GetServices()
 	if err != nil {
@@ -93,8 +99,8 @@ func (a *api) GetServicesWithIDKey() (map[string]*service.Service, error) {
 	return serviceMap, nil
 }
 
-// Gets the service states for a service identified by its service ID
-func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
+// getServiceStatesByServiceID gets the service states for a service identified by its service ID
+func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -109,14 +115,19 @@ func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 }
 
 // GetServiceStates returns running services that match DockerId, ServiceName, or ServiceId
-func (a *api) GetServiceStates(id string, serviceMap map[string]*service.Service) ([]*service.ServiceState, error) {
-	var states []*service.ServiceState
+func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
+	serviceMap, err := a.getServicesWithIDKey()
+	if err != nil {
+		return nil, err
+	}
+
+	var runningServices []*RunningService
 	for _, service := range serviceMap {
 		glog.V(2).Infof("looking for id:%s in service:  ServiceId:%s  ServiceName:%s\n",
 			id, service.Id, service.Name)
-		statesByServiceID, err := a.GetServiceStatesByServiceID(service.Id)
+		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
 		if err != nil {
-			return states, err
+			return []*RunningService{}, err
 		}
 
 		for _, state := range statesByServiceID {
@@ -127,12 +138,16 @@ func (a *api) GetServiceStates(id string, serviceMap map[string]*service.Service
 			}
 			if id == state.ServiceId || id == service.Name ||
 				strings.HasPrefix(state.DockerId, id) {
-				states = append(states, state)
+				running := RunningService{
+					Service: service,
+					State:   state,
+				}
+				runningServices = append(runningServices, &running)
 			}
 		}
 	}
 
-	return states, nil
+	return runningServices, nil
 }
 
 // Adds a new service

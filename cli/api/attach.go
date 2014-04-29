@@ -10,8 +10,8 @@ import (
 	"syscall"
 )
 
-// ServiceAttachConfig is the deserialized object from the command-line
-type ServiceAttachConfig struct {
+// AttachConfig is the deserialized object from the command-line
+type AttachConfig struct {
 	DockerId string
 	Command  []string
 }
@@ -49,8 +49,8 @@ func attachContainerAndExec(containerId string, cmd []string) error {
 	return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 }
 
-// ServiceAttach runs an arbitrary shell command in a running service container
-func (a *api) ServiceAttach(config ServiceAttachConfig) error {
+// Attach runs an arbitrary shell command in a running service container
+func (a *api) Attach(config AttachConfig) error {
 	containerID := config.DockerId
 	command := config.Command
 	if err := attachContainerAndExec(containerID, command); err != nil {
