@@ -52,7 +52,7 @@ func HostEquals(t errorf, h1 *Host, h2 *Host) bool {
 		equals = false
 	}
 
-	if len(h1.IPs) != len(h2.IPs){
+	if len(h1.IPs) != len(h2.IPs) {
 		t.Errorf("Host IPs %v does not match %v", h1.IPs, h2.IPs)
 		equals = false
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	. "gopkg.in/check.v1"
 
-	"fmt"
 	"time"
 )
 
@@ -149,7 +148,6 @@ func (ft *FacadeTest) Test_GetPoolsIPInfo(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
-		fmt.Println("BLAMO!!!!!!!!!!!")
 		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
 	}()
 
@@ -185,7 +183,6 @@ func (ft *FacadeTest) Test_GetPoolsIPInfo(t *C) {
 		t.Fatalf("failed to add host: %v", err)
 	}
 	defer func() {
-		fmt.Println("2BLAMO!!!!!!!!!!!")
 		ft.Facade.RemoveHost(ft.CTX, assignIPsHost.ID)
 	}()
 	time.Sleep(2 * time.Second)
