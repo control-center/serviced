@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/cli"
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 // Initializer for serviced service subcommands

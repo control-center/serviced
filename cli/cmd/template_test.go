@@ -6,7 +6,7 @@ import (
 
 	service "github.com/zenoss/serviced/dao"
 	template "github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 var DefaultTemplateAPITest = TemplateAPITest{}
