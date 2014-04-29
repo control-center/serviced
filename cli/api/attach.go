@@ -17,51 +17,54 @@ type ServiceAttachConfig struct {
 	Command     []string
 }
 
-// findServiceStates finds states that match DockerId, ServiceName, or ServiceId
-func (a *api) findServiceStates(serviceSpecifier string) ([]*dao.ServiceState, map[string]*dao.Service, error) {
-	var serviceMap map[string]*dao.Service
+// findServiceStates returns states in given serviceMap that match DockerId, ServiceName, or ServiceId
+func (a *api) findServiceStates(serviceSpecifier string, serviceMap map[string]*dao.Service) ([]*dao.ServiceState, error) {
 	var states []*dao.ServiceState
-
-	// make serviceMap
-	services, err := a.GetServices()
-	if err != nil {
-		return states, serviceMap, err
-	}
-
-	serviceMap = make(map[string]*dao.Service)
-	for _, service := range services {
-		serviceMap[service.Id] = service
-
-		statesByServiceID, err := a.GetServiceStatesByServiceID(service.Id)
-		if err != nil {
-			return []*dao.ServiceState{}, map[string]*dao.Service{}, err
-		}
-
+	for _, service := range serviceMap {
 		glog.V(2).Infof("looking for specifier:%s in service:  ServiceId:%s  ServiceName:%s\n",
 			serviceSpecifier, service.Id, service.Name)
+		statesByServiceID, err := a.GetServiceStatesByServiceID(service.Id)
+		if err != nil {
+			return []*dao.ServiceState{}, err
+		}
+
 		for _, state := range statesByServiceID {
 			glog.V(2).Infof("looking for specifier:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
-				serviceSpecifier, state.ServiceId, serviceMap[state.ServiceId].Name, state.DockerId)
+				serviceSpecifier, state.ServiceId, service.Name, state.DockerId)
 			if state.DockerId == "" {
 				continue
 			}
 			if serviceSpecifier == state.ServiceId ||
-				serviceSpecifier == serviceMap[state.ServiceId].Name ||
+				serviceSpecifier == service.Name ||
 				strings.HasPrefix(state.DockerId, serviceSpecifier) {
 				states = append(states, state)
 			}
 		}
 	}
 
-	return states, serviceMap, nil
+	return states, nil
 }
 
 // findContainerID finds the containerID from either DockerId, ServiceName, or ServiceId
 func (a *api) findContainerID(serviceSpecifier string) (string, error) {
-	states, serviceMap, err := a.findServiceStates(serviceSpecifier)
+	// retrieve all services and populate serviceMap with ServiceId as key
+	var serviceMap map[string]*dao.Service
+	services, err := a.GetServices()
 	if err != nil {
 		return "", err
 	}
+	serviceMap = make(map[string]*dao.Service)
+	for _, service := range services {
+		serviceMap[service.Id] = service
+	}
+
+	// find running services that match specifier
+	states, err := a.findServiceStates(serviceSpecifier, serviceMap)
+	if err != nil {
+		return "", err
+	}
+
+	// validate results
 	if len(states) < 1 {
 		return "", fmt.Errorf("did not find any running services matching specifier:'%s'", serviceSpecifier)
 	}
@@ -75,6 +78,7 @@ func (a *api) findContainerID(serviceSpecifier string) (string, error) {
 		return "", fmt.Errorf("%s", message)
 	}
 
+	// return the docker container
 	return states[0].DockerId, nil
 }
 
