@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 var DefaultHostAPITest = HostAPITest{hosts: DefaultTestHosts}

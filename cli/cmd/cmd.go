@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/cli"
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 // ServicedCli is the client ui for serviced
