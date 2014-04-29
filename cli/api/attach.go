@@ -18,7 +18,7 @@ type ServiceAttachConfig struct {
 }
 
 // findServiceStates finds states that match DockerId, ServiceName, or ServiceId
-func findServiceStates(a *api, serviceSpecifier string) ([]*dao.ServiceState, map[string]*dao.Service, error) {
+func (a *api) findServiceStates(serviceSpecifier string) ([]*dao.ServiceState, map[string]*dao.Service, error) {
 	var serviceMap map[string]*dao.Service
 	var states []*dao.ServiceState
 
@@ -42,6 +42,9 @@ func findServiceStates(a *api, serviceSpecifier string) ([]*dao.ServiceState, ma
 		for _, state := range statesByServiceID {
 			glog.V(2).Infof("looking for specifier:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
 				serviceSpecifier, state.ServiceId, serviceMap[state.ServiceId].Name, state.DockerId)
+			if state.DockerId == "" {
+				continue
+			}
 			if serviceSpecifier == state.ServiceId ||
 				serviceSpecifier == serviceMap[state.ServiceId].Name ||
 				strings.HasPrefix(state.DockerId, serviceSpecifier) {
@@ -54,16 +57,16 @@ func findServiceStates(a *api, serviceSpecifier string) ([]*dao.ServiceState, ma
 }
 
 // findContainerID finds the containerID from either DockerId, ServiceName, or ServiceId
-func findContainerID(a *api, serviceSpecifier string) (string, error) {
-	states, serviceMap, err := findServiceStates(a, serviceSpecifier)
+func (a *api) findContainerID(serviceSpecifier string) (string, error) {
+	states, serviceMap, err := a.findServiceStates(serviceSpecifier)
 	if err != nil {
 		return "", err
 	}
 	if len(states) < 1 {
-		return "", fmt.Errorf("did not find any service instances matching specifier:'%s'", serviceSpecifier)
+		return "", fmt.Errorf("did not find any running services matching specifier:'%s'", serviceSpecifier)
 	}
 	if len(states) > 1 {
-		message := fmt.Sprintf("%d service instances matched specifier:'%s'\n", len(states), serviceSpecifier)
+		message := fmt.Sprintf("%d running services matched specifier:'%s'\n", len(states), serviceSpecifier)
 		message += fmt.Sprintf("%-16s %-40s %s\n", "NAME", "SERVICEID", "DOCKERID")
 		for _, state := range states {
 			message += fmt.Sprintf("%-16s %-40s %s\n",
@@ -118,7 +121,7 @@ func (a *api) ServiceAttach(config ServiceAttachConfig) error {
 		command = config.Command
 	}
 
-	containerID, err := findContainerID(a, config.ServiceSpec)
+	containerID, err := a.findContainerID(config.ServiceSpec)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error looking for DOCKER_ID with specifier:'%v'  error:%v\n", config.ServiceSpec, err)
 		return err
