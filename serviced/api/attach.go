@@ -14,8 +14,7 @@ import (
 // ServiceAttachConfig is the deserialized object from the command-line
 type ServiceAttachConfig struct {
 	ServiceSpec string
-	Command     string
-	Args        []string
+	Command     []string
 }
 
 // findServiceStates finds states that match DockerId, ServiceName, or ServiceId
@@ -61,9 +60,10 @@ func findContainerID(a *api, serviceSpecifier string) (string, error) {
 	}
 	if len(states) > 1 {
 		message := fmt.Sprintf("%d service instances matched specifier:'%s'\n", len(states), serviceSpecifier)
+		message += fmt.Sprintf("%-16s %-40s %s\n", "NAME", "SERVICEID", "DOCKERID")
 		for _, state := range states {
-			message += fmt.Sprintf("  DockerId:%s ServiceId:%s ServiceName:%s\n",
-				state.DockerId, state.ServiceId, serviceMap[state.ServiceId].Name)
+			message += fmt.Sprintf("%-16s %-40s %s\n",
+				serviceMap[state.ServiceId].Name, state.ServiceId, state.DockerId)
 		}
 		return "", fmt.Errorf("%s", message)
 	}
@@ -106,18 +106,19 @@ func attachContainerAndExec(containerId string, cmd []string) error {
 
 // ServiceAttach runs an arbitrary shell command in a running service container
 func (a *api) ServiceAttach(config ServiceAttachConfig) error {
+	if config.ServiceSpec == "" {
+		return fmt.Errorf("required ServiceAttachConfig.ServiceSpec is empty")
+	}
+	var command []string = []string{"bash"}
+	if strings.TrimSpace(strings.Join(config.Command, "")) != "" {
+		command = config.Command
+	}
+
 	containerID, err := findContainerID(a, config.ServiceSpec)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error looking for DOCKER_ID with specifier:'%v'  error:%v\n", config.ServiceSpec, err)
 		return err
 	}
-
-	var command []string
-	if config.Command == "" {
-		return fmt.Errorf("required config.Command is empty")
-	}
-	command = append(command, config.Command)
-	command = append(command, config.Args...)
 
 	if err := attachContainerAndExec(containerID, command); err != nil {
 		fmt.Fprintf(os.Stderr, "error running bash command:'%v'  error:%v\n", command, err)

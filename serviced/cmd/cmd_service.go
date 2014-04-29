@@ -99,7 +99,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "attach",
 				Usage:        "Attaches to a service instance",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID } COMMAND",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 			}, {
@@ -490,22 +490,24 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | DOCKERID } COMMAND
+// serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	args := ctx.Args()
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.  attach needs at least 2 args\n\n")
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.  attach needs at least 1 arg\n\n")
 		cli.ShowCommandHelp(ctx, "attach")
 		return nil
 	}
 
 	cfg := api.ServiceAttachConfig{
 		ServiceSpec: ctx.Args().First(),
-		Command:     strings.Join(ctx.Args().Tail(), " "),
+		Command:     ctx.Args().Tail(),
 	}
 
 	if err := c.driver.ServiceAttach(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if err == nil {
+		return nil
 	}
 
 	return fmt.Errorf("serviced service attach")
