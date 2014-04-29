@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 var DefaultSnapshotAPITest = SnapshotAPITest{snapshots: DefaultTestSnapshots}

@@ -37,11 +37,15 @@ type Options struct {
 	VFS              string
 	ESStartupTimeout int
 	HostAliases      []string
+	Verbosity        int
 }
 
 // LoadOptions overwrites the existing server options
 func LoadOptions(ops Options) {
 	options = ops
+
+	// Set verbosity
+	glog.SetVerbosity(options.Verbosity)
 
 	// Check option boundaries
 	if options.ESStartupTimeout < minTimeout {

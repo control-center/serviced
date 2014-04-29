@@ -74,6 +74,8 @@ test: build_binary docker_ok
 	cd domain && make test
 	cd facade && go test
 	cd rpc && make test
+	cd cli/api && go test
+	cd cli/cmd && go test
 
 docker_ok:
 	if docker ps >/dev/null; then \
