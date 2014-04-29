@@ -37,7 +37,11 @@ func findServiceStates(a *api, serviceSpecifier string) ([]*dao.ServiceState, ma
 			return []*dao.ServiceState{}, map[string]*dao.Service{}, err
 		}
 
+		glog.V(2).Infof("looking for specifier:%s in service:  ServiceId:%s  ServiceName:%s\n",
+			serviceSpecifier, service.Id, service.Name)
 		for _, state := range statesByServiceID {
+			glog.V(2).Infof("looking for specifier:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
+				serviceSpecifier, state.ServiceId, serviceMap[state.ServiceId].Name, state.DockerId)
 			if serviceSpecifier == state.ServiceId ||
 				serviceSpecifier == serviceMap[state.ServiceId].Name ||
 				strings.HasPrefix(state.DockerId, serviceSpecifier) {
