@@ -508,7 +508,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 	return nil
 }
 
-// Start a service instance and update the CP with the state.
+// startService starts a new instance of the specified service and updates the control plane state accordingly.
 func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
 	client, err := NewControlClient(a.master)
@@ -518,6 +518,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	}
 	defer client.Close()
 
+	// start from a known good state
 	a.dockerTerminate(serviceState.Id)
 	a.dockerRemove(serviceState.Id)
 
@@ -534,6 +535,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	}
 	defer em.Close()
 
+	// create the docker client Config and HostConfig structures necessary to create and start the service
 	config, hostconfig, err := configureContainer(a, client, conn, procFinished, service, serviceState)
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
@@ -546,6 +548,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
+	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
 	case err == docker.ErrNoSuchImage:
@@ -573,10 +576,12 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 			return false, err
 		}
 	case err != nil:
+		// something that can't be fixed by pulling happened, we're done.
 		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
 	}
 
+	// use the docker client EventMonitor to listen for events from this container
 	s, err := em.Subscribe(ctr.ID)
 	if err != nil {
 		glog.Errorf("can't subscribe to Docker events on %s: %v", ctr.ID, err)
@@ -597,6 +602,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
+	// wait until we get notified that the container is started, or ten seconds, whichever comes first.
 	// TODO: make the timeout configurable
 	tout := time.After(10 * time.Second)
 	select {
@@ -612,6 +618,9 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	return true, nil
 }
 
+// configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
+// that are used to create and start a container respectively. The information used to populate the structures is pulled from
+// the service, serviceState, and conn values that are passed into configureContainer.
 func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (*docker.Config, *docker.HostConfig, error) {
 	cfg := &docker.Config{}
 	hcfg := &docker.HostConfig{}
