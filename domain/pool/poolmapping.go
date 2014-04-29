@@ -22,8 +22,8 @@ var (
         "Priority":     {"type": "long", "index":"not_analyzed"},
         "CreatedAt" :   {"type": "date", "format" : "dateOptionalTime"},
         "UpdatedAt" :   {"type": "date", "format" : "dateOptionalTime"},
-"CoreCapacity": {"type": "long", "format": "not_analyzed"},
-"MemoryCapacity": {"type": "long", "format": "not_analyzed"}
+        "CoreCapacity": {"type": "long", "format": "not_analyzed"},
+        "MemoryCapacity": {"type": "long", "format": "not_analyzed"}
       }
     }
 }
