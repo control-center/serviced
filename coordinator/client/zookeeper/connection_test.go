@@ -62,11 +62,11 @@ func TestEnsureZkFatjar(t *testing.T) {
 
 type testNodeT struct {
 	Name    string
-	version int32
+	version interface{}
 }
 
-func (n *testNodeT) SetVersion(version int32) { n.version = version }
-func (n *testNodeT) Version() int32           { return n.version }
+func (n *testNodeT) SetVersion(version interface{}) { n.version = version }
+func (n *testNodeT) Version() interface{}           { return n.version }
 
 func TestZkDriver(t *testing.T) {
 	basePath := "/basePath"

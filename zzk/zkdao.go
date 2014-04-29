@@ -34,14 +34,14 @@ type HostServiceState struct {
 	ServiceId      string
 	ServiceStateId string
 	DesiredState   int
-	version        int32
+	version        interface{}
 }
 
-func (hss *HostServiceState) Version() int32 {
+func (hss *HostServiceState) Version() interface{} {
 	return hss.version
 }
 
-func (hss *HostServiceState) SetVersion(version int32) {
+func (hss *HostServiceState) SetVersion(version interface{}) {
 	hss.version = version
 }
 
@@ -82,14 +82,14 @@ func (zkdao *ZkDao) AddService(service *dao.Service) error {
 
 type ServiceNode struct {
 	Service *dao.Service
-	version int32
+	version interface{}
 }
 
-func (s *ServiceNode) Version() int32 {
+func (s *ServiceNode) Version() interface{} {
 	return s.version
 }
 
-func (s *ServiceNode) SetVersion(version int32) {
+func (s *ServiceNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
@@ -110,14 +110,14 @@ func AddService(conn coordclient.Connection, service *dao.Service) error {
 
 type ServiceStateNode struct {
 	ServiceState *dao.ServiceState
-	version      int32
+	version      interface{}
 }
 
-func (s *ServiceStateNode) Version() int32 {
+func (s *ServiceStateNode) Version() interface{} {
 	return s.version
 }
 
-func (s *ServiceStateNode) SetVersion(version int32) {
+func (s *ServiceStateNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
@@ -617,11 +617,11 @@ func (zkdao *ZkDao) AddSnapshotRequest(snapshotRequest *dao.SnapshotRequest) err
 
 type SnapShotRequestNode struct {
 	SnapshotRequest *dao.SnapshotRequest
-	version         int32
+	version         interface{}
 }
 
-func (s *SnapShotRequestNode) Version() int32           { return s.version }
-func (s *SnapShotRequestNode) SetVersion(version int32) { s.version = version }
+func (s *SnapShotRequestNode) Version() interface{}           { return s.version }
+func (s *SnapShotRequestNode) SetVersion(version interface{}) { s.version = version }
 
 func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
 	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.Id)
