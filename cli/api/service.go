@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
+	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 )
@@ -76,6 +78,21 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 	return services, nil
 }
 
+// GetServiceMapWithIDAsKey returns all services as a map with service.Id as key
+func (a *api) GetServicesWithIDKey() (map[string]*service.Service, error) {
+	var serviceMap map[string]*service.Service
+	services, err := a.GetServices()
+	if err != nil {
+		return serviceMap, err
+	}
+	serviceMap = make(map[string]*service.Service)
+	for _, service := range services {
+		serviceMap[service.Id] = service
+	}
+
+	return serviceMap, nil
+}
+
 // Gets the service states for a service identified by its service ID
 func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
 	client, err := a.connectDAO()
@@ -91,26 +108,31 @@ func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 	return states, nil
 }
 
-// Gets the service states for a service identified by the docker ID
-func (a *api) GetServiceStatesByDockerID(id string) (*service.ServiceState, error) {
-	services, err := a.GetServices()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, s := range services {
-		states, err := a.GetServiceStatesByServiceID(s.Id)
+// GetServiceStates returns running services that match DockerId, ServiceName, or ServiceId
+func (a *api) GetServiceStates(id string, serviceMap map[string]*service.Service) ([]*service.ServiceState, error) {
+	var states []*service.ServiceState
+	for _, service := range serviceMap {
+		glog.V(2).Infof("looking for id:%s in service:  ServiceId:%s  ServiceName:%s\n",
+			id, service.Id, service.Name)
+		statesByServiceID, err := a.GetServiceStatesByServiceID(service.Id)
 		if err != nil {
-			return nil, err
+			return states, err
 		}
-		for i, ss := range states {
-			if ss.DockerId == id {
-				return states[i], nil
+
+		for _, state := range statesByServiceID {
+			glog.V(2).Infof("looking for id:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
+				id, state.ServiceId, service.Name, state.DockerId)
+			if state.DockerId == "" {
+				continue
+			}
+			if id == state.ServiceId || id == service.Name ||
+				strings.HasPrefix(state.DockerId, id) {
+				states = append(states, state)
 			}
 		}
 	}
 
-	return nil, nil
+	return states, nil
 }
 
 // Adds a new service

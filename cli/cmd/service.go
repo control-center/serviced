@@ -490,6 +490,51 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
+// findContainerID finds the containerID from either DockerId, ServiceName, or ServiceId
+func (c *ServicedCli) findContainerID(serviceSpecifier string) (string, error) {
+	// find running services that match specifier
+	serviceMap, err := c.driver.GetServicesWithIDKey()
+	if err != nil {
+		return "", err
+	}
+
+	states, err := c.driver.GetServiceStates(serviceSpecifier, serviceMap)
+	if err != nil {
+		return "", err
+	}
+
+	// validate results
+	if len(states) < 1 {
+		return "", fmt.Errorf("did not find any running services matching specifier:'%s'", serviceSpecifier)
+	}
+	if len(states) > 1 {
+		msg := fmt.Sprintf("only one running service is allowed to match specifier:'%s'  found:%d\n", serviceSpecifier, len(states))
+		fmt.Fprintln(os.Stderr, msg)
+
+		tableMatched := newTable(0, 8, 2)
+		tableMatched.PrintRow("NAME", "SERVICEID", "DOCKERID")
+
+		var printTable func(string)
+		printTable = func(root string) {
+			for _, state := range states {
+				tableMatched.PrintRow(
+					serviceMap[state.ServiceId].Name,
+					state.ServiceId,
+					state.DockerId,
+				)
+				tableMatched.Indent()
+				tableMatched.Dedent()
+			}
+		}
+		printTable("")
+		tableMatched.Flush()
+		return "", fmt.Errorf("%s", msg)
+	}
+
+	// return the docker container
+	return states[0].DockerId, nil
+}
+
 // serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	args := ctx.Args()
@@ -499,9 +544,24 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return nil
 	}
 
+	serviceSpecifier := ctx.Args().First()
+	if serviceSpecifier == "" {
+		return fmt.Errorf("required serviceSpecifier is empty")
+	}
+
+	containerID, err := c.findContainerID(serviceSpecifier)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error looking for DOCKER_ID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		return err
+	}
+
 	cfg := api.ServiceAttachConfig{
-		ServiceSpec: ctx.Args().First(),
-		Command:     ctx.Args().Tail(),
+		DockerId: containerID,
+		Command:  ctx.Args().Tail(),
+	}
+
+	if strings.TrimSpace(strings.Join(cfg.Command, "")) != "" {
+		cfg.Command = []string{"bash"}
 	}
 
 	if err := c.driver.ServiceAttach(cfg); err != nil {
