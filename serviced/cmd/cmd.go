@@ -55,6 +55,8 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"stats-period", 60, "Period (seconds) for container statistics reporting"},
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
+
+		cli.IntFlag{"v", 0, "Log level for V logs"},
 	}
 
 	c.initPool()
@@ -96,6 +98,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		StatsPeriod:      ctx.GlobalInt("stats-period"),
 		MCUsername:       ctx.GlobalString("mc-username"),
 		MCPasswd:         ctx.GlobalString("mc-password"),
+		Verbosity:        ctx.GlobalInt("v"),
 	}
 
 	api.LoadOptions(options)
@@ -107,4 +110,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func init() {
+	// Change the representation of the version flag
+	cli.VersionFlag = cli.BoolFlag{"version", "print the version"}
 }
