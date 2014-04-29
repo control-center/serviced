@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"github.com/zenoss/glog"
@@ -13,27 +13,36 @@ import (
 	"os/exec"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 )
 
-// Start a service proxy.
-func (cli *ServicedCli) CmdProxy(args ...string) error {
+var proxyOptions struct {
+	muxport          int
+	mux              bool
+	tls              bool
+	keyPEMfile       string
+	certPEMfile      string
+	servicedEndpoint string
+	autorestart      bool
+	logstash         bool
+}
 
-	if err := proxyCmd.Parse(args); err != nil {
-		return err
-	}
-	if len(proxyCmd.Args()) != 2 {
-		proxyCmd.Usage()
-		glog.Flush()
-		os.Exit(2)
-	}
+// ProxyConfig is the config object for starting a proxy server
+type ProxyConfig struct {
+	ServiceID string
+	Command   []string
+}
+
+// Start a service proxy
+func (a *api) StartProxy(cfg ProxyConfig) error {
 	config := serviced.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls
-	config.ServiceId = proxyCmd.Arg(0)
-	config.Command = proxyCmd.Arg(1)
+	config.ServiceId = cfg.ServiceID
+	config.Command = strings.Join(cfg.Command, " ")
 
 	if config.TCPMux.Enabled {
 		go config.TCPMux.ListenAndMux()
@@ -191,12 +200,12 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 	//setup container metric forwarder
 	go func() {
 		//loop until successfully identifying this container's tenant id
-		var tenantId string
+		var tenantID string
 		for {
 			client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
 			if err == nil {
 				defer client.Close()
-				if err = client.GetTenantId(config.ServiceId, &tenantId); err != nil {
+				if err = client.GetTenantId(config.ServiceId, &tenantID); err != nil {
 					glog.Errorf("Failed to get tenant id: %s", err)
 				} else {
 					//success
@@ -208,12 +217,12 @@ func (cli *ServicedCli) CmdProxy(args ...string) error {
 		}
 
 		//build metric redirect url -- assumes 8444 is port mapped
-		metric_redirect := "http://localhost:8444/api/metrics/store"
-		metric_redirect += "?controlplane_tenant_id=" + tenantId
-		metric_redirect += "&controlplane_service_id=" + config.ServiceId
+		metricRedirect := "http://localhost:8444/api/metrics/store"
+		metricRedirect += "?controlplane_tenant_id=" + tenantID
+		metricRedirect += "&controlplane_service_id=" + config.ServiceId
 
 		//build and serve the container metric forwarder
-		forwarder, _ := serviced.NewMetricForwarder(":22350", metric_redirect)
+		forwarder, _ := serviced.NewMetricForwarder(":22350", metricRedirect)
 		forwarder.Serve()
 	}()
 

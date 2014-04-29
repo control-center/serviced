@@ -191,14 +191,14 @@ func Test_getIPResources(t *testing.T) {
 	}
 }
 
-func Test_getOSKernelData(t *testing.T){
+func Test_getOSKernelData(t *testing.T) {
 	kernelVersion, kernelRelease, err := getOSKernelData()
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	if kernelVersion == "There was an error retrieving kernel data" || kernelRelease == "There was an error retrieving kernel data"{
+	if kernelVersion == "There was an error retrieving kernel data" || kernelRelease == "There was an error retrieving kernel data" {
 		t.Errorf("Unexpected error %v", err)
 	}
 

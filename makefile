@@ -13,10 +13,12 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 
 default: build_binary
 
-install: build_binary
+install: build_binary bash-complete
 	go install github.com/zenoss/serviced/serviced
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
 
+bash-complete:
+	sudo cp ./serviced/serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
 build_binary:
 	cd serviced && make
@@ -72,6 +74,8 @@ test: build_binary docker_ok
 	cd domain && make test
 	cd facade && go test
 	cd rpc && make test
+	cd cli/api && go test
+	cd cli/cmd && go test
 
 docker_ok:
 	if docker ps >/dev/null; then \

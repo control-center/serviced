@@ -33,7 +33,7 @@ type ElasticTest struct {
 	//Port for elasticsearch server
 	Port uint16
 	//Mappings are elastic mappings to initialize
-	Mappings map[string]string
+	Mappings []Mapping
 	//MappingsFile path to a file that contains multiple mappings
 	MappingsFile string
 }
@@ -53,9 +53,9 @@ func (et *ElasticTest) setDefaults(c *gocheck.C) {
 
 //SetUpSuite Run once when the suite starts running.
 func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
-	log.Printf("ElasticTest SetUpSuite called: %v\n", et)
+	log.Printf("ElasticTest SetUpSuite called: %#v\n", et)
 	et.setDefaults(c)
-	driver := new("localhost", et.Port, et.Index)
+	driver := newDriver("localhost", et.Port, et.Index)
 	et.driver = driver
 
 	existingServer := true
@@ -77,8 +77,8 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 		existingServer = false
 	}
 
-	for name, path := range et.Mappings {
-		driver.AddMappingFile(name, path)
+	for _, mapping := range et.Mappings {
+		driver.AddMapping(mapping)
 	}
 
 	if et.MappingsFile != "" {

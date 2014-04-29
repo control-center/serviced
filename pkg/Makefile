@@ -83,6 +83,10 @@ stage: build pkgroot
 	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
 	ln -sf $(INSTALL_DIR)/bin/nsinit  pkgroot/usr/bin/nsinit
 
+	# add serviced bash complete file to etc/bash_completion.d
+	mkdir -p pkgroot/etc/bash_completion.d
+	cp ../serviced/serviced-bash-completion.sh pkgroot/etc/bash_completion.d/serviced
+
 
 stage_deb: stage
 	# Stage upstart script

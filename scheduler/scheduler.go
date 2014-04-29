@@ -1,10 +1,9 @@
-package serviced
+package scheduler
 
 import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
-	//"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/facade"
 )
 

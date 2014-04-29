@@ -76,7 +76,7 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 
 func getOSKernelData() (string, string, error) {
 	output, err := exec.Command("uname", "-r", "-v").Output()
-	if err != nil{
+	if err != nil {
 		return "There was an error retrieving kernel data", "There was an error retrieving kernel data", err
 	}
 
@@ -84,8 +84,8 @@ func getOSKernelData() (string, string, error) {
 	return kernelVersion, kernelRelease, err
 }
 
-func parseOSKernelData(data string) (string, string){
-	parts := strings.Split(data, " ");
+func parseOSKernelData(data string) (string, string) {
+	parts := strings.Split(data, " ")
 	return parts[1], parts[0]
 }
 

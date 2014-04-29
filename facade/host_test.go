@@ -78,4 +78,3 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	}
 
 }
-
