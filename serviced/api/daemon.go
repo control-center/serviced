@@ -13,6 +13,8 @@ import (
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -229,6 +231,8 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 
 	//TODO: figure out elastic mappings
 	eDriver := elastic.New("localhost", 9200, "controlplane")
+	eDriver.AddMapping(host.MAPPING)
+	eDriver.AddMapping(pool.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {
 		return nil, err
