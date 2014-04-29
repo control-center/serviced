@@ -125,6 +125,10 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, 
 		f.calcPoolCapacity(ctx, pool)
 	}
 
+	if err != nil {
+		return nil, fmt.Errorf("Error while calculating pool capacity: %v", err)
+	}
+
 	return pools, err
 }
 
