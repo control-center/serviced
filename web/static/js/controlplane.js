@@ -522,10 +522,10 @@ function ResourcesService($http, $location) {
          * @param {string} ip virtual ip to add to pool
          * @param {function} callback Add result passed to callback on success.
          */
-        add_pool_virtual_ip: function(pool, ip, callback) {
-            var payload = JSON.stringify( {'poolID':pool,'VirtualIp':ip})
+        add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
+            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface})
             console.log('Adding pool virtual ip: %s', payload);
-            $http.put('/pools/' + pool + '/virtualip/' + ip, payload).
+            $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
                     console.log('Added new pool virtual ip');
                     callback(data);
@@ -542,12 +542,12 @@ function ResourcesService($http, $location) {
          * Delete resource pool virtual ip
          *
          * @param {string} pool id to remove virtual ip
-         * @param {string} ip virtual ip to remove from pool
+         * @param {string} id virtual ip id to remove
          * @param {function} callback Add result passed to callback on success.
          */
-        remove_pool_virtual_ip: function(pool, ip, callback) {
-            console.log('Removing pool virtual ip: poolID:%s VirtualIp:%s', pool, ip);
-            $http.delete('/pools/' + pool + '/virtualip/' + ip).
+        remove_pool_virtual_ip: function(pool, id, callback) {
+            console.log('Removing pool virtual ip: poolID:%s id:%s', pool, id);
+            $http.delete('/pools/' + pool + '/virtualip/' + id).
                 success(function(data, status) {
                     console.log('Removed pool virtual ip');
                     callback(data);
@@ -2809,31 +2809,31 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Actions', name: 'pool_tbl_virtual_ip_address_action'}
     ]);
 
+    //
     // Scope methods
+    //
+
+    // Pool view action - delete
     $scope.clickRemoveVirtualIp = function(pool, ip) {
         console.log( "Removing pool's virtual ip address: ", pool, ip);
-        resourcesService.remove_pool_virtual_ip(pool.ID, ip, function() {
+        resourcesService.remove_pool_virtual_ip(pool.ID, ip.ID, function() {
             refreshPools($scope, resourcesService, false);
         });
     };
 
-    $scope.modalAddVirtualIp = function(pool) {
-        $scope.pools.add_virtual_ip = {'id': pool.ID, 'ip':""};
-        $('#poolAddVirtualIp').modal('show');
-    };
-
+    // Add Virtual Ip Modal - Add button action
     $scope.AddVirtualIp = function(pool) {
-        var poolID = $scope.pools.add_virtual_ip.id;
-        var ip = $scope.pools.add_virtual_ip.ip;
-        resourcesService.add_pool_virtual_ip(poolID, ip, function() {
-            $scope.pools.add_virtual_ip.ip = "";
+        var ip = $scope.pools.add_virtual_ip;
+        resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, function() {
+            $scope.pools.add_virtual_ip = {};
         });
         $('#poolAddVirtualIp').modal('hide');
     };
 
-    $scope.CancelAddVirtualIp = function(pool) {
-        $scope.pools.add_virtual_ip = null;
-        $('#poolAddVirtualIp').modal('hide');
+    // Open the virtual ip modal
+    $scope.modalAddVirtualIp = function(pool) {
+        $scope.pools.add_virtual_ip = {'PoolID': pool.ID, 'IP':"", 'Netmask':"", 'BindInterface':""};
+        $('#poolAddVirtualIp').modal('show');
     };
 
     // Ensure we have a list of pools
@@ -2843,6 +2843,7 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         }
     });
 }
+
 function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService) {
     // Ensure logged in
     authService.checkLogin($scope);

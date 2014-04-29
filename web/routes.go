@@ -32,8 +32,8 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/pools", sc.CheckAuth(RestGetPools)},
 
 		// Pools (VirtualIp)
-		rest.Route{"PUT", "/pools/:poolId/virtualip/*ip", sc.AuthorizedClient(RestAddPoolVirtualIp)},
-		rest.Route{"DELETE", "/pools/:poolId/virtualip/*ip", sc.AuthorizedClient(RestRemovePoolVirtualIp)},
+		rest.Route{"PUT", "/pools/:poolId/virtualip", sc.AuthorizedClient(RestAddPoolVirtualIp)},
+		rest.Route{"DELETE", "/pools/:poolId/virtualip/*id", sc.AuthorizedClient(RestRemovePoolVirtualIp)},
 
 		// Services (Apps)
 		rest.Route{"GET", "/services", sc.AuthorizedClient(RestGetAllServices)},

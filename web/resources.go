@@ -53,14 +53,18 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 
 	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
-// json object for putting or deleting virtual ips
+
+// XXX json object for putting or deleting virtual ips
 type virtualIpRequest struct {
-	PoolId    string
-	VirtualIp string
+	PoolId        string
+	IP            string
+	Netmask       string
+	BindInterface string
 }
 
 // rest resource for putting a virtualip into a pool
 func RestAddPoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	//TODO replace virtualiprequest with modal object
 	var request virtualIpRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
@@ -68,28 +72,21 @@ func RestAddPoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *servi
 		return
 	}
 
-	glog.V(0).Infof("Add virtual ip: pool=%s, ip=%s", request.PoolId, request.VirtualIp)
+	glog.V(0).Infof("Add virtual ip: %+v", request)
 	//TODO make call to dao service
 	RestSuccess(w)
 }
 
 // rest resource for deleting a virtualip in a pool
 func RestRemovePoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	id, err := url.QueryUnescape(r.PathParam("id"))
 	if err != nil {
-		glog.Errorf("Could not get poolId: %v", err)
+		glog.Errorf("Could not get virtual ip - id: %v", err)
 		RestBadRequest(w)
 		return
 	}
 
-	virtualIp, err := url.QueryUnescape(r.PathParam("ip"))
-	if err != nil {
-		glog.Errorf("Could not get virtual ip: %v", err)
-		RestBadRequest(w)
-		return
-	}
-
-	glog.V(0).Infof("Remove virtual ip: pool=%s, ip=%s", poolId, virtualIp)
+	glog.V(0).Infof("Remove virtual ip - id=%s", id)
 	//TODO make call to dao service
 	RestSuccess(w)
 }
