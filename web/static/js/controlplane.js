@@ -1111,61 +1111,6 @@ function getFullPath(allPools, pool) {
     return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.ID;
 }
 
-<<<<<<< HEAD:web/static/js/controllers.js
-function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService) {
-    // Ensure logged in
-    authService.checkLogin($scope);
-
-    $scope.name = "pools";
-    $scope.params = $routeParams;
-    $scope.newPool = {};
-
-    $scope.breadcrumbs = [
-        { label: 'breadcrumb_pools', itemClass: 'active' }
-    ];
-
-    // Build metadata for displaying a list of pools
-    $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'pools_tbl_id'},
-        { id: 'Priority', name: 'pools_tbl_priority'},
-        { id: 'CoreCapacity', name: 'pools_tbl_core_capacity'},
-        { id: 'MemoryCapacity', name: 'pools_tbl_memory_capacity'},
-        { id: 'CreatedAt', name: 'pools_tbl_created_at'},
-        { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
-        { id: 'Actions', name: 'pools_tbl_actions'}
-    ])
-
-    $scope.click_pool = function(id) {
-        $location.path('/pools/' + id);
-    };
-
-    // Function to remove a pool
-    $scope.clickRemovePool = function(poolID) {
-        console.log( "Click Remove pool w/id: ", poolID);
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-
-    // Function for opening add pool modal
-    $scope.modalAddPool = function() {
-        $scope.newPool = {};
-        $('#addPool').modal('show');
-    };
-
-    // Function for adding new pools - through modal
-    $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.ID, $scope.params.poolID);
-        resourcesService.add_pool($scope.newPool, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-        // Reset for another add
-        $scope.newPool = {};
-    };
-
-    // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, true);
-=======
 function getServiceLineage(mappedServices, service) {
     if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
         return [ service ];
@@ -1173,7 +1118,6 @@ function getServiceLineage(mappedServices, service) {
     var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
     lineage.push(service);
     return lineage;
->>>>>>> develop:web/static/js/controlplane.js
 }
 
 function refreshPools($scope, resourcesService, cachePools, extraCallback) {
@@ -1277,21 +1221,11 @@ function toggleRunning(app, status, servicesService) {
         updateAppText(app, "stopping...", "ctl_running_blank");
     }
 
-<<<<<<< HEAD:web/static/js/controllers.js
-    $scope.addSubpool = function(poolID) {
-        $scope.newPool.ParentId = poolID;
-        $('#addPool').modal('show');
-    };
-    $scope.delSubpool = function(poolID) {
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-=======
     // start service
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
             updateApp(app, newState);
->>>>>>> develop:web/static/js/controlplane.js
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }
@@ -1815,16 +1749,9 @@ function DeployWizard($scope, resourcesService) {
         return (step + 1) < $scope.steps.length &&
             ($scope.step_page === $scope.steps[step].content);
     };
-<<<<<<< HEAD:web/static/js/controllers.js
-    $scope.delSubpool = function(poolID) {
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-=======
 
     $scope.hasFinish = function() {
         return (step + 1) === $scope.steps.length;
->>>>>>> develop:web/static/js/controlplane.js
     };
 
     $scope.step_item = function(index) {
@@ -3127,15 +3054,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-<<<<<<< HEAD:web/static/js/controllers.js
-function itemClass(item) {
-    var cls = item.current? 'current' : '';
-    if (item.parentCollapsed) {
-        cls += ' hidden';
-    }
-    return cls;
-}
-=======
     $scope.snapshotService = function(service) {
         resourcesService.snapshot_service(service.Id, function(label) {
             console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
@@ -3249,4 +3167,3 @@ function itemClass(item) {
         };
     }
 }
->>>>>>> develop:web/static/js/controlplane.js
