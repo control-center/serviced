@@ -121,12 +121,12 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
-	for _, pool := range pools {
-		f.calcPoolCapacity(ctx, pool)
+	if err != nil {
+		return nil, fmt.Errorf("Could not load pools: %v", err)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("Error while calculating pool capacity: %v", err)
+	for _, pool := range pools {
+		f.calcPoolCapacity(ctx, pool)
 	}
 
 	return pools, err
