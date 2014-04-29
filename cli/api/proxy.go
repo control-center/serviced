@@ -4,6 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/shell"
 
 	"fmt"
@@ -37,7 +38,7 @@ type ProxyConfig struct {
 
 // Start a service proxy
 func (a *api) StartProxy(cfg ProxyConfig) error {
-	config := serviced.MuxConfig{}
+	config := proxy.MuxConfig{}
 	config.TCPMux.Port = proxyOptions.muxport
 	config.TCPMux.Enabled = proxyOptions.mux
 	config.TCPMux.UseTLS = proxyOptions.tls

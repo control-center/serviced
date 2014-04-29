@@ -61,7 +61,7 @@ type HostAgent struct {
 	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
 	vfs             string               // driver for container volumes
 	currentServices map[string]*exec.Cmd // the current running services
-	mux             TCPMux
+	mux             proxy.TCPMux
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
@@ -81,7 +81,7 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master

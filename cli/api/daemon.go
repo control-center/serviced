@@ -15,6 +15,7 @@ import (
 	"github.com/zenoss/serviced/datastore/elastic"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/scheduler"
@@ -165,7 +166,7 @@ func (d *daemon) startMaster() error {
 }
 
 func (d *daemon) startAgent() error {
-	mux := serviced.TCPMux{}
+	mux := proxy.TCPMux{}
 
 	mux.CertPEMFile = options.CertPEMFile
 	mux.KeyPEMFile = options.KeyPEMFile

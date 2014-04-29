@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 
 	"mime"
@@ -143,11 +144,11 @@ func (sc *ServiceConfig) Serve() {
 
 	http.Handle("/", r)
 
-	certfile, err := serviced.TempCertFile()
+	certfile, err := proxy.TempCertFile()
 	if err != nil {
 		glog.Error("Could not prepare cert.pem file.")
 	}
-	keyfile, err := serviced.TempKeyFile()
+	keyfile, err := proxy.TempKeyFile()
 	if err != nil {
 		glog.Error("Could not prepare key.pem file.")
 	}
