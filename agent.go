@@ -775,7 +775,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 			}
 
 			if matchedRequestedImage {
-				// requestedMount += " -v " + hostPath + ":" + containerPath
 				binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
 				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
 				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
