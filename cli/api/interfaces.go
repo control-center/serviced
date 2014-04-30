@@ -4,10 +4,9 @@ import (
 	"io"
 
 	service "github.com/zenoss/serviced/dao"
+	template "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 )
 
@@ -35,14 +34,14 @@ type API interface {
 	GetServices() ([]*service.Service, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]*service.Service, error)
-	GetServiceStatesByServiceID(string) ([]*service.ServiceState, error)
-	GetServiceStatesByDockerID(string) (*service.ServiceState, error)
+	GetServiceStates(string) ([]*RunningService, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
-	AssignIP(IPConfig) ([]servicedefinition.AddressAssignment, error)
+	AssignIP(IPConfig) (string, error)
+	Attach(AttachConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error
@@ -57,11 +56,11 @@ type API interface {
 	Rollback(string) error
 
 	// Templates
-	GetServiceTemplates() ([]*servicetemplate.ServiceTemplate, error)
-	GetServiceTemplate(string) (*servicetemplate.ServiceTemplate, error)
-	AddServiceTemplate(io.Reader) (*servicetemplate.ServiceTemplate, error)
+	GetServiceTemplates() ([]*template.ServiceTemplate, error)
+	GetServiceTemplate(string) (*template.ServiceTemplate, error)
+	AddServiceTemplate(io.Reader) (*template.ServiceTemplate, error)
 	RemoveServiceTemplate(string) error
-	CompileServiceTemplate(CompileTemplateConfig) (*servicetemplate.ServiceTemplate, error)
+	CompileServiceTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
 	DeployServiceTemplate(DeployTemplateConfig) (*service.Service, error)
 
 	// Backup & Restore
