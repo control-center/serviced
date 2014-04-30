@@ -395,14 +395,12 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		IPAddress: ipAddress,
 	}
 
-	if addresses, err := c.driver.AssignIP(cfg); err != nil {
+	if ipAddress, err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if addresses == nil || len(addresses) == 0 {
+	} else if ipAddress == "" {
 		fmt.Fprintln(os.Stderr, "received nil host resource")
 	} else {
-		for _, a := range addresses {
-			fmt.Println(a.IPAddr)
-		}
+		fmt.Println(ipAddress)
 	}
 }
 
@@ -493,20 +491,27 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
+	args := ctx.Args()
+	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
-	cfg := api.ShellConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   strings.Join(ctx.Args().Tail(), " "),
-		SaveAs:    ctx.GlobalString("saveas"),
-		IsTTY:     ctx.GlobalBool("interactive"),
-	}
+	if len(args) < 2 {
+		for _, s := range c.serviceRuns(args[0]) {
+			fmt.Println(s)
+		}
+	} else {
+		cfg := api.ShellConfig{
+			ServiceID: ctx.Args().First(),
+			Command:   strings.Join(ctx.Args().Tail(), " "),
+			SaveAs:    ctx.GlobalString("saveas"),
+			IsTTY:     ctx.GlobalBool("interactive"),
+		}
 
-	if err := c.driver.StartShell(cfg); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if err := c.driver.StartShell(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 
 	return fmt.Errorf("serviced service run")

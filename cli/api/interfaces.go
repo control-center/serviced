@@ -40,7 +40,7 @@ type API interface {
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
-	AssignIP(IPConfig) ([]service.AddressAssignment, error)
+	AssignIP(IPConfig) (string, error)
 	Attach(AttachConfig) error
 
 	// Shell

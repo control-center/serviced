@@ -264,10 +264,10 @@ func (a *api) StopService(id string) error {
 }
 
 // AssignIP assigns an IP address to a service
-func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
+func (a *api) AssignIP(config IPConfig) (string, error) {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	req := service.AssignmentRequest{
@@ -277,13 +277,17 @@ func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
 	}
 
 	if err := client.AssignIPs(req, nil); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	var addresses []service.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return addresses, nil
+	if addresses == nil || len(addresses) == 0 {
+		return "", nil
+	}
+
+	return addresses[0].IPAddr, nil
 }
