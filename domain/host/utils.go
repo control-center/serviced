@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 )
@@ -54,6 +55,11 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
+	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
+	if err != nil {
+		return nil, err
+	}
+
 	routes, err := utils.RouteCmd()
 	if err != nil {
 		return nil, err
@@ -66,6 +72,21 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	}
 	host.PoolID = poolID
 	return host, err
+}
+
+func getOSKernelData() (string, string, error) {
+	output, err := exec.Command("uname", "-r", "-v").Output()
+	if err != nil {
+		return "There was an error retrieving kernel data", "There was an error retrieving kernel data", err
+	}
+
+	kernelVersion, kernelRelease := parseOSKernelData(string(output))
+	return kernelVersion, kernelRelease, err
+}
+
+func parseOSKernelData(data string) (string, string) {
+	parts := strings.Split(data, " ")
+	return parts[1], parts[0]
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on

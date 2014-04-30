@@ -71,7 +71,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 	// Hardcoding these target URLs for now.
 	// TODO: When internal services are allowed to run on other hosts, look that up.
-	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
+	routes = routeToInternalServiceProxy("/api/controlplane/elastic", "http://127.0.0.1:9200/", routes)
 	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
 
 	return routes

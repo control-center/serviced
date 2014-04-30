@@ -2,6 +2,7 @@ package dfs
 
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
 
 	"errors"
@@ -146,7 +147,7 @@ func TestSnapshot(t *testing.T) {
 	setUp()
 	defer tearDown()
 
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
+	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New())
 	if err != nil {
 		t.Fatalf("failed to initialize dfs: %+v", err)
 	}
@@ -163,7 +164,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 
 	var services []*dao.Service
 
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{})
+	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New())
 	if err != nil {
 		t.Fatalf("failed to initialize dfs: %+v", err)
 	}

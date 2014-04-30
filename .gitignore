@@ -22,6 +22,7 @@ coordinator/client/zookeeper/zookeeper-3.3.3
 
 # emacs tags file
 TAGS
+tags
 
 # Architecture specific extensions/prefixes
 *.[568vq]

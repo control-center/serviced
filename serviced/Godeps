@@ -67,7 +67,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "a2eac79392188053422ed0d0a270f2235cf17776"
+			"Rev": "ea747c29ad08d2ec01aecc6ee2f14e9086c53b98"
 		},
 		{
 			"ImportPath": "github.com/rcrowley/go-metrics",
@@ -75,7 +75,11 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Rev": "e2b728adb2052b6809b1b504fd2fc2a774ae1b83"
+			"Rev": "06968b4959282c5689d7f920db45654bebb2f49b"
+		},
+		{
+			"ImportPath": "github.com/zenoss/cli",
+			"Rev": "2a57be8d974a7ae41b2037e6380a6ca25603888d"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",

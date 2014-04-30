@@ -21,7 +21,7 @@ func Test(t *testing.T) {
 var _ = Suite(&S{
 	ElasticTest: elastic.ElasticTest{
 		Index:    "controlplane",
-		Mappings: map[string]string{"host": "./host_mapping.json"},
+		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
