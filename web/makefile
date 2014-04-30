@@ -9,9 +9,10 @@
 
 default: build
 
-build:
+build: build-js
 	./godep restore
 	go build
+
 
 test: build
 	go test -i
@@ -20,4 +21,7 @@ test: build
 clean:
 	go clean
 
+build-js:
+	sed -e "s/%UID%/$$(id -u)/g" -e "s/%GID%/$$(id -g)/g" Dockerfile.in | docker build -t zenoss/grunt -
+	docker run --rm -v $$PWD:/mnt/build -w /mnt/build zenoss/grunt 
 

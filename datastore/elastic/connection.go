@@ -23,13 +23,13 @@ type elasticConnection struct {
 func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
 	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 
-	glog.Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
+	glog.V(4).Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
 	var raw json.RawMessage
 	raw = msg.Bytes()
 	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &raw)
-	glog.Infof("Put response: %v", resp)
+	glog.V(4).Infof("Put response: %v", resp)
 	if err != nil {
-		glog.Infof("Put err: %v", err)
+		glog.Errorf("Put err: %v", err)
 		return err
 	}
 	if !resp.Ok {
@@ -40,15 +40,15 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 
 func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
 	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
-	glog.Infof("Get for {kind:%s, id:%s}", key.Kind(), key.ID())
+	glog.V(4).Infof("Get for {kind:%v, id:%v}", key.Kind(), key.ID())
 	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
 	response, err := elasticGet(false, ec.index, key.Kind(), key.ID())
 	if err != nil {
-		glog.Infof("Error is %v", err)
+		glog.Errorf("Error is %v", err)
 		return nil, err
 	}
 	if !response.Exists {
-		glog.Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
+		glog.V(4).Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
 		return nil, datastore.ErrNoSuchEntity{key}
 	}
 	bytes := response.Source
@@ -58,7 +58,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 func (ec *elasticConnection) Delete(key datastore.Key) error {
 	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
 	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
-	glog.Infof("Delete response: %v", resp)
+	glog.V(4).Infof("Delete response: %v", resp)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 	resp, err := search.Result()
 	if err != nil {
 		err = fmt.Errorf("error executing query %v", err)
-		glog.Infof("%v", err)
+		glog.Errorf("%v", err)
 		return nil, err
 	}
 	return toJSONMessages(resp), nil
@@ -86,7 +86,7 @@ func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
 	var total = len(result.Hits.Hits)
 	var msgs = make([]datastore.JSONMessage, total)
 	for i := 0; i < total; i++ {
-		glog.Infof("Adding result %s", string(result.Hits.Hits[i].Source))
+		glog.V(4).Infof("Adding result %s", string(result.Hits.Hits[i].Source))
 		msg := datastore.NewJSONMessage(result.Hits.Hits[i].Source)
 		msgs[i] = msg
 	}

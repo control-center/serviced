@@ -13,7 +13,7 @@ import (
 
 //ValidEntity validates Host fields
 func (p *ResourcePool) ValidEntity() error {
-	glog.Info("Validating ResourcePool")
+	glog.V(4).Info("Validating ResourcePool")
 
 	trimmedID := strings.TrimSpace(p.ID)
 	violations := validation.NewValidationError()

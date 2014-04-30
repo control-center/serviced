@@ -6,9 +6,11 @@ package facade
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/validation"
 
 	"errors"
 	"fmt"
@@ -23,26 +25,6 @@ const (
 	beforePoolDelete = beforeEvent("BeforePoolDelete")
 	afterPoolDelete  = afterEvent("AfterPoolDelete")
 )
-
-//PoolIPs type for IP resources available in a ResourcePool
-type PoolIPs struct {
-	PoolID  string
-	HostIPs []host.HostIPResource
-}
-
-// GetPoolIPs gets all IPs available to a Pool
-func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error) {
-	hosts, err := f.FindHostsInPool(ctx, poolID)
-	if err != nil {
-		return nil, err
-	}
-	hostIPs := make([]host.HostIPResource, 0)
-	for _, h := range hosts {
-		hostIPs = append(hostIPs, h.IPs...)
-	}
-
-	return &PoolIPs{PoolID: poolID, HostIPs: hostIPs}, nil
-}
 
 // AddResourcePool add resource pool to index
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
@@ -124,9 +106,150 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
 		return nil
 	}
 
-	glog.Infof("'%s' resource pool not found; creating...", defaultPoolID)
+	glog.V(4).Infof("'%s' resource pool not found; creating...", defaultPoolID)
 	entity = pool.New(defaultPoolID)
 	return f.AddResourcePool(ctx, entity)
 }
 
 var defaultPoolID = "default"
+
+func VirtualIPExists(proposedVirtualIP pool.VirtualIP, poolsVirtualIPs []pool.VirtualIP) (bool, int) {
+	for index, virtualIP := range poolsVirtualIPs {
+		// TODO: What should determine the SAME virtual IP address? Perhaps just IP address?
+		if proposedVirtualIP.PoolID == virtualIP.PoolID &&
+			proposedVirtualIP.IP == virtualIP.IP &&
+			proposedVirtualIP.Netmask == virtualIP.Netmask &&
+			proposedVirtualIP.BindInterface == virtualIP.BindInterface {
+			return true, index
+		}
+	}
+	return false, -1
+}
+
+func ValidIP(aString string) error {
+	violations := validation.NewValidationError()
+	violations.Add(validation.IsIP(aString))
+	if len(violations.Errors) > 0 {
+		return violations
+	}
+	return nil
+}
+
+func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
+	entity, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIP.PoolID)
+		return err
+	}
+
+	if err := ValidIP(requestedVirtualIP.IP); err != nil {
+		return err
+	}
+	if err := ValidIP(requestedVirtualIP.Netmask); err != nil {
+		return err
+	}
+
+	ipAddressAlreadyExists, position := VirtualIPExists(requestedVirtualIP, entity.VirtualIPs)
+	if ipAddressAlreadyExists && position != -1 {
+		errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP, requestedVirtualIP.PoolID)
+		return errors.New(errMsg)
+	}
+
+	// generate a UUID as a unique ID for the virtual IP
+	virtualIPuuid, _ := dao.NewUuid()
+	requestedVirtualIP.ID = virtualIPuuid
+
+	entity.VirtualIPs = append(entity.VirtualIPs, requestedVirtualIP)
+	if err := f.UpdateResourcePool(ctx, entity); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
+	entity, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIP.PoolID)
+		return err
+	}
+
+	virtualIPExists := false
+	virtualIPToRemovePosition := 0
+	for virtualIPIndex, virtualIP := range entity.VirtualIPs {
+		if requestedVirtualIP.ID == virtualIP.ID {
+			virtualIPExists = true
+			virtualIPToRemovePosition = virtualIPIndex
+		}
+	}
+
+	if !virtualIPExists {
+		errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v as it does not exist in pool: %v", requestedVirtualIP, requestedVirtualIP.PoolID)
+		return errors.New(errMsg)
+	}
+
+	// delete the positionth element
+	entity.VirtualIPs = append(entity.VirtualIPs[:virtualIPToRemovePosition], entity.VirtualIPs[virtualIPToRemovePosition+1:]...)
+	if err := f.UpdateResourcePool(ctx, entity); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Retrieve pool IP address information (virtual and static)
+func (f *Facade) RetrievePoolIPs(ctx datastore.Context, poolID string) ([]dao.IPInfo, error) {
+	// get all the static IP addresses
+	var IPsInfo []dao.IPInfo
+	poolsIPInfo, err := f.GetPoolsIPInfo(ctx, poolID)
+	if err != nil {
+		fmt.Printf("GetPoolsIPInfo failed: %v", err)
+		return nil, err
+	}
+	for _, ipInfo := range poolsIPInfo {
+		IPsInfo = append(IPsInfo, dao.IPInfo{ipInfo.InterfaceName, ipInfo.IPAddress, "static"})
+	}
+
+	// get all the virtual IP addresses
+	pool, err := f.GetResourcePool(ctx, poolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %v", poolID)
+		return nil, err
+	}
+
+	for _, virtualIP := range pool.VirtualIPs {
+		// TODO: Fill in the interface name?
+		IPsInfo = append(IPsInfo, dao.IPInfo{virtualIP.ID, virtualIP.IP, "virtual"})
+	}
+
+	return IPsInfo, nil
+}
+
+// Retrieve a pool's static IP addresses
+func (f *Facade) GetPoolsIPInfo(ctx datastore.Context, poolID string) ([]host.HostIPResource, error) {
+	var poolsIPInfo []host.HostIPResource
+	// retrieve all the hosts that are in the requested pool
+	poolHosts, err := f.FindHostsInPool(ctx, poolID)
+	if err != nil {
+		glog.Errorf("Could not get hosts for Pool %s: %v", poolID, err)
+		return nil, err
+	}
+
+	for _, poolHost := range poolHosts {
+		// retrieve the IPs of the hosts contained in the requested pool
+		host, err := f.GetHost(ctx, poolHost.ID)
+		if err != nil {
+			glog.Errorf("Could not get host %s: %v", poolHost.ID, err)
+			return nil, err
+		}
+
+		//aggregate all the IPResources from all the hosts in the requested pool
+		for _, poolHostIPResource := range host.IPs {
+			if poolHostIPResource.HostID != "" && poolHostIPResource.InterfaceName != "" && poolHostIPResource.IPAddress != "" {
+				poolsIPInfo = append(poolsIPInfo, poolHostIPResource)
+			}
+		}
+	}
+
+	return poolsIPInfo, nil
+}

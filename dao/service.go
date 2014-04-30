@@ -41,6 +41,12 @@ func (a *Service) Equals(b *Service) bool {
 	if a.Hostname != b.Hostname {
 		return false
 	}
+	if a.Privileged != b.Privileged {
+		return false
+	}
+	if a.HostPolicy != b.HostPolicy {
+		return false
+	}
 	if a.ParentServiceId != b.ParentServiceId {
 		return false
 	}

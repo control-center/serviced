@@ -7,4 +7,61 @@
       <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label|translate}}</a>
     </li>
   </ol>
+
+  <div class="details-form">
+    <div class="vertical-info">
+      <label for="pool_data_id">{{'label_pool_id'|translate}}</label>
+      <div id="pool_data_id">{{pools.current.ID}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_priority">{{'label_pool_priority'|translate}}</label>
+      <div id="pool_data_priority">{{pools.current.Priority}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_core_limit">{{'label_pool_core_limit'|translate}}</label>
+      <div id="pool_data_core_limit">{{pools.current.CoreLimit}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_memory_limit">{{'label_pool_memory_limit'|translate}}</label>
+      <div id="pool_data_memory_limit">{{pools.current.MemoryLimit}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_created_at">{{'label_pool_created_at'|translate}}</label>
+      <div id="pool_data_created_at">{{pools.current.CreatedAt}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_updated_at">{{'label_pool_updated_at'|translate}}</label>
+      <div id="pool_data_updated_at">{{pools.current.UpdatedAt}}</div>
+    </div>
+  </div>
 </div>
+
+<h3 class="pull-left">{{'virtual_ip_addresses'|translate}}</h3>
+<div class="control-buttons pull-right">
+  <span class="add-control">
+    <button class="btn-link" ng-click="modalAddVirtualIp(pools.current)">
+      <span class="glyphicon glyphicon-plus-sign"></span>
+      {{'modal_add_virtual_ip'|translate}}
+    </button>
+  </span>
+</div>
+<table class="table table-striped table-bordered table-hover side-flush">
+  <thead>
+    <tr>
+      <th ng-repeat="header in virtual_ip_addresses.headers">{{header.name|translate}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-repeat="address in pools.current.VirtualIPAddresses | orderBy:virtual_ip_addresses.sort">
+      <td>{{address}}</td>
+      <td> <button ng-click="clickRemoveVirtualIp(pools.current, address)" class="btn btn-link">Delete</button> </td>
+    </tr>
+  </tbody>
+</table>
+
+<div ng-include="'/static/partials/pool-add-virtualip.html'"></div>

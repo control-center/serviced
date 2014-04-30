@@ -490,7 +490,7 @@ func (cli *ServicedCli) CmdAddVirtualIp(args ...string) error {
 	glog.Infof("Attempting to add virtual IP address %v to pool: %v", requestedIP, poolId)
 
 	requestedVirtualIP := dao.VirtualIP{"", poolId, requestedIP, netmask, bindInterface, ""}
-	err := controlPlane.AddVirtualIp(requestedVirtualIP, nil)
+	err := controlPlane.AddVirtualIP(requestedVirtualIP)
 	if err != nil {
 		glog.Fatalf("Could not add virtual IP address: %v due to: %v", requestedVirtualIP, err)
 		return err
@@ -512,17 +512,17 @@ func (cli *ServicedCli) CmdRemoveVirtualIp(args ...string) error {
 	controlPlane := getClient()
 
 	poolId := cmd.Arg(0)
-	virtualIpId := cmd.Arg(1)
-	glog.Infof("Attempting to remove virtual IP address: %v from pool: %v", virtualIpId, poolId)
+	virtualIPID := cmd.Arg(1)
+	glog.Infof("Attempting to remove virtual IP address: %v from pool: %v", virtualIPID, poolId)
 
-	requestedVirtualIP := dao.VirtualIP{virtualIpId, poolId, "", "", "", ""}
-	err := controlPlane.RemoveVirtualIp(requestedVirtualIP, nil)
+	requestedVirtualIP := dao.VirtualIP{virtualIPID, poolId, "", "", "", ""}
+	err := controlPlane.RemoveVirtualIP(requestedVirtualIP)
 	if err != nil {
-		glog.Fatalf("Could not remove virtual IP address: %v due to: %v", virtualIpId, err)
+		glog.Fatalf("Could not remove virtual IP address: %v due to: %v", virtualIPID, err)
 		return err
 	}
 
-	glog.Infof("Removed virtual IP address %v from pool: %v", virtualIpId, poolId)
+	glog.Infof("Removed virtual IP address %v from pool: %v", virtualIPID, poolId)
 	return nil
 }
 
@@ -560,9 +560,9 @@ func (cli *ServicedCli) CmdManualAssignIps(args ...string) error {
 	controlPlane := getClient()
 
 	serviceId := cmd.Arg(0)
-	setIpAddress := cmd.Arg(1)
-	assignmentRequest := dao.AssignmentRequest{serviceId, setIpAddress, false}
-	glog.Infof("Manually setting IP address to: %s", setIpAddress)
+	setIPAddress := cmd.Arg(1)
+	assignmentRequest := dao.AssignmentRequest{serviceId, setIPAddress, false}
+	glog.Infof("Manually setting IP address to: %s", setIPAddress)
 
 	err := controlPlane.AssignIPs(assignmentRequest, nil)
 	if err != nil {

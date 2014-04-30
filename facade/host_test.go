@@ -14,33 +14,41 @@ import (
 
 func (s *FacadeTest) Test_HostCRUD(t *C) {
 	testid := "facadetestid"
-	defer s.facade.RemoveHost(s.ctx, testid)
-
-	//create pool for test
-	pool := pool.New("pool-id")
-	if err := s.facade.AddResourcePool(s.ctx, pool); err != nil {
-		t.Fatalf("Could not add pool for test: %v", err)
-	}
+	poolid := "pool-id"
+	defer s.Facade.RemoveHost(s.CTX, testid)
 
 	//fill host with required values
-	h, err := host.Build("", pool.ID, []string{}...)
+	h, err := host.Build("", poolid, []string{}...)
 	h.ID = "facadetestid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
 	glog.Infof("Facade test add host %v", h)
-	err = s.facade.AddHost(s.ctx, h)
+	err = s.Facade.AddHost(s.CTX, h)
+	//should fail since pool doesn't exist
+	if err == nil {
+		t.Errorf("Expected error: %v", err)
+	}
+
+	//create pool for test
+	rp := pool.New(poolid)
+	if err := s.Facade.AddResourcePool(s.CTX, rp); err != nil {
+		t.Fatalf("Could not add pool for test: %v", err)
+	}
+	defer s.Facade.RemoveResourcePool(s.CTX, poolid)
+
+	err = s.Facade.AddHost(s.CTX, h)
 	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
+		t.Errorf("Unexpected error adding host: %v", err)
 	}
 
 	//Test re-add fails
-	err = s.facade.AddHost(s.ctx, h)
+	err = s.Facade.AddHost(s.CTX, h)
 	if err == nil {
 		t.Errorf("Expected already exists error: %v", err)
 	}
 
-	h2, err := s.facade.GetHost(s.ctx, testid)
+	h2, err := s.Facade.GetHost(s.CTX, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -53,8 +61,8 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 
 	//Test update
 	h.Memory = 1024
-	err = s.facade.UpdateHost(s.ctx, h)
-	h2, err = s.facade.GetHost(s.ctx, testid)
+	err = s.Facade.UpdateHost(s.CTX, h)
+	h2, err = s.Facade.GetHost(s.CTX, testid)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -63,55 +71,11 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	}
 
 	//test delete
-	err = s.facade.RemoveHost(s.ctx, testid)
-	h2, err = s.facade.GetHost(s.ctx, testid)
+	err = s.Facade.RemoveHost(s.CTX, testid)
+	h2, err = s.Facade.GetHost(s.CTX, testid)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 }
 
-/*
-func Test_GetHosts(t *testing.T) {
-	if tf == nil {
-		t.Fatalf("Test failed to initialize")
-	}
-	hid1 := "gethosts1"
-	hid2 := "gethosts2"
-
-	defer s.facade.RemoveHost(s.ctx, hid1)
-	defer s.facade.RemoveHost(s.ctx, hid2)
-
-	host, err := host.Build("", "pool-id", []string{}...)
-	host.Id = "Test_GetHosts1"
-	if err != nil {
-		t.Fatalf("Unexpected error building host: %v", err)
-	}
-	err = hs.Put(s.ctx, host)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	time.Sleep(1000 * time.Millisecond)
-	hosts, err := hs.GetUpTo(s.ctx, 1000)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(hosts) != 1 {
-		t.Errorf("Expected %v results, got %v :%v", 1, len(hosts), hosts)
-	}
-
-	host.Id = "Test_GetHosts2"
-	err = hs.Put(s.ctx, host)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	time.Sleep(1000 * time.Millisecond)
-	hosts, err = hs.GetUpTo(s.ctx, 1000)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(hosts) != 2 {
-		t.Errorf("Expected %v results, got %v :%v", 2, len(hosts), hosts)
-	}
-
-}
-*/

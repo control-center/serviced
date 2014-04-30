@@ -8,9 +8,9 @@
         <th>{{"label_pool_memory_limit"|translate}}</th>
         <th>{{"label_pool_core_limit"|translate}}</th>
     </tr>
-    <tr ng-repeat="pool in pools.data | orderBy:'Id'">
-        <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.Id"></td>
-        <td>{{pool.Id}}</td>
+    <tr ng-repeat="pool in pools.data | orderBy:'ID'">
+        <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>
+        <td>{{pool.ID}}</td>
         <td>{{pool.Description}}</td>
         <td>{{pool.MemoryLimit}} GB</td>
         <td>{{pool.CoreLimit}}</td>

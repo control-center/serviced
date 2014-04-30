@@ -53,43 +53,35 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 
 	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
-
-func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var poolsMap map[string]*dao.ResourcePool
-	err := client.GetResourcePools(&empty, &poolsMap)
-	if err != nil {
-		glog.Error("Could not get resource pools: ", err)
-		RestServerError(w)
-		return
-	}
-	w.WriteJson(&poolsMap)
+// json object for putting or deleting virtual ips
+type virtualIpRequest struct {
+	PoolId    string
+	VirtualIp string
 }
 
-func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.ResourcePool
-	var poolId string
-	err := r.DecodeJsonPayload(&payload)
+// rest resource for putting a virtualip into a pool
+func RestAddPoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	var request virtualIpRequest
+	err := r.DecodeJsonPayload(&request)
 	if err != nil {
-		glog.V(1).Info("Could not decode pool payload: ", err)
 		RestBadRequest(w)
 		return
 	}
-	err = client.AddResourcePool(payload, &poolId)
-	if err != nil {
-		glog.Error("Unable to add pool: ", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Added pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(poolId)})
+
+	glog.V(0).Infof("Add virtual ip: pool=%s, ip=%s", request.PoolId, request.VirtualIp)
+	//TODO make call to dao service
+	RestSuccess(w)
 }
 
-func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// rest resource for deleting a virtualip in a pool
+func RestRemovePoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
+		glog.Errorf("Could not get poolId: %v", err)
 		RestBadRequest(w)
 		return
 	}
+<<<<<<< HEAD
 	var payload dao.ResourcePool
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -106,34 +98,19 @@ func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	glog.V(1).Info("Updated pool ", poolId)
 	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
 }
+=======
+>>>>>>> develop
 
-func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	virtualIp, err := url.QueryUnescape(r.PathParam("ip"))
 	if err != nil {
+		glog.Errorf("Could not get virtual ip: %v", err)
 		RestBadRequest(w)
 		return
 	}
-	var unused int
-	err = client.RemoveResourcePool(poolId, &unused)
-	if err != nil {
-		glog.Error("Could not remove resource pool: ", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Removed pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
-}
 
-func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var hosts map[string]*dao.Host
-	err := client.GetHosts(&empty, &hosts)
-	if err != nil {
-		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(2).Infof("Returning %d hosts", len(hosts))
-	w.WriteJson(&hosts)
+	glog.V(0).Infof("Remove virtual ip: pool=%s, ip=%s", poolId, virtualIp)
+	//TODO make call to dao service
+	RestSuccess(w)
 }
 
 func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
@@ -456,111 +433,6 @@ func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *serviced
 	w.WriteJson(&SimpleResponse{"Removed service", servicesLinks()})
 }
 
-func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var poolHosts []*dao.PoolHost
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
-	if err != nil {
-		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	err = client.GetHostsForResourcePool(poolId, &poolHosts)
-	if err != nil {
-		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
-		return
-	}
-	if poolHosts == nil {
-		glog.V(3).Info("Pool hosts was nil, returning empty list instead")
-		poolHosts = []*dao.PoolHost{}
-	}
-	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolId)
-	w.WriteJson(&poolHosts)
-}
-
-func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.Host
-	var hostId string
-	err := r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	// Save the pool ID and IP address for later. GetInfo wipes these
-	pool := payload.PoolId
-	ipAddr := payload.IpAddr
-	remoteClient, err := serviced.NewAgentClient(payload.IpAddr)
-	if err != nil {
-		glog.Errorf("Could not create connection to host %s: %v", payload.IpAddr, err)
-		RestServerError(w)
-		return
-	}
-
-	//TODO: get user supplied IPs from UI
-	err = remoteClient.GetInfo([]string{}, &payload)
-	if err != nil {
-		glog.Errorf("Unable to get remote host info: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	// Reset the pool ID and IP address
-	payload.PoolId = pool
-	parts := strings.Split(ipAddr, ":")
-	payload.IpAddr = parts[0]
-
-	err = client.AddHost(payload, &hostId)
-	if err != nil {
-		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Added host ", hostId)
-	w.WriteJson(&SimpleResponse{"Added host", hostLinks(hostId)})
-}
-
-func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	glog.V(3).Infof("Received update request for %s", hostId)
-	var payload dao.Host
-	var unused int
-	err = r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	err = client.UpdateHost(payload, &unused)
-	if err != nil {
-		glog.Errorf("Unable to update host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(1).Info("Updated host ", hostId)
-	w.WriteJson(&SimpleResponse{"Updated host", hostLinks(hostId)})
-}
-
-func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var unused int
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	err = client.RemoveHost(hostId, &unused)
-	if err != nil {
-		glog.Errorf("Could not remove host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Removed host ", hostId)
-	w.WriteJson(&SimpleResponse{"Removed host", hostsLinks()})
-}
-
 func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
@@ -667,27 +539,19 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
 }
 
-type VirtualHost struct {
-	Name            string
+//--------------------------------
+// service virtual host resources
+
+// json object for adding/removing a virtual host with a service
+type virtualHostRequest struct {
+	ServiceId       string
 	Application     string
-	ServiceName     string
-	ServiceEndpoint string
+	VirtualHostName string
 }
 
 func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-
-	application, err := url.QueryUnescape(r.PathParam("application"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-
-	vhostName, err := url.QueryUnescape(r.PathParam("vhostName"))
+	var request virtualHostRequest
+	err := r.DecodeJsonPayload(&request)
 	if err != nil {
 		RestBadRequest(w)
 		return
@@ -702,7 +566,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 
 	var service *dao.Service
 	for _, _service := range services {
-		if _service.Id == serviceId {
+		if _service.Id == request.ServiceId {
 			service = _service
 		}
 	}
@@ -714,7 +578,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 	}
 
 	//checkout other virtual hosts for redundancy
-	_vhost := strings.ToLower(vhostName)
+	_vhost := strings.ToLower(request.VirtualHostName)
 	for _, service := range services {
 		if service.Endpoints == nil {
 			continue
@@ -723,7 +587,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 		for _, endpoint := range service.Endpoints {
 			for _, host := range endpoint.VHosts {
 				if host == _vhost {
-					glog.Errorf("vhost %s already defined for service: %s", vhostName, service.Id)
+					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.Id)
 					RestServerError(w)
 					return
 				}
@@ -731,7 +595,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 		}
 	}
 
-	err = service.AddVirtualHost(application, vhostName)
+	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
 	if err != nil {
 		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
 		RestServerError(w)
@@ -745,24 +609,28 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 		RestServerError(w)
 		return
 	}
+
+	RestSuccess(w)
 }
 
 // Remove a virtual hosts for provided service, endpoint, and vhost name, parameters are defined in path
 func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
+		glog.Errorf("Failed getting serviceId: %v", err)
 		RestBadRequest(w)
 		return
 	}
-
 	application, err := url.QueryUnescape(r.PathParam("application"))
 	if err != nil {
+		glog.Errorf("Failed getting application: %v", err)
 		RestBadRequest(w)
 		return
 	}
 
-	vhostName, err := url.QueryUnescape(r.PathParam("vhostName"))
+	hostname, err := url.QueryUnescape(r.PathParam("name"))
 	if err != nil {
+		glog.Errorf("Failed getting hostname: %v", err)
 		RestBadRequest(w)
 		return
 	}
@@ -775,9 +643,9 @@ func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serv
 		return
 	}
 
-	err = service.RemoveVirtualHost(application, vhostName)
+	err = service.RemoveVirtualHost(application, hostname)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostName, serviceId, err)
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceId, err)
 		RestServerError(w)
 		return
 	}
@@ -785,13 +653,22 @@ func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serv
 	var unused int
 	err = client.UpdateService(service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostName, serviceId, err)
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceId, err)
 		RestServerError(w)
 		return
 	}
+
+	RestSuccess(w)
 }
 
 // Get all virtual hosts
+type virtualHost struct {
+	Name            string
+	Application     string
+	ServiceName     string
+	ServiceEndpoint string
+}
+
 func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var services []*dao.Service
 	err := client.GetServices(&empty, &services)
@@ -806,7 +683,7 @@ func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *servic
 		service_tree[service.Id] = service
 	}
 
-	var vhosts []VirtualHost = make([]VirtualHost, 0)
+	var vhosts []virtualHost = make([]virtualHost, 0)
 	for _, service := range services {
 		if service.Endpoints == nil {
 			continue
@@ -819,7 +696,7 @@ func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *servic
 				}
 
 				for _, vhost := range endpoint.VHosts {
-					vh := VirtualHost{
+					vh := virtualHost{
 						Name:            vhost,
 						Application:     parent.Name,
 						ServiceName:     service.Name,

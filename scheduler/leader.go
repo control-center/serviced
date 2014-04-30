@@ -1,27 +1,35 @@
-package serviced
+package scheduler
 
 import (
-	"container/heap"
 	"fmt"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/host"
+	//"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 )
+
+type leader struct {
+	facade  *facade.Facade
+	dao     dao.ControlPlane
+	conn    coordclient.Connection
+	context datastore.Context
+}
 
 // Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
 //    services
 //    snapshots
 //    virtual IP addresses
-func Lead(dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
-
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
 	glog.Info("Entering Lead()!")
 	defer glog.Info("Exiting Lead()!")
 	shutdownmode := false
+	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
 	for {
 		glog.Info("Leader Loop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		if shutdownmode {
@@ -41,8 +49,8 @@ func Lead(dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coor
 				// passthru
 			}
 
-			go watchSnapshotRequests(dao, conn)
-			watchServices(dao, conn)
+			go leader.watchSnapshotRequests()
+			leader.watchServices()
 			return nil
 		}()
 	}
@@ -55,9 +63,11 @@ func snapShotName(volumeName string) string {
 	return volumeName + "_" + utc.Format(format)
 }
 
-func watchSnapshotRequests(cpDao dao.ControlPlane, conn coordclient.Connection) {
+func (l *leader) watchSnapshotRequests() {
 	glog.V(3).Info("started watchSnapshotRequestss")
 	defer glog.V(3).Info("finished watchSnapshotRequestss")
+	conn := l.conn
+	cpDao := l.dao
 	// make sure toplevel paths exist
 	paths := []string{zzk.SNAPSHOT_PATH, zzk.SNAPSHOT_REQUEST_PATH}
 	for _, path := range paths {
@@ -135,7 +145,8 @@ func watchSnapshotRequests(cpDao dao.ControlPlane, conn coordclient.Connection) 
 	}
 }
 
-func watchServices(cpDao dao.ControlPlane, conn coordclient.Connection) {
+func (l *leader) watchServices() {
+	conn := l.conn
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
 
@@ -162,7 +173,7 @@ func watchServices(cpDao dao.ControlPlane, conn coordclient.Connection) {
 				glog.V(2).Info("Leader starting goroutine to watch ", serviceID)
 				serviceChannel := make(chan int)
 				processing[serviceID] = serviceChannel
-				go watchService(cpDao, conn, serviceChannel, sDone, serviceID)
+				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
 		for {
@@ -175,13 +186,14 @@ func watchServices(cpDao dao.ControlPlane, conn coordclient.Connection) {
 				delete(processing, serviceID)
 				break
 			case <-time.After(10 * time.Second):
-				watchVirtualIPs(cpDao)
+				watchVirtualIPs(facade, context)
 			}
 		}
 	}
 }
 
-func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown <-chan int, done chan<- string, serviceID string) {
+func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID string) {
+	conn := l.conn
 	defer func() {
 		glog.V(3).Info("Exiting function watchService ", serviceID)
 		done <- serviceID
@@ -190,7 +202,7 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 		var service dao.Service
 		zkEvent, err := zzk.LoadServiceW(conn, serviceID, &service)
 		if err != nil {
-			//glog.Errorf("Unable to load service %s: %v", serviceID, err)
+			glog.Errorf("Unable to load service %s: %v", serviceID, err)
 			return
 		}
 		_, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceID))
@@ -208,7 +220,7 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 
 		// check current state
 		var serviceStates []*dao.ServiceState
-		err = zzk.GetServiceStates(conn, &serviceStates, serviceID)
+		err = zzk.GetServiceStates(l.conn, &serviceStates, serviceID)
 		if err != nil {
 			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
 			return
@@ -217,9 +229,9 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 		// Is the service supposed to be running at all?
 		switch {
 		case service.DesiredState == dao.SVC_STOP:
-			shutdownServiceInstances(conn, serviceStates, len(serviceStates))
+			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
 		case service.DesiredState == dao.SVC_RUN:
-			updateServiceInstances(cpDao, conn, &service, serviceStates)
+			l.updateServiceInstances(&service, serviceStates)
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", service.DesiredState, service.Name)
 		}
@@ -228,7 +240,7 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 		case evt := <-zkEvent:
 			if evt.Type == coordclient.EventNodeDeleted {
 				glog.V(0).Info("Shutting down due to node delete ", serviceID)
-				shutdownServiceInstances(conn, serviceStates, len(serviceStates))
+				shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
 				return
 			}
 			glog.V(1).Infof("Service %s received event: %v", service.Name, evt)
@@ -247,29 +259,28 @@ func watchService(cpDao dao.ControlPlane, conn coordclient.Connection, shutdown 
 
 }
 
-func updateServiceInstances(cpDao dao.ControlPlane, conn coordclient.Connection, service *dao.Service, serviceStates []*dao.ServiceState) error {
-	var err error
+func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*dao.ServiceState) error {
+	//	var err error
 	// pick services instances to start
 	if len(serviceStates) < service.Instances {
 		instancesToStart := service.Instances - len(serviceStates)
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
-		var poolHosts []*dao.PoolHost
-		err = cpDao.GetHostsForResourcePool(service.PoolId, &poolHosts)
+		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolId)
 		if err != nil {
 			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolId, err)
 			return err
 		}
-		if len(poolHosts) == 0 {
+		if len(hosts) == 0 {
 			glog.Warningf("Pool %s has no hosts", service.PoolId)
 			return nil
 		}
 
-		return startServiceInstances(cpDao, conn, service, poolHosts, instancesToStart)
+		return l.startServiceInstances(service, hosts, instancesToStart)
 
 	} else if len(serviceStates) > service.Instances {
 		instancesToKill := len(serviceStates) - service.Instances
 		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
-		shutdownServiceInstances(conn, serviceStates, instancesToKill)
+		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
 	}
 	return nil
 
@@ -305,33 +316,34 @@ func getFreeInstanceIds(conn coordclient.Connection, svc *dao.Service, n int) ([
 	}
 	return ids, nil
 }
-
-func startServiceInstances(cpDao dao.ControlPlane, conn coordclient.Connection, service *dao.Service, poolhosts []*dao.PoolHost, numToStart int) error {
-	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(poolhosts))
+func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host, numToStart int) error {
+	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
-	freeids, err := getFreeInstanceIds(conn, service, numToStart)
+	freeids, err := getFreeInstanceIds(l.conn, service, numToStart)
 	if err != nil {
 		return err
 	}
 
+	hostPolicy := NewServiceHostPolicy(service, l.dao)
+
 	// Start up an instance per id
 	for _, i := range freeids {
-		servicehost, err := selectPoolHostForService(cpDao, service, poolhosts)
+		servicehost, err := hostPolicy.SelectHost(hosts)
 		if err != nil {
 			return err
 		}
 
 		glog.V(2).Info("Selected host ", servicehost)
-		serviceState, err := service.NewServiceState(servicehost.HostId)
+		serviceState, err := service.NewServiceState(servicehost.ID)
 		if err != nil {
 			glog.Errorf("Error creating ServiceState instance: %v", err)
 			return err
 		}
 
-		serviceState.HostIp = servicehost.HostIp
+		serviceState.HostIp = servicehost.IPAddr
 		serviceState.InstanceId = i
-		err = zzk.AddServiceState(conn, serviceState)
+		err = zzk.AddServiceState(l.conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)
 			return err
@@ -356,7 +368,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*dao.
 // selectPoolHostForService chooses a host from the pool for the specified service. If the service
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
-func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+func (l *leader) selectPoolHostForService(s *dao.Service, hosts []*host.Host) (*host.Host, error) {
 	var hostid string
 	for _, ep := range s.Endpoints {
 		if ep.AddressAssignment != (dao.AddressAssignment{}) {
@@ -366,141 +378,20 @@ func selectPoolHostForService(cp dao.ControlPlane, s *dao.Service, pool []*dao.P
 	}
 
 	if hostid != "" {
-		return poolHostFromAddressAssignments(hostid, pool)
+		return poolHostFromAddressAssignments(hostid, hosts)
 	}
 
-	return selectLeastCommittedHost(cp, pool)
+	return NewServiceHostPolicy(s, l.dao).SelectHost(hosts)
 }
 
 // poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
-func poolHostFromAddressAssignments(hostid string, pool []*dao.PoolHost) (*dao.PoolHost, error) {
+func poolHostFromAddressAssignments(hostid string, hosts []*host.Host) (*host.Host, error) {
 	// ensure the assigned host is in the pool
-	for _, ph := range pool {
-		if ph.HostId == hostid {
-			return ph, nil
+	for _, h := range hosts {
+		if h.ID == hostid {
+			return h, nil
 		}
 	}
 
 	return nil, fmt.Errorf("assigned host is not in pool")
-}
-
-// hostitem is what is stored in the least commited RAM scheduler's priority queue
-type hostitem struct {
-	host     *dao.PoolHost
-	priority uint64 // the host's available RAM
-	index    int    // the index of the hostitem in the heap
-}
-
-// priorityqueue implements the heap.Interface and holds hostitems
-type priorityqueue []*hostitem
-
-// selectLeastCommittedHost choses the host with the least RAM commited to running containers. It
-// uses a two stage pipeline that first calculates the available RAM per host and then adds each
-// host to a queue prioritized by available RAM. The selected host is the one with the top
-// priority.
-func selectLeastCommittedHost(cp dao.ControlPlane, hosts []*dao.PoolHost) (*dao.PoolHost, error) {
-	var wg sync.WaitGroup
-
-	done := make(chan bool)
-	defer close(done)
-
-	hic := make(chan *hostitem)
-
-	// fan-out available RAM computation for each host
-	for _, h := range hosts {
-		wg.Add(1)
-		go func(poolhost *dao.PoolHost) {
-			availableRAM(cp, poolhost, hic, done)
-			wg.Done()
-		}(h)
-	}
-
-	// close the hostitem channel when all the calculation is finished
-	go func() {
-		wg.Wait()
-		close(hic)
-	}()
-
-	pq := &priorityqueue{}
-	heap.Init(pq)
-
-	// fan-in all the available RAM computations
-	for hi := range hic {
-		heap.Push(pq, hi)
-	}
-
-	// select the highest priority (most available RAM) host
-	if pq.Len() <= 0 {
-		return nil, fmt.Errorf("unable to find a host to schedule")
-	}
-	return heap.Pop(pq).(*hostitem).host, nil
-}
-
-// availableRAM computes the amount of RAM available on a given host by subtracting the sum of the
-// RAM commitments of each of its running services from its total memory.
-func availableRAM(cp dao.ControlPlane, host *dao.PoolHost, result chan *hostitem, done <-chan bool) {
-	rss := []*dao.RunningService{}
-	if err := cp.GetRunningServicesForHost(host.HostId, &rss); err != nil {
-		glog.Errorf("cannot retrieve running services for host: %s (%v)", host.HostId, err)
-		return // this host won't be scheduled
-	}
-
-	var cr uint64
-
-	for i := range rss {
-		s := dao.Service{}
-		if err := cp.GetService(rss[i].ServiceId, &s); err != nil {
-			glog.Errorf("cannot retrieve service information for running service (%v)", err)
-			return // this host won't be scheduled
-		}
-
-		cr += s.RAMCommitment
-	}
-
-	h := dao.Host{}
-	if err := cp.GetHost(host.HostId, &h); err != nil {
-		glog.Errorf("cannot retrieve host information for pool host %s (%v)", host.HostId, err)
-		return // this host won't be scheduled
-	}
-
-	result <- &hostitem{host, h.Memory - cr, -1}
-}
-
-/*
-PriorityQueue implementation take from golang std library container/heap documentation example
-*/
-
-// Len is the number of elements in the collection.
-func (pq priorityqueue) Len() int {
-	return len(pq)
-}
-
-// Less reports whether the element with index i should sort before the element with index j.
-func (pq priorityqueue) Less(i, j int) bool {
-	return pq[i].priority > pq[j].priority
-}
-
-// Swap swaps the elements with indexes i and j.
-func (pq priorityqueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-// Push pushes the hostitem onto the heap.
-func (pq *priorityqueue) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*hostitem)
-	item.index = n
-	*pq = append(*pq, item)
-}
-
-// Pop removes the minimum element (according to Less) from the heap and returns it.
-func (pq *priorityqueue) Pop() interface{} {
-	opq := *pq
-	n := len(opq)
-	item := opq[n-1]
-	item.index = -1 // mark it as removed, just in case
-	*pq = opq[0 : n-1]
-	return item
 }

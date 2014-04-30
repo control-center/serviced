@@ -1,4 +1,4 @@
-package serviced
+package scheduler
 
 import (
 	"fmt"
@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 )
 
-func populateVirtualInterfaceNames(virtualIPsToAdd []dao.VirtualIP, interfaceMap []dao.VirtualIP) []dao.VirtualIP {
+func populateVirtualInterfaceNames(virtualIPsToAdd []pool.VirtualIP, interfaceMap []pool.VirtualIP) []pool.VirtualIP {
 	glog.Info("******************** started populateVirtualInterfaceNames")
 	defer glog.Info("******************** finished populateVirtualInterfaceNames")
 
@@ -20,7 +21,7 @@ func populateVirtualInterfaceNames(virtualIPsToAdd []dao.VirtualIP, interfaceMap
 	MAX_INDEX := 100
 	interfaceIndex := 0
 
-	virtualIPsReadyToAdd := []dao.VirtualIP{}
+	virtualIPsReadyToAdd := []pool.VirtualIP{}
 
 	for _, virtualIPToAdd := range virtualIPsToAdd {
 		for interfaceIndex = 0; interfaceIndex < MAX_INDEX; interfaceIndex++ {
@@ -53,9 +54,9 @@ func populateVirtualInterfaceNames(virtualIPsToAdd []dao.VirtualIP, interfaceMap
 var VIRTUAL_INTERFACE_PREFIX = ":cpvip"
 
 // create a map of [bindaddress][interface_name] = ip_address
-func createVirtualInterfaceMap() (error, []dao.VirtualIP) {
+func createVirtualInterfaceMap() (error, []pool.VirtualIP) {
 	glog.Info("Creating Virtual Interface Map...")
-	interfaceMap := []dao.VirtualIP{}
+	interfaceMap := []pool.VirtualIP{}
 
 	//ifconfig | awk '/cpvip/{print $1}'
 	virtualInterfaceNames, err := exec.Command("bash", "-c", "ifconfig | awk '/cpvip/{print $1}'").CombinedOutput()
@@ -81,7 +82,7 @@ func createVirtualInterfaceMap() (error, []dao.VirtualIP) {
 		}
 		bindInterface := strings.TrimSpace(string(bindInterfaceAndIndex[0]))
 		interfaceIndex := strings.TrimSpace(string(bindInterfaceAndIndex[1]))
-		interfaceMap = append(interfaceMap, dao.VirtualIP{"", "", strings.TrimSpace(string(virtualIP)), "", bindInterface, interfaceIndex})
+		interfaceMap = append(interfaceMap, pool.VirtualIP{"", "", strings.TrimSpace(string(virtualIP)), "", bindInterface, interfaceIndex})
 	}
 
 	glog.Infof(" ********** Virtual Interface Map: %v", interfaceMap)
@@ -89,14 +90,14 @@ func createVirtualInterfaceMap() (error, []dao.VirtualIP) {
 	return nil, interfaceMap
 }
 
-func generateInterfaceName(virtualIP dao.VirtualIP) string {
+func generateInterfaceName(virtualIP pool.VirtualIP) string {
 	if virtualIP.Index == "" {
 		glog.Errorf("Virtual IP: %v has no Index... cannot generate its interface name.", virtualIP.IP)
 	}
 	return virtualIP.BindInterface + VIRTUAL_INTERFACE_PREFIX + virtualIP.Index
 }
 
-func addVirtualIPToLeader(virtualIP dao.VirtualIP) {
+func addVirtualIPToLeader(virtualIP pool.VirtualIP) {
 	glog.Infof("Adding: %v", virtualIP)
 	// ensure that the Bind Address is reported by ifconfig ... ?
 	if err := exec.Command("ifconfig", virtualIP.BindInterface).Run(); err != nil {
@@ -115,7 +116,7 @@ func addVirtualIPToLeader(virtualIP dao.VirtualIP) {
 	glog.Infof("Added: %v", virtualIP)
 }
 
-func removeVirtualIPToLeader(virtualIP dao.VirtualIP) {
+func removeVirtualIPToLeader(virtualIP pool.VirtualIP) {
 	glog.Infof("Removing: %v", virtualIP)
 	virtualInterfaceName := generateInterfaceName(virtualIP)
 	// ifconfig eth0:1 down
@@ -126,7 +127,7 @@ func removeVirtualIPToLeader(virtualIP dao.VirtualIP) {
 	glog.Infof("Removed interface: %s %v", virtualInterfaceName, virtualIP)
 }
 
-func virtualIPExists(aVirtualIP dao.VirtualIP, virtualIPs []dao.VirtualIP) bool {
+func virtualIPExists(aVirtualIP pool.VirtualIP, virtualIPs []pool.VirtualIP) bool {
 	for _, virtualIP := range virtualIPs {
 		//aVirtualIP.PoolId == virtualIP.PoolId &&
 		//aVirtualIP.Netmask == virtualIP.Netmask &&
@@ -138,7 +139,7 @@ func virtualIPExists(aVirtualIP dao.VirtualIP, virtualIPs []dao.VirtualIP) bool 
 	return false
 }
 
-func watchVirtualIPs(cpDao dao.ControlPlane) {
+func watchVirtualIPs(facade facade.Facade, context datastore.Context) {
 	glog.Info("******************** started watchVirtualIPs")
 	defer glog.Info("******************** finished watchVirtualIPs")
 
@@ -148,15 +149,15 @@ func watchVirtualIPs(cpDao dao.ControlPlane) {
 		return
 	}
 
-	host := dao.Host{}
-	if err := cpDao.GetHost(hostId, &host); err != nil {
+	host, err := facade.GetHost(context, hostId)
+	if err != nil {
 		glog.Errorf("Cannot retrieve host information for pool host %s (%v)", hostId, err)
 		return
 	}
 
-	var pool dao.ResourcePool
-	if err := cpDao.GetResourcePool(host.PoolId, &pool); err != nil {
-		glog.Errorf("Unable to load resource pool: %v", host.PoolId)
+	aPool, err := facade.GetResourcePool(context, host.PoolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %v", host.PoolID)
 		return
 	}
 
@@ -166,15 +167,15 @@ func watchVirtualIPs(cpDao dao.ControlPlane) {
 		return
 	}
 
-	if len(pool.VirtualIPs) == 0 && len(interfaceMap) == 0 {
-		glog.Infof("There are 0 virtual IP address in pool: %v (there are also 0 virtual IP addresses on host: %v)", pool.Id, host.Name)
+	if len(aPool.VirtualIPs) == 0 && len(interfaceMap) == 0 {
+		glog.Infof("There are 0 virtual IP address in pool: %v (there are also 0 virtual IP addresses on host: %v)", aPool.ID, host.Name)
 		return
 	}
 
 	addVirtualIP := true
-	virtualIPsToAdd := []dao.VirtualIP{}
-	virtualIPsToKeep := []dao.VirtualIP{}
-	for _, virtualIP := range pool.VirtualIPs { // add these if they do not already exist
+	var virtualIPsToAdd []pool.VirtualIP
+	var virtualIPsToKeep []pool.VirtualIP
+	for _, virtualIP := range aPool.VirtualIPs { // add these if they do not already exist
 		addVirtualIP = true
 		for _, virtualInterface := range interfaceMap { // these already exist on the leader
 			glog.Infof(" ++++++++++++++++ Checking virtualIP: %v against virtualInterface: %v", virtualIP, virtualInterface)
@@ -194,7 +195,7 @@ func watchVirtualIPs(cpDao dao.ControlPlane) {
 	}
 
 	virtualIPsReadyToAdd := populateVirtualInterfaceNames(virtualIPsToAdd, interfaceMap)
-	glog.Infof("pool.VirtualIPs     : %v", pool.VirtualIPs)
+	glog.Infof("aPool.VirtualIPs    : %v", aPool.VirtualIPs)
 	glog.Infof("virtualIPsToAdd     : %v", virtualIPsToAdd)
 	glog.Infof("virtualIPsToKeep    : %v", virtualIPsToKeep)
 	glog.Infof("virtualIPsReadyToAdd: %v", virtualIPsReadyToAdd)
