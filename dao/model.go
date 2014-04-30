@@ -70,12 +70,13 @@ const (
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId     string
-	ContainerPort uint16
-	HostPort      uint16
-	HostIp        string
-	ContainerIp   string
-	Protocol      string
+	ServiceId      string
+	ContainerPort  uint16
+	HostPort       uint16
+	HostIp         string
+	ContainerIp    string
+	Protocol       string
+	VirtualAddress string
 }
 
 // Snapshot commands
@@ -122,6 +123,7 @@ type ServiceEndpoint struct {
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
+	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig

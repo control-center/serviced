@@ -35,6 +35,23 @@ type ProxyConfig struct {
 	Command   []string
 }
 
+type VIface struct {
+	Host string
+	IP   string
+}
+
+func getNextIP() string {
+	s := fmt.Sprintf("10.3.0.%d", nextip)
+	nextip += 1
+	return s
+}
+
+func (vif *VIface) Create() {
+}
+
+func (vif *VIface) Redirect(from, to uint64) {
+}
+
 // Start a service proxy
 func (a *api) StartProxy(cfg ProxyConfig) error {
 	config := serviced.MuxConfig{}
@@ -188,6 +205,7 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 
 						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
+
 					}
 					proxy.SetNewAddresses(addresses)
 				}
@@ -233,8 +251,14 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 	return nil
 }
 
-var proxies map[string]*serviced.Proxy
+var (
+	proxies map[string]*serviced.Proxy
+	vifaces map[string]*VIface
+	nextip  int
+)
 
 func init() {
 	proxies = make(map[string]*serviced.Proxy)
+	vifaces = make(map[string]*VIface)
+	nextip = 1
 }
