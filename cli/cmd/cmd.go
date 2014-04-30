@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -56,7 +57,15 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
 
-		cli.IntFlag{"v", 0, "Log level for V logs"},
+		// Reimplementing GLOG flags :(
+		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
+		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
+		cli.StringFlag{"logstashtype", "", "enable logstash logging and define the type"},
+		cli.StringFlag{"logstashurl", "172.17.42.1:5042", "logstash url and port"},
+		cli.IntFlag{"v", 0, "log level for V logs"},
+		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
+		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
+		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 	}
 
 	c.initPool()
@@ -103,10 +112,58 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	api.LoadOptions(options)
 
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		return err
+	}
+
 	// Start server mode
 	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
+	}
+
+	return nil
+}
+
+func setLogging(ctx *cli.Context) error {
+
+	if ctx.IsSet("logtostderr") {
+		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
+	}
+
+	if ctx.IsSet("alsotostderr") {
+		glog.SetAlsoToStderr(ctx.GlobalBool("alsotostderr"))
+	}
+
+	if ctx.IsSet("logstashType") {
+		glog.SetLogstashType(ctx.GlobalString("logstashType"))
+	}
+
+	if ctx.IsSet("logstashURL") {
+		glog.SetLogstashURL(ctx.GlobalString("logstashURL"))
+	}
+
+	if ctx.IsSet("v") {
+		glog.SetVerbosity(ctx.GlobalInt("v"))
+	}
+
+	if ctx.IsSet("stderrThreshold") {
+		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrThreshold")); err != nil {
+			return err
+		}
+	}
+
+	if ctx.IsSet("vmodule") {
+		if err := glog.SetVModule(ctx.GlobalString("vmodule")); err != nil {
+			return err
+		}
+	}
+
+	if ctx.IsSet("traceLocation") {
+		if err := glog.SetTraceLocation(ctx.GlobalString("traceLocation")); err != nil {
+			return err
+		}
 	}
 
 	return nil
