@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/cli"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -106,6 +107,12 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 				},
+			}, {
+				Name:         "attach",
+				Usage:        "Attaches to a service instance",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND]",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceAttach,
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -508,6 +515,111 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	return fmt.Errorf("serviced service run")
+}
+
+// getServiceStateIDFromDocker inspects the docker container for Name and returns that as the serviceStateID
+func (c *ServicedCli) getServiceStateIDFromDocker(containerID string) (string, error) {
+	// retrieve docker container name from containerID
+	const DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		fmt.Errorf("could not attach to docker client error:%v\n\n", err)
+		return "", err
+	}
+	container, err := dockerClient.InspectContainer(containerID)
+	if err != nil {
+		fmt.Errorf("could not inspect container error:%v\n\n", err)
+		return "", err
+	}
+
+	serviceStateID := strings.Trim(container.Name, "/")
+	return serviceStateID, nil
+}
+
+// findServiceStateID finds the ServiceStateID from either DockerId, ServiceName, or ServiceId
+func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error) {
+	runningServices, err := c.driver.GetServiceStates(serviceSpecifier)
+	if err != nil {
+		return "", err
+	}
+
+	// validate results
+	if len(runningServices) < 1 {
+		return "", fmt.Errorf("did not find any running services matching specifier:'%s'", serviceSpecifier)
+	}
+	if len(runningServices) > 1 {
+		msg := fmt.Sprintf("only one running service is allowed to match specifier:'%s'  found:%d\n", serviceSpecifier, len(runningServices))
+		fmt.Fprintln(os.Stderr, msg)
+
+		tableMatched := newTable(0, 8, 2)
+		tableMatched.PrintRow("NAME", "SERVICEID", "DOCKERID")
+
+		var printTable func(string)
+		printTable = func(root string) {
+			for _, running := range runningServices {
+				tableMatched.PrintRow(
+					running.Service.Name,
+					running.State.ServiceId,
+					running.State.DockerId,
+				)
+			}
+		}
+		printTable("")
+		tableMatched.Flush()
+		return "", fmt.Errorf("%s", msg)
+	}
+
+	// validate that the running service found is a running docker container
+	serviceStateID, err := c.getServiceStateIDFromDocker(runningServices[0].State.DockerId)
+	if err != nil {
+		return "", err
+	}
+
+	if serviceStateID != runningServices[0].State.Id {
+		return "", fmt.Errorf("docker.Name (serviceStateID:%s0  does not match state.Id:%s", serviceStateID, runningServices[0].State.Id)
+	}
+
+	// return the service state id
+	return runningServices[0].State.Id, nil
+}
+
+// serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND ...]
+func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.  attach needs at least 1 arg\n\n")
+		cli.ShowCommandHelp(ctx, "attach")
+		return nil
+	}
+
+	serviceSpecifier := ctx.Args().First()
+	if serviceSpecifier == "" {
+		return fmt.Errorf("required serviceSpecifier is empty")
+	}
+
+	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error looking for DOCKER_ID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		return err
+	}
+
+	cfg := api.AttachConfig{
+		ServiceStateID: serviceStateID,
+		Command:        ctx.Args().Tail(),
+	}
+
+	if strings.TrimSpace(strings.Join(cfg.Command, "")) == "" {
+		cfg.Command = []string{"bash"}
+	}
+
+	fmt.Fprintf(os.Stderr, "Attach(%+v)\n", cfg)
+	if err := c.driver.Attach(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("serviced service attach")
 }
 
 // serviced service list-snapshot SERVICEID

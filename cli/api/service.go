@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 )
@@ -27,6 +28,12 @@ type ServiceConfig struct {
 type IPConfig struct {
 	ServiceID string
 	IPAddress string
+}
+
+// RunningService contains the service for a state
+type RunningService struct {
+	Service *service.Service
+	State   *service.ServiceState
 }
 
 // Gets all of the available services
@@ -76,8 +83,31 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 	return services, nil
 }
 
-// Gets the service states for a service identified by its service ID
-func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
+// Gets the service state identified by its service state ID
+func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
+	services, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, service := range services {
+		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, state := range statesByServiceID {
+			if id == state.Id {
+				return statesByServiceID[i], nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("unable to find state given serviceStateID:%s", id)
+}
+
+// getServiceStatesByServiceID gets the service states for a service identified by its service ID
+func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -91,26 +121,40 @@ func (a *api) GetServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 	return states, nil
 }
 
-// Gets the service states for a service identified by the docker ID
-func (a *api) GetServiceStatesByDockerID(id string) (*service.ServiceState, error) {
+// GetServiceStates returns running services that match DockerId, ServiceName, or ServiceId
+func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
 	services, err := a.GetServices()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, s := range services {
-		states, err := a.GetServiceStatesByServiceID(s.Id)
+	var runningServices []*RunningService
+	for serviceKey, service := range services {
+		glog.V(2).Infof("looking for id:%s in service:  ServiceId:%s  ServiceName:%s\n",
+			id, service.Id, service.Name)
+		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
 		if err != nil {
-			return nil, err
+			return []*RunningService{}, err
 		}
-		for i, ss := range states {
-			if ss.DockerId == id {
-				return states[i], nil
+
+		for stateKey, state := range statesByServiceID {
+			glog.V(2).Infof("looking for id:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
+				id, state.ServiceId, service.Name, state.DockerId)
+			if state.DockerId == "" {
+				continue
+			}
+			if id == state.ServiceId || id == service.Name ||
+				state.DockerId == id {
+				running := RunningService{
+					Service: services[serviceKey],
+					State:   statesByServiceID[stateKey],
+				}
+				runningServices = append(runningServices, &running)
 			}
 		}
 	}
 
-	return nil, nil
+	return runningServices, nil
 }
 
 // Adds a new service
