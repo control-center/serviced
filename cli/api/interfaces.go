@@ -34,14 +34,14 @@ type API interface {
 	GetServices() ([]*service.Service, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]*service.Service, error)
-	GetServiceStatesByServiceID(string) ([]*service.ServiceState, error)
-	GetServiceStatesByDockerID(string) (*service.ServiceState, error)
+	GetServiceStates(string) ([]*RunningService, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
 	AssignIP(IPConfig) (string, error)
+	Attach(AttachConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error
