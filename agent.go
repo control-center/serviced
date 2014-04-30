@@ -239,7 +239,7 @@ func (a *HostAgent) dockerTerminate(dockerID string) error {
 		return err
 	}
 
-	if err = dc.KillContainer(dockerID); err != nil {
+	if err = dc.KillContainer(dockerID); err != nil && !strings.Contains(err.Error(), "No such container") {
 		glog.Errorf("unable to kill container %s: %v", dockerID, err)
 		return err
 	}
@@ -806,6 +806,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	cfg.Cmd = append([]string{},
 		fmt.Sprintf("/serviced/%s", binary),
+		"service",
 		"proxy",
 		service.Id,
 		service.Startup)

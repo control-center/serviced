@@ -8,6 +8,7 @@ import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/search"
+	"github.com/mattbaird/elastigo/indices"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 
@@ -27,6 +28,7 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 	var raw json.RawMessage
 	raw = msg.Bytes()
 	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &raw)
+	indices.Refresh(ec.index)
 	glog.V(4).Infof("Put response: %v", resp)
 	if err != nil {
 		glog.Errorf("Put err: %v", err)
@@ -58,6 +60,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 func (ec *elasticConnection) Delete(key datastore.Key) error {
 	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
 	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
+	indices.Refresh(ec.index)
 	glog.V(4).Infof("Delete response: %v", resp)
 	if err != nil {
 		return err
