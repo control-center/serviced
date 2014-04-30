@@ -25,7 +25,7 @@
             <a class="main" ng-click="clickPool(pool.ID)">{{pool.ID}}</a>
 
             <span class="dropdown extended pull-right" id="pool_menu_{{$index}}">
-              <button class="btn-link glyphicon glyphicon-info-sign" popover='<table class="table table-striped"><tr><th>Description</th><td>{{pool.Description}}</td></tr><tr><th>Core Limit</th><td>{{pool.CoreLimit}}</td></tr><tr><th>Memory Limit</th><td>{{pool.MemoryLimit}}</td></tr></table>' popover-title="{{pool.Id}}"></button>
+              <button class="btn-link glyphicon glyphicon-info-sign" popover='<table class="table table-striped"><tr><th>Description</th><td>{{pool.Description}}</td></tr><tr><th>Cores</th><td>{{pool.CoreCapacity}}</td></tr><tr><th>Memory</th><td>{{pool.MemoryCapacity | toGB}}</td></tr></table>' popover-title="{{pool.Id}}"></button>
               <!-- Link or button to toggle dropdown -->
               <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown" ng-click="clickMenu($index)"></button>
               <ul class="dropdown-menu" role="menu">

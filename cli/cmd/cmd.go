@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/cli"
-	"github.com/zenoss/serviced/serviced/api"
+	"github.com/zenoss/serviced/cli/api"
 )
 
 // ServicedCli is the client ui for serviced
@@ -29,6 +29,7 @@ func New(driver api.API) *ServicedCli {
 
 	c.app.Name = "serviced"
 	c.app.Usage = "A container-based management system"
+	c.app.Version = "1.0.0"
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{
@@ -54,6 +55,8 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"stats-period", 60, "Period (seconds) for container statistics reporting"},
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
+
+		cli.IntFlag{"v", 0, "Log level for V logs"},
 	}
 
 	c.initPool()
@@ -61,6 +64,7 @@ func New(driver api.API) *ServicedCli {
 	c.initTemplate()
 	c.initService()
 	c.initSnapshot()
+	c.initBackup()
 
 	return c
 }
@@ -94,6 +98,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		StatsPeriod:      ctx.GlobalInt("stats-period"),
 		MCUsername:       ctx.GlobalString("mc-username"),
 		MCPasswd:         ctx.GlobalString("mc-password"),
+		Verbosity:        ctx.GlobalInt("v"),
 	}
 
 	api.LoadOptions(options)
@@ -105,4 +110,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func init() {
+	// Change the representation of the version flag
+	cli.VersionFlag = cli.BoolFlag{"version", "print the version"}
 }

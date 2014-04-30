@@ -1656,7 +1656,7 @@ func (this *ControlPlaneDao) Send(service dao.Service, files *[]string) error {
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
@@ -1665,7 +1665,7 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 		hostName: hostName,
 		port:     port,
 	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao); err != nil {
+	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
 		return nil, err
 	} else {
 		dao.dfs = dfs
@@ -1708,7 +1708,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *co
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port)
+	s, err := NewControlPlaneDao(hostName, port, facade)
 	if err != nil {
 		return nil, err
 	}

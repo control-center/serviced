@@ -126,10 +126,10 @@ func (s *S) TestQuery(t *C) {
 }
 
 type tweettest struct {
-	User      string
-	State     string
+	User     string
+	State    string
 	PostDate string
-	Message   string
+	Message  string
 }
 
 func (t *tweettest) ValidEntity() error {
