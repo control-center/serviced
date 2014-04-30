@@ -239,7 +239,7 @@ func (a *HostAgent) dockerTerminate(dockerID string) error {
 		return err
 	}
 
-	if err = dc.KillContainer(dockerID); err != nil && !strings.Contains(err.Error(), "No such container") {
+	if err = dc.KillContainer(dockerID); err != nil {
 		glog.Errorf("unable to kill container %s: %v", dockerID, err)
 		return err
 	}
@@ -740,7 +740,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		lsbms := getLogstashBindMounts(configFileName)
 		for _, binding := range strings.Split(lsbms, "-v") {
 			if len(binding) > 0 {
-				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
+				cfg.Volumes[strings.TrimSpace(strings.Split(binding, ":")[1])] = struct{}{}
 				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 			}
 		}
