@@ -83,21 +83,6 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 	return services, nil
 }
 
-// getServiceMapWithIDAsKey returns all services as a map with service.Id as key
-func (a *api) getServicesWithIDKey() (map[string]*service.Service, error) {
-	var serviceMap map[string]*service.Service
-	services, err := a.GetServices()
-	if err != nil {
-		return serviceMap, err
-	}
-	serviceMap = make(map[string]*service.Service)
-	for i, service := range services {
-		serviceMap[service.Id] = services[i]
-	}
-
-	return serviceMap, nil
-}
-
 // Gets the service state identified by its service state ID
 func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
 	services, err := a.GetServices()
@@ -138,13 +123,13 @@ func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 
 // GetServiceStates returns running services that match DockerId, ServiceName, or ServiceId
 func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
-	serviceMap, err := a.getServicesWithIDKey()
+	services, err := a.GetServices()
 	if err != nil {
 		return nil, err
 	}
 
 	var runningServices []*RunningService
-	for serviceKey, service := range serviceMap {
+	for serviceKey, service := range services {
 		glog.V(2).Infof("looking for id:%s in service:  ServiceId:%s  ServiceName:%s\n",
 			id, service.Id, service.Name)
 		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
@@ -161,7 +146,7 @@ func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
 			if id == state.ServiceId || id == service.Name ||
 				state.DockerId == id {
 				running := RunningService{
-					Service: serviceMap[serviceKey],
+					Service: services[serviceKey],
 					State:   statesByServiceID[stateKey],
 				}
 				runningServices = append(runningServices, &running)
