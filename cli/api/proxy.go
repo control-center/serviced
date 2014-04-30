@@ -20,6 +20,7 @@ import (
 
 var proxyOptions ProxyOptions
 
+// ProxyOptions are options to be run when starting a new proxy server
 type ProxyOptions struct {
 	MuxPort          int
 	Mux              bool
@@ -31,6 +32,7 @@ type ProxyOptions struct {
 	Logstash         bool
 }
 
+// LoadProxyOptions loads the proxy option information
 func LoadProxyOptions(ops ProxyOptions) {
 	proxyOptions = ops
 }
