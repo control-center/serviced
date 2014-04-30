@@ -343,7 +343,16 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
 
 	// get the proxy command
-	proxycmd := []string{svcdcmd, "-logtostderr=false", "proxy", "-logstash=false", "-autorestart=false", service.Id, shellcmd}
+	proxycmd := []string{
+		svcdcmd,
+		"--logtostderr=false",
+		"service",
+		"proxy",
+		"--autorestart=false",
+		"--logstash=false",
+		service.Id,
+		shellcmd,
+	}
 
 	// get the docker start command
 	docker, err := exec.LookPath("docker")
