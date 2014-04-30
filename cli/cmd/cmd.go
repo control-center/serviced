@@ -80,7 +80,6 @@ func New(driver api.API) *ServicedCli {
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	fmt.Println("running command: ", args)
 	c.app.Run(args)
 }
 
