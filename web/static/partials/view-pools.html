@@ -37,10 +37,10 @@
     <tr ng-repeat="pool in pools.data | orderBy:pools.sort" class="link">		  
       <td ng-click="click_pool(pool.ID)">{{pool.ID}}</td>
       <td>{{pool.Priority}}</td>
-      <td>{{pool.CoreLimit}}</td>
-      <td>{{pool.MemoryLimit}}</td>
-      <td>{{pool.CreatedAt}}</td>
-      <td>{{pool.UpdatedAt}}</td>
+      <td>{{pool.CoreCapacity}}</td>
+      <td>{{pool.MemoryCapacity | toGB}}</td>
+      <td>{{pool.CreatedAt | date : 'medium'}}</td>
+      <td>{{pool.UpdatedAt | date : 'medium'}}</td>
       <td> <button ng-click="clickRemovePool(pool.Id)" class="btn btn-link">Delete</button> </td>
     </tr>
   </tbody>
