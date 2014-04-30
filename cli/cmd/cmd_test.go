@@ -31,4 +31,6 @@ func ExampleServicedCLI_CmdInit_logging() {
 	InitAPITest("serviced", "--vmodule", "abcd", "--master")
 
 	// Output:
+	// syntax error: expect comma-separated list of filename=N
+	// starting server
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zenoss/cli"
 	docker "github.com/zenoss/go-dockerclient"
