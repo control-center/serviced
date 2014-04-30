@@ -4,9 +4,10 @@ import (
 	"io"
 
 	service "github.com/zenoss/serviced/dao"
-	template "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 )
 
@@ -41,7 +42,7 @@ type API interface {
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
-	AssignIP(IPConfig) ([]service.AddressAssignment, error)
+	AssignIP(IPConfig) ([]servicedefinition.AddressAssignment, error)
 
 	// Shell
 	StartShell(ShellConfig) error
@@ -56,11 +57,11 @@ type API interface {
 	Rollback(string) error
 
 	// Templates
-	GetServiceTemplates() ([]*template.ServiceTemplate, error)
-	GetServiceTemplate(string) (*template.ServiceTemplate, error)
-	AddServiceTemplate(io.Reader) (*template.ServiceTemplate, error)
+	GetServiceTemplates() ([]*servicetemplate.ServiceTemplate, error)
+	GetServiceTemplate(string) (*servicetemplate.ServiceTemplate, error)
+	AddServiceTemplate(io.Reader) (*servicetemplate.ServiceTemplate, error)
 	RemoveServiceTemplate(string) error
-	CompileServiceTemplate(CompileTemplateConfig) (*template.ServiceTemplate, error)
+	CompileServiceTemplate(CompileTemplateConfig) (*servicetemplate.ServiceTemplate, error)
 	DeployServiceTemplate(DeployTemplateConfig) (*service.Service, error)
 
 	// Backup & Restore

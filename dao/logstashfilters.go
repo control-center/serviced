@@ -11,6 +11,8 @@ package dao
 
 import (
 	"fmt"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"io/ioutil"
 	"os"
 	"path"
@@ -30,7 +32,7 @@ func resourcesDir() string {
 
 // WriteConfigurationFile takes a map of ServiceTemplates and writes them to the
 // appropriate place in the logstash.conf.
-func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
+func WriteConfigurationFile(templates map[string]*servicetemplate.ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
 	filterDefs := make(map[string]string)
@@ -55,7 +57,7 @@ func WriteConfigurationFile(templates map[string]*ServiceTemplate) error {
 	return nil
 }
 
-func getFilterDefinitions(services []ServiceDefinition) map[string]string {
+func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[string]string {
 	filterDefs := make(map[string]string)
 	for _, service := range services {
 		for name, value := range service.LogFilters {
@@ -72,7 +74,7 @@ func getFilterDefinitions(services []ServiceDefinition) map[string]string {
 	return filterDefs
 }
 
-func getFilters(services []ServiceDefinition, filterDefs map[string]string) string {
+func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string) string {
 	filters := ""
 	for _, service := range services {
 		for _, config := range service.LogConfigs {

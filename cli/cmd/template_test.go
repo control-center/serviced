@@ -4,9 +4,9 @@ import (
 	"errors"
 	"io"
 
-	service "github.com/zenoss/serviced/dao"
-	template "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/cli/api"
+	service "github.com/zenoss/serviced/dao"
+	template "github.com/zenoss/serviced/domain/servicetemplate"
 )
 
 var DefaultTemplateAPITest = TemplateAPITest{}

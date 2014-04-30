@@ -7,6 +7,7 @@ import (
 
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 const ()
@@ -120,7 +121,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
@@ -220,7 +221,7 @@ func (a *api) StopService(id string) error {
 }
 
 // AssignIP assigns an IP address to a service
-func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
+func (a *api) AssignIP(config IPConfig) ([]servicedefinition.AddressAssignment, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -236,7 +237,7 @@ func (a *api) AssignIP(config IPConfig) ([]service.AddressAssignment, error) {
 		return nil, err
 	}
 
-	var addresses []service.AddressAssignment
+	var addresses []servicedefinition.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return nil, err
 	}

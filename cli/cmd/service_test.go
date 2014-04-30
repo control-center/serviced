@@ -4,9 +4,10 @@ import (
 	"errors"
 	"io"
 
+	"github.com/zenoss/serviced/cli/api"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 var DefaultServiceAPITest = ServiceAPITest{services: DefaultTestServices}
@@ -91,7 +92,7 @@ func (t ServiceAPITest) StopService(id string) error {
 	return nil
 }
 
-func (t ServiceAPITest) AssignIP(config api.IPConfig) ([]service.AddressAssignment, error) {
+func (t ServiceAPITest) AssignIP(config api.IPConfig) ([]servicedefinition.AddressAssignment, error) {
 	return nil, nil
 }
 

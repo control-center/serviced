@@ -4,10 +4,23 @@
 
 package domain
 
+import "fmt"
 
 type MinMax struct {
 	Min int
 	Max int
 }
 
+//Validate ensure that the values in min max are valid. Max >= Min >=0  returns error otherwise
+func (minmax *MinMax) Validate() error {
+	// Instances["min"] and Instances["max"] must be positive
+	if minmax.Min < 0 || minmax.Max < 0 {
+		return fmt.Errorf("Instances constraints must be positive: Min=%v; Max=%v", minmax.Min, minmax.Max)
+	}
 
+	// If "min" and "max" are both declared Instances["min"] < Instances["max"]
+	if minmax.Max != 0 && minmax.Min > minmax.Max {
+		return fmt.Errorf("Minimum instances larger than maximum instances: Min=%v; Max=%v", minmax.Min, minmax.Max)
+	}
+	return nil
+}

@@ -1,4 +1,4 @@
-package dao
+package servicedefinition
 
 import (
 	"github.com/zenoss/serviced/commons"
@@ -21,7 +21,7 @@ func init() {
 			ServiceDefinition{
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
+				ImageID: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
 					"/etc/my.cnf": ConfigFile{Owner: "root:root", Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
@@ -59,7 +59,7 @@ func init() {
 			ServiceDefinition{
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
+				ImageID: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
 					"/foo/bar.txt": ConfigFile{
 						Filename:    "/foo/bar.txt",
@@ -105,8 +105,8 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 	if a.Description != b.Description {
 		return false, fmt.Sprintf("Descriptions are not equal %s != %s", a.Description, b.Description)
 	}
-	if a.ImageId != b.ImageId {
-		return false, fmt.Sprintf("ImageIds are not equal %s != %s", a.ImageId, b.ImageId)
+	if a.ImageID != b.ImageID {
+		return false, fmt.Sprintf("ImageIDs are not equal %s != %s", a.ImageID, b.ImageID)
 	}
 	if a.Command != b.Command {
 		return false, fmt.Sprintf("Commands are not equal %s != %s", a.Command, b.Command)
@@ -122,7 +122,7 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 	sort.Sort(ServiceDefinitionByName(a.Services))
 	sort.Sort(ServiceDefinitionByName(b.Services))
 
-	for i, _ := range a.Services {
+	for i := range a.Services {
 		identical, msg := a.Services[i].equals(&b.Services[i])
 		if identical != true {
 			return identical, msg
@@ -157,7 +157,7 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 
 func TestServiceDefinitionFromPath(t *testing.T) {
 
-	sd, err := ServiceDefinitionFromPath("./testsvc")
+	sd, err := BuildFromPath("./testsvc")
 
 	if err != nil {
 		t.Fatalf("Problem parsing template: %s", err)
