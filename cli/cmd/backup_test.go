@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	NOT_FOUND = "PATH_NOT_FOUND"
+	PathNotFound = "PATH_PathNotFound"
 )
 
 var DefaultBackupAPITest = BackupAPITest{}
@@ -29,7 +29,7 @@ func InitBackupAPITest(args ...string) {
 
 func (t BackupAPITest) Backup(dirpath string) (string, error) {
 	switch dirpath {
-	case NOT_FOUND:
+	case PathNotFound:
 		return "", ErrBackupFailed
 	default:
 		return fmt.Sprintf("%s.tgz", path.Base(dirpath)), nil
@@ -38,7 +38,7 @@ func (t BackupAPITest) Backup(dirpath string) (string, error) {
 
 func (t BackupAPITest) Restore(path string) error {
 	switch path {
-	case NOT_FOUND:
+	case PathNotFound:
 		return ErrRestoreFailed
 	default:
 		return nil
@@ -46,7 +46,7 @@ func (t BackupAPITest) Restore(path string) error {
 }
 
 func ExampleServicedCli_cmdBackup() {
-	InitBackupAPITest("serviced", "backup", NOT_FOUND)
+	InitBackupAPITest("serviced", "backup", PathNotFound)
 	InitBackupAPITest("serviced", "backup", "path/to/dir")
 
 	// Output:
@@ -54,7 +54,7 @@ func ExampleServicedCli_cmdBackup() {
 }
 
 func ExampleServicedCli_cmdRestore() {
-	InitBackupAPITest("serviced", "restore", NOT_FOUND)
+	InitBackupAPITest("serviced", "restore", PathNotFound)
 	InitBackupAPITest("serviced", "restore", "path/to/file")
 
 	// Output:

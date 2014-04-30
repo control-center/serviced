@@ -3,11 +3,13 @@ package api
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"strconv"
 	"strings"
 
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
 )
 
@@ -74,6 +76,33 @@ func GetESStartupTimeout() int {
 	}
 
 	return timeout
+}
+
+// GetGateway returns the default gateway
+func GetGateway() string {
+	if proxyOptions.ServicedEndpoint != "" {
+		return proxyOptions.ServicedEndpoint
+	}
+
+	cmd := exec.Command("ip", "route")
+	output, err := cmd.Output()
+	localhost := URL{"127.0.0.1", "4979"}
+
+	if err != nil {
+		glog.V(2).Info("Error checking gateway: ", err)
+		glog.V(1).Info("Could not get gateway using ", localhost.Host)
+		return localhost.String()
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 2 && fields[0] == "default" {
+			endpoint := URL{fields[2], "4979"}
+			return endpoint.String()
+		}
+	}
+	glog.V(1).Info("No gateway found, using ", localhost.Host)
+	return localhost.String()
 }
 
 type version []int

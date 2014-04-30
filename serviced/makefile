@@ -28,6 +28,6 @@ test: build
 
 clean:
 	go clean
-	cd $(NSINITDIR) && go clean
+	if [ -d "$(NSINITDIR)" ]; then cd $(NSINITDIR) && go clean; fi
 	rm -Rf nsinit
 
