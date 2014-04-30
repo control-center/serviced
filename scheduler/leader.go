@@ -10,7 +10,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
-	//"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 )
 

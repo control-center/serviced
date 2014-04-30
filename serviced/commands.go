@@ -455,9 +455,8 @@ func (cli *ServicedCli) CmdListPoolIps(args ...string) error {
 	}
 	controlPlane := getClient()
 	poolId := cmd.Arg(0)
-
-	var IPsInfo []dao.IPInfo
-	err := controlPlane.RetrievePoolIPs(poolId, &IPsInfo)
+	
+	IPsInfo, err := controlPlane.RetrievePoolIPs(poolId)
 	if err != nil {
 		fmt.Printf("RetrievePoolIPs failed: %v", err)
 		return err

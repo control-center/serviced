@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
