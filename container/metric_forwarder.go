@@ -1,10 +1,11 @@
-package serviced
+package container
 
 import (
 	"github.com/zenoss/glog"
 	rest "github.com/zenoss/go-json-rest"
 
 	"io"
+	"net"
 	"net/http"
 )
 
@@ -13,18 +14,27 @@ import (
 type MetricForwarder struct {
 	Port               string
 	MetricsRedirectUrl string
+	listener           *net.Listener
 }
 
 // Create a new metric forwarder at port, all metrics are forwarded to metricsRedirectUrl
-func NewMetricForwarder(port, metricsRedirectUrl string) (config MetricForwarder, err error) {
-	config.Port = port
-	config.MetricsRedirectUrl = metricsRedirectUrl
+func NewMetricForwarder(port, metricsRedirectUrl string) (config *MetricForwarder, err error) {
+	config = &MetricForwarder{
+		Port:               port,
+		MetricsRedirectUrl: metricsRedirectUrl,
+	}
+	listener, err := net.Listen("tcp", port)
+	if err != nil {
+		return nil, err
+	}
+	config.listener = &listener
+	go config.loop()
 	return config, err
 }
 
-// Serve configures all http method handlers for the container controller.
+// loop() configures all http method handlers for the container controller.
 // Then starts the server.  This method blocks.
-func (forwarder *MetricForwarder) Serve() {
+func (forwarder *MetricForwarder) loop() {
 	routes := []rest.Route{
 		rest.Route{
 			HttpMethod: "POST",
@@ -35,8 +45,14 @@ func (forwarder *MetricForwarder) Serve() {
 
 	handler := rest.ResourceHandler{}
 	handler.SetRoutes(routes...)
+	http.Serve(*forwarder.listener, &handler)
+}
 
-	http.ListenAndServe(forwarder.Port, &handler)
+func (forwarder *MetricForwarder) Close() {
+	if forwarder.listener != nil {
+		(*forwarder.listener).Close()
+		forwarder.listener = nil
+	}
 }
 
 // post_api_metrics_store redirects the post request to the configured address

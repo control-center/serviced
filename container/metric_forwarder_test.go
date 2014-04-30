@@ -7,7 +7,7 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package serviced
+package container
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	//"log"
 )
 
 var address string
@@ -25,10 +24,9 @@ var forwarder sync.Once
 var server sync.Once
 
 // start a metric forwarder
-func startForwarder() {
+func startForwarder() (*MetricForwarder, error) {
 	metric_redirect := fmt.Sprintf("http://%s/api/metrics/store", address)
-	forwarder, _ := NewMetricForwarder(":22350", metric_redirect)
-	go forwarder.Serve()
+	return NewMetricForwarder(":22350", metric_redirect)
 }
 
 //echo the Request body into the response
@@ -48,7 +46,13 @@ func startMetricServer() {
 
 func TestMetricForwarding(t *testing.T) {
 	server.Do(startMetricServer)
-	forwarder.Do(startForwarder)
+
+	f, err := startForwarder()
+	if err != nil {
+		t.Fatalf("Could not start forwarder: %s", err)
+	}
+	defer f.Close()
+
 	request, _ := http.NewRequest("POST", "http://localhost:22350/api/metrics/store", strings.NewReader("{}"))
 	request.Header.Add("Content-Type", "application/json")
 

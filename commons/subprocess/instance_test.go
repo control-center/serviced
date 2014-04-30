@@ -1,4 +1,4 @@
-package proxy
+package subprocess
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestSubprocess(t *testing.T) {
-	s, err := New(time.Millisecond, time.Second, "sleep", "1")
+	s, err := New(time.Millisecond, time.Second*5, "sleep", "1")
 	if err != nil {
 		t.Fatalf("expected subprocess to start: %s", err)
 	}

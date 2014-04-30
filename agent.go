@@ -91,9 +91,6 @@ func NewHostAgent(master string, uiport string, dockerDns []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
-	if agent.mux.Enabled {
-		go agent.mux.ListenAndMux()
-	}
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""
@@ -114,6 +111,26 @@ func NewHostAgent(master string, uiport string, dockerDns []string, varPath stri
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
 	return agent, err
+
+	/* FIXME: this should work here
+
+	addr, err := net.ResolveTCPAddr("tcp", processForwarderAddr)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
+	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
+	go http.Serve(listener, sio)
+	c := &ControllerP{
+		processForwarderListener: listener,
+	}
+	*/
+
 }
 
 // Use the Context field of the given template to fill in all the templates in
