@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
@@ -101,20 +100,25 @@ func (a *api) getServicesWithIDKey() (map[string]*service.Service, error) {
 
 // Gets the service state identified by its service state ID
 func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
-	/*
-		TODO: add GetServiceState to controlplanedao.go
-		client, err := a.connectDAO()
+	services, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, service := range services {
+		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := client.GetServiceState(id, &s); err != nil {
-			return nil, err
+		for _, state := range statesByServiceID {
+			if id == state.Id {
+				return state, nil
+			}
 		}
-	*/
+	}
 
-	var s service.ServiceState
-	return &s, nil
+	return nil, fmt.Errorf("unable to find state given serviceStateID:%s", id)
 }
 
 // getServiceStatesByServiceID gets the service states for a service identified by its service ID
@@ -155,7 +159,7 @@ func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
 				continue
 			}
 			if id == state.ServiceId || id == service.Name ||
-				strings.HasPrefix(state.DockerId, id) {
+				state.DockerId == id {
 				running := RunningService{
 					Service: service,
 					State:   state,
