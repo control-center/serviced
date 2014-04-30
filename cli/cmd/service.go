@@ -557,8 +557,6 @@ func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error
 					running.State.ServiceId,
 					running.State.DockerId,
 				)
-				tableMatched.Indent()
-				tableMatched.Dedent()
 			}
 		}
 		printTable("")
