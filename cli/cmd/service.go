@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/cli/api"
@@ -463,19 +462,36 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
+	args := ctx.Args()
+	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
-	cfg := api.ShellConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   strings.Join(ctx.Args().Tail(), " "),
-		SaveAs:    ctx.GlobalString("saveas"),
-		IsTTY:     ctx.GlobalBool("interactive"),
+	var (
+		serviceID, command string
+		argv               []string
+		saveAs             string
+		isTTY              bool
+	)
+
+	serviceID = args[0]
+	command = args[1]
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+	saveAs = ctx.GlobalString("saveas")
+	isTTY = ctx.GlobalBool("interactive")
+
+	config := api.ShellConfig{
+		ServiceID: serviceID,
+		Command:   command,
+		Args:      argv,
+		SaveAs:    saveAs,
+		IsTTY:     isTTY,
 	}
 
-	if err := c.driver.StartShell(cfg); err != nil {
+	if err := c.driver.StartShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -494,17 +510,34 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		for _, s := range c.serviceRuns(args[0]) {
 			fmt.Println(s)
 		}
-	} else {
-		cfg := api.ShellConfig{
-			ServiceID: ctx.Args().First(),
-			Command:   strings.Join(ctx.Args().Tail(), " "),
-			SaveAs:    ctx.GlobalString("saveas"),
-			IsTTY:     ctx.GlobalBool("interactive"),
-		}
+		return fmt.Errorf("serviced service run")
+	}
 
-		if err := c.driver.StartShell(cfg); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+	var (
+		serviceID, command string
+		argv               []string
+		saveAs             string
+		isTTY              bool
+	)
+
+	serviceID = args[0]
+	command = args[1]
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+	saveAs = ctx.GlobalString("saveas")
+	isTTY = ctx.GlobalBool("interactive")
+
+	config := api.ShellConfig{
+		ServiceID: serviceID,
+		Command:   command,
+		Args:      argv,
+		SaveAs:    saveAs,
+		IsTTY:     isTTY,
+	}
+
+	if err := c.driver.RunShell(config); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 
 	return fmt.Errorf("serviced service run")

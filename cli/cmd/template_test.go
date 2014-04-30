@@ -117,10 +117,28 @@ func ExampleServicedCli_cmdTemplateAdd() {
 }
 
 func ExampleServicedCli_cmdTemplateRemove() {
-	InitTemplateAPITest("serviced", "template", "remove", "test-template-1")
+	InitTemplateAPITest("serviced", "template", "remove", "test-template-1", "test-template-0")
 
 	// Output:
 	// test-template-1
+}
+
+func ExampleServicedCLI_CmdTemplateRemove_usage() {
+	InitTemplateAPITest("serviced", "template", "remove")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    remove - Remove an existing template
+	//
+	// USAGE:
+	//    command remove [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced template remove TEMPLATEID ...
+	//
+	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdTemplateDeploy() {
