@@ -806,6 +806,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	cfg.Cmd = append([]string{},
 		fmt.Sprintf("/serviced/%s", binary),
+		"service",
 		"proxy",
 		service.Id,
 		service.Startup)

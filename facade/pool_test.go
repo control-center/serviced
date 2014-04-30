@@ -8,7 +8,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	. "gopkg.in/check.v1"
-
+	"fmt"
 	"time"
 )
 
@@ -201,4 +201,40 @@ func (ft *FacadeTest) Test_GetPoolsIPInfo(t *C) {
 		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[1].IPAddress)
 	}
 
+}
+
+func (ft *FacadeTest) Test_PoolCapacity(t *C) {
+	hostid := "host-id"
+	poolid := "pool-id"
+
+	//create pool for test
+	rp := pool.New(poolid)
+	if err := ft.Facade.AddResourcePool(ft.CTX, rp); err != nil {
+		t.Fatalf("Could not add pool for test: %v", err)
+	}
+
+	//fill host with required values
+	h, err := host.Build("", poolid, []string{}...)
+	h.ID = hostid
+	if err != nil {
+		t.Fatalf("Unexpected error building host: %v", err)
+	}
+
+	err = ft.Facade.AddHost(ft.CTX, h)
+	if err != nil {
+		t.Errorf("Unexpected error adding host: %v", err)
+	}
+
+	fmt.Println("%v", h.PoolID)
+
+	// load pool with calculated capacity
+	loadedPool, err := ft.Facade.GetResourcePool(ft.CTX, poolid)
+
+	if err != nil {
+	 	t.Fatalf("Unexpected error calculating pool capacity: %v", err)
+	}
+
+	if loadedPool.CoreCapacity <= 0 || loadedPool.MemoryCapacity <= 0 {
+		t.Fatalf("Unexpected values calculated for %s capacity: CPU - %v : Memory - %v", loadedPool.ID, loadedPool.CoreCapacity, loadedPool.MemoryCapacity)
+	}
 }
