@@ -83,10 +83,6 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 
 	f.calcPoolCapacity(ctx, &entity)
 
-	if err != nil {
-		return nil, err
-	}
-
 	return &entity, nil
 }
 
