@@ -76,6 +76,16 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service proxy SERVICEID COMMAND",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceProxy,
+				Flags: []cli.Flag{
+					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
+					cli.BoolTFlag{"mux", "enable port multiplexing"},
+					cli.BoolTFlag{"tls", "enable tls"},
+					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
+					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
+					cli.StringFlag{"endpoint", api.GetGateway(), "serviced endpoint address"},
+					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
+					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
+				},
 			}, {
 				Name:         "shell",
 				Usage:        "Starts a service instance",
@@ -429,6 +439,17 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
+
+	api.LoadProxyOptions(api.ProxyOptions{
+		MuxPort:          ctx.GlobalInt("muxport"),
+		Mux:              ctx.GlobalBool("mux"),
+		TLS:              ctx.GlobalBool("tls"),
+		KeyPEMFile:       ctx.GlobalString("keyfile"),
+		CertPEMFile:      ctx.GlobalString("certfile"),
+		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		Autorestart:      ctx.GlobalBool("autorestart"),
+		Logstash:         ctx.GlobalBool("logstash"),
+	})
 
 	cfg := api.ProxyConfig{
 		ServiceID: ctx.Args().First(),
