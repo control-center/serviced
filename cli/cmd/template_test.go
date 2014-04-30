@@ -1,17 +1,32 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 
+	"github.com/zenoss/serviced/cli/api"
 	service "github.com/zenoss/serviced/dao"
 	template "github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/cli/api"
 )
 
-var DefaultTemplateAPITest = TemplateAPITest{}
+var DefaultTemplateAPITest = TemplateAPITest{templates: DefaultTestTemplates}
 
-var DefaultTestTemplates = []*template.ServiceTemplate{}
+var DefaultTestTemplates = []*template.ServiceTemplate{
+	{
+		Id:          "test-template-1",
+		Name:        "Alpha",
+		Description: "example template 1",
+	}, {
+		Id:          "test-template-2",
+		Name:        "Beta",
+		Description: "example template 2",
+	}, {
+		Id:          "test-template-3",
+		Name:        "Gamma",
+		Description: "example template 3",
+	},
+}
 
 var (
 	ErrNoTemplateFound = errors.New("no templates found")
@@ -28,19 +43,36 @@ func InitTemplateAPITest(args ...string) {
 }
 
 func (t TemplateAPITest) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
-	return nil, nil
+	return t.templates, nil
 }
 
 func (t TemplateAPITest) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
-	return nil, nil
+	for i, template := range t.templates {
+		if template.Id == id {
+			return t.templates[i], nil
+		}
+	}
+
+	return nil, ErrNoTemplateFound
 }
 
 func (t TemplateAPITest) AddServiceTemplate(r io.Reader) (*template.ServiceTemplate, error) {
-	return nil, nil
+	var template template.ServiceTemplate
+	if err := json.NewDecoder(r).Decode(&template); err != nil {
+		return nil, ErrInvalidTemplate
+	}
+
+	return &template, nil
 }
 
 func (t TemplateAPITest) RemoveServiceTemplate(id string) error {
-	return nil
+	for _, template := range t.templates {
+		if template.Id == id {
+			return nil
+		}
+	}
+
+	return ErrNoTemplateFound
 }
 
 func (t TemplateAPITest) CompileServiceTemplate(cfg api.CompileTemplateConfig) (*template.ServiceTemplate, error) {
@@ -52,7 +84,32 @@ func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) (*s
 }
 
 func ExampleServicedCli_cmdTemplateList() {
-	InitTemplateAPITest("serviced", "template", "list")
+	InitTemplateAPITest("serviced", "template", "list", "--verbose")
+
+	// Output:
+	// [
+	//    {
+	//      "Id": "test-template-1",
+	//      "Name": "Alpha",
+	//      "Description": "example template 1",
+	//      "Services": null,
+	//      "ConfigFiles": null
+	//    },
+	//    {
+	//      "Id": "test-template-2",
+	//      "Name": "Beta",
+	//      "Description": "example template 2",
+	//      "Services": null,
+	//      "ConfigFiles": null
+	//    },
+	//    {
+	//      "Id": "test-template-3",
+	//      "Name": "Gamma",
+	//      "Description": "example template 3",
+	//      "Services": null,
+	//      "ConfigFiles": null
+	//    }
+	//  ]
 }
 
 func ExampleServicedCli_cmdTemplateAdd() {
@@ -60,8 +117,10 @@ func ExampleServicedCli_cmdTemplateAdd() {
 }
 
 func ExampleServicedCli_cmdTemplateRemove() {
-	InitTemplateAPITest("serviced", "template", "remove")
-	InitTemplateAPITest("serviced", "template", "rm")
+	InitTemplateAPITest("serviced", "template", "remove", "test-template-1")
+
+	// Output:
+	// test-template-1
 }
 
 func ExampleServicedCli_cmdTemplateDeploy() {
