@@ -99,6 +99,24 @@ func (a *api) getServicesWithIDKey() (map[string]*service.Service, error) {
 	return serviceMap, nil
 }
 
+// Gets the service state identified by its service state ID
+func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
+	/*
+		TODO: add GetServiceState to controlplanedao.go
+		client, err := a.connectDAO()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := client.GetServiceState(id, &s); err != nil {
+			return nil, err
+		}
+	*/
+
+	var s service.ServiceState
+	return &s, nil
+}
+
 // getServiceStatesByServiceID gets the service states for a service identified by its service ID
 func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
 	client, err := a.connectDAO()

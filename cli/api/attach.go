@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 
 	"fmt"
 	"os"
@@ -49,12 +50,59 @@ func attachContainerAndExec(containerId string, cmd []string) error {
 	return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 }
 
+// getServiceFromContainerID inspects a docker container and retrieves the service
+func (a *api) getServiceFromContainerID(containerID string) (*RunningService, error) {
+	// retrieve docker container name from containerID
+	const DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		glog.Errorf("could not attach to docker client error:%v\n\n", err)
+		return nil, err
+	}
+	container, err := dockerClient.InspectContainer(containerID)
+	if err != nil {
+		glog.Errorf("could not inspect container error:%v\n\n", err)
+		return nil, err
+	}
+
+	// retrieve the service state
+	serviceStateID := container.Name
+	state, err := a.GetServiceState(serviceStateID)
+	if err != nil {
+		return nil, err
+	}
+
+	// retrieve the service
+	service, err := a.GetService(state.ServiceId)
+	if err != nil {
+		return nil, err
+	}
+
+	running := RunningService{
+		Service: service,
+		State:   state,
+	}
+
+	return &running, err
+}
+
 // Attach runs an arbitrary shell command in a running service container
 func (a *api) Attach(config AttachConfig) error {
 	containerID := config.DockerId
+
+	// validate that the given dockerID is a service
+	if running, err := a.getServiceFromContainerID(containerID); err != nil {
+		glog.Errorf("could not get serviceID from containerID:%s  error:%v\n", containerID, err)
+		return err
+	} else {
+		glog.V(2).Infof("retrieved from containerID:%s  serviceID:%s  serviceName:%s s\n",
+			containerID, running.Service.Id, running.Service.Name)
+	}
+
+	// attach to the container and run the command
 	command := config.Command
 	if err := attachContainerAndExec(containerID, command); err != nil {
-		fmt.Fprintf(os.Stderr, "error running bash command:'%v'  error:%v\n", command, err)
+		glog.Errorf("error running bash command:'%v'  error:%v\n", command, err)
 		return err
 	}
 
