@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/servicedefinition"
@@ -126,9 +125,8 @@ func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 
 // getServiceStateIDFromDocker inspects the docker container returns its Name as the serviceStateID
 func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
-	// retrieve docker container name from containerID
-	const DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
-	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	// retrieve docker container name from containerID - the Name is the ServiceStateID
+	dockerClient, err := a.connectDocker()
 	if err != nil {
 		glog.Errorf("could not attach to docker client error:%v\n\n", err)
 		return "", err
