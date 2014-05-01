@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
+	//"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
+	//"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 )
 
@@ -139,6 +141,7 @@ func virtualIPExists(aVirtualIP pool.VirtualIP, virtualIPs []pool.VirtualIP) boo
 }
 
 func (l *leader) watchVirtualIPs() error {
+	//func watchVirtualIPs(ctx datastore.Context, facade *facade.Facade) error {
 	glog.Info("******************** started watchVirtualIPs")
 	defer glog.Info("******************** finished watchVirtualIPs")
 
@@ -147,18 +150,23 @@ func (l *leader) watchVirtualIPs() error {
 		glog.Errorf("Could not get host ID: %v", err)
 		return err
 	}
+	glog.Infof("************ hostId: %v", hostId)
 
 	myHost, err := l.facade.GetHost(l.context, hostId)
+	//myHost, err := facade.GetHost(ctx, hostId)
 	if err != nil {
 		glog.Errorf("Cannot retrieve host information for pool host %v", hostId)
 		return err
 	}
+	glog.Infof("************ myHost: %v", myHost)
 
 	aPool, err := l.facade.GetResourcePool(l.context, myHost.PoolID)
+	//aPool, err := facade.GetResourcePool(ctx, myHost.PoolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %v", myHost.PoolID)
 		return err
 	}
+	glog.Infof("************ GetResourcePool: %v", aPool)
 
 	err, interfaceMap := createVirtualInterfaceMap()
 	if err != nil {

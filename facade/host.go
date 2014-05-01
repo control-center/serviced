@@ -93,7 +93,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
 	glog.V(4).Infof("Facade.GetHost: get error %v", err)
 	if datastore.IsErrNoSuchEntity(err) {
-		return nil, nil
+		return nil, err
 	}
 	if err != nil {
 		return nil, err

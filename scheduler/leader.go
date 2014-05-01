@@ -186,7 +186,11 @@ func (l *leader) watchServices() {
 				delete(processing, serviceID)
 				break
 			case <-time.After(10 * time.Second):
-				l.watchVirtualIPs()
+				err := l.watchVirtualIPs()
+				//err := watchVirtualIPs(l.context, l.facade)
+				if err != nil {
+					glog.Warningf("watchVirtualIPs: %v", err)
+				}
 			}
 		}
 	}
