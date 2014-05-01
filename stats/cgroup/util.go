@@ -19,7 +19,14 @@ func parseSSKVint64(filename string) (map[string]int64, error) {
 	for k, v := range kv {
 		n, err := strconv.ParseInt(v, 0, 64)
 		if err != nil {
-			return nil, err
+			uintVal, uintErr := strconv.ParseUint(v, 0, 64)
+			if uintErr == nil {
+				// the value is 64-bit unsigned, so we will cast it to a signed 64-bit integer.  This will result
+				// in an incorrect value, but will allow us to report other metrics without breaking everything
+				n = int64(uintVal)
+			} else {
+				return nil, err
+			}
 		}
 		mapping[k] = n
 	}
