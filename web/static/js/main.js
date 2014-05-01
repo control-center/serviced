@@ -375,7 +375,7 @@ function ResourcesService($http, $location) {
          */
         add_vhost: function(serviceId, application, virtualhost, callback) {
             var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
-            var object = {'ServiceId':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
+            var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
                 success(function(data, status) {
