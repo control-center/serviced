@@ -22,15 +22,25 @@
         "0": {
           "type": "time",
           "field": "@timestamp",
-          "from": "now-24h",
+          "from": "now-30d",
           "to": "now",
           "mandate": "must",
           "active": true,
           "alias": "",
           "id": 0
+        },
+        "1": {
+          "type": "field",
+          "field": "loglevel",
+          "query": "\"ERROR\"",
+          "mandate": "must",
+          "active": true,
+          "alias": "",
+          "id": 1
         }
       },
       "ids": [
+        1,
         0
       ]
     }
@@ -56,14 +66,16 @@
           "pages": 5,
           "offset": 0,
           "sort": [
-            "@timestamp",
+            "timestamp",
             "desc"
           ],
           "style": {
             "font-size": "9pt"
           },
           "overflow": "min-height",
-          "fields": [],
+          "fields": [
+            "message"
+          ],
           "localTime": true,
           "timeField": "@timestamp",
           "highlight": [],
@@ -77,7 +89,7 @@
               0
             ]
           },
-          "field_list": true,
+          "field_list": false,
           "status": "Stable",
           "trimFactor": 300,
           "normTimes": true,
