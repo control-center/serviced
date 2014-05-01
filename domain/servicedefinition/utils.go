@@ -1,4 +1,8 @@
-package dao
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+package servicedefinition
 
 import (
 	"github.com/zenoss/glog"
@@ -11,22 +15,6 @@ import (
 	"strings"
 )
 
-func (s ServiceDefinition) String() string {
-	return s.Name
-}
-
-// ByName implements sort.Interface for []ServiceDefinition based
-// on Name field
-type ServiceDefinitionByName []ServiceDefinition
-
-func (a ServiceDefinitionByName) Len() int           { return len(a) }
-func (a ServiceDefinitionByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ServiceDefinitionByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-
-func ServiceDefinitionFromPath(path string) (*ServiceDefinition, error) {
-	return getServiceDefinition(path)
-}
-
 func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error) {
 
 	// is path a dir
@@ -35,7 +23,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 		return nil, err
 	}
 	if !fi.IsDir() {
-		return nil, fmt.Errorf("Given path is not a directory")
+		return nil, fmt.Errorf("given path is not a directory")
 	}
 
 	// look for service.json
@@ -126,7 +114,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 	i := 0
 	for _, subsvc := range subServices {
 		svc.Services[i] = *subsvc
-		i += 1
+		i++
 	}
 	return &svc, err
 }

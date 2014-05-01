@@ -69,7 +69,7 @@ func (c *ServicedCli) templates() (data []string) {
 
 	data = make([]string, len(templates))
 	for i, t := range templates {
-		data[i] = t.Id
+		data[i] = t.ID
 	}
 
 	return
@@ -154,7 +154,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		tableTemplate := newTable(0, 8, 2)
 		tableTemplate.PrintRow("TEMPLATEID", "NAME", "DESCRIPTION")
 		for _, t := range templates {
-			tableTemplate.PrintRow(t.Id, t.Name, t.Description)
+			tableTemplate.PrintRow(t.ID, t.Name, t.Description)
 		}
 		tableTemplate.Flush()
 	}
@@ -180,7 +180,7 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
 	} else {
-		fmt.Println(template.Id)
+		fmt.Println(template.ID)
 	}
 }
 

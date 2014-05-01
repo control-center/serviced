@@ -46,6 +46,7 @@ func convert(results datastore.Results) ([]*ResourcePool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pools[idx] = &pool
 	}
 	return pools, nil

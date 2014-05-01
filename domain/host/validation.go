@@ -15,7 +15,7 @@ import (
 
 //ValidEntity validates Host fields
 func (h *Host) ValidEntity() error {
-	glog.Info("Validating host")
+	glog.V(4).Info("Validating host")
 
 	trimmedID := strings.TrimSpace(h.ID)
 	violations := validation.NewValidationError()
@@ -25,7 +25,7 @@ func (h *Host) ValidEntity() error {
 	violations.Add(validation.IsIP(h.IPAddr))
 
 	//TODO: what should we be validating here? It doesn't seem to work for
-	glog.Infof("Validating IPAddr %v for host %s", h.IPAddr, h.ID)
+	glog.V(4).Infof("Validating IPAddr %v for host %s", h.IPAddr, h.ID)
 	ipAddr, err := net.ResolveIPAddr("ip4", h.IPAddr)
 
 	if err != nil {

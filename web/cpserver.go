@@ -145,14 +145,19 @@ func (sc *ServiceConfig) Serve() {
 	http.Handle("/", r)
 
 	certfile, err := proxy.TempCertFile()
+	// FIXME: bubble up these errors to the caller
+	certfile, err := serviced.TempCertFile()
 	if err != nil {
-		glog.Error("Could not prepare cert.pem file.")
+		glog.Fatalf("Could not prepare cert.pem file: %s", err)
 	}
 	keyfile, err := proxy.TempKeyFile()
 	if err != nil {
-		glog.Error("Could not prepare key.pem file.")
+		glog.Fatalf("Could not prepare key.pem file: %s", err)
 	}
-	http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+	err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+	if err != nil {
+		glog.Fatalf("could not setup webserver: %s", err)
+	}
 }
 
 func (this *ServiceConfig) ServeUI() {
@@ -166,7 +171,10 @@ func (this *ServiceConfig) ServeUI() {
 	routes := this.getRoutes()
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(":7878", &handler)
+	// FIXME: bubble up these errors to the caller
+	if err := http.ListenAndServe(":7878", &handler); err != nil {
+		glog.Fatalf("could not setup internal web server: %s", err)
+	}
 }
 
 var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
