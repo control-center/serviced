@@ -3,6 +3,7 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"net/rpc"
 )
 
@@ -57,4 +58,10 @@ func (a *LBClient) AckProxySnapshotQuiece(snapshotId string, unused *interface{}
 func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetTenantId()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
+}
+
+// GetHealthCheck returns the health check configuration for a service, if it exists
+func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
 }
