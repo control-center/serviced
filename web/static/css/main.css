@@ -767,3 +767,11 @@ rect {
 .chartContainer {
   position: relative;
 }
+
+.nvtooltip h3{
+    font-size: 12px;
+}
+
+.nvtooltip p{
+    font-weight: bold;
+}
