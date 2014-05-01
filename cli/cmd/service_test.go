@@ -253,10 +253,7 @@ func ExampleServicedCli_cmdServiceList() {
 	//      },
 	//      "RAMCommitment": 0,
 	//      "Actions": null,
-	//      "HealthCheck": {
-	//        "Script": "",
-	//        "Interval": 0
-	//      }
+	//      "HealthChecks": null
 	//    },
 	//    {
 	//      "Id": "test-service-2",
@@ -290,10 +287,7 @@ func ExampleServicedCli_cmdServiceList() {
 	//      "Runs": null,
 	//      "RAMCommitment": 0,
 	//      "Actions": null,
-	//      "HealthCheck": {
-	//        "Script": "",
-	//        "Interval": 0
-	//      }
+	//      "HealthChecks": null
 	//    },
 	//    {
 	//      "Id": "test-service-3",
@@ -327,10 +321,7 @@ func ExampleServicedCli_cmdServiceList() {
 	//      "Runs": null,
 	//      "RAMCommitment": 0,
 	//      "Actions": null,
-	//      "HealthCheck": {
-	//        "Script": "",
-	//        "Interval": 0
-	//      }
+	//      "HealthChecks": null
 	//    }
 	//  ]
 }
