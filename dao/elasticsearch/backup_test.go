@@ -6,6 +6,8 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	. "gopkg.in/check.v1"
 
 	"fmt"
@@ -237,7 +239,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		templateId     string
 		serviceId      string
 		backupFilePath string
-		templates      map[string]*dao.ServiceTemplate
+		templates      map[string]*servicetemplate.ServiceTemplate
 		services       []*dao.Service
 	)
 
@@ -268,26 +270,26 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		}
 	}
 
-	template_volume := dao.Volume{
+	template_volume := servicedefinition.Volume{
 		Owner:         "root:root",
 		Permission:    "0755",
 		ResourcePath:  "backup_test",
 		ContainerPath: "/tmp/backup_test",
 	}
 
-	template_service := dao.ServiceDefinition{
+	template_service := servicedefinition.ServiceDefinition{
 		Name:    "test",
 		Command: "echo",
-		ImageId: imageId,
+		ImageID: imageId,
 		Launch:  "MANUAL",
-		Volumes: []dao.Volume{template_volume},
+		Volumes: []servicedefinition.Volume{template_volume},
 	}
 
-	template := dao.ServiceTemplate{
-		Id:          "",
+	template := servicetemplate.ServiceTemplate{
+		ID:          "",
 		Name:        "test_template",
 		Description: "test template",
-		Services:    []dao.ServiceDefinition{template_service},
+		Services:    []servicedefinition.ServiceDefinition{template_service},
 	}
 
 	service := dao.Service{
@@ -298,7 +300,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		ImageId:      imageId,
 		PoolId:       "default",
 		DesiredState: 0,
-		Volumes:      []dao.Volume{template_volume},
+		Volumes:      []servicedefinition.Volume{template_volume},
 		DeploymentId: "backup_test",
 	}
 
@@ -316,7 +318,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	if e := dt.Dao.AddServiceTemplate(template, &templateId); e != nil {
 		t.Fatalf("Failed to add service template (%+v): %s", template, e)
 	}
-	template.Id = templateId
+	template.ID = templateId
 	defer dt.Dao.RemoveServiceTemplate(templateId, &unused)
 
 	// Create a minimal service, based on the template.
