@@ -13,6 +13,7 @@ package serviced
 
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 
 	"time"
 )
@@ -91,4 +92,6 @@ type LoadBalancer interface {
 
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
+
+	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
 }
