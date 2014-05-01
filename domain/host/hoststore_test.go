@@ -42,6 +42,7 @@ func (s *S) Test_HostCRUD(t *C) {
 
 	var host2 Host
 
+	time.Sleep(1000 * time.Millisecond)
 	if err := s.hs.Get(s.ctx, HostKey("testid"), &host2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
