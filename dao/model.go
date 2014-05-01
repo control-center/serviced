@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"fmt"
@@ -82,6 +83,7 @@ type Service struct {
 	Runs            map[string]string
 	RAMCommitment   uint64
 	Actions         map[string]string
+	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
 }
 
 //export definition
@@ -294,7 +296,7 @@ func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (ho
 
 				external := ss.PortMapping[portS]
 				if len(external) == 0 {
-					glog.Errorf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
+					glog.Warningf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
 					break
 				}
 

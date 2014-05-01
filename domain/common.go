@@ -24,3 +24,9 @@ func (minmax *MinMax) Validate() error {
 	}
 	return nil
 }
+
+// HealthCheck is a health check object
+type HealthCheck struct {
+	Script   string // A script to execute to verify the health of a service.
+	Interval int    // The interval at which to execute the script.
+}
