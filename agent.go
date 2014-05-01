@@ -740,7 +740,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		lsbms := getLogstashBindMounts(configFileName)
 		for _, binding := range strings.Split(lsbms, "-v") {
 			if len(binding) > 0 {
-				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
+				cfg.Volumes[strings.TrimSpace(strings.Split(binding, ":")[1])] = struct{}{}
 				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 			}
 		}
@@ -808,7 +808,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("/serviced/%s", binary),
 		"service",
 		"proxy",
-		"--tls=false",
 		service.Id,
 		service.Startup)
 

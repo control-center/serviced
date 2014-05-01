@@ -19,6 +19,8 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/dfs"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/validation"
@@ -190,12 +192,12 @@ type ControlPlaneDao struct {
 }
 
 // convert search result of json host to dao.Host array
-func toServiceTemplateWrappers(result *core.SearchResult) ([]*dao.ServiceTemplateWrapper, error) {
+func toServiceTemplateWrappers(result *core.SearchResult) ([]*servicetemplate.ServiceTemplateWrapper, error) {
 	var err error = nil
 	var total = len(result.Hits.Hits)
-	var wrappers []*dao.ServiceTemplateWrapper = make([]*dao.ServiceTemplateWrapper, total)
+	var wrappers []*servicetemplate.ServiceTemplateWrapper = make([]*servicetemplate.ServiceTemplateWrapper, total)
 	for i := 0; i < total; i += 1 {
-		var wrapper dao.ServiceTemplateWrapper
+		var wrapper servicetemplate.ServiceTemplateWrapper
 		err = json.Unmarshal(result.Hits.Hits[i].Source, &wrapper)
 		if err == nil {
 			wrappers[i] = &wrapper
@@ -226,12 +228,12 @@ func toServices(result *core.SearchResult) ([]*dao.Service, error) {
 }
 
 // convert search result of json host to dao.Host array
-func toAddressAssignments(result *core.SearchResult) (*[]dao.AddressAssignment, error) {
+func toAddressAssignments(result *core.SearchResult) (*[]servicedefinition.AddressAssignment, error) {
 	var err error = nil
 	var total = len(result.Hits.Hits)
-	var addressAssignments = make([]dao.AddressAssignment, total)
+	var addressAssignments = make([]servicedefinition.AddressAssignment, total)
 	for i := 0; i < total; i += 1 {
-		var addressAssignment dao.AddressAssignment
+		var addressAssignment servicedefinition.AddressAssignment
 		err = json.Unmarshal(result.Hits.Hits[i].Source, &addressAssignment)
 		if err == nil {
 			addressAssignments[i] = addressAssignment
@@ -511,13 +513,13 @@ func (this *ControlPlaneDao) UpdateService(service dao.Service, unused *int) err
 	return this.updateService(&service)
 }
 
-var updateServiceTemplate = func(template dao.ServiceTemplate) error {
-	id := strings.TrimSpace(template.Id)
+var updateServiceTemplate = func(template servicetemplate.ServiceTemplate) error {
+	id := strings.TrimSpace(template.ID)
 	if id == "" {
 		return errors.New("empty Template Id not allowed")
 	}
-	template.Id = id
-	if e := template.Validate(); e != nil {
+	template.ID = id
+	if e := template.ValidEntity(); e != nil {
 		return fmt.Errorf("Error validating template: %v", e)
 	}
 	data, e := json.Marshal(template)
@@ -525,12 +527,12 @@ var updateServiceTemplate = func(template dao.ServiceTemplate) error {
 		glog.Errorf("Failed to marshal template")
 		return e
 	}
-	var wrapper dao.ServiceTemplateWrapper
+	var wrapper servicetemplate.ServiceTemplateWrapper
 	templateExists := false
 	if e := getServiceTemplateWrapper(id, &wrapper); e == nil {
 		templateExists = true
 	}
-	wrapper.Id = id
+	wrapper.ID = id
 	wrapper.Name = template.Name
 	wrapper.Description = template.Description
 	wrapper.ApiVersion = 1
@@ -741,7 +743,7 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 	}
 }
 
-func (this *ControlPlaneDao) initializedAddressConfig(endpoint dao.ServiceEndpoint) bool {
+func (this *ControlPlaneDao) initializedAddressConfig(endpoint servicedefinition.ServiceEndpoint) bool {
 	// has nothing defined in the service definition
 	if endpoint.AddressConfig.Port == 0 && endpoint.AddressConfig.Protocol == "" {
 		return false
@@ -749,7 +751,7 @@ func (this *ControlPlaneDao) initializedAddressConfig(endpoint dao.ServiceEndpoi
 	return true
 }
 
-func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint dao.ServiceEndpoint) (bool, string, error) {
+func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint servicedefinition.ServiceEndpoint) (bool, string, error) {
 	// does the endpoint's AddressConfig have any config associated with it?
 	if this.initializedAddressConfig(endpoint) {
 		addressAssignment, err := this.getEndpointAddressAssignments(serviceID, endpoint.Name)
@@ -769,7 +771,7 @@ func (this *ControlPlaneDao) needsAddressAssignment(serviceID string, endpoint d
 		// if there exists some AddressConfig that is initialized to anything (port and protocol are not the default values)
 		// and there already exists an AddressAssignment corresponding to this AddressConfig
 		// then this service does NOT need an AddressAssignment (as one already exists)
-		return false, addressAssignment.Id, nil
+		return false, addressAssignment.ID, nil
 	}
 
 	// this endpoint has no need for an AddressAssignment ever
@@ -858,7 +860,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	selectedHostId := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
 
-	assignments := []dao.AddressAssignment{}
+	assignments := []servicedefinition.AddressAssignment{}
 	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
 	if err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
@@ -884,13 +886,13 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 						return err
 					}
 				}
-				assignment := dao.AddressAssignment{}
+				assignment := servicedefinition.AddressAssignment{}
 				assignment.AssignmentType = "static"
-				assignment.HostId = selectedHostId
-				assignment.PoolId = service.PoolId
+				assignment.HostID = selectedHostId
+				assignment.PoolID = service.PoolId
 				assignment.IPAddr = assignmentRequest.IpAddress
 				assignment.Port = endpoint.AddressConfig.Port
-				assignment.ServiceId = service.Id
+				assignment.ServiceID = service.Id
 				assignment.EndpointName = endpoint.Name
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
@@ -900,7 +902,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
 				}
-				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.Id, assignment.EndpointName)
+				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.ID, assignment.EndpointName)
 			}
 		}
 		return nil
@@ -1051,7 +1053,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 }
 
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
-	var wrapper dao.ServiceTemplateWrapper
+	var wrapper servicetemplate.ServiceTemplateWrapper
 	err := getServiceTemplateWrapper(request.TemplateId, &wrapper)
 
 	if err != nil {
@@ -1068,7 +1070,7 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 		return fmt.Errorf("poolid %s not found", request.PoolId)
 	}
 
-	var template dao.ServiceTemplate
+	var template servicetemplate.ServiceTemplate
 	err = json.Unmarshal([]byte(wrapper.Data), &template)
 	if err != nil {
 		glog.Errorf("Unable to unmarshal template: %s", request.TemplateId)
@@ -1079,7 +1081,7 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	for _, sd := range sds {
 		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
 			return err
@@ -1088,7 +1090,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []dao.ServiceDefinitio
 	return nil
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	svcuuid, _ := dao.NewUuid()
 	now := time.Now()
 
@@ -1113,7 +1115,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
-	svc.ImageId = sd.ImageId
+	svc.ImageId = sd.ImageID
 	svc.PoolId = pool
 	svc.DesiredState = ds
 	svc.Launch = sd.Launch
@@ -1133,6 +1135,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
+	svc.HealthChecks = sd.HealthChecks
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {
@@ -1163,7 +1166,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd dao.ServiceDefinition, t
 
 		image, err := dockerclient.InspectImage(svc.ImageId)
 		if err != nil {
-			glog.Errorf("could not look up image: %s", sd.ImageId)
+			glog.Errorf("could not look up image: %s", sd.ImageID)
 			return err
 		}
 
@@ -1210,26 +1213,28 @@ func (this *ControlPlaneDao) AddServiceDeployment(deployment dao.ServiceDeployme
 	return err
 }
 
-func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
+func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
 	var err error
 	var uuid string
 	var response api.BaseResponse
-	var wrapper dao.ServiceTemplateWrapper
+	var wrapper servicetemplate.ServiceTemplateWrapper
 
 	data, err := json.Marshal(serviceTemplate)
 	if err != nil {
 		return err
 	}
 
-	if err = serviceTemplate.Validate(); err != nil {
-		return fmt.Errorf("Error validating template: %v", err)
-	}
-
 	uuid, err = dao.NewUuid()
 	if err != nil {
 		return err
 	}
-	wrapper.Id = uuid
+	serviceTemplate.ID = uuid
+
+	if err = serviceTemplate.ValidEntity(); err != nil {
+		return fmt.Errorf("Error validating template: %v", err)
+	}
+
+	wrapper.ID = serviceTemplate.ID
 	wrapper.Name = serviceTemplate.Name
 	wrapper.Description = serviceTemplate.Description
 	wrapper.Data = string(data)
@@ -1245,7 +1250,7 @@ func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate dao.ServiceTempl
 	return err
 }
 
-func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate, unused *int) error {
+func (this *ControlPlaneDao) UpdateServiceTemplate(template servicetemplate.ServiceTemplate, unused *int) error {
 	result := updateServiceTemplate(template)
 	go this.reloadLogstashContainer() // don't block the main thread
 	return result
@@ -1253,7 +1258,7 @@ func (this *ControlPlaneDao) UpdateServiceTemplate(template dao.ServiceTemplate,
 
 func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error {
 	// make sure it is a valid template first
-	var wrapper dao.ServiceTemplateWrapper
+	var wrapper servicetemplate.ServiceTemplateWrapper
 	err := getServiceTemplateWrapper(id, &wrapper)
 
 	if err != nil {
@@ -1272,7 +1277,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 
 // RemoveAddressAssignemnt Removes an AddressAssignment by id
 func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) error {
-	aas, err := this.queryAddressAssignments(fmt.Sprintf("Id:%s", id))
+	aas, err := this.queryAddressAssignments(fmt.Sprintf("ID:%s", id))
 	if err != nil {
 		return err
 	}
@@ -1288,7 +1293,7 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 
 // AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
 // id param contains id of newly created assignment if successful
-func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id *string) error {
+func (this *ControlPlaneDao) AssignAddress(assignment servicedefinition.AddressAssignment, id *string) error {
 	err := assignment.Validate()
 	if err != nil {
 		return err
@@ -1298,7 +1303,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 	case "static":
 		{
 			//check host and IP exist
-			if err = this.validStaticIp(assignment.HostId, assignment.IPAddr); err != nil {
+			if err = this.validStaticIp(assignment.HostID, assignment.IPAddr); err != nil {
 				return err
 			}
 		}
@@ -1313,27 +1318,27 @@ func (this *ControlPlaneDao) AssignAddress(assignment dao.AddressAssignment, id 
 	}
 
 	//check service and endpoint exists
-	if err = this.validEndpoint(assignment.ServiceId, assignment.EndpointName); err != nil {
+	if err = this.validEndpoint(assignment.ServiceID, assignment.EndpointName); err != nil {
 		return err
 	}
 
 	//check for existing assignments to this endpoint
-	existing, err := this.getEndpointAddressAssignments(assignment.ServiceId, assignment.EndpointName)
+	existing, err := this.getEndpointAddressAssignments(assignment.ServiceID, assignment.EndpointName)
 	if err != nil {
 		return err
 	}
 	if existing != nil {
 		return fmt.Errorf("Address Assignment already exists")
 	}
-	assignment.Id, err = dao.NewUuid()
+	assignment.ID, err = dao.NewUuid()
 	if err != nil {
 		return err
 	}
-	_, err = newAddressAssignment(assignment.Id, &assignment)
+	_, err = newAddressAssignment(assignment.ID, &assignment)
 	if err != nil {
 		return err
 	}
-	*id = assignment.Id
+	*id = assignment.ID
 	return nil
 }
 
@@ -1382,8 +1387,8 @@ func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string
 }
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]dao.AddressAssignment) error {
-	query := fmt.Sprintf("ServiceId:%s", serviceId)
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]servicedefinition.AddressAssignment) error {
+	query := fmt.Sprintf("ServiceID:%s", serviceId)
 	results, err := this.queryAddressAssignments(query)
 	if err != nil {
 		return err
@@ -1393,7 +1398,7 @@ func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assi
 }
 
 // queryAddressAssignments query for host ips; returns empty array if no results for query
-func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.AddressAssignment, error) {
+func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]servicedefinition.AddressAssignment, error) {
 	result, err := searchAddressAssignment(query)
 	if err != nil {
 		return nil, err
@@ -1402,9 +1407,9 @@ func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]dao.Addre
 }
 
 // getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
-func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*dao.AddressAssignment, error) {
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*servicedefinition.AddressAssignment, error) {
 	//TODO: this can probably be done w/ a query
-	assignments := []dao.AddressAssignment{}
+	assignments := []servicedefinition.AddressAssignment{}
 	err := this.GetServiceAddressAssignments(serviceId, &assignments)
 	if err != nil {
 		return nil, err
@@ -1418,25 +1423,25 @@ func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, end
 	return nil, nil
 }
 
-func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*dao.ServiceTemplate) error {
+func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*servicetemplate.ServiceTemplate) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates")
-	query := search.Query().Search("_exists_:Id")
+	query := search.Query().Search("_exists_:ID")
 	search_result, err := search.Search("controlplane").Type("servicetemplatewrapper").Size("1000").Query(query).Result()
 	glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates: err=%s", err)
 	if err != nil {
 		return err
 	}
 	result, err := toServiceTemplateWrappers(search_result)
-	templatemap := make(map[string]*dao.ServiceTemplate)
+	templatemap := make(map[string]*servicetemplate.ServiceTemplate)
 	if err != nil {
 		return err
 	}
 	var total = len(result)
 	for i := 0; i < total; i += 1 {
-		var template dao.ServiceTemplate
+		var template servicetemplate.ServiceTemplate
 		wrapper := result[i]
 		err = json.Unmarshal([]byte(wrapper.Data), &template)
-		templatemap[wrapper.Id] = &template
+		templatemap[wrapper.ID] = &template
 	}
 	*templates = templatemap
 	return nil
@@ -1679,7 +1684,7 @@ func createSystemUser(s *ControlPlaneDao) error {
 	user := dao.User{}
 	err := s.GetUser(SYSTEM_USER_NAME, &user)
 	if err != nil {
-		glog.Errorf("%s", err)
+		glog.Warningf("%s", err)
 		glog.V(0).Info("'default' user not found; creating...")
 
 		// create the system user
@@ -1740,7 +1745,7 @@ func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
 // services and writes out the filters section for logstash.
 // This is required before logstash startsup
 func (s *ControlPlaneDao) writeLogstashConfiguration() error {
-	var templatesMap map[string]*dao.ServiceTemplate
+	var templatesMap map[string]*servicetemplate.ServiceTemplate
 	if err := s.GetServiceTemplates(0, &templatesMap); err != nil {
 		return err
 	}

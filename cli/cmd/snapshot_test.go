@@ -104,6 +104,24 @@ func ExampleServicedCli_cmdSnapshotRemove() {
 	// test-service-2-snapshot-1
 }
 
+func ExampleServiceCLI_CmdSnapshotRemove_usage() {
+	InitSnapshotAPITest("serviced", "snapshot", "rm")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    remove - Removes an existing snapshot
+	//
+	// USAGE:
+	//    command remove [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced snapshot remove SNAPSHOTID ...
+	//
+	// OPTIONS:
+}
+
 func ExampleServicedCli_cmdSnapshotCommit() {
 	InitSnapshotAPITest("serviced", "snapshot", "commit", "ABC123")
 

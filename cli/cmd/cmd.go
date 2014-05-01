@@ -41,7 +41,7 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", 22250, "multiplexing port"},
-		cli.BoolFlag{"tls", "enable TLS"},
+		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", varPath, "path to store serviced data"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
@@ -114,7 +114,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
-		return err
+		fmt.Println(err)
 	}
 
 	// Start server mode

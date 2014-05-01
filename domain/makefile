@@ -12,13 +12,22 @@
 default: build
 
 build:
+	go build
 	cd host && go build
 	cd pool && go build
+	cd servicedefinition && go build
+	cd servicetemplate && go build
 
 test: build
+	go test
 	cd host && go test
 	cd pool && go test
+	cd servicedefinition && go build
+	cd servicetemplate && go build
 
 clean:
+	go clean
 	cd host && go clean
 	cd pool && go clean
+	cd servicedefinition && go clean
+	cd servicetemplate && go clean

@@ -31,6 +31,7 @@ type S struct {
 }
 
 func (s *S) SetUpTest(c *C) {
+	s.ElasticTest.SetUpTest(c)
 	datastore.Register(s.Driver())
 	s.ctx = datastore.Get()
 	s.ps = NewStore()
@@ -80,7 +81,7 @@ func (s *S) Test_GetPools(t *C) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(pools) != 0 {
-		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
+		t.Errorf("Expected %v results, got %v :%#v", 2, len(pools), pools)
 	}
 
 	pool := New("Test_GetPools1")
