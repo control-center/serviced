@@ -347,7 +347,7 @@ sleep 5s
 }
 
 // In the container
-func CreateVirtualEndpoint(host string, ip string, port string, protocol string, destport uint64, index int) error {
+func CreateVirtualEndpoint(vaddr, port, protocol string, destport uint64, index int) error {
 	addr := strings.Split(vaddr, ":")
 	if len(addr) != 2 {
 		msg := "Invalid virtual address: " + vaddr
