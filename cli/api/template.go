@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/zenoss/serviced/dao"
 	service "github.com/zenoss/serviced/dao"
-	template "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	template "github.com/zenoss/serviced/domain/servicetemplate"
 )
 
 // DeployTemplateConfig is the configuration object to deploy a template
@@ -37,7 +39,7 @@ func (a *api) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
 	templates := make([]*template.ServiceTemplate, len(templatemap))
 	i := 0
 	for id, t := range templatemap {
-		(*t).Id = id
+		(*t).ID = id
 		templates[i] = t
 		i++
 	}
@@ -58,7 +60,7 @@ func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
 	}
 
 	t := templatemap[id]
-	(*t).Id = id
+	(*t).ID = id
 
 	return t, nil
 }
@@ -102,15 +104,15 @@ func (a *api) RemoveServiceTemplate(id string) error {
 
 // CompileTemplate builds a template given a source path
 func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.ServiceTemplate, error) {
-	sd, err := service.ServiceDefinitionFromPath(config.Dir)
+	sd, err := servicedefinition.BuildFromPath(config.Dir)
 	if err != nil {
 		return nil, err
 	}
 
-	var mapImageNames func(*service.ServiceDefinition)
-	mapImageNames = func(svc *service.ServiceDefinition) {
-		if imageID, found := (*config.Map)[svc.ImageId]; found {
-			(*svc).ImageId = imageID
+	var mapImageNames func(*servicedefinition.ServiceDefinition)
+	mapImageNames = func(svc *servicedefinition.ServiceDefinition) {
+		if imageID, found := (*config.Map)[svc.ImageID]; found {
+			(*svc).ImageID = imageID
 		}
 		for i := range (*svc).Services {
 			mapImageNames(&svc.Services[i])
@@ -119,7 +121,7 @@ func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.Se
 	mapImageNames(sd)
 
 	t := template.ServiceTemplate{
-		Services: []service.ServiceDefinition{*sd},
+		Services: []servicedefinition.ServiceDefinition{*sd},
 		Name:     sd.Name,
 	}
 
@@ -133,7 +135,7 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Servi
 		return nil, err
 	}
 
-	req := template.ServiceTemplateDeploymentRequest{
+	req := dao.ServiceTemplateDeploymentRequest{
 		PoolId:       config.PoolID,
 		TemplateId:   config.ID,
 		DeploymentId: config.DeploymentID,

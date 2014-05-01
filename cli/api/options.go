@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 // URL parses and handles URL typed options
@@ -55,7 +56,7 @@ func (m *ImageMap) String() string {
 }
 
 // PortMap parses remote and local port data from the command line
-type PortMap map[string]dao.ServiceEndpoint
+type PortMap map[string]servicedefinition.ServiceEndpoint
 
 // Set converts a port mapping string from the command line to a PortMap object
 func (m *PortMap) Set(value string) error {
@@ -78,7 +79,7 @@ func (m *PortMap) Set(value string) error {
 		return fmt.Errorf("port name cannot be empty")
 	}
 	port := fmt.Sprintf("%s:%d", protocol, portnum)
-	(*m)[port] = dao.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portnum), Application: portname}
+	(*m)[port] = servicedefinition.ServiceEndpoint{Protocol: protocol, PortNumber: uint16(portnum), Application: portname}
 	return nil
 }
 

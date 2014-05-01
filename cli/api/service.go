@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/host"
 )
 
@@ -164,7 +165,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
@@ -280,7 +281,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []service.AddressAssignment
+	var addresses []servicedefinition.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

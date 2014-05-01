@@ -15,6 +15,7 @@ import (
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/isvcs"
 
 	"fmt"
@@ -37,23 +38,23 @@ var startup_testcases = []struct {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs: []dao.LogConfig{
-			dao.LogConfig{
+		LogConfigs: []servicedefinition.LogConfig{
+			servicedefinition.LogConfig{
 				Path: "{{.Description}}",
 				Type: "test",
-				LogTags: []dao.LogTag{
-					dao.LogTag{
+				LogTags: []servicedefinition.LogTag{
+					servicedefinition.LogTag{
 						Name:  "pepe",
 						Value: "{{.Name}}",
 					},
 				},
 			},
 		},
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "",
 			Resume: "",
 		},
@@ -70,12 +71,12 @@ var startup_testcases = []struct {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "0",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs:      []dao.LogConfig{},
-		Snapshot:        dao.SnapshotCommands{},
+		LogConfigs:      []servicedefinition.LogConfig{},
+		Snapshot:        servicedefinition.SnapshotCommands{},
 		Actions:         map[string]string{},
 	}, ""},
 	{dao.Service{
@@ -89,12 +90,12 @@ var startup_testcases = []struct {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs:      []dao.LogConfig{},
-		Snapshot:        dao.SnapshotCommands{},
+		LogConfigs:      []servicedefinition.LogConfig{},
+		Snapshot:        servicedefinition.SnapshotCommands{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
 	{dao.Service{
 		Id:              "3",
@@ -107,12 +108,12 @@ var startup_testcases = []struct {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs:      []dao.LogConfig{},
-		Snapshot:        dao.SnapshotCommands{},
+		LogConfigs:      []servicedefinition.LogConfig{},
+		Snapshot:        servicedefinition.SnapshotCommands{},
 	}, "/bin/sh ls -l ."},
 }
 
@@ -131,7 +132,7 @@ var endpoint_testcases = []struct {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -147,8 +148,8 @@ var endpoint_testcases = []struct {
 		PoolId:       "",
 		DesiredState: 0,
 		Launch:       "",
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Purpose:     "something",
 				Protocol:    "tcp",
 				PortNumber:  1000,
@@ -298,7 +299,7 @@ func TestIncompleteStartupInjection(t *testing.T) {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "0987654321",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -321,7 +322,7 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 		PoolId:       "default",
 		DesiredState: 1,
 		Launch:       "auto",
-		Endpoints:    []dao.ServiceEndpoint{},
+		Endpoints:    []servicedefinition.ServiceEndpoint{},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -381,8 +382,8 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 
 func TestAddVirtualHost(t *testing.T) {
 	service := dao.Service{
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Purpose:     "export",
 				Application: "server",
 				VHosts:      nil,
@@ -411,8 +412,8 @@ func TestAddVirtualHost(t *testing.T) {
 
 func TestRemoveVirtualHost(t *testing.T) {
 	service := dao.Service{
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Purpose:     "export",
 				Application: "server",
 				VHosts:      []string{"name0", "name1"},
