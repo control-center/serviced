@@ -445,7 +445,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	api.LoadProxyOptions(api.ProxyOptions{
+	options := api.ProxyOptions{
 		MuxPort:          ctx.GlobalInt("muxport"),
 		Mux:              ctx.GlobalBool("mux"),
 		TLS:              ctx.GlobalBool("tls"),
@@ -454,14 +454,10 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 		Autorestart:      ctx.GlobalBool("autorestart"),
 		Logstash:         ctx.GlobalBool("logstash"),
-	})
-
-	cfg := api.ProxyConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   ctx.Args().Tail(),
 	}
+	api.LoadProxyOptions(options)
 
-	if err := c.driver.StartProxy(cfg); err != nil {
+	if err := c.driver.StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 

@@ -19,15 +19,17 @@ import (
 	"time"
 )
 
-// ProxyConfig is the config object for starting a proxy server
-type ProxyConfig struct {
+var proxyOptions ProxyOptions
+
+// ProxyOptions are options to be run when starting a new proxy server
+type ProxyOptions struct {
 	ServiceID        string   // The uuid of the service to launch
 	Command          []string // The command to launch
 	MuxPort          int      // the TCP port for the remote mux
 	Mux              bool     // True if a remote mux is used
 	TLS              bool     // True if TLS should be used on the mux
-	KeyPEMfile       string   // path to the KeyPEMfile
-	CertPEMfile      string   // path to the CertPEMfile
+	KeyPEMFile       string   // path to the KeyPEMfile
+	CertPEMFile      string   // path to the CertPEMfile
 	ServicedEndpoint string
 	Autorestart      bool
 	Logstash         bool
@@ -38,14 +40,8 @@ func LoadProxyOptions(ops ProxyOptions) {
 	proxyOptions = ops
 }
 
-// ProxyConfig is the config object for starting a proxy server
-type ProxyConfig struct {
-	ServiceID string
-	Command   []string
-}
-
 // Start a service proxy
-func (a *api) StartProxy(cfg ProxyConfig) error {
+func (a *api) StartProxy(cfg ProxyOptions) error {
 	config := proxy.MuxConfig{}
 	config.TCPMux.Port = cfg.MuxPort
 	config.TCPMux.Enabled = cfg.Mux

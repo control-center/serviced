@@ -4,9 +4,9 @@ import (
 	"io"
 
 	service "github.com/zenoss/serviced/dao"
-	template "github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	template "github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 )
 
@@ -15,7 +15,7 @@ type API interface {
 
 	// Server
 	StartServer()
-	StartProxy(ProxyConfig) error
+	StartProxy(ProxyOptions) error
 
 	// Hosts
 	GetHosts() ([]*host.Host, error)
