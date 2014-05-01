@@ -77,3 +77,23 @@ func (a *api) GetPoolIPs(id string) (*facade.PoolIPs, error) {
 
 	return client.GetPoolIPs(id)
 }
+
+// Add a VirtualIP to a specific pool
+func (a *api) AddVirtualIP(requestedVirtualIP pool.VirtualIP) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.AddVirtualIP(requestedVirtualIP)
+}
+
+// Add a VirtualIP to a specific pool
+func (a *api) RemoveVirtualIP(virtualIPID string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.RemoveVirtualIP(virtualIPID)
+}
