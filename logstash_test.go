@@ -11,6 +11,7 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"encoding/json"
@@ -40,7 +41,7 @@ func getTestService() dao.Service {
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
-		Instances:       0,
+		Instances:       domain.MinMax{0,0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -139,7 +140,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
-		Instances:       0,
+		Instances:       domain.MinMax{0,0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,

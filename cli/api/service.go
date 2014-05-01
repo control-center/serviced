@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/host"
 )
@@ -184,7 +185,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		ImageId:   config.ImageID,
 		Endpoints: endpoints,
 		Startup:   config.Command,
-		Instances: service.MinMax{1,1},
+		Instances: domain.MinMax{1,1},
 	}
 
 	var id string
