@@ -1135,7 +1135,6 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
 	svc.HealthCheck = sd.HealthCheck
-	svc.HealthCheckInterval = sd.HealthCheckInterval
 
 	//for each endpoint, evaluate it's Application
 	if err = svc.EvaluateEndpointTemplates(this); err != nil {

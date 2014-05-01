@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"fmt"
@@ -54,36 +55,35 @@ type ApplicationEndpoint struct {
 
 // A Service that can run in serviced.
 type Service struct {
-	Id                  string
-	Name                string
-	Context             string
-	Startup             string
-	Description         string
-	Tags                []string
-	ConfigFiles         map[string]servicedefinition.ConfigFile
-	Instances           int
-	ImageId             string
-	PoolId              string
-	DesiredState        int
-	HostPolicy          servicedefinition.HostPolicy
-	Hostname            string
-	Privileged          bool
-	Launch              string
-	Endpoints           []servicedefinition.ServiceEndpoint
-	Tasks               []servicedefinition.Task
-	ParentServiceId     string
-	Volumes             []servicedefinition.Volume
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	DeploymentId        string
-	DisableImage        bool
-	LogConfigs          []servicedefinition.LogConfig
-	Snapshot            servicedefinition.SnapshotCommands
-	Runs                map[string]string
-	RAMCommitment       uint64
-	Actions             map[string]string
-	HealthCheck         string // A script that returns 0 if the service is healthy.
-	HealthCheckInterval int    // The interval, in seconds, at which the health check is executed.
+	Id              string
+	Name            string
+	Context         string
+	Startup         string
+	Description     string
+	Tags            []string
+	ConfigFiles     map[string]servicedefinition.ConfigFile
+	Instances       int
+	ImageId         string
+	PoolId          string
+	DesiredState    int
+	HostPolicy      servicedefinition.HostPolicy
+	Hostname        string
+	Privileged      bool
+	Launch          string
+	Endpoints       []servicedefinition.ServiceEndpoint
+	Tasks           []servicedefinition.Task
+	ParentServiceId string
+	Volumes         []servicedefinition.Volume
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeploymentId    string
+	DisableImage    bool
+	LogConfigs      []servicedefinition.LogConfig
+	Snapshot        servicedefinition.SnapshotCommands
+	Runs            map[string]string
+	RAMCommitment   uint64
+	Actions         map[string]string
+	HealthCheck     domain.HealthCheck // A health check for the service.
 }
 
 //export definition
