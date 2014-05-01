@@ -480,6 +480,7 @@
                 this.config = config;
                 this.yAxisLabel = config.yAxisLabel;
                 this.div = $('#' + this.name);
+                this.div.addClass("chartContainer");
                 if (this.div[0] === undefined) {
                     throw new zenoss.visualization.Error('SelectorError',
                         'unknown selector specified, "' + this.name + '"');
