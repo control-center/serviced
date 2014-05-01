@@ -45,18 +45,24 @@ func (a *api) StartShell(config ShellConfig) error {
 
 // RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig) error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
 	service, err := a.GetService(config.ServiceID)
 	if err != nil {
 		return err
 	}
 
+	if err:= service.EvaluateRunsTemplate(client); err != nil {
+		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", service.Id, service.Runs, err)
+	}
 	command, ok := service.Runs[config.Command]
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
-
 	command = strings.Join(append([]string {command}, config.Args...), " ")
-	command = strings.NewReplacer("%SERVICE_ID%", service.Id).Replace(command)
 
 	cfg := shell.ProcessConfig{
 		ServiceId: config.ServiceID,
