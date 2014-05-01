@@ -601,104 +601,45 @@
                  *            The error that occurred will be passed as a
                  *            parameter to the callback.
                  */
-                create : function(name, arg1, arg2, success, fail) {
+                create : function(name, config, success, fail) {
                     function loadChart(name, callback, onerror) {
                         var _callback = callback;
                         if (zenoss.visualization.debug) {
-                            zenoss.visualization.__log('Loading chart from: '
-                                + zenoss.visualization.url + '/chart/name/'
-                                + name);
+                            zenoss.visualization.__log('Loading chart from: ' +
+                                zenoss.visualization.url + '/chart/name/' + name);
                         }
-                        $
-                            .ajax({
-                                'url' : zenoss.visualization.url
-                                    + '/chart/name/' + name,
-                                'type' : 'GET',
-                                'dataType' : 'json',
-                                'contentType' : 'application/json',
-                                'success' : function(data) {
-                                    _callback(data);
-                                },
-                                'error' : function(response) {
-                                    var err, detail;
-                                    zenoss.visualization
-                                        .__error(response.responseText);
-                                    err = JSON.parse(response.responseText);
-                                    detail = 'Error while attempting to fetch chart resource with the name "'
-                                        + name
-                                        + '", via the URL "'
-                                        + zenoss.visualization.url
-                                        + '/chart/name/'
-                                        + name
-                                        + '", the reported error was "'
-                                        + err.errorSource
-                                        + ':'
-                                        + err.errorMessage + '"';
-                                    if (onerror !== undefined) {
-                                        onerror(err, detail);
-                                    }
+                        $.ajax({
+                            url : zenoss.visualization.url + '/chart/name/' + name,
+                            type : 'GET',
+                            dataType : 'json',
+                            contentType : 'application/json',
+                            success : function(data) {
+                                _callback(data);
+                            },
+                            error : function(response) {
+                                var err, detail;
+                                zenoss.visualization.__error(response.responseText);
+                                err = JSON.parse(response.responseText);
+                                detail = 'Error while attempting to fetch chart resource with the name "' +
+                                    name +
+                                    '", via the URL "' + zenoss.visualization.url +
+                                    '/chart/name/' + name +
+                                    '", the reported error was "' + err.errorSource +
+                                    ':' + err.errorMessage + '"';
+                                if (onerror !== undefined) {
+                                    onerror(err, detail);
                                 }
-                            });
-                    }
-
-                    var config, template, result;
-                    if (typeof arg1 === 'string') {
-                        // A chart template name was specified, so we need to
-                        // first
-                        // load that template and then create the chart based on
-                        // that.
-
-                        config = arg2;
-                        if (window.jQuery === undefined) {
-                            zenoss.visualization
-                                .__bootstrap(function() {
-                                    loadChart(
-                                        arg1,
-                                        function(template) {
-                                            var merged = new zenoss.visualization.Chart(
-                                                name,
-                                                zenoss.visualization
-                                                    .__merge(
-                                                        template,
-                                                        config));
-                                            zenoss.visualization.__charts[name] = merged;
-                                            return merged;
-                                        }, function(err, detail) {
-                                            zenoss.visualization
-                                                .__showError(name,
-                                                    detail);
-                                        });
-                                });
-                            return;
-                        }
-                        loadChart(arg1, function(template) {
-                            var merged = new zenoss.visualization.Chart(name,
-                                zenoss.visualization.__merge(template,
-                                    config));
-                            zenoss.visualization.__charts[name] = merged;
-                            return merged;
-                        }, function(err, detail) {
-                            zenoss.visualization.__showError(name, detail);
+                            }
                         });
-                        return;
                     }
-
-                    template = null;
-                    config = arg1;
 
                     if (window.jQuery === undefined) {
                         zenoss.visualization.__bootstrap(function() {
-                            var merged = new zenoss.visualization.Chart(name,
-                                zenoss.visualization.__merge(template,
-                                    config));
-                            zenoss.visualization.__charts[name] = merged;
-                            return merged;
+                            zenoss.visualization.__charts[name] = new zenoss.visualization.Chart(name, config);
                         });
-                        return;
                     }
-                    result = new zenoss.visualization.Chart(name,
-                        zenoss.visualization.__merge(template, config));
-                    zenoss.visualization.__charts[name] = result;
+
+                    zenoss.visualization.__charts[name] = new zenoss.visualization.Chart(name, config);
                 }
             },
 
