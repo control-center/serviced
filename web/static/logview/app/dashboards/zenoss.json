@@ -1,5 +1,5 @@
 {
-  "title": "Control Plane Logs",
+  "title": "Logs",
   "services": {
     "query": {
       "list": {
