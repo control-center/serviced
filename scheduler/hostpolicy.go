@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 // ServiceHostPolicy wraps a service and provides several policy
@@ -23,10 +24,10 @@ func NewServiceHostPolicy(s *dao.Service, cp dao.ControlPlane) *ServiceHostPolic
 
 func (sp *ServiceHostPolicy) SelectHost(hosts []*host.Host) (*host.Host, error) {
 	switch sp.svc.HostPolicy {
-	case dao.PREFER_SEPARATE:
+	case servicedefinition.PREFER_SEPARATE:
 		glog.V(2).Infof("Using PREFER_SEPARATE host policy")
 		return sp.preferSeparateHosts(hosts)
-	case dao.REQUIRE_SEPARATE:
+	case servicedefinition.REQUIRE_SEPARATE:
 		glog.V(2).Infof("Using REQUIRE_SEPARATE host policy")
 		return sp.requireSeparateHosts(hosts)
 	default:

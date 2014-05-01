@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 )
@@ -370,8 +371,8 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*dao.
 func (l *leader) selectPoolHostForService(s *dao.Service, hosts []*host.Host) (*host.Host, error) {
 	var hostid string
 	for _, ep := range s.Endpoints {
-		if ep.AddressAssignment != (dao.AddressAssignment{}) {
-			hostid = ep.AddressAssignment.HostId
+		if ep.AddressAssignment != (servicedefinition.AddressAssignment{}) {
+			hostid = ep.AddressAssignment.HostID
 			break
 		}
 	}

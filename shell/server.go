@@ -374,6 +374,15 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	} else {
 		argv = append(argv, "-t")
 	}
+	// set the systemuser and password
+	unused := 0;
+	systemUser := dao.User{}
+	err = cp.GetSystemUser(unused, &systemUser)
+	if err != nil {
+		glog.Errorf("Unable to get system user account for client %s", err)
+	}
+	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
+	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 
 	argv = append(argv, service.ImageId)
 	argv = append(argv, proxycmd...)
