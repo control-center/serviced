@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	service "github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 const ()
@@ -122,40 +124,23 @@ func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, e
 	return states, nil
 }
 
-// GetServiceStates returns running services that match DockerId, ServiceName, or ServiceId
-func (a *api) GetServiceStates(id string) ([]*RunningService, error) {
-	services, err := a.GetServices()
+// getServiceStateIDFromDocker inspects the docker container returns its Name as the serviceStateID
+func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
+	// retrieve docker container name from containerID
+	const DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
-		return nil, err
+		glog.Errorf("could not attach to docker client error:%v\n\n", err)
+		return "", err
+	}
+	container, err := dockerClient.InspectContainer(containerID)
+	if err != nil {
+		glog.Errorf("could not inspect container error:%v\n\n", err)
+		return "", err
 	}
 
-	var runningServices []*RunningService
-	for serviceKey, service := range services {
-		glog.V(2).Infof("looking for id:%s in service:  ServiceId:%s  ServiceName:%s\n",
-			id, service.Id, service.Name)
-		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
-		if err != nil {
-			return []*RunningService{}, err
-		}
-
-		for stateKey, state := range statesByServiceID {
-			glog.V(2).Infof("looking for id:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
-				id, state.ServiceId, service.Name, state.DockerId)
-			if state.DockerId == "" {
-				continue
-			}
-			if id == state.ServiceId || id == service.Name ||
-				state.DockerId == id {
-				running := RunningService{
-					Service: services[serviceKey],
-					State:   statesByServiceID[stateKey],
-				}
-				runningServices = append(runningServices, &running)
-			}
-		}
-	}
-
-	return runningServices, nil
+	serviceStateID := strings.Trim(container.Name, "/")
+	return serviceStateID, nil
 }
 
 // Adds a new service
@@ -291,4 +276,106 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 	}
 
 	return addresses[0].IPAddr, nil
+}
+
+// FindRunningServices returns running services that match DockerId, ServiceName, or ServiceId
+func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
+	services, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var runningServices []*RunningService
+	for serviceKey, service := range services {
+		glog.V(2).Infof("looking for keyword:%s in service:  ServiceId:%s  ServiceName:%s\n",
+			keyword, service.Id, service.Name)
+		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
+		if err != nil {
+			return []*RunningService{}, err
+		}
+
+		for stateKey, state := range statesByServiceID {
+			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
+				keyword, state.ServiceId, service.Name, state.DockerId)
+			if state.DockerId == "" {
+				continue
+			}
+			if keyword == state.ServiceId || keyword == service.Name || keyword == state.DockerId {
+
+				// validate that the running service found is a running docker container
+				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerId)
+				if err != nil {
+					continue
+				}
+
+				if serviceStateID != state.Id {
+					glog.Warningf("docker.Name (serviceStateID:%s) does not match state.Id:%s",
+						serviceStateID, state.Id)
+					continue
+				}
+
+				running := RunningService{
+					Service: services[serviceKey],
+					State:   statesByServiceID[stateKey],
+				}
+				runningServices = append(runningServices, &running)
+			}
+		}
+	}
+
+	return runningServices, nil
+}
+
+// GetRunningService retrieves the service and state from the DAO
+func (a *api) GetRunningService(serviceStateID string) (*RunningService, error) {
+	// retrieve the service state
+	state, err := a.GetServiceState(serviceStateID)
+	if err != nil {
+		glog.Errorf("could not get service state from serviceStateID:%s  error:%v\n", serviceStateID, err)
+		return nil, err
+	}
+
+	// retrieve the service
+	service, err := a.GetService(state.ServiceId)
+	if err != nil {
+		glog.Errorf("could not get service from state.ServiceID:%s  error:%v\n", state.ServiceId, err)
+		return nil, err
+	}
+
+	running := RunningService{
+		Service: service,
+		State:   state,
+	}
+
+	return &running, err
+}
+
+// GetRunningServiceActionCommand retrieves the action command from the Service State
+func (a *api) GetRunningServiceActionCommand(serviceStateID string, action string) (string, error) {
+	running, err := a.GetRunningService(serviceStateID)
+	if err != nil {
+		return "", err
+	} else if running == nil {
+		return "", fmt.Errorf("no running service found for serviceStateID: %s", serviceStateID)
+	}
+
+	client, err := a.connectDAO()
+	if err != nil {
+		return "", err
+	}
+
+	// Evaluate service Actions for templates
+	service := running.Service
+	if err := running.Service.EvaluateActionsTemplate(client); err != nil {
+		return "", fmt.Errorf("could not evaluate service:%s  Actions:%+v  error:%s", service.Id, service.Actions, err)
+	}
+
+	// Parse the command
+	command, ok := service.Actions[action]
+	if !ok {
+		glog.Infof("service: %+v", service)
+		glog.Fatalf("cannot access action: %s", action)
+	}
+
+	return command, nil
 }
