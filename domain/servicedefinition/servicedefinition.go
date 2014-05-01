@@ -14,28 +14,30 @@ import (
 
 //ServiceDefinition is the definition of a service hierarchy.
 type ServiceDefinition struct {
-	Name          string                 // Name of the defined service
-	Command       string                 // Command which runs the service
-	Description   string                 // Description of the service
-	Tags          []string               // Searchable service tags
-	ImageID       string                 // Docker image hosting the service
-	Instances     domain.MinMax          // Constraints on the number of instances
-	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
-	HostPolicy    HostPolicy             // Policy for starting up instances
-	Hostname      string                 // Optional hostname which should be set on run
-	Privileged    bool                   // Whether to run the container with extended privileges
-	ConfigFiles   map[string]ConfigFile  // Config file templates
-	Context       map[string]interface{} // Context information for the service
-	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
-	Services      []ServiceDefinition    // Supporting subservices
-	Tasks         []Task                 // Scheduled tasks for celery to find
-	LogFilters    map[string]string      // map of log filter name to log filter definitions
-	Volumes       []Volume               // list of volumes to bind into containers
-	LogConfigs    []LogConfig
-	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment uint64            // expected RAM commitment to use for scheduling
-	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
-	Actions       map[string]string // Map of commands that can be executed with 'serviced action ...'
+	Name                string                 // Name of the defined service
+	Command             string                 // Command which runs the service
+	Description         string                 // Description of the service
+	Tags                []string               // Searchable service tags
+	ImageID             string                 // Docker image hosting the service
+	Instances           domain.MinMax          // Constraints on the number of instances
+	Launch              string                 // Must be "AUTO", the default, or "MANUAL"
+	HostPolicy          HostPolicy             // Policy for starting up instances
+	Hostname            string                 // Optional hostname which should be set on run
+	Privileged          bool                   // Whether to run the container with extended privileges
+	ConfigFiles         map[string]ConfigFile  // Config file templates
+	Context             map[string]interface{} // Context information for the service
+	Endpoints           []ServiceEndpoint      // Comms endpoints used by the service
+	Services            []ServiceDefinition    // Supporting subservices
+	Tasks               []Task                 // Scheduled tasks for celery to find
+	LogFilters          map[string]string      // map of log filter name to log filter definitions
+	Volumes             []Volume               // list of volumes to bind into containers
+	LogConfigs          []LogConfig
+	Snapshot            SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment       uint64            // expected RAM commitment to use for scheduling
+	Runs                map[string]string // Map of commands that can be executed with 'serviced run ...'
+	Actions             map[string]string // Map of commands that can be executed with 'serviced action ...'
+	HealthCheck         string            // HealthCheck is a serialized script that will check the health of the service.
+	HealthCheckInterval int               // HealthCheckInterval defines how often to run the health check
 }
 
 // SnapshotCommands commands to be called during and after a snapshot
