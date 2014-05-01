@@ -83,7 +83,7 @@ type Service struct {
 	Runs            map[string]string
 	RAMCommitment   uint64
 	Actions         map[string]string
-	HealthCheck     domain.HealthCheck // A health check for the service.
+	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
 }
 
 //export definition

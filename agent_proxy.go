@@ -76,7 +76,7 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(serviceId string, healthCheck *domain.HealthCheck) error {
+func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
@@ -90,7 +90,7 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthCheck *domain.HealthC
 	if err != nil {
 		return err
 	}
-	*healthCheck = service.HealthCheck
+	*healthChecks = service.HealthChecks
 	return nil
 }
 

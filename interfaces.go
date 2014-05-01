@@ -93,5 +93,5 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	GetHealthCheck(serviceId string, healthCheck *domain.HealthCheck) error
+	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
 }
