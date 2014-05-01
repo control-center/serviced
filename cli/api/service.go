@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
-	"github.com/zenoss/glog"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/servicedefinition"
@@ -83,62 +81,6 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 	}
 
 	return services, nil
-}
-
-// Gets the service state identified by its service state ID
-func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
-	services, err := a.GetServices()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, service := range services {
-		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
-		if err != nil {
-			return nil, err
-		}
-
-		for i, state := range statesByServiceID {
-			if id == state.Id {
-				return statesByServiceID[i], nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("unable to find state given serviceStateID:%s", id)
-}
-
-// getServiceStatesByServiceID gets the service states for a service identified by its service ID
-func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	var states []*service.ServiceState
-	if err := client.GetServiceStates(id, &states); err != nil {
-		return nil, err
-	}
-
-	return states, nil
-}
-
-// getServiceStateIDFromDocker inspects the docker container returns its Name as the serviceStateID
-func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
-	// retrieve docker container name from containerID - the Name is the ServiceStateID
-	dockerClient, err := a.connectDocker()
-	if err != nil {
-		glog.Errorf("could not attach to docker client error:%v\n\n", err)
-		return "", err
-	}
-	container, err := dockerClient.InspectContainer(containerID)
-	if err != nil {
-		glog.Errorf("could not inspect container error:%v\n\n", err)
-		return "", err
-	}
-
-	serviceStateID := strings.Trim(container.Name, "/")
-	return serviceStateID, nil
 }
 
 // Adds a new service
