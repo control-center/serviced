@@ -22,6 +22,8 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -325,8 +327,8 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 	testService := dao.Service{
 		Id: "TestDaoValidServiceForStart_ServiceId",
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Name:        "TestDaoValidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
@@ -344,14 +346,14 @@ func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := dao.Service{
 		Id: "TestDaoInvalidServiceForStart_ServiceId",
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Name:        "TestDaoInvalidServiceForStart_EndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
 				Purpose:     "import",
-				AddressConfig: dao.AddressResourceConfig{
+				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     8081,
 					Protocol: commons.TCP,
 				},
@@ -401,14 +403,14 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	testService := dao.Service{
 		Id:     "assignIPsServiceID",
 		PoolId: assignIPsPool.ID,
-		Endpoints: []dao.ServiceEndpoint{
-			dao.ServiceEndpoint{
+		Endpoints: []servicedefinition.ServiceEndpoint{
+			servicedefinition.ServiceEndpoint{
 				Name:        "AssignIPsEndpointName",
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
 				Purpose:     "import",
-				AddressConfig: dao.AddressResourceConfig{
+				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     8081,
 					Protocol: commons.TCP,
 				},
@@ -426,7 +428,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []dao.AddressAssignment{}
+	assignments := []servicedefinition.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.Id, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
@@ -449,7 +451,7 @@ func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
 }
 
 func (dt *DaoTest) TestAssignAddress(t *C) {
-	aa := dao.AddressAssignment{}
+	aa := servicedefinition.AddressAssignment{}
 	aid := ""
 	err := dt.Dao.AssignAddress(aa, &aid)
 	if err == nil {
@@ -474,10 +476,10 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 
 	//set up service with endpoint
 	service, _ := dao.NewService()
-	ep := dao.ServiceEndpoint{}
+	ep := servicedefinition.ServiceEndpoint{}
 	ep.Name = endpoint
-	ep.AddressConfig = dao.AddressResourceConfig{8080, commons.TCP}
-	service.Endpoints = []dao.ServiceEndpoint{ep}
+	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}
+	service.Endpoints = []servicedefinition.ServiceEndpoint{ep}
 	dt.Dao.AddService(*service, &serviceId)
 	if err != nil {
 		t.Errorf("Unexpected error adding service: %v", err)
@@ -486,7 +488,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	defer dt.Dao.RemoveService(serviceId, &unused)
 
 	//test for bad service id
-	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aa = servicedefinition.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
@@ -494,7 +496,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	//test for bad endpoint id
-	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aa = servicedefinition.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
@@ -502,7 +504,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// Valid assignment
-	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = servicedefinition.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err != nil {
@@ -511,7 +513,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// try to reassign; should fail
-	aa = dao.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = servicedefinition.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
 	other_aid := ""
 	err = dt.Dao.AssignAddress(aa, &other_aid)
 	if err == nil || "Address Assignment already exists" != err.Error() {
@@ -532,7 +534,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	var (
 		unused     int
 		templateId string
-		templates  map[string]*dao.ServiceTemplate
+		templates  map[string]*servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
@@ -545,8 +547,8 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 		}
 	}
 
-	template := dao.ServiceTemplate{
-		Id:          "",
+	template := servicetemplate.ServiceTemplate{
+		ID:          "",
 		Name:        "test_template",
 		Description: "test template",
 	}
@@ -567,7 +569,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if templates[templateId].Name != "test_template" {
 		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
 	}
-	template.Id = templateId
+	template.ID = templateId
 	template.Description = "test_template_modified"
 	if e := dt.Dao.UpdateServiceTemplate(template, &unused); e != nil {
 		t.Fatalf("Failure updating service template %+v with error: %s", template, e)

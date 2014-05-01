@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 
 	"net/url"
 	"regexp"
@@ -19,7 +20,7 @@ type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *ser
 
 func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var unused int
-	var templatesMap map[string]*dao.ServiceTemplate
+	var templatesMap map[string]*servicetemplate.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap)
 }
