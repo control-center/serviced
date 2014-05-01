@@ -457,11 +457,8 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	})
 
 	cfg := api.ProxyConfig{
-		ServiceID:   ctx.Args().First(),
-		Command:     ctx.Args().Tail(),
-		MuxPort:     ctx.GlobalInt("mux"),
-		KeyPEMfile:  ctx.GlobalString("keyfile"),
-		CertPEMfile: ctx.GlobalString("certfile"),
+		ServiceID: ctx.Args().First(),
+		Command:   ctx.Args().Tail(),
 	}
 
 	if err := c.driver.StartProxy(cfg); err != nil {

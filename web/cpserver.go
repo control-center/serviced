@@ -144,9 +144,8 @@ func (sc *ServiceConfig) Serve() {
 
 	http.Handle("/", r)
 
-	certfile, err := proxy.TempCertFile()
 	// FIXME: bubble up these errors to the caller
-	certfile, err := serviced.TempCertFile()
+	certfile, err := proxy.TempCertFile()
 	if err != nil {
 		glog.Fatalf("Could not prepare cert.pem file: %s", err)
 	}

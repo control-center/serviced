@@ -33,6 +33,17 @@ type ProxyConfig struct {
 	Logstash         bool
 }
 
+// LoadProxyOptions loads the proxy option information
+func LoadProxyOptions(ops ProxyOptions) {
+	proxyOptions = ops
+}
+
+// ProxyConfig is the config object for starting a proxy server
+type ProxyConfig struct {
+	ServiceID string
+	Command   []string
+}
+
 // Start a service proxy
 func (a *api) StartProxy(cfg ProxyConfig) error {
 	config := proxy.MuxConfig{}
@@ -117,9 +128,10 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 			// make sure we pick up any logfile that was modified within the
 			// last three years
 			// TODO: Either expose the 3 years a configurable or get rid of it
-			cmdString := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder " + " -old-files-hours=26280 -config " + serviced.LOGSTASH_CONTAINER_CONFIG
-			glog.V(0).Info("About to execute: ", cmdString)
-			myCmd := exec.Command("bash", "-c", cmdString)
+			logstashCmd := serviced.LOGSTASH_CONTAINER_DIRECTORY + "/logstash-forwarder"
+			args := []string{"-old-files-hours=26280", "-config", serviced.LOGSTASH_CONTAINER_CONFIG}
+			glog.V(0).Info("About to execute: %s %s", logstashCmd, args)
+			myCmd := exec.Command(logstashCmd, args...)
 			myCmd.Stdout = os.Stdout
 			myCmd.Stderr = os.Stderr
 			myErr := myCmd.Run()
