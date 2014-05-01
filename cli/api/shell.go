@@ -50,20 +50,19 @@ func (a *api) RunShell(config ShellConfig) error {
 		return err
 	}
 
-	var command []string
-	exec, ok := service.Runs[config.Command]
+	command, ok := service.Runs[config.Command]
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
 
-	command = append(command, exec)
-	command = append(command, config.Args...)
+	command = strings.Join(append([]string {command}, config.Args...), " ")
+	command = strings.NewReplacer("%SERVICE_ID%", service.Id).Replace(command)
 
 	cfg := shell.ProcessConfig{
 		ServiceId: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", strings.Join(command, " ")),
+		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
 	}
 
 	// TODO: change me to use sockets
