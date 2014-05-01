@@ -20,6 +20,7 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/servicedefinition"
@@ -194,7 +195,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	service.Id = "default"
 	service.Name = "name"
 	service.Description = "description"
-	service.Instances = 0
+	service.Instances = domain.MinMax{0,0}
 	dt.Dao.AddService(*service, &id)
 
 	var result []*dao.Service

@@ -15,6 +15,7 @@ import (
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/isvcs"
 
@@ -33,7 +34,7 @@ var startup_testcases = []struct {
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
-		Instances:       0,
+		Instances:       domain.MinMax{0,0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -66,7 +67,7 @@ var startup_testcases = []struct {
 		Context:         "{\"RemoteHost\":\"a_hostname\"}",
 		Startup:         "",
 		Description:     "",
-		Instances:       0,
+		Instances:       domain.MinMax{0,0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -85,7 +86,7 @@ var startup_testcases = []struct {
 		Context:         "{\"Count\": 32}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
-		Instances:       1,
+		Instances:       domain.MinMax{1,1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -103,7 +104,7 @@ var startup_testcases = []struct {
 		Context:         "",
 		Startup:         "{{.Name}} ls -l .",
 		Description:     "Execute ls -l on .",
-		Instances:       1,
+		Instances:       domain.MinMax{1,1},
 		ImageId:         "test/bin_sh",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -127,7 +128,7 @@ var endpoint_testcases = []struct {
 		Context:         "{\"RemoteHost\":\"hostname\"}",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
-		Instances:       0,
+		Instances:       domain.MinMax{0,0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -143,7 +144,7 @@ var endpoint_testcases = []struct {
 		Context:      "",
 		Startup:      "",
 		Description:  "",
-		Instances:    0,
+		Instances:    domain.MinMax{0,0},
 		ImageId:      "",
 		PoolId:       "",
 		DesiredState: 0,
@@ -294,7 +295,7 @@ func TestIncompleteStartupInjection(t *testing.T) {
 		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
-		Instances:       1,
+		Instances:       domain.MinMax{1,1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -317,7 +318,7 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 		Name:         "ParentService",
 		Startup:      "/usr/bin/ping -c localhost",
 		Description:  "Ping a remote host a fixed number of times",
-		Instances:    1,
+		Instances:    domain.MinMax{1,1},
 		ImageId:      "test/pinger",
 		PoolId:       "default",
 		DesiredState: 1,
