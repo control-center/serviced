@@ -2818,8 +2818,10 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     ];
 
     // Build metadata for displaying a pool's virtual ips
-    $scope.virtual_ip_addresses = buildTable('Address', [
-        { id: 'Address', name: 'pool_tbl_virtual_ip_address'},
+    $scope.virtual_ip_addresses = buildTable('IP', [
+        { id: 'IP', name: 'pool_tbl_virtual_ip_address_ip'},
+        { id: 'Netmask', name: 'pool_tbl_virtual_ip_address_netmask'},
+        { id: 'BindInterface', name: 'pool_tbl_virtual_ip_address_bind_interface'},
         { id: 'Actions', name: 'pool_tbl_virtual_ip_address_action'}
     ]);
 
