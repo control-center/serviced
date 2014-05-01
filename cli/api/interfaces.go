@@ -15,7 +15,7 @@ type API interface {
 
 	// Server
 	StartServer()
-	StartProxy(ProxyOptions) error
+	StartProxy(ControllerOptions) error
 
 	// Hosts
 	GetHosts() ([]*host.Host, error)

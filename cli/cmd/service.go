@@ -450,7 +450,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	options := api.ProxyOptions{
+	options := api.ControllerOptions{
 		MuxPort:          ctx.GlobalInt("muxport"),
 		Mux:              ctx.GlobalBool("mux"),
 		TLS:              ctx.GlobalBool("tls"),
@@ -460,7 +460,6 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		Autorestart:      ctx.GlobalBool("autorestart"),
 		Logstash:         ctx.GlobalBool("logstash"),
 	}
-	api.LoadProxyOptions(options)
 
 	if err := c.driver.StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)

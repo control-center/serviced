@@ -4,7 +4,10 @@
 
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type MinMax struct {
 	Min int
@@ -27,6 +30,6 @@ func (minmax *MinMax) Validate() error {
 
 // HealthCheck is a health check object
 type HealthCheck struct {
-	Script   string // A script to execute to verify the health of a service.
-	Interval int    // The interval at which to execute the script.
+	Script   string        // A script to execute to verify the health of a service.
+	Interval time.Duration // The interval at which to execute the script.
 }

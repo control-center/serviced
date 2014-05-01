@@ -8,20 +8,32 @@ import (
 	"time"
 )
 
-// ControllerOptions is a set of configurable options for a container.Controller.
+// ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
-	TentantId    string
-	ServicedId   string
-	NodeEndpoint string
-	Logstash     bool
+	TentantID        string   // The top level service id
+	ServiceID        string   // The uuid of the service to launch
+	Command          []string // The command to launch
+	MuxPort          int      // the TCP port for the remote mux
+	Mux              bool     // True if a remote mux is used
+	TLS              bool     // True if TLS should be used on the mux
+	KeyPEMFile       string   // path to the KeyPEMfile
+	CertPEMFile      string   // path to the CertPEMfile
+	ServicedEndpoint string
+	Autorestart      bool
+	Logstash         bool
 }
 
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
+	options         ControllerOptions
 	service         *subprocess.Instance
 	metricForwarder *MetricForwarder
 	logforwarder    *subprocess.Instance
+}
+
+func (c *Controller) Close() {
+	return
 }
 
 // NewController
@@ -44,8 +56,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 
 	//build metric redirect url -- assumes 8444 is port mapped
 	metric_redirect := "http://localhost:8444/api/metrics/store"
-	metric_redirect += "?controlplane_tenant_id=" + options.TentantId
-	metric_redirect += "&controlplane_service_id=" + options.ServicedId
+	metric_redirect += "?controlplane_tenant_id=" + options.TentantID
+	metric_redirect += "&controlplane_service_id=" + options.ServiceID
 
 	//build and serve the container metric forwarder
 	forwarder, err := NewMetricForwarder(":22350", metric_redirect)

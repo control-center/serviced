@@ -171,7 +171,7 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
 	}
 }
 
-func (t ServiceAPITest) StartProxy(config api.ProxyConfig) error {
+func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
 	return nil
 }
 
