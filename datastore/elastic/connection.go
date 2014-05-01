@@ -85,7 +85,7 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 
 // convert search result of json host to dao.Host array
 func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
-	glog.Infof("Converting results %v", result)
+	glog.V(4).Infof("Converting results %v", result)
 	var total = len(result.Hits.Hits)
 	var msgs = make([]datastore.JSONMessage, total)
 	for i := 0; i < total; i++ {
