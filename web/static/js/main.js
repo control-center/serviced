@@ -21,6 +21,9 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
+            when('/logs', {
+                templateUrl: '/static/partials/logs.html',
+                controller: LogControl}).
             when('/services/:serviceId', {
                 templateUrl: '/static/partials/view-subservices.html',
                 controller: SubServiceControl}).
