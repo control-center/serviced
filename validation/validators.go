@@ -37,3 +37,23 @@ func StringsEqual(expected string, other string, errMsg string) error {
 	}
 	return nil
 }
+
+//StringsEqual checks to see that strings are equal, optional msg to use instead of default
+func StringIn(check string, others ...string) error {
+	set := make(map[string]struct{}, len(others))
+	for _, val := range others {
+		set[val] = struct{}{}
+	}
+	if _, ok := set[check]; !ok {
+		return NewViolation(fmt.Sprintf("string %v not in %v", check, others))
+	}
+	return nil
+}
+
+func ValidPort(port int) error {
+	if port < 1 || port > 65535 {
+		fmt.Println("PORT ERROR", port)
+		return NewViolation(fmt.Sprintf("not in valid port range: %v", port))
+	}
+	return nil
+}

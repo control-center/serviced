@@ -8,6 +8,8 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 
 	"encoding/json"
 	"fmt"
@@ -258,13 +260,13 @@ var utcNow = func() time.Time {
 }
 
 // Find all docker images referenced by a template or service
-var dockerImageSet = func(templates map[string]*dao.ServiceTemplate, services []*dao.Service) map[string]bool {
+var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate, services []*dao.Service) map[string]bool {
 	imageSet := make(map[string]bool)
-	var visit func(*[]dao.ServiceDefinition)
-	visit = func(defs *[]dao.ServiceDefinition) {
+	var visit func(*[]servicedefinition.ServiceDefinition)
+	visit = func(defs *[]servicedefinition.ServiceDefinition) {
 		for _, serviceDefinition := range *defs {
-			if serviceDefinition.ImageId != "" {
-				imageSet[serviceDefinition.ImageId] = true
+			if serviceDefinition.ImageID != "" {
+				imageSet[serviceDefinition.ImageID] = true
 			}
 			visit(&serviceDefinition.Services)
 		}
@@ -282,7 +284,7 @@ var dockerImageSet = func(templates map[string]*dao.ServiceTemplate, services []
 
 func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
 	var (
-		templates      map[string]*dao.ServiceTemplate
+		templates      map[string]*servicetemplate.ServiceTemplate
 		services       []*dao.Service
 		imagesNameTags [][]string
 	)
@@ -456,7 +458,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
-		templates                 map[string]*dao.ServiceTemplate
+		templates                 map[string]*servicetemplate.ServiceTemplate
 		imagesNameTags            [][]string
 	)
 	defer func() {
@@ -504,7 +506,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 
 	// Restore the service templates ...
 	for templateId, template := range templates {
-		template.Id = templateId
+		template.ID = templateId
 		if e := updateServiceTemplate(*template); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateId, e)
 			return e

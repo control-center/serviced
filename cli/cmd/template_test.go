@@ -7,22 +7,22 @@ import (
 
 	"github.com/zenoss/serviced/cli/api"
 	service "github.com/zenoss/serviced/dao"
-	template "github.com/zenoss/serviced/dao"
+	template "github.com/zenoss/serviced/domain/servicetemplate"
 )
 
 var DefaultTemplateAPITest = TemplateAPITest{templates: DefaultTestTemplates}
 
 var DefaultTestTemplates = []*template.ServiceTemplate{
 	{
-		Id:          "test-template-1",
+		ID:          "test-template-1",
 		Name:        "Alpha",
 		Description: "example template 1",
 	}, {
-		Id:          "test-template-2",
+		ID:          "test-template-2",
 		Name:        "Beta",
 		Description: "example template 2",
 	}, {
-		Id:          "test-template-3",
+		ID:          "test-template-3",
 		Name:        "Gamma",
 		Description: "example template 3",
 	},
@@ -48,7 +48,7 @@ func (t TemplateAPITest) GetServiceTemplates() ([]*template.ServiceTemplate, err
 
 func (t TemplateAPITest) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
 	for i, template := range t.templates {
-		if template.Id == id {
+		if template.ID == id {
 			return t.templates[i], nil
 		}
 	}
@@ -67,7 +67,7 @@ func (t TemplateAPITest) AddServiceTemplate(r io.Reader) (*template.ServiceTempl
 
 func (t TemplateAPITest) RemoveServiceTemplate(id string) error {
 	for _, template := range t.templates {
-		if template.Id == id {
+		if template.ID == id {
 			return nil
 		}
 	}
@@ -89,21 +89,21 @@ func ExampleServicedCli_cmdTemplateList() {
 	// Output:
 	// [
 	//    {
-	//      "Id": "test-template-1",
+	//      "ID": "test-template-1",
 	//      "Name": "Alpha",
 	//      "Description": "example template 1",
 	//      "Services": null,
 	//      "ConfigFiles": null
 	//    },
 	//    {
-	//      "Id": "test-template-2",
+	//      "ID": "test-template-2",
 	//      "Name": "Beta",
 	//      "Description": "example template 2",
 	//      "Services": null,
 	//      "ConfigFiles": null
 	//    },
 	//    {
-	//      "Id": "test-template-3",
+	//      "ID": "test-template-3",
 	//      "Name": "Gamma",
 	//      "Description": "example template 3",
 	//      "Services": null,
@@ -117,10 +117,28 @@ func ExampleServicedCli_cmdTemplateAdd() {
 }
 
 func ExampleServicedCli_cmdTemplateRemove() {
-	InitTemplateAPITest("serviced", "template", "remove", "test-template-1")
+	InitTemplateAPITest("serviced", "template", "remove", "test-template-1", "test-template-0")
 
 	// Output:
 	// test-template-1
+}
+
+func ExampleServicedCLI_CmdTemplateRemove_usage() {
+	InitTemplateAPITest("serviced", "template", "remove")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    remove - Remove an existing template
+	//
+	// USAGE:
+	//    command remove [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced template remove TEMPLATEID ...
+	//
+	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdTemplateDeploy() {

@@ -1,7 +1,6 @@
 package serviced
 
 import (
-
 	"encoding/json"
 	"testing"
 )

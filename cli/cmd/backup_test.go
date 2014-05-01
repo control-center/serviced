@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	PathNotFound = "PATH_PathNotFound"
+	PathNotFound = "PathNotFound"
+	NilPath      = "NilPath"
 )
 
 var DefaultBackupAPITest = BackupAPITest{}
@@ -31,6 +32,8 @@ func (t BackupAPITest) Backup(dirpath string) (string, error) {
 	switch dirpath {
 	case PathNotFound:
 		return "", ErrBackupFailed
+	case NilPath:
+		return "", nil
 	default:
 		return fmt.Sprintf("%s.tgz", path.Base(dirpath)), nil
 	}
@@ -46,11 +49,33 @@ func (t BackupAPITest) Restore(path string) error {
 }
 
 func ExampleServicedCli_cmdBackup() {
+	// Invalid path
 	InitBackupAPITest("serviced", "backup", PathNotFound)
+	// Backup returns an empty file path
+	InitBackupAPITest("serviced", "backup", NilPath)
+	// Success
 	InitBackupAPITest("serviced", "backup", "path/to/dir")
 
 	// Output:
 	// dir.tgz
+}
+
+func ExampleServicedCLI_CmdBackup_usage() {
+	InitBackupAPITest("serviced", "backup")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    backup - Dump all templates and services to a tgz file
+	//
+	// USAGE:
+	//    command backup [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service backup DIRPATH
+	//
+	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdRestore() {
@@ -58,4 +83,22 @@ func ExampleServicedCli_cmdRestore() {
 	InitBackupAPITest("serviced", "restore", "path/to/file")
 
 	// Output:
+}
+
+func ExampleServicedCLI_CmdRestore_usage() {
+	InitBackupAPITest("serviced", "restore")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    restore - Restore services from a tgz file
+	//
+	// USAGE:
+	//    command restore [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service restore FILEPATH
+	//
+	// OPTIONS:
 }

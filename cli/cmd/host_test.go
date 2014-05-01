@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/domain/host"
 )
 
 var DefaultHostAPITest = HostAPITest{hosts: DefaultTestHosts}
@@ -144,8 +144,26 @@ func ExampleServicedCli_cmdHostAdd() {
 }
 
 func ExampleServicedCli_cmdHostRemove() {
-	InitHostAPITest("serviced", "host", "remove", "test-host-id-3")
+	InitHostAPITest("serviced", "host", "remove", "test-host-id-3", "test-host-id-0")
 
 	// Output:
 	// test-host-id-3
+}
+
+func ExampleServicedCLI_CmdHostRemove_usage() {
+	InitHostAPITest("serviced", "host", "rm")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    remove - Removes an existing host
+	//
+	// USAGE:
+	//    command remove [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced host remove HOSTID ...
+	//
+	// OPTIONS:
 }

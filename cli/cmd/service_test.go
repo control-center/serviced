@@ -10,6 +10,11 @@ import (
 	"github.com/zenoss/serviced/cli/api"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+)
+
+const (
+	IPAddressNotFound = "IP ADDRESS NOT FOUND"
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
@@ -58,6 +63,7 @@ var DefaultTestServices = []*service.Service{
 var (
 	ErrNoServiceFound = errors.New("no service found")
 	ErrInvalidService = errors.New("invalid service")
+	ErrCmdNotFound    = errors.New("command not found")
 )
 
 type ServiceAPITest struct {
@@ -85,7 +91,7 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
-	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
@@ -155,11 +161,14 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
 		return "", err
 	}
 
-	if config.IPAddress == "" {
+	switch config.IPAddress {
+	case IPAddressNotFound:
+		return "", nil
+	case "":
 		return "0.0.0.0", nil
+	default:
+		return config.IPAddress, nil
 	}
-
-	return config.IPAddress, nil
 }
 
 func (t ServiceAPITest) StartProxy(config api.ProxyConfig) error {
@@ -171,6 +180,17 @@ func (t ServiceAPITest) StartShell(config api.ShellConfig) error {
 }
 
 func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
+	s, err := t.GetService(config.ServiceID)
+	if err != nil {
+		return err
+	}
+
+	command, ok := s.Runs[config.Command]
+	if !ok {
+		return ErrCmdNotFound
+	}
+
+	fmt.Printf("%s %s\n", command, strings.Join(config.Args, " "))
 	return nil
 }
 
@@ -311,23 +331,65 @@ func ExampleServicedCli_cmdServiceAdd() {
 }
 
 func ExampleServicedCli_cmdServiceRemove() {
-	InitServiceAPITest("serviced", "service", "rm", "test-service-1")
+	InitServiceAPITest("serviced", "service", "rm", "test-service-1", "test-service-0")
 
 	// Output:
 	// test-service-1
+}
+
+func ExampleServicedCLI_CmdServiceRemove_usage() {
+	InitServiceAPITest("serviced", "service", "remove")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    remove - Removes an existing service
+	//
+	// USAGE:
+	//    command remove [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service remove SERVICEID ...
+	//
+	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdServiceEdit() {
 	InitServiceAPITest("serviced", "service", "edit", "test-service-1")
 }
 
-func ExampleServicedCli_cmdServiceAutoIPs() {
+func ExampleServicedCli_cmdServiceAssignIPs() {
+	// Service does not exist
+	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-0")
+	// IP Address not returned
+	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-3", IPAddressNotFound)
+	// Auto-assignment
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-1")
+	// Manual-assignment
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-2", "127.0.0.1")
 
 	// Output:
 	// 0.0.0.0
 	// 127.0.0.1
+}
+
+func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
+	InitServiceAPITest("serviced", "service", "assign-ip")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    assign-ip - Assigns an IP address to a service's endpoints requiring an explicit IP address
+	//
+	// USAGE:
+	//    command assign-ip [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service assign-ip SERVICEID [IPADDRESS]
+	//
+	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdServiceStart() {
@@ -351,6 +413,7 @@ func ExampleServicedCli_cmdServiceShell() {
 }
 
 func ExampleServicedCli_cmdServiceRun_list() {
+	InitServiceAPITest("serviced", "service", "run", "test-service-0")
 	InitServiceAPITest("serviced", "service", "run", "test-service-1")
 
 	// Output:
@@ -359,4 +422,29 @@ func ExampleServicedCli_cmdServiceRun_list() {
 }
 
 func ExampleServicedCli_cmdServiceRun_exec() {
+	InitServiceAPITest("serviced", "service", "run", "test-service-1", "notfound")
+	InitServiceAPITest("serviced", "service", "run", "test-service-1", "hello", "-i")
+
+	// Output:
+	// echo hello world -i
+}
+
+func ExampleServicedCLI_CmdServiceRun_usage() {
+	InitServiceAPITest("serviced", "service", "run")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    run - Runs a service command in a service instance
+	//
+	// USAGE:
+	//    command run [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service run SERVICEID [COMMAND]
+	//
+	// OPTIONS:
+	//    --saveas, -s 	saves the service instance with the given name
+	//    --interactive, -i	runs the service instance as a tty
 }

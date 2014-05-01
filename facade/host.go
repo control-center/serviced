@@ -89,10 +89,9 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
 
-	glog.Infof("Facade.GetHost: id=%s", hostID)
 	var value host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
-	glog.Infof("Facade.GetHost: get error %v", err)
+	glog.V(4).Infof("Facade.GetHost: get error %v", err)
 	if datastore.IsErrNoSuchEntity(err) {
 		return nil, nil
 	}
