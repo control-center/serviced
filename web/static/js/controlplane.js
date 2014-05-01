@@ -266,7 +266,7 @@ function ResourcesService($http, $location) {
         $http.get('/pools').
             success(function(data, status) {
                 console.log('Retrieved list of pools');
-                cached_pools = data
+                cached_pools = data;
                 callback(data);
             }).
             error(function(data, status) {
@@ -374,7 +374,7 @@ function ResourcesService($http, $location) {
          * add a virtual host,
          */
         add_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             var object = {'ServiceId':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
@@ -395,7 +395,7 @@ function ResourcesService($http, $location) {
          * Remove a virtual host
          */
         delete_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             $http.delete(ep).
                 success(function(data, status) {
                     console.log('Removed virtual host: %s, %s', ep, JSON.stringify(data));
@@ -523,7 +523,7 @@ function ResourcesService($http, $location) {
          * @param {function} callback Add result passed to callback on success.
          */
         add_pool_virtual_ip: function(pool, ip, callback) {
-            var payload = JSON.stringify( {'poolID':pool,'VirtualIp':ip})
+            var payload = JSON.stringify( {'poolID':pool,'VirtualIp':ip});
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip/' + ip, payload).
                 success(function(data, status) {
@@ -968,7 +968,7 @@ function StatsService($http, $location) {
                     callback(status);
                 });
         }
-    }
+    };
 }
 
 /*
@@ -985,7 +985,7 @@ function flattenTree(depth, current) {
         return retVal;
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
     }
     return retVal;
 }
@@ -1005,7 +1005,7 @@ function aggregateVhosts( service) {
         for ( var j in endpoint.VHosts) {
           var name = endpoint.VHosts[j];
           var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
-          vhosts.push( vhost)
+          vhosts.push( vhost);
         }
       }
     }
@@ -1213,7 +1213,7 @@ function toggleRunning(app, status, servicesService) {
         }
     }
     // stop service
-    if ((newState == 0) || (newState == -1)) {
+    if ((newState === 0) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
             updateApp(app, newState);
@@ -1597,12 +1597,12 @@ function CeleryLogControl($scope, authService) {
     $scope.pageLeft = function() {
         $scope.page--;
         $scope.buildPage();
-    }
+    };
 
     $scope.pageRight = function() {
         $scope.page++;
         $scope.buildPage();
-    }
+    };
 
     $scope.click_jobid = function(jobid) {
         $scope.client.search($scope.jobQuery(jobid, 0)).then(function(count) {
@@ -1627,7 +1627,7 @@ function CeleryLogControl($scope, authService) {
                 $('#jobs-log-modal').modal('show');
             });
         });
-    }
+    };
 
     $scope.buildPage();
 
@@ -1641,8 +1641,8 @@ function DeployWizard($scope, resourcesService) {
     };
 
     var validDeploymentId = function() {
-        return $scope.install.deploymentId != undefined && $scope.install.deploymentId != "";
-    }
+        return $scope.install.deploymentId !== undefined && $scope.install.deploymentId !== "";
+    };
 
     $scope.steps = [
         /*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
@@ -1715,7 +1715,7 @@ function DeployWizard($scope, resourcesService) {
         }
 
         return ret;
-    }
+    };
 
     var step = 0;
     var resetStepPage = function() {
@@ -1730,7 +1730,7 @@ function DeployWizard($scope, resourcesService) {
 
     $scope.addHostCancel = function() {
         $scope.step_page = $scope.steps[step].content;
-    }
+    };
 
     $scope.addHostFinish = function() {
         $scope.newHost.Name = $scope.newHost.IPAddr;
@@ -1895,7 +1895,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     // given a vhost, return a url to it
     $scope.vhost_url = function( vhost) {
         return get_vhost_url( $location, vhost);
-    }
+    };
 
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
@@ -2000,7 +2000,7 @@ function EntryControl($scope, authService, resourcesService) {
                 $('#addApp').modal('show');
             }
         });
-    }
+    };
 }
 function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
     // Ensure logged in
@@ -2013,7 +2013,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
     $scope.visualization.urlPath = '/metrics/static/performance/query/';
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
-    $scope.visualization.debug = false;
+    $scope.visualization.debug = true;
 
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' }
@@ -2159,7 +2159,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "expression": null,
-                "expression": null,
                 "fill": false,
                 "format": "%d",
                 "id": "pgfault",
@@ -2275,7 +2274,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID) });
+            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID); });
         });
     };
 
@@ -2288,7 +2287,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'Id', name: 'Id'},
         { id: 'ParentId', name: 'Parent Id'},
         { id: 'Priority', name: 'Priority'}
-    ])
+    ]);
 
     var clearLastStyle = function() {
         var lastPool = $scope.pools.mapped[$scope.selectedPool];
@@ -2513,7 +2512,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     var hostText = function(h) {
         return h.isHost? h.Name : null;
-    }
+    };
 
     var color = d3.scale.category20c();
     var treemap = d3.layout.treemap()
@@ -2547,7 +2546,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     var selectNewValue = function(valFunc) {
         var node = d3.select("#hostmap").
             selectAll(".node").
-            data(treemap.value(valFunc).nodes)
+            data(treemap.value(valFunc).nodes);
         node.enter().
             append("div").
             attr("class", "node");
@@ -2563,7 +2562,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         var node = d3.select("#hostmap").
             datum(newroot).
             selectAll(".node").
-            data(treemap.nodes)
+            data(treemap.nodes);
 
         node.enter().
             append("div").
@@ -2624,13 +2623,13 @@ function LanguageControl($scope, $cookies, $translate) {
     };
     $scope.getLanguageClass = function(language) {
         return ($scope.user.language === language)? 'btn btn-primary active' : 'btn btn-primary';
-    }
+    };
 }
 
 function LoginControl($scope, $http, $location, authService) {
     $scope.brand_label = "CONTROL PLANE";
     $scope.login_button_text = "Log In";
-    $scope.login_alert = $('#login_alert')
+    $scope.login_alert = $('#login_alert');
     $scope.login_alert.hide();
     $scope.login_alert.rollmsg = function() {
         $scope.login_alert.fadeIn('slow', function() {
@@ -2758,7 +2757,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
         { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
         { id: 'Actions', name: 'pools_tbl_actions'}
-    ])
+    ]);
 
     $scope.click_pool = function(id) {
         $location.path('/pools/' + id);
@@ -2768,7 +2767,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.clickRemovePool = function(poolID) {
         console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){removePool($scope, poolID)});
+            refreshPools($scope, resourcesService, false, function(){removePool($scope, poolID);});
         });
     };
 
@@ -2918,7 +2917,7 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         }
 
-        var layout = dagreD3.layout().nodeSep(5).rankDir("LR")
+        var layout = dagreD3.layout().nodeSep(5).rankDir("LR");
         var renderer = new dagreD3.Renderer().layout(layout);
         var oldDrawNode = renderer.drawNode();
         renderer.drawNode(function(graph, u, svg) {
@@ -3023,7 +3022,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.vhost_url = function( vhost) {
         return get_vhost_url( $location, vhost);
-    }
+    };
 
     $scope.indent = indentClass;
     $scope.clickRunning = toggleRunning;

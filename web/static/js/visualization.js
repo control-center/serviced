@@ -1512,7 +1512,7 @@
     zenoss.visualization.Chart.prototype.__processResultAsDefault = function(
         request, data) {
 
-        var self = this, plotMap = [], i, result, max = 0, info, plot, plots, key, xcompare;
+        var self = this, plotMap = {}, i, result, max = 0, info, plot, plots, key, xcompare;
 
         /*
          * Create a plot for each metric name, this is essentially grouping the
