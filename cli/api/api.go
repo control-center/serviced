@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -57,6 +58,7 @@ func LoadOptions(ops Options) {
 type api struct {
 	master *master.Client
 	agent  *agent.Client
+	docker *docker.Client
 	dao    dao.ControlPlane // Deprecated
 }
 
@@ -92,6 +94,18 @@ func (a *api) connectAgent() (*agent.Client, error) {
 		}
 	}
 	return a.agent, nil
+}
+
+// Opens a connection to docker if not already connected
+func (a *api) connectDocker() (*docker.Client, error) {
+	if a.docker == nil {
+		const DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+		var err error
+		if a.docker, err = docker.NewClient(DOCKER_ENDPOINT); err != nil {
+			return nil, fmt.Errorf("could not create a client to docker: %s", err)
+		}
+	}
+	return a.docker, nil
 }
 
 // DEPRECATED: Opens a connection to the DAO if not already connected
