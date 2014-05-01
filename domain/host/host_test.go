@@ -62,7 +62,6 @@ func init() {
 
 func Test_ValidateTable(t *testing.T) {
 	for idx, test := range validatetable {
-		glog.Infof("test for  %v", test)
 		h := New()
 		h.ID = test.id
 		h.PoolID = test.poolid
@@ -86,21 +85,17 @@ func Test_ValidateTable(t *testing.T) {
 func Test_BuildInvalid(t *testing.T) {
 
 	empty := make([]string, 0)
-	var host Host
 	_, err := Build("", "", empty...)
-	glog.Infof("error %v", host)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
 	_, err = Build("1234", "", empty...)
-	glog.Infof("build  error %v", err)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
 	_, err = Build("", "", empty...)
-	glog.Infof("build  error %v", err)
 	if err == nil {
 		t.Errorf("expected error")
 	}
@@ -111,7 +106,6 @@ func Test_BuildInvalid(t *testing.T) {
 	}
 
 	_, err = Build("", "poolid", "127.0.0.1")
-	glog.Infof("last build  error %v", err)
 
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
@@ -191,14 +185,14 @@ func Test_getIPResources(t *testing.T) {
 	}
 }
 
-func Test_getOSKernelData(t *testing.T){
+func Test_getOSKernelData(t *testing.T) {
 	kernelVersion, kernelRelease, err := getOSKernelData()
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	if kernelVersion == "There was an error retrieving kernel data" || kernelRelease == "There was an error retrieving kernel data"{
+	if kernelVersion == "There was an error retrieving kernel data" || kernelRelease == "There was an error retrieving kernel data" {
 		t.Errorf("Unexpected error %v", err)
 	}
 

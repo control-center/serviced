@@ -9,9 +9,11 @@
 package serviced
 
 import (
-	"encoding/json"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -43,26 +45,26 @@ func getTestService() dao.Service {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs: []dao.LogConfig{
-			dao.LogConfig{
+		LogConfigs: []servicedefinition.LogConfig{
+			servicedefinition.LogConfig{
 				Path: "/path/to/log/file",
 				Type: "test",
-				LogTags: []dao.LogTag{
-					dao.LogTag{
+				LogTags: []servicedefinition.LogTag{
+					servicedefinition.LogTag{
 						Name:  "pepe",
 						Value: "foobar",
 					},
 				},
 			},
-			dao.LogConfig{
+			servicedefinition.LogConfig{
 				Path: "/path/to/second/log/file",
 				Type: "test2",
-				LogTags: []dao.LogTag{
-					dao.LogTag{
+				LogTags: []servicedefinition.LogTag{
+					servicedefinition.LogTag{
 						Name:  "pepe",
 						Value: "foobar",
 					},
@@ -142,12 +144,12 @@ func TestDontWriteToNilMap(t *testing.T) {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []dao.ServiceEndpoint{},
+		Endpoints:       []servicedefinition.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		LogConfigs: []dao.LogConfig{
-			dao.LogConfig{
+		LogConfigs: []servicedefinition.LogConfig{
+			servicedefinition.LogConfig{
 				Path: "/path/to/log/file",
 				Type: "test",
 			},

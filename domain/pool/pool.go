@@ -14,6 +14,8 @@ type ResourcePool struct {
 	Priority    int    // relative priority of resource pools, used for CPU priority
 	CoreLimit   int    // Number of cores on the host available to serviced
 	MemoryLimit uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
+	CoreCapacity int // Number of cores available as a sum of all cores on all hosts in the pool
+	MemoryCapacity uint64 // Amount (bytes) of RAM available as a sum of all memory on all hosts in the pool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -22,5 +24,6 @@ type ResourcePool struct {
 func New(id string) *ResourcePool {
 	pool := &ResourcePool{}
 	pool.ID = id
+
 	return pool
 }

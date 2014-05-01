@@ -7,9 +7,7 @@ RUN echo "zenoss ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 RUN apt-get -y install npm
 RUN npm install -g grunt-cli
-RUN npm install grunt-contrib-uglify
-RUN npm install grunt-contrib-concat
 RUN ln -s /usr/bin/nodejs /usr/bin/node
 
 USER zenoss
-CMD ["grunt"]
+CMD ["/bin/bash", "-c", "sudo npm install grunt-contrib-uglify; sudo npm install grunt-contrib-concat; grunt"]

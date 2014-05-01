@@ -98,6 +98,17 @@ func (service *Service) EvaluateStartupTemplate(cp ControlPlane) (err error) {
 	return
 }
 
+// EvaluateRunsTemplate parses and evaluates the Runs string of a service.
+func (service *Service) EvaluateRunsTemplate(cp ControlPlane) (err error) {
+	for key, value := range service.Runs {
+		result := service.evaluateTemplate(cp, value)
+		if result != "" {
+			service.Runs[key] = result
+		}
+	}
+	return
+}
+
 // evaluateTemplate takes a control plane client and template string and evaluates
 // the template using the service as the context. If the template is invalid or there is an error
 // then an empty string is returned.

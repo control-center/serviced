@@ -21,7 +21,7 @@ func Test(t *testing.T) {
 var _ = Suite(&S{
 	ElasticTest: elastic.ElasticTest{
 		Index:    "controlplane",
-		Mappings: map[string]string{"host": "./host_mapping.json"},
+		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
@@ -31,6 +31,7 @@ type S struct {
 }
 
 func (s *S) SetUpTest(c *C) {
+	s.ElasticTest.SetUpTest(c)
 	datastore.Register(s.Driver())
 	s.ctx = datastore.Get()
 	s.hs = NewStore()

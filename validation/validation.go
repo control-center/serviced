@@ -39,6 +39,12 @@ func (v *ValidationError) Error() string {
 	return errString
 }
 
+//HasError test to see if length of  Errors slice is greater than 0
+func (v *ValidationError) HasError() bool {
+
+	return len(v.Errors) > 0
+}
+
 //NewViolation creates a violation error
 func NewViolation(msg string) *Violation {
 	return &Violation{msg}

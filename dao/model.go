@@ -1,10 +1,10 @@
 package dao
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 
-	"errors"
 	"fmt"
+	"github.com/zenoss/glog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,37 +21,11 @@ type User struct {
 	Password string // no requirements on passwords yet
 }
 
-type MinMax struct {
-	Min int
-	Max int
-}
-
-type ServiceTemplateWrapper struct {
-	Id              string // Primary-key
-	Name            string // Name of top level service
-	Description     string // Description
-	Data            string // JSON encoded template definition
-	ApiVersion      int    // Version of the ServiceTemplate API this expects
-	TemplateVersion int    // Version of the template
-}
-
 // An association between a host and a pool.
 type PoolHost struct {
 	HostId string
 	PoolId string
 	HostIp string
-}
-
-//AssignedPort is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type AddressAssignment struct {
-	Id             string //Generated id
-	AssignmentType string //Static or Virtual
-	HostId         string //Host id if type is Static
-	PoolId         string //Pool id if type is Virtual
-	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           uint16 //Actual assigned port
-	ServiceId      string //Service using this assignment
-	EndpointName   string //Endpoint in the service using the assignment
 }
 
 //AssignmentRequest is used to couple a serviceId to an IpAddress
@@ -79,12 +53,6 @@ type ApplicationEndpoint struct {
 	VirtualAddress string
 }
 
-// Snapshot commands
-type SnapshotCommands struct {
-	Pause  string // bash command to pause the volume  (quiesce)
-	Resume string // bash command to resume the volume (unquiesce)
-}
-
 // A Service that can run in serviced.
 type Service struct {
 	Id              string
@@ -93,52 +61,28 @@ type Service struct {
 	Startup         string
 	Description     string
 	Tags            []string
-	ConfigFiles     map[string]ConfigFile
+	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
 	ImageId         string
 	PoolId          string
 	DesiredState    int
-	HostPolicy      HostPolicy
+	HostPolicy      servicedefinition.HostPolicy
 	Hostname        string
 	Privileged      bool
 	Launch          string
-	Endpoints       []ServiceEndpoint
-	Tasks           []Task
+	Endpoints       []servicedefinition.ServiceEndpoint
+	Tasks           []servicedefinition.Task
 	ParentServiceId string
-	Volumes         []Volume
+	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeploymentId    string
 	DisableImage    bool
-	LogConfigs      []LogConfig
-	Snapshot        SnapshotCommands
+	LogConfigs      []servicedefinition.LogConfig
+	Snapshot        servicedefinition.SnapshotCommands
 	Runs            map[string]string
 	RAMCommitment   uint64
 	Actions         map[string]string
-}
-
-// An endpoint that a Service exposes.
-type ServiceEndpoint struct {
-	Name                string // Human readable name of the endpoint. Unique per service definition
-	Purpose             string
-	Protocol            string
-	PortNumber          uint16
-	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
-	Application         string
-	ApplicationTemplate string
-	AddressConfig       AddressResourceConfig
-	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
-	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	AddressAssignment AddressAssignment //addressAssignment holds the assignment when Service is started
-}
-
-// A scheduled task
-type Task struct {
-	Name          string
-	Schedule      string
-	Command       string
-	LastRunAt     time.Time
-	TotalRunCount int
 }
 
 //export definition
@@ -147,14 +91,6 @@ type ServiceExport struct {
 	Application string //application type
 	Internal    string //internal port number
 	External    string //external port number
-}
-
-// volume import defines a file system directory underneath an export directory
-type Volume struct {
-	Owner         string //Resource Path Owner
-	Permission    string //Resource Path permissions, eg what you pass to chmod
-	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
-	ContainerPath string //Container bind-mount path
 }
 
 // An instantiation of a Service.
@@ -168,67 +104,9 @@ type ServiceState struct {
 	Terminated  time.Time
 	Started     time.Time
 	PortMapping map[string][]HostIpAndPort // protocol -> container port (internal) -> host port (external)
-	Endpoints   []ServiceEndpoint
+	Endpoints   []servicedefinition.ServiceEndpoint
 	HostIp      string
 	InstanceId  int
-}
-
-type ConfigFile struct {
-	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
-	Permissions string // permission of file, eg 0664, what you would pass to chmod
-	Content     string // content of config file
-}
-
-type ServiceDefinition struct {
-	Name          string                 // Name of the defined service
-	Command       string                 // Command which runs the service
-	Description   string                 // Description of the service
-	Tags          []string               // Searchable service tags
-	ImageId       string                 // Docker image hosting the service
-	Instances     MinMax                 // Constraints on the number of instances
-	Launch        string                 // Must be "AUTO", the default, or "MANUAL"
-	HostPolicy    HostPolicy             // Policy for starting up instances
-	Hostname      string                 // Optional hostname which should be set on run
-	Privileged    bool                   // Whether to run the container with extended privileges
-	ConfigFiles   map[string]ConfigFile  // Config file templates
-	Context       map[string]interface{} // Context information for the service
-	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
-	Services      []ServiceDefinition    // Supporting subservices
-	Tasks         []Task                 // Scheduled tasks for celery to find
-	LogFilters    map[string]string      // map of log filter name to log filter definitions
-	Volumes       []Volume               // list of volumes to bind into containers
-	LogConfigs    []LogConfig
-	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment uint64            // expected RAM commitment to use for scheduling
-	Runs          map[string]string // Map of commands that can be executed with 'serviced run ...'
-	Actions       map[string]string // Map of commands that can be executed with 'serviced action ...'
-}
-
-// AddressResourceConfigByPort implements sort.Interface for []AddressResourceConfig based on the Port field
-type AddressResourceConfigByPort []AddressResourceConfig
-
-func (a AddressResourceConfigByPort) Len() int           { return len(a) }
-func (a AddressResourceConfigByPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a AddressResourceConfigByPort) Less(i, j int) bool { return a[i].Port < a[j].Port }
-
-//AddressResourceConfig defines an external facing port for a service definition
-type AddressResourceConfig struct {
-	Port     uint16
-	Protocol string
-}
-
-// LogConfig represents the configuration for a logfile for a service.
-type LogConfig struct {
-	Path    string   // The location on the container's filesystem of the log, can be a directory
-	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
-	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
-	LogTags []LogTag // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
-}
-
-type LogTag struct {
-	Name  string
-	Value string
 }
 
 type ServiceDeployment struct {
@@ -236,15 +114,6 @@ type ServiceDeployment struct {
 	TemplateId string    // id of template being deployed
 	ServiceId  string    // id of service created by deployment
 	DeployedAt time.Time // when the template was deployed
-}
-
-// A Service Template used for
-type ServiceTemplate struct {
-	Id          string                // Unique ID of this service template
-	Name        string                // Name of service template
-	Description string                // Meaningful description of service
-	Services    []ServiceDefinition   // Child services
-	ConfigFiles map[string]ConfigFile // Config file templates
 }
 
 // A request to deploy a service template
@@ -307,8 +176,8 @@ func (s *Service) HasImports() bool {
 }
 
 // GetServiceImports retrieves service endpoints whose purpose is "import"
-func (s *Service) GetServiceImports() []ServiceEndpoint {
-	result := []ServiceEndpoint{}
+func (s *Service) GetServiceImports() []servicedefinition.ServiceEndpoint {
+	result := []servicedefinition.ServiceEndpoint{}
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
@@ -322,8 +191,8 @@ func (s *Service) GetServiceImports() []ServiceEndpoint {
 }
 
 // GetServiceExports retrieves service endpoints whose purpose is "export"
-func (s *Service) GetServiceExports() []ServiceEndpoint {
-	result := []ServiceEndpoint{}
+func (s *Service) GetServiceExports() []servicedefinition.ServiceEndpoint {
+	result := []servicedefinition.ServiceEndpoint{}
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
@@ -337,8 +206,8 @@ func (s *Service) GetServiceExports() []ServiceEndpoint {
 }
 
 // GetServiceVHosts retrieves service endpoints that specify a virtual HostPort
-func (s *Service) GetServiceVHosts() []ServiceEndpoint {
-	result := []ServiceEndpoint{}
+func (s *Service) GetServiceVHosts() []servicedefinition.ServiceEndpoint {
+	result := []servicedefinition.ServiceEndpoint{}
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
@@ -417,24 +286,6 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
 }
 
-func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
-	if se.AddressConfig.Port == 0 {
-		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
-	}
-	se.AddressAssignment = *aa
-	return nil
-}
-
-//GetAssignment Returns nil if no assignment set
-func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
-	if se.AddressAssignment.Id == "" {
-		return nil
-	}
-	//return reference to copy
-	result := se.AddressAssignment
-	return &result
-}
-
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
 	for _, ep := range ss.Endpoints {
@@ -479,30 +330,4 @@ func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest
 		snapshotRequest.SnapshotError = ""
 	}
 	return snapshotRequest, err
-}
-
-// HostPolicy represents the optional policy used to determine which hosts on
-// which to run instances of a service. Default is to run on the available
-// host with the most uncommitted RAM.
-type HostPolicy string
-
-const (
-	DEFAULT          HostPolicy = ""
-	LEAST_COMMITTED             = "LEAST_COMMITTED"
-	PREFER_SEPARATE             = "PREFER_SEPARATE"
-	REQUIRE_SEPARATE            = "REQUIRE_SEPARATE"
-)
-
-// UnmarshalText implements the encoding/TextUnmarshaler interface
-func (p *HostPolicy) UnmarshalText(b []byte) error {
-	s := strings.Trim(string(b), `"`)
-	switch s {
-	case LEAST_COMMITTED, PREFER_SEPARATE, REQUIRE_SEPARATE:
-		*p = HostPolicy(s)
-	case "":
-		*p = DEFAULT
-	default:
-		return errors.New("Invalid HostPolicy: " + s)
-	}
-	return nil
 }
