@@ -176,35 +176,33 @@ func (l *leader) watchServices() {
 				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
-		select {
-		case evt := <-zkEvent:
-			glog.V(1).Info("Leader event: ", evt)
-			break
-		case serviceID := <-sDone:
-			glog.V(1).Info("Leading cleaning up for service ", serviceID)
-			delete(processing, serviceID)
-			break
-		}
-
 		/*
-			for {
-				select {
-				case evt := <-zkEvent:
-					glog.V(1).Info("Leader event: ", evt)
-					break
-				case serviceID := <-sDone:
-					glog.V(1).Info("Leading cleaning up for service ", serviceID)
-					delete(processing, serviceID)
-					break
-				case <-time.After(10 * time.Second):
-					err := l.watchVirtualIPs()
-					//err := watchVirtualIPs(l.context, l.facade)
-					if err != nil {
-						glog.Warningf("watchVirtualIPs: %v", err)
-					}
-				}
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
 			}
 		*/
+
+		for {
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+				break
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
+				break
+			case <-time.After(10 * time.Second):
+				err := l.watchVirtualIPs()
+				//err := watchVirtualIPs(l.context, l.facade)
+				if err != nil {
+					glog.Warningf("watchVirtualIPs: %v", err)
+				}
+			}
+		}
 	}
 }
 

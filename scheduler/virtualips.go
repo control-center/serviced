@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -157,6 +158,11 @@ func (l *leader) watchVirtualIPs() error {
 	if err != nil {
 		glog.Errorf("Cannot retrieve host information for pool host %v", hostId)
 		return err
+	}
+	if myHost == nil {
+		glog.Infof("************ Host: %v does not exist!", hostId)
+		msg := fmt.Sprintf("************ Host: %v does not exist!", hostId)
+		return errors.New(msg)
 	}
 	glog.Infof("************ myHost: %v", myHost)
 
