@@ -37,6 +37,7 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 	}
 	o3 := (n / 255)
 	o4 := (n - (o3 * 255))
+	// TODO: Make this network configurable (See ZEN-11478)
 	return fmt.Sprintf("10.3.%d.%d", o3, o4), nil
 }
 
