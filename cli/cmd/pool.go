@@ -48,6 +48,18 @@ func (c *ServicedCli) initPool() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 				},
+			}, {
+				Name:         "add-virtual-ip",
+				Usage:        "Add a virtual IP address to a pool",
+				Description:  "serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdAddVirtualIP,
+			}, {
+				Name:         "remove-virtual-ip",
+				Usage:        "Remove a virtual IP address from a pool",
+				Description:  "serviced pool remove-virtual-ip VIRTUALIPID",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdRemoveVirtualIP,
 			},
 		},
 	})
@@ -226,5 +238,42 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress)
 		}
 		tableIPs.Flush()
+	}
+}
+
+// serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE
+func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add-virtual-ip")
+		return
+	}
+
+	//                           pool ID, IP address, netmask, bind interface
+	if err := c.driver.AddVirtualIP(args[0], args[1], args[2], args[3]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	fmt.Println("Added virtual IP:", args[1])
+}
+
+// serviced pool remove-virtual-ip VIRTUALIPID ...
+func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove-virtual-ip")
+		return
+	}
+
+	for _, id := range args {
+		if err := c.driver.RemoveVirtualIP(args[0]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else {
+			fmt.Println("Removed virtual IP: ", id)
+		}
 	}
 }

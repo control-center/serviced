@@ -185,12 +185,12 @@ func (l *leader) watchServices() {
 				glog.V(1).Info("Leading cleaning up for service ", serviceID)
 				delete(processing, serviceID)
 				break
-			case <-time.After(10 * time.Second):
+				/*case <-time.After(10 * time.Second):
 				err := l.watchVirtualIPs()
 				//err := watchVirtualIPs(l.context, l.facade)
 				if err != nil {
 					glog.Warningf("watchVirtualIPs: %v", err)
-				}
+				}*/
 			}
 		}
 	}

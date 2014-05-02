@@ -79,13 +79,13 @@ func (a *api) GetPoolIPs(id string) (*facade.PoolIPs, error) {
 }
 
 // Add a VirtualIP to a specific pool
-func (a *api) AddVirtualIP(requestedVirtualIP pool.VirtualIP) error {
+func (a *api) AddVirtualIP(poolID string, ipAddress string, netmask string, bindInterface string) error {
 	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	return client.AddVirtualIP(requestedVirtualIP)
+	return client.AddVirtualIP(poolID, ipAddress, netmask, bindInterface)
 }
 
 // Add a VirtualIP to a specific pool
