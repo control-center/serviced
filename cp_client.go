@@ -14,6 +14,8 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -81,7 +83,7 @@ func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *st
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]dao.AddressAssignment) (err error) {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]servicedefinition.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 
@@ -141,15 +143,15 @@ func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequ
 	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantId)
 }
 
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*dao.ServiceTemplate) error {
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
 }
 
-func (s *ControlClient) AddServiceTemplate(serviceTemplate dao.ServiceTemplate, templateId *string) error {
+func (s *ControlClient) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
 	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, templateId)
 }
 
-func (s *ControlClient) UpdateServiceTemplate(serviceTemplate dao.ServiceTemplate, unused *int) error {
+func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
 }
 

@@ -9,6 +9,8 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/domain/servicedefinition"
+
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
@@ -26,7 +28,7 @@ const (
 )
 
 //createFields makes the map of tags for the logstash config including the type
-func createFields(logConfig *dao.LogConfig) map[string]string {
+func createFields(logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
 	for _, tag := range logConfig.LogTags {

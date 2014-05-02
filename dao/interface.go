@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -64,7 +66,7 @@ type ControlPlane interface {
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
 	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]AddressAssignment) error
+	GetServiceAddressAssignments(serviceID string, addresses *[]servicedefinition.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -109,16 +111,16 @@ type ControlPlane interface {
 	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantId *string) error
 
 	// Add a new service Template
-	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
+	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error
 
 	// Update a new service Template
-	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 
 	// Update a new service Template
 	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD

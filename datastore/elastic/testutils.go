@@ -105,6 +105,7 @@ func (et *ElasticTest) TearDownSuite(c *gocheck.C) {
 }
 
 func (et *ElasticTest) SetUpTest(c *gocheck.C) {
+	log.Print("ElasticTest SetUpTest called")
 	err := et.driver.deleteIndex()
 	c.Assert(err, gocheck.IsNil)
 	err = et.driver.Initialize(time.Second * et.InitTimeout)

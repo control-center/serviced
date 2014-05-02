@@ -21,6 +21,9 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
+            when('/logs', {
+                templateUrl: '/static/partials/logs.html',
+                controller: LogControl}).
             when('/services/:serviceId', {
                 templateUrl: '/static/partials/view-subservices.html',
                 controller: SubServiceControl}).
@@ -2627,6 +2630,17 @@ function LanguageControl($scope, $cookies, $translate) {
     }
 }
 
+function LogControl($scope, authService, resourcesService) {
+    authService.checkLogin($scope);
+    setInterval(function() {
+        var logsframe = document.getElementById("logsframe");
+        if (logsframe) {
+            var h = logsframe.contentWindow.document.body.clientHeight;
+            logsframe.height = h + "px";
+        }
+    }, 100);
+}
+
 function LoginControl($scope, $http, $location, authService) {
     $scope.brand_label = "CONTROL PLANE";
     $scope.login_button_text = "Log In";
@@ -2675,8 +2689,8 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
         { url: '#/hosts', label: 'nav_hosts',
             sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
         },
-        { url: '/static/logview/#/dashboard/file/logstash.json', label: 'nav_logs',
-            sublinks: [], target: "_blank"
+        { url: '#/logs', label: 'nav_logs',
+            sublinks: [], target: "_self"
         }
     ];
 

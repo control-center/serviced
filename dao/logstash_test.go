@@ -11,46 +11,47 @@ package dao
 
 import (
 	"fmt"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func getTestingService() ServiceDefinition {
-	service := ServiceDefinition{
+func getTestingService() servicedefinition.ServiceDefinition {
+	service := servicedefinition.ServiceDefinition{
 		Name:        "testsvc",
 		Description: "Top level service. This directory is part of a unit test.",
 		LogFilters: map[string]string{
 			"Pepe": "My Test Filter",
 		},
-		Services: []ServiceDefinition{
-			ServiceDefinition{
+		Services: []servicedefinition.ServiceDefinition{
+			servicedefinition.ServiceDefinition{
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
+				ImageID: "ubuntu",
 				LogFilters: map[string]string{
 					"Pepe2": "My Second Filter",
 				},
-				ConfigFiles: map[string]ConfigFile{
-					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+				ConfigFiles: map[string]servicedefinition.ConfigFile{
+					"/etc/my.cnf": servicedefinition.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []servicedefinition.ServiceEndpoint{
+					servicedefinition.ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
-					ServiceEndpoint{
+					servicedefinition.ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
 					},
 				},
-				LogConfigs: []LogConfig{
-					LogConfig{
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 						Filters: []string{
@@ -59,20 +60,20 @@ func getTestingService() ServiceDefinition {
 					},
 				},
 			},
-			ServiceDefinition{
+			servicedefinition.ServiceDefinition{
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				ImageID: "ubuntu",
+				Endpoints: []servicedefinition.ServiceEndpoint{
+					servicedefinition.ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
 					},
 				},
-				LogConfigs: []LogConfig{
-					LogConfig{
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
@@ -85,7 +86,7 @@ func getTestingService() ServiceDefinition {
 }
 
 func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
-	services := make([]ServiceDefinition, 1)
+	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 
@@ -101,7 +102,7 @@ func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 }
 
 func TestConstructingFilterString(t *testing.T) {
-	services := make([]ServiceDefinition, 1)
+	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 	filters := getFilters(services, filterDefs)
