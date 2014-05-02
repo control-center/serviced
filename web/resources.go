@@ -83,6 +83,25 @@ func RestRemovePoolVirtualIp(w *rest.ResponseWriter, r *rest.Request, client *se
 		RestBadRequest(w)
 		return
 	}
+<<<<<<< HEAD
+	var payload dao.ResourcePool
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.V(1).Info("Could not decode pool payload: ", err)
+		RestBadRequest(w)
+		return
+	}
+	err = client.UpdateResourcePool(payload, nil)
+	if err != nil {
+		glog.Error("Unable to update pool: ", err)
+		RestServerError(w)
+		return
+	}
+	glog.V(1).Info("Updated pool ", poolId)
+	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
+}
+=======
+>>>>>>> develop
 
 	virtualIp, err := url.QueryUnescape(r.PathParam("ip"))
 	if err != nil {

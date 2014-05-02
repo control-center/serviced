@@ -84,3 +84,52 @@ func (s *scheduler) loop() {
 	defer leader.ReleaseLead()
 	s.zkleaderFunc(s.facade, s.cpDao, s.conn, events)
 }
+
+/*
+func (s *scheduler) loop() {
+	glog.V(3).Infoln("entering scheduler")
+
+	var err error
+	//var this_node string
+	defer func() {
+		glog.V(3).Infoln("leaving scheduler")
+		s.shutdown <- err
+	}()
+
+	hostNode := hostNodeT{HostId: s.instance_id}
+	leader := s.conn.NewLeader("/scheduler", &hostNode)
+
+	leaderChan := make(chan interface{})
+	go func() {
+		events, err := leader.TakeLead()
+		if err != nil {
+			leaderChan <- err
+		} else {
+			leaderChan <- events
+		}
+	}()
+
+	for {
+
+		select {
+		case t := <-leaderChan:
+			err, ok := t.(error)
+			if ok {
+				glog.Error("could not take lead: ", err)
+				return
+			}
+			events, ok := t.(chan client.Event)
+			if ok {
+				defer leader.ReleaseLead()
+				s.zkleaderFunc(s.cpDao, s.conn, events)
+				return
+			} else {
+				panic("should not get here")
+			}
+
+		case <-time.After(time.Second):
+			// i am a follower
+		}
+	}
+}
+*/

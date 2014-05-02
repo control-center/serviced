@@ -36,6 +36,12 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
+type IPInfo struct {
+	Interface string
+	IP        string
+	Type      string
+}
+
 // Desired states of services.
 const (
 	SVC_RUN     = 1

@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/validation"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -814,7 +815,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	}
 
 	// populate poolsIpInfo
-	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), service.PoolId)
+	poolIPs, err := this.facade.GetPoolsIPInfo(datastore.Get(), service.PoolId)
 	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err

@@ -22,15 +22,17 @@ type leader struct {
 	context datastore.Context
 }
 
-// Lead is executed by the "leader" of the control plane cluster to handle its
-// service/snapshot management responsibilities.
+// Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
+//    services
+//    snapshots
+//    virtual IP addresses
 func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
-
-	glog.V(0).Info("Entering Lead()!")
-	defer glog.V(0).Info("Exiting Lead()!")
+	glog.Info("Entering Lead()!")
+	defer glog.Info("Exiting Lead()!")
 	shutdownmode := false
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
 	for {
+		glog.Info("Leader Loop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
 			break
@@ -41,10 +43,10 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 			case evt := <-zkEvent:
 				// shut this thing down
 				shutdownmode = true
-				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
+				glog.Info("Got a zkevent, leaving lead: ", evt)
 				return nil
 			default:
-				glog.V(0).Info("Processing leader duties")
+				glog.Info("Processing leader duties")
 				// passthru
 			}
 
@@ -175,12 +177,18 @@ func (l *leader) watchServices() {
 				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
-		select {
-		case evt := <-zkEvent:
-			glog.V(1).Info("Leader event: ", evt)
-		case serviceID := <-sDone:
-			glog.V(1).Info("Leading cleaning up for service ", serviceID)
-			delete(processing, serviceID)
+		for {
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+				break
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
+				break
+			case <-time.After(10 * time.Second):
+				watchVirtualIPs(facade, context)
+			}
 		}
 	}
 }
