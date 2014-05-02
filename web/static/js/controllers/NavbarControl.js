@@ -12,8 +12,8 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
         { url: '#/hosts', label: 'nav_hosts',
             sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
         },
-        { url: '/static/logview/#/dashboard/file/logstash.json', label: 'nav_logs',
-            sublinks: [], target: "_blank"
+        { url: '#/logs', label: 'nav_logs',
+            sublinks: [], target: "_self"
         }
     ];
 

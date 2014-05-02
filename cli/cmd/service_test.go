@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/cli/api"
 	service "github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 const (
@@ -90,7 +91,7 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
-	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
@@ -251,7 +252,8 @@ func ExampleServicedCli_cmdServiceList() {
 	//        "hello": "echo hello world"
 	//      },
 	//      "RAMCommitment": 0,
-	//      "Actions": null
+	//      "Actions": null,
+	//      "HealthChecks": null
 	//    },
 	//    {
 	//      "Id": "test-service-2",
@@ -284,7 +286,8 @@ func ExampleServicedCli_cmdServiceList() {
 	//      },
 	//      "Runs": null,
 	//      "RAMCommitment": 0,
-	//      "Actions": null
+	//      "Actions": null,
+	//      "HealthChecks": null
 	//    },
 	//    {
 	//      "Id": "test-service-3",
@@ -317,7 +320,8 @@ func ExampleServicedCli_cmdServiceList() {
 	//      },
 	//      "Runs": null,
 	//      "RAMCommitment": 0,
-	//      "Actions": null
+	//      "Actions": null,
+	//      "HealthChecks": null
 	//    }
 	//  ]
 }

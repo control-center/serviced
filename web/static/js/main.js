@@ -21,6 +21,9 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
+            when('/logs', {
+                templateUrl: '/static/partials/logs.html',
+                controller: LogControl}).
             when('/services/:serviceId', {
                 templateUrl: '/static/partials/view-subservices.html',
                 controller: SubServiceControl}).
@@ -375,7 +378,7 @@ function ResourcesService($http, $location) {
          */
         add_vhost: function(serviceId, application, virtualhost, callback) {
             var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
-            var object = {'ServiceId':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
+            var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
                 success(function(data, status) {
@@ -522,10 +525,10 @@ function ResourcesService($http, $location) {
          * @param {string} ip virtual ip to add to pool
          * @param {function} callback Add result passed to callback on success.
          */
-        add_pool_virtual_ip: function(pool, ip, callback) {
-            var payload = JSON.stringify( {'poolID':pool,'VirtualIp':ip})
+        add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
+            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface})
             console.log('Adding pool virtual ip: %s', payload);
-            $http.put('/pools/' + pool + '/virtualip/' + ip, payload).
+            $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
                     console.log('Added new pool virtual ip');
                     callback(data);
@@ -542,12 +545,12 @@ function ResourcesService($http, $location) {
          * Delete resource pool virtual ip
          *
          * @param {string} pool id to remove virtual ip
-         * @param {string} ip virtual ip to remove from pool
+         * @param {string} id virtual ip id to remove
          * @param {function} callback Add result passed to callback on success.
          */
-        remove_pool_virtual_ip: function(pool, ip, callback) {
-            console.log('Removing pool virtual ip: poolID:%s VirtualIp:%s', pool, ip);
-            $http.delete('/pools/' + pool + '/virtualip/' + ip).
+        remove_pool_virtual_ip: function(pool, id, callback) {
+            console.log('Removing pool virtual ip: poolID:%s id:%s', pool, id);
+            $http.delete('/pools/' + pool + '/virtualip/' + id).
                 success(function(data, status) {
                     console.log('Removed pool virtual ip');
                     callback(data);
