@@ -91,7 +91,6 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 	return nil
 }
 
-// TODO: Replace with ip instead of ifconfig
 func (viface *vif) createCommand() error {
 	command := []string{
 		"ip", "link", "add", "link", "eth0",
@@ -131,10 +130,6 @@ func (viface *vif) createCommand() error {
 }
 
 func (viface *vif) redirectCommand(from, to, protocol string) error {
-	// TODO: REMOVE. This is for demo.
-	// cmd := []string{"apt-get", "-y", "install", "iptables"}
-	// exec.Command(cmd[0], cmd[1:]...).Run()
-
 	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
 		command := []string{
 			"iptables",
