@@ -6,6 +6,7 @@ package service
 
 import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/utils"
 
 	"encoding/json"
@@ -25,6 +26,7 @@ type Service struct {
 	Tags            []string
 	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
+	InstanceLimits  domain.MinMax
 	ImageId         string
 	PoolId          string
 	DesiredState    int
@@ -45,6 +47,7 @@ type Service struct {
 	Runs            map[string]string
 	RAMCommitment   uint64
 	Actions         map[string]string
+	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
 }
 
 type ServiceEndpoint struct {
@@ -110,6 +113,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
+	svc.InstanceLimits = sd.Instances
 	svc.ImageId = sd.ImageID
 	svc.PoolId = poolID
 	svc.DesiredState = desiredState
@@ -118,6 +122,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string
 	svc.Hostname = sd.Hostname
 	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
+	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
 	svc.ParentServiceId = parentServiceId
 	svc.CreatedAt = now
@@ -129,6 +134,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
+	svc.HealthChecks = sd.HealthChecks
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
@@ -318,130 +324,3 @@ func (a *Service) Equals(b *Service) bool {
 	}
 	return true
 }
-
-//func parent(cp ControlPlane) func(s Service) (value Service, err error) {
-//	return func(s Service) (value Service, err error) {
-//		err = cp.GetService(s.ParentServiceId, &value)
-//		return
-//	}
-//}
-//
-//func context(cp ControlPlane) func(s Service) (ctx map[string]interface{}, err error) {
-//	return func(s Service) (ctx map[string]interface{}, err error) {
-//		err = json.Unmarshal([]byte(s.Context), &ctx)
-//		if err != nil {
-//			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.Id, s.Context, err)
-//		}
-//		return
-//	}
-//}
-//
-//// EvaluateActionsTemplate parses and evaluates the Actions string of a service.
-//func (service *Service) EvaluateActionsTemplate(cp ControlPlane) (err error) {
-//	for key, value := range service.Actions {
-//		result := service.evaluateTemplate(cp, value)
-//		if result != "" {
-//			service.Actions[key] = result
-//		}
-//	}
-//	return
-//}
-//
-//// EvaluateStartupTemplate parses and evaluates the StartUp string of a service.
-//func (service *Service) EvaluateStartupTemplate(cp ControlPlane) (err error) {
-//
-//	result := service.evaluateTemplate(cp, service.Startup)
-//	if result != "" {
-//		service.Startup = result
-//	}
-//
-//	return
-//}
-//
-//// EvaluateRunsTemplate parses and evaluates the Runs string of a service.
-//func (service *Service) EvaluateRunsTemplate(cp ControlPlane) (err error) {
-//	for key, value := range service.Runs {
-//		result := service.evaluateTemplate(cp, value)
-//		if result != "" {
-//			service.Runs[key] = result
-//		}
-//	}
-//	return
-//}
-//
-//// evaluateTemplate takes a control plane client and template string and evaluates
-//// the template using the service as the context. If the template is invalid or there is an error
-//// then an empty string is returned.
-//func (service *Service) evaluateTemplate(cp ControlPlane, serviceTemplate string) string {
-//	functions := template.FuncMap{
-//		"parent":  parent(cp),
-//		"context": context(cp),
-//	}
-//	// parse the template
-//	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
-//
-//	// evaluate it
-//	var buffer bytes.Buffer
-//	err := t.Execute(&buffer, service)
-//	if err == nil {
-//		return buffer.String()
-//	}
-//
-//	// something went wrong, warn them
-//	glog.Warning("Evaluating template %s produced the following error %s ", serviceTemplate, err)
-//	return ""
-//}
-//
-//// EvaluateLogConfigTemplate parses and evals the Path, Type and all the values for the tags of the log
-//// configs. This happens for each LogConfig on the service.
-//func (service *Service) EvaluateLogConfigTemplate(cp ControlPlane) (err error) {
-//	// evaluate the template for the LogConfig as well as the tags
-//
-//	for i, logConfig := range service.LogConfigs {
-//		// Path
-//		result := service.evaluateTemplate(cp, logConfig.Path)
-//		if result != "" {
-//			service.LogConfigs[i].Path = result
-//		}
-//		// Type
-//		result = service.evaluateTemplate(cp, logConfig.Type)
-//		if result != "" {
-//			service.LogConfigs[i].Type = result
-//		}
-//
-//		// Tags
-//		for j, tag := range logConfig.LogTags {
-//			result = service.evaluateTemplate(cp, tag.Value)
-//			if result != "" {
-//				service.LogConfigs[i].LogTags[j].Value = result
-//			}
-//		}
-//	}
-//	return
-//}
-//
-//// EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
-//// of each of the service endpoints for this service.
-//func (service *Service) EvaluateEndpointTemplates(cp ControlPlane) (err error) {
-//	functions := template.FuncMap{
-//		"parent":  parent(cp),
-//		"context": context(cp),
-//	}
-//
-//	for i, ep := range service.Endpoints {
-//		if ep.Application != "" && ep.ApplicationTemplate == "" {
-//			ep.ApplicationTemplate = ep.Application
-//			service.Endpoints[i].ApplicationTemplate = ep.Application
-//		}
-//		if ep.ApplicationTemplate != "" {
-//			t := template.Must(template.New(service.Name).Funcs(functions).Parse(ep.ApplicationTemplate))
-//			var buffer bytes.Buffer
-//			if err = t.Execute(&buffer, service); err == nil {
-//				service.Endpoints[i].Application = buffer.String()
-//			} else {
-//				return
-//			}
-//		}
-//	}
-//	return
-//}

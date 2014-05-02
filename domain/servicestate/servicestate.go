@@ -55,7 +55,7 @@ func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (ho
 
 				external := ss.PortMapping[portS]
 				if len(external) == 0 {
-					glog.Errorf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
+					glog.Warningf("Found match for %s:%s, but no portmapping is available", applicationRegex, portS)
 					break
 				}
 

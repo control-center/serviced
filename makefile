@@ -7,7 +7,6 @@
 #
 ################################################################################
 
-
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
 
@@ -65,17 +64,17 @@ dockerbuild: docker_ok
 	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
 test: build_binary docker_ok
-	go test
+	go test $(GOTEST_FLAGS)
 	cd dao && make test
-	cd web && go test
-	cd serviced && go test
-	cd utils && go test
+	cd web && go test $(GOTEST_FLAGS)
+	cd serviced && go test $(GOTEST_FLAGS)
+	cd utils && go test $(GOTEST_FLAGS)
 	cd datastore && make test
 	cd domain && make test
-	cd facade && go test
+	cd facade && go test $(GOTEST_FLAGS)
 	cd rpc && make test
-	cd cli/api && go test
-	cd cli/cmd && go test
+	cd cli/api && go test $(GOTEST_FLAGS)
+	cd cli/cmd && go test $(GOTEST_FLAGS)
 
 docker_ok:
 	if docker ps >/dev/null; then \

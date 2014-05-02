@@ -19,9 +19,9 @@ build:
 	cd servicetemplate && go build
 
 test: build
-	go test
-	cd host && go test
-	cd pool && go test
+	go test $(GOTEST_FLAGS)
+	cd host && go test $(GOTEST_FLAGS)
+	cd pool && go test $(GOTEST_FLAGS)
 	cd servicedefinition && go build
 	cd servicetemplate && go build
 

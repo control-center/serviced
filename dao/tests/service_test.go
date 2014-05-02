@@ -15,6 +15,7 @@ import (
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/isvcs"
 
@@ -34,6 +35,7 @@ var startup_testcases = []struct {
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -67,6 +69,7 @@ var startup_testcases = []struct {
 		Startup:         "",
 		Description:     "",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -86,6 +89,7 @@ var startup_testcases = []struct {
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -104,6 +108,7 @@ var startup_testcases = []struct {
 		Startup:         "{{.Name}} ls -l .",
 		Description:     "Execute ls -l on .",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/bin_sh",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -128,6 +133,7 @@ var endpoint_testcases = []struct {
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -138,16 +144,17 @@ var endpoint_testcases = []struct {
 		UpdatedAt:       time.Now(),
 	}, ""},
 	{dao.Service{
-		Id:           "101",
-		Name:         "Collector",
-		Context:      "",
-		Startup:      "",
-		Description:  "",
-		Instances:    0,
-		ImageId:      "",
-		PoolId:       "",
-		DesiredState: 0,
-		Launch:       "",
+		Id:             "101",
+		Name:           "Collector",
+		Context:        "",
+		Startup:        "",
+		Description:    "",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        "",
+		PoolId:         "",
+		DesiredState:   0,
+		Launch:         "",
 		Endpoints: []servicedefinition.ServiceEndpoint{
 			servicedefinition.ServiceEndpoint{
 				Purpose:     "something",
@@ -295,6 +302,7 @@ func TestIncompleteStartupInjection(t *testing.T) {
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
@@ -313,18 +321,19 @@ func TestIncompleteStartupInjection(t *testing.T) {
 
 func TestStoppingParentStopsChildren(t *testing.T) {
 	service := dao.Service{
-		Id:           "ParentServiceId",
-		Name:         "ParentService",
-		Startup:      "/usr/bin/ping -c localhost",
-		Description:  "Ping a remote host a fixed number of times",
-		Instances:    1,
-		ImageId:      "test/pinger",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		Endpoints:    []servicedefinition.ServiceEndpoint{},
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		Id:             "ParentServiceId",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
+		ImageId:        "test/pinger",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		Endpoints:      []servicedefinition.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	childService1 := dao.Service{
 		Id:              "childService1",

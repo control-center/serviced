@@ -6,7 +6,7 @@ build:
 	go build
 
 test: build
-	go test
+	go test $(GOTEST_FLAGS)
 
 clean:
 	go clean

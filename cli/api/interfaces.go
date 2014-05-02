@@ -3,11 +3,10 @@ package api
 import (
 	"io"
 
-
+	service "github.com/zenoss/serviced/dao"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
 )
 
@@ -35,14 +34,19 @@ type API interface {
 	GetServices() ([]*service.Service, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]*service.Service, error)
-	GetServiceStates(string) ([]*RunningService, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
 	AssignIP(IPConfig) (string, error)
+
+	// RunningServices (ServiceStates)
+	FindRunningServices(string) ([]*RunningService, error)
+	GetRunningService(string) (*RunningService, error)
+	GetRunningServiceActionCommand(string, string) (string, error)
 	Attach(AttachConfig) error
+	Action(AttachConfig) ([]byte, error)
 
 	// Shell
 	StartShell(ShellConfig) error

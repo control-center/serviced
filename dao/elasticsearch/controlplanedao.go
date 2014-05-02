@@ -1651,7 +1651,7 @@ func createSystemUser(s *ControlPlaneDao) error {
 	user := dao.User{}
 	err := s.GetUser(SYSTEM_USER_NAME, &user)
 	if err != nil {
-		glog.Errorf("%s", err)
+		glog.Warningf("%s", err)
 		glog.V(0).Info("'default' user not found; creating...")
 
 		// create the system user

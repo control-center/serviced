@@ -43,6 +43,7 @@ func (s *S) Test_PoolCRUD(t *C) {
 	pool := New("testID")
 	pool2 := ResourcePool{}
 
+	time.Sleep(1000 * time.Millisecond)
 	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
