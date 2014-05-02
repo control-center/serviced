@@ -19,10 +19,13 @@ type vif struct {
 	udpPorts map[string]string
 }
 
+// VIFRegistry holds state regarding virtual interfaces. It is meant to be
+// created in the proxy to manage vifs in the running service container.
 type VIFRegistry struct {
 	vifs map[string]*vif
 }
 
+// NewVIFRegistry initializes a new VIFRegistry.
 func NewVIFRegistry() *VIFRegistry {
 	return &VIFRegistry{make(map[string]*vif)}
 }
@@ -30,13 +33,17 @@ func NewVIFRegistry() *VIFRegistry {
 func (reg *VIFRegistry) nextIP() (string, error) {
 	n := len(reg.vifs) + 2
 	if n > (255 * 255) {
-		return "", fmt.Errorf("Unable to allocate IPs for %s interfaces", n)
+		return "", fmt.Errorf("unable to allocate IPs for %s interfaces", n)
 	}
 	o3 := (n / 255)
 	o4 := (n - (o3 * 255))
 	return fmt.Sprintf("10.3.%d.%d", o3, o4), nil
 }
 
+// RegisterVirtualAddress takes care of the entire virtual address setup. It
+// creates a virtual interface if one does not yet exist, allocates an IP
+// address, assigns it to the virtual interface, adds an entry to /etc/hosts,
+// and sets up the iptables rule to redirect traffic to the specified port.
 func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string) error {
 	var (
 		host, port string
@@ -72,7 +79,7 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 	case "udp":
 		portmap = &viface.udpPorts
 	default:
-		return fmt.Errorf("Invalid protocol: %s", protocol)
+		return fmt.Errorf("invalid protocol: %s", protocol)
 	}
 	if _, ok := (*portmap)[toport]; !ok {
 		// dest isn't there, let's DO IT!!!!!
