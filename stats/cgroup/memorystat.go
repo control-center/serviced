@@ -52,60 +52,60 @@ func ReadMemoryStat(fileName string) (*MemoryStat, error) {
 	}
 	for k, v := range kv {
 		switch k {
-			case "cache":
-				stat.Cache = v
-			case "rss":
-				stat.Rss = v
-			case "rss_huge":
-				stat.RssHuge = v
-			case "mapped_file":
-				stat.MappedFile = v
-			case "pgpgin":
-				stat.Pgpgin = v
-			case "pgpgout":
-				stat.Pgpgout = v
-			case "pgfault":
-				stat.Pgfault = v
-			case "pgmajfault":
-				stat.Pgmajfault = v
-			case "inactive_anon":
-				stat.InactiveAnon = v
-			case "active_anon":
-				stat.ActiveAnon = v
-			case "inactive_file":
-				stat.InactiveFile = v
-			case "active_file":
-				stat.ActiveFile = v
-			case "unevictable":
-				stat.Unevictable = v
-			case "hierarchical_memory_limit":
-				stat.HierarchicalMemoryLimit = v
-			case "total_cache":
-				stat.TotalCache = v
-			case "total_rss":
-				stat.TotalRss = v
-			case "total_rss_huge":
-				stat.TotalRssHuge = v
-			case "total_mapped_file":
-				stat.TotalMappedFile = v
-			case "total_pgpgin":
-				stat.TotalPgpgin = v
-			case "total_pgpgout":
-				stat.TotalPgpgout = v
-			case "total_pgfault":
-				stat.TotalPgfault = v
-			case "total_pgmajfault":
-				stat.TotalPgmajfault = v
-			case "total_inactive_anon":
-				stat.TotalInactiveAnon = v
-			case "total_active_anon":
-				stat.TotalActiveAnon = v
-			case "total_inactive_file":
-				stat.TotalInactiveFile = v
-			case "total_active_file":
-				stat.TotalActiveFile = v
-			case "total_unevictable":
-				stat.TotalUnevictable = v
+		case "cache":
+			stat.Cache = v
+		case "rss":
+			stat.Rss = v
+		case "rss_huge":
+			stat.RssHuge = v
+		case "mapped_file":
+			stat.MappedFile = v
+		case "pgpgin":
+			stat.Pgpgin = v
+		case "pgpgout":
+			stat.Pgpgout = v
+		case "pgfault":
+			stat.Pgfault = v
+		case "pgmajfault":
+			stat.Pgmajfault = v
+		case "inactive_anon":
+			stat.InactiveAnon = v
+		case "active_anon":
+			stat.ActiveAnon = v
+		case "inactive_file":
+			stat.InactiveFile = v
+		case "active_file":
+			stat.ActiveFile = v
+		case "unevictable":
+			stat.Unevictable = v
+		case "hierarchical_memory_limit":
+			stat.HierarchicalMemoryLimit = v
+		case "total_cache":
+			stat.TotalCache = v
+		case "total_rss":
+			stat.TotalRss = v
+		case "total_rss_huge":
+			stat.TotalRssHuge = v
+		case "total_mapped_file":
+			stat.TotalMappedFile = v
+		case "total_pgpgin":
+			stat.TotalPgpgin = v
+		case "total_pgpgout":
+			stat.TotalPgpgout = v
+		case "total_pgfault":
+			stat.TotalPgfault = v
+		case "total_pgmajfault":
+			stat.TotalPgmajfault = v
+		case "total_inactive_anon":
+			stat.TotalInactiveAnon = v
+		case "total_active_anon":
+			stat.TotalActiveAnon = v
+		case "total_inactive_file":
+			stat.TotalInactiveFile = v
+		case "total_active_file":
+			stat.TotalActiveFile = v
+		case "total_unevictable":
+			stat.TotalUnevictable = v
 		}
 	}
 	return &stat, nil
