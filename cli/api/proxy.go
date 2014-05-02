@@ -44,12 +44,6 @@ type ProxyConfig struct {
 	Command   []string
 }
 
-func getNextIP() string {
-	s := fmt.Sprintf("10.3.0.%d", nextip)
-	nextip += 1
-	return s
-}
-
 // Start a service proxy
 func (a *api) StartProxy(cfg ProxyConfig) error {
 	config := serviced.MuxConfig{}
