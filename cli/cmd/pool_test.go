@@ -185,22 +185,26 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 	DefaultPoolAPITest.fail = true
 	defer func() { DefaultPoolAPITest.fail = false }()
 	// Error retrieving pool
-	InitPoolAPITest("serviced", "pool", "list", "test-pool-id-1")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-1")
 	// Error retrieving all pools
-	InitPoolAPITest("serviced", "pool", "list")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
 
 	// Output:
+	// invalid pool
+	// invalid pool
 }
 
 func ExampleServicedCLI_CmdPoolList_err() {
 	DefaultPoolAPITest.pools = make([]*pool.ResourcePool, 0)
 	defer func() { DefaultPoolAPITest.pools = DefaultTestPools }()
 	// Pool not found
-	InitPoolAPITest("serviced", "pool", "list", "test-pool-id-0")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-0")
 	// No pools found
-	InitPoolAPITest("serviced", "pool", "list")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
 
 	// Output:
+	// pool not found
+	// no resource pools found
 }
 
 func ExampleServicedCLI_CmdPoolAdd() {
@@ -243,7 +247,7 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolRemove() {
-	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1", "test-pool-id-0")
+	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1")
 
 	// Output:
 	// test-pool-id-1
@@ -265,6 +269,13 @@ func ExampleServicedCLI_CmdPoolRemove_usage() {
 	//    serviced pool remove POOLID ...
 	//
 	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdPoolRemove_err() {
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "remove", "test-pool-id-0")
+
+	// Output:
+	// test-pool-id-0: no pool found
 }
 
 func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
@@ -313,15 +324,17 @@ func ExampleServicedCLI_CmdPoolListIPs_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_fail() {
-	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-0")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-0")
 
 	// Output:
+	// no pool found
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_err() {
 	DefaultPoolAPITest.hostIPs = nil
 	defer func() { DefaultPoolAPITest.hostIPs = DefaultTestHostIPs }()
-	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1")
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-1")
 
 	// Output:
+	// no resource pool ips found
 }

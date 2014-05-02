@@ -106,7 +106,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		if pool, err := c.driver.GetResourcePool(poolID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if pool == nil {
-			fmt.Fprintf(os.Stderr, "pool not found")
+			fmt.Fprintln(os.Stderr, "pool not found")
 		} else if jsonPool, err := json.MarshalIndent(pool, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal resource pool: %s", err)
 		} else {
