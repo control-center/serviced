@@ -366,6 +366,8 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 					ep.HostIp = ss.HostIp
 					ep.ContainerIp = ss.PrivateIp
 					ep.Protocol = protocol
+					ep.VirtualAddress = endpoint.VirtualAddress
+
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
 					if _, exists := remoteEndpoints[key]; !exists {
 						remoteEndpoints[key] = make([]*dao.ApplicationEndpoint, 0)
