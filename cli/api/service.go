@@ -6,9 +6,10 @@ import (
 	"io"
 
 	"github.com/zenoss/glog"
-	service "github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 )
 
 const ()
@@ -34,7 +35,7 @@ type IPConfig struct {
 // RunningService contains the service for a state
 type RunningService struct {
 	Service *service.Service
-	State   *service.ServiceState
+	State   *servicestate.ServiceState
 }
 
 // Gets all of the available services
@@ -85,14 +86,14 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 }
 
 // Gets the service state identified by its service state ID
-func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
+func (a *api) GetServiceState(id string) (*servicestate.ServiceState, error) {
 	services, err := a.GetServices()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, service := range services {
-		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
+	for _, svc := range services {
+		statesByServiceID, err := a.getServiceStatesByServiceID(svc.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -108,13 +109,13 @@ func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
 }
 
 // getServiceStatesByServiceID gets the service states for a service identified by its service ID
-func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
+func (a *api) getServiceStatesByServiceID(id string) ([]*servicestate.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var states []*service.ServiceState
+	var states []*servicestate.ServiceState
 	if err := client.GetServiceStates(id, &states); err != nil {
 		return nil, err
 	}
@@ -165,16 +166,16 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 	for _, e := range *config.RemotePorts {
 		e.Purpose = "remote"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 
@@ -271,7 +272,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	req := service.AssignmentRequest{
+	req := dao.AssignmentRequest{
 		ServiceId:      config.ServiceID,
 		IpAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
@@ -281,7 +282,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []servicedefinition.AddressAssignment
+	var addresses []service.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

@@ -11,6 +11,11 @@ type MinMax struct {
 	Max int
 }
 
+type HostIpAndPort struct {
+	HostIp   string
+	HostPort string
+}
+
 //Validate ensure that the values in min max are valid. Max >= Min >=0  returns error otherwise
 func (minmax *MinMax) Validate() error {
 	// Instances["min"] and Instances["max"] must be positive

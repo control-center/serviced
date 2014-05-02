@@ -66,20 +66,20 @@ func (c *MockControlPlane) GetServices(request dao.EntityRequest, services *[]*d
 	return
 }
 
-func (c *MockControlPlane) GetServiceStates(serviceId string, state *[]*dao.ServiceState) (err error) {
+func (c *MockControlPlane) GetServiceStates(serviceId string, state *[]*servicestate.ServiceState) (err error) {
 	switch serviceId {
 	case "nilstate-snapshot":
 		err = errors.New("no state found for serviceId")
 	case "notfound-1":
-		s := make([]*dao.ServiceState, 0)
+		s := make([]*servicestate.ServiceState, 0)
 		*state = s
 	case "notfound-2":
-		s := make([]*dao.ServiceState, 1)
-		s[0] = &dao.ServiceState{}
+		s := make([]*servicestate.ServiceState, 1)
+		s[0] = &servicestate.ServiceState{}
 		*state = s
 	default:
-		s := make([]*dao.ServiceState, 1)
-		s[0] = &dao.ServiceState{
+		s := make([]*servicestate.ServiceState, 1)
+		s[0] = &servicestate.ServiceState{
 			ServiceId: serviceId,
 			DockerId:  serviceId,
 		}
@@ -105,7 +105,7 @@ func setUp() {
 	MockPauseResume = make(map[string]bool)
 	MockVolumeInstance.name = ""
 
-	runServiceCommand = func(state *dao.ServiceState, command string) (data []byte, err error) {
+	runServiceCommand = func(state *servicestate.ServiceState, command string) (data []byte, err error) {
 		data = []byte(fmt.Sprintf("%+v", state))
 
 		switch command {

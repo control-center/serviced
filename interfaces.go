@@ -14,6 +14,7 @@ package serviced
 import (
 	"github.com/zenoss/serviced/dao"
 
+	"github.com/zenoss/serviced/domain"
 	"time"
 )
 
@@ -67,7 +68,7 @@ type ContainerState struct {
 		Gateway     string
 		Bridge      string
 		PortMapping map[string]map[string]string
-		Ports       map[string][]dao.HostIpAndPort
+		Ports       map[string][]domain.HostIpAndPort
 	}
 	SysInitPath    string
 	ResolvConfPath string

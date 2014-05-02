@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // HostInfo provides methods for getting host information from the dao or
@@ -43,7 +44,7 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 	var cr uint64
 
 	for i := range rss {
-		s := dao.Service{}
+		s := service.Service{}
 		if err := hi.dao.GetService(rss[i].ServiceId, &s); err != nil {
 			glog.Errorf("cannot retrieve service information for running service (%v)", err)
 			return // this host won't be scheduled

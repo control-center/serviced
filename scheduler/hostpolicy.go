@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
@@ -13,12 +14,12 @@ import (
 // implementations for choosing hosts on which to run instances of that
 // service.
 type ServiceHostPolicy struct {
-	svc   *dao.Service
+	svc   *service.Service
 	hinfo HostInfo
 }
 
 // ServiceHostPolicy returns a new ServiceHostPolicy.
-func NewServiceHostPolicy(s *dao.Service, cp dao.ControlPlane) *ServiceHostPolicy {
+func NewServiceHostPolicy(s *service.Service, cp dao.ControlPlane) *ServiceHostPolicy {
 	return &ServiceHostPolicy{s, &DAOHostInfo{cp}}
 }
 
@@ -36,7 +37,7 @@ func (sp *ServiceHostPolicy) SelectHost(hosts []*host.Host) (*host.Host, error) 
 	}
 }
 
-func (sp *ServiceHostPolicy) firstFreeHost(svc *dao.Service, hosts []*host.Host) *host.Host {
+func (sp *ServiceHostPolicy) firstFreeHost(svc *service.Service, hosts []*host.Host) *host.Host {
 hosts:
 	for _, h := range hosts {
 		rss := sp.hinfo.ServicesOnHost(h)
