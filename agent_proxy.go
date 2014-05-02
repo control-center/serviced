@@ -13,6 +13,7 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 
 	"errors"
 	"strconv"
@@ -72,6 +73,25 @@ func (a *HostAgent) GetProxySnapshotQuiece(serviceId string, snapshotId *string)
 func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error {
 	glog.Errorf("AckProxySnapshotQuiece() Unimplemented")
 	return errors.New("unimplemented")
+}
+
+// GetHealthCheck returns the health check configuration for a service, if it exists
+func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return err
+	}
+	defer controlClient.Close()
+
+	var service dao.Service
+	err = controlClient.GetService(serviceId, &service)
+	if err != nil {
+		return err
+	}
+	*healthChecks = service.HealthChecks
+	return nil
 }
 
 // addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
