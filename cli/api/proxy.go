@@ -43,21 +43,10 @@ type ProxyConfig struct {
 	Command   []string
 }
 
-type VIface struct {
-	Host string
-	IP   string
-}
-
 func getNextIP() string {
 	s := fmt.Sprintf("10.3.0.%d", nextip)
 	nextip += 1
 	return s
-}
-
-func (vif *VIface) Create() {
-}
-
-func (vif *VIface) Redirect(from, to uint64) {
 }
 
 // Start a service proxy
@@ -192,8 +181,11 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 					}
 					sort.Strings(addresses)
 
-					var proxy *serviced.Proxy
-					var ok bool
+					var (
+						proxy *serviced.Proxy
+						ok    bool
+					)
+
 					if proxy, ok = proxies[key]; !ok {
 						glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
 
@@ -218,6 +210,7 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 
 					}
 					proxy.SetNewAddresses(addresses)
+
 				}
 			}()
 
@@ -263,12 +256,12 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 
 var (
 	proxies map[string]*serviced.Proxy
-	vifaces map[string]*VIface
+	vifs    *VIFRegistry
 	nextip  int
 )
 
 func init() {
 	proxies = make(map[string]*serviced.Proxy)
-	vifaces = make(map[string]*VIface)
+	vifs = NewVIFRegistry()
 	nextip = 1
 }
