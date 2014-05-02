@@ -10,19 +10,29 @@ import (
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
-	TentantID        string   // The top level service id
-	ServiceID        string   // The uuid of the service to launch
-	Command          []string // The command to launch
-	MuxPort          int      // the TCP port for the remote mux
-	Mux              bool     // True if a remote mux is used
-	TLS              bool     // True if TLS should be used on the mux
-	KeyPEMFile       string   // path to the KeyPEMfile
-	CertPEMFile      string   // path to the CertPEMfile
 	ServicedEndpoint string
-	Autorestart      bool
-	Logstash         bool
-	MetricAddress        string  // MetricPort is the TCP port to host the metric service, :22350
-	RemoteMetricEndpoint string  // The url to forward metric queries
+	Service          struct {
+		ID          string   // The uuid of the service to launch
+		TenantID    string   // The tentant ID of the service
+		Autorestart bool     // Controller will restart the service if it exits
+		Command     []string // The command to launch
+	}
+	Mux struct { // TCPMUX configuration: RFC 1078
+		Enabled     bool   // True if muxing is used
+		Port        int    // the TCP port to use
+		TLS         bool   // True if TLS is used
+		KeyPEMFile  string // Path to the key file when TLS is used
+		CertPEMFile string // Path to the cert file when TLS is used
+	}
+	Logforwarder struct { // Logforwarder configuration
+		Enabled    bool   // True if enabled
+		Path       string // Path to the logforwarder program
+		ConfigFile string //
+	}
+	Metric struct {
+		Address       string // TCP port to host the metric service, :22350
+		RemoteEndoint string // The url to forward metric queries
+	}
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -38,7 +48,7 @@ type Closer interface {
 	Close() error
 }
 
-func (c *Controller) Close() {
+func (c *Controller) Close() error {
 	for _, s := range []Closer{c.service, c.metricForwarder, c.logforwarder} {
 		if s != nil {
 			s.Close()
@@ -47,21 +57,21 @@ func (c *Controller) Close() {
 	c.service = nil
 	c.metricForwarder = nil
 	c.logforwarder = nil
-	return
+	return nil
 }
 
 // NewController
 func NewController(options ControllerOptions) (*Controller, error) {
 	c := &Controller{}
 
-	if options.Logstash {
+	if options.Logforwarder.Enabled {
 		// make sure we pick up any logfile that was modified within the
 		// last three years
 		// TODO: Either expose the 3 years a configurable or get rid of it
 		logforwarder, err := subprocess.New(time.Millisecond, time.Second,
-			"/usr/local/serviced/resources/logstash/logstash-forwarder",
+			options.Logforwarder.Path,
 			"-old-files-hours=26280",
-			"-config", "/etc/logstash-forwarder.conf")
+			"-config", options.Logforwarder.ConfigFile)
 		if err != nil {
 			return nil, err
 		}
@@ -69,9 +79,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	//build metric redirect url -- assumes 8444 is port mapped
-	metric_redirect := "http://localhost:8444/api/metrics/store"
-	metric_redirect += "?controlplane_tenant_id=" + options.TentantID
-	metric_redirect += "&controlplane_service_id=" + options.ServiceID
+	metric_redirect := options.Metric.RemoteEndoint
+	metric_redirect += "?controlplane_tenant_id=" + options.Service.TenantID
+	metric_redirect += "&controlplane_service_id=" + options.Service.ID
 
 	//build and serve the container metric forwarder
 	forwarder, err := NewMetricForwarder(options.MetricAddress, metric_redirect)
