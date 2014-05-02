@@ -12,7 +12,13 @@
         "Context":         {"type": "string", "index":"not_analyzed"},
         "Description":     {"type": "string", "index":"not_analyzed"},
         "Tags":            {"type": "string", "index_name": "tag"},
-        "Instances":       {"type": "long", "index":"not_analyzed"},
+        "Instances":       {"type": "long",   "index":"not_analyzed"},
+        "InstancesLimits":       {
+          "properties": {
+            "Min": {"type": "long", "index":"not_analyzed"},
+            "Max": {"type": "long", "index":"not_analyzed"}
+          }
+        },
         "DesiredState":    {"type": "long", "index":"not_analyzed"},
         "Image":           {"type": "string", "index":"not_analyzed"},
         "PoolId":          {"type": "string", "index":"not_analyzed"},

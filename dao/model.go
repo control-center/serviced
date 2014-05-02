@@ -1,8 +1,8 @@
 package dao
 
 import (
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain"
 
 	"fmt"
 	"github.com/zenoss/glog"
@@ -63,6 +63,7 @@ type Service struct {
 	Tags            []string
 	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
+	InstanceLimits  domain.MinMax
 	ImageId         string
 	PoolId          string
 	DesiredState    int

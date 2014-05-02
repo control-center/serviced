@@ -6,6 +6,7 @@ import (
 	"io"
 
 	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 )
@@ -110,6 +111,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		Endpoints: endpoints,
 		Startup:   config.Command,
 		Instances: 1,
+		InstanceLimits: domain.MinMax{1,1},
 	}
 
 	var id string

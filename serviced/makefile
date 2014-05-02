@@ -24,7 +24,7 @@ build:
 
 test: build
 	go test -i
-	go test
+	go test $(GOTEST_FLAGS)
 
 clean:
 	go clean
