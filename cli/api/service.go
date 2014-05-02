@@ -110,7 +110,8 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		ImageId:   config.ImageID,
 		Endpoints: endpoints,
 		Startup:   config.Command,
-		Instances: domain.MinMax{1,1},
+		Instances: 1,
+		InstanceLimits: domain.MinMax{1,1},
 	}
 
 	var id string

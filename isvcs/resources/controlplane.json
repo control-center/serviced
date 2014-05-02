@@ -36,7 +36,8 @@
         "Context":         {"type": "string", "index":"not_analyzed"},
         "Description":     {"type": "string", "index":"not_analyzed"},
         "Tags":            {"type": "string", "index_name": "tag"},
-        "Instances":       {
+        "Instances":       {"type": "long", "index":"not_analyzed"},
+        "InstanceLimits":  {
           "properties": {
             "Min": {"type": "long", "index":"not_analyzed"},
             "Max": {"type": "long", "index":"not_analyzed"}

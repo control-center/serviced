@@ -1113,7 +1113,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
-	svc.Instances = sd.Instances
+	svc.Instances = sd.Instances.Min
+	svc.InstanceLimits = sd.Instances
 	svc.ImageId = sd.ImageID
 	svc.PoolId = pool
 	svc.DesiredState = ds

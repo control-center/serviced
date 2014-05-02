@@ -592,7 +592,7 @@ func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
 	rs.Startup = s.Startup
 	rs.Name = s.Name
 	rs.Description = s.Description
-	rs.Instances = s.Instances.Min
+	rs.Instances = s.Instances
 	rs.PoolId = s.PoolId
 	rs.ImageId = s.ImageId
 	rs.DesiredState = s.DesiredState

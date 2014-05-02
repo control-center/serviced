@@ -62,7 +62,8 @@ type Service struct {
 	Description     string
 	Tags            []string
 	ConfigFiles     map[string]servicedefinition.ConfigFile
-	Instances       domain.MinMax
+	Instances       int
+	InstanceLimits  domain.MinMax
 	ImageId         string
 	PoolId          string
 	DesiredState    int

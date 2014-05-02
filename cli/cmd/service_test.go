@@ -25,39 +25,42 @@ var DefaultServiceAPITest = ServiceAPITest{
 
 var DefaultTestServices = []*service.Service{
 	{
-		Id:           "test-service-1",
-		Name:         "Zenoss",
-		Startup:      "startup command 1",
-		Instances:    domain.MinMax{0,0},
-		ImageId:      "quay.io/zenossinc/tenantid1-core5x",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		DeploymentId: "Zenoss-resmgr",
+		Id:             "test-service-1",
+		Name:           "Zenoss",
+		Startup:        "startup command 1",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        "quay.io/zenossinc/tenantid1-core5x",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		DeploymentId:   "Zenoss-resmgr",
 		Runs: map[string]string{
 			"hello":   "echo hello world",
 			"goodbye": "echo goodbye world",
 		},
 	}, {
-		Id:           "test-service-2",
-		Name:         "Zope",
-		Startup:      "startup command 2",
-		Instances:    domain.MinMax{1,1},
-		ImageId:      "quay.io/zenossinc/tenantid2-core5x",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		DeploymentId: "Zenoss-core",
+		Id:             "test-service-2",
+		Name:           "Zope",
+		Startup:        "startup command 2",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
+		ImageId:        "quay.io/zenossinc/tenantid2-core5x",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		DeploymentId:   "Zenoss-core",
 	}, {
-		Id:           "test-service-3",
-		Name:         "zencommand",
-		Startup:      "startup command 3",
-		Instances:    domain.MinMax{2,2},
-		ImageId:      "quay.io/zenossinc/tenantid1-opentsdb",
-		PoolId:       "remote",
-		DesiredState: 1,
-		Launch:       "manual",
-		DeploymentId: "Zenoss-core",
+		Id:             "test-service-3",
+		Name:           "zencommand",
+		Startup:        "startup command 3",
+		Instances:      2,
+		InstanceLimits: domain.MinMax{2, 2},
+		ImageId:        "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolId:         "remote",
+		DesiredState:   1,
+		Launch:         "manual",
+		DeploymentId:   "Zenoss-core",
 	},
 }
 
@@ -106,13 +109,14 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	}
 
 	s := service.Service{
-		Id:        fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
-		Name:      config.Name,
-		PoolId:    config.PoolID,
-		ImageId:   config.ImageID,
-		Endpoints: endpoints,
-		Startup:   config.Command,
-		Instances: domain.MinMax{1,1},
+		Id:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
+		Name:           config.Name,
+		PoolId:         config.PoolID,
+		ImageId:        config.ImageID,
+		Endpoints:      endpoints,
+		Startup:        config.Command,
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
 	}
 
 	return &s, nil
@@ -227,10 +231,11 @@ func ExampleServicedCli_cmdServiceList() {
 	//      "Description": "",
 	//      "Tags": null,
 	//      "ConfigFiles": null,
-  //      "Instances": {
-  //        "Min": 0,
-  //        "Max": 0
-  //      },
+	//      "Instances": 0,
+	//      "InstanceLimits": {
+	//        "Min": 0,
+	//        "Max": 0
+	//      },
 	//      "ImageId": "quay.io/zenossinc/tenantid1-core5x",
 	//      "PoolId": "default",
 	//      "DesiredState": 1,
@@ -267,10 +272,11 @@ func ExampleServicedCli_cmdServiceList() {
 	//      "Description": "",
 	//      "Tags": null,
 	//      "ConfigFiles": null,
-  //      "Instances": {
-  //        "Min": 1,
-  //        "Max": 1
-  //      },
+	//      "Instances": 1,
+	//      "InstanceLimits": {
+	//        "Min": 1,
+	//        "Max": 1
+	//      },
 	//      "ImageId": "quay.io/zenossinc/tenantid2-core5x",
 	//      "PoolId": "default",
 	//      "DesiredState": 1,
@@ -304,10 +310,11 @@ func ExampleServicedCli_cmdServiceList() {
 	//      "Description": "",
 	//      "Tags": null,
 	//      "ConfigFiles": null,
-  //      "Instances": {
-  //        "Min": 2,
-  //        "Max": 2
-  //      },
+	//      "Instances": 2,
+	//      "InstanceLimits": {
+	//        "Min": 2,
+	//        "Max": 2
+	//      },
 	//      "ImageId": "quay.io/zenossinc/tenantid1-opentsdb",
 	//      "PoolId": "remote",
 	//      "DesiredState": 1,

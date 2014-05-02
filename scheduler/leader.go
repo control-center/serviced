@@ -255,8 +255,8 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*dao.ServiceState) error {
 	//	var err error
 	// pick services instances to start
-	if len(serviceStates) < service.Instances.Min {
-		instancesToStart := service.Instances.Min - len(serviceStates)
+	if len(serviceStates) < service.Instances {
+		instancesToStart := service.Instances - len(serviceStates)
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
 		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolId)
 		if err != nil {
@@ -270,8 +270,8 @@ func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*d
 
 		return l.startServiceInstances(service, hosts, instancesToStart)
 
-	} else if len(serviceStates) > service.Instances.Min {
-		instancesToKill := len(serviceStates) - service.Instances.Min
+	} else if len(serviceStates) > service.Instances {
+		instancesToKill := len(serviceStates) - service.Instances
 		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
 		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
 	}
