@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -208,9 +209,15 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
 
+						if ep := endpointList[0]; ep.VirtualAddress != "" {
+							p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+							err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
+							if err != nil {
+								glog.Errorf("Error creating virtual address: %+v", err)
+							}
+						}
 					}
 					proxy.SetNewAddresses(addresses)
-
 				}
 			}()
 

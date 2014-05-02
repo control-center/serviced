@@ -3,8 +3,12 @@ package api
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 )
 
 type vif struct {
@@ -23,8 +27,14 @@ func NewVIFRegistry() *VIFRegistry {
 	return &VIFRegistry{make(map[string]*vif)}
 }
 
-func (reg *VIFRegistry) nextIP() string {
-	return fmt.Sprintf("10.3.0.%d", len(reg.vifs)+2)
+func (reg *VIFRegistry) nextIP() (string, error) {
+	n := len(reg.vifs) + 2
+	if n > (255 * 255) {
+		return "", fmt.Errorf("Unable to allocate IPs for %s interfaces", n)
+	}
+	o3 := (n / 255)
+	o4 := (n - (o3 * 255))
+	return fmt.Sprintf("10.3.%d.%d", o3, o4), nil
 }
 
 func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string) error {
@@ -40,9 +50,13 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 	}
 	if viface, ok = reg.vifs[host]; !ok {
 		// vif doesn't exist yet
+		ip, err := reg.nextIP()
+		if err != nil {
+			return err
+		}
 		viface = &vif{
 			hostname: host,
-			ip:       reg.nextIP(),
+			ip:       ip,
 			name:     "eth0:" + host,
 			tcpPorts: make(map[string]string),
 			udpPorts: make(map[string]string),
@@ -73,14 +87,37 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 // TODO: Replace with ip instead of ifconfig
 func (viface *vif) createCommand() error {
 	command := []string{
-		"ifconfig",
-		viface.name,
-		viface.ip,
-		"netmask",
-		"255.255.255.0",
-		"up",
+		"ip", "link", "add", "link", "eth0",
+		"name", viface.name,
+		"type", "veth",
+		"peer", "name", viface.name + "-peer",
 	}
-	if err := exec.Command(command[0], command[1:]...).Run(); err != nil {
+	c := exec.Command(command[0], command[1:]...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stdout
+
+	if err := c.Run(); err != nil {
+		glog.Errorf("Adding virtual interface failed: %+v", err)
+		return err
+	}
+	command = []string{
+		"ip", "addr", "add", viface.ip + "/16", "dev", viface.name,
+	}
+	c = exec.Command(command[0], command[1:]...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stdout
+	if err := c.Run(); err != nil {
+		glog.Errorf("Adding IP to virtual interface failed: %+v", err)
+		return err
+	}
+	command = []string{
+		"ip", "link", "set", viface.name, "up",
+	}
+	c = exec.Command(command[0], command[1:]...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stdout
+	if err := c.Run(); err != nil {
+		glog.Errorf("Bringing interface %s up failed: %+v", viface.name, err)
 		return err
 	}
 	return nil
@@ -88,8 +125,8 @@ func (viface *vif) createCommand() error {
 
 func (viface *vif) redirectCommand(from, to, protocol string) error {
 	// TODO: REMOVE. This is for demo.
-	cmd := []string{"apt-get", "-y", "install", "iptables"}
-	exec.Command(cmd[0], cmd[1:]...).Run()
+	// cmd := []string{"apt-get", "-y", "install", "iptables"}
+	// exec.Command(cmd[0], cmd[1:]...).Run()
 
 	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
 		command := []string{
@@ -102,9 +139,19 @@ func (viface *vif) redirectCommand(from, to, protocol string) error {
 			"-j", "REDIRECT",
 			"--to-ports", to,
 		}
-		if err := exec.Command(command[0], command[1:]...).Run(); err != nil {
+		c := exec.Command(command[0], command[1:]...)
+
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stdout
+		if err := c.Run(); err != nil {
+			glog.Errorf("Unable to set up redirect %s:%s->:%s", viface.hostname, from, to)
 			return err
 		}
+	}
+	err := serviced.AddToEtcHosts(viface.hostname, viface.ip)
+	if err != nil {
+		glog.Errorf("Unable to add %s to /etc/hosts", viface.hostname)
+		return err
 	}
 	return nil
 }

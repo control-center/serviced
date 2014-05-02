@@ -12,7 +12,6 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -347,32 +346,6 @@ sleep 5s
 }
 
 // In the container
-func CreateVirtualEndpoint(vaddr, port, protocol string, destport uint64, index int) error {
-	addr := strings.Split(vaddr, ":")
-	if len(addr) != 2 {
-		msg := "Invalid virtual address: " + vaddr
-		glog.Errorf(msg)
-		return errors.New(msg)
-	}
-	vhost := addr[0]
-	vport := addr[1]
-	command := []string{
-		"/bin/bash", "-c",
-		fmt.Sprintf(`
-apt-get -y install iptables && \
-ifconfig eth0:%s 10.3.0.%d netmask 255.255.255.0 up && \
-iptables -t nat -A OUTPUT -d 10.3.0.%d -p %s --dport %s -j REDIRECT --to-ports %s && \
-iptables -t nat -A PREROUTING -d 10.3.0.%d -p %s --dport %s -j REDIRECT --to-ports %s
-`, vhost, index, index, protocol, vport, destport, index, protocol, vport, destport),
-	}
-	err := exec.Command(command[0], command[1:]...).Run()
-	if err != nil {
-		return err
-	}
-	return AddToEtcHosts(vhost, fmt.Sprintf("10.3.0.%d", index))
-}
-
-// In the container
 func AddToEtcHosts(host, ip string) error {
 	// First make sure /etc/hosts is writeable
 	command := []string{
@@ -382,6 +355,6 @@ if [ -n "$(mount | grep /etc/hosts)" ]; then \
 	umount /etc/hosts; \
 	mv /tmp/etchosts /etc/hosts; \
 fi; \
-echo "%s %s" >> /etc/hosts`, host, ip)}
+echo "%s %s" >> /etc/hosts`, ip, host)}
 	return exec.Command(command[0], command[1:]...).Run()
 }
