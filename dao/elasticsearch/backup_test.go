@@ -6,6 +6,7 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	. "gopkg.in/check.v1"
@@ -293,15 +294,16 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	}
 
 	service := dao.Service{
-		Id:           "testservice", //FIXME: Can't snapshot with a "_" in it.
-		Name:         "test_service",
-		Startup:      "echo",
-		Instances:    0,
-		ImageId:      imageId,
-		PoolId:       "default",
-		DesiredState: 0,
-		Volumes:      []servicedefinition.Volume{template_volume},
-		DeploymentId: "backup_test",
+		Id:             "testservice", //FIXME: Can't snapshot with a "_" in it.
+		Name:           "test_service",
+		Startup:        "echo",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        imageId,
+		PoolId:         "default",
+		DesiredState:   0,
+		Volumes:        []servicedefinition.Volume{template_volume},
+		DeploymentId:   "backup_test",
 	}
 
 	originalImageIds, e := all_docker_images(t)
