@@ -319,17 +319,6 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 		return
 	}
 
-	//	//deploy the service, in other words start it
-	//	var unused int
-	//	sduuid, _ := dao.NewUuid()
-	//	deployment := service.ServiceDeployment{sduuid, "", service.Id, now}
-	//	err = client.AddServiceDeployment(deployment, &unused)
-	//	if err != nil {
-	//		glog.Errorf("Unable to add service deployment: %v", err)
-	//		RestServerError(w)
-	//		return
-	//	}
-
 	glog.V(0).Info("Added service ", serviceId)
 	w.WriteJson(&SimpleResponse{"Added service", serviceLinks(serviceId)})
 }

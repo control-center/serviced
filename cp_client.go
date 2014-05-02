@@ -76,10 +76,6 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
-//func (s *ControlClient) AddServiceDeployment(deployment service.ServiceDeployment, unused *int) (err error) {
-//	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
-//}
-
 func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }

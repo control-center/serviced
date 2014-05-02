@@ -60,9 +60,6 @@ type ControlPlane interface {
 	// Find all service endpoint matches
 	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) error
 
-	//	// Deploy a service
-	//	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
-
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 

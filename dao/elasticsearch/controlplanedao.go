@@ -144,7 +144,6 @@ var (
 
 	//model index functions
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
-	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
 	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
 	newUser                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
@@ -1156,29 +1155,8 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
-	//	var unused int
-	//	sduuid, _ := dao.NewUuid()
-	//	deployment := service.ServiceDeployment{sduuid, template, svc.Id, now}
-	//	err = this.AddServiceDeployment(deployment, &unused)
-	//	if err != nil {
-	//		return err
-	//	}
-
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
-
-//func (this *ControlPlaneDao) AddServiceDeployment(deployment service.ServiceDeployment, unused *int) error {
-//	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment: %+v", deployment)
-//	id := strings.TrimSpace(deployment.Id)
-//	if id == "" {
-//		return errors.New("empty ServiceDeployment.Id not allowed")
-//	}
-//
-//	deployment.Id = id
-//	response, err := newServiceDeployment(id, deployment)
-//	glog.V(2).Infof("ControlPlaneDao.AddServiceDeployment response: %+v", response)
-//	return err
-//}
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
 	var err error
