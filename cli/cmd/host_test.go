@@ -149,29 +149,31 @@ func ExampleServicedCLI_CmdHostList_fail() {
 	DefaultHostAPITest.fail = true
 	defer func() { DefaultHostAPITest.fail = false }()
 	// Error retrieving host
-	InitHostAPITest("serviced", "host", "list", "test-host-id-1")
+	pipeStderr(InitHostAPITest, "serviced", "host", "list", "test-host-id-1")
 	// Error retrieving all hosts
-	InitHostAPITest("serviced", "host", "list")
+	pipeStderr(InitHostAPITest, "serviced", "host", "list")
 
 	// Output:
+	// invalid host
+	// invalid host
 }
 
 func ExampleServicedCLI_CmdHostList_err() {
 	DefaultHostAPITest.hosts = make([]*host.Host, 0)
 	defer func() { DefaultHostAPITest.hosts = DefaultTestHosts }()
 	// Host not found
-	InitHostAPITest("serviced", "host", "list", "test-host-id-0")
+	pipeStderr(InitHostAPITest, "serviced", "host", "list", "test-host-id-0")
 	// No hosts found
-	InitHostAPITest("serviced", "host", "list")
+	pipeStderr(InitHostAPITest, "serviced", "host", "list")
 
 	// Output:
+	// host not found
+	// no hosts found
 }
 
 func ExampleServicedCLI_CmdHostAdd() {
 	// Bad URL
 	InitHostAPITest("serviced", "host", "add", "badurl", "default")
-	// Nil Host
-	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", NilPool)
 	// Success
 	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default")
 
@@ -203,16 +205,32 @@ func ExampleServicedCLI_CmdHostAdd_fail() {
 	DefaultHostAPITest.fail = true
 	defer func() { DefaultHostAPITest.fail = false }()
 
-	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default")
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", "default")
 
 	// Output:
+	// invalid host
+}
+
+func ExampleServicedCLI_CmdHostAdd_err() {
+	// Nil Host
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", NilPool)
+
+	// Output:
+	// received nil host
 }
 
 func ExampleServicedCLI_CmdHostRemove() {
-	InitHostAPITest("serviced", "host", "remove", "test-host-id-3", "test-host-id-0")
+	InitHostAPITest("serviced", "host", "remove", "test-host-id-3")
 
 	// Output:
 	// test-host-id-3
+}
+
+func ExampleServicedCLI_CmdHostRemove_err() {
+	pipeStderr(InitHostAPITest, "serviced", "host", "remove", "test-host-id-0")
+
+	// Output:
+	// test-host-id-0: no host found
 }
 
 func ExampleServicedCLI_CmdHostRemove_usage() {

@@ -28,6 +28,24 @@ func pipe(f func(...string), args ...string) []byte {
 	return <-output
 }
 
+func pipeStderr(f func(...string), args ...string) {
+	r, w, _ := os.Pipe()
+	stderr := os.Stderr
+	os.Stderr = w
+
+	f(args...)
+
+	output := make(chan []byte)
+	go func() {
+		var buffer bytes.Buffer
+		io.Copy(&buffer, r)
+		output <- buffer.Bytes()
+	}()
+	w.Close()
+	os.Stderr = stderr
+	fmt.Printf("%s", <-output)
+}
+
 var DefaultAPITest = APITest{}
 
 type APITest struct {
