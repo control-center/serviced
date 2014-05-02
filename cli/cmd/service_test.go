@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	IPAddressNotFound = "IP ADDRESS NOT FOUND"
+	IPAddressNotFound = "IPAddressNotFound"
+	NilService        = "NilService"
+	ErrService        = "ErrService"
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
@@ -90,6 +92,14 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
+
+	switch config.Name {
+	case ErrService:
+		return nil, ErrInvalidService
+	case NilService:
+		return nil, nil
+	}
+
 	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
@@ -323,10 +333,35 @@ func ExampleServicedCli_cmdServiceList() {
 }
 
 func ExampleServicedCli_cmdServiceAdd() {
+	// Error while adding service
+	InitServiceAPITest("serviced", "service", "add", ErrService, "test-pool", "test-image", "bash")
+	// Nil Service received
+	InitServiceAPITest("serviced", "service", "add", NilService, "test-pool", "test-image", "bash")
+	// Success
 	InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash")
 
 	// Output:
 	// test-service-test-pool-test-image
+}
+
+func ExampleServicedCLI_CmdServiceAdd_usage() {
+	InitServiceAPITest("serviced", "service", "add")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    add - Adds a new service
+	//
+	// USAGE:
+	//    command add [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service list NAME POOLID IMAGEID COMMAND
+	//
+	// OPTIONS:
+	//    -p 	`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
+	//    -q 	`-q option -q option` Map a remote service port (e.g. -q tcp:3306:mysql)
 }
 
 func ExampleServicedCli_cmdServiceRemove() {

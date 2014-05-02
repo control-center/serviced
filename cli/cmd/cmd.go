@@ -132,24 +132,24 @@ func setLogging(ctx *cli.Context) error {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
 
-	if ctx.IsSet("alsotostderr") {
-		glog.SetAlsoToStderr(ctx.GlobalBool("alsotostderr"))
+	if ctx.IsSet("alsologtostderr") {
+		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
-	if ctx.IsSet("logstashType") {
-		glog.SetLogstashType(ctx.GlobalString("logstashType"))
+	if ctx.IsSet("logstashtype") {
+		glog.SetLogstashType(ctx.GlobalString("logstashtype"))
 	}
 
-	if ctx.IsSet("logstashURL") {
-		glog.SetLogstashURL(ctx.GlobalString("logstashURL"))
+	if ctx.IsSet("logstashurl") {
+		glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
 	}
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))
 	}
 
-	if ctx.IsSet("stderrThreshold") {
-		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrThreshold")); err != nil {
+	if ctx.IsSet("stderrthreshold") {
+		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
 			return err
 		}
 	}
@@ -160,8 +160,8 @@ func setLogging(ctx *cli.Context) error {
 		}
 	}
 
-	if ctx.IsSet("traceLocation") {
-		if err := glog.SetTraceLocation(ctx.GlobalString("traceLocation")); err != nil {
+	if ctx.IsSet("log_backtrace_at") {
+		if err := glog.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
 			return err
 		}
 	}
