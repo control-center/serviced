@@ -233,9 +233,12 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 		}
 	} else {
 		tableIPs := newTable(0, 8, 2)
-		tableIPs.PrintRow("Interface Name", "IP Address")
+		tableIPs.PrintRow("Interface Name / ID", "IP Address", "Type")
 		for _, ip := range ips.HostIPs {
-			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress)
+			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress, "static")
+		}
+		for _, ip := range ips.VirtualIPs {
+			tableIPs.PrintRow(ip.ID, ip.IP, "virtual")
 		}
 		tableIPs.Flush()
 	}
