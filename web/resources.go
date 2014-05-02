@@ -56,7 +56,7 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
 
-func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
+func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
 		glog.Errorf("Bad name regexp :%s", nmregex)

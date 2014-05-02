@@ -122,7 +122,6 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string
 	svc.Hostname = sd.Hostname
 	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
-	svc.Endpoints = sd.Endpoints
 	svc.Tasks = sd.Tasks
 	svc.ParentServiceId = parentServiceId
 	svc.CreatedAt = now

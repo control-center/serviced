@@ -18,6 +18,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -85,12 +86,12 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	}
 	defer controlClient.Close()
 
-	var service dao.Service
-	err = controlClient.GetService(serviceId, &service)
+	var svc service.Service
+	err = controlClient.GetService(serviceId, &svc)
 	if err != nil {
 		return err
 	}
-	*healthChecks = service.HealthChecks
+	*healthChecks = svc.HealthChecks
 	return nil
 }
 
