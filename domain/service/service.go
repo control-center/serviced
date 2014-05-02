@@ -5,8 +5,8 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/utils"
 
 	"encoding/json"

@@ -16,9 +16,9 @@ import (
 	"github.com/zenoss/serviced/domain"
 
 	"errors"
+	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
-	"github.com/zenoss/serviced/domain/service"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface

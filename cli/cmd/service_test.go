@@ -8,10 +8,9 @@ import (
 	"strings"
 
 	"github.com/zenoss/serviced/cli/api"
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 const (
@@ -95,16 +94,16 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
-	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 	for _, e := range *config.RemotePorts {
 		e.Purpose = "remote"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 

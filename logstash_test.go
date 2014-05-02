@@ -11,8 +11,8 @@ package serviced
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"encoding/json"
 	"io/ioutil"
@@ -42,7 +42,7 @@ func getTestService() service.Service {
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-    InstanceLimits:  domain.MinMax{0,0},
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
@@ -142,7 +142,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-    InstanceLimits:  domain.MinMax{0,0},
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
