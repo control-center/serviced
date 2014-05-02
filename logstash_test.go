@@ -10,9 +10,9 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/service"
 
 	"encoding/json"
 	"io/ioutil"
@@ -34,8 +34,8 @@ func TestGetLogstashBindMounts(t *testing.T) {
 	}
 }
 
-func getTestService() dao.Service {
-	return dao.Service{
+func getTestService() service.Service {
+	return service.Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
@@ -47,7 +47,7 @@ func getTestService() dao.Service {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -135,7 +135,7 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 }
 
 func TestDontWriteToNilMap(t *testing.T) {
-	service := dao.Service{
+	service := service.Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
@@ -147,7 +147,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
