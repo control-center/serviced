@@ -48,11 +48,12 @@ func (forwarder *MetricForwarder) loop() {
 	http.Serve(*forwarder.listener, &handler)
 }
 
-func (forwarder *MetricForwarder) Close() {
+func (forwarder *MetricForwarder) Close() error {
 	if forwarder.listener != nil {
 		(*forwarder.listener).Close()
 		forwarder.listener = nil
 	}
+	return nil
 }
 
 // post_api_metrics_store redirects the post request to the configured address

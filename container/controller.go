@@ -21,6 +21,8 @@ type ControllerOptions struct {
 	ServicedEndpoint string
 	Autorestart      bool
 	Logstash         bool
+	MetricAddress        string  // MetricPort is the TCP port to host the metric service, :22350
+	RemoteMetricEndpoint string  // The url to forward metric queries
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -32,7 +34,19 @@ type Controller struct {
 	logforwarder    *subprocess.Instance
 }
 
+type Closer interface {
+	Close() error
+}
+
 func (c *Controller) Close() {
+	for _, s := range []Closer{c.service, c.metricForwarder, c.logforwarder} {
+		if s != nil {
+			s.Close()
+		}
+	}
+	c.service = nil
+	c.metricForwarder = nil
+	c.logforwarder = nil
 	return
 }
 
@@ -60,7 +74,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	metric_redirect += "&controlplane_service_id=" + options.ServiceID
 
 	//build and serve the container metric forwarder
-	forwarder, err := NewMetricForwarder(":22350", metric_redirect)
+	forwarder, err := NewMetricForwarder(options.MetricAddress, metric_redirect)
 	if err != nil {
 		return c, err
 	}
