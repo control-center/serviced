@@ -204,7 +204,6 @@ func ExampleServicedCLI_CmdHostAdd_usage() {
 func ExampleServicedCLI_CmdHostAdd_fail() {
 	DefaultHostAPITest.fail = true
 	defer func() { DefaultHostAPITest.fail = false }()
-
 	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", "default")
 
 	// Output:
@@ -212,7 +211,6 @@ func ExampleServicedCLI_CmdHostAdd_fail() {
 }
 
 func ExampleServicedCLI_CmdHostAdd_err() {
-	// Nil Host
 	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", NilPool)
 
 	// Output:

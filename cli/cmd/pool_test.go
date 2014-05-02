@@ -216,8 +216,6 @@ func ExampleServicedCLI_CmdPoolAdd() {
 	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "abc")
 	// Bad Result
 	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "4", "1024", "3")
-	// Nil Pool
-	InitPoolAPITest("serviced", "pool", "add", NilPool, "4", "1024", "3")
 	// Success
 	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "3")
 
@@ -244,6 +242,13 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY
 	//
 	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdPoolAdd_err() {
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "add", NilPool, "4", "1024", "3")
+
+	// Output:
+	// received nil resource pool
 }
 
 func ExampleServicedCLI_CmdPoolRemove() {

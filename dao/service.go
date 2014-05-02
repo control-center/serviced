@@ -50,10 +50,10 @@ func (a *Service) Equals(b *Service) bool {
 	if a.ParentServiceId != b.ParentServiceId {
 		return false
 	}
-	if a.CreatedAt != b.CreatedAt {
+	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
-	if a.UpdatedAt != b.CreatedAt {
+	if a.UpdatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
 	return true
