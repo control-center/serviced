@@ -10,36 +10,38 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     ];
 
     // Build metadata for displaying a pool's virtual ips
-    $scope.virtual_ip_addresses = buildTable('Address', [
-        { id: 'Address', name: 'pool_tbl_virtual_ip_address'},
+    $scope.virtual_ip_addresses = buildTable('IP', [
+        { id: 'IP', name: 'pool_tbl_virtual_ip_address_ip'},
+        { id: 'Netmask', name: 'pool_tbl_virtual_ip_address_netmask'},
+        { id: 'BindInterface', name: 'pool_tbl_virtual_ip_address_bind_interface'},
         { id: 'Actions', name: 'pool_tbl_virtual_ip_address_action'}
     ]);
 
+    //
     // Scope methods
+    //
+
+    // Pool view action - delete
     $scope.clickRemoveVirtualIp = function(pool, ip) {
         console.log( "Removing pool's virtual ip address: ", pool, ip);
-        resourcesService.remove_pool_virtual_ip(pool.ID, ip, function() {
+        resourcesService.remove_pool_virtual_ip(pool.ID, ip.ID, function() {
             refreshPools($scope, resourcesService, false);
         });
     };
 
-    $scope.modalAddVirtualIp = function(pool) {
-        $scope.pools.add_virtual_ip = {'id': pool.ID, 'ip':""};
-        $('#poolAddVirtualIp').modal('show');
-    };
-
+    // Add Virtual Ip Modal - Add button action
     $scope.AddVirtualIp = function(pool) {
-        var poolID = $scope.pools.add_virtual_ip.id;
-        var ip = $scope.pools.add_virtual_ip.ip;
-        resourcesService.add_pool_virtual_ip(poolID, ip, function() {
-            $scope.pools.add_virtual_ip.ip = "";
+        var ip = $scope.pools.add_virtual_ip;
+        resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, function() {
+            $scope.pools.add_virtual_ip = {};
         });
         $('#poolAddVirtualIp').modal('hide');
     };
 
-    $scope.CancelAddVirtualIp = function(pool) {
-        $scope.pools.add_virtual_ip = null;
-        $('#poolAddVirtualIp').modal('hide');
+    // Open the virtual ip modal
+    $scope.modalAddVirtualIp = function(pool) {
+        $scope.pools.add_virtual_ip = {'PoolID': pool.ID, 'IP':"", 'Netmask':"", 'BindInterface':""};
+        $('#poolAddVirtualIp').modal('show');
     };
 
     // Ensure we have a list of pools

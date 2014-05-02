@@ -2,14 +2,24 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <p class="header">  
-          <label for="new_pool_virtual_ip">{{'modal_pool_add_virtual_ip' | translate}}</label>
-          <input class="form-control" name="new_virtual_ip" id="new_virtual_ip" type="text" ng-model="pools.add_virtual_ip.ip" />
-        </p>
-        <p>
-          <button class="btn btn-primary" ng-click="AddVirtualIp()">Add</button>
-          <button class="btn btn-link" ng-click="CancelAddVirtualIp()">Cancel</button>
-        </p>
+        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
+        <span class="modal-title">{{'title_add_virtual_ip'|translate}}</span>
+      </div>
+      <div class="modal-body">
+        <!-- IP -->
+        <label for="new_pool_virtual_ip">{{'label_ip' | translate}}</label>
+        <input class="form-control" name="new_virtual_ip" id="new_virtual_ip" type="text" ng-model="pools.add_virtual_ip.IP" />
+        <!-- Netmask -->
+        <label for="new_pool_virtual_ip">{{'label_netmask' | translate}}</label>
+        <input class="form-control" name="new_virtual_ip" id="new_virtual_ip" type="text" ng-model="pools.add_virtual_ip.Netmask" />
+        <!-- Bind Interface-->
+        <label for="new_pool_virtual_ip">{{'label_bind_interface' | translate}}</label>
+        <input class="form-control" name="new_virtual_ip" id="new_virtual_ip" type="text" ng-model="pools.add_virtual_ip.BindInterface" />
+        <!-- Buttons -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" ng-click="AddVirtualIp()">{{'btn_add'|translate}}</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
+        </div>
       </div>
     </div>
   </div>
