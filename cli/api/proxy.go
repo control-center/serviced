@@ -24,19 +24,19 @@ type ControllerOptions struct {
 }
 
 func toContainerControllerOptions(c ControllerOptions) container.ControllerOptions {
-	return container.ControllerOptions{
-		TentantID:        c.TentantID,
-		ServiceID:        c.ServiceID,
-		Command:          c.Command,
-		MuxPort:          c.MuxPort,
-		Mux:              c.Mux,
-		TLS:              c.TLS,
-		KeyPEMFile:       c.KeyPEMFile,
-		CertPEMFile:      c.CertPEMFile,
-		ServicedEndpoint: c.ServicedEndpoint,
-		Autorestart:      c.Autorestart,
-		Logstash:         c.Logstash,
-	}
+	options := container.ControllerOptions{}
+	options.ServicedEndpoint = c.ServicedEndpoint
+	options.Service.TenantID = c.TentantID
+	options.Service.Autorestart = c.Autorestart
+	options.Service.ID = c.ServiceID
+	options.Service.Command = c.Command
+	options.Mux.Port = c.MuxPort
+	options.Mux.Enabled = c.Mux
+	options.Mux.TLS = c.TLS
+	options.Mux.KeyPEMFile = c.KeyPEMFile
+	options.Mux.CertPEMFile = c.CertPEMFile
+	options.Logforwarder.Enabled = c.Logstash
+	return options
 }
 
 // Start a service proxy

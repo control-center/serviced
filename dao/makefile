@@ -18,8 +18,8 @@ build:
 
 test: build
 	cd elasticsearch && make test
-	cd tests && go test
-	go test
+	cd tests && go test $(GOTEST_FLAGS)
+	go test $(GOTEST_FLAGS)
 
 clean:
 	cd elasticsearch && make clean

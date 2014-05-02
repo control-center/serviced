@@ -1,8 +1,8 @@
 package dao
 
 import (
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain"
 
 	"fmt"
 	"github.com/zenoss/glog"
@@ -45,12 +45,13 @@ const (
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId     string
-	ContainerPort uint16
-	HostPort      uint16
-	HostIp        string
-	ContainerIp   string
-	Protocol      string
+	ServiceId      string
+	ContainerPort  uint16
+	HostPort       uint16
+	HostIp         string
+	ContainerIp    string
+	Protocol       string
+	VirtualAddress string
 }
 
 // A Service that can run in serviced.
@@ -63,6 +64,7 @@ type Service struct {
 	Tags            []string
 	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
+	InstanceLimits  domain.MinMax
 	ImageId         string
 	PoolId          string
 	DesiredState    int

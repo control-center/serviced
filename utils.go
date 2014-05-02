@@ -344,3 +344,17 @@ sleep 5s
 	glog.Errorf("could not create host volume: %+v, %s", command, string(output))
 	return err
 }
+
+// In the container
+func AddToEtcHosts(host, ip string) error {
+	// First make sure /etc/hosts is writeable
+	command := []string{
+		"/bin/bash", "-c", fmt.Sprintf(`
+if [ -n "$(mount | grep /etc/hosts)" ]; then \
+	cat /etc/hosts > /tmp/etchosts; \
+	umount /etc/hosts; \
+	mv /tmp/etchosts /etc/hosts; \
+fi; \
+echo "%s %s" >> /etc/hosts`, ip, host)}
+	return exec.Command(command[0], command[1:]...).Run()
+}

@@ -84,7 +84,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	metric_redirect += "&controlplane_service_id=" + options.Service.ID
 
 	//build and serve the container metric forwarder
-	forwarder, err := NewMetricForwarder(options.MetricAddress, metric_redirect)
+	forwarder, err := NewMetricForwarder(options.Metric.Address, metric_redirect)
 	if err != nil {
 		return c, err
 	}
@@ -106,77 +106,21 @@ func (c *Controller) Run() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	// continually execute subprocess
-	go func(cmdString string) {
-		defer func() { procexit <- 0 }()
-		for {
-			glog.V(0).Info("About to execute: ", cmdString)
-			cmd := exec.Command("bash", "-c", cmdString)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
-			serviceExit := make(chan error)
-			go func() {
-				serviceExit <- cmd.Run()
-			}()
-			select {
-			case sig := <-sigc:
-				glog.V(1).Infof("Caught signal %d", sig)
-				cmd.Process.Signal(sig)
-				cmd.Wait()
-				exitCode := 0
-				if cmd.ProcessState != nil {
-					exitCode, _ = cmd.ProcessState.Sys().(int)
-				}
-				procexit <- exitCode
-			case cmderr := <-serviceExit:
-				if cmderr != nil {
-					client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
-					message := fmt.Sprintf("Service returned a non-zero exit code: %v. Command: \"%v\" Message: %v", serviceId, command, err)
-					if err == nil {
-						defer client.Close()
-						glog.Errorf(message)
-
-						// send the log message to the master
-						client.SendLogMessage(serviced.ServiceLogInfo{serviceId, message}, nil)
-					} else {
-						glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
-					}
-
-					glog.Infof("%s", err)
-					glog.Flush()
-					if exiterr, ok := cmderr.(*exec.ExitError); ok && !proxyOptions.autorestart {
-						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-							procexit <- status.ExitStatus()
-						}
-					}
-				}
-			}
-
-			if !proxyOptions.autorestart {
-				break
-			}
-			glog.V(0).Info("service exited, sleeping...")
-			time.Sleep(time.Minute)
-		}
-	}(command)
-
-
 	//monitor application endpoints to mux ports
 	go func() {
 		for {
 			func() {
-				client, err := serviced.NewLBClient(proxyOptions.servicedEndpoint)
+				client, err := serviced.NewLBClient(proxyOptions.ServicedEndpoint)
 				if err != nil {
-					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.servicedEndpoint, err)
+					glog.Errorf("Could not create a client to endpoint %s: %s", proxyOptions.ServicedEndpoint, err)
 					return
 				}
 				defer client.Close()
 
 				var endpoints map[string][]*dao.ApplicationEndpoint
-				err = client.GetServiceEndpoints(serviceId, &endpoints)
+				err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
 				if err != nil {
-					glog.Errorf("Error getting application endpoints for service %s: %s", serviceId, err)
+					glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
 					return
 				}
 
@@ -195,8 +139,11 @@ func (c *Controller) Run() {
 					}
 					sort.Strings(addresses)
 
-					var proxy *serviced.Proxy
-					var ok bool
+					var (
+						proxy *serviced.Proxy
+						ok    bool
+					)
+
 					if proxy, ok = proxies[key]; !ok {
 						glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
 
@@ -208,8 +155,8 @@ func (c *Controller) Run() {
 						}
 						proxy, err = serviced.NewProxy(
 							fmt.Sprintf("%v", endpointList[0]),
-							uint16(proxyOptions.muxport),
-							proxyOptions.tls,
+							uint16(config.TCPMux.Port),
+							config.TCPMux.UseTLS,
 							listener)
 						if err != nil {
 							glog.Errorf("Could not build proxy %s", err)
@@ -218,6 +165,14 @@ func (c *Controller) Run() {
 
 						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
+
+						if ep := endpointList[0]; ep.VirtualAddress != "" {
+							p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+							err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
+							if err != nil {
+								glog.Errorf("Error creating virtual address: %+v", err)
+							}
+						}
 					}
 					proxy.SetNewAddresses(addresses)
 				}
@@ -228,6 +183,33 @@ func (c *Controller) Run() {
 	}()
 
 	//setup container metric forwarder
+	go func() {
+		//loop until successfully identifying this container's tenant id
+		var tenantID string
+		for {
+			client, err := serviced.NewLBClient(proxyOptions.ServicedEndpoint)
+			if err == nil {
+				defer client.Close()
+				if err = client.GetTenantId(config.ServiceId, &tenantID); err != nil {
+					glog.Errorf("Failed to get tenant id: %s", err)
+				} else {
+					//success
+					break
+				}
+			} else {
+				glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.ServicedEndpoint, err)
+			}
+		}
+
+		//build metric redirect url -- assumes 8444 is port mapped
+		metricRedirect := "http://localhost:8444/api/metrics/store"
+		metricRedirect += "?controlplane_tenant_id=" + tenantID
+		metricRedirect += "&controlplane_service_id=" + config.ServiceId
+
+		//build and serve the container metric forwarder
+		forwarder, _ := serviced.NewMetricForwarder(":22350", metricRedirect)
+		forwarder.Serve()
+	}()
 
 	exitcode := <-procexit // Wait for proc goroutine to exit
 
@@ -236,9 +218,15 @@ func (c *Controller) Run() {
 	return nil
 }
 
-var proxies map[string]*serviced.Proxy
+var (
+	proxies map[string]*serviced.Proxy
+	vifs    *VIFRegistry
+	nextip  int
+)
 
 func init() {
 	proxies = make(map[string]*serviced.Proxy)
+	vifs = NewVIFRegistry()
+	nextip = 1
 }
 */
