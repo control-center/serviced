@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/validation"
 
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -19,7 +18,7 @@ import (
 func (sd *ServiceDefinition) ValidEntity() error {
 	glog.V(4).Info("Validating ServiceDefinition")
 
-	context := validationContext{make(map[string]ServiceEndpoint)}
+	context := validationContext{make(map[string]EndpointDefinition)}
 	//TODO: do servicedefinition names need to be unique?
 	err := sd.validate(&context)
 	return err
@@ -90,11 +89,11 @@ func (sd *ServiceDefinition) NormalizeLaunch() error {
 
 //validationContext is used to keep track of things to validate in nested service definitions
 type validationContext struct {
-	vhosts map[string]ServiceEndpoint // only care about key to test for previous definition
+	vhosts map[string]EndpointDefinition // only care about key to test for previous definition
 }
 
 //validateVHost ensures that the VHosts in a ServiceEndpoint have not already been defined
-func (vc validationContext) validateVHost(se ServiceEndpoint) error {
+func (vc validationContext) validateVHost(se EndpointDefinition) error {
 	if len(se.VHosts) > 0 {
 		for _, vhost := range se.VHosts {
 			if _, found := vc.vhosts[vhost]; found {
@@ -107,7 +106,7 @@ func (vc validationContext) validateVHost(se ServiceEndpoint) error {
 }
 
 //ValidEntity used to make sure ServiceEndpoint is in a valid state
-func (se ServiceEndpoint) ValidEntity() error {
+func (se EndpointDefinition) ValidEntity() error {
 	trimName := strings.Trim(se.Name, " ")
 	if trimName == "" {
 		return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
@@ -158,37 +157,3 @@ func (arc *AddressResourceConfig) Normalize() {
 	arc.Protocol = testProto
 }
 
-//Validate used to make sure AddressAssignment is in a valid state
-func (a *AddressAssignment) Validate() error {
-	if a.ServiceID == "" {
-		return errors.New("ServiceId must be set")
-	}
-	if a.EndpointName == "" {
-		return errors.New("EndpointName must be set")
-	}
-	if a.IPAddr == "" {
-		return errors.New("IPAddr must be set")
-	}
-	if a.Port == 0 {
-		return errors.New("Port must be set")
-	}
-	switch a.AssignmentType {
-	case "static":
-		{
-			if a.HostID == "" {
-				return errors.New("HostId must be set for static assignments")
-			}
-		}
-	case "virtual":
-		{
-			if a.PoolID == "" {
-				return errors.New("PoolId must be set for virtual assignments")
-			}
-
-		}
-	default:
-		return fmt.Errorf("Assignment type must be static of virtual, found %v", a.AssignmentType)
-	}
-
-	return nil
-}

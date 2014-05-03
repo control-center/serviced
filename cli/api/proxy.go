@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -175,8 +176,11 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 					}
 					sort.Strings(addresses)
 
-					var proxy *serviced.Proxy
-					var ok bool
+					var (
+						proxy *serviced.Proxy
+						ok    bool
+					)
+
 					if proxy, ok = proxies[key]; !ok {
 						glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
 
@@ -198,6 +202,14 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 
 						glog.Infof("Success binding port: %s -> %+v", key, proxy)
 						proxies[key] = proxy
+
+						if ep := endpointList[0]; ep.VirtualAddress != "" {
+							p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+							err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
+							if err != nil {
+								glog.Errorf("Error creating virtual address: %+v", err)
+							}
+						}
 					}
 					proxy.SetNewAddresses(addresses)
 				}
@@ -243,8 +255,14 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 	return nil
 }
 
-var proxies map[string]*serviced.Proxy
+var (
+	proxies map[string]*serviced.Proxy
+	vifs    *VIFRegistry
+	nextip  int
+)
 
 func init() {
 	proxies = make(map[string]*serviced.Proxy)
+	vifs = NewVIFRegistry()
+	nextip = 1
 }

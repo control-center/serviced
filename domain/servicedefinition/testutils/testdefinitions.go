@@ -23,15 +23,15 @@ func CreateValidServiceDefinition() *ServiceDefinition {
 		Services: []ServiceDefinition{
 			ServiceDefinition{
 				Name: "s1",
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []EndpointDefinition{
+					EndpointDefinition{
 						Name:        "www",
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
-					ServiceEndpoint{
+					EndpointDefinition{
 						Name:        "websvc",
 						Protocol:    "tcp",
 						PortNumber:  8081,
@@ -58,8 +58,8 @@ func CreateValidServiceDefinition() *ServiceDefinition {
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageID: "ubuntu",
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []EndpointDefinition{
+					EndpointDefinition{
 						Name:        "websvc",
 						Protocol:    "tcp",
 						PortNumber:  8080,

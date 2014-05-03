@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/zenoss/glog"
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/servicestate"
 
 	"fmt"
 	"os"
@@ -18,7 +18,7 @@ type AttachConfig struct {
 }
 
 // Gets the service state identified by its service state ID
-func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
+func (a *api) GetServiceState(id string) (*servicestate.ServiceState, error) {
 	services, err := a.GetServices()
 	if err != nil {
 		return nil, err
@@ -41,13 +41,13 @@ func (a *api) GetServiceState(id string) (*service.ServiceState, error) {
 }
 
 // getServiceStatesByServiceID gets the service states for a service identified by its service ID
-func (a *api) getServiceStatesByServiceID(id string) ([]*service.ServiceState, error) {
+func (a *api) getServiceStatesByServiceID(id string) ([]*servicestate.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var states []*service.ServiceState
+	var states []*servicestate.ServiceState
 	if err := client.GetServiceStates(id, &states); err != nil {
 		return nil, err
 	}

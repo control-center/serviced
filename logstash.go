@@ -9,12 +9,12 @@
 package serviced
 
 import (
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/utils"
 	"strings"
 )
@@ -52,7 +52,7 @@ func formatTagsForConfFile(tags map[string]string) string {
 
 // writeLogstashAgentConfig creates the logstash forwarder config file and places it in a temp directory
 // the filename of the newly created file is returned
-func writeLogstashAgentConfig(service *dao.Service) (string, error) {
+func writeLogstashAgentConfig(service *service.Service) (string, error) {
 
 	// generate the json config.
 	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
