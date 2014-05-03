@@ -10,7 +10,8 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 )
@@ -192,15 +193,15 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		done <- serviceID
 	}()
 	for {
-		var service dao.Service
-		zkEvent, err := zzk.LoadServiceW(conn, serviceID, &service)
+		var svc service.Service
+		zkEvent, err := zzk.LoadServiceW(conn, serviceID, &svc)
 		if err != nil {
 			glog.Errorf("Unable to load service %s: %v", serviceID, err)
 			return
 		}
 		_, childEvent, err := conn.ChildrenW(zzk.ServicePath(serviceID))
 
-		glog.V(1).Info("Leader watching for changes to service ", service.Name)
+		glog.V(1).Info("Leader watching for changes to service ", svc.Name)
 
 		switch exists, err := conn.Exists(path.Join("/services", serviceID)); {
 		case err != nil:
@@ -212,7 +213,7 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		}
 
 		// check current state
-		var serviceStates []*dao.ServiceState
+		var serviceStates []*servicestate.ServiceState
 		err = zzk.GetServiceStates(l.conn, &serviceStates, serviceID)
 		if err != nil {
 			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
@@ -221,12 +222,12 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 		// Is the service supposed to be running at all?
 		switch {
-		case service.DesiredState == dao.SVC_STOP:
+		case svc.DesiredState == dao.SVC_STOP:
 			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
-		case service.DesiredState == dao.SVC_RUN:
-			l.updateServiceInstances(&service, serviceStates)
+		case svc.DesiredState == dao.SVC_RUN:
+			l.updateServiceInstances(&svc, serviceStates)
 		default:
-			glog.Warningf("Unexpected desired state %d for service %s", service.DesiredState, service.Name)
+			glog.Warningf("Unexpected desired state %d for service %s", svc.DesiredState, svc.Name)
 		}
 
 		select {
@@ -236,15 +237,15 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 				shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
 				return
 			}
-			glog.V(1).Infof("Service %s received event: %v", service.Name, evt)
+			glog.V(1).Infof("Service %s received event: %v", svc.Name, evt)
 			continue
 
 		case evt := <-childEvent:
-			glog.V(1).Infof("Service %s received child event: %v", service.Name, evt)
+			glog.V(1).Infof("Service %s received child event: %v", svc.Name, evt)
 			continue
 
 		case <-shutdown:
-			glog.V(1).Info("Leader stopping watch on ", service.Name)
+			glog.V(1).Info("Leader stopping watch on ", svc.Name)
 			return
 
 		}
@@ -252,7 +253,7 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 }
 
-func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*dao.ServiceState) error {
+func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
 	//	var err error
 	// pick services instances to start
 	if len(serviceStates) < service.Instances {
@@ -285,9 +286,9 @@ func (l *leader) updateServiceInstances(service *dao.Service, serviceStates []*d
 // max number of instances for the service. We're already doing that check in
 // another, better place. It is guaranteed that either nil or n ids will be
 // returned.
-func getFreeInstanceIds(conn coordclient.Connection, svc *dao.Service, n int) ([]int, error) {
+func getFreeInstanceIds(conn coordclient.Connection, svc *service.Service, n int) ([]int, error) {
 	var (
-		states []*dao.ServiceState
+		states []*servicestate.ServiceState
 		ids    []int
 	)
 	// Look up existing instances
@@ -309,16 +310,16 @@ func getFreeInstanceIds(conn coordclient.Connection, svc *dao.Service, n int) ([
 	}
 	return ids, nil
 }
-func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host, numToStart int) error {
+func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
-	freeids, err := getFreeInstanceIds(l.conn, service, numToStart)
+	freeids, err := getFreeInstanceIds(l.conn, svc, numToStart)
 	if err != nil {
 		return err
 	}
 
-	hostPolicy := NewServiceHostPolicy(service, l.dao)
+	hostPolicy := NewServiceHostPolicy(svc, l.dao)
 
 	// Start up an instance per id
 	for _, i := range freeids {
@@ -328,7 +329,7 @@ func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host,
 		}
 
 		glog.V(2).Info("Selected host ", servicehost)
-		serviceState, err := service.NewServiceState(servicehost.ID)
+		serviceState, err := servicestate.BuildFromService(svc, servicehost.ID)
 		if err != nil {
 			glog.Errorf("Error creating ServiceState instance: %v", err)
 			return err
@@ -346,7 +347,7 @@ func (l *leader) startServiceInstances(service *dao.Service, hosts []*host.Host,
 	return nil
 }
 
-func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*dao.ServiceState, numToKill int) {
+func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	for i := 0; i < numToKill; i++ {
 		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostId, serviceStates[i].Id)
@@ -361,10 +362,10 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*dao.
 // selectPoolHostForService chooses a host from the pool for the specified service. If the service
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
-func (l *leader) selectPoolHostForService(s *dao.Service, hosts []*host.Host) (*host.Host, error) {
+func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host) (*host.Host, error) {
 	var hostid string
 	for _, ep := range s.Endpoints {
-		if ep.AddressAssignment != (servicedefinition.AddressAssignment{}) {
+		if ep.AddressAssignment != (service.AddressAssignment{}) {
 			hostid = ep.AddressAssignment.HostID
 			break
 		}
