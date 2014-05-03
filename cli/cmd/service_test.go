@@ -601,16 +601,9 @@ func ExampleServicedCLI_CmdServiceProxy_usage() {
 	//    --tls				enable tls
 	//    --keyfile 				path to private key file (defaults to compiled in private keys
 	//    --certfile 				path to public certificate file (defaults to compiled in public cert)
-	//    --endpoint '10.87.103.1:4979'	serviced endpoint address
+	//    --endpoint '192.168.0.1:4979'	serviced endpoint address
 	//    --autorestart			restart process automatically when it finishes
 	//    --logstash				forward service logs via logstash-forwarder
-}
-
-func ExampleServicedCLI_CmdServiceProxy_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "proxy", "test-service-0", "some", "command")
-
-	// Output:
-	// no service found
 }
 
 func ExampleServicedCLI_CmdServiceShell() {
