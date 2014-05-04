@@ -8,9 +8,13 @@ import (
 
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 )
 
-var DefaultHostAPITest = HostAPITest{hosts: DefaultTestHosts}
+var DefaultHostAPITest = HostAPITest{
+	pools: DefaultTestPools,
+	hosts: DefaultTestHosts,
+}
 
 var DefaultTestHosts = []*host.Host{
 	{
@@ -48,6 +52,7 @@ var (
 type HostAPITest struct {
 	api.API
 	fail  bool
+	pools []*pool.ResourcePool
 	hosts []*host.Host
 }
 
@@ -60,6 +65,13 @@ func (t HostAPITest) GetHosts() ([]*host.Host, error) {
 		return nil, ErrInvalidHost
 	}
 	return t.hosts, nil
+}
+
+func (t HostAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+	if t.fail {
+		return nil, ErrInvalidPool
+	}
+	return t.pools, nil
 }
 
 func (t HostAPITest) GetHost(id string) (*host.Host, error) {
@@ -171,6 +183,19 @@ func ExampleServicedCLI_CmdHostList_err() {
 	// no hosts found
 }
 
+func ExampleServicedCLI_CmdHostList_complete() {
+	InitHostAPITest("serviced", "host", "list", "--generate-bash-completion")
+
+	DefaultHostAPITest.fail = true
+	defer func() { DefaultHostAPITest.fail = false }()
+	InitHostAPITest("serviced", "host", "list", "--generate-bash-completion")
+
+	// Output:
+	// test-host-id-1
+	// test-host-id-2
+	// test-host-id-3
+}
+
 func ExampleServicedCLI_CmdHostAdd() {
 	// Bad URL
 	InitHostAPITest("serviced", "host", "add", "badurl", "default")
@@ -217,18 +242,24 @@ func ExampleServicedCLI_CmdHostAdd_err() {
 	// received nil host
 }
 
+func ExampleServicedCLI_CmdHostAdd_complete() {
+	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "--generate-bash-completion")
+
+	DefaultHostAPITest.fail = true
+	defer func() { DefaultHostAPITest.fail = false }()
+	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+}
+
 func ExampleServicedCLI_CmdHostRemove() {
 	InitHostAPITest("serviced", "host", "remove", "test-host-id-3")
 
 	// Output:
 	// test-host-id-3
-}
-
-func ExampleServicedCLI_CmdHostRemove_err() {
-	pipeStderr(InitHostAPITest, "serviced", "host", "remove", "test-host-id-0")
-
-	// Output:
-	// test-host-id-0: no host found
 }
 
 func ExampleServicedCLI_CmdHostRemove_usage() {
@@ -247,4 +278,29 @@ func ExampleServicedCLI_CmdHostRemove_usage() {
 	//    serviced host remove HOSTID ...
 	//
 	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdHostRemove_err() {
+	pipeStderr(InitHostAPITest, "serviced", "host", "remove", "test-host-id-0")
+
+	// Output:
+	// test-host-id-0: no host found
+}
+
+func ExampleServicedCLI_CmdHostRemove_complete() {
+	InitHostAPITest("serviced", "host", "rm", "--generate-bash-completion")
+	fmt.Println("")
+	InitHostAPITest("serviced", "host", "rm", "test-host-id-2", "--generate-bash-completion")
+
+	DefaultHostAPITest.fail = true
+	defer func() { DefaultHostAPITest.fail = false }()
+	InitHostAPITest("serviced", "host", "rm", "--generate-bash-completion")
+
+	// Output:
+	// test-host-id-1
+	// test-host-id-2
+	// test-host-id-3
+	//
+	// test-host-id-1
+	// test-host-id-3
 }
