@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/cli/api"
@@ -74,12 +75,7 @@ func (c *ServicedCli) printPoolsFirst(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
-
-	for _, p := range c.pools() {
-		fmt.Println(p)
-	}
-
-	return
+	fmt.Println(strings.Join(c.pools(), "\n"))
 }
 
 // Bash-completion command that prints the list of available pools as all

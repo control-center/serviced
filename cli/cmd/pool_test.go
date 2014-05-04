@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -207,6 +208,15 @@ func ExampleServicedCLI_CmdPoolList_err() {
 	// no resource pools found
 }
 
+func ExampleServicedCLI_CmdPoolList_complete() {
+	InitPoolAPITest("serviced", "pool", "list", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+}
+
 func ExampleServicedCLI_CmdPoolAdd() {
 	// Bad CoreLimit
 	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
@@ -281,6 +291,20 @@ func ExampleServicedCLI_CmdPoolRemove_err() {
 
 	// Output:
 	// test-pool-id-0: no pool found
+}
+
+func ExampleServicedCLI_CmdPoolRemove_complete() {
+	InitPoolAPITest("serviced", "pool", "rm", "--generate-bash-completion")
+	fmt.Println("")
+	InitPoolAPITest("serviced", "pool", "rm", "test-pool-id-2", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+	//
+	// test-pool-id-1
+	// test-pool-id-3
 }
 
 func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
