@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 )
 
@@ -20,6 +21,7 @@ const (
 
 var DefaultServiceAPITest = ServiceAPITest{
 	services:  DefaultTestServices,
+	pools:     DefaultTestPools,
 	snapshots: DefaultTestSnapshots,
 }
 
@@ -74,6 +76,7 @@ type ServiceAPITest struct {
 	api.API
 	fail      bool
 	services  []*service.Service
+	pools     []*pool.ResourcePool
 	snapshots []string
 }
 
@@ -86,6 +89,13 @@ func (t ServiceAPITest) GetServices() ([]*service.Service, error) {
 		return nil, ErrInvalidService
 	}
 	return t.services, nil
+}
+
+func (t ServiceAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+	if t.fail {
+		return nil, ErrInvalidService
+	}
+	return t.pools, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
@@ -335,6 +345,19 @@ func ExampleServicedCLI_CmdServiceList_err() {
 	// no services found
 }
 
+func ExampleServicedCLI_CmdServiceList_complete() {
+	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
+
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
+
+	// Output:
+	// test-service-1
+	// test-service-2
+	// test-service-3
+}
+
 func ExampleServicedCLI_CmdServiceAdd() {
 	InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
 
@@ -378,6 +401,15 @@ func ExampleServicedCLI_CmdServiceAdd_err() {
 	// received nil service definition
 }
 
+func ExampleServicedCLI_CmdServiceAdd_complete() {
+	InitServiceAPITest("serviced", "service", "add", "test-service", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+}
+
 func ExampleServicedCLI_CmdServiceRemove() {
 	InitServiceAPITest("serviced", "service", "remove", "test-service-1")
 
@@ -408,6 +440,20 @@ func ExampleServicedCLI_CmdServiceRemove_err() {
 
 	// Output:
 	// test-service-0: no service found
+}
+
+func ExampleServicedCLI_CmdServiceRemove_complete() {
+	InitServiceAPITest("serviced", "service", "remove", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "remove", "test-service-2", "--generate-bash-completion")
+
+	// Output:
+	// test-service-1
+	// test-service-2
+	// test-service-3
+	//
+	// test-service-1
+	// test-service-3
 }
 
 func ExampleServicedCLI_CmdServiceEdit() {
@@ -679,6 +725,22 @@ func ExampleServicedCLI_CmdServiceRun_err() {
 
 	// Output:
 	// no service found
+}
+
+func ExampleServicedCLI_CmdServiceRun_complete() {
+	InitServiceAPITest("serviced", "service", "run", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "run", "test-service-1", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "run", "test-service-2", "--generate-bash-completion")
+
+	// FIXME: Output:
+	// test-service-1
+	// test-service-2
+	// test-service-3
+	//
+	// hello
+	// goodbye
 }
 
 // TODO: ServicedCLI.CmdServiceAttach
