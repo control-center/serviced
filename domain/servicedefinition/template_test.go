@@ -2,6 +2,7 @@ package servicedefinition
 
 import (
 	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/domain/service"
 
 	"fmt"
 	"log"
@@ -25,15 +26,15 @@ func init() {
 				ConfigFiles: map[string]ConfigFile{
 					"/etc/my.cnf": ConfigFile{Owner: "root:root", Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []EndpointDefinition{
-					EndpointDefinition{
+				Endpoints: []service.ServiceEndpoint{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Name:        "www",
 						Purpose:     "export",
 					},
-					EndpointDefinition{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
@@ -68,8 +69,8 @@ func init() {
 						Content:     "baz\n",
 					},
 				},
-				Endpoints: []EndpointDefinition{
-					EndpointDefinition{
+				Endpoints: []service.ServiceEndpoint{
+					ServiceEndpoint{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
@@ -159,6 +160,7 @@ func TestServiceDefinitionFromPath(t *testing.T) {
 
 	sd, err := BuildFromPath("./testsvc")
 
+	t.Logf("testsvc %v", sd)
 	if err != nil {
 		t.Fatalf("Problem parsing template: %s", err)
 	}
