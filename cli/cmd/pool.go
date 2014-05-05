@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/cli/api"
@@ -74,12 +75,7 @@ func (c *ServicedCli) printPoolsFirst(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
-
-	for _, p := range c.pools() {
-		fmt.Println(p)
-	}
-
-	return
+	fmt.Println(strings.Join(c.pools(), "\n"))
 }
 
 // Bash-completion command that prints the list of available pools as all
@@ -106,7 +102,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		if pool, err := c.driver.GetResourcePool(poolID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if pool == nil {
-			fmt.Fprintf(os.Stderr, "pool not found")
+			fmt.Fprintln(os.Stderr, "pool not found")
 		} else if jsonPool, err := json.MarshalIndent(pool, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal resource pool: %s", err)
 		} else {

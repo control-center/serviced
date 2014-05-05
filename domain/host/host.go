@@ -6,6 +6,7 @@ package host
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -24,6 +25,48 @@ type Host struct {
 	IPs            []HostIPResource // The static IP resources available on the host
 	KernelVersion  string
 	KernelRelease  string
+}
+
+// Equals verifies whether two host objects are equal
+func (a *Host) Equals(b *Host) bool {
+	if a.ID != b.ID {
+		return false
+	}
+	if a.Name != b.Name {
+		return false
+	}
+	if a.PoolID != b.PoolID {
+		return false
+	}
+	if a.IPAddr != b.IPAddr {
+		return false
+	}
+	if a.Cores != b.Cores {
+		return false
+	}
+	if a.Memory != b.Memory {
+		return false
+	}
+	if a.PrivateNetwork != b.PrivateNetwork {
+		return false
+	}
+	if a.KernelVersion != b.KernelVersion {
+		return false
+	}
+	if a.KernelRelease != b.KernelRelease {
+		return false
+	}
+	if !reflect.DeepEqual(a.IPs, b.IPs) {
+		return false
+	}
+	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {
+		return false
+	}
+	if a.UpdatedAt.Unix() != b.UpdatedAt.Unix() {
+		return false
+	}
+
+	return true
 }
 
 //HostIPResource contains information about a specific IP available as a resource

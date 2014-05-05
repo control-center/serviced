@@ -124,7 +124,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		templateID := ctx.Args()[0]
 		if template, err := c.driver.GetServiceTemplate(templateID); err != nil {
-			fmt.Fprintf(os.Stderr, "error trying to retrieve template: %s\n", err)
+			fmt.Fprintln(os.Stderr, err)
 		} else if template == nil {
 			fmt.Fprintln(os.Stderr, "template not found")
 		} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
@@ -137,7 +137,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 
 	templates, err := c.driver.GetServiceTemplates()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error trying to retrieve templates: %s\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if templates == nil || len(templates) == 0 {
 		fmt.Fprintln(os.Stderr, "no templates found")
@@ -206,7 +206,7 @@ func (c *ServicedCli) cmdTemplateRemove(ctx *cli.Context) {
 func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 3 {
-		fmt.Println("Incorrect Usage.\n\n")
+		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "deploy")
 		return
 	}
@@ -220,6 +220,8 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 
 	if service, err := c.driver.DeployServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
 		fmt.Println(service.Id)
 	}
@@ -229,7 +231,7 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Println("Incorrect Usage.\n\n")
+		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "compile")
 		return
 	}

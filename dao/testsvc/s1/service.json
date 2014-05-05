@@ -8,7 +8,7 @@
               "Purpose": "export",
               "AddressConfig": {
                               "Port": 1000,
-                              "Protocol": "TCP"
+                              "Protocol": "tcp"
                           }
             },{
               "Name": "websvc",
