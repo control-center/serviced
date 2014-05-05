@@ -815,7 +815,8 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		return err
 	}
 
-	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId); err != nil {
+	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId)
+	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
@@ -824,7 +825,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		msg := fmt.Sprintf("No static IP addresses are available in pool %s.", myService.PoolId)
 		return errors.New(msg)
 	}
-	glog.Infof("Pool %v contains %v available static IP(s)", service.PoolId, len(poolIPs.HostIPs))
+	glog.Infof("Pool %v contains %v available static IP(s)", myService.PoolId, len(poolIPs.HostIPs))
 
 	rand.Seed(time.Now().UTC().UnixNano())
 	userProvidedIPAssignment := false
