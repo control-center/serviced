@@ -453,8 +453,10 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	})
 
 	cfg := api.ProxyConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   ctx.Args().Tail(),
+		ServiceID:  ctx.Args().Get(0),
+		HostID:     ctx.Args().Get(1),
+		InstanceID: ctx.Args().Get(2),
+		Command:    ctx.Args()[3:],
 	}
 
 	if err := c.driver.StartProxy(cfg); err != nil {
