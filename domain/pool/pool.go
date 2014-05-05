@@ -4,7 +4,10 @@
 
 package pool
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 type VirtualIP struct {
 	ID            string
@@ -41,7 +44,10 @@ func (a *ResourcePool) Equals(b *ResourcePool) bool {
 	if a.ParentID != b.ParentID {
 		return false
 	}
-	// TODO Add comparison for VirtualIPs
+	// TODO: Fix me! DeepEqual will return true only if the order is identical
+	if reflect.DeepEqual(a.VirtualIPs, b.VirtualIPs) {
+		return false
+	}
 	if a.Priority != b.Priority {
 		return false
 	}

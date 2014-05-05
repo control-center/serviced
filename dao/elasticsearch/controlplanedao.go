@@ -817,7 +817,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 
 	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId)
 	if err != nil {
-		glog.Errorf("GetPoolsIPInfo failed: %v", err)
+		glog.Errorf("GetPoolIPs failed: %v", err)
 		return err
 	}
 
@@ -830,15 +830,18 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	rand.Seed(time.Now().UTC().UnixNano())
 	userProvidedIPAssignment := false
 	selectedHostId := ""
+	assignmentType := ""
 
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
 		randomIPIndex := rand.Intn(len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs))
 		if randomIPIndex < len(poolIPs.HostIPs) {
+			assignmentType = "static"
 			assignmentRequest.IpAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
 			selectedHostId = poolIPs.HostIPs[randomIPIndex].HostID
 		} else {
+			assignmentType = "virtual"
 			randomIPIndex = randomIPIndex - len(poolIPs.HostIPs)
 			assignmentRequest.IpAddress = poolIPs.VirtualIPs[randomIPIndex].IP
 			// TODO: Should we somehow know what host has a virtual IP???
@@ -853,6 +856,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 
 		for _, hostIPResource := range poolIPs.HostIPs {
 			if assignmentRequest.IpAddress == hostIPResource.IPAddress {
+				assignmentType = "static"
 				validIp = true
 				assignmentRequest.IpAddress = hostIPResource.IPAddress
 				selectedHostId = hostIPResource.HostID
@@ -863,6 +867,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		if !validIp {
 			for _, virtualIP := range poolIPs.VirtualIPs {
 				if assignmentRequest.IpAddress == virtualIP.IP {
+					assignmentType = "virtual"
 					validIp = true
 					assignmentRequest.IpAddress = virtualIP.IP
 					// TODO: Should we somehow know what host has a virtual IP???
@@ -906,7 +911,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					}
 				}
 				assignment := service.AddressAssignment{}
-				assignment.AssignmentType = "static"
+				assignment.AssignmentType = assignmentType
 				assignment.HostID = selectedHostId
 				assignment.PoolID = myService.PoolId
 				assignment.IPAddr = assignmentRequest.IpAddress
@@ -1273,8 +1278,10 @@ func (this *ControlPlaneDao) AssignAddress(assignment service.AddressAssignment,
 		}
 	case "virtual":
 		{
-			// TODO: need to check if virtual IP exists
-			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
+			//verify the IP provided is contained in the pool
+			if err := this.validVirtualIp(assignment.PoolID, assignment.IPAddr); err != nil {
+				return err
+			}
 		}
 	default:
 		//Validate above should handle this but left here for completenes
@@ -1307,7 +1314,6 @@ func (this *ControlPlaneDao) AssignAddress(assignment service.AddressAssignment,
 }
 
 func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
-
 	host, err := this.facade.GetHost(datastore.Get(), hostId)
 	if err != nil {
 		return err
@@ -1318,6 +1324,29 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 	found := false
 	for _, ip := range host.IPs {
 		if ip.IPAddress == ipAddr {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) validVirtualIp(poolID string, ipAddr string) error {
+	myPool, err := this.facade.GetResourcePool(datastore.Get(), poolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %s", poolID)
+		return err
+	}
+	if myPool == nil {
+		return fmt.Errorf("poolid %s not found", poolID)
+	}
+
+	found := false
+	for _, virtualIP := range myPool.VirtualIPs {
+		if virtualIP.IP == ipAddr {
 			found = true
 			break
 		}
