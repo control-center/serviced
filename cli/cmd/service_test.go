@@ -6,57 +6,63 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"testing"
 
 	"github.com/zenoss/serviced/cli/api"
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 const (
-	IPAddressNotFound = "IP ADDRESS NOT FOUND"
+	NilService = "NilService"
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
 	services:  DefaultTestServices,
+	pools:     DefaultTestPools,
 	snapshots: DefaultTestSnapshots,
 }
 
 var DefaultTestServices = []*service.Service{
 	{
-		Id:           "test-service-1",
-		Name:         "Zenoss",
-		Startup:      "startup command 1",
-		Instances:    0,
-		ImageId:      "quay.io/zenossinc/tenantid1-core5x",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		DeploymentId: "Zenoss-resmgr",
+		Id:             "test-service-1",
+		Name:           "Zenoss",
+		Startup:        "startup command 1",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        "quay.io/zenossinc/tenantid1-core5x",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		DeploymentId:   "Zenoss-resmgr",
 		Runs: map[string]string{
 			"hello":   "echo hello world",
 			"goodbye": "echo goodbye world",
 		},
 	}, {
-		Id:           "test-service-2",
-		Name:         "Zope",
-		Startup:      "startup command 2",
-		Instances:    1,
-		ImageId:      "quay.io/zenossinc/tenantid2-core5x",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		DeploymentId: "Zenoss-core",
+		Id:             "test-service-2",
+		Name:           "Zope",
+		Startup:        "startup command 2",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
+		ImageId:        "quay.io/zenossinc/tenantid2-core5x",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		DeploymentId:   "Zenoss-core",
 	}, {
-		Id:           "test-service-3",
-		Name:         "zencommand",
-		Startup:      "startup command 3",
-		Instances:    2,
-		ImageId:      "quay.io/zenossinc/tenantid1-opentsdb",
-		PoolId:       "remote",
-		DesiredState: 1,
-		Launch:       "manual",
-		DeploymentId: "Zenoss-core",
+		Id:             "test-service-3",
+		Name:           "zencommand",
+		Startup:        "startup command 3",
+		Instances:      2,
+		InstanceLimits: domain.MinMax{2, 2},
+		ImageId:        "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolId:         "remote",
+		DesiredState:   1,
+		Launch:         "manual",
+		DeploymentId:   "Zenoss-core",
 	},
 }
 
@@ -68,7 +74,9 @@ var (
 
 type ServiceAPITest struct {
 	api.API
+	fail      bool
 	services  []*service.Service
+	pools     []*pool.ResourcePool
 	snapshots []string
 }
 
@@ -77,49 +85,75 @@ func InitServiceAPITest(args ...string) {
 }
 
 func (t ServiceAPITest) GetServices() ([]*service.Service, error) {
+	if t.fail {
+		return nil, ErrInvalidService
+	}
 	return t.services, nil
 }
 
+func (t ServiceAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+	if t.fail {
+		return nil, ErrInvalidService
+	}
+	return t.pools, nil
+}
+
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
-	for i, s := range t.services {
+	if t.fail {
+		return nil, ErrInvalidService
+	}
+
+	for _, s := range t.services {
 		if s.Id == id {
-			return t.services[i], nil
+			return s, nil
 		}
 	}
 
-	return nil, ErrNoServiceFound
+	return nil, nil
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
-	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	if t.fail {
+		return nil, ErrInvalidService
+	} else if config.Name == NilService {
+		return nil, nil
+	}
+
+	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 	for _, e := range *config.RemotePorts {
 		e.Purpose = "remote"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 
 	s := service.Service{
-		Id:        fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
-		Name:      config.Name,
-		PoolId:    config.PoolID,
-		ImageId:   config.ImageID,
-		Endpoints: endpoints,
-		Startup:   config.Command,
-		Instances: 1,
+		Id:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
+		Name:           config.Name,
+		PoolId:         config.PoolID,
+		ImageId:        config.ImageID,
+		Endpoints:      endpoints,
+		Startup:        config.Command,
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
 	}
 
 	return &s, nil
 }
 
 func (t ServiceAPITest) RemoveService(id string) error {
-	_, err := t.GetService(id)
-	return err
+	if s, err := t.GetService(id); err != nil {
+		return err
+	} else if s == nil {
+		return ErrNoServiceFound
+	}
+
+	return nil
 }
 
 func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error) {
@@ -137,8 +171,10 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 }
 
 func (t ServiceAPITest) StartService(id string) (*host.Host, error) {
-	if _, err := t.GetService(id); err != nil {
+	if s, err := t.GetService(id); err != nil {
 		return nil, err
+	} else if s == nil {
+		return nil, nil
 	}
 
 	h := host.Host{
@@ -149,33 +185,46 @@ func (t ServiceAPITest) StartService(id string) (*host.Host, error) {
 }
 
 func (t ServiceAPITest) StopService(id string) error {
-	if _, err := t.GetService(id); err != nil {
+	if s, err := t.GetService(id); err != nil {
 		return err
+	} else if s == nil {
+		return ErrNoServiceFound
 	}
 
 	return nil
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
-	if _, err := t.GetService(config.ServiceID); err != nil {
+	if s, err := t.GetService(config.ServiceID); err != nil {
 		return "", err
+	} else if s == nil {
+		return "", nil
+	} else if config.IPAddress == "" {
+		return "0.0.0.0", nil
 	}
 
-	switch config.IPAddress {
-	case IPAddressNotFound:
-		return "", nil
-	case "":
-		return "0.0.0.0", nil
-	default:
-		return config.IPAddress, nil
-	}
+	return config.IPAddress, nil
 }
 
 func (t ServiceAPITest) StartProxy(config api.ProxyConfig) error {
+	if s, err := t.GetService(config.ServiceID); err != nil {
+		return err
+	} else if s == nil {
+		return ErrNoServiceFound
+	}
+
+	fmt.Printf("%s\n", strings.Join(config.Command, " "))
 	return nil
 }
 
 func (t ServiceAPITest) StartShell(config api.ShellConfig) error {
+	if s, err := t.GetService(config.ServiceID); err != nil {
+		return err
+	} else if s == nil {
+		return ErrNoServiceFound
+	}
+
+	fmt.Printf("%s %s\n", config.Command, strings.Join(config.Args, " "))
 	return nil
 }
 
@@ -183,6 +232,8 @@ func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
 	s, err := t.GetService(config.ServiceID)
 	if err != nil {
 		return err
+	} else if s == nil {
+		return ErrNoServiceFound
 	}
 
 	command, ok := s.Runs[config.Command]
@@ -194,11 +245,11 @@ func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
 	return nil
 }
 
-func (t ServiceAPITest) GetSnapshots() ([]string, error) {
-	return t.snapshots, nil
-}
-
 func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]string, error) {
+	if t.fail {
+		return nil, ErrInvalidSnapshot
+	}
+
 	var snapshots []string
 	for _, s := range t.snapshots {
 		if strings.HasPrefix(s, id) {
@@ -210,131 +261,157 @@ func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]string, error) {
 }
 
 func (t ServiceAPITest) AddSnapshot(id string) (string, error) {
+	s, err := t.GetService(id)
+	if err != nil {
+		return "", ErrInvalidSnapshot
+	} else if s == nil {
+		return "", nil
+	}
+
 	return fmt.Sprintf("%s-snapshot", id), nil
 }
 
-func ExampleServicedCli_cmdServiceList() {
-	InitServiceAPITest("serviced", "service", "list", "-v")
+func TestServicedCLI_CmdServiceList_one(t *testing.T) {
+	serviceID := "test-service-1"
 
-	// Output:
-	// [
-	//    {
-	//      "Id": "test-service-1",
-	//      "Name": "Zenoss",
-	//      "Context": "",
-	//      "Startup": "startup command 1",
-	//      "Description": "",
-	//      "Tags": null,
-	//      "ConfigFiles": null,
-	//      "Instances": 0,
-	//      "ImageId": "quay.io/zenossinc/tenantid1-core5x",
-	//      "PoolId": "default",
-	//      "DesiredState": 1,
-	//      "HostPolicy": "",
-	//      "Hostname": "",
-	//      "Privileged": false,
-	//      "Launch": "auto",
-	//      "Endpoints": null,
-	//      "Tasks": null,
-	//      "ParentServiceId": "",
-	//      "Volumes": null,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "DeploymentId": "Zenoss-resmgr",
-	//      "DisableImage": false,
-	//      "LogConfigs": null,
-	//      "Snapshot": {
-	//        "Pause": "",
-	//        "Resume": ""
-	//      },
-	//      "Runs": {
-	//        "goodbye": "echo goodbye world",
-	//        "hello": "echo hello world"
-	//      },
-	//      "RAMCommitment": 0,
-	//      "Actions": null,
-	//      "HealthChecks": null
-	//    },
-	//    {
-	//      "Id": "test-service-2",
-	//      "Name": "Zope",
-	//      "Context": "",
-	//      "Startup": "startup command 2",
-	//      "Description": "",
-	//      "Tags": null,
-	//      "ConfigFiles": null,
-	//      "Instances": 1,
-	//      "ImageId": "quay.io/zenossinc/tenantid2-core5x",
-	//      "PoolId": "default",
-	//      "DesiredState": 1,
-	//      "HostPolicy": "",
-	//      "Hostname": "",
-	//      "Privileged": false,
-	//      "Launch": "auto",
-	//      "Endpoints": null,
-	//      "Tasks": null,
-	//      "ParentServiceId": "",
-	//      "Volumes": null,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "DeploymentId": "Zenoss-core",
-	//      "DisableImage": false,
-	//      "LogConfigs": null,
-	//      "Snapshot": {
-	//        "Pause": "",
-	//        "Resume": ""
-	//      },
-	//      "Runs": null,
-	//      "RAMCommitment": 0,
-	//      "Actions": null,
-	//      "HealthChecks": null
-	//    },
-	//    {
-	//      "Id": "test-service-3",
-	//      "Name": "zencommand",
-	//      "Context": "",
-	//      "Startup": "startup command 3",
-	//      "Description": "",
-	//      "Tags": null,
-	//      "ConfigFiles": null,
-	//      "Instances": 2,
-	//      "ImageId": "quay.io/zenossinc/tenantid1-opentsdb",
-	//      "PoolId": "remote",
-	//      "DesiredState": 1,
-	//      "HostPolicy": "",
-	//      "Hostname": "",
-	//      "Privileged": false,
-	//      "Launch": "manual",
-	//      "Endpoints": null,
-	//      "Tasks": null,
-	//      "ParentServiceId": "",
-	//      "Volumes": null,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z",
-	//      "DeploymentId": "Zenoss-core",
-	//      "DisableImage": false,
-	//      "LogConfigs": null,
-	//      "Snapshot": {
-	//        "Pause": "",
-	//        "Resume": ""
-	//      },
-	//      "Runs": null,
-	//      "RAMCommitment": 0,
-	//      "Actions": null,
-	//      "HealthChecks": null
-	//    }
-	//  ]
+	expected, err := DefaultServiceAPITest.GetService(serviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual service.Service
+	output := pipe(InitServiceAPITest, "serviced", "service", "list", serviceID)
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshaling resource: %s", err)
+	}
+
+	// Did you remember to update Service.Equals?
+	if !actual.Equals(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
 }
 
-func ExampleServicedCli_cmdServiceAdd() {
-	InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash")
+func TestServicedCLI_CmdServiceList_all(t *testing.T) {
+	expected, err := DefaultServiceAPITest.GetServices()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual []*service.Service
+	output := pipe(InitServiceAPITest, "serviced", "service", "list", "--verbose")
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshaling resource: %s", err)
+	}
+
+	// Did you remember to update Service.Equals?
+	if len(actual) != len(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+	for i := range actual {
+		if !actual[i].Equals(expected[i]) {
+			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+		}
+	}
+}
+
+func ExampleServicedCLI_CmdServiceList() {
+	// Gofmt cleans up the spaces at the end of each row
+	InitServiceAPITest("serviced", "service", "list")
+}
+
+func ExampleServicedCLI_CmdServiceList_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	// Error retrieving service
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-1")
+	// Error retrieving all services
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list")
+
+	// Output:
+	// invalid service
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceList_err() {
+	DefaultServiceAPITest.services = nil
+	defer func() { DefaultServiceAPITest.services = DefaultTestServices }()
+	// Service not found
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-0")
+	// No Services found
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list")
+
+	// Output:
+	// service not found
+	// no services found
+}
+
+func ExampleServicedCLI_CmdServiceList_complete() {
+	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
+
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
+
+	// Output:
+	// test-service-1
+	// test-service-2
+	// test-service-3
+}
+
+func ExampleServicedCLI_CmdServiceAdd() {
+	InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
 
 	// Output:
 	// test-service-test-pool-test-image
 }
 
-func ExampleServicedCli_cmdServiceRemove() {
-	InitServiceAPITest("serviced", "service", "rm", "test-service-1", "test-service-0")
+func ExampleServicedCLI_CmdServiceAdd_usage() {
+	InitServiceAPITest("serviced", "service", "add")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    add - Adds a new service
+	//
+	// USAGE:
+	//    command add [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service list NAME POOLID IMAGEID COMMAND
+	//
+	// OPTIONS:
+	//    -p 	`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
+	//    -q 	`-q option -q option` Map a remote service port (e.g. -q tcp:3306:mysql)
+}
+
+func ExampleServicedCLI_CmdServiceAdd_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceAdd_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "add", NilService, "test-pool", "test-image", "bash -c lsof")
+
+	// Output:
+	// received nil service definition
+}
+
+func ExampleServicedCLI_CmdServiceAdd_complete() {
+	InitServiceAPITest("serviced", "service", "add", "test-service", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+}
+
+func ExampleServicedCLI_CmdServiceRemove() {
+	InitServiceAPITest("serviced", "service", "remove", "test-service-1")
 
 	// Output:
 	// test-service-1
@@ -358,18 +435,75 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	// OPTIONS:
 }
 
-func ExampleServicedCli_cmdServiceEdit() {
+func ExampleServicedCLI_CmdServiceRemove_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-0")
+
+	// Output:
+	// test-service-0: no service found
+}
+
+func ExampleServicedCLI_CmdServiceRemove_complete() {
+	InitServiceAPITest("serviced", "service", "remove", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "remove", "test-service-2", "--generate-bash-completion")
+
+	// Output:
+	// test-service-1
+	// test-service-2
+	// test-service-3
+	//
+	// test-service-1
+	// test-service-3
+}
+
+func ExampleServicedCLI_CmdServiceEdit() {
+	// This opens an editor, so I am not sure how to test this yet :)
 	InitServiceAPITest("serviced", "service", "edit", "test-service-1")
 }
 
-func ExampleServicedCli_cmdServiceAssignIPs() {
-	// Service does not exist
-	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-0")
-	// IP Address not returned
-	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-3", IPAddressNotFound)
-	// Auto-assignment
+func ExampleServicedCLI_CmdServiceEdit_usage() {
+	InitServiceAPITest("serviced", "service", "edit")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    edit - Edits an existing service in a text editor
+	//
+	// USAGE:
+	//    command edit [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service edit SERVICEID
+	//
+	// OPTIONS:
+	//    --editor, -e 	Editor used to update the service definition
+}
+
+func ExampleServicedCLI_CmdServiceEdit_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	// Failed to get service
+	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-1")
+	// TODO: Failed to update service
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceEdit_err() {
+	// Service not found
+	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-0")
+	// TODO: Nil Service after update
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceAssignIPs() {
+	// Auto-assign
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-1")
-	// Manual-assignment
+	// Manual-assign
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-2", "127.0.0.1")
 
 	// Output:
@@ -395,28 +529,164 @@ func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
 	// OPTIONS:
 }
 
-func ExampleServicedCli_cmdServiceStart() {
+func ExampleServicedCLI_CmdServiceAssignIPs_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-3")
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceAssignIPs_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-0", "100.99.88.1")
+
+	// Output:
+	// received nil host resource
+}
+
+func ExampleServicedCLI_CmdServiceStart() {
 	InitServiceAPITest("serviced", "service", "start", "test-service-1")
 
 	// Output:
 	// Service scheduled to start on host: test-service-1-host
 }
 
-func ExampleServicedCli_cmdServiceStop() {
+func ExampleServicedCLI_CmdServiceStart_usage() {
+	InitServiceAPITest("serviced", "service", "start")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    start - Starts a service
+	//
+	// USAGE:
+	//    command start [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service start SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceStart_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-1")
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceStart_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-0")
+
+	// Output:
+	// received nil host
+}
+
+func ExampleServicedCLI_CmdServiceStop() {
 	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
 
 	// Output:
 	// Service scheduled to stop.
 }
 
-func ExampleServicedCli_cmdServiceProxy() {
+func ExampleServicedCLI_CmdServiceStop_usage() {
+	InitServiceAPITest("serviced", "service", "stop")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    stop - Stops a service
+	//
+	// USAGE:
+	//    command stop [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service stop SERVICEID
+	//
+	// OPTIONS:
 }
 
-func ExampleServicedCli_cmdServiceShell() {
+func ExampleServicedCLI_CmdServiceStop_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "stop", "test-service-0")
+
+	// Output:
+	// no service found
 }
 
-func ExampleServicedCli_cmdServiceRun_list() {
-	InitServiceAPITest("serviced", "service", "run", "test-service-0")
+func ExampleServicedCLI_CmdServiceProxy() {
+	InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "some", "command")
+
+	// Output:
+	// some command
+}
+
+func ExampleServicedCLI_CmdServiceProxy_usage() {
+	// FIXME: Non-reproducible error on buildbox
+	InitServiceAPITest("serviced", "service", "proxy")
+
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    proxy - Starts a server proxy for a container
+	//
+	// USAGE:
+	//    command proxy [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service proxy SERVICEID COMMAND
+	//
+	// OPTIONS:
+	//    --muxport '22250'			multiplexing port to use
+	//    --mux				enable port multiplexing
+	//    --tls				enable tls
+	//    --keyfile 				path to private key file (defaults to compiled in private keys
+	//    --certfile 				path to public certificate file (defaults to compiled in public cert)
+	//    --endpoint '10.87.103.1:4979'	serviced endpoint address
+	//    --autorestart			restart process automatically when it finishes
+	//    --logstash				forward service logs via logstash-forwarder
+	//
+}
+
+func ExampleServicedCLI_CmdServiceShell() {
+	InitServiceAPITest("serviced", "service", "shell", "test-service-1", "some", "command")
+
+	// Output:
+	// some command
+}
+
+func ExampleServicedCLI_CmdServiceShell_usage() {
+	InitServiceAPITest("serviced", "service", "shell")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    shell - Starts a service instance
+	//
+	// USAGE:
+	//    command shell [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service shell SERVICEID COMMAND
+	//
+	// OPTIONS:
+	//    --saveas, -s 	saves the service instance with the given name
+	//    --interactive, -i	runs the service instance as a tty
+}
+
+func ExampleServicedCLI_CmdServiceShell_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "shell", "test-service-0", "some", "command")
+
+	// Output:
+	// no service found
+}
+
+func ExampleServicedCLI_CmdServiceRun_list() {
 	InitServiceAPITest("serviced", "service", "run", "test-service-1")
 
 	// Output:
@@ -424,9 +694,8 @@ func ExampleServicedCli_cmdServiceRun_list() {
 	// goodbye
 }
 
-func ExampleServicedCli_cmdServiceRun_exec() {
-	InitServiceAPITest("serviced", "service", "run", "test-service-1", "notfound")
-	InitServiceAPITest("serviced", "service", "run", "test-service-1", "hello", "-i")
+func ExampleServicedCLI_CmdServiceRun_exec() {
+	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "hello", "-i")
 
 	// Output:
 	// echo hello world -i
@@ -450,4 +719,113 @@ func ExampleServicedCLI_CmdServiceRun_usage() {
 	// OPTIONS:
 	//    --saveas, -s 	saves the service instance with the given name
 	//    --interactive, -i	runs the service instance as a tty
+}
+
+func ExampleServicedCLI_CmdServiceRun_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "run", "test-service-0", "goodbye")
+
+	// Output:
+	// no service found
+}
+
+func ExampleServicedCLI_CmdServiceRun_complete() {
+	// FIXME: Does not print run commands
+	InitServiceAPITest("serviced", "service", "run", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "run", "test-service-1", "--generate-bash-completion")
+	fmt.Println("")
+	InitServiceAPITest("serviced", "service", "run", "test-service-2", "--generate-bash-completion")
+
+	// test-service-1
+	// test-service-2
+	// test-service-3
+	//
+	// hello
+	// goodbye
+}
+
+// TODO: ServicedCLI.CmdServiceAttach
+// TODO: ServicedCLI.CmdServiceAction
+
+func ExampleServicedCLI_CmdServiceListSnapshots() {
+	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1")
+
+	// Output:
+	// test-service-1-snapshot-1
+	// test-service-1-snapshot-2
+}
+
+func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
+	InitServiceAPITest("serviced", "service", "list-snapshots")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    list-snapshots - Lists the snapshots for a service
+	//
+	// USAGE:
+	//    command list-snapshots [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service list-snapshots SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1")
+
+	// Output:
+	// invalid snapshot
+}
+
+func ExampleServicedCLI_CmdServiceListSnapshots_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-3")
+
+	// Output:
+	// no snapshots found
+}
+
+func ExampleServicedCLI_CmdServiceSnapshot() {
+	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2")
+
+	// Output:
+	// test-service-2-snapshot
+}
+
+func ExampleServicedCLI_CmdServiceSnapshot_usage() {
+	InitServiceAPITest("serviced", "service", "snapshot")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    snapshot - Takes a snapshot of the service
+	//
+	// USAGE:
+	//    command snapshot [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service snapshot SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceSnapshot_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-1")
+
+	// Output:
+	// invalid snapshot
+}
+
+func ExampleServicedCLI_CmdServiceSnapshot_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-0")
+
+	// Output:
+	// received nil snapshot
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/cli/api"
@@ -67,12 +68,7 @@ func (c *ServicedCli) printHostsFirst(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
-
-	for _, h := range c.hosts() {
-		fmt.Println(h)
-	}
-
-	return
+	fmt.Println(strings.Join(c.hosts(), "\n"))
 }
 
 // Bash-completion command that prints a list of available hosts as all
@@ -102,12 +98,7 @@ func (c *ServicedCli) printHostAdd(ctx *cli.Context) {
 	case 1:
 		output = c.pools()
 	}
-
-	for _, o := range output {
-		fmt.Println(o)
-	}
-
-	return
+	fmt.Println(strings.Join(output, "\n"))
 }
 
 // serviced host list [--verbose, -v] [HOSTID]

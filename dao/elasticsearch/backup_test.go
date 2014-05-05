@@ -6,8 +6,10 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/service"
 	. "gopkg.in/check.v1"
 
 	"fmt"
@@ -240,7 +242,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		serviceId      string
 		backupFilePath string
 		templates      map[string]*servicetemplate.ServiceTemplate
-		services       []*dao.Service
+		services       []*service.Service
 	)
 
 	// Create a minimal docker image
@@ -292,16 +294,17 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		Services:    []servicedefinition.ServiceDefinition{template_service},
 	}
 
-	service := dao.Service{
-		Id:           "testservice", //FIXME: Can't snapshot with a "_" in it.
-		Name:         "test_service",
-		Startup:      "echo",
-		Instances:    0,
-		ImageId:      imageId,
-		PoolId:       "default",
-		DesiredState: 0,
-		Volumes:      []servicedefinition.Volume{template_volume},
-		DeploymentId: "backup_test",
+	svc := service.Service{
+		Id:             "testservice", //FIXME: Can't snapshot with a "_" in it.
+		Name:           "test_service",
+		Startup:        "echo",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        imageId,
+		PoolId:         "default",
+		DesiredState:   0,
+		Volumes:        []servicedefinition.Volume{template_volume},
+		DeploymentId:   "backup_test",
 	}
 
 	originalImageIds, e := all_docker_images(t)
@@ -322,11 +325,11 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	defer dt.Dao.RemoveServiceTemplate(templateId, &unused)
 
 	// Create a minimal service, based on the template.
-	if e := dt.Dao.AddService(service, &serviceId); e != nil {
-		t.Fatalf("Failed to add service (%+v): %s", service, e)
+	if e := dt.Dao.AddService(svc, &serviceId); e != nil {
+		t.Fatalf("Failed to add service (%+v): %s", svc, e)
 	}
 	defer dt.Dao.RemoveService(serviceId, &unused)
-	if e := dt.Dao.GetService(serviceId, &service); e != nil {
+	if e := dt.Dao.GetService(serviceId, &svc); e != nil {
 		t.Fatalf("Failed to find serviced that was just added: %s", e)
 	}
 

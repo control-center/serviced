@@ -30,6 +30,43 @@ type ResourcePool struct {
 	UpdatedAt      time.Time
 }
 
+// Equal returns true if two resource pools are equal
+func (a *ResourcePool) Equals(b *ResourcePool) bool {
+	if a.ID != b.ID {
+		return false
+	}
+	if a.Description != b.Description {
+		return false
+	}
+	if a.ParentID != b.ParentID {
+		return false
+	}
+	// TODO Add comparison for VirtualIPs
+	if a.Priority != b.Priority {
+		return false
+	}
+	if a.CoreLimit != b.CoreLimit {
+		return false
+	}
+	if a.MemoryLimit != b.MemoryLimit {
+		return false
+	}
+	if a.CoreCapacity != b.CoreCapacity {
+		return false
+	}
+	if a.MemoryCapacity != b.MemoryCapacity {
+		return false
+	}
+	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {
+		return false
+	}
+	if a.UpdatedAt.Unix() != b.CreatedAt.Unix() {
+		return false
+	}
+
+	return true
+}
+
 // New creates new ResourcePool
 func New(id string) *ResourcePool {
 	pool := &ResourcePool{}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 var empty interface{}
@@ -306,7 +307,7 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 }
 
 func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
-	var service dao.Service
+	var svc service.Service
 
 	// Create a control plane client to look up the service
 	cp, err := serviced.NewControlClient(port)
@@ -316,7 +317,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	glog.Infof("Connected to the control plane at port %s", port)
 
-	if err := cp.GetService(cfg.ServiceId, &service); err != nil {
+	if err := cp.GetService(cfg.ServiceId, &svc); err != nil {
 		glog.Errorf("unable to find service %s", cfg.ServiceId)
 		return nil, err
 	}
@@ -350,7 +351,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		"proxy",
 		"--autorestart=false",
 		"--logstash=false",
-		service.Id,
+		svc.Id,
 		shellcmd,
 	}
 
@@ -375,7 +376,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		argv = append(argv, "-t")
 	}
 	// set the systemuser and password
-	unused := 0;
+	unused := 0
 	systemUser := dao.User{}
 	err = cp.GetSystemUser(unused, &systemUser)
 	if err != nil {
@@ -384,7 +385,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 
-	argv = append(argv, service.ImageId)
+	argv = append(argv, svc.ImageId)
 	argv = append(argv, proxycmd...)
 
 	// wait for the DFS to be ready in order to start container on the latest image

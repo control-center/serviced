@@ -173,10 +173,7 @@ func (c *ServicedCli) printServicesFirst(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		return
 	}
-
-	for _, s := range c.services() {
-		fmt.Println(s)
-	}
+	fmt.Println(strings.Join(c.services(), "\n"))
 }
 
 // Bash-completion command that prints a list of available services as all
@@ -209,10 +206,7 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 	case 1:
 		output = c.serviceRuns(args[0])
 	}
-
-	for _, o := range output {
-		fmt.Println(o)
-	}
+	fmt.Println(strings.Join(output, "\n"))
 }
 
 // Bash-completion command that completes the pool ID as the first argument
@@ -227,10 +221,7 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 	case 2:
 		// TODO: get a list of the docker images
 	}
-
-	for _, o := range output {
-		fmt.Println(o)
-	}
+	fmt.Println(strings.Join(output, "\n"))
 }
 
 // serviced service list [--verbose, -v] [SERVICEID]

@@ -13,32 +13,34 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/isvcs"
 
 	"fmt"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"testing"
 	"time"
 )
 
 var startup_testcases = []struct {
-	service  dao.Service
+	service  service.Service
 	expected string
 }{
-	{dao.Service{
+	{service.Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -60,18 +62,19 @@ var startup_testcases = []struct {
 		},
 		Actions: map[string]string{"debug": "{{.Name}} debug", "stats": "{{.Name}} stats"},
 	}, ""},
-	{dao.Service{
+	{service.Service{
 		Id:              "1",
 		Name:            "Collector",
 		Context:         "{\"RemoteHost\":\"a_hostname\"}",
 		Startup:         "",
 		Description:     "",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "0",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -79,36 +82,38 @@ var startup_testcases = []struct {
 		Snapshot:        servicedefinition.SnapshotCommands{},
 		Actions:         map[string]string{},
 	}, ""},
-	{dao.Service{
+	{service.Service{
 		Id:              "2",
 		Name:            "pinger",
 		Context:         "{\"Count\": 32}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []servicedefinition.LogConfig{},
 		Snapshot:        servicedefinition.SnapshotCommands{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
-	{dao.Service{
+	{service.Service{
 		Id:              "3",
 		Name:            "/bin/sh",
 		Context:         "",
 		Startup:         "{{.Name}} ls -l .",
 		Description:     "Execute ls -l on .",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/bin_sh",
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -118,42 +123,46 @@ var startup_testcases = []struct {
 }
 
 var endpoint_testcases = []struct {
-	service  dao.Service
+	service  service.Service
 	expected string
 }{
-	{dao.Service{
+	{service.Service{
 		Id:              "100",
 		Name:            "Zenoss",
 		Context:         "{\"RemoteHost\":\"hostname\"}",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}, ""},
-	{dao.Service{
-		Id:           "101",
-		Name:         "Collector",
-		Context:      "",
-		Startup:      "",
-		Description:  "",
-		Instances:    0,
-		ImageId:      "",
-		PoolId:       "",
-		DesiredState: 0,
-		Launch:       "",
-		Endpoints: []servicedefinition.ServiceEndpoint{
-			servicedefinition.ServiceEndpoint{
-				Purpose:     "something",
-				Protocol:    "tcp",
-				PortNumber:  1000,
-				Application: "{{(context (parent .)).RemoteHost}}_collector",
+	{service.Service{
+		Id:             "101",
+		Name:           "Collector",
+		Context:        "",
+		Startup:        "",
+		Description:    "",
+		Instances:      0,
+		InstanceLimits: domain.MinMax{0, 0},
+		ImageId:        "",
+		PoolId:         "",
+		DesiredState:   0,
+		Launch:         "",
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				EndpointDefinition: servicedefinition.EndpointDefinition{
+					Purpose:     "something",
+					Protocol:    "tcp",
+					PortNumber:  1000,
+					Application: "{{(context (parent .)).RemoteHost}}_collector",
+				},
 			},
 		},
 		ParentServiceId: "100",
@@ -288,52 +297,54 @@ func TestEvaluateEndpointTemplate(t *testing.T) {
 }
 
 func TestIncompleteStartupInjection(t *testing.T) {
-	service := dao.Service{
+	svc := service.Service{
 		Id:              "1000",
 		Name:            "pinger",
 		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 		ImageId:         "test/pinger",
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "0987654321",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
-	service.EvaluateStartupTemplate(cp)
-	if service.Startup == "/usr/bin/ping -c 64 zenoss.com" {
+	svc.EvaluateStartupTemplate(cp)
+	if svc.Startup == "/usr/bin/ping -c 64 zenoss.com" {
 		t.Errorf("Not expecting a match")
 	}
 }
 
 func TestStoppingParentStopsChildren(t *testing.T) {
-	service := dao.Service{
-		Id:           "ParentServiceId",
-		Name:         "ParentService",
-		Startup:      "/usr/bin/ping -c localhost",
-		Description:  "Ping a remote host a fixed number of times",
-		Instances:    1,
-		ImageId:      "test/pinger",
-		PoolId:       "default",
-		DesiredState: 1,
-		Launch:       "auto",
-		Endpoints:    []servicedefinition.ServiceEndpoint{},
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+	svc := service.Service{
+		Id:             "ParentServiceId",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
+		ImageId:        "test/pinger",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
-	childService1 := dao.Service{
+	childService1 := service.Service{
 		Id:              "childService1",
 		Name:            "childservice1",
 		Launch:          "auto",
 		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
 		ParentServiceId: "ParentServiceId",
 	}
-	childService2 := dao.Service{
+	childService2 := service.Service{
 		Id:              "childService2",
 		Name:            "childservice2",
 		Launch:          "auto",
@@ -343,8 +354,8 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 	// add a service with a subservice
 	id := "ParentServiceId"
 	var err error
-	if err = cp.AddService(service, &id); err != nil {
-		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", service, err)
+	if err = cp.AddService(svc, &id); err != nil {
+		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
 
 	childService1Id := "childService1"
@@ -359,15 +370,15 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 	var stringUnused string
 	// start the service
 	if err = cp.StartService(id, &stringUnused); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", service, err)
+		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
 	if err = cp.StopService(id, &unused); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", service, err)
+		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
 	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
-	var services []*dao.Service
+	var services []*service.Service
 	err = cp.GetServices(query, &services)
 	for _, subService := range services {
 		if subService.DesiredState == 1 && subService.ParentServiceId == id {
@@ -381,56 +392,60 @@ func TestStoppingParentStopsChildren(t *testing.T) {
 }
 
 func TestAddVirtualHost(t *testing.T) {
-	service := dao.Service{
-		Endpoints: []servicedefinition.ServiceEndpoint{
-			servicedefinition.ServiceEndpoint{
-				Purpose:     "export",
-				Application: "server",
-				VHosts:      nil,
+	svc := service.Service{
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				EndpointDefinition: servicedefinition.EndpointDefinition{
+					Purpose:     "export",
+					Application: "server",
+					VHosts:      nil,
+				},
 			},
 		},
 	}
 
 	var err error
-	if err = service.AddVirtualHost("empty_server", "name"); err == nil {
+	if err = svc.AddVirtualHost("empty_server", "name"); err == nil {
 		t.Errorf("Expected error adding vhost")
 	}
 
-	if err = service.AddVirtualHost("server", "name"); err != nil {
+	if err = svc.AddVirtualHost("server", "name"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
 	//no duplicate hosts can be added... hostnames are case-insensitive
-	if err = service.AddVirtualHost("server", "NAME"); err != nil {
+	if err = svc.AddVirtualHost("server", "NAME"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
-	if len(service.Endpoints[0].VHosts) != 1 && (service.Endpoints[0].VHosts)[0] != "name" {
-		t.Errorf("Virtualhost incorrect, %+v should contain name", service.Endpoints[0].VHosts)
+	if len(svc.Endpoints[0].VHosts) != 1 && (svc.Endpoints[0].VHosts)[0] != "name" {
+		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHosts)
 	}
 }
 
 func TestRemoveVirtualHost(t *testing.T) {
-	service := dao.Service{
-		Endpoints: []servicedefinition.ServiceEndpoint{
-			servicedefinition.ServiceEndpoint{
-				Purpose:     "export",
-				Application: "server",
-				VHosts:      []string{"name0", "name1"},
+	svc := service.Service{
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				EndpointDefinition: servicedefinition.EndpointDefinition{
+					Purpose:     "export",
+					Application: "server",
+					VHosts:      []string{"name0", "name1"},
+				},
 			},
 		},
 	}
 
 	var err error
-	if err = service.RemoveVirtualHost("server", "name0"); err != nil {
+	if err = svc.RemoveVirtualHost("server", "name0"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
-	if len(service.Endpoints[0].VHosts) != 1 && service.Endpoints[0].VHosts[0] != "name1" {
-		t.Errorf("Virtualhost incorrect, %+v should contain one host", service.Endpoints[0].VHosts)
+	if len(svc.Endpoints[0].VHosts) != 1 && svc.Endpoints[0].VHosts[0] != "name1" {
+		t.Errorf("Virtualhost incorrect, %+v should contain one host", svc.Endpoints[0].VHosts)
 	}
 
-	if err = service.RemoveVirtualHost("server", "name0"); err == nil {
+	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
 		t.Errorf("Expected error removing vhost")
 	}
 }

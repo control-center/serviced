@@ -1,7 +1,8 @@
 package dao
 
 import (
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
 )
@@ -39,34 +40,31 @@ type ControlPlane interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	// Add a new service
-	AddService(service Service, serviceId *string) error
+	AddService(service service.Service, serviceId *string) error
 
 	// Update an existing service
-	UpdateService(service Service, unused *int) error
+	UpdateService(service service.Service, unused *int) error
 
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error
 
 	// Get a service from serviced
-	GetService(serviceId string, service *Service) error
+	GetService(serviceId string, service *service.Service) error
 
 	// Get a list of services from serviced
-	GetServices(request EntityRequest, services *[]*Service) error
+	GetServices(request EntityRequest, services *[]*service.Service) error
 
 	// Get services with the given tag(s)
-	GetTaggedServices(request EntityRequest, services *[]*Service) error
+	GetTaggedServices(request EntityRequest, services *[]*service.Service) error
 
 	// Find all service endpoint matches
 	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) error
-
-	// Deploy a service
-	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
 
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
 	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]servicedefinition.AddressAssignment) error
+	GetServiceAddressAssignments(serviceID string, addresses *[]service.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -84,10 +82,10 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Update the service state
-	UpdateServiceState(state ServiceState, unused *int) error
+	UpdateServiceState(state servicestate.ServiceState, unused *int) error
 
 	// Get the services instances for a given service
-	GetServiceStates(serviceId string, states *[]*ServiceState) error
+	GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
@@ -126,13 +124,13 @@ type ControlPlane interface {
 	// Service CRUD
 
 	// Start an interative shell in a service container
-	StartShell(service Service, unused *int) error
+	StartShell(service service.Service, unused *int) error
 
 	// Execute a service container shell command
-	ExecuteShell(service Service, command *string) error
+	ExecuteShell(service service.Service, command *string) error
 
 	// Show available commands
-	ShowCommands(service Service, unused *int) error
+	ShowCommands(service service.Service, unused *int) error
 
 	// Rollback DFS and service image
 	Rollback(snapshotId string, unused *int) error
@@ -156,10 +154,10 @@ type ControlPlane interface {
 	DeleteSnapshots(serviceId string, unused *int) error
 
 	// Download a file from a container
-	Get(service Service, file *string) error
+	Get(service service.Service, file *string) error
 
 	// Upload file(s) to a container
-	Send(service Service, files *[]string) error
+	Send(service service.Service, files *[]string) error
 
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error

@@ -14,7 +14,8 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
 )
@@ -47,15 +48,15 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
-func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
+func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]*service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
 
-func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]*dao.Service) (err error) {
+func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]*service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetTaggedServices", request, replyServices)
 }
 
-func (s *ControlClient) GetService(serviceId string, service *dao.Service) (err error) {
+func (s *ControlClient) GetService(serviceId string, service *service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetService", serviceId, &service)
 }
 
@@ -63,11 +64,11 @@ func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err err
 	return s.rpcClient.Call("ControlPlane.GetTenantId", serviceId, tenantId)
 }
 
-func (s *ControlClient) AddService(service dao.Service, serviceId *string) (err error) {
+func (s *ControlClient) AddService(service service.Service, serviceId *string) (err error) {
 	return s.rpcClient.Call("ControlPlane.AddService", service, serviceId)
 }
 
-func (s *ControlClient) UpdateService(service dao.Service, unused *int) (err error) {
+func (s *ControlClient) UpdateService(service service.Service, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateService", service, unused)
 }
 
@@ -75,15 +76,11 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }
 
-func (s *ControlClient) AddServiceDeployment(deployment dao.ServiceDeployment, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.AddServiceDeployment", deployment, unused)
-}
-
 func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]servicedefinition.AddressAssignment) (err error) {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]service.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 
@@ -111,7 +108,7 @@ func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningSer
 	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices)
 }
 
-func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *dao.ServiceState) error {
+func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceState", request, state)
 }
 
@@ -119,7 +116,7 @@ func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, runni
 	return s.rpcClient.Call("ControlPlane.GetRunningService", request, running)
 }
 
-func (s *ControlClient) GetServiceStates(serviceId string, states *[]*dao.ServiceState) (err error) {
+func (s *ControlClient) GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
 
@@ -135,7 +132,7 @@ func (s *ControlClient) StopService(serviceId string, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.StopService", serviceId, unused)
 }
 
-func (s *ControlClient) UpdateServiceState(state dao.ServiceState, unused *int) (err error) {
+func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
@@ -159,15 +156,15 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
 }
 
-func (s *ControlClient) StartShell(service dao.Service, unused *int) error {
+func (s *ControlClient) StartShell(service service.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
 }
 
-func (s *ControlClient) ExecuteShell(service dao.Service, command *string) error {
+func (s *ControlClient) ExecuteShell(service service.Service, command *string) error {
 	return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
 }
 
-func (s *ControlClient) ShowCommands(service dao.Service, unused *int) error {
+func (s *ControlClient) ShowCommands(service service.Service, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
 }
 
@@ -203,11 +200,11 @@ func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
 }
 
-func (s *ControlClient) Get(service dao.Service, file *string) error {
+func (s *ControlClient) Get(service service.Service, file *string) error {
 	return s.rpcClient.Call("ControlPlane.Get", service, file)
 }
 
-func (s *ControlClient) Send(service dao.Service, files *[]string) error {
+func (s *ControlClient) Send(service service.Service, files *[]string) error {
 	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
 

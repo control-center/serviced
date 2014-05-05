@@ -26,7 +26,7 @@ type ServiceDefinition struct {
 	Privileged    bool                   // Whether to run the container with extended privileges
 	ConfigFiles   map[string]ConfigFile  // Config file templates
 	Context       map[string]interface{} // Context information for the service
-	Endpoints     []ServiceEndpoint      // Comms endpoints used by the service
+	Endpoints     []EndpointDefinition      // Comms endpoints used by the service
 	Services      []ServiceDefinition    // Supporting subservices
 	Tasks         []Task                 // Scheduled tasks for celery to find
 	LogFilters    map[string]string      // map of log filter name to log filter definitions
@@ -45,20 +45,18 @@ type SnapshotCommands struct {
 	Resume string // bash command to resume the volume (unquiesce)
 }
 
-// ServiceEndpoint An endpoint that a Service exposes.
-type ServiceEndpoint struct {
+// EndpointDefinition An endpoint that a Service exposes.
+type EndpointDefinition struct {
 	Name                string // Human readable name of the endpoint. Unique per service definition
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
+	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-
-	AddressAssignment AddressAssignment //TODO: doesn't belong in this package. addressAssignment holds the assignment when Service is started
-
 }
 
 // Task A scheduled task
@@ -145,34 +143,3 @@ func BuildFromPath(path string) (*ServiceDefinition, error) {
 	return sd, sd.ValidEntity()
 }
 
-//TODO: these methods don't belong here on ServiceEndpoint. Service should have a different type with these methods
-
-//AddressAssignment is used to track Ports that have been assigned to a Service. Only exists in the context of a HostIPResource
-type AddressAssignment struct {
-	ID             string //Generated id
-	AssignmentType string //Static or Virtual
-	HostID         string //Host id if type is Static
-	PoolID         string //Pool id if type is Virtual
-	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           uint16 //Actual assigned port
-	ServiceID      string //Service using this assignment
-	EndpointName   string //Endpoint in the service using the assignment
-}
-
-func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
-	if se.AddressConfig.Port == 0 {
-		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
-	}
-	se.AddressAssignment = *aa
-	return nil
-}
-
-//GetAssignment Returns nil if no assignment set
-func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
-	if se.AddressAssignment.ID == "" {
-		return nil
-	}
-	//return reference to copy
-	result := se.AddressAssignment
-	return &result
-}

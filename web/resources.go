@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 
 	"net/url"
@@ -55,14 +56,14 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	w.WriteJson(&SimpleResponse{tenantId, servicesLinks()})
 }
 
-func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
+func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
 		glog.Errorf("Bad name regexp :%s", nmregex)
 		return nil, err
 	}
 
-	matches := []*dao.Service{}
+	matches := []*service.Service{}
 	for _, service := range services {
 		if r.MatchString(service.Name) {
 			matches = append(matches, service)
@@ -72,8 +73,8 @@ func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service,
 	return matches, nil
 }
 
-func getTaggedServices(client *serviced.ControlClient, tags, nmregex string) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getTaggedServices(client *serviced.ControlClient, tags, nmregex string) ([]*service.Service, error) {
+	services := []*service.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
 	if err := client.GetTaggedServices(&ts, &services); err != nil {
@@ -88,8 +89,8 @@ func getTaggedServices(client *serviced.ControlClient, tags, nmregex string) ([]
 	return services, nil
 }
 
-func getNamedServices(client *serviced.ControlClient, nmregex string) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getNamedServices(client *serviced.ControlClient, nmregex string) ([]*service.Service, error) {
+	services := []*service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
@@ -98,8 +99,8 @@ func getNamedServices(client *serviced.ControlClient, nmregex string) ([]*dao.Se
 	return filterByNameRegex(nmregex, services)
 }
 
-func getServices(client *serviced.ControlClient) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getServices(client *serviced.ControlClient) ([]*service.Service, error) {
+	services := []*service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
@@ -226,8 +227,8 @@ func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *serviced.C
 }
 
 func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var allServices []*dao.Service
-	topServices := []*dao.Service{}
+	var allServices []*service.Service
+	topServices := []*service.Service{}
 
 	err := client.GetServices(&empty, &allServices)
 	if err != nil {
@@ -245,7 +246,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *service
 }
 
 func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var allServices []*dao.Service
+	var allServices []*service.Service
 
 	if err := client.GetServices(&empty, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -271,7 +272,7 @@ func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 }
 
 func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.Service
+	var payload service.Service
 	var serviceId string
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -279,52 +280,41 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 		RestBadRequest(w)
 		return
 	}
-	service, err := dao.NewService()
+	svc, err := service.NewService()
 	if err != nil {
 		glog.Errorf("Could not create service: %v", err)
 		RestServerError(w)
 		return
 	}
 	now := time.Now()
-	service.Name = payload.Name
-	service.Description = payload.Description
-	service.Context = payload.Context
-	service.Tags = payload.Tags
-	service.PoolId = payload.PoolId
-	service.ImageId = payload.ImageId
-	service.Startup = payload.Startup
-	service.Instances = payload.Instances
-	service.ParentServiceId = payload.ParentServiceId
-	service.DesiredState = payload.DesiredState
-	service.Launch = payload.Launch
-	service.Endpoints = payload.Endpoints
-	service.ConfigFiles = payload.ConfigFiles
-	service.Volumes = payload.Volumes
-	service.CreatedAt = now
-	service.UpdatedAt = now
+	svc.Name = payload.Name
+	svc.Description = payload.Description
+	svc.Context = payload.Context
+	svc.Tags = payload.Tags
+	svc.PoolId = payload.PoolId
+	svc.ImageId = payload.ImageId
+	svc.Startup = payload.Startup
+	svc.Instances = payload.Instances
+	svc.ParentServiceId = payload.ParentServiceId
+	svc.DesiredState = payload.DesiredState
+	svc.Launch = payload.Launch
+	svc.Endpoints = payload.Endpoints
+	svc.ConfigFiles = payload.ConfigFiles
+	svc.Volumes = payload.Volumes
+	svc.CreatedAt = now
+	svc.UpdatedAt = now
 
 	//for each endpoint, evaluate it's Application
-	if err = service.EvaluateEndpointTemplates(client); err != nil {
+	if err = svc.EvaluateEndpointTemplates(client); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
 		RestServerError(w)
 		return
 	}
 
 	//add the service to the data store
-	err = client.AddService(*service, &serviceId)
+	err = client.AddService(*svc, &serviceId)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
-		RestServerError(w)
-		return
-	}
-
-	//deploy the service, in other words start it
-	var unused int
-	sduuid, _ := dao.NewUuid()
-	deployment := dao.ServiceDeployment{sduuid, "", service.Id, now}
-	err = client.AddServiceDeployment(deployment, &unused)
-	if err != nil {
-		glog.Errorf("Unable to add service deployment: %v", err)
 		RestServerError(w)
 		return
 	}
@@ -340,7 +330,7 @@ func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *serviced
 		RestBadRequest(w)
 		return
 	}
-	var payload dao.Service
+	var payload service.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
