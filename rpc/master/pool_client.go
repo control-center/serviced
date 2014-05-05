@@ -52,9 +52,8 @@ func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
 }
 
 //AddVirtualIP adds a VirtualIP to a specificpool
-func (c *Client) AddVirtualIP(poolID string, ipAddress string, netmask string, bindInterface string) error {
-	requestedVirtualIP := pool.VirtualIP{ID: "", PoolID: poolID, IP: ipAddress, Netmask: netmask, BindInterface: bindInterface, Index: ""}
-	return c.call("AddVirtualIP", requestedVirtualIP, nil)
+func (c *Client) AddVirtualIP(requestVirtualIP *pool.VirtualIP) error {
+	return c.call("AddVirtualIP", requestVirtualIP, nil)
 }
 
 //RemoveVirtualIP removes a VirtualIP from a specific pool

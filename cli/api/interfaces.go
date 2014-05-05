@@ -29,7 +29,7 @@ type API interface {
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error
 	GetPoolIPs(string) (*facade.PoolIPs, error)
-	AddVirtualIP(string, string, string, string) error
+	AddVirtualIP(*pool.VirtualIP) error
 	RemoveVirtualIP(string) error
 
 	// Services

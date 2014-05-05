@@ -9,6 +9,7 @@ import (
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/domain/pool"
 )
 
 // Initializer for serviced pool subcommands
@@ -249,8 +250,8 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 		return
 	}
 
-	//                           pool ID, IP address, netmask, bind interface
-	if err := c.driver.AddVirtualIP(args[0], args[1], args[2], args[3]); err != nil {
+	requestVirtualIP := pool.VirtualIP{ID: "", PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], Index: ""}
+	if err := c.driver.AddVirtualIP(&requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
