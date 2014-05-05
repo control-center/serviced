@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
+	"testing"
 
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain/host"
@@ -60,6 +64,7 @@ var (
 
 type PoolAPITest struct {
 	api.API
+	fail    bool
 	pools   []*pool.ResourcePool
 	hostIPs []host.HostIPResource
 }
@@ -69,27 +74,31 @@ func InitPoolAPITest(args ...string) {
 }
 
 func (t PoolAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+	if t.fail {
+		return nil, ErrInvalidPool
+	}
+
 	return t.pools, nil
 }
 
 func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
+	if t.fail {
+		return nil, ErrInvalidPool
+	}
+
 	for _, p := range t.pools {
 		if p.ID == id {
 			return p, nil
 		}
 	}
 
-	return nil, ErrNoPoolFound
+	return nil, nil
 }
 
 func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool, error) {
-	for _, p := range t.pools {
-		if p.ID == config.PoolID {
-			return nil, ErrInvalidPool
-		}
-	}
-
-	if config.PoolID == NilPool {
+	if p, err := t.GetResourcePool(config.PoolID); p != nil || err != nil {
+		return nil, ErrInvalidPool
+	} else if config.PoolID == NilPool {
 		return nil, nil
 	}
 
@@ -105,69 +114,126 @@ func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool,
 }
 
 func (t PoolAPITest) RemoveResourcePool(id string) error {
-	_, err := t.GetResourcePool(id)
-	return err
+	if p, err := t.GetResourcePool(id); err != nil {
+		return err
+	} else if p == nil {
+		return ErrNoPoolFound
+	}
+
+	return nil
 }
 
 func (t PoolAPITest) GetPoolIPs(id string) (*facade.PoolIPs, error) {
-	for _, p := range t.pools {
-		if p.ID == id {
-			return &facade.PoolIPs{HostIPs: t.hostIPs}, nil
-		}
+	p, err := t.GetResourcePool(id)
+	if err != nil {
+		return nil, err
+	} else if p == nil {
+		return nil, ErrNoPoolFound
 	}
 
-	return nil, ErrNoPoolFound
+	return &facade.PoolIPs{PoolID: p.ID, HostIPs: t.hostIPs}, nil
 }
 
-func ExampleServicedCli_cmdPoolList() {
-	InitPoolAPITest("serviced", "pool", "list", "-v")
+func TestServicedCLI_CmdPoolList_one(t *testing.T) {
+	poolID := "test-pool-id-1"
+
+	expected, err := DefaultPoolAPITest.GetResourcePool(poolID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual pool.ResourcePool
+	output := pipe(InitPoolAPITest, "serviced", "pool", "list", poolID)
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshalling resource: %s", err)
+	}
+
+	// Did you remember to update ResourcePool.Equals?
+	if !actual.Equals(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+}
+
+func TestServicedCLI_CmdPoolList_all(t *testing.T) {
+	expected, err := DefaultPoolAPITest.GetResourcePools()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual []*pool.ResourcePool
+	output := pipe(InitPoolAPITest, "serviced", "pool", "list", "--verbose")
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshalling resource: %s", err)
+	}
+
+	// Did you remember to update ResourcePool.Equals?
+	if len(actual) != len(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+	for i, _ := range actual {
+		if !actual[i].Equals(expected[i]) {
+			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+		}
+	}
+}
+
+func ExampleServicedCLI_CmdPoolList() {
+	// Gofmt cleans up the spaces at the end of each row
+	InitPoolAPITest("serviced", "pool", "list")
+}
+
+func ExampleServicedCLI_CmdPoolList_fail() {
+	DefaultPoolAPITest.fail = true
+	defer func() { DefaultPoolAPITest.fail = false }()
+	// Error retrieving pool
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-1")
+	// Error retrieving all pools
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
 
 	// Output:
-
-	// [
-	//    {
-	//      "ID": "test-pool-id-1",
-	//      "Description": "",
-	//      "ParentID": "",
-	//      "Priority": 1,
-	//      "CoreLimit": 8,
-	//      "MemoryLimit": 0,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z"
-	//    },
-	//    {
-	//      "ID": "test-pool-id-2",
-	//      "Description": "",
-	//      "ParentID": "test-pool-id-1",
-	//      "Priority": 2,
-	//      "CoreLimit": 4,
-	//      "MemoryLimit": 4294967296,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z"
-	//    },
-	//    {
-	//      "ID": "test-pool-id-3",
-	//      "Description": "",
-	//      "ParentID": "test-pool-id-1",
-	//      "Priority": 3,
-	//      "CoreLimit": 2,
-	//      "MemoryLimit": 536870912,
-	//      "CreatedAt": "0001-01-01T00:00:00Z",
-	//      "UpdatedAt": "0001-01-01T00:00:00Z"
-	//    }
-	//  ]
+	// invalid pool
+	// invalid pool
 }
 
-func ExampleServicedCli_cmdPoolAdd() {
-	// Existing pool
+func ExampleServicedCLI_CmdPoolList_err() {
+	DefaultPoolAPITest.pools = make([]*pool.ResourcePool, 0)
+	defer func() { DefaultPoolAPITest.pools = DefaultTestPools }()
+	// Pool not found
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-0")
+	// No pools found
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
+
+	// Output:
+	// pool not found
+	// no resource pools found
+}
+
+func ExampleServicedCLI_CmdPoolList_complete() {
+	InitPoolAPITest("serviced", "pool", "list", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+}
+
+func ExampleServicedCLI_CmdPoolAdd() {
+	// Bad CoreLimit
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
+	// Bad MemoryLimit
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
+	// Bad Priority
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "abc")
+	// Bad Result
 	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "4", "1024", "3")
-	// Received nil resource pool
-	InitPoolAPITest("serviced", "pool", "add", NilPool, "4", "1024", "3")
 	// Success
-	InitPoolAPITest("serviced", "pool", "add", "test-pool-add", "4", "1024", "3")
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "3")
 
 	// Output:
-	// test-pool-add
+	// CORE_LIMIT must be a number
+	// MEMORY_LIMIT must be a number
+	// PRIORITY must be a number
+	// test-pool
 }
 
 func ExampleServicedCLI_CmdPoolAdd_usage() {
@@ -188,23 +254,18 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	// OPTIONS:
 }
 
-func ExampleServicedCLI_CmdPoolAdd_badparam() {
-	InitPoolAPITest("serviced", "pool", "add", "bad-pool-1", "abc", "1024", "3")
-	InitPoolAPITest("serviced", "pool", "add", "bad-pool-2", "4", "abc", "3")
-	InitPoolAPITest("serviced", "pool", "add", "bad-pool-3", "4", "1024", "abc")
+func ExampleServicedCLI_CmdPoolAdd_err() {
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "add", NilPool, "4", "1024", "3")
 
 	// Output:
-	// CORE_LIMIT must be a number
-	// MEMORY_LIMIT must be a number
-	// PRIORITY must be a number
+	// received nil resource pool
 }
 
-func ExampleServicedCli_cmdPoolRemove() {
-	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1", "test-pool-id-2", "test-pool-id-0")
+func ExampleServicedCLI_CmdPoolRemove() {
+	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1")
 
 	// Output:
 	// test-pool-id-1
-	// test-pool-id-2
 }
 
 func ExampleServicedCLI_CmdPoolRemove_usage() {
@@ -225,25 +286,84 @@ func ExampleServicedCLI_CmdPoolRemove_usage() {
 	// OPTIONS:
 }
 
-func ExampleServicedCli_cmdPoolListIPs() {
-	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1", "--verbose")
+func ExampleServicedCLI_CmdPoolRemove_err() {
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "remove", "test-pool-id-0")
 
 	// Output:
-	// [
-	//    {
-	//      "HostID": "test-host-id-1",
-	//      "IPAddress": "127.0.0.1",
-	//      "InterfaceName": "test-interface-name-1"
-	//    },
-	//    {
-	//      "HostID": "test-host-id-2",
-	//      "IPAddress": "192.168.0.1",
-	//      "InterfaceName": "test-interface-name-2"
-	//    },
-	//    {
-	//      "HostID": "test-host-id-3",
-	//      "IPAddress": "0.0.0.0",
-	//      "InterfaceName": "test-interface-name-3"
-	//    }
-	//  ]
+	// test-pool-id-0: no pool found
+}
+
+func ExampleServicedCLI_CmdPoolRemove_complete() {
+	InitPoolAPITest("serviced", "pool", "rm", "--generate-bash-completion")
+	fmt.Println("")
+	InitPoolAPITest("serviced", "pool", "rm", "test-pool-id-2", "--generate-bash-completion")
+
+	// Output:
+	// test-pool-id-1
+	// test-pool-id-2
+	// test-pool-id-3
+	//
+	// test-pool-id-1
+	// test-pool-id-3
+}
+
+func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
+	poolID := "test-pool-id-1"
+
+	var expected []host.HostIPResource
+	if ips, err := DefaultPoolAPITest.GetPoolIPs(poolID); err != nil {
+		t.Fatal(err)
+	} else {
+		expected = ips.HostIPs
+	}
+
+	var actual []host.HostIPResource
+	output := pipe(InitPoolAPITest, "serviced", "pool", "list-ips", poolID, "--verbose")
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshalling resource: %s", err)
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+}
+
+func ExampleServicedCLI_CmdPoolListIPs() {
+	// Gofmt cleans up the spaces at the end of each row
+	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1")
+}
+
+func ExampleServicedCLI_CmdPoolListIPs_usage() {
+	InitPoolAPITest("serviced", "pool", "list-ips")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    list-ips - Lists the IP addresses for a resource pool
+	//
+	// USAGE:
+	//    command list-ips [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced pool list-ips POOLID
+	//
+	// OPTIONS:
+	//    --verbose, -v	Show JSON format
+}
+
+func ExampleServicedCLI_CmdPoolListIPs_fail() {
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-0")
+
+	// Output:
+	// no pool found
+}
+
+func ExampleServicedCLI_CmdPoolListIPs_err() {
+	DefaultPoolAPITest.hostIPs = nil
+	defer func() { DefaultPoolAPITest.hostIPs = DefaultTestHostIPs }()
+	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-1")
+
+	// Output:
+	// no resource pool ips found
 }

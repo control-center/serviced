@@ -4,6 +4,8 @@
 package servicetemplate
 
 import (
+	"reflect"
+
 	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
@@ -14,6 +16,26 @@ type ServiceTemplate struct {
 	Description string                                  // Meaningful description of service
 	Services    []servicedefinition.ServiceDefinition   // Child services
 	ConfigFiles map[string]servicedefinition.ConfigFile // Config file templates
+}
+
+// Equals checks the equality of two service templates
+func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
+	if a.ID != b.ID {
+		return false
+	}
+	if a.Name != b.Name {
+		return false
+	}
+	if a.Description != b.Description {
+		return false
+	}
+	if !reflect.DeepEqual(a.Services, b.Services) {
+		return false
+	}
+	if !reflect.DeepEqual(a.ConfigFiles, b.ConfigFiles) {
+		return false
+	}
+	return true
 }
 
 // ServiceTemplateWrapper type for storing ServiceTemplates  TODO: no need to be public when CRUD moves hers
