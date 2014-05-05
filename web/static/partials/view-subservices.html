@@ -118,7 +118,7 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in services.subservices">
-          <td ng-click="click_app(app.Id)" class="link">
+          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
           <td width="200">
             <div class="toggle btn-group" data-toggle="buttons">
