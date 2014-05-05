@@ -10,6 +10,8 @@ import (
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 
@@ -75,10 +77,10 @@ func (sc *ServiceConfig) Serve() {
 		services := []*dao.RunningService{}
 		client.GetRunningServices(&empty, &services)
 
-		vhosts := make(map[string][]*dao.ServiceState, 0)
+		vhosts := make(map[string][]*servicestate.ServiceState, 0)
 
 		for _, s := range services {
-			var svc dao.Service
+			var svc service.Service
 
 			if err := client.GetService(s.ServiceId, &svc); err != nil {
 				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
@@ -88,7 +90,7 @@ func (sc *ServiceConfig) Serve() {
 
 			for _, vhep := range vheps {
 				for _, vh := range vhep.VHosts {
-					svcstates := []*dao.ServiceState{}
+					svcstates := []*servicestate.ServiceState{}
 					if err := client.GetServiceStates(s.ServiceId, &svcstates); err != nil {
 						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceId, err), http.StatusInternalServerError)
 						return

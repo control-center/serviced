@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 
@@ -260,7 +261,7 @@ var utcNow = func() time.Time {
 }
 
 // Find all docker images referenced by a template or service
-var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate, services []*dao.Service) map[string]bool {
+var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
 	imageSet := make(map[string]bool)
 	var visit func(*[]servicedefinition.ServiceDefinition)
 	visit = func(defs *[]servicedefinition.ServiceDefinition) {
@@ -285,7 +286,7 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
 	var (
 		templates      map[string]*servicetemplate.ServiceTemplate
-		services       []*dao.Service
+		services       []*service.Service
 		imagesNameTags [][]string
 	)
 	backupName := utcNow().Format("backup-2006-01-02-150405")
@@ -393,7 +394,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	}
 
 	// Dump all snapshots
-	snapshotToTgzFile := func(service *dao.Service) (filename string, err error) {
+	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
 		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
 		var snapshotId string
 		if e := this.Snapshot(service.Id, &snapshotId); e != nil {
@@ -583,13 +584,13 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		}
 
 		servicesPath := restorePath("snapshots", snapshotId, "services.json")
-		var services []*dao.Service
+		var services []*service.Service
 		if e := readJsonFromFile(&services, servicesPath); e != nil {
 			glog.Errorf("Could not read services from %s: %v", servicesPath, e)
 			continue
 		}
 
-		var service *dao.Service = nil
+		var service *service.Service = nil
 		for _, svc := range services {
 			if serviceId == svc.Id {
 				service = svc

@@ -16,6 +16,9 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
@@ -135,7 +138,7 @@ func NewHostAgent(master string, uiport string, dockerDns []string, varPath stri
 
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
-func injectContext(s *dao.Service, cp dao.ControlPlane) error {
+func injectContext(s *service.Service, cp dao.ControlPlane) error {
 	err := s.EvaluateLogConfigTemplate(cp)
 	if err != nil {
 		return err
@@ -151,7 +154,7 @@ func (a *HostAgent) Shutdown() error {
 }
 
 // Attempts to attach to a running container
-func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *dao.ServiceState, hss *zzk.HostServiceState) (bool, error) {
+func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *servicestate.ServiceState, hss *zzk.HostServiceState) (bool, error) {
 
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerId)
@@ -210,7 +213,7 @@ func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
 }
 
 // Terminate a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) terminateInstance(conn coordclient.Connection, serviceState *dao.ServiceState) error {
+func (a *HostAgent) terminateInstance(conn coordclient.Connection, serviceState *servicestate.ServiceState) error {
 	err := a.dockerTerminate(serviceState.Id)
 	if err != nil {
 		return err
@@ -219,7 +222,7 @@ func (a *HostAgent) terminateInstance(conn coordclient.Connection, serviceState 
 	return nil
 }
 
-func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished <-chan int, ss *dao.ServiceState) error {
+func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished <-chan int, ss *servicestate.ServiceState) error {
 	err := a.dockerTerminate(ss.Id)
 	if err != nil {
 		return err
@@ -295,7 +298,7 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Connection, containerId string, procFinished chan<- int, serviceState *dao.ServiceState) {
+func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Connection, containerId string, procFinished chan<- int, serviceState *servicestate.ServiceState) {
 
 	defer func() {
 		procFinished <- 1
@@ -357,17 +360,17 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 		//TODO: should	"cmd" be cleaned up before returning?
 	}
 
-	var sState *dao.ServiceState
-	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+	var sState *servicestate.ServiceState
+	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *servicestate.ServiceState) {
 		ss.DockerId = ctr.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIp = ctr.NetworkSettings.IPAddress
-		ss.PortMapping = make(map[string][]dao.HostIpAndPort)
+		ss.PortMapping = make(map[string][]domain.HostIpAndPort)
 		for k, v := range ctr.NetworkSettings.Ports {
-			pm := []dao.HostIpAndPort{}
+			pm := []domain.HostIpAndPort{}
 			for _, pb := range v {
-				pm = append(pm, dao.HostIpAndPort{pb.HostIp, pb.HostPort})
+				pm = append(pm, domain.HostIpAndPort{pb.HostIp, pb.HostPort})
 			}
 			ss.PortMapping[string(k)] = pm
 		}
@@ -378,7 +381,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 	} else {
 
 		//start IP resource proxy for each endpoint
-		var service dao.Service
+		var service service.Service
 		if err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
 			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
 		} else {
@@ -437,16 +440,16 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					glog.Errorf("Could not get docker state: %v", err)
 					continue
 				}
-				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *dao.ServiceState) {
+				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *servicestate.ServiceState) {
 					ss.DockerId = containerState.ID
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIp = containerState.NetworkSettings.IPAddress
-					ss.PortMapping = make(map[string][]dao.HostIpAndPort)
+					ss.PortMapping = make(map[string][]domain.HostIpAndPort)
 					for k, v := range ctr.NetworkSettings.Ports {
-						pm := []dao.HostIpAndPort{}
+						pm := []domain.HostIpAndPort{}
 						for _, pb := range v {
-							pm = append(pm, dao.HostIpAndPort{pb.HostIp, pb.HostPort})
+							pm = append(pm, domain.HostIpAndPort{pb.HostIp, pb.HostPort})
 						}
 						ss.PortMapping[string(k)] = pm
 					}
@@ -526,7 +529,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 }
 
 // startService starts a new instance of the specified service and updates the control plane state accordingly.
-func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (bool, error) {
+func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState) (bool, error) {
 	glog.V(2).Infof("About to start service %s with name %s", service.Id, service.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -638,7 +641,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *dao.Service, serviceState *dao.ServiceState) (*docker.Config, *docker.HostConfig, error) {
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState) (*docker.Config, *docker.HostConfig, error) {
 	cfg := &docker.Config{}
 	hcfg := &docker.HostConfig{}
 
@@ -989,7 +992,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			return
 		}
 
-		var ss dao.ServiceState
+		var ss servicestate.ServiceState
 		if err := zzk.LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service state %s", ssId)
 			glog.Error(errS)
@@ -1003,7 +1006,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			return
 		}
 
-		var service dao.Service
+		var service service.Service
 		if err := zzk.LoadService(conn, ss.ServiceId, &service); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
 			glog.Errorf(errS)

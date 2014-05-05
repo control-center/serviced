@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/zenoss/serviced/cli/api"
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
 )
 

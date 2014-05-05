@@ -10,8 +10,10 @@
 package dao
 
 import (
-	"fmt"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+//	"github.com/zenoss/serviced/domain/service"
+
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -36,14 +38,14 @@ func getTestingService() servicedefinition.ServiceDefinition {
 				ConfigFiles: map[string]servicedefinition.ConfigFile{
 					"/etc/my.cnf": servicedefinition.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []servicedefinition.ServiceEndpoint{
-					servicedefinition.ServiceEndpoint{
+				Endpoints: []servicedefinition.EndpointDefinition{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
-					servicedefinition.ServiceEndpoint{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
@@ -64,8 +66,8 @@ func getTestingService() servicedefinition.ServiceDefinition {
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageID: "ubuntu",
-				Endpoints: []servicedefinition.ServiceEndpoint{
-					servicedefinition.ServiceEndpoint{
+				Endpoints: []servicedefinition.EndpointDefinition{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",

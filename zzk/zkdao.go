@@ -4,6 +4,8 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 
 	"errors"
 	"time"
@@ -53,7 +55,7 @@ func TerminateHostService(conn coordclient.Connection, hostId string, serviceSta
 }
 
 func ResetServiceState(conn coordclient.Connection, serviceId string, serviceStateId string) error {
-	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *dao.ServiceState) {
+	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *servicestate.ServiceState) {
 		ss.Terminated = time.Now()
 	})
 }
@@ -70,7 +72,7 @@ func (zkdao *ZkDao) TerminateHostService(hostId string, serviceStateId string) e
 	return TerminateHostService(conn, hostId, serviceStateId)
 }
 
-func (zkdao *ZkDao) AddService(service *dao.Service) error {
+func (zkdao *ZkDao) AddService(service *service.Service) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -81,7 +83,7 @@ func (zkdao *ZkDao) AddService(service *dao.Service) error {
 }
 
 type ServiceNode struct {
-	Service *dao.Service
+	Service *service.Service
 	version interface{}
 }
 
@@ -93,7 +95,7 @@ func (s *ServiceNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
-func AddService(conn coordclient.Connection, service *dao.Service) error {
+func AddService(conn coordclient.Connection, service *service.Service) error {
 	glog.V(2).Infof("Creating new service %s", service.Id)
 
 	svcNode := &ServiceNode{
@@ -109,7 +111,7 @@ func AddService(conn coordclient.Connection, service *dao.Service) error {
 }
 
 type ServiceStateNode struct {
-	ServiceState *dao.ServiceState
+	ServiceState *servicestate.ServiceState
 	version      interface{}
 }
 
@@ -121,7 +123,7 @@ func (s *ServiceStateNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
-func (zkdao *ZkDao) AddServiceState(state *dao.ServiceState) error {
+func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -131,7 +133,7 @@ func (zkdao *ZkDao) AddServiceState(state *dao.ServiceState) error {
 	return AddServiceState(conn, state)
 }
 
-func AddServiceState(conn coordclient.Connection, state *dao.ServiceState) error {
+func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
 
 	serviceStateNode := &ServiceStateNode{
@@ -151,7 +153,7 @@ func AddServiceState(conn coordclient.Connection, state *dao.ServiceState) error
 	return nil
 }
 
-func (zkdao *ZkDao) UpdateServiceState(state *dao.ServiceState) error {
+func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -167,7 +169,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *dao.ServiceState) error {
 	return conn.Set(serviceStatePath, &ssn)
 }
 
-func (zkdao *ZkDao) UpdateService(service *dao.Service) error {
+func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -188,7 +190,7 @@ func (zkdao *ZkDao) UpdateService(service *dao.Service) error {
 	return conn.Set(servicePath, &sn)
 }
 
-func (zkdao *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
+func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -197,7 +199,7 @@ func (zkdao *ZkDao) GetServiceState(serviceState *dao.ServiceState, serviceId st
 	return GetServiceState(conn, serviceState, serviceId, serviceStateId)
 }
 
-func GetServiceState(conn coordclient.Connection, serviceState *dao.ServiceState, serviceId string, serviceStateId string) error {
+func GetServiceState(conn coordclient.Connection, serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
 	serviceStateNode := ServiceStateNode{}
 	err := conn.Get(ServiceStatePath(serviceId, serviceStateId), &serviceStateNode)
 	if err != nil {
@@ -207,7 +209,7 @@ func GetServiceState(conn coordclient.Connection, serviceState *dao.ServiceState
 	return nil
 }
 
-func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
+func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
 		return err
@@ -217,7 +219,7 @@ func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*dao.ServiceState, service
 	return GetServiceStates(conn, serviceStates, serviceIds...)
 }
 
-func GetServiceStates(conn coordclient.Connection, serviceStates *[]*dao.ServiceState, serviceIds ...string) error {
+func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
 		err := appendServiceStates(conn, serviceId, serviceStates)
 		if err != nil {
@@ -234,12 +236,12 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	}
 	defer conn.Close()
 
-	var s dao.Service
+	var s service.Service
 	if err := LoadService(conn, serviceId, &s); err != nil {
 		return err
 	}
 
-	var ss dao.ServiceState
+	var ss servicestate.ServiceState
 	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
 		return err
 	}
@@ -268,12 +270,12 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 			return err
 		}
 
-		var s dao.Service
+		var s service.Service
 		if err := LoadService(conn, hss.ServiceId, &s); err != nil {
 			return err
 		}
 
-		var ss dao.ServiceState
+		var ss servicestate.ServiceState
 		if err := LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
 			return err
 		}
@@ -342,7 +344,7 @@ func RemoveService(conn coordclient.Connection, id string) error {
 
 	// First mark the service as needing to shutdown so the scheduler
 	// doesn't keep trying to schedule new instances
-	err := loadAndUpdateService(conn, id, func(s *dao.Service) {
+	err := loadAndUpdateService(conn, id, func(s *service.Service) {
 		s.DesiredState = dao.SVC_STOP
 	})
 	if err != nil {
@@ -368,7 +370,7 @@ func RemoveService(conn coordclient.Connection, id string) error {
 		return err
 	}
 
-	var service dao.Service
+	var service service.Service
 	if err := LoadService(conn, id, &service); err != nil {
 		// Error already logged
 		return err
@@ -385,7 +387,7 @@ func RemoveService(conn coordclient.Connection, id string) error {
 func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceStateId string) error {
 	ssPath := ServiceStatePath(serviceId, serviceStateId)
 
-	var ss dao.ServiceState
+	var ss servicestate.ServiceState
 	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
 		return err
 	} // Error already logged
@@ -411,7 +413,7 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 
 func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningService, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
-		var s dao.Service
+		var s service.Service
 		if err := LoadService(conn, serviceId, &s); err != nil {
 			return err
 		}
@@ -424,7 +426,7 @@ func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningSer
 
 		_ss := make([]*dao.RunningService, len(childNodes))
 		for i, childId := range childNodes {
-			var ss dao.ServiceState
+			var ss servicestate.ServiceState
 			if err := LoadServiceState(conn, serviceId, childId, &ss); err != nil {
 				return err
 			}
@@ -456,7 +458,7 @@ func LoadHostServiceStateW(conn coordclient.Connection, hostId string, hssId str
 	return event, nil
 }
 
-func LoadService(conn coordclient.Connection, serviceId string, s *dao.Service) error {
+func LoadService(conn coordclient.Connection, serviceId string, s *service.Service) error {
 	sn := ServiceNode{}
 	err := conn.Get(ServicePath(serviceId), &sn)
 	if err != nil {
@@ -467,7 +469,7 @@ func LoadService(conn coordclient.Connection, serviceId string, s *dao.Service) 
 	return nil
 }
 
-func LoadServiceW(conn coordclient.Connection, serviceId string, s *dao.Service) (<-chan coordclient.Event, error) {
+func LoadServiceW(conn coordclient.Connection, serviceId string, s *service.Service) (<-chan coordclient.Event, error) {
 	sn := ServiceNode{}
 	event, err := conn.GetW(ServicePath(serviceId), &sn)
 	if err != nil {
@@ -478,7 +480,7 @@ func LoadServiceW(conn coordclient.Connection, serviceId string, s *dao.Service)
 	return event, nil
 }
 
-func LoadServiceState(conn coordclient.Connection, serviceId string, serviceStateId string, ss *dao.ServiceState) error {
+func LoadServiceState(conn coordclient.Connection, serviceId string, serviceStateId string, ss *servicestate.ServiceState) error {
 	ssPath := ServiceStatePath(serviceId, serviceStateId)
 	ssn := ServiceStateNode{}
 	err := conn.Get(ssPath, &ssn)
@@ -490,13 +492,13 @@ func LoadServiceState(conn coordclient.Connection, serviceId string, serviceStat
 	return nil
 }
 
-func appendServiceStates(conn coordclient.Connection, serviceId string, serviceStates *[]*dao.ServiceState) error {
+func appendServiceStates(conn coordclient.Connection, serviceId string, serviceStates *[]*servicestate.ServiceState) error {
 	servicePath := ServicePath(serviceId)
 	childNodes, err := conn.Children(servicePath)
 	if err != nil {
 		return err
 	}
-	_ss := make([]*dao.ServiceState, len(childNodes))
+	_ss := make([]*servicestate.ServiceState, len(childNodes))
 	for i, childId := range childNodes {
 		childPath := servicePath + "/" + childId
 		ssn := ServiceStateNode{}
@@ -511,9 +513,9 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 	return nil
 }
 
-type serviceMutator func(*dao.Service)
+type serviceMutator func(*service.Service)
 type hssMutator func(*HostServiceState)
-type ssMutator func(*dao.ServiceState)
+type ssMutator func(*servicestate.ServiceState)
 
 func LoadAndUpdateServiceState(conn coordclient.Connection, serviceId string, ssId string, mutator ssMutator) error {
 	ssPath := ServiceStatePath(serviceId, ssId)
@@ -571,7 +573,7 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 }
 
 // ServiceState to HostServiceState
-func SsToHss(ss *dao.ServiceState) *HostServiceState {
+func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
 		HostId:         ss.HostId,
 		ServiceId:      ss.ServiceId,
@@ -581,7 +583,7 @@ func SsToHss(ss *dao.ServiceState) *HostServiceState {
 }
 
 // Service & ServiceState to RunningService
-func sssToRs(s *dao.Service, ss *dao.ServiceState) *dao.RunningService {
+func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningService {
 	rs := &dao.RunningService{}
 	rs.Id = ss.Id
 	rs.ServiceId = ss.ServiceId

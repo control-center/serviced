@@ -10,8 +10,8 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"encoding/json"
@@ -34,20 +34,20 @@ func TestGetLogstashBindMounts(t *testing.T) {
 	}
 }
 
-func getTestService() dao.Service {
-	return dao.Service{
+func getTestService() service.Service {
+	return service.Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-    InstanceLimits:  domain.MinMax{0,0},
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -135,19 +135,19 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 }
 
 func TestDontWriteToNilMap(t *testing.T) {
-	service := dao.Service{
+	service := service.Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-    InstanceLimits:  domain.MinMax{0,0},
+		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
 		PoolId:          "",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []servicedefinition.ServiceEndpoint{},
+		Endpoints:       []service.ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),

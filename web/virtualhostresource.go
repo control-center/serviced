@@ -4,7 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 
 	"net/url"
 	"strings"
@@ -26,14 +26,14 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 		return
 	}
 
-	var services []*dao.Service
+	var services []*service.Service
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		RestServerError(w)
 		return
 	}
 
-	var service *dao.Service
+	var service *service.Service
 	for _, _service := range services {
 		if _service.Id == request.ServiceID {
 			service = _service
@@ -104,7 +104,7 @@ func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serv
 		return
 	}
 
-	var service dao.Service
+	var service service.Service
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
@@ -140,7 +140,7 @@ type virtualHost struct {
 
 // RestGetVirtualHosts gets all services, then extracts all vhost information and returns it.
 func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var services []*dao.Service
+	var services []*service.Service
 	err := client.GetServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
@@ -148,7 +148,7 @@ func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *servic
 		return
 	}
 
-	serviceTree := make(map[string]*dao.Service)
+	serviceTree := make(map[string]*service.Service)
 	for _, service := range services {
 		serviceTree[service.Id] = service
 	}

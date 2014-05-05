@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 )
 
 const ()
@@ -34,7 +35,7 @@ type IPConfig struct {
 // RunningService contains the service for a state
 type RunningService struct {
 	Service *service.Service
-	State   *service.ServiceState
+	State   *servicestate.ServiceState
 }
 
 // Gets all of the available services
@@ -91,16 +92,16 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	endpoints := make([]servicedefinition.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 	for _, e := range *config.RemotePorts {
 		e.Purpose = "remote"
-		endpoints[i] = e
+		endpoints[i] = service.BuildServiceEndpoint(e)
 		i++
 	}
 
@@ -198,7 +199,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	req := service.AssignmentRequest{
+	req := dao.AssignmentRequest{
 		ServiceId:      config.ServiceID,
 		IpAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
@@ -208,7 +209,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []servicedefinition.AddressAssignment
+	var addresses []service.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

@@ -8,7 +8,8 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
-
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/domain/service"
 	docker "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
@@ -37,7 +38,7 @@ var (
 )
 
 // runServiceCommand attaches to a service state container and executes an arbitrary bash command
-var runServiceCommand = func(state *dao.ServiceState, command string) ([]byte, error) {
+var runServiceCommand = func(state *servicestate.ServiceState, command string) ([]byte, error) {
 	nsinitPath, err := exec.LookPath("nsinit")
 	if err != nil {
 		return []byte{}, err
@@ -82,7 +83,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade) (*
 }
 
 // Pauses a running service
-func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceState) error {
+func (d *DistributedFileSystem) Pause(service *service.Service, state *servicestate.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Pause); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
@@ -92,7 +93,7 @@ func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceSt
 }
 
 // Resumes a paused service
-func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceState) error {
+func (d *DistributedFileSystem) Resume(service *service.Service, state *servicestate.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Resume); err != nil {
 		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
@@ -104,8 +105,8 @@ func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceS
 // Snapshots the DFS
 func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 	// Get the service
-	var service dao.Service
-	if err := d.client.GetService(tenantId, &service); err != nil {
+	var myService service.Service
+	if err := d.client.GetService(tenantId, &myService); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot tenant=%+v err=%s", tenantId, err)
 		return "", err
 	}
@@ -115,15 +116,15 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	// Only the root user can pause and resume services
 	if whoami, err := getCurrentUser(); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
 		return "", err
 	} else if USER_ROOT == whoami.Username {
 		iamRoot = true
 	}
 
-	var servicesList []*dao.Service
+	var servicesList []*service.Service
 	if err := d.client.GetServices(unused, &servicesList); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
 		return "", err
 	}
 
@@ -132,15 +133,15 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 			continue
 		}
 
-		var states []*dao.ServiceState
+		var states []*servicestate.ServiceState
 		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", service.Id, err)
+			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", myService.Id, err)
 			return "", err
 		}
 
 		// Pause all running service states
 		for i, state := range states {
-			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, service.Id, state.DockerId)
+			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerId)
 			if state.DockerId != "" {
 				if iamRoot {
 					err := d.Pause(service, state)
@@ -160,17 +161,17 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 	// create a snapshot
 	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
 		return "", err
 	}
 
 	label := serviced.GetLabel(tenantId)
-	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", service.Id, label, theVolume)
+	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", myService.Id, label, theVolume)
 
 	parts := strings.SplitN(label, "_", 2)
 	if len(parts) < 2 {
 		err := errors.New("invalid label")
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v label=%s err=%s", service.Id, parts, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v label=%s err=%s", myService.Id, parts, err)
 		return "", err
 	}
 
@@ -178,13 +179,13 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	// Add tags to the images
 	if err := d.tag(tenantId, DOCKER_LATEST, tag); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
 		return "", err
 	}
 
 	// Add snapshot to the volume
 	if err := theVolume.Snapshot(label); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
 		return "", err
 	}
 
@@ -197,7 +198,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", e
 	}
 
-	glog.V(0).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", service.Id, service.Name, label)
+	glog.V(0).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", myService.Id, myService.Name, label)
 	return label, nil
 }
 
@@ -216,7 +217,7 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 	tenantId := parts[0]
 	timestamp := parts[1]
 
-	var service dao.Service
+	var service service.Service
 	if err := d.client.GetService(tenantId, &service); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
 		return err
@@ -365,7 +366,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	timestamp := parts[1]
 
 	var (
-		services  []*dao.Service
+		services  []*service.Service
 		theVolume volume.Volume
 	)
 
@@ -376,7 +377,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 	for _, service := range services {
-		var states []*dao.ServiceState
+		var states []*servicestate.ServiceState
 		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
@@ -390,7 +391,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 
 	// Validate existence of images for this snapshot
 	glog.V(3).Infof("DistributedFileSystem.Rollback validating image for service instance: %s", tenantId)
-	var service dao.Service
+	var service service.Service
 	err := d.client.GetService(tenantId, &service)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
@@ -429,8 +430,8 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 	glog.Infof("DistributedFileSystem.rollbackServices from path: %s", restorePath)
 
 	var (
-		existingServices []*dao.Service
-		services         []*dao.Service
+		existingServices []*service.Service
+		services         []*service.Service
 	)
 
 	// Read the service definitions
@@ -458,7 +459,7 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 		}
 	}
 
-	existingServiceMap := make(map[string]*dao.Service)
+	existingServiceMap := make(map[string]*service.Service)
 	for _, service := range existingServices {
 		existingServiceMap[service.Id] = service
 	}
