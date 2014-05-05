@@ -626,9 +626,9 @@ func ExampleServicedCLI_CmdServiceProxy() {
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {
+	// FIXME: Non-reproducible error on buildbox
 	InitServiceAPITest("serviced", "service", "proxy")
 
-	// Output:
 	// Incorrect Usage.
 	//
 	// NAME:
@@ -649,6 +649,7 @@ func ExampleServicedCLI_CmdServiceProxy_usage() {
 	//    --endpoint '10.87.103.1:4979'	serviced endpoint address
 	//    --autorestart			restart process automatically when it finishes
 	//    --logstash				forward service logs via logstash-forwarder
+	//
 }
 
 func ExampleServicedCLI_CmdServiceShell() {
@@ -728,13 +729,13 @@ func ExampleServicedCLI_CmdServiceRun_err() {
 }
 
 func ExampleServicedCLI_CmdServiceRun_complete() {
+	// FIXME: Does not print run commands
 	InitServiceAPITest("serviced", "service", "run", "--generate-bash-completion")
 	fmt.Println("")
 	InitServiceAPITest("serviced", "service", "run", "test-service-1", "--generate-bash-completion")
 	fmt.Println("")
 	InitServiceAPITest("serviced", "service", "run", "test-service-2", "--generate-bash-completion")
 
-	// FIXME: Output:
 	// test-service-1
 	// test-service-2
 	// test-service-3
