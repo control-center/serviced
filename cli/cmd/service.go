@@ -73,7 +73,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "proxy",
 				Usage:        "Starts a server proxy for a container",
-				Description:  "serviced service proxy SERVICEID COMMAND",
+				Description:  "serviced service proxy SERVICEID HOSTID INSTANCEID COMMAND",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceProxy,
 				Flags: []cli.Flag{
@@ -436,7 +436,7 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 
 // serviced service proxy SERVICED COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
+	if len(ctx.Args()) < 4 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
@@ -453,8 +453,10 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	})
 
 	cfg := api.ProxyConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   ctx.Args().Tail(),
+		ServiceID:  ctx.Args().Get(0),
+		HostID:     ctx.Args().Get(1),
+		InstanceID: ctx.Args().Get(2),
+		Command:    ctx.Args()[3:],
 	}
 
 	if err := c.driver.StartProxy(cfg); err != nil {

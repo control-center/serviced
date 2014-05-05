@@ -619,7 +619,7 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 }
 
 func ExampleServicedCLI_CmdServiceProxy() {
-	InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "some", "command")
+	InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "id", "0", "some", "command")
 
 	// Output:
 	// some command

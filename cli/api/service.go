@@ -106,13 +106,13 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	}
 
 	s := service.Service{
-		Name:      config.Name,
-		PoolId:    config.PoolID,
-		ImageId:   config.ImageID,
-		Endpoints: endpoints,
-		Startup:   config.Command,
-		Instances: 1,
-		InstanceLimits: domain.MinMax{1,1},
+		Name:           config.Name,
+		PoolId:         config.PoolID,
+		ImageId:        config.ImageID,
+		Endpoints:      endpoints,
+		Startup:        config.Command,
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
 	}
 
 	var id string

@@ -40,8 +40,10 @@ func LoadProxyOptions(ops ProxyOptions) {
 
 // ProxyConfig is the config object for starting a proxy server
 type ProxyConfig struct {
-	ServiceID string
-	Command   []string
+	ServiceID  string
+	HostID     string
+	InstanceID string
+	Command    []string
 }
 
 // Start a service proxy
@@ -50,7 +52,9 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 	config.TCPMux.Port = proxyOptions.MuxPort
 	config.TCPMux.Enabled = proxyOptions.Mux
 	config.TCPMux.UseTLS = proxyOptions.TLS
-	config.ServiceId = cfg.ServiceID
+	config.ServiceID = cfg.ServiceID
+	config.HostID = cfg.HostID
+	config.InstanceID = cfg.InstanceID
 	config.Command = strings.Join(cfg.Command, " ")
 
 	if config.TCPMux.Enabled {
@@ -94,13 +98,13 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 			case cmderr := <-serviceExit:
 				if cmderr != nil {
 					client, err := serviced.NewLBClient(proxyOptions.ServicedEndpoint)
-					message := fmt.Sprintf("Service returned a non-zero exit code: %v. Command: \"%v\" Message: %v", config.ServiceId, config.Command, err)
+					message := fmt.Sprintf("Service returned a non-zero exit code: %v. Command: \"%v\" Message: %v", config.ServiceID, config.Command, err)
 					if err == nil {
 						defer client.Close()
 						glog.Errorf(message)
 
 						// send the log message to the master
-						client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceId, message}, nil)
+						client.SendLogMessage(serviced.ServiceLogInfo{config.ServiceID, message}, nil)
 					} else {
 						glog.Errorf("Failed to create a client to endpoint %s: %s", proxyOptions.ServicedEndpoint, err)
 					}
@@ -155,9 +159,9 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 				defer client.Close()
 
 				var endpoints map[string][]*dao.ApplicationEndpoint
-				err = client.GetServiceEndpoints(config.ServiceId, &endpoints)
+				err = client.GetServiceEndpoints(config.ServiceID, &endpoints)
 				if err != nil {
-					glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceId, err)
+					glog.Errorf("Error getting application endpoints for service %s: %s", config.ServiceID, err)
 					return
 				}
 
@@ -227,7 +231,7 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 			client, err := serviced.NewLBClient(proxyOptions.ServicedEndpoint)
 			if err == nil {
 				defer client.Close()
-				if err = client.GetTenantId(config.ServiceId, &tenantID); err != nil {
+				if err = client.GetTenantId(config.ServiceID, &tenantID); err != nil {
 					glog.Errorf("Failed to get tenant id: %s", err)
 				} else {
 					//success
@@ -241,7 +245,9 @@ func (a *api) StartProxy(cfg ProxyConfig) error {
 		//build metric redirect url -- assumes 8444 is port mapped
 		metricRedirect := "http://localhost:8444/api/metrics/store"
 		metricRedirect += "?controlplane_tenant_id=" + tenantID
-		metricRedirect += "&controlplane_service_id=" + config.ServiceId
+		metricRedirect += "&controlplane_service_id=" + config.ServiceID
+		metricRedirect += "&controlplane_instance_id=" + config.InstanceID
+		metricRedirect += "&controlplane_host_id=" + config.HostID
 
 		//build and serve the container metric forwarder
 		forwarder, _ := serviced.NewMetricForwarder(":22350", metricRedirect)
