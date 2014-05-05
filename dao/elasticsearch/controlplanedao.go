@@ -140,7 +140,7 @@ var (
 	serviceStateExists func(string) (bool, error) = exists(&Pretty, "controlplane", "servicestate")
 	userExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
-	//model index functions
+	//model create functions
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newServiceDeployment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicedeployment")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
@@ -807,33 +807,45 @@ type visit func(service dao.Service) error
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
+	/*
+		PoolID     string
+		HostIPs    []host.HostIPResource
+		VirtualIPs []pool.VirtualIP
+	*/
 	service := dao.Service{}
 	err := this.GetService(assignmentRequest.ServiceId, &service)
 	if err != nil {
 		return err
 	}
 
-	// populate poolsIpInfo
 	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), service.PoolId)
 	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
-	poolsIpInfo := poolIPs.HostIPs
-	if len(poolsIpInfo) < 1 {
-		msg := fmt.Sprintf("No IP addresses are available in pool %s.", service.PoolId)
+	if len(poolIPs.HostIPs) == 0 {
+		msg := fmt.Sprintf("No static IP addresses are available in pool %s.", service.PoolId)
 		return errors.New(msg)
 	}
-	glog.Infof("Pool %v contains %v available IP(s)", service.PoolId, len(poolsIpInfo))
+	glog.Infof("Pool %v contains %v available static IP(s)", service.PoolId, len(poolIPs.HostIPs))
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	ipIndex := 0
 	userProvidedIPAssignment := false
+	selectedHostId := ""
 
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		ipIndex = rand.Intn(len(poolsIpInfo))
+		randomIPIndex := rand.Intn(len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs))
+		if randomIPIndex < len(poolIPs.HostIPs) {
+			assignmentRequest.IpAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
+			selectedHostId = poolIPs.HostIPs[randomIPIndex].HostID
+		} else {
+			randomIPIndex = randomIPIndex - len(poolIPs.HostIPs)
+			assignmentRequest.IpAddress = poolIPs.VirtualIPs[randomIPIndex].IP
+			// TODO: Should we somehow know what host has a virtual IP???
+			//selectedHostId = poolIPs.VirtualIPs[randomIPIndex].HostID
+		}
 	} else {
 		// manual IP provided
 		// verify that the user provided IP address is available in the pool
@@ -841,12 +853,24 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		validIp := false
 		userProvidedIPAssignment = true
 
-		for index, hostIPResource := range poolsIpInfo {
+		for _, hostIPResource := range poolIPs.HostIPs {
 			if assignmentRequest.IpAddress == hostIPResource.IPAddress {
-				// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
 				validIp = true
-				ipIndex = index
+				assignmentRequest.IpAddress = hostIPResource.IPAddress
+				selectedHostId = hostIPResource.HostID
 				break
+			}
+		}
+
+		if !validIp {
+			for _, virtualIP := range poolIPs.VirtualIPs {
+				if assignmentRequest.IpAddress == virtualIP.IP {
+					validIp = true
+					assignmentRequest.IpAddress = virtualIP.IP
+					// TODO: Should we somehow know what host has a virtual IP???
+					//selectedHostId = virtualIP.HostID
+					break
+				}
 			}
 		}
 
@@ -855,8 +879,6 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 			return errors.New(msg)
 		}
 	}
-	assignmentRequest.IpAddress = poolsIpInfo[ipIndex].IPAddress
-	selectedHostId := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
 
 	assignments := []servicedefinition.AddressAssignment{}

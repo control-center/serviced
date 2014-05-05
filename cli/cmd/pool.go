@@ -219,25 +219,25 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 		return
 	}
 
-	if ips, err := c.driver.GetPoolIPs(args[0]); err != nil {
+	if poolIps, err := c.driver.GetPoolIPs(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
-	} else if ips.HostIPs == nil || len(ips.HostIPs) == 0 {
-		fmt.Fprintln(os.Stderr, "no resource pool ips found")
+	} else if poolIps.HostIPs == nil || (len(poolIps.HostIPs) == 0 && len(poolIps.VirtualIPs) == 0) {
+		fmt.Fprintln(os.Stderr, "no resource pool IPs found")
 		return
 	} else if ctx.Bool("verbose") {
-		if jsonPoolIP, err := json.MarshalIndent(ips.HostIPs, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal resource pool ips: %s", err)
+		if jsonPoolIP, err := json.MarshalIndent(poolIps.HostIPs, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal resource pool IPs: %s", err)
 		} else {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
 		tableIPs := newTable(0, 8, 2)
 		tableIPs.PrintRow("Interface Name / ID", "IP Address", "Type")
-		for _, ip := range ips.HostIPs {
+		for _, ip := range poolIps.HostIPs {
 			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress, "static")
 		}
-		for _, ip := range ips.VirtualIPs {
+		for _, ip := range poolIps.VirtualIPs {
 			tableIPs.PrintRow(ip.ID, ip.IP, "virtual")
 		}
 		tableIPs.Flush()
