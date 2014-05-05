@@ -3,9 +3,7 @@ package api
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -85,18 +83,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	exitcode, err := func(cmd *exec.Cmd) (int, error) {
-		if err := cmd.Run(); err != nil {
-			if e, ok := err.(*exec.ExitError); ok {
-				if status, ok := e.Sys().(syscall.WaitStatus); ok {
-					return status.ExitStatus(), nil
-				}
-			}
-			return 0, err
-		}
-		return 0, nil
-	}(cmd)
-
+	err = cmd.Run()
 	if err != nil {
 		glog.Fatalf("abnormal termination from shell command: %s", err)
 	}
@@ -104,6 +91,10 @@ func (a *api) RunShell(config ShellConfig) error {
 	dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
 		glog.Fatalf("unable to connect to the docker service: %s", err)
+	}
+	exitcode, err := dockercli.WaitContainer(config.SaveAs)
+	if err != nil {
+		glog.Fatalf("failure waiting for container: %s", err)
 	}
 	container, err := dockercli.InspectContainer(config.SaveAs)
 	if err != nil {
