@@ -1,5 +1,5 @@
 {
-          "Command": "/usr/bin/python -m SimpleHTTPServer",
+          "Command": "/usr/bin/python3 -m http.server 8080",
           "Endpoints": [{
               "Name": "www",
               "Application": "www",
@@ -13,7 +13,7 @@
             },{
               "Name": "websvc",
               "Application": "websvc",
-              "PortNumber": 8081,
+              "PortNumber": 8080,
               "Protocol": "tcp",
               "Porpose": "import"
             }

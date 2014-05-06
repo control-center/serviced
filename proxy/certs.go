@@ -1,4 +1,4 @@
-package serviced
+package proxy
 
 import (
 	"fmt"

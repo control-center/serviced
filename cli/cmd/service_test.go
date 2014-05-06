@@ -206,7 +206,7 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
 	return config.IPAddress, nil
 }
 
-func (t ServiceAPITest) StartProxy(config api.ProxyConfig) error {
+func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
 	if s, err := t.GetService(config.ServiceID); err != nil {
 		return err
 	} else if s == nil {
@@ -616,13 +616,6 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 
 	// Output:
 	// no service found
-}
-
-func ExampleServicedCLI_CmdServiceProxy() {
-	InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "id", "0", "some", "command")
-
-	// Output:
-	// some command
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {
