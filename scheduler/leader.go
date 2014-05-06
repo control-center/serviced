@@ -23,10 +23,11 @@ type leader struct {
 	context datastore.Context
 }
 
-// Lead is executed by the "leader" of the control plane cluster to handle its
-// service/snapshot management responsibilities.
+// Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
+//    services
+//    snapshots
+//    virtual IPs
 func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
-
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
@@ -176,12 +177,32 @@ func (l *leader) watchServices() {
 				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
-		select {
-		case evt := <-zkEvent:
-			glog.V(1).Info("Leader event: ", evt)
-		case serviceID := <-sDone:
-			glog.V(1).Info("Leading cleaning up for service ", serviceID)
-			delete(processing, serviceID)
+		/*
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
+			}
+		*/
+
+		for {
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+				break
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
+				break
+			case <-time.After(10 * time.Second):
+				err := l.watchVirtualIPs()
+				//err := watchVirtualIPs(l.context, l.facade)
+				if err != nil {
+					glog.Warningf("watchVirtualIPs: %v", err)
+				}
+			}
 		}
 	}
 }

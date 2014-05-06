@@ -142,7 +142,7 @@ var (
 	serviceStateExists func(string) (bool, error) = exists(&Pretty, "controlplane", "servicestate")
 	userExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
-	//model index functions
+	//model create functions
 	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
 	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
 	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
@@ -811,32 +811,42 @@ type visit func(service service.Service) error
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	myService := service.Service{}
-	err := this.GetService(assignmentRequest.ServiceId, &myService)
-	if err != nil {
+	if err := this.GetService(assignmentRequest.ServiceId, &myService); err != nil {
 		return err
 	}
 
-	// populate poolsIpInfo
 	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId)
 	if err != nil {
-		glog.Errorf("GetPoolsIPInfo failed: %v", err)
+		glog.Errorf("GetPoolIPs failed: %v", err)
 		return err
 	}
-	poolsIpInfo := poolIPs.HostIPs
-	if len(poolsIpInfo) < 1 {
-		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolId)
+
+	if len(poolIPs.HostIPs) == 0 {
+		msg := fmt.Sprintf("No static IP addresses are available in pool %s.", myService.PoolId)
 		return errors.New(msg)
 	}
-	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolId, len(poolsIpInfo))
+	glog.Infof("Pool %v contains %v available static IP(s)", myService.PoolId, len(poolIPs.HostIPs))
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	ipIndex := 0
 	userProvidedIPAssignment := false
+	selectedHostId := ""
+	assignmentType := ""
 
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		ipIndex = rand.Intn(len(poolsIpInfo))
+		randomIPIndex := rand.Intn(len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs))
+		if randomIPIndex < len(poolIPs.HostIPs) {
+			assignmentType = "static"
+			assignmentRequest.IpAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
+			selectedHostId = poolIPs.HostIPs[randomIPIndex].HostID
+		} else {
+			assignmentType = "virtual"
+			randomIPIndex = randomIPIndex - len(poolIPs.HostIPs)
+			assignmentRequest.IpAddress = poolIPs.VirtualIPs[randomIPIndex].IP
+			// TODO: Should we somehow know what host has a virtual IP???
+			//selectedHostId = poolIPs.VirtualIPs[randomIPIndex].HostID
+		}
 	} else {
 		// manual IP provided
 		// verify that the user provided IP address is available in the pool
@@ -844,12 +854,26 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		validIp := false
 		userProvidedIPAssignment = true
 
-		for index, hostIPResource := range poolsIpInfo {
+		for _, hostIPResource := range poolIPs.HostIPs {
 			if assignmentRequest.IpAddress == hostIPResource.IPAddress {
-				// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
+				assignmentType = "static"
 				validIp = true
-				ipIndex = index
+				assignmentRequest.IpAddress = hostIPResource.IPAddress
+				selectedHostId = hostIPResource.HostID
 				break
+			}
+		}
+
+		if !validIp {
+			for _, virtualIP := range poolIPs.VirtualIPs {
+				if assignmentRequest.IpAddress == virtualIP.IP {
+					assignmentType = "virtual"
+					validIp = true
+					assignmentRequest.IpAddress = virtualIP.IP
+					// TODO: Should we somehow know what host has a virtual IP???
+					//selectedHostId = virtualIP.HostID
+					break
+				}
 			}
 		}
 
@@ -858,8 +882,6 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 			return errors.New(msg)
 		}
 	}
-	assignmentRequest.IpAddress = poolsIpInfo[ipIndex].IPAddress
-	selectedHostId := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
 
 	assignments := []service.AddressAssignment{}
@@ -889,7 +911,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					}
 				}
 				assignment := service.AddressAssignment{}
-				assignment.AssignmentType = "static"
+				assignment.AssignmentType = assignmentType
 				assignment.HostID = selectedHostId
 				assignment.PoolID = myService.PoolId
 				assignment.IPAddr = assignmentRequest.IpAddress
@@ -1256,8 +1278,10 @@ func (this *ControlPlaneDao) AssignAddress(assignment service.AddressAssignment,
 		}
 	case "virtual":
 		{
-			// TODO: need to check if virtual IP exists
-			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
+			//verify the IP provided is contained in the pool
+			if err := this.validVirtualIp(assignment.PoolID, assignment.IPAddr); err != nil {
+				return err
+			}
 		}
 	default:
 		//Validate above should handle this but left here for completenes
@@ -1290,7 +1314,6 @@ func (this *ControlPlaneDao) AssignAddress(assignment service.AddressAssignment,
 }
 
 func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
-
 	host, err := this.facade.GetHost(datastore.Get(), hostId)
 	if err != nil {
 		return err
@@ -1301,6 +1324,29 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 	found := false
 	for _, ip := range host.IPs {
 		if ip.IPAddress == ipAddr {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) validVirtualIp(poolID string, ipAddr string) error {
+	myPool, err := this.facade.GetResourcePool(datastore.Get(), poolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %s", poolID)
+		return err
+	}
+	if myPool == nil {
+		return fmt.Errorf("poolid %s not found", poolID)
+	}
+
+	found := false
+	for _, virtualIP := range myPool.VirtualIPs {
+		if virtualIP.IP == ipAddr {
 			found = true
 			break
 		}
