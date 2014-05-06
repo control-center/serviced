@@ -135,8 +135,13 @@
               </label>
             </div>
           </td>
-          <td>
-            {{app.Startup}}
+          <td style="text-align: center">
+            <img src="/static/img/greenball.png">
+          </td>
+          <td style="font-family: courier; font-size: 14px">
+            <span data-toggle="tooltip" data-placement="top" title="{{app.Startup}}">
+              {{app.Startup.length > 70 ? app.Startup.substr(0,66) + "..." : app.Startup}}
+            </span>
           </td>
         </tr>
       </tbody>

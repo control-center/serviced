@@ -67,12 +67,20 @@ table .btn,
     z-index:3;
 }
 
+.toggle.btn-group > .btn.active:last-child:not(:first-child) {
+    padding-left: 15px;
+}
+
 .toggle.btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
     border-top-right-radius: 15px;
     border-bottom-right-radius: 15px;
     border-color: #ac2925;
     padding-right: 20px;
     z-index:3;
+}
+
+.toggle.btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
+    padding-right: 15px;
 }
 
 .btn-group > .btn > input[type="radio"] {
