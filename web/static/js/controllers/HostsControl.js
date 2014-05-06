@@ -198,7 +198,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
-    console.log($scope.pools);
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
 }

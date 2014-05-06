@@ -176,7 +176,6 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 
 	memCommitment := uint64(0)
 	for _, service := range services {
-		glog.V(2).Infof("CHECKING A SERVICE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		memCommitment = memCommitment + service.RAMCommitment
 	}
 
