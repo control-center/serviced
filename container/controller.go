@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -133,13 +134,11 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	args := []string{}
-	if len(c.options.Service.Command) > 1 {
-		args = c.options.Service.Command[1:]
-	}
+	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
-	service, serviceExited, _ := subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+	service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
 
+	var restartAfter <-chan time.Time
 	for {
 		select {
 		case sig := <-sigc:
@@ -166,8 +165,15 @@ func (c *Controller) Run() (err error) {
 			if !c.options.Service.Autorestart {
 				return
 			}
+			restartAfter = time.After(time.Second * 10)
+
+		case <-restartAfter:
+			if !c.options.Service.Autorestart {
+				return
+			}
 			glog.Infof("restarting service process")
 			service, serviceExited, _ = subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+			restartAfter = nil
 
 		}
 	}
