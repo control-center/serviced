@@ -21,7 +21,7 @@ type ControllerOptions struct {
 	LogstashConfig   string // path to the logstash-forwarder config file
 }
 
-func toContainerControllerOptions(c ControllerOptions) container.ControllerOptions {
+func (c ControllerOptions) toContainerControllerOptions() container.ControllerOptions {
 	options := container.ControllerOptions{}
 	options.ServicedEndpoint = c.ServicedEndpoint
 	options.Service.TenantID = c.TentantID
@@ -42,7 +42,7 @@ func toContainerControllerOptions(c ControllerOptions) container.ControllerOptio
 // Start a service proxy
 func (a *api) StartProxy(cfg ControllerOptions) error {
 
-	c, err := container.NewController(toContainerControllerOptions(cfg))
+	c, err := container.NewController(cfg.toContainerControllerOptions())
 	if err != nil {
 		return err
 	}
