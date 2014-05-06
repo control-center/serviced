@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -99,11 +100,10 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "run",
 				Usage:        "Runs a service command in a service instance",
-				Description:  "serviced service run SERVICEID [COMMAND]",
+				Description:  "serviced service run SERVICEID COMMAND [ARGS]",
 				BashComplete: c.printServiceRun,
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
-					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 				},
 			}, {
@@ -531,7 +531,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(args) > 2 {
 		argv = args[2:]
 	}
-	saveAs = ctx.GlobalString("saveas")
+	saveAs = serviced.GetLabel(serviceID)
 	isTTY = ctx.GlobalBool("interactive")
 
 	config := api.ShellConfig{

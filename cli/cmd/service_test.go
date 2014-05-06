@@ -714,10 +714,9 @@ func ExampleServicedCLI_CmdServiceRun_usage() {
 	//    command run [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service run SERVICEID [COMMAND]
+	//    serviced service run SERVICEID COMMAND [ARGS]
 	//
 	// OPTIONS:
-	//    --saveas, -s 	saves the service instance with the given name
 	//    --interactive, -i	runs the service instance as a tty
 }
 
