@@ -88,7 +88,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		glog.Fatalf("abnormal termination from shell command: %s", err)
 	}
 
-	dockercli, err := docker.NewClient("unix:///var/run/docker.sock")
+	dockercli, err := a.connectDocker()
 	if err != nil {
 		glog.Fatalf("unable to connect to the docker service: %s", err)
 	}
