@@ -182,7 +182,6 @@ func (c *Controller) Run() (err error) {
 
 		}
 	}
-	return
 }
 
 func (c *Controller) handleRemotePorts() {
