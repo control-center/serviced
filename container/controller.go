@@ -54,11 +54,11 @@ type ControllerOptions struct {
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
-	options         ControllerOptions
-	service         *subprocess.Instance
-	metricForwarder *MetricForwarder
-	logforwarder    *subprocess.Instance
-	closing         chan chan error
+	options            ControllerOptions
+	metricForwarder    *MetricForwarder
+	logforwarder       *subprocess.Instance
+	logforwarderExited chan error
+	closing            chan chan error
 }
 
 type Closer interface {
@@ -66,14 +66,6 @@ type Closer interface {
 }
 
 func (c *Controller) Close() error {
-	for _, s := range []Closer{c.service, c.metricForwarder, c.logforwarder} {
-		if s != nil {
-			s.Close()
-		}
-	}
-	c.service = nil
-	c.metricForwarder = nil
-	c.logforwarder = nil
 	return nil
 }
 
@@ -92,7 +84,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		// make sure we pick up any logfile that was modified within the
 		// last three years
 		// TODO: Either expose the 3 years a configurable or get rid of it
-		logforwarder, err := subprocess.New(time.Millisecond, time.Second,
+		logforwarder, exited, err := subprocess.New(time.Second,
 			options.Logforwarder.Path,
 			"-old-files-hours=26280",
 			"-config", options.Logforwarder.ConfigFile)
@@ -100,6 +92,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 			return nil, err
 		}
 		c.logforwarder = logforwarder
+		c.logforwarderExited = exited
 	}
 
 	//build metric redirect url -- assumes 8444 is port mapped
@@ -123,35 +116,16 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.metricForwarder = forwarder
 	}
 
-	restart := time.Duration(0)
-	if options.Service.Autorestart {
-		restart = time.Second * 10
-	}
-	glog.Infof("command: %v", options.Service.Command)
+	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
-		glog.Errorf("Invalid command")
+		glog.Errorf("Invalid commandif ")
 		return c, ErrInvalidCommand
 	}
 
-	args := []string{}
-	if len(options.Service.Command) > 1 {
-		args = options.Service.Command[1:]
-	}
-	var p *subprocess.Instance
-	var err error
-
-	p, err = subprocess.New(restart, time.Second*10, options.Service.Command[0], args...)
-	if err != nil {
-		glog.Errorf("subprocess exited: %s", err)
-		return c, err
-	}
-	c.service = p
-
-	go c.loop()
 	return c, nil
 }
 
-func (c *Controller) loop() {
+func (c *Controller) Run() (err error) {
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -159,14 +133,47 @@ func (c *Controller) loop() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	for {
-		// remote ports
-		c.handleRemotePorts()
+	args := []string{}
+	if len(c.options.Service.Command) > 1 {
+		args = c.options.Service.Command[1:]
+	}
 
-		time.Sleep(time.Second * 10)
+	service, serviceExited, _ := subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+
+	for {
+		select {
+		case sig := <-sigc:
+			switch sig {
+			case syscall.SIGTERM:
+				c.options.Service.Autorestart = false
+			case syscall.SIGQUIT:
+				c.options.Service.Autorestart = false
+			case syscall.SIGINT:
+				c.options.Service.Autorestart = false
+			}
+			glog.Infof("notifying subprocess of signal %v", sig)
+			service.Notify(sig)
+			select {
+			case <-serviceExited:
+				return
+			default:
+			}
+
+		case <-time.After(time.Second * 10):
+			c.handleRemotePorts()
+
+		case <-serviceExited:
+			if !c.options.Service.Autorestart {
+				return
+			}
+			glog.Infof("restarting service process")
+			service, serviceExited, _ = subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+
+		}
 	}
 	return
 }
+
 func (c *Controller) handleRemotePorts() {
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -193,6 +200,7 @@ func (c *Controller) handleRemotePorts() {
 
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
+			glog.Infof("endpoints: %s, %v", key, *endpoint)
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
 		}
 		sort.Strings(addresses)

@@ -49,7 +49,7 @@ func (forwarder *MetricForwarder) loop() {
 }
 
 func (forwarder *MetricForwarder) Close() error {
-	if forwarder.listener != nil {
+	if forwarder != nil && forwarder.listener != nil {
 		(*forwarder.listener).Close()
 		forwarder.listener = nil
 	}

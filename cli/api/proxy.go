@@ -2,10 +2,6 @@ package api
 
 import (
 	"github.com/zenoss/serviced/container"
-
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 // ControllerOptions are options to be run when starting a new proxy server
@@ -46,17 +42,5 @@ func (a *api) StartProxy(cfg ControllerOptions) error {
 	if err != nil {
 		return err
 	}
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
-
-	for {
-		select {
-		case <-sigc:
-			c.Close()
-		}
-	}
-	return nil
+	return c.Run()
 }

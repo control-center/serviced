@@ -16,26 +16,32 @@ type Instance struct {
 	commandExit    chan error
 	closing        chan chan error
 	closeLock      sync.Mutex    // mutex to synchronize Close() calls
-	restart        time.Duration // amount of time between restarts of subprocess. 0 indicates do not restart.
 	sigtermTimeout time.Duration // sigterm timeout
-	restarts       int           //number of restarts
+	signalChan     chan os.Signal
 }
 
-func New(restart, sigtermTimeout time.Duration, command string, args ...string) (*Instance, error) {
+func New(sigtermTimeout time.Duration, command string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
 		args:           args,
-		commandExit:    make(chan error),
-		restart:        restart,
+		commandExit:    make(chan error, 1),
 		sigtermTimeout: sigtermTimeout,
+		signalChan:     make(chan os.Signal),
 	}
 	go s.loop()
-	return s, nil
+	return s, s.commandExit, nil
+}
+
+func (s *Instance) Notify(sig os.Signal) {
+	s.signalChan <- sig
 }
 
 // Close() signals the subprocess to shutdown via sigterm. If sigterm fails to shutdown
 // withing the s.timeout, a sigkill is issued.
 func (s *Instance) Close() error {
+	if s == nil {
+		return nil
+	}
 	s.closeLock.Lock()
 	defer s.closeLock.Unlock()
 	if s.closing == nil {
@@ -49,8 +55,6 @@ func (s *Instance) Close() error {
 }
 
 func (s *Instance) loop() {
-
-	var restart <-chan time.Time
 
 	setUpCmd := func(exitChan chan error) *exec.Cmd {
 		cmd := exec.Command(s.command, s.args...)
@@ -71,14 +75,16 @@ func (s *Instance) loop() {
 	for {
 
 		select {
-		case <-restart:
-			cmd = setUpCmd(s.commandExit)
-			s.restarts = s.restarts + 1
+
+		case s := <-s.signalChan:
+			cmd.Process.Signal(s)
 
 		case <-s.commandExit:
-			if s.restart > 0 {
-				restart = time.After(s.restart)
+			select {
+			case s.commandExit <- nil:
+			default:
 			}
+			return
 
 		case returnChan = <-closing:
 			cmd.Process.Signal(syscall.SIGQUIT)
