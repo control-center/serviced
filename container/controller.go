@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	ErrInvalidCommand    = errors.New("container: invalid command")
+	ErrInvalidEndpoint   = errors.New("container: invalid endpoint")
 	ErrInvalidTenantID   = errors.New("container: invalid tenant id")
 	ErrInvalidServicedID = errors.New("container: invalid serviced id")
 )
@@ -77,8 +79,14 @@ func (c *Controller) Close() error {
 
 // NewController
 func NewController(options ControllerOptions) (*Controller, error) {
-	c := &Controller{}
+	c := &Controller{
+		options: options,
+	}
 	c.closing = make(chan chan error)
+
+	if len(options.ServicedEndpoint) <= 0 {
+		return nil, ErrInvalidEndpoint
+	}
 
 	if options.Logforwarder.Enabled {
 		// make sure we pick up any logfile that was modified within the
@@ -115,6 +123,30 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.metricForwarder = forwarder
 	}
 
+	restart := time.Duration(0)
+	if options.Service.Autorestart {
+		restart = time.Second * 10
+	}
+	glog.Infof("command: %v", options.Service.Command)
+	if len(options.Service.Command) < 1 {
+		glog.Errorf("Invalid command")
+		return c, ErrInvalidCommand
+	}
+
+	args := []string{}
+	if len(options.Service.Command) > 1 {
+		args = options.Service.Command[1:]
+	}
+	var p *subprocess.Instance
+	var err error
+
+	p, err = subprocess.New(restart, time.Second*10, options.Service.Command[0], args...)
+	if err != nil {
+		glog.Errorf("subprocess exited: %s", err)
+		return c, err
+	}
+	c.service = p
+
 	go c.loop()
 	return c, nil
 }
@@ -138,7 +170,7 @@ func (c *Controller) loop() {
 func (c *Controller) handleRemotePorts() {
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
-		glog.Errorf("Could not create a client to endpoint %s: %s", c.options.ServicedEndpoint, err)
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
 	}
 	defer client.Close()

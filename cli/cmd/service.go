@@ -434,13 +434,14 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	}
 }
 
-// serviced service proxy SERVICED COMMAND
+// serviced service proxy SERVICE_ID COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	if len(ctx.Args()) < 4 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
+	args := ctx.Args()
 	options := api.ControllerOptions{
 		MuxPort:          ctx.GlobalInt("muxport"),
 		Mux:              ctx.GlobalBool("mux"),
@@ -450,6 +451,8 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 		Autorestart:      ctx.GlobalBool("autorestart"),
 		Logstash:         ctx.GlobalBool("logstash"),
+		Command:          args[3:],
+		ServiceID:        args[0],
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
