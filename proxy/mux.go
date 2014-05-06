@@ -13,21 +13,13 @@ import (
 	"strings"
 )
 
+// TCPMux is an implementation of tcp muxing RFC 1078.
 type TCPMux struct {
 	Enabled     bool
 	UseTLS      bool
 	CertPEMFile string
 	KeyPEMFile  string
 	Port        int
-}
-
-type MuxConfig struct {
-	Proxies    []Proxy
-	TCPMux     TCPMux
-	ServiceID  string
-	Command    string
-	HostID     string //host id executing this mux
-	InstanceID string //service state instance id
 }
 
 // sendMuxError logs an error message and attempts to write it to the connected
@@ -54,7 +46,7 @@ func sendMuxWarning(conn net.Conn, source, facility, msg string, err error) {
 // service is not running (listening) on the local host and error message
 // is sent to the requestor and its connection is closed. Otherwise data is
 // proxied between the requestor and the local service.
-func (mux TCPMux) MuxConnection(conn net.Conn) {
+func (mux TCPMux) muxConnection(conn net.Conn) {
 	rdr := textproto.NewReader(bufio.NewReader(conn))
 	hdr, err := rdr.ReadMIMEHeader()
 	if err != nil {
@@ -128,6 +120,6 @@ func (mux *TCPMux) ListenAndMux() {
 			return
 		}
 
-		go mux.MuxConnection(conn)
+		go mux.muxConnection(conn)
 	}
 }

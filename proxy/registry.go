@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-// ProxyRegistry is used to create and register proxies that forward traffic from a port/ip combination, address, to a set
+// Package proxy is used to create and register proxies that forward traffic from a port/ip combination, address, to a set
 // of backends
 package proxy
 
@@ -17,12 +17,13 @@ import (
 	"sync"
 )
 
+// ProxyAddress is a IP and port grouping
 type ProxyAddress struct {
 	IP   string
 	Port uint16
 }
 
-
+// ProxyRegistry is an interface of a proxy registration service
 type ProxyRegistry interface {
 	//CreateProxy create, registers and starts a proxy identified by key
 	//protocol is TCP or UDP
@@ -34,20 +35,21 @@ type ProxyRegistry interface {
 	RemoveProxy(key string) (Proxy, error)
 }
 
+// Proxy is the interface of a proxy.
 type Proxy interface {
 	Run() error
 	Close() error
 }
 
+// ProxyFactory is a function declaration for a proxy factory.
 type ProxyFactory func(protocol string, frontend ProxyAddress, backEnds ...ProxyAddress) (Proxy, error)
 
 // NewProxyRegistry Create a new ProxyRegistry using the supplied ProxyFactory
 func NewProxyRegistry(factory ProxyFactory) ProxyRegistry {
-	registry := proxyRegistry{}
-	registry.registry = make(map[string]Proxy)
-	registry.proxyFactory = factory
-	var result ProxyRegistry = &registry
-	return result
+	return &proxyRegistry{
+		registry:     make(map[string]Proxy),
+		proxyFactory: factory,
+	}
 }
 
 // NewDefaultProxyRegistry Create a new ProxyRegistry
@@ -61,7 +63,6 @@ type proxyRegistry struct {
 	sync.Mutex
 	registry     map[string]Proxy //Map of identifer to Proxy
 	proxyFactory ProxyFactory
-
 }
 
 //make sure proxyRegistry implements interface
@@ -71,7 +72,7 @@ func (pr *proxyRegistry) CreateProxy(key string, protocol string, frontend Proxy
 	pr.Lock()
 	defer pr.Unlock()
 	if _, found := pr.registry[key]; found {
-		return fmt.Errorf("Proxy already registered for %v", key)
+		return fmt.Errorf("proxy already registered for %v", key)
 	}
 	proxy, err := pr.proxyFactory(protocol, frontend, backEnds...)
 	if err != nil {
@@ -100,20 +101,20 @@ func (pr *proxyRegistry) RemoveProxy(key string) (Proxy, error) {
 func proxyFactory(protocol string, frontend ProxyAddress, backends ...ProxyAddress) (Proxy, error) {
 
 	if len(backends) == 0 {
-		return nil, errors.New("Default Proxy only requies one backend")
+		return nil, errors.New("default proxy only requies one backend")
 	}
 	if len(backends) > 1 {
-		return nil, errors.New("Default Proxy only supports one backend")
+		return nil, errors.New("default proxy only supports one backend")
 	}
 
 	backendIP := net.ParseIP(backends[0].IP)
 	if backendIP == nil {
-		return nil, fmt.Errorf("Not a valid IP format: %v", backendIP)
+		return nil, fmt.Errorf("not a valid IP format: %v", backendIP)
 	}
 
 	frontendIP := net.ParseIP(frontend.IP)
 	if frontendIP == nil {
-		return nil, fmt.Errorf("Not a valid IP format: %v", frontendIP)
+		return nil, fmt.Errorf("not a valid IP format: %v", frontendIP)
 	}
 
 	var frontendAddr, backendAddr net.Addr
@@ -127,7 +128,7 @@ func proxyFactory(protocol string, frontend ProxyAddress, backends ...ProxyAddre
 		backendAddr = &net.UDPAddr{IP: backendIP, Port: int(backends[0].Port)}
 
 	default:
-		return nil, fmt.Errorf("Unsupported protocol %v", protocol)
+		return nil, fmt.Errorf("unsupported protocol %v", protocol)
 
 	}
 
