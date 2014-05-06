@@ -17,6 +17,8 @@ type ControllerOptions struct {
 	ServicedEndpoint string
 	Autorestart      bool
 	Logstash         bool
+	LogstashBinary   string // path to the logstash-forwarder binary
+	LogstashConfig   string // path to the logstash-forwarder config file
 }
 
 func toContainerControllerOptions(c ControllerOptions) container.ControllerOptions {
@@ -32,6 +34,8 @@ func toContainerControllerOptions(c ControllerOptions) container.ControllerOptio
 	options.Mux.KeyPEMFile = c.KeyPEMFile
 	options.Mux.CertPEMFile = c.CertPEMFile
 	options.Logforwarder.Enabled = c.Logstash
+	options.Logforwarder.Path = c.LogstashBinary
+	options.Logforwarder.ConfigFile = c.LogstashConfig
 	return options
 }
 

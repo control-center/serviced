@@ -77,6 +77,8 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceProxy,
 				Flags: []cli.Flag{
+					cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/logstash-forwarder", "path to the logstash-forwarder binary"},
+					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
 					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
 					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.BoolTFlag{"tls", "enable tls"},
@@ -451,6 +453,8 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 		Autorestart:      ctx.GlobalBool("autorestart"),
 		Logstash:         ctx.GlobalBool("logstash"),
+		LogstashBinary:   ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:   ctx.GlobalString("forwarder-config"),
 		Command:          args[3:],
 		ServiceID:        args[0],
 	}

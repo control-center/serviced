@@ -44,7 +44,7 @@ type ControllerOptions struct {
 	Logforwarder struct { // Logforwarder configuration
 		Enabled    bool   // True if enabled
 		Path       string // Path to the logforwarder program
-		ConfigFile string //
+		ConfigFile string // Path to the config file for logstash-forwarder
 	}
 	Metric struct {
 		Address       string // TCP port to host the metric service, :22350

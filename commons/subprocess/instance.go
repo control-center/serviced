@@ -1,6 +1,8 @@
 package subprocess
 
 import (
+	"github.com/zenoss/glog"
+
 	"errors"
 	"os"
 	"os/exec"
@@ -57,6 +59,7 @@ func (s *Instance) Close() error {
 func (s *Instance) loop() {
 
 	setUpCmd := func(exitChan chan error) *exec.Cmd {
+		glog.Infof("about to execute: %s , %v[%d]", s.command, s.args, len(s.args))
 		cmd := exec.Command(s.command, s.args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
