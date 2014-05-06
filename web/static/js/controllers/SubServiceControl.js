@@ -202,4 +202,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             });
         };
     }
+
+    console.log($scope);
 }
