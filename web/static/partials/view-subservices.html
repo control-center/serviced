@@ -120,7 +120,7 @@
         <tr ng-repeat="app in services.subservices">
           <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
-          <td width="200">
+          <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
                 <input type="radio" name="running{{$index}}" 
@@ -136,7 +136,7 @@
             </div>
           </td>
           <td>
-			 {{app.Startup}}
+            {{app.Startup}}
           </td>
         </tr>
       </tbody>

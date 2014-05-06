@@ -1188,38 +1188,34 @@ function toggleRunning(app, status, servicesService) {
     // is so that when stopping takes a long time you can see that
     // something is happening. This doesn't update the color
     function updateAppText(app, text, notRunningText) {
-        var i;
         app.runningText = text;
         app.notRunningText = notRunningText;
         if (!app.children) {
             return;
         }
-        for (i=0; i<app.children.length;i++) {
+        for (var i=0; i<app.children.length;i++) {
             updateAppText(app.children[i], text, notRunningText);
         }
     }
 
     // updates the color and the running/non-running text of the
     // status buttons
-    function updateApp(app, desiredState) {
+    function updateApp(app) {
         var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                child = app.children[i];
-                child.DesiredState = desiredState;
-                updateRunning(child);
-                if (child.children && child.children.length) {
-                    updateApp(child, desiredState);
-                }
+                app.children[i].DesiredState = app.DesiredState;
+                updateApp(app.children[i]);
             }
         }
     }
+
     // stop service
     if ((newState == 0) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "stopping...", "ctl_running_blank");
     }
@@ -1228,7 +1224,7 @@ function toggleRunning(app, status, servicesService) {
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }

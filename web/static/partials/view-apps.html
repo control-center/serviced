@@ -49,7 +49,7 @@
           <td>{{app.DeploymentId}}</td>
           <td>{{app.PoolId}}</td>
           <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url( vhost)}}" target="_blank">{{vhost_url(vhost)}}</a></p></td>
-          <td>
+          <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
                 <input type="radio" name="running{{$index}}" ng-model="app.Running" value="1"> {{app.runningText|translate}}
