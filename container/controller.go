@@ -19,9 +19,13 @@ import (
 )
 
 var (
-	ErrInvalidCommand    = errors.New("container: invalid command")
-	ErrInvalidEndpoint   = errors.New("container: invalid endpoint")
-	ErrInvalidTenantID   = errors.New("container: invalid tenant id")
+	// ErrInvalidCommand is returned if a command is empty or malformed
+	ErrInvalidCommand = errors.New("container: invalid command")
+	// ErrInvalidEndpoint is returned if an endpoint is empty or malformed
+	ErrInvalidEndpoint = errors.New("container: invalid endpoint")
+	// ErrInvalidTenantID is returned if a TenantID is empty or malformed
+	ErrInvalidTenantID = errors.New("container: invalid tenant id")
+	// ErrInvalidServicedID is returned if a ServiceID is empty or malformed
 	ErrInvalidServicedID = errors.New("container: invalid serviced id")
 )
 
@@ -62,15 +66,14 @@ type Controller struct {
 	closing            chan chan error
 }
 
-type Closer interface {
-	Close() error
-}
-
+// Close shuts down the controller
 func (c *Controller) Close() error {
-	return nil
+	errc := make(chan error)
+	c.closing <- errc
+	return <-errc
 }
 
-// NewController
+// NewController creates a new Controller for the given options
 func NewController(options ControllerOptions) (*Controller, error) {
 	c := &Controller{
 		options: options,
@@ -97,8 +100,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	//build metric redirect url -- assumes 8444 is port mapped
-	metric_redirect := options.Metric.RemoteEndoint
-	if len(metric_redirect) == 0 {
+	metricRedirect := options.Metric.RemoteEndoint
+	if len(metricRedirect) == 0 {
 		glog.V(1).Infof("container.Controller does not have metric forwarding")
 	} else {
 		if len(options.Service.TenantID) == 0 {
@@ -107,10 +110,10 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		if len(options.Service.ID) > 0 {
 			return nil, ErrInvalidServicedID
 		}
-		metric_redirect += "&controlplane_service_id=" + options.Service.ID
-		metric_redirect += "?controlplane_tenant_id=" + options.Service.TenantID
+		metricRedirect += "&controlplane_service_id=" + options.Service.ID
+		metricRedirect += "?controlplane_tenant_id=" + options.Service.TenantID
 		//build and serve the container metric forwarder
-		forwarder, err := NewMetricForwarder(options.Metric.Address, metric_redirect)
+		forwarder, err := NewMetricForwarder(options.Metric.Address, metricRedirect)
 		if err != nil {
 			return c, err
 		}
@@ -126,6 +129,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	return c, nil
 }
 
+// Run executes the controller's main loop and block until the service exits
+// according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
 
 	sigc := make(chan os.Signal, 1)

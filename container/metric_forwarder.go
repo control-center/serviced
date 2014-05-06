@@ -12,16 +12,16 @@ import (
 // MetricForwarder contains all configuration parameters required to provide a
 // forward metrics inside a docker container.
 type MetricForwarder struct {
-	Port               string
-	MetricsRedirectUrl string
+	port               string
+	metricsRedirectURL string
 	listener           *net.Listener
 }
 
-// Create a new metric forwarder at port, all metrics are forwarded to metricsRedirectUrl
-func NewMetricForwarder(port, metricsRedirectUrl string) (config *MetricForwarder, err error) {
+// NewMetricForwarder creates a new metric forwarder at port, all metrics are forwarded to metricsRedirectURL
+func NewMetricForwarder(port, metricsRedirectURL string) (config *MetricForwarder, err error) {
 	config = &MetricForwarder{
-		Port:               port,
-		MetricsRedirectUrl: metricsRedirectUrl,
+		port:               port,
+		metricsRedirectURL: metricsRedirectURL,
 	}
 	listener, err := net.Listen("tcp", port)
 	if err != nil {
@@ -39,7 +39,7 @@ func (forwarder *MetricForwarder) loop() {
 		rest.Route{
 			HttpMethod: "POST",
 			PathExp:    "/api/metrics/store",
-			Func:       post_api_metrics_store(forwarder.MetricsRedirectUrl),
+			Func:       postAPIMetricsStore(forwarder.metricsRedirectURL),
 		},
 	}
 
@@ -48,6 +48,7 @@ func (forwarder *MetricForwarder) loop() {
 	http.Serve(*forwarder.listener, &handler)
 }
 
+// Close shuts down the forwarder.
 func (forwarder *MetricForwarder) Close() error {
 	if forwarder != nil && forwarder.listener != nil {
 		(*forwarder.listener).Close()
@@ -56,22 +57,22 @@ func (forwarder *MetricForwarder) Close() error {
 	return nil
 }
 
-// post_api_metrics_store redirects the post request to the configured address
+// postAPIMetricsStore redirects the post request to the configured address
 // Any additional parameters should be encoded in the redirect url.  For
 // example, encode the containers tenant and service id.
-func post_api_metrics_store(redirect_url string) func(*rest.ResponseWriter, *rest.Request) {
+func postAPIMetricsStore(redirectURL string) func(*rest.ResponseWriter, *rest.Request) {
 	return func(w *rest.ResponseWriter, request *rest.Request) {
 		client := &http.Client{}
 
-		proxy_request, _ := http.NewRequest(request.Method, redirect_url, request.Body)
+		proxyRequest, _ := http.NewRequest(request.Method, redirectURL, request.Body)
 		for k, v := range request.Header {
-			proxy_request.Header[k] = v
+			proxyRequest.Header[k] = v
 		}
-		proxy_response, err := client.Do(proxy_request)
+		proxyResponse, err := client.Do(proxyRequest)
 		if err == nil {
-			defer proxy_response.Body.Close()
-			w.WriteHeader(proxy_response.StatusCode)
-			io.Copy(w, proxy_response.Body)
+			defer proxyResponse.Body.Close()
+			w.WriteHeader(proxyResponse.StatusCode)
+			io.Copy(w, proxyResponse.Body)
 		} else {
 			glog.Errorf("Failed to proxy request: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)

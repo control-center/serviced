@@ -25,8 +25,8 @@ var server sync.Once
 
 // start a metric forwarder
 func startForwarder() (*MetricForwarder, error) {
-	metric_redirect := fmt.Sprintf("http://%s/api/metrics/store", address)
-	return NewMetricForwarder(":22350", metric_redirect)
+	metricRedirect := fmt.Sprintf("http://%s/api/metrics/store", address)
+	return NewMetricForwarder(":22350", metricRedirect)
 }
 
 //echo the Request body into the response
