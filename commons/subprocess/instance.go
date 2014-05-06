@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Instance manages a
+// Instance manages a subprocess instance.
 type Instance struct {
 	command        string
 	args           []string
@@ -22,6 +22,7 @@ type Instance struct {
 	signalChan     chan os.Signal
 }
 
+// New creates a subprocess.Instance
 func New(sigtermTimeout time.Duration, command string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
@@ -34,11 +35,12 @@ func New(sigtermTimeout time.Duration, command string, args ...string) (*Instanc
 	return s, s.commandExit, nil
 }
 
+// Notify sends the sig to the subprocess instance.
 func (s *Instance) Notify(sig os.Signal) {
 	s.signalChan <- sig
 }
 
-// Close() signals the subprocess to shutdown via sigterm. If sigterm fails to shutdown
+// Close signals the subprocess to shutdown via sigterm. If sigterm fails to shutdown
 // withing the s.timeout, a sigkill is issued.
 func (s *Instance) Close() error {
 	if s == nil {
