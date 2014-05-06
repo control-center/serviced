@@ -5,10 +5,10 @@
 package facade
 
 import (
+	"fmt"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	. "gopkg.in/check.v1"
-	"fmt"
 	"time"
 )
 
@@ -247,8 +247,6 @@ func (ft *FacadeTest) Test_PoolCommitment(t *C) {
 	if err := ft.Facade.AddResourcePool(ft.CTX, rp); err != nil {
 		t.Fatalf("Could not add pool for test: %v", err)
 	}
-
-	fmt.Println("%v", h.PoolID)
 
 	// load pool with calculated capacity
 	loadedPool, err := ft.Facade.GetResourcePool(ft.CTX, poolid)
