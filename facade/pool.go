@@ -5,16 +5,17 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/mattbaird/elastigo/search"
-	service "github.com/zenoss/serviced/dao"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+
 	"errors"
 	"fmt"
-	"time"
 	"strings"
+	"time"
 )
 
 const (
@@ -157,8 +158,8 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 	coreCapacity := 0
 	memCapacity := uint64(0)
 	for _, host := range hosts {
-		coreCapacity = coreCapacity + host.Cores;
-		memCapacity = memCapacity + host.Memory;
+		coreCapacity = coreCapacity + host.Cores
+		memCapacity = memCapacity + host.Memory
 	}
 
 	pool.CoreCapacity = coreCapacity
