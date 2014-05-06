@@ -11,6 +11,7 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 )
 
 func ensureZkFatjar() {
@@ -65,8 +66,11 @@ type testNodeT struct {
 	version interface{}
 }
 
-func (n *testNodeT) SetVersion(version interface{}) { n.version = version }
-func (n *testNodeT) Version() interface{}           { return n.version }
+func (n *testNodeT) SetVersion(version interface{}) {
+	glog.Infof("seting version to: %v", version)
+	n.version = version
+}
+func (n *testNodeT) Version() interface{} { return n.version }
 
 func TestZkDriver(t *testing.T) {
 	basePath := "/basePath"
@@ -116,6 +120,7 @@ func TestZkDriver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating /foo/bar should work: %s", err)
 	}
+	t.Logf("testNode version: %v", testNode.Version())
 
 	exists, err = conn.Exists("/foo/bar")
 	if err != nil {
@@ -136,6 +141,13 @@ func TestZkDriver(t *testing.T) {
 
 	if testNode.Name != testNode2.Name {
 		t.Fatalf("expected testNodes to match %s  --- %s", testNode.Name, testNode2.Name)
+	}
+
+	err = conn.Get("/foo/bar", testNode2)
+	t.Logf("testNode version: %v", testNode2.Version())
+	testNode2.Name = "abc"
+	if err := conn.Set("/foo/bar", testNode2); err != nil {
+		t.Fatalf("Could not update testNode: %s", err)
 	}
 
 	err = conn.Delete("/foo")

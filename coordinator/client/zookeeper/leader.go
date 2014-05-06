@@ -71,7 +71,7 @@ func (l *Leader) Current(node client.Node) (err error) {
 	path = fmt.Sprintf("%s/%s", l.path, path)
 	data, stat, err := l.c.conn.Get(path)
 	err = json.Unmarshal(data, node)
-	node.SetVersion(stat.Version)
+	node.SetVersion(stat)
 	return xlateError(err)
 }
 

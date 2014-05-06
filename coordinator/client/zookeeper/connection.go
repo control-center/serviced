@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	lpath "path"
 	"strings"
+
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -84,9 +86,13 @@ func (c *Connection) Create(path string, node client.Node) error {
 		return client.ErrSerialization
 	}
 
-	stat, ok := node.Version().(zklib.Stat)
-	if !ok {
-		return client.ErrInvalidVersionObj
+	stat := &zklib.Stat{}
+	if node.Version() != nil {
+		zstat, ok := node.Version().(*zklib.Stat)
+		if !ok {
+			return client.ErrInvalidVersionObj
+		}
+		stat = zstat
 	}
 	_, err = c.conn.Create(p, bytes, stat.Version, zklib.WorldACL(zklib.PermAll))
 	if err == zklib.ErrNoNode {
@@ -101,12 +107,16 @@ func (c *Connection) Create(path string, node client.Node) error {
 			}
 		}
 	}
+	if err == nil {
+		glog.Error("Setting version")
+		node.SetVersion(zklib.Stat{})
+	}
 	return xlateError(err)
 }
 
 type dirNode struct{}
 
-func (d *dirNode) Version() interface{}   { return zklib.Stat{} }
+func (d *dirNode) Version() interface{}   { return &zklib.Stat{} }
 func (d *dirNode) SetVersion(interface{}) {}
 
 // CreateDir creates an empty node at the given path.
@@ -188,7 +198,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 		return nil, err
 	}
 	err = json.Unmarshal(data, node)
-	node.SetVersion(stat.Version)
+	node.SetVersion(stat)
 	return toClientEvent(zkEvent), xlateError(err)
 }
 
@@ -231,10 +241,18 @@ func (c *Connection) Set(path string, node client.Node) error {
 	if err != nil {
 		return err
 	}
-	stat, ok := node.Version().(zklib.Stat)
-	if !ok {
-		return client.ErrInvalidVersionObj
+
+	glog.Infof("versioN: %v", node.Version())
+	stat := &zklib.Stat{}
+	if node.Version() != nil {
+		zstat, ok := node.Version().(*zklib.Stat)
+		glog.Infof("ok %s, zstat: %v", ok, zstat.Version)
+		if !ok {
+			return client.ErrInvalidVersionObj
+		}
+		*stat = *zstat
 	}
 	_, err = c.conn.Set(path, data, stat.Version)
+	glog.Errorf("WTF: path %s, version: %d, %s", path, stat.Version, err)
 	return xlateError(err)
 }

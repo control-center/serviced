@@ -22,10 +22,12 @@ type TCPMux struct {
 }
 
 type MuxConfig struct {
-	Proxies   []Proxy
-	TCPMux    TCPMux
-	ServiceId string
-	Command   string
+	Proxies    []Proxy
+	TCPMux     TCPMux
+	ServiceID  string
+	Command    string
+	HostID     string //host id executing this mux
+	InstanceID string //service state instance id
 }
 
 // sendMuxError logs an error message and attempts to write it to the connected
