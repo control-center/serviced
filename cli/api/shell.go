@@ -108,7 +108,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		label := ""
 		glog.V(0).Infof("Committing container")
 		if err := client.Commit(container.ID, &label); err != nil {
-			glog.Fatalf("failed to commit: %s (%s)", container.ID, err)
+			glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
 		}
 	default:
 		// Delete the container

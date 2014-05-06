@@ -84,7 +84,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade) (*
 // Pauses a running service
 func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Pause); err != nil {
-		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
+		errmsg := fmt.Sprintf("output: \"%s\", err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
 		return errors.New(errmsg)
 	}
@@ -94,7 +94,7 @@ func (d *DistributedFileSystem) Pause(service *dao.Service, state *dao.ServiceSt
 // Resumes a paused service
 func (d *DistributedFileSystem) Resume(service *dao.Service, state *dao.ServiceState) error {
 	if output, err := runServiceCommand(state, service.Snapshot.Resume); err != nil {
-		errmsg := fmt.Sprintf("output: %s, err: %s", output, err)
+		errmsg := fmt.Sprintf("output: \"%s\", err: %s", output, err)
 		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
 		return errors.New(errmsg)
 	}
@@ -147,7 +147,8 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 					defer d.Resume(service, state) // resume service state when snapshot is done
 					if err != nil {
 						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
-						return "", err
+						errMsg := fmt.Sprintf("Failed to pause \"%s\" (%s): %s", service.Name, service.Id, err)
+						return "", errors.New(errMsg)
 					}
 				} else if !warnedAboutNonRoot {
 					warnedAboutNonRoot = true
@@ -346,7 +347,12 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	}
 
 	// Snapshot the filesystem and images
-	return d.Snapshot(id)
+	output, err := d.Snapshot(id)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to create snapshot: %s", err)
+		err = errors.New(msg)
+	}
+	return output, err
 }
 
 // Rolls back the DFS to a specified state and retags the images
