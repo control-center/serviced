@@ -1,3 +1,6 @@
+/* jshint browser: true */
+/* global angular */
+
 'use strict';
 
 var directive = {};
@@ -39,7 +42,7 @@ directive.dropdownToggle =
               element.parent().removeClass('open');
               close = null;
               openElement = null;
-            }
+            };
 
             $document.on('click', close);
           }
@@ -52,7 +55,7 @@ directive.syntax = function() {
   return {
     restrict: 'A',
     link: function(scope, element, attrs) {
-      function makeLink(type, text, link, icon) {
+      var makeLink = function(type, text, link, icon) {
         return '<a href="' + link + '" class="btn syntax-' + type + '" target="_blank" rel="nofollow">' + 
                 '<span class="' + icon + '"></span> ' + text +
                '</a>';
@@ -82,7 +85,7 @@ directive.syntax = function() {
         if(link) {
           html += makeLink(type, data.text, link, data.icon);
         }
-      };
+      }
 
       var nav = document.createElement('nav');
       nav.className = 'syntax-links';
@@ -92,8 +95,8 @@ directive.syntax = function() {
       var par = node.parentNode;
       par.insertBefore(nav, node);
     }
-  }
-}
+  };
+};
 
 directive.tabbable = function() {
   return {
@@ -184,7 +187,7 @@ directive.tabbable = function() {
             }
           }
         };
-      }
+      };
     }]
   };
 };
