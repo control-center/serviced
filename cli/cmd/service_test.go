@@ -618,14 +618,6 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 	// no service found
 }
 
-func ExampleServicedCLI_CmdServiceProxy() {
-	return
-	//InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "id", "0", "some", "command")
-
-	// Output:
-	// some command
-}
-
 func ExampleServicedCLI_CmdServiceProxy_usage() {
 	// FIXME: Non-reproducible error on buildbox
 	InitServiceAPITest("serviced", "service", "proxy")
