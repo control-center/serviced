@@ -8,7 +8,6 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -86,15 +85,7 @@ func (c *Connection) Create(path string, node client.Node) error {
 		return client.ErrSerialization
 	}
 
-	stat := &zklib.Stat{}
-	if node.Version() != nil {
-		zstat, ok := node.Version().(*zklib.Stat)
-		if !ok {
-			return client.ErrInvalidVersionObj
-		}
-		stat = zstat
-	}
-	_, err = c.conn.Create(p, bytes, stat.Version, zklib.WorldACL(zklib.PermAll))
+	_, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll))
 	if err == zklib.ErrNoNode {
 		// Create parent node.
 		parts := strings.Split(p, "/")
@@ -108,16 +99,17 @@ func (c *Connection) Create(path string, node client.Node) error {
 		}
 	}
 	if err == nil {
-		glog.Error("Setting version")
-		node.SetVersion(zklib.Stat{})
+		node.SetVersion(&zklib.Stat{})
 	}
 	return xlateError(err)
 }
 
-type dirNode struct{}
+type dirNode struct {
+	version interface{}
+}
 
-func (d *dirNode) Version() interface{}   { return &zklib.Stat{} }
-func (d *dirNode) SetVersion(interface{}) {}
+func (d *dirNode) Version() interface{}     { return d.version }
+func (d *dirNode) SetVersion(v interface{}) { d.version = v }
 
 // CreateDir creates an empty node at the given path.
 func (c *Connection) CreateDir(path string) error {
@@ -242,17 +234,14 @@ func (c *Connection) Set(path string, node client.Node) error {
 		return err
 	}
 
-	glog.Infof("versioN: %v", node.Version())
 	stat := &zklib.Stat{}
 	if node.Version() != nil {
 		zstat, ok := node.Version().(*zklib.Stat)
-		glog.Infof("ok %s, zstat: %v", ok, zstat.Version)
 		if !ok {
 			return client.ErrInvalidVersionObj
 		}
 		*stat = *zstat
 	}
-	_, err = c.conn.Set(path, data, stat.Version)
-	glog.Errorf("WTF: path %s, version: %d, %s", path, stat.Version, err)
+	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
 	return xlateError(err)
 }

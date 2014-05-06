@@ -144,7 +144,7 @@ func TestZkDriver(t *testing.T) {
 	}
 
 	err = conn.Get("/foo/bar", testNode2)
-	t.Logf("testNode version: %v", testNode2.Version())
+	t.Logf("testNode version: %v", testNode2.Version().(*zklib.Stat).Version)
 	testNode2.Name = "abc"
 	if err := conn.Set("/foo/bar", testNode2); err != nil {
 		t.Fatalf("Could not update testNode: %s", err)
