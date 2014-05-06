@@ -147,8 +147,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 					defer d.Resume(service, state) // resume service state when snapshot is done
 					if err != nil {
 						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
-						errMsg := fmt.Sprintf("Failed to pause \"%s\" (%s): %s", service.Name, service.Id, err)
-						return "", errors.New(errMsg)
+						return "", fmt.Errorf("failed to pause \"%s\" (%s): %s", service.Name, service.Id, err)
 					}
 				} else if !warnedAboutNonRoot {
 					warnedAboutNonRoot = true
@@ -349,8 +348,7 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	// Snapshot the filesystem and images
 	output, err := d.Snapshot(id)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to create snapshot: %s", err)
-		err = errors.New(msg)
+		err = fmt.Errorf("failed to create snapshot: %s", err)
 	}
 	return output, err
 }
