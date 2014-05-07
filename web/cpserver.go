@@ -73,6 +73,8 @@ func (sc *ServiceConfig) Serve() {
 	// TODO: when zookeeper registration is integrated we can be more event
 	// driven and only refresh the vhost map when service states change.
 	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.V(1).Infof("vhosthandler handling: %v", r)
+
 		var empty interface{}
 		services := []*dao.RunningService{}
 		client.GetRunningServices(&empty, &services)
@@ -104,10 +106,12 @@ func (sc *ServiceConfig) Serve() {
 
 		}
 
+		glog.V(1).Infof("vhosthandler VHost map: %v", vhosts)
+
 		muxvars := mux.Vars(r)
 		svcstates, ok := vhosts[muxvars["subdomain"]]
 		if !ok {
-			http.Error(w, fmt.Sprintf("unknown vhost: %v", muxvars["subdomain"]), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", muxvars["subdomain"]), http.StatusNotFound)
 			return
 		}
 
@@ -116,7 +120,11 @@ func (sc *ServiceConfig) Serve() {
 		for _, svcep := range svcstates[0].Endpoints {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
-					rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)})
+					rpurl := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)}
+
+					glog.V(1).Infof("vhosthandler reverse proxy to: %v", rpurl)
+
+					rp := httputil.NewSingleHostReverseProxy(&rpurl)
 					rp.ServeHTTP(w, r)
 					return
 				}
@@ -138,8 +146,9 @@ func (sc *ServiceConfig) Serve() {
 	}
 
 	for _, ha := range sc.hostaliases {
-		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
 		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 	}
 
 	r.HandleFunc("/{path:.*}", uihandler)
