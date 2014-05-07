@@ -568,6 +568,8 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
+	glog.Infof("creating container for service ID:%s Name:%s Cmd:%+v", service.Id, service.Name, config.Cmd)
+
 	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
@@ -730,22 +732,14 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		return nil, nil, err
 	}
 
-	// if this container is going to produce any logs, create the config and get the bind mounts
+	// bind mount everything we need for logstash-forwarder
 	if len(service.LogConfigs) != 0 {
-		// write out the log file config
-		configFileName, err := writeLogstashAgentConfig(service)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// bind mount the conf file and everything we need for logstash-forwarder
-		lsbms := getLogstashBindMounts(configFileName)
-		for _, binding := range strings.Split(lsbms, "-v") {
-			if len(binding) > 0 {
-				cfg.Volumes[strings.TrimSpace(strings.Split(binding, ":")[1])] = struct{}{}
-				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
-			}
-		}
+		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
+		logstashPath := utils.ResourcesDir() + "/logstash"
+		binding := fmt.Sprintf("%s:%s", logstashPath, LOGSTASH_CONTAINER_DIRECTORY)
+		cfg.Volumes[LOGSTASH_CONTAINER_DIRECTORY] = struct{}{}
+		hcfg.Binds = append(hcfg.Binds, binding)
+		glog.V(1).Infof("added logstash bind mount: %s", binding)
 	}
 
 	// add arguments to mount requested directory (if requested)

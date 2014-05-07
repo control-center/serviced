@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -95,7 +96,7 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 		return nil, err
 	}
 
-	glog.Infof("getService: service: %+v", service)
+	glog.V(1).Infof("getService: service: %+v", service)
 	return &service, nil
 }
 
@@ -109,7 +110,7 @@ func chownConfFile(filename, owner, permissions string) error {
 			glog.Errorf("Error running command:'%v' output: %s  error: %s\n", command, output, err)
 			return err
 		}
-		glog.V(1).Infof("Successfully ran command:'%v' output: %s\n", command, output)
+		glog.Infof("Successfully ran command:'%v' output: %s\n", command, output)
 		return nil
 	}
 
@@ -134,27 +135,37 @@ func writeConfFile(config servicedefinition.ConfigFile) error {
 		glog.Errorf("Could not write out config file %s", config.Filename)
 		return err
 	}
+	glog.Infof("Wrote config file %s", config.Filename)
 
 	// change owner and permissions
 	if err := chownConfFile(config.Filename, config.Owner, config.Permissions); err != nil {
 		return err
 	}
 
-	glog.Infof("Wrote config file %s", config.Filename)
 	return nil
 }
 
 // setupConfigFiles sets up config files
 func setupConfigFiles(service *service.Service) error {
+	// write out config files
 	for _, config := range service.ConfigFiles {
 		err := writeConfFile(config)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	// TODO: write out logstash files
-
+// setupLogstashFiles sets up logstash files
+func setupLogstashFiles(service *service.Service, resourcePath string) error {
+	// write out logstash files
+	if len(service.LogConfigs) != 0 {
+		err := writeLogstashAgentConfig(service, resourcePath)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -169,7 +180,24 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
+	// create config files
+	service, err := getService(options.ServicedEndpoint, options.Service.ID)
+	if err != nil {
+		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
+		return c, ErrInvalidService
+	}
+
+	if err := setupConfigFiles(service); err != nil {
+		glog.Errorf("Could not setup config files error:%s", err)
+		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
+	}
+
 	if options.Logforwarder.Enabled {
+		if err := setupLogstashFiles(service, filepath.Dir(options.Logforwarder.Path)); err != nil {
+			glog.Errorf("Could not setup logstash files error:%s", err)
+			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
+		}
+
 		// make sure we pick up any logfile that was modified within the
 		// last three years
 		// TODO: Either expose the 3 years a configurable or get rid of it
@@ -182,18 +210,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		}
 		c.logforwarder = logforwarder
 		c.logforwarderExited = exited
-	}
-
-	// create config files
-	service, err := getService(c.options.ServicedEndpoint, options.Service.ID)
-	if err != nil {
-		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
-		return c, ErrInvalidService
-	}
-
-	if err := setupConfigFiles(service); err != nil {
-		glog.Errorf("Could not setup config files error:%s", err)
-		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
 	}
 
 	//build metric redirect url -- assumes 8444 is port mapped
