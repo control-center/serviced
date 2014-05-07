@@ -144,7 +144,7 @@ func (c *Controller) Run() (err error) {
 
 	service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
 	
-	go c.handleHealthChecks()
+	healthExits := c.kickOffHealthChecks()
 
 	var restartAfter <-chan time.Time
 	for {
@@ -182,33 +182,50 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("restarting service process")
 			service, serviceExited, _ = subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
 			restartAfter = nil
-
 		}
 	}
+	for _, exitChannel := range healthExits {
+		exitChannel <- true
+	}
+	return
 }
 
-func (c *Controller) handleHealthChecks() {
+func (c *Controller) kickOffHealthChecks() map[string]chan bool {
+	exitChannels := make(map[string] chan bool)
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("handleHealthChecks: could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return
+		return nil
 	}
 	defer client.Close()
 	var healthChecks map[string]domain.HealthCheck;
 	err = client.GetHealthCheck(c.options.Service.ID, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
-		return
+		return nil
 	}
-	glog.Info("========================")
 	for key, mapping := range healthChecks {
-		glog.Info(key, mapping.Script, mapping.Interval)
+		glog.Infof("Kicking off health check %s.", key)
+		exitChannels[key] = make(chan bool)
+		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
 	}
-	glog.Info("========================")
+	return exitChannels;
+}
+
+func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+	for {
+		select {
+		case <-time.After(interval):
+			glog.Info("===== ", name)
+			glog.Info("========== ", script) 
+		case <- exitChannel:
+			return
+		}
+	}
+
 }
 
 func (c *Controller) handleRemotePorts() {
-	glog.Info("==================== HANDLE REMOTE PORTS ====================")
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
