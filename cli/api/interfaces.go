@@ -73,5 +73,5 @@ type API interface {
 	Restore(string) error
 
 	// Logs
-	ExportLogs(yyyymmdd, dirpath string) error
+	ExportLogs(serviceIds []string, to, from, outfile string) error
 }

@@ -7,7 +7,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	elastigo "github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
+	"github.com/zenoss/serviced/domain/service"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -20,94 +22,188 @@ import (
 )
 
 // Export logs
-func (a *api) ExportLogs(yyyymmdd, dirpath string) error {
-	var e error
-	indexName := "logstash-*"
-	if yyyymmdd != "" {
-		// 4 digits, optional non-digits, 2 digits, optional non-digits, 2 digits.
-		re := regexp.MustCompile("\\A([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})\\z")
-		match := re.FindStringSubmatch(yyyymmdd)
-		if match == nil {
-			return fmt.Errorf("could not parse '%s' as yyyymmdd", yyyymmdd)
-		}
-		indexName = fmt.Sprintf("logstash-%s.%s.%s", match[1], match[2], match[3])
-	}
+// serviceIds: list of services to select (includes their children).
+//             empty slice means no filter
+// from: yyyy.mm.dd (inclusive)
+//       "" means unbounded
+// to: yyyy.mm.dd (inclusive)
+//     "" means unbounded
+// outfile: the exported logs will tgz'd and written here.
+//          "" means "./serviced-log-export.tgz".
 
-	if dirpath == "" {
-		dirpath, e = os.Getwd()
+func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err error) {
+	var e error
+	files := []*os.File{}
+	fileIndex := make(map[string]map[string]int) // host => filename => index
+
+	// make sure we can write to outfile
+	if outfile == "" {
+		pwd, e := os.Getwd()
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
 		}
+		outfile = filepath.Join(pwd, "serviced-log-export.tgz")
 	}
-	if fp, e := filepath.Abs(dirpath); e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", dirpath, e)
+	if fp, e := filepath.Abs(outfile); e != nil {
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", outfile, e)
 	} else {
-		dirpath = filepath.Clean(fp)
+		outfile = filepath.Clean(fp)
+	}
+	if tgzfile, e := os.Create(outfile); e != nil {
+		return fmt.Errorf("could not create %s: %s", outfile, e)
+	} else {
+		tgzfile.Close()
+	}
+	if e = os.Remove(outfile); e != nil {
+		return fmt.Errorf("could not remove %s: %s", outfile, e)
 	}
 
+	// Validate and normalize the date range filter attributes "from" and "to"
+	if from == "" && to == "" {
+		to = time.Now().UTC().Format("2006.01.02")
+		from = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
+	}
+	if from != "" {
+		if from, e = NormalizeYYYYMMDD(from); e != nil {
+			return e
+		}
+	}
+	if to != "" {
+		if to, e = NormalizeYYYYMMDD(to); e != nil {
+			return e
+		}
+	}
+
+	query := "*"
+	if len(serviceIds) > 0 {
+		services, e := a.GetServices()
+		if e != nil {
+			return e
+		}
+		serviceMap := make(map[string]*service.Service)
+		for _, service := range services {
+			serviceMap[service.Id] = service
+		}
+		serviceIdMap := make(map[string]bool) //includes serviceIds, and their children as well
+		for _, serviceId := range serviceIds {
+			serviceIdMap[serviceId] = true
+		}
+		for _, service := range services {
+			srvc := service
+			for {
+				found := false
+				for _, serviceId := range serviceIds {
+					if srvc.Id == serviceId {
+						serviceIdMap[service.Id] = true
+						found = true
+						break
+					}
+				}
+				if found || srvc.ParentServiceId == "" {
+					break
+				}
+				srvc = serviceMap[srvc.ParentServiceId]
+			}
+		}
+		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes
+		queryParts := []string{}
+		for serviceId, _ := range serviceIdMap {
+			if re.FindStringIndex(serviceId) == nil {
+				return fmt.Errorf("invalid service ID format: %s", serviceId)
+			}
+			queryParts = append(queryParts, fmt.Sprintf("\"%s\"", strings.Replace(serviceId, "-", "\\-", -1)))
+		}
+		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
+	}
+
+	// Get a temporary directory
 	tempdir, e := ioutil.TempDir("", "serviced-log-export-")
 	if e != nil {
-		return fmt.Errorf("could create temp directory: %s", e)
+		return fmt.Errorf("could not create temp directory: %s", e)
 	}
 	defer os.RemoveAll(tempdir)
 
-	result, e := core.SearchUri(indexName, "", "*", "1m", 1000)
+	days, e := LogstashDays()
 	if e != nil {
-		return fmt.Errorf("failed to search elasticsearch: %s", e)
+		return e
 	}
-	//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
+	foundIndexedDay := false
+	for _, yyyymmdd := range days {
+		// Skip the indexes that are filtered out by the date range
+		if (from != "" && yyyymmdd < from) || (to != "" && yyyymmdd > to) {
+			continue
+		} else {
+			foundIndexedDay = true
+		}
 
-	hostFileLines := make(map[string]map[string]sortableLogLines)
-	remaining := result.Hits.Total > 0
-	for remaining {
-		result, e = core.Scroll(false, result.ScrollId, "1m")
-		hits := result.Hits.Hits
-		total := len(hits)
-		for i := 0; i < total; i++ {
-			host, file, compactLines, e := parseLogSource(hits[i].Source)
-			if e != nil {
-				return e
-			}
-			for _, line := range compactLines {
-				fileLines, found := hostFileLines[host]
-				if !found {
-					fileLines = make(map[string]sortableLogLines)
-					hostFileLines[host] = fileLines
-				}
-				fileLines[file] = append(fileLines[file], line)
-			}
-		}
-		remaining = len(hits) > 0
-	}
-	writeLogFile := func(index int, lines sortableLogLines) error {
-		lines.Sort()
-		filename := filepath.Join(tempdir, fmt.Sprintf("%d.log", index))
-		file, e := os.Create(filename)
+		logstashIndex := fmt.Sprintf("logstash-%s", yyyymmdd)
+		result, e := core.SearchUri(logstashIndex, "", query, "1m", 1000)
 		if e != nil {
-			return fmt.Errorf("failed to create file %s: %s", filename, e)
+			return fmt.Errorf("failed to search elasticsearch: %s", e)
 		}
-		defer file.Close() //TODO: perhaps worry about error on close?
-		for _, line := range lines {
-			if _, e := file.WriteString(line.Message); e != nil {
-				return fmt.Errorf("failed writing to file %s: %s", filename, e)
+		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
+		remaining := result.Hits.Total > 0
+		for remaining {
+			result, e = core.Scroll(false, result.ScrollId, "1m")
+			hits := result.Hits.Hits
+			total := len(hits)
+			for i := 0; i < total; i++ {
+				host, logfile, compactLines, e := parseLogSource(hits[i].Source)
+				if e != nil {
+					return e
+				}
+				if _, found := fileIndex[host]; !found {
+					fileIndex[host] = make(map[string]int)
+				}
+				if _, found := fileIndex[host][logfile]; !found {
+					index := len(files)
+					filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
+					file, e := os.Create(filename)
+					if e != nil {
+						return fmt.Errorf("failed to create file %s: %s", filename, e)
+					}
+					defer func() {
+						if e := file.Close(); e != nil && err == nil {
+							err = fmt.Errorf("failed to close file '%s' cleanly: %s", filename, e)
+						}
+					}()
+					fileIndex[host][logfile] = index
+					files = append(files, file)
+				}
+				index := fileIndex[host][logfile]
+				file := files[index]
+				filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
+				for _, line := range compactLines {
+					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
+					if _, e := file.WriteString(formatted); e != nil {
+						return fmt.Errorf("failed writing to file %s: %s", filename, e)
+					}
+				}
 			}
-			if _, e := file.WriteString("\n"); e != nil {
-				return fmt.Errorf("failed writing to file %s: %s", filename, e)
-			}
+			remaining = len(hits) > 0
 		}
-		return nil
 	}
-	i := 0
-	indexData := []string{"INDEX OF LOG FILES", "File\tHost\tOriginal Filename"}
-	for host, fileLines := range hostFileLines {
-		for file, lines := range fileLines {
-			if e := writeLogFile(i, lines); e != nil {
-				return e
+	if !foundIndexedDay {
+		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", from, to)
+	}
+
+	indexData := []string{}
+	for host, logfileIndex := range fileIndex {
+		for logfile, i := range logfileIndex {
+			filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", i))
+			cmd := exec.Command("sort", filename, "-o", filename)
+			if output, e := cmd.CombinedOutput(); e != nil {
+				return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
 			}
-			indexData = append(indexData, fmt.Sprintf("%d.log\t%s\t%s", i, strconv.Quote(host), strconv.Quote(file)))
-			i++
+			cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
+			if output, e := cmd.CombinedOutput(); e != nil {
+				return fmt.Errorf("failed stripping sort prefixes from %s, error: %v, output: %s", filename, e, output)
+			}
+			indexData = append(indexData, fmt.Sprintf("%03d.log\t%s\t%s", i, strconv.Quote(host), strconv.Quote(logfile)))
 		}
 	}
+	sort.Strings(indexData)
+	indexData = append([]string{"INDEX OF LOG FILES", "File\tHost\tOriginal Filename"}, indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -115,9 +211,7 @@ func (a *api) ExportLogs(yyyymmdd, dirpath string) error {
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
-	tgzfile := filepath.Join(dirpath, "serviced-log-export.tgz")
-
-	cmd := exec.Command("tar", "-czf", tgzfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
+	cmd := exec.Command("tar", "-czf", outfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed to write tgz cmd:%+v, error:%v, output:%s", cmd, e, string(output))
 	}
@@ -188,36 +282,42 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 	return multiLine.Host, multiLine.File, compactLines, nil
 }
 
+// Matches optional non-digits, 4 digits, optional non-digits, 2 digits, optional non-digits, 2 digits, optional non-digits
+// Returns those 8 digits formatted as "dddd.dd.dd", or error if unparseable.
+func NormalizeYYYYMMDD(s string) (string, error) {
+	match := yyyymmdd_matcher.FindStringSubmatch(s)
+	if match == nil {
+		return "", fmt.Errorf("could not parse '%s' as yyyymmdd", s)
+	}
+	return fmt.Sprintf("%s.%s.%s", match[1], match[2], match[3]), nil
+}
+
+var yyyymmdd_matcher = regexp.MustCompile("\\A[^0-9]*([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})[^0-9]*\\z")
+
+// Returns a list of all the dates with a logstash-YYYY.MM.DD index available in ElasticSearch.
+// The strings are in YYYY.MM.DD format, and in reverse chronological order.
+var LogstashDays = func() ([]string, error) {
+	response, e := elastigo.DoCommand("GET", "/_aliases", nil)
+	if e != nil {
+		return []string{}, fmt.Errorf("couldn't fetch list of indices: %s", e)
+	}
+	var aliasMap map[string]interface{}
+	if e = json.Unmarshal(response, &aliasMap); e != nil {
+		return []string{}, fmt.Errorf("couldn't parse response (%s): %s", response, e)
+	}
+	result := make([]string, 0, len(aliasMap))
+	for index, _ := range aliasMap {
+		if trimmed := strings.TrimPrefix(index, "logstash-"); trimmed != index {
+			if trimmed, e = NormalizeYYYYMMDD(trimmed); e != nil {
+				trimmed = ""
+			}
+			result = append(result, trimmed)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(result)))
+	return result, nil
+}
+
 func truncateToMinute(nanos int64) int64 {
 	return nanos / int64(time.Minute) * int64(time.Minute)
-}
-
-type sortableLogLines []compactLogLine
-
-func (this sortableLogLines) Len() int {
-	return len(this)
-}
-
-func (this sortableLogLines) Swap(i, j int) {
-	this[i], this[j] = this[j], this[i]
-}
-
-func (this sortableLogLines) Less(i, j int) bool {
-	cmp := this[i].Timestamp - this[j].Timestamp
-	if cmp < 0 {
-		return true
-	}
-	if cmp > 0 {
-		return false
-	}
-
-	if this[i].Offset < this[j].Offset {
-		return true
-	}
-
-	return false
-}
-
-func (this sortableLogLines) Sort() {
-	sort.Sort(this)
 }

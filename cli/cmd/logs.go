@@ -6,9 +6,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/zenoss/cli"
+	"os"
 )
 
 // Initializer for serviced log
@@ -19,50 +18,94 @@ func (c *ServicedCli) initLog() {
 		Description: "",
 		Subcommands: []cli.Command{
 			{
-				Name:         "export",
-				Usage:        "Exports all logs",
-				Description:  "serviced log export [YYYYMMDD]",
-				BashComplete: c.printLogDaysFirst,
-				Action:       c.cmdExportLogs,
+				Name:        "export",
+				Usage:       "Exports all logs",
+				Description: "serviced log export [YYYYMMDD]",
+				// TODO: BashComplete: c.printLogExportCompletion,
+				Action: c.cmdExportLogs,
 				Flags: []cli.Flag{
-					cli.StringFlag{"out", "", "path to output directory (defaults to current directory)"},
+					cli.StringFlag{"from", "", "yyyy.mm.dd"},
+					cli.StringFlag{"to", "", "yyyy.mm.dd"},
+					cli.StringSliceFlag{"service", &cli.StringSlice{}, "service ID (includes all sub-services)"},
+					cli.StringFlag{"out", "", "path to output file"},
 				},
 			},
 		},
 	})
 }
 
-// Bash-completion command that prints a list of available log days as the
-// first argument
-func (c *ServicedCli) printLogDaysFirst(ctx *cli.Context) {
-	if len(ctx.Args()) > 0 {
-		return
-	}
-
-	for _, s := range c.logDays() {
-		fmt.Println(s)
-	}
-}
-
-// serviced log export [YYYYMMDD]
+// serviced log export
 func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) > 1 {
+	if len(ctx.Args()) > 0 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "export")
 		return
 	}
-	yyyymmdd := ""
-	if len(args) == 1 {
-		yyyymmdd = args[0]
-	}
-	dirpath := ctx.String("out")
+	from := ctx.String("from")
+	to := ctx.String("to")
+	outfile := ctx.String("out")
+	serviceIds := ctx.StringSlice("service")
 
-	if err := c.driver.ExportLogs(yyyymmdd, dirpath); err != nil {
+	if err := c.driver.ExportLogs(serviceIds, from, to, outfile); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
-func (c *ServicedCli) logDays() []string {
-	return make([]string, 0) //TODO: figure out how to pull indices from elastigo
-}
+// TODO: finish this, once flag completion is supported by cli.
+// // Bash-completion command
+// func (c *ServicedCli) printLogExportCompletion(ctx *cli.Context) {
+// 	var e error
+// 	flags := ctx.FlagCompletions()
+// 	if len(flags) == 1 {
+// 		switch flags[0] {
+// 		case "from":
+// 			{
+// 				to := ""
+// 				if ctx.IsSet("to") {
+// 					if to, e = api.NormalizeYYYYMMDD(ctx.String("to")); e != nil {
+// 						to = ""
+// 					}
+// 				}
+// 				if days, e := api.LogstashDays(); e == nil {
+// 					for _, yyyymmdd := range days {
+// 						if to == "" || yyyymmdd <= to {
+// 							fmt.Println(yyyymmdd)
+// 						}
+// 					}
+// 				}
+// 			}
+// 		case "to":
+// 			{
+// 				from := ""
+// 				if ctx.IsSet("from") {
+// 					if from, e = api.NormalizeYYYYMMDD(ctx.String("from")); e != nil {
+// 						from = ""
+// 					}
+// 				}
+// 				if days, e := api.LogstashDays(); e == nil {
+// 					for _, yyyymmdd := range days {
+// 						if from == "" || yyyymmdd >= from {
+// 							fmt.Println(yyyymmdd)
+// 						}
+// 					}
+// 				}
+// 			}
+// 		case "service":
+// 			{
+// 				already := ctx.StringSlice("service")
+// 				for _, serviceId := range c.services() {
+// 					found := false
+// 					for _, alreadyId := range already {
+// 						if alreadyId == serviceId {
+// 							found = true
+// 							break
+// 						}
+// 						if !found {
+// 							fmt.Println(serviceId)
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// }
