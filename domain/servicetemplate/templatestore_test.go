@@ -7,12 +7,11 @@ package servicetemplate
 import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicedefinition/testutils"
 	. "gopkg.in/check.v1"
 
 	"testing"
-	//	"time"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicedefinition/testutils"
 )
 
 // This plumbs gocheck into testing

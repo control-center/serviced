@@ -26,7 +26,7 @@ var (
         "type"  : "string",
         "index" : "not_analyzed"
       },
-      "ApiVersion" : {
+      "APIVersion" : {
         "type"  : "long",
         "index" : "not_analyzed"
       },

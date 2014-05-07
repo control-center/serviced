@@ -18,6 +18,7 @@ import (
 
 func TestServiceTemplateValidate(t *testing.T) {
 	template := ServiceTemplate{}
+	template.ID = "test_id"
 	template.Services = []servicedefinition.ServiceDefinition{*ValidSvcDef}
 	err := template.ValidEntity()
 	if err != nil {
@@ -27,6 +28,7 @@ func TestServiceTemplateValidate(t *testing.T) {
 
 func TestServiceTemplateValidateNoServiceDefinitions(t *testing.T) {
 	template := ServiceTemplate{}
+	template.ID = "test_id"
 	err := template.ValidEntity()
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

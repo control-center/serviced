@@ -16,7 +16,7 @@ import (
 func (st *ServiceTemplate) ValidEntity() error {
 	//	trimmedID := strings.TrimSpace(st.ID)
 	violations := validation.NewValidationError()
-	//	violations.Add(validation.NotEmpty("ServiceTemplate.ID", st.ID))
+	violations.Add(validation.NotEmpty("ServiceTemplate.ID", st.ID))
 	//	violations.Add(validation.StringsEqual(st.ID, trimmedID, "leading and trailing spaces not allowed for service template id"))
 
 	//TODO: check name, description, config files.
@@ -61,7 +61,6 @@ func (st *serviceTemplateWrapper) ValidEntity() error {
 	v := validation.NewValidationError()
 	v.Add(validation.NotEmpty("ID", st.ID))
 	v.Add(validation.NotEmpty("Name", st.Name))
-	//	v.Add(validation.NotEmpty("Description", st.Description))
 	v.Add(validation.NotEmpty("Data", st.Data))
 	if v.HasError() {
 		return v
