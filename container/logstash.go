@@ -6,7 +6,7 @@
 // responsible for ensuring that a particular node is running the correct services
 // and reporting the state and health of those services back to the master
 // serviced.
-package serviced
+package container
 
 import (
 	"github.com/zenoss/serviced/domain/service"
@@ -15,16 +15,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
-	"strings"
 )
 
 const (
-
-	// this is the directory where the logstash forwarder config file is from within the container
 	LOGSTASH_CONTAINER_CONFIG = "/etc/logstash-forwarder.conf"
-	// this is the directory where we keep the executable and cert files for logstash forwarder
-	LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 )
 
 //createFields makes the map of tags for the logstash config including the type
@@ -50,9 +44,9 @@ func formatTagsForConfFile(tags map[string]string) string {
 	return string(result)
 }
 
-// writeLogstashAgentConfig creates the logstash forwarder config file and places it in a temp directory
-// the filename of the newly created file is returned
-func writeLogstashAgentConfig(service *service.Service) (string, error) {
+// writeLogstashAgentConfig creates the logstash forwarder config file
+func writeLogstashAgentConfig(confPath string, service *service.Service, resourcePath string) error {
+	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
 	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
@@ -86,28 +80,18 @@ func writeLogstashAgentConfig(service *service.Service) (string, error) {
 			}`
 	logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf,
 		"172.17.42.1:5043",
-		LOGSTASH_CONTAINER_DIRECTORY+"/logstash-forwarder.crt",
-		LOGSTASH_CONTAINER_DIRECTORY+"/logstash-forwarder.key",
-		LOGSTASH_CONTAINER_DIRECTORY+"/logstash-forwarder.crt",
+		resourcePath+"/logstash-forwarder.crt",
+		resourcePath+"/logstash-forwarder.key",
+		resourcePath+"/logstash-forwarder.crt",
 		logstashForwarderLogConf)
-	filename := service.Name + "_logstash_forwarder_conf"
-	prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-	f, err := writeConfFile(prefix, service.Id, filename, logstashForwarderShipperConf)
-	if err != nil {
-		return "", err
+
+	config := servicedefinition.ConfigFile{
+		Filename: confPath,
+		Content:  logstashForwarderShipperConf,
 	}
-	return f.Name(), nil
-}
-
-//getLogstashBindMounts This sets up the logstash config and returns the bind mounts
-func getLogstashBindMounts(configFileName string) string {
-
-	// the local file system path
-	logstashPath := utils.ResourcesDir() + "/logstash"
-
-	return fmt.Sprintf("-v %s:%s -v %s:%s",
-		logstashPath,
-		LOGSTASH_CONTAINER_DIRECTORY,
-		configFileName,
-		LOGSTASH_CONTAINER_CONFIG)
+	err := writeConfFile(config)
+	if err != nil {
+		return err
+	}
+	return nil
 }

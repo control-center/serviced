@@ -75,6 +75,7 @@ test: build_binary docker_ok
 	cd rpc && make test
 	cd cli/api && go test $(GOTEST_FLAGS)
 	cd cli/cmd && go test $(GOTEST_FLAGS)
+	cd container && go test $(GOTEST_FLAGS)
 
 docker_ok:
 	if docker ps >/dev/null; then \

@@ -427,7 +427,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (er
 		} else if service.ParentServiceId != "" {
 			return traverse(service.ParentServiceId)
 		} else {
-			glog.Infof("parent service: %+v", service)
+			glog.V(1).Infof("parent service: %+v", service)
 			return service.Id, nil
 		}
 	}
