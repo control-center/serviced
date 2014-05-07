@@ -41,7 +41,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID) });
+            refreshPools($scope, resourcesService, false);
         });
     };
 

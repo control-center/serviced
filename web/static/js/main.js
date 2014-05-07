@@ -995,6 +995,22 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+        /**
+         * Gets the Serviced version from the server
+         */
+        get_version: function(callback){
+            $http.get('/version').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Could not retrieve Serviced version from server.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
@@ -1563,23 +1579,4 @@ function itemClass(item) {
         cls += ' hidden';
     }
     return cls;
-}
-
-function removePool(scope, poolID){
-    // clear out the pool we just deleted in case it is stuck in a database index
-    for(var i=0; i < scope.pools.data.length; ++i){
-        if(scope.pools.data[i].ID === poolID){
-            scope.pools.data.splice(i, 1);
-        }
-    }
-    for(var i=0; i < scope.pools.flattened.length; ++i){
-        if(scope.pools.flattened[i].ID === poolID){
-            scope.pools.flattened.splice(i, 1);
-        }
-    }
-    for(var i=0; i < scope.pools.tree.length; ++i){
-        if(scope.pools.tree[i].ID === poolID){
-            scope.pools.tree.splice(i, 1);
-        }
-    }
 }

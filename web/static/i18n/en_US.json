@@ -160,7 +160,7 @@
     "pools_tbl_priority": "Priority",
     "pools_tbl_core_limit": "Core Limit",
     "pools_tbl_memory_limit": "Memory Limit",
-    "pools_tbl_core_capacity": "Cores",
+    "pools_tbl_core_capacity": "CPU Cores",
     "pools_tbl_memory_capacity": "Memory",
     "pools_tbl_memory_commitment": "RAM Commitment",
     "pools_tbl_created_at": "Created",

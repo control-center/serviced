@@ -7,7 +7,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
-
+	"github.com/zenoss/serviced/servicedversion"
 	"net/url"
 	"regexp"
 	"strings"
@@ -468,4 +468,8 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
+}
+
+func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient){
+	w.WriteJson(&SimpleResponse{servicedversion.Version, servicesLinks()})
 }
