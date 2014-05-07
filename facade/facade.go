@@ -9,7 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 )
 
-// New creates an initialized  Facade instance
+// New creates an initialized Facade instance
 func New() *Facade {
 	return &Facade{
 		host.NewStore(),
@@ -17,7 +17,7 @@ func New() *Facade {
 	}
 }
 
-// Facade is an entrypoint to available controlpane methods
+// Facade is an entrypoint to available controlplane methods
 type Facade struct {
 	hostStore *host.HostStore
 	poolStore *pool.Store
