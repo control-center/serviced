@@ -784,6 +784,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		"CONTROLPLANE=1",
 		"CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store",
+		fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", tenantID),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
 
