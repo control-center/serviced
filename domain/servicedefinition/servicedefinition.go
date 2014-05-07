@@ -26,7 +26,7 @@ type ServiceDefinition struct {
 	Privileged    bool                   // Whether to run the container with extended privileges
 	ConfigFiles   map[string]ConfigFile  // Config file templates
 	Context       map[string]interface{} // Context information for the service
-	Endpoints     []EndpointDefinition      // Comms endpoints used by the service
+	Endpoints     []EndpointDefinition   // Comms endpoints used by the service
 	Services      []ServiceDefinition    // Supporting subservices
 	Tasks         []Task                 // Scheduled tasks for celery to find
 	LogFilters    map[string]string      // map of log filter name to log filter definitions
@@ -110,17 +110,21 @@ type LogTag struct {
 type HostPolicy string
 
 const (
-	DEFAULT          HostPolicy = ""
-	LEAST_COMMITTED             = "LEAST_COMMITTED"
-	PREFER_SEPARATE             = "PREFER_SEPARATE"
-	REQUIRE_SEPARATE            = "REQUIRE_SEPARATE"
+	//DEFAULT policy for scheduling a service instance
+	DEFAULT HostPolicy = ""
+	//LeastCommitted run on host w/ least committed memory
+	LeastCommitted = "LEAST_COMMITTED"
+	//PreferSeparate attempt to schedule instances of a service on separate hosts
+	PreferSeparate = "PREFER_SEPARATE"
+	//RequireSeparate schedule instances of a service on separate hosts
+	RequireSeparate = "REQUIRE_SEPARATE"
 )
 
 // UnmarshalText implements the encoding/TextUnmarshaler interface
 func (p *HostPolicy) UnmarshalText(b []byte) error {
 	s := strings.Trim(string(b), `"`)
 	switch s {
-	case LEAST_COMMITTED, PREFER_SEPARATE, REQUIRE_SEPARATE:
+	case LeastCommitted, PreferSeparate, RequireSeparate:
 		*p = HostPolicy(s)
 	case "":
 		*p = DEFAULT
@@ -142,4 +146,3 @@ func BuildFromPath(path string) (*ServiceDefinition, error) {
 	}
 	return sd, sd.ValidEntity()
 }
-

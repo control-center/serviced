@@ -154,8 +154,8 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 	coreCapacity := 0
 	memCapacity := uint64(0)
 	for _, host := range hosts {
-		coreCapacity = coreCapacity + host.Cores;
-		memCapacity = memCapacity + host.Memory;
+		coreCapacity = coreCapacity + host.Cores
+		memCapacity = memCapacity + host.Memory
 	}
 
 	pool.CoreCapacity = coreCapacity

@@ -24,68 +24,40 @@ func TestServiceDefinitionValidate(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }
-
-func TestServiceDefinition(t *testing.T) {
-	sd := ServiceDefinition{}
-	err := sd.ValidEntity()
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-}
-
 func TestNormalizeLaunch(t *testing.T) {
 	sd := ServiceDefinition{}
 	//explicitly zeroing out for test
 	sd.Launch = ""
-	err := sd.NormalizeLaunch()
-	if err != nil {
-		t.Errorf("Unexpected error normalizing Launch field: %v", err)
-	}
+	sd.NormalizeLaunch()
 	if sd.Launch != commons.AUTO {
 		t.Errorf("Expected %v Launch field, found: %v", commons.AUTO, sd.Launch)
 	}
 	sd.Launch = commons.AUTO
-	err = sd.NormalizeLaunch()
-	if err != nil {
-		t.Errorf("Unexpected error normalizing Launch field: %v", err)
-	}
+	sd.NormalizeLaunch()
 	if sd.Launch != commons.AUTO {
 		t.Errorf("Expected %v Launch field, found: %v", commons.AUTO, sd.Launch)
 	}
 	//Test case insensitive
 	sd.Launch = "AutO"
-	err = sd.NormalizeLaunch()
-	if err != nil {
-		t.Errorf("Unexpected error normalizing Launch field: %v", err)
-	}
+	sd.NormalizeLaunch()
 	if sd.Launch != commons.AUTO {
 		t.Errorf("Expected %v Launch field, found: %v", commons.AUTO, sd.Launch)
 	}
 	sd.Launch = commons.MANUAL
-	err = sd.NormalizeLaunch()
-	if err != nil {
-		t.Errorf("Unexpected error normalizing Launch field: %v", err)
-	}
 	if sd.Launch != commons.MANUAL {
 		t.Errorf("Expected %v Launch field, found: %v", commons.MANUAL, sd.Launch)
 	}
 	//Test case insensitive
 	sd.Launch = "ManUaL"
-	err = sd.NormalizeLaunch()
-	if err != nil {
-		t.Errorf("Unexpected error normalizing Launch field: %v", err)
-	}
+	sd.NormalizeLaunch()
 	if sd.Launch != commons.MANUAL {
 		t.Errorf("Expected %v Launch field, found: %v", commons.MANUAL, sd.Launch)
 	}
 
 	sd.Launch = "unknown"
-	err = sd.NormalizeLaunch()
+	sd.NormalizeLaunch()
 	if sd.Launch != "unknown" {
 		t.Errorf("Expected  Launch field to be unmodified, found %v", sd.Launch)
-	}
-	if err == nil {
-		t.Error("Expected error normalizing Launch field")
 	}
 
 }
@@ -145,4 +117,16 @@ func TestNormalizeAddressResourcConfigProtocol(t *testing.T) {
 		}
 	}
 
+}
+
+func TestServiceDefinitionEmptyEndpointName(t *testing.T) {
+	sd := CreateValidServiceDefinition()
+	sd.Services[0].Endpoints[0].Name = ""
+
+	err := sd.ValidEntity()
+	if err == nil {
+		t.Error("Expected error")
+	} else if !strings.Contains(err.Error(), "endpoint must have a name") {
+		t.Errorf("Unexpected Error %v", err)
+	}
 }

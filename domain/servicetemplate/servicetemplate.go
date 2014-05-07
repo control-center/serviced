@@ -1,12 +1,14 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
+
 package servicetemplate
 
 import (
-	"reflect"
-
 	"github.com/zenoss/serviced/domain/servicedefinition"
+
+	"encoding/json"
+	"reflect"
 )
 
 // ServiceTemplate type to hold service definitions
@@ -38,12 +40,36 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 	return true
 }
 
+//FromJSON creates a ServiceTemplate from the json string
+func FromJSON(data string) (*ServiceTemplate, error) {
+	var st ServiceTemplate
+	err := json.Unmarshal([]byte(data), &st)
+	return &st, err
+}
+
 // ServiceTemplateWrapper type for storing ServiceTemplates  TODO: no need to be public when CRUD moves hers
-type ServiceTemplateWrapper struct {
+type serviceTemplateWrapper struct {
 	ID              string // Primary-key - Should match ServiceTemplate.ID
 	Name            string // Name of top level service
 	Description     string // Description
 	Data            string // JSON encoded template definition
-	ApiVersion      int    // Version of the ServiceTemplate API this expects
+	APIVersion      int    // Version of the ServiceTemplate API this expects
 	TemplateVersion int    // Version of the template
+}
+
+func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
+	data, err := json.Marshal(st)
+	if err != nil {
+		return nil, err
+	}
+
+	var wrapper serviceTemplateWrapper
+	wrapper.ID = st.ID
+	wrapper.Name = st.Name
+	wrapper.Description = st.Description
+	wrapper.Data = string(data)
+	wrapper.APIVersion = 1
+	wrapper.TemplateVersion = 1
+	return &wrapper, nil
+
 }

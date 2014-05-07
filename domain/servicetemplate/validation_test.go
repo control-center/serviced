@@ -39,21 +39,7 @@ func TestServiceTemplateValidateErrorVhost(t *testing.T) {
 	err := template.ValidEntity()
 	if err == nil {
 		t.Error("Expected error")
-	} else if !strings.Contains(err.Error(), "ServiceDefintion s2, duplicate vhost found: testhost") {
-		t.Errorf("Unexpected Error %v", err)
-	}
-}
-
-func TestServiceDefinitionEmptyEndpointName(t *testing.T) {
-	sd := CreateValidServiceDefinition()
-	sd.Services[0].Endpoints[0].Name = ""
-	template := ServiceTemplate{}
-	template.Services = []servicedefinition.ServiceDefinition{*sd}
-
-	err := template.ValidEntity()
-	if err == nil {
-		t.Error("Expected error")
-	} else if !strings.Contains(err.Error(), "Endpoint must have a name") {
+	} else if !strings.Contains(err.Error(), "duplicate vhost found: testhost; ServiceDefintion s2") {
 		t.Errorf("Unexpected Error %v", err)
 	}
 }
