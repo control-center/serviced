@@ -730,24 +730,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		return nil, nil, err
 	}
 
-	// config files
-	for filename, config := range service.ConfigFiles {
-		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := writeConfFile(prefix, service.Id, filename, config.Content)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if err := chownConfFile(f.Name(), config.Owner, config.Permissions, service.ImageId); err != nil {
-			glog.Errorf("Could not chown config file for %s, %s: %s", service.Id, filename, err)
-		}
-
-		// everything worked!
-		binding := fmt.Sprintf("%s:%s", f.Name(), filename)
-		cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-		hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
-	}
-
 	// if this container is going to produce any logs, create the config and get the bind mounts
 	if len(service.LogConfigs) != 0 {
 		// write out the log file config

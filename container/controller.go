@@ -6,11 +6,14 @@ import (
 	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sort"
 	"strconv"
@@ -28,6 +31,8 @@ var (
 	ErrInvalidTenantID = errors.New("container: invalid tenant id")
 	// ErrInvalidServicedID is returned if a ServiceID is empty or malformed
 	ErrInvalidServicedID = errors.New("container: invalid serviced id")
+	// ErrInvalidServiced is returned if a Service is empty or malformed
+	ErrInvalidService = errors.New("container: invalid serviced")
 )
 
 // ControllerOptions are options to be run when starting a new proxy server
@@ -74,12 +79,12 @@ func (c *Controller) Close() error {
 	return <-errc
 }
 
-// setupConfigFiles sets up config files
-func setupConfigFiles(lbClientPort string, serviceID string) error {
+// getService retrieves a service
+func getService(lbClientPort string, serviceID string) (*service.Service, error) {
 	client, err := serviced.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return err
+		return nil, err
 	}
 	defer client.Close()
 
@@ -87,11 +92,67 @@ func setupConfigFiles(lbClientPort string, serviceID string) error {
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
+		return nil, err
+	}
+
+	glog.Infof("getService: service: %+v", service)
+	return &service, nil
+}
+
+// chownConfFile sets the owner and permissions for a file
+func chownConfFile(filename, owner, permissions string) error {
+
+	runCommand := func(exe, arg, filename string) error {
+		command := exec.Command(exe, arg, filename)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			glog.Errorf("Error running command:'%v' output: %s  error: %s\n", command, output, err)
+			return err
+		}
+		glog.V(1).Infof("Successfully ran command:'%v' output: %s\n", command, output)
+		return nil
+	}
+
+	if owner != "" {
+		if err := runCommand("chown", owner, filename); err != nil {
+			return err
+		}
+	}
+	if permissions != "" {
+		if err := runCommand("chmod", permissions, filename); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// writeConfFile writes a config file
+func writeConfFile(config servicedefinition.ConfigFile) error {
+	// write file with default perms
+	if err := ioutil.WriteFile(config.Filename, []byte(config.Content), os.FileMode(0664)); err != nil {
+		glog.Errorf("Could not write out config file %s", config.Filename)
 		return err
 	}
 
-	glog.Infof("setupConfigFiles: service: %+v", service)
-	// TODO: write config files
+	// change owner and permissions
+	if err := chownConfFile(config.Filename, config.Owner, config.Permissions); err != nil {
+		return err
+	}
+
+	glog.Infof("Wrote config file %s", config.Filename)
+	return nil
+}
+
+// setupConfigFiles sets up config files
+func setupConfigFiles(service *service.Service) error {
+	for _, config := range service.ConfigFiles {
+		err := writeConfFile(config)
+		if err != nil {
+			return err
+		}
+	}
+
 	// TODO: write out logstash files
 
 	return nil
@@ -123,7 +184,17 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.logforwarderExited = exited
 	}
 
-	setupConfigFiles(c.options.ServicedEndpoint, options.Service.ID)
+	// create config files
+	service, err := getService(c.options.ServicedEndpoint, options.Service.ID)
+	if err != nil {
+		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
+		return c, ErrInvalidService
+	}
+
+	if err := setupConfigFiles(service); err != nil {
+		glog.Errorf("Could not setup config files error:%s", err)
+		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
+	}
 
 	//build metric redirect url -- assumes 8444 is port mapped
 	metricRedirect := options.Metric.RemoteEndoint
