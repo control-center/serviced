@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 
 	"errors"
 	"fmt"
@@ -142,6 +143,8 @@ func (c *Controller) Run() (err error) {
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
 	service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
+	
+	go c.handleHealthChecks()
 
 	var restartAfter <-chan time.Time
 	for {
@@ -184,7 +187,28 @@ func (c *Controller) Run() (err error) {
 	}
 }
 
+func (c *Controller) handleHealthChecks() {
+	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("handleHealthChecks: could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return
+	}
+	defer client.Close()
+	var healthChecks map[string]domain.HealthCheck;
+	err = client.GetHealthCheck(c.options.Service.ID, &healthChecks)
+	if err != nil {
+		glog.Errorf("Error getting health checks: %s", err)
+		return
+	}
+	glog.Info("========================")
+	for key, mapping := range healthChecks {
+		glog.Info(key, mapping.Script, mapping.Interval)
+	}
+	glog.Info("========================")
+}
+
 func (c *Controller) handleRemotePorts() {
+	glog.Info("==================== HANDLE REMOTE PORTS ====================")
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
