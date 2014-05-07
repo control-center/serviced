@@ -41,7 +41,7 @@
   </div>
 </div>
 
-<h3 class="pull-left">{{'virtual_ip_addresses'|translate}}</h3>
+<h3 class="pull-left">{{'label_virtual_ip_addresses'|translate}}</h3>
 <div class="control-buttons pull-right">
   <span class="add-control">
     <button class="btn-link" ng-click="modalAddVirtualIp(pools.current)">
@@ -61,7 +61,7 @@
       <td>{{address.IP}}</td>
       <td>{{address.Netmask}}</td>
       <td>{{address.BindInterface}}</td>
-      <td> <button ng-click="clickRemoveVirtualIp(pools.current, address)" class="btn btn-link">Delete</button> </td>
+      <td> <button ng-click="clickRemoveVirtualIp(pools.current, address)" class="btn btn-link">{{'label_delete'|translate}}</button> </td>
     </tr>
   </tbody>
 </table>

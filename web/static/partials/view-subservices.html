@@ -57,15 +57,15 @@
     </div>
 
 	<!-- Virtual Host Names -->
-	<h3 class="pull-left">{{'virtualhostnames'|translate}}</h3>
-    <div class="control-buttons pull-right">
-        <span class="add-control">
-            <button class="btn-link" ng-click="modalAddVHost()">
-                <span class="glyphicon glyphicon-plus-sign"></span>
-                {{'modal_add_vhost'|translate}}
-            </button>
-        </span>
-    </div>
+	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+  <div class="control-buttons pull-right">
+      <span class="add-control">
+          <button class="btn-link" ng-click="modalAddVHost()">
+              <span class="glyphicon glyphicon-plus-sign"></span>
+              {{'modal_add_vhost'|translate}}
+          </button>
+      </span>
+  </div>
 	<table class="table table-striped table-bordered table-hover" id="vhosts_data">
 		<thead>
 			<tr>
@@ -78,15 +78,41 @@
 		<tbody>
 			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort" class="link">			
 				<td>{{vhost.Name}}</td>
-				<td>{{vhost.Application}}</td> <td>{{vhost.ServiceEndpoint}}</td>
+        <td>{{vhost.Application}}</td>
+        <td>{{vhost.ServiceEndpoint}}</td>
 				<td><a href="{{vhost_url( vhost.Name)}}" target="_blank">{{vhost_url(vhost.Name)}}</a></td>
-				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link" ng-disabled="vhosts.data.length <= 1">Delete</button></td>
+        <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link" ng-disabled="vhosts.data.length <= 1">{{'label_delete'|translate}}</button></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<!-- IP Assignments -->
+	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+	<table class="table table-striped table-bordered table-hover" id="ips_data">
+		<thead>
+			<tr>
+				<th ng-repeat="header in ips.headers">{{header.name|translate}}
+					<button ng-click="ips.set_order(header.id, ips)" 
+									ng-class="ips.get_order_class(header.id, ips)"></button>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr ng-repeat="ip in ips.data track by $index | orderBy:ips.sort" class="link">
+				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
+				<td>{{ip.EndpointName}}</td>
+				<td>{{ip.AssignmentType}}</td>
+				<td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
+        <td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
+				<td>{{ip.IPAddr}}</td>
+				<td>{{ip.Port}}</td>
+        <td> <button ng-click="modalAssignIP(ip)" class="btn btn-link">{{'label_assign'|translate}}</button> </td>
 			</tr>
 		</tbody>
 	</table>
 
 	<!-- Config Files -->
-	<h3>{{'title_config_files' | translate }}</h3>
+	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
 	<table class="table table-striped table-bordered table-hover" >
       <thead>
         <tr>
@@ -104,7 +130,7 @@
           <td>
             <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
           </td>
-		</tr>
+        </tr>
       </tbody>
     </table>
 	
@@ -194,3 +220,4 @@
     <div ng-include="'/static/partials/view-log.html'"></div>
     <div ng-include="'/static/partials/add-service.html'"></div>
     <div ng-include="'/static/partials/add-vhost.html'"></div>
+    <div ng-include="'/static/partials/assign-ip.html'"></div>

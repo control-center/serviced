@@ -37,6 +37,31 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	w.WriteJson(&response)
 }
 
+//RestGetHost retrieves a host. Response is Host
+func RestGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		RestServerError(w)
+		return
+	}
+
+	host, err := client.GetHost(hostID)
+	if err != nil {
+		glog.Error("Could not get host: ", err)
+		RestServerError(w)
+		return
+	}
+
+	glog.V(4).Infof("RestGetHost: id %s, host %#v", hostID, host)
+	w.WriteJson(&host)
+}
+
 //RestAddHost adds a Host. Request input is host.Host
 func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload host.Host

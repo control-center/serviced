@@ -314,6 +314,36 @@ function ResourcesService($http, $location) {
     };
 
     return {
+
+        /*
+         * Assign an ip address to a service endpoint and it's children.  Leave IP parameter
+         * null for automatic assignment.
+         *
+         * @param {serviceID} string the serviceID to assign an ip address
+         * @param {ip} string ip address to assign to service, set as null for automatic assignment
+         * @param {function} callback data is passed to a callback on success.
+         */
+        assign_ip: function(serviceID, ip, callback) {
+          var url = '/services/' + serviceID + "/ip";
+          if (ip != null) {
+            url = url + "/" + ip
+          }
+          $http.put(url).
+              success(function(data, status) {
+                  console.log('Assigned IP');
+                  if (callback) {
+                    callback(data);
+                  }
+              }).
+              error(function(data, status) {
+                  // TODO error screen
+                  console.error('Unable to assign ip');
+                  if (status === 401) {
+                      unauthorized($location);
+                  }
+              });
+        },
+
         /*
          * Get the most recently retrieved map of resource pools.
          * This will also retrieve the data if it has not yet been
@@ -329,6 +359,47 @@ function ResourcesService($http, $location) {
             } else {
                 _get_pools(callback);
             }
+        },
+
+        /*
+         * Get a Pool
+         * @param {string} poolID the pool id
+         * @param {function} callback Pool data is passed to a callback on success.
+         */
+        get_pool: function(poolID, callback) {
+            $http.get('/pools/' + poolID).
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, poolID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Get all possible ips for a resource pool
+         *
+         * @param {boolean} cacheOk Whether or not cached data is OK to use.
+         * @param {function} callback Pool data is passed to a callback on success.
+         */
+        get_pool_ips: function(poolID, callback) {
+            $http.get('/pools/' + poolID + "/ips").
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, poolID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         },
 
         /*
@@ -600,6 +671,26 @@ function ResourcesService($http, $location) {
             } else {
                 _get_hosts(callback);
             }
+        },
+
+        /*
+         * Get a host
+         * @param {string} hostID the host id
+         * @param {function} callback host data is passed to a callback on success.
+         */
+        get_host: function(hostID, callback) {
+            $http.get('/hosts/' + hostID).
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, hostID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire host: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         },
 
         /*
@@ -1019,6 +1110,39 @@ function aggregateVhosts( service) {
   }
   return vhosts;
 }
+// collect all address assignments for a service
+function aggregateAddressAssigments( service, api) {
+  var assignments = [];
+  if (service.Endpoints) {
+    for (var i in service.Endpoints) {
+      var endpoint = service.Endpoints[i];
+      if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != "") {
+        var assignment = {
+          'ID': endpoint.AddressAssignment.ID,
+          'AssignmentType': endpoint.AddressAssignment.AssignmentType,
+          'EndpointName': endpoint.AddressAssignment.EndpointName,
+          'HostID': endpoint.AddressAssignment.HostID,
+          'HostName': 'unknown',
+          'PoolID': endpoint.AddressAssignment.PoolID,
+          'IPAddr': endpoint.AddressAssignment.IPAddr,
+          'Port': endpoint.AddressAssignment.Port,
+          'ServiceID': endpoint.AddressAssignment.ServiceID,
+          'ServiceName': service.Name
+        }
+        api.get_host( assignment.HostID, function(data) {
+          assignment.HostName = data.Name
+        })
+        assignments.push( assignment)
+      }
+    }
+  }
+
+  for (var i in service.children) {
+    var child_service = service.children[i];
+    assignments = assignments.concat( aggregateAddressAssigments( child_service, api));
+  }
+  return assignments;
+}
 
 // collect all virtual hosts options for provided service
 function aggregateVhostOptions( service) {
@@ -1090,15 +1214,20 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
-            // we need a flattened view of all children
 
+            // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current);
+            }
+
+            // aggregate virtual ip and virtual host data
+            if ($scope.services.current) {
                 $scope.vhosts.data = aggregateVhosts( $scope.services.current);
                 $scope.vhosts.options = aggregateVhostOptions( $scope.services.current);
                 if ($scope.vhosts.options.length > 0) {
                   $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
                 }
+                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService)
             }
         }
         if (extraCallback) {
@@ -3005,6 +3134,17 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Action', name: 'vhost_actions'},
     ]);
 
+    $scope.ips = buildTable('Service', [
+        { id: 'Service', name: 'tbl_virtual_ip_service'},
+        { id: 'Application', name: 'tbl_virtual_ip_application'},
+        { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
+        { id: 'Host', name: 'tbl_virtual_ip_host'},
+        { id: 'Pool', name: 'tbl_virtual_ip_pool'},
+        { id: 'IPAddress', name: 'tbl_virtual_ip'},
+        { id: 'Port', name: 'tbl_virtual_ip_port'},
+        { id: 'Actions', name: 'tbl_virtual_ip_actions'}
+    ]);
+
     //add vhost data (includes name, app & service endpoint)
     $scope.vhosts.add = {};
 
@@ -3013,6 +3153,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+
+    $scope.click_pool = function(id) {
+        $location.path('/pools/' + id);
+    };
+
+    $scope.click_host = function(id) {
+        $location.path('/hosts/' + id);
     };
 
     $scope.modalAddVHost = function() {
@@ -3037,6 +3185,39 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $scope.vhosts.add = {};
             refreshServices($scope, resourcesService, false);
         });
+    };
+
+    // modalAssignIP opens a modal view to assign an ip address to a service
+    $scope.modalAssignIP = function(ip) {
+      $scope.ips.assign = {'ip':ip, 'value':null}
+      resourcesService.get_pool_ips( ip.PoolID, function( data) {
+        var options= [{'Value':'Automatic', 'IPAddr':null}]
+
+        //host ips
+        for(var i = 0; i < data.HostIPs.length; ++i) {
+          var IPAddr = data.HostIPs[i].IPAddress
+          var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
+          options.push({'Value': value, 'IPAddr':IPAddr})
+          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+            $scope.ips.assign.value = options[ options.length-1]
+          }
+        }
+        //TODO virtual ips
+
+        //default to automatic
+        if(!$scope.ips.assign.value) {
+          $scope.ips.assign.value = options[0]
+        }
+
+        $scope.ips.assign.options = options
+        $('#assignIP').modal('show');
+      })
+    };
+
+    $scope.AssignIP = function() {
+        var serviceID = $scope.ips.assign.ip.ServiceID;
+        var IP = $scope.ips.assign.value.IPAddr;
+        resourcesService.assign_ip( serviceID, IP) 
     };
 
     $scope.vhost_url = function( vhost) {

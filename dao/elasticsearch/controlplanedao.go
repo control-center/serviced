@@ -12,6 +12,7 @@ package elasticsearch
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
+	"github.com/mattbaird/elastigo/indices"
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -128,8 +129,12 @@ func index(pretty *bool, index string, _type string) func(string, interface{}) (
 // closure for deleting a model
 func _delete(pretty *bool, index string, _type string) func(string) (api.BaseResponse, error) {
 	return func(id string) (api.BaseResponse, error) {
-		//version=-1 and routing="" are not supported as of 9/30/13
-		return core.Delete(*pretty, index, _type, id, -1, "")
+		r, err := core.Delete(*pretty, index, _type, id, -1, "")
+		if err != nil {
+			return r, err
+		}
+		indices.Refresh(index)
+		return r, err
 	}
 }
 
@@ -481,22 +486,26 @@ func (this *ControlPlaneDao) updateService(service *service.Service) error {
 		return errors.New("empty Service.Id not allowed")
 	}
 	service.Id = id
+	//add assignment info to service
+	for idx := range service.Endpoints {
+		assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
+		if err != nil {
+			glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
+			return err
+		}
+		if assignment != nil {
+			//assignment exists
+			glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
+			service.Endpoints[idx].SetAssignment(assignment)
+		} else {
+			service.Endpoints[idx].RemoveAssignment()
+		}
+	}
+
 	response, err := indexService(id, service)
 	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
 	if response.Ok {
 		//add address assignment info to ZK Service
-		for idx := range service.Endpoints {
-			assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
-			if err != nil {
-				glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
-				return err
-			}
-			if assignment != nil {
-				//assignment exists
-				glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
-				service.Endpoints[idx].SetAssignment(assignment)
-			}
-		}
 		return this.zkDao.UpdateService(service)
 	}
 	return err
@@ -904,6 +913,13 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
 				}
+
+				err = this.updateService(&myService)
+				if err != nil {
+					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
+					return err
+				}
+
 				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.ID, assignment.EndpointName)
 			}
 		}
@@ -1267,6 +1283,20 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 	if err != nil {
 		return err
 	}
+
+	for _, assignment := range *aas {
+		var service service.Service
+		if err := this.GetService(assignment.ServiceID, &service); err != nil {
+			glog.V(2).Infof("ControlPlaneDao.GetService service=%+v err=%s", assignment.ServiceID, err)
+			return err
+		}
+
+		if err := this.updateService(&service); err != nil {
+			glog.V(2).Infof("ControlPlaneDao.updateService service=%+v err=%s", assignment.ServiceID, err)
+			return err
+		}
+	}
+
 	return nil
 }
 
