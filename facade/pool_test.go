@@ -5,7 +5,6 @@
 package facade
 
 import (
-	"fmt"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	. "gopkg.in/check.v1"
