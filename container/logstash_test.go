@@ -75,16 +75,16 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		return
 	}
 	confFileLocation := tmp.Name()
+	// go ahead and clean up
+	defer func() {
+		os.Remove(confFileLocation)
+	}()
 
 	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
 
-	// go ahead and clean up
-	defer func() {
-		os.Remove(confFileLocation)
-	}()
 	contents, err := ioutil.ReadFile(confFileLocation)
 	if err != nil {
 		t.Errorf("Error reading config file %s", err)
@@ -106,16 +106,16 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 		return
 	}
 	confFileLocation := tmp.Name()
+	// go ahead and clean up
+	defer func() {
+		os.Remove(confFileLocation)
+	}()
 
 	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
 
-	// go ahead and clean up
-	defer func() {
-		os.Remove(confFileLocation)
-	}()
 	contents, err := ioutil.ReadFile(confFileLocation)
 	if err != nil {
 		t.Errorf("Error reading config file %s", err)
@@ -160,8 +160,20 @@ func TestDontWriteToNilMap(t *testing.T) {
 			},
 		},
 	}
-	err := writeLogstashAgentConfig("/tmp/logstash-should-not-exist.conf", &service, LOGSTASH_CONTAINER_DIRECTORY)
+
+	tmp, err := ioutil.TempFile("/tmp", "test-logstash-")
 	if err != nil {
+		t.Errorf("Error creating temporary file error: %s", err)
+		return
+	}
+	confFileLocation := tmp.Name()
+	// go ahead and clean up
+	defer func() {
+		os.Remove(confFileLocation)
+	}()
+
+	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
 		t.Errorf("Writing with empty tags produced an error %s", err)
+		return
 	}
 }
