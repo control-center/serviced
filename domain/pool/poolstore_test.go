@@ -82,7 +82,7 @@ func (s *S) Test_GetPools(t *C) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(pools) != 0 {
-		t.Errorf("Expected %v results, got %v :%#v", 2, len(pools), pools)
+		t.Errorf("Expected %v results, got %v :%#v", 0, len(pools), pools)
 	}
 
 	pool := New("Test_GetPools1")
