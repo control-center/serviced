@@ -78,10 +78,10 @@
 		<tbody>
 			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort" class="link">			
 				<td>{{vhost.Name}}</td>
-        <td>{{vhost.Application}}</td>
-        <td>{{vhost.ServiceEndpoint}}</td>
+				<td>{{vhost.Application}}</td>
+				<td>{{vhost.ServiceEndpoint}}</td>
 				<td><a href="{{vhost_url( vhost.Name)}}" target="_blank">{{vhost_url(vhost.Name)}}</a></td>
-        <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link" ng-disabled="vhosts.data.length <= 1">{{'label_delete'|translate}}</button></td>
+				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link" ng-disabled="vhosts.data.length <= 1">{{'label_delete'|translate}}</button></td>
 			</tr>
 		</tbody>
 	</table>
