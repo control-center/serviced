@@ -12,6 +12,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 
 	"mime"
@@ -146,11 +147,11 @@ func (sc *ServiceConfig) Serve() {
 	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
-	certfile, err := serviced.TempCertFile()
+	certfile, err := proxy.TempCertFile()
 	if err != nil {
 		glog.Fatalf("Could not prepare cert.pem file: %s", err)
 	}
-	keyfile, err := serviced.TempKeyFile()
+	keyfile, err := proxy.TempKeyFile()
 	if err != nil {
 		glog.Fatalf("Could not prepare key.pem file: %s", err)
 	}

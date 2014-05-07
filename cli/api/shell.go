@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/shell"
 )
 
@@ -80,7 +82,42 @@ func (a *api) RunShell(config ShellConfig) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+
+	err = cmd.Run()
+	if err != nil {
+		glog.Fatalf("abnormal termination from shell command: %s", err)
+	}
+
+	dockercli, err := a.connectDocker()
+	if err != nil {
+		glog.Fatalf("unable to connect to the docker service: %s", err)
+	}
+	exitcode, err := dockercli.WaitContainer(config.SaveAs)
+	if err != nil {
+		glog.Fatalf("failure waiting for container: %s", err)
+	}
+	container, err := dockercli.InspectContainer(config.SaveAs)
+	if err != nil {
+		glog.Fatalf("cannot acquire information about container: %s (%s)", config.SaveAs, err)
+	}
+	glog.V(2).Infof("Container ID: %s", container.ID)
+
+	switch exitcode {
+	case 0:
+		// Commit the container
+		label := ""
+		glog.V(0).Infof("Committing container")
+		if err := client.Commit(container.ID, &label); err != nil {
+			glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
+		}
+	default:
+		// Delete the container
+		if err := dockercli.StopContainer(container.ID, 10); err != nil {
+			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
+		} else if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
+		}
+	}
 
 	return nil
 }

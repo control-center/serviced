@@ -5,13 +5,16 @@
 package facade
 
 import (
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
 
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -123,6 +126,7 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, 
 
 	for _, pool := range pools {
 		f.calcPoolCapacity(ctx, pool)
+		f.calcPoolCommitment(ctx, pool)
 	}
 
 	return pools, err
@@ -154,14 +158,62 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 	coreCapacity := 0
 	memCapacity := uint64(0)
 	for _, host := range hosts {
-		coreCapacity = coreCapacity + host.Cores;
-		memCapacity = memCapacity + host.Memory;
+		coreCapacity = coreCapacity + host.Cores
+		memCapacity = memCapacity + host.Memory
 	}
 
 	pool.CoreCapacity = coreCapacity
 	pool.MemoryCapacity = memCapacity
 
 	return err
+}
+
+func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePool) error {
+	services, err := f.getServices(ctx, pool.ID)
+
+	if err != nil {
+		return err
+	}
+
+	memCommitment := uint64(0)
+	for _, service := range services {
+		memCommitment = memCommitment + service.RAMCommitment
+	}
+
+	pool.MemoryCommitment = memCommitment
+
+	return err
+}
+
+func (f *Facade) getServices(ctx datastore.Context, poolID string) ([]*service.Service, error) {
+
+	id := strings.TrimSpace(poolID)
+	if id == "" {
+		return nil, errors.New("empty poolID not allowed")
+	}
+
+	q := datastore.NewQuery(ctx)
+	queryString := fmt.Sprintf("PoolId:%s", id)
+	query := search.Query().Search(queryString)
+	search := search.Search("controlplane").Type("service").Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
+func convert(results datastore.Results) ([]*service.Service, error) {
+	svcs := make([]*service.Service, results.Len())
+	for idx := range svcs {
+		var svc service.Service
+		err := results.Get(idx, &svc)
+		if err != nil {
+			return nil, err
+		}
+		svcs[idx] = &svc
+	}
+	return svcs, nil
 }
 
 var defaultPoolID = "default"

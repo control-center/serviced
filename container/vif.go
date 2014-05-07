@@ -1,4 +1,4 @@
-package api
+package container
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ func NewVIFRegistry() *VIFRegistry {
 func (reg *VIFRegistry) nextIP() (string, error) {
 	n := len(reg.vifs) + 2
 	if n > (255 * 255) {
-		return "", fmt.Errorf("unable to allocate IPs for %s interfaces", n)
+		return "", fmt.Errorf("unable to allocate IPs for %d interfaces", n)
 	}
 	o3 := (n / 255)
 	o4 := (n - (o3 * 255))

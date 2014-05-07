@@ -33,7 +33,7 @@
             <th>{{'label_pool_name'| translate}}</th>
             <th>{{'label_host_memory' | translate}}</th>
             <th>{{'label_host_cores' | translate}}</th>
-            <th>{{'label_host_kernel_release' | translate}}</th>
+            <th>{{'label_host_kernel_version' | translate}}</th>
 
           </tr>
           <tr ng-repeat="host in hosts.filtered">
@@ -44,7 +44,7 @@
             <td>{{host.fullPath}}</td>
             <td>{{host.Memory | toGB}}</td>
             <td>{{host.Cores}}</td>
-            <td>{{host.KernelRelease}}</td>
+            <td>{{host.KernelVersion}}</td>
           </tr>
         </tbody>
       </table>

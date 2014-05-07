@@ -206,7 +206,7 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
 	return config.IPAddress, nil
 }
 
-func (t ServiceAPITest) StartProxy(config api.ProxyConfig) error {
+func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
 	if s, err := t.GetService(config.ServiceID); err != nil {
 		return err
 	} else if s == nil {
@@ -618,13 +618,6 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 	// no service found
 }
 
-func ExampleServicedCLI_CmdServiceProxy() {
-	InitServiceAPITest("serviced", "service", "proxy", "test-service-1", "id", "0", "some", "command")
-
-	// Output:
-	// some command
-}
-
 func ExampleServicedCLI_CmdServiceProxy_usage() {
 	// FIXME: Non-reproducible error on buildbox
 	InitServiceAPITest("serviced", "service", "proxy")
@@ -714,10 +707,9 @@ func ExampleServicedCLI_CmdServiceRun_usage() {
 	//    command run [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service run SERVICEID [COMMAND]
+	//    serviced service run SERVICEID COMMAND [ARGS]
 	//
 	// OPTIONS:
-	//    --saveas, -s 	saves the service instance with the given name
 	//    --interactive, -i	runs the service instance as a tty
 }
 
