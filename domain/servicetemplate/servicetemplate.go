@@ -73,3 +73,16 @@ func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
 	return &wrapper, nil
 
 }
+
+//BuildFromPath given a path will create a ServiceDefintion
+func BuildFromPath(path string) (*ServiceTemplate, error) {
+	sd, err := servicedefinition.BuildFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+	st := ServiceTemplate{
+		Services: []servicedefinition.ServiceDefinition{*sd},
+		Name:     sd.Name,
+	}
+	return &st, nil
+}
