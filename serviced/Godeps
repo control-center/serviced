@@ -8,6 +8,10 @@
 			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
 		},
 		{
+			"ImportPath": "github.com/kr/pretty",
+			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
+		},
+		{
 			"ImportPath": "github.com/zenoss/go-json-rest",
 			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
 		},
