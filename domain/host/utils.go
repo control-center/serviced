@@ -5,6 +5,7 @@
 package host
 
 import (
+	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
 
@@ -151,6 +152,7 @@ func normalizeIP(ip string) string {
 
 func ipExists(ip string) bool {
 	interfaces, err := getInterfaceMap()
+	glog.V(5).Infof("looking for %s in %#", ip, pretty.Formatter(interfaces))
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
 		return false
