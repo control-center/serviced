@@ -30,7 +30,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.clickRemovePool = function(poolID) {
         console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){removePool($scope, poolID)});
+            refreshPools($scope, resourcesService, false);
         });
     };
 
