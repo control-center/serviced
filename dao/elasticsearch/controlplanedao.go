@@ -1116,7 +1116,6 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	for _, svc := range sds {
 		getSubServiceImageIds(imageIds, svc)
 	}
-	glog.Infof("wtf: %v", imageIds)
 
 	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
@@ -1652,7 +1651,6 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 			return err
 		} else {
 			glog.Infof("Got snap labels %v", snaplabels)
-			*labels = make([]string, len(snaplabels))
 			*labels = snaplabels
 		}
 	}
