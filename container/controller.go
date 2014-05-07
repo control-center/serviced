@@ -161,7 +161,7 @@ func setupConfigFiles(service *service.Service) error {
 func setupLogstashFiles(service *service.Service, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(service, resourcePath)
+		err := writeLogstashAgentConfig(LOGSTASH_CONTAINER_CONFIG, service, resourcePath)
 		if err != nil {
 			return err
 		}

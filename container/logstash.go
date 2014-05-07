@@ -17,6 +17,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const (
+	LOGSTASH_CONTAINER_CONFIG = "/etc/logstash-forwarder.conf"
+)
+
 //createFields makes the map of tags for the logstash config including the type
 func createFields(logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
@@ -41,7 +45,7 @@ func formatTagsForConfFile(tags map[string]string) string {
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
-func writeLogstashAgentConfig(service *service.Service, resourcePath string) error {
+func writeLogstashAgentConfig(confPath string, service *service.Service, resourcePath string) error {
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
@@ -82,7 +86,7 @@ func writeLogstashAgentConfig(service *service.Service, resourcePath string) err
 		logstashForwarderLogConf)
 
 	config := servicedefinition.ConfigFile{
-		Filename: "/etc/logstash-forwarder.conf",
+		Filename: confPath,
 		Content:  logstashForwarderShipperConf,
 	}
 	err := writeConfFile(config)
