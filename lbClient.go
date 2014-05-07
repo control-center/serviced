@@ -4,6 +4,8 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
+
 	"net/rpc"
 )
 
@@ -39,6 +41,12 @@ func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) er
 func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints)
+}
+
+// GetService returns a service for the given service id request.
+func (a *LBClient) GetService(serviceId string, service *service.Service) error {
+	glog.V(0).Infof("ControlPlaneAgent.GetService()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetService", serviceId, service)
 }
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service

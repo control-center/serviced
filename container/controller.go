@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
 
 	"errors"
 	"fmt"
@@ -73,6 +74,29 @@ func (c *Controller) Close() error {
 	return <-errc
 }
 
+// setupConfigFiles sets up config files
+func setupConfigFiles(lbClientPort string, serviceID string) error {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return err
+	}
+	defer client.Close()
+
+	var service service.Service
+	err = client.GetService(serviceID, &service)
+	if err != nil {
+		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
+		return err
+	}
+
+	glog.Infof("setupConfigFiles: service: %+v", service)
+	// TODO: write config files
+	// TODO: write out logstash files
+
+	return nil
+}
+
 // NewController creates a new Controller for the given options
 func NewController(options ControllerOptions) (*Controller, error) {
 	c := &Controller{
@@ -98,6 +122,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.logforwarder = logforwarder
 		c.logforwarderExited = exited
 	}
+
+	setupConfigFiles(c.options.ServicedEndpoint, options.Service.ID)
 
 	//build metric redirect url -- assumes 8444 is port mapped
 	metricRedirect := options.Metric.RemoteEndoint
