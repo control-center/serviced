@@ -16,6 +16,7 @@ type ResourcePool struct {
 	MemoryLimit    uint64 // A quota on the amount (bytes) of RAM in the pool, 0 = unlimited
 	CoreCapacity   int    // Number of cores available as a sum of all cores on all hosts in the pool
 	MemoryCapacity uint64 // Amount (bytes) of RAM available as a sum of all memory on all hosts in the pool
+	MemoryCommitment uint64 // Amount (bytes) of RAM committed to services
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -44,6 +45,9 @@ func (a *ResourcePool) Equals(b *ResourcePool) bool {
 		return false
 	}
 	if a.MemoryCapacity != b.MemoryCapacity {
+		return false
+	}
+	if a.MemoryCommitment != b.MemoryCommitment {
 		return false
 	}
 	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {

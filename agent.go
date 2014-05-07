@@ -64,7 +64,7 @@ type HostAgent struct {
 	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
 	vfs             string               // driver for container volumes
 	currentServices map[string]*exec.Cmd // the current running services
-	mux             TCPMux
+	mux             proxy.TCPMux
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
@@ -84,7 +84,7 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
@@ -94,9 +94,6 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
-	if agent.mux.Enabled {
-		go agent.mux.ListenAndMux()
-	}
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""
@@ -117,6 +114,26 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
 	return agent, err
+
+	/* FIXME: this should work here
+
+	addr, err := net.ResolveTCPAddr("tcp", processForwarderAddr)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
+	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
+	go http.Serve(listener, sio)
+	c := &ControllerP{
+		processForwarderListener: listener,
+	}
+	*/
+
 }
 
 // Use the Context field of the given template to fill in all the templates in

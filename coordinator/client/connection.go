@@ -18,8 +18,8 @@ type Leader interface {
 }
 
 type Node interface {
-	Version() int32
-	SetVersion(int32)
+	Version() interface{}
+	SetVersion(interface{})
 }
 
 type Connection interface {

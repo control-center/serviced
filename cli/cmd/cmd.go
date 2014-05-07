@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/cli"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/servicedversion"
 )
 
 // ServicedCli is the client ui for serviced
@@ -30,7 +31,7 @@ func New(driver api.API) *ServicedCli {
 
 	c.app.Name = "serviced"
 	c.app.Usage = "A container-based management system"
-	c.app.Version = "1.0.0"
+	c.app.Version = servicedversion.Version
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	c.app.Flags = []cli.Flag{

@@ -80,10 +80,6 @@ func GetESStartupTimeout() int {
 
 // GetGateway returns the default gateway
 func GetGateway() string {
-	if proxyOptions.ServicedEndpoint != "" {
-		return proxyOptions.ServicedEndpoint
-	}
-
 	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
 	localhost := URL{"127.0.0.1", "4979"}

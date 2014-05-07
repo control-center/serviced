@@ -30,6 +30,7 @@ var (
 )
 
 var (
+	ErrInvalidVersionObj  = errors.New("coord-client: invalid version object")
 	ErrInvalidPath        = errors.New("coord-client: invalid path")
 	ErrInvalidNodeType    = errors.New("coord-client: invalid node type")
 	ErrSerialization      = errors.New("coord-client: serialization error")

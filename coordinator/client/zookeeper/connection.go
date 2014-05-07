@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	lpath "path"
 	"strings"
+
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
@@ -84,7 +85,7 @@ func (c *Connection) Create(path string, node client.Node) error {
 		return client.ErrSerialization
 	}
 
-	_, err = c.conn.Create(p, bytes, node.Version(), zklib.WorldACL(zklib.PermAll))
+	_, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll))
 	if err == zklib.ErrNoNode {
 		// Create parent node.
 		parts := strings.Split(p, "/")
@@ -97,13 +98,18 @@ func (c *Connection) Create(path string, node client.Node) error {
 			}
 		}
 	}
+	if err == nil {
+		node.SetVersion(&zklib.Stat{})
+	}
 	return xlateError(err)
 }
 
-type dirNode struct{}
+type dirNode struct {
+	version interface{}
+}
 
-func (d *dirNode) Version() int32   { return 0 }
-func (d *dirNode) SetVersion(int32) {}
+func (d *dirNode) Version() interface{}     { return d.version }
+func (d *dirNode) SetVersion(v interface{}) { d.version = v }
 
 // CreateDir creates an empty node at the given path.
 func (c *Connection) CreateDir(path string) error {
@@ -184,7 +190,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 		return nil, err
 	}
 	err = json.Unmarshal(data, node)
-	node.SetVersion(stat.Version)
+	node.SetVersion(stat)
 	return toClientEvent(zkEvent), xlateError(err)
 }
 
@@ -214,7 +220,7 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 		return err
 	}
 	err = json.Unmarshal(data, node)
-	node.SetVersion(stat.Version)
+	node.SetVersion(stat)
 	return xlateError(err)
 }
 
@@ -227,6 +233,15 @@ func (c *Connection) Set(path string, node client.Node) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.conn.Set(path, data, node.Version())
+
+	stat := &zklib.Stat{}
+	if node.Version() != nil {
+		zstat, ok := node.Version().(*zklib.Stat)
+		if !ok {
+			return client.ErrInvalidVersionObj
+		}
+		*stat = *zstat
+	}
+	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
 	return xlateError(err)
 }

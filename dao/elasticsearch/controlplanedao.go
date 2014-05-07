@@ -1014,7 +1014,38 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
 }
 
+func getSubServiceImageIds(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
+	found := struct{}{}
+
+	if len(svc.ImageID) != 0 {
+		ids[svc.ImageID] = found
+	}
+	for _, s := range svc.Services {
+		getSubServiceImageIds(ids, s)
+	}
+}
+
 func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+	// ensure that all images in the templates exist
+	imageIds := make(map[string]struct{})
+	for _, svc := range sds {
+		getSubServiceImageIds(imageIds, svc)
+	}
+
+	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("unable to start docker client")
+		return err
+	}
+
+	for imageId, _ := range imageIds {
+		_, err := dockerclient.InspectImage(imageId)
+		if err != nil {
+			glog.Errorf("could not look up image: %s", imageId)
+			return err
+		}
+	}
+
 	for _, sd := range sds {
 		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
 			return err
@@ -1495,7 +1526,6 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 			return err
 		} else {
 			glog.Infof("Got snap labels %v", snaplabels)
-			*labels = make([]string, len(snaplabels))
 			*labels = snaplabels
 		}
 	}

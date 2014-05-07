@@ -290,7 +290,7 @@ func ExampleServicedCLI_CmdPoolRemove_err() {
 	pipeStderr(InitPoolAPITest, "serviced", "pool", "remove", "test-pool-id-0")
 
 	// Output:
-	// test-pool-id-0: no pool found
+	// test-pool-id-0: pool not found
 }
 
 func ExampleServicedCLI_CmdPoolRemove_complete() {
