@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/host"
 )
 
@@ -14,7 +15,7 @@ func NewServer(staticIPs []string) *AgentServer {
 	ips := make([]string, len(staticIPs))
 	copy(staticIPs, ips)
 	return &AgentServer{
-		staticIPs: ips,
+		staticIPs: staticIPs,
 	}
 }
 
@@ -34,6 +35,7 @@ type BuildHostRequest struct {
 // BuildHost creates a Host object from the current host.
 func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Host) error {
 
+	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
 	h, err := host.Build(request.IP, request.PoolID, a.staticIPs...)
 	if err != nil {
 		return err

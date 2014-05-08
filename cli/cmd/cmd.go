@@ -58,7 +58,10 @@ func New(driver api.API) *ServicedCli {
 	c.app.Version = servicedversion.Version
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
-	staticIps := cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
+	staticIps := cli.StringSlice{}
+	if len(configEnv("STATIC_IPS", "")) > 0 {
+		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
+	}
 	c.app.Flags = []cli.Flag{
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
 		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},

@@ -183,7 +183,8 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 	}
-	if err = rpc.RegisterName("Agent", agent.NewServer(options.StaticIPs)); err != nil {
+	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
+	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 

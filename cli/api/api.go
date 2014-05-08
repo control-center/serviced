@@ -70,6 +70,7 @@ func New() API {
 
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
+	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
 	d, err := newDaemon(options.StaticIPs)
 	if err != nil {
 		return err
