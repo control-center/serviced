@@ -636,7 +636,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		glog.Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
 	case <-tout:
 		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
-		// WORKAROUND for issue where docker.Start event doesn't always notify
+		// FIXME: WORKAROUND for issue where docker.Start event doesn't always notify
 		if container, err := dc.InspectContainer(ctr.ID); err != nil {
 			glog.Warning("container %s could not be inspected error:%v\n\n", ctr.ID, err)
 		} else {
