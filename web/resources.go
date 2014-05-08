@@ -43,7 +43,6 @@ func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serv
 	}
 	glog.V(0).Info("Deployed template ", payload)
 
-	// TODO: the UI needs a way to disable that automatic IP assignment (see CmdDeployTemplate)
 	assignmentRequest := dao.AssignmentRequest{tenantId, "", true}
 	if err := client.AssignIPs(assignmentRequest, nil); err != nil {
 		glog.Error("Could not automatically assign IPs: %v", err)
