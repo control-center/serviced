@@ -43,7 +43,7 @@ import (
 	"time"
 )
 
-var minDockerVersion = version{0, 8, 1}
+var minDockerVersion = version{0, 10, 0}
 
 type daemon struct {
 	staticIPs []string
@@ -85,7 +85,7 @@ func (d *daemon) run() error {
 	}
 
 	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		glog.Fatalf("serviced needs at least docker >= 0.8.1")
+		glog.Fatalf("serviced needs at least docker >= %s", minDockerVersion)
 	}
 
 	//TODO: is this needed for both agent and master?
