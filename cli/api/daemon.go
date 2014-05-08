@@ -45,13 +45,8 @@ import (
 
 var minDockerVersion = version{0, 8, 1}
 
-// startDaemon starts the agent or master services on this host.
-func startDaemon() {
-	d := newDaemon()
-	d.start()
-}
-
 type daemon struct {
+	staticIPs []string
 	cpDao     dao.ControlPlane
 	dsDriver  datastore.Driver
 	dsContext datastore.Context
@@ -60,20 +55,23 @@ type daemon struct {
 	zclient   *coordclient.Client
 }
 
-func newDaemon() *daemon {
-	return &daemon{}
+func newDaemon(staticIPs []string) (*daemon, error) {
+	d := &daemon{
+		staticIPs: staticIPs,
+	}
+	return d, nil
 }
 
-func (d *daemon) start() {
+func (d *daemon) run() error {
 	var err error
 	d.hostID, err = utils.HostID()
 	if err != nil {
-		glog.Fatalf("Could not get hostid", err)
+		return fmt.Errorf("could not get hostid: %s", err)
 	}
 
 	l, err := net.Listen("tcp", options.Listen)
 	if err != nil {
-		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
+		return fmt.Errorf("Could not bind to port %v. Is another instance running", err)
 	}
 
 	//This asserts isvcs
@@ -83,16 +81,16 @@ func (d *daemon) start() {
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
-		glog.Fatalf("Could not determine docker version: %s", err)
+		return fmt.Errorf("could not determine docker version: %s", err)
 	}
 
 	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker >= 0.8.1")
+		return errors.New("serviced needs at least docker >= 0.8.1")
 	}
 
 	//TODO: is this needed for both agent and master?
 	if _, ok := volume.Registered(options.VFS); !ok {
-		glog.Fatalf("no driver registered for %s", options.VFS)
+		return fmt.Errorf("no driver registered for %s", options.VFS)
 	}
 
 	if options.Master {
@@ -117,7 +115,7 @@ func (d *daemon) start() {
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
-	http.Serve(l, nil) // start the server
+	return http.Serve(l, nil) // start the server
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
@@ -185,7 +183,7 @@ func (d *daemon) startAgent() error {
 	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 	}
-	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil {
+	if err = rpc.RegisterName("Agent", agent.NewServer(options.StaticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 

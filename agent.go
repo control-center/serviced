@@ -950,6 +950,7 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 			case errc := <-a.closing:
 				glog.V(1).Info("Agent received interrupt")
 				err = waitForSsNodes(processing, ssDone)
+				conn.Close()
 				errc <- err
 				return false
 			}
@@ -961,6 +962,7 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 		case errc := <-a.closing:
 			glog.V(1).Info("Agent received interrupt")
 			err = waitForSsNodes(processing, ssDone)
+			conn.Close()
 			errc <- err
 			return false
 

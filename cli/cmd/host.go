@@ -142,7 +142,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	}
 }
 
-// serviced host add [[--ip IP] ...] HOST:PORT POOLID
+// serviced host add HOST:PORT POOLID
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -160,7 +160,6 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	cfg := api.HostConfig{
 		Address: &address,
 		PoolID:  args[1],
-		IPs:     ctx.StringSlice("ip"),
 	}
 
 	if host, err := c.driver.AddHost(cfg); err != nil {

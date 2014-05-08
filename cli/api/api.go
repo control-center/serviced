@@ -39,6 +39,7 @@ type Options struct {
 	ESStartupTimeout int
 	HostAliases      []string
 	Verbosity        int
+	StaticIPs        []string
 }
 
 // LoadOptions overwrites the existing server options
@@ -68,8 +69,12 @@ func New() API {
 }
 
 // Starts the agent or master services on this host
-func (a *api) StartServer() {
-	startDaemon()
+func (a *api) StartServer() error {
+	d, err := newDaemon(options.StaticIPs)
+	if err != nil {
+		return err
+	}
+	return d.run()
 }
 
 // Opens a connection to the master if not already connected
