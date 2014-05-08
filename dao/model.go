@@ -23,13 +23,6 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
-// Desired states of services.
-const (
-	SVC_RUN     = 1
-	SVC_STOP    = 0
-	SVN_RESTART = -1
-)
-
 // An exposed service endpoint
 type ApplicationEndpoint struct {
 	ServiceId      string

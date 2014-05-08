@@ -57,3 +57,14 @@ func ValidPort(port int) error {
 	}
 	return nil
 }
+
+func IntIn(check int, others ...int) error {
+	set := make(map[int]struct{}, len(others))
+	for _, val := range others {
+		set[val] = struct{}{}
+	}
+	if _, ok := set[check]; !ok {
+		return NewViolation(fmt.Sprintf("int %v not in %v", check, others))
+	}
+	return nil
+}

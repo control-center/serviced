@@ -5,9 +5,29 @@
 package service
 
 import (
+	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/validation"
+
 	"errors"
 	"fmt"
 )
+
+//ValidEntity validate that Service has all required fields
+func (s *Service) ValidEntity() error {
+
+	vErr := validation.NewValidationError()
+	vErr.Add(validation.NotEmpty("ID", s.Id))
+	vErr.Add(validation.NotEmpty("Name", s.Name))
+	vErr.Add(validation.NotEmpty("PoolID", s.PoolId))
+
+	vErr.Add(validation.StringIn(s.Launch, commons.AUTO, commons.MANUAL))
+	vErr.Add(validation.IntIn(s.DesiredState, SVC_RUN, SVC_STOP, SVN_RESTART))
+
+	if vErr.HasError() {
+		return vErr
+	}
+	return nil
+}
 
 //Validate used to make sure AddressAssignment is in a valid state
 func (a *AddressAssignment) Validate() error {

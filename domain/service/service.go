@@ -16,6 +16,13 @@ import (
 	"time"
 )
 
+// Desired states of services.
+const (
+	SVC_RUN     = 1
+	SVC_STOP    = 0
+	SVN_RESTART = -1
+)
+
 // A Service that can run in serviced.
 type Service struct {
 	Id              string

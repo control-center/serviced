@@ -222,9 +222,9 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 		// Is the service supposed to be running at all?
 		switch {
-		case svc.DesiredState == dao.SVC_STOP:
+		case svc.DesiredState == service.SVC_STOP:
 			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
-		case svc.DesiredState == dao.SVC_RUN:
+		case svc.DesiredState == service.SVC_RUN:
 			l.updateServiceInstances(&svc, serviceStates)
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", svc.DesiredState, svc.Name)

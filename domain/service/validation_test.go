@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-
 func TestAddressAssignmentValidate(t *testing.T) {
 	aa := AddressAssignment{}
 	err := aa.Validate()
@@ -80,5 +79,3 @@ func TestAddressAssignmentValidate(t *testing.T) {
 		t.Error("Expected error")
 	}
 }
-
-

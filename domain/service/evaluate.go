@@ -12,18 +12,18 @@ import (
 	"text/template"
 )
 
-type GetService interface {
+type ServiceGetter interface {
 	GetService(serviceID string, value *Service) error
 }
 
-func parent(gs GetService) func(s Service) (value Service, err error) {
+func parent(gs ServiceGetter) func(s Service) (value Service, err error) {
 	return func(s Service) (value Service, err error) {
 		err = gs.GetService(s.ParentServiceId, &value)
 		return
 	}
 }
 
-func context(gs GetService) func(s Service) (ctx map[string]interface{}, err error) {
+func context(gs ServiceGetter) func(s Service) (ctx map[string]interface{}, err error) {
 	return func(s Service) (ctx map[string]interface{}, err error) {
 		err = json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
@@ -34,7 +34,7 @@ func context(gs GetService) func(s Service) (ctx map[string]interface{}, err err
 }
 
 // EvaluateActionsTemplate parses and evaluates the Actions string of a service.
-func (service *Service) EvaluateActionsTemplate(gs GetService) (err error) {
+func (service *Service) EvaluateActionsTemplate(gs ServiceGetter) (err error) {
 	for key, value := range service.Actions {
 		result := service.evaluateTemplate(gs, value)
 		if result != "" {
@@ -45,7 +45,7 @@ func (service *Service) EvaluateActionsTemplate(gs GetService) (err error) {
 }
 
 // EvaluateStartupTemplate parses and evaluates the StartUp string of a service.
-func (service *Service) EvaluateStartupTemplate(gs GetService) (err error) {
+func (service *Service) EvaluateStartupTemplate(gs ServiceGetter) (err error) {
 
 	result := service.evaluateTemplate(gs, service.Startup)
 	if result != "" {
@@ -56,7 +56,7 @@ func (service *Service) EvaluateStartupTemplate(gs GetService) (err error) {
 }
 
 // EvaluateRunsTemplate parses and evaluates the Runs string of a service.
-func (service *Service) EvaluateRunsTemplate(gs GetService) (err error) {
+func (service *Service) EvaluateRunsTemplate(gs ServiceGetter) (err error) {
 	for key, value := range service.Runs {
 		result := service.evaluateTemplate(gs, value)
 		if result != "" {
@@ -69,7 +69,7 @@ func (service *Service) EvaluateRunsTemplate(gs GetService) (err error) {
 // evaluateTemplate takes a control plane client and template string and evaluates
 // the template using the service as the context. If the template is invalid or there is an error
 // then an empty string is returned.
-func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) string {
+func (service *Service) evaluateTemplate(gs ServiceGetter, serviceTemplate string) string {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(gs),
@@ -91,7 +91,7 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 
 // EvaluateLogConfigTemplate parses and evals the Path, Type and all the values for the tags of the log
 // configs. This happens for each LogConfig on the service.
-func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
+func (service *Service) EvaluateLogConfigTemplate(gs ServiceGetter) (err error) {
 	// evaluate the template for the LogConfig as well as the tags
 
 	for i, logConfig := range service.LogConfigs {
@@ -119,7 +119,7 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
-func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
+func (service *Service) EvaluateEndpointTemplates(gs ServiceGetter) (err error) {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(gs),
