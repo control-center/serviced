@@ -95,6 +95,16 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	return nil
 }
 
+// LogHealthCheck TODO add comment
+func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
+	if result.Passed {
+		glog.V(0).Infof("Service %s passed health check %s.", result.ServiceId, result.Name)
+	} else {
+		glog.V(0).Infof("Service %s FAILED health check %s.", result.ServiceId, result.Name)
+	}
+	return nil
+}
+
 // addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport

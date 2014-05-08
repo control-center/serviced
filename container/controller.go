@@ -9,6 +9,7 @@ import (
 
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"os/exec"
 )
 
 var (
@@ -194,7 +196,7 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	exitChannels := make(map[string] chan bool)
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
-		glog.Errorf("handleHealthChecks: could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return nil
 	}
 	defer client.Close()
@@ -213,16 +215,46 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 }
 
 func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return
+	}
+	defer client.Close()
 	for {
 		select {
 		case <-time.After(interval):
-			glog.Info("===== ", name)
-			glog.Info("========== ", script) 
+			script_file, err := ioutil.TempFile("", name)
+			if err != nil {
+				glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
+				continue
+			}
+			err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
+			if err != nil {
+				glog.Errorf("Error writing script for health check %s: %s", name, err)
+				script_file.Close()
+				continue
+			}
+			script_file.Close()
+			err = os.Chmod(script_file.Name(), os.FileMode(0777))
+			if err != nil {
+				glog.Errorf("Error setting script executable for health check %s: %s", name, err)
+				script_file.Close()
+				continue
+			}
+			cmd := exec.Command("sh", "-c", script_file.Name())
+			err = cmd.Run()
+			if err == nil {
+				glog.Infof("Health check %s succeeded.", name)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, true}, nil)
+			} else {
+				glog.Infof("Health check %s failed.", name)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, false}, nil)
+			}
 		case <- exitChannel:
 			return
 		}
 	}
-
 }
 
 func (c *Controller) handleRemotePorts() {
