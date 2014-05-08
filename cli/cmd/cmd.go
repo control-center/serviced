@@ -39,6 +39,8 @@ func configInt(key string, defaultVal int) int {
 	return v
 }
 
+const defaultRPCPort = 4979
+
 // New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
 	var (
@@ -66,7 +68,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
 		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
-		cli.StringFlag{"listen", configEnv("RPC_PORT", ":4979"), "port for local serviced (example.com:8080)"},
+		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
