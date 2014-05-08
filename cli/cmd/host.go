@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/zenoss/cli"
-	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -171,8 +170,6 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 			return
 		}
 	}
-
-	glog.Infof("Address: %s, Port: %d", address.Host, address.Port)
 
 	cfg := api.HostConfig{
 		Address: &address,
