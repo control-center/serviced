@@ -119,6 +119,9 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 	}
 
 	svc.Id = "default"
+	svc.Name = "default"
+	svc.PoolId = "default"
+	svc.Launch = "auto"
 	err = dt.Dao.AddService(svc, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", svc, err)
@@ -137,10 +140,14 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 
 	svc, _ := service.NewService()
 	svc.Id = "default"
-	dt.Dao.AddService(*svc, &id)
+	svc.Name = "default"
+	svc.PoolId = "default"
+	svc.Launch = "auto"
+	err := dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
 
 	svc.Name = "name"
-	err := dt.Dao.UpdateService(*svc, &unused)
+	err = dt.Dao.UpdateService(*svc, &unused)
 	if err != nil {
 		t.Errorf("Failure updating service %-v with error: %s", svc, err)
 		t.Fail()
@@ -223,22 +230,22 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()
 	s0.Id = "0"
-	s0.DesiredState = dao.SVC_STOP
+	s0.DesiredState = service.SVC_STOP
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
 	s01.ParentServiceId = "0"
-	s01.DesiredState = dao.SVC_STOP
+	s01.DesiredState = service.SVC_STOP
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.ParentServiceId = "01"
-	s011.DesiredState = dao.SVC_STOP
+	s011.DesiredState = service.SVC_STOP
 
 	s02, _ := service.NewService()
 	s02.Id = "02"
 	s02.ParentServiceId = "0"
-	s02.DesiredState = dao.SVC_STOP
+	s02.DesiredState = service.SVC_STOP
 
 	dt.Dao.AddService(*s0, &id)
 	dt.Dao.AddService(*s01, &id)
@@ -249,28 +256,28 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 		t.Fatalf("could not start services: %v", err)
 	}
 
-	service := service.Service{}
-	dt.Dao.GetService("0", &service)
-	if service.DesiredState != dao.SVC_RUN {
-		t.Errorf("Service: 0 not requested to run: %+v", service)
+	svc := service.Service{}
+	dt.Dao.GetService("0", &svc)
+	if svc.DesiredState != service.SVC_RUN {
+		t.Errorf("Service: 0 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
-	dt.Dao.GetService("01", &service)
-	if service.DesiredState != dao.SVC_RUN {
-		t.Errorf("Service: 01 not requested to run: %+v", service)
+	dt.Dao.GetService("01", &svc)
+	if svc.DesiredState != service.SVC_RUN {
+		t.Errorf("Service: 01 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
-	dt.Dao.GetService("011", &service)
-	if service.DesiredState != dao.SVC_RUN {
-		t.Errorf("Service: 011 not requested to run: %+v", service)
+	dt.Dao.GetService("011", &svc)
+	if svc.DesiredState != service.SVC_RUN {
+		t.Errorf("Service: 011 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
-	dt.Dao.GetService("02", &service)
-	if service.DesiredState != dao.SVC_RUN {
-		t.Errorf("Service: 02 not requested to run: %+v", service)
+	dt.Dao.GetService("02", &svc)
+	if svc.DesiredState != service.SVC_RUN {
+		t.Errorf("Service: 02 not requested to run: %+v", svc)
 		t.Fail()
 	}
 }
@@ -340,7 +347,7 @@ func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 			},
 		},
 	}
-	err := dt.Dao.validateServicesForStarting(testService, nil)
+	err := dt.Dao.validateServicesForStarting(&testService, nil)
 	if err != nil {
 		t.Error("Services failed validation for starting: ", err)
 	}
@@ -365,7 +372,7 @@ func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 			},
 		},
 	}
-	err := dt.Dao.validateServicesForStarting(testService, nil)
+	err := dt.Dao.validateServicesForStarting(&testService, nil)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
 	}
@@ -407,6 +414,8 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 
 	testService := service.Service{
 		Id:     "assignIPsServiceID",
+		Name: "testsvc",
+		Launch: "auto",
 		PoolId: assignIPsPool.ID,
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{

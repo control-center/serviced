@@ -378,13 +378,19 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (er
 //
 func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) error {
 	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", svc)
+	store := service.NewStore()
+
 	id := strings.TrimSpace(svc.Id)
 	if id == "" {
 		return errors.New("empty Service.Id not allowed")
 	}
-
-	store := service.NewStore()
 	svc.Id = id
+
+	found := service.Service{}
+	if err := store.Get(datastore.Get(), service.Key(svc.Id), &found); err!= nil{
+		return err
+	}
+
 	err := store.Put(datastore.Get(), service.Key(svc.Id), &svc)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.AddService: %+v", err)
