@@ -82,7 +82,7 @@ func GetESStartupTimeout() int {
 func GetGateway() string {
 	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
-	localhost := URL{"127.0.0.1", "4979"}
+	localhost := URL{"127.0.0.1", 4979}
 
 	if err != nil {
 		glog.V(2).Info("Error checking gateway: ", err)
@@ -93,7 +93,7 @@ func GetGateway() string {
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 2 && fields[0] == "default" {
-			endpoint := URL{fields[2], "4979"}
+			endpoint := URL{fields[2], 4979}
 			return endpoint.String()
 		}
 	}

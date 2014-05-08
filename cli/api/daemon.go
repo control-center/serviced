@@ -99,7 +99,7 @@ func (d *daemon) run() error {
 		}
 	}
 	if options.Agent {
-		if err = d.startAgent(); err != nil {
+		if _, err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -155,7 +155,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.regiseterMasterRPC(); err != nil {
+	if err = d.registerMasterRPC(); err != nil {
 		return err
 	}
 
@@ -165,7 +165,7 @@ func (d *daemon) startMaster() error {
 	return nil
 }
 
-func (d *daemon) startAgent() error {
+func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	mux := proxy.TCPMux{}
 
 	mux.CertPEMFile = options.CertPEMFile
@@ -174,7 +174,7 @@ func (d *daemon) startAgent() error {
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
 
-	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
+	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -195,6 +195,8 @@ func (d *daemon) startAgent() error {
 		err = hostAgent.Shutdown()
 		if err != nil {
 			glog.V(1).Infof("Agent shutdown with error: %v", err)
+		} else {
+			glog.Info("Agent shutdown")
 		}
 		isvcs.Mgr.Stop()
 		os.Exit(0)
@@ -206,10 +208,10 @@ func (d *daemon) startAgent() error {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
-	return nil
+	return hostAgent, nil
 }
 
-func (d *daemon) regiseterMasterRPC() error {
+func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
 	if err := rpc.RegisterName("Master", master.NewServer()); err != nil {

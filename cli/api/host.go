@@ -34,13 +34,14 @@ func (a *api) GetHost(id string) (*host.Host, error) {
 
 // Adds a new host
 func (a *api) AddHost(config HostConfig) (*host.Host, error) {
-	agentClient, err := a.connectAgent()
+	agentClient, err := a.connectAgent(config.Address.String())
 	if err != nil {
 		return nil, err
 	}
 
 	req := agent.BuildHostRequest{
 		IP:     config.Address.Host,
+		Port:   config.Address.Port,
 		PoolID: config.PoolID,
 	}
 

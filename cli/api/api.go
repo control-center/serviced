@@ -90,10 +90,10 @@ func (a *api) connectMaster() (*master.Client, error) {
 }
 
 // Opens a connection to the agent if not already connected
-func (a *api) connectAgent() (*agent.Client, error) {
+func (a *api) connectAgent(address string) (*agent.Client, error) {
 	if a.agent == nil {
 		var err error
-		a.agent, err = agent.NewClient(options.Port)
+		a.agent, err = agent.NewClient(address)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

@@ -3,10 +3,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -156,6 +158,21 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		fmt.Println(err)
 		return
 	}
+	if ip := net.ParseIP(address.Host); ip == nil {
+		// Host did not parse, try resolving
+		addr, err := net.ResolveTCPAddr("tcp", args[0])
+		if err != nil {
+			fmt.Printf("Could not resolve %s.\n\n", args[0])
+			return
+		}
+		address.Host = addr.IP.String()
+		if strings.HasPrefix(address.Host, "127.") {
+			fmt.Printf("%s must not resolve to a loopback address\n\n", args[0])
+			return
+		}
+	}
+
+	glog.Infof("Address: %s, Port: %d", address.Host, address.Port)
 
 	cfg := api.HostConfig{
 		Address: &address,

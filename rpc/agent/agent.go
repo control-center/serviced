@@ -27,6 +27,7 @@ type AgentServer struct {
 //on the host. If IPResources is not set and IPResource using the IP parameter will be used
 type BuildHostRequest struct {
 	IP     string //IP for the host
+	Port   int    //Port to contact the host on
 	PoolID string //Pool to set on host
 }
 
