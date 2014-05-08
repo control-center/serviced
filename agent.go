@@ -573,6 +573,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
 	case err == docker.ErrNoSuchImage:
+
 		// get rid of the snapshot UUID from the ImageID before trying to pull it
 		re := regexp.MustCompile("(?P<head>[[:alpha:]\\.]+\\/[[:alpha:]]+\\/)[[:alpha:][:digit:]-]+_(?P<tail>[[:alnum:]-]+)")
 		if ok := re.MatchString(service.ImageId); !ok {
@@ -580,6 +581,8 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 			return false, err
 		}
 		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageId, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
+
+		glog.Infof("container pulling image %s Name:%s for service ID:%s Name:%s Cmd:%+v", repo, serviceState.Id, service.Id, service.Name, config.Cmd)
 
 		pullopts := docker.PullImageOptions{
 			Repository:   repo,
@@ -602,7 +605,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
-	glog.Infof("container %s created  Name:%s for service ID:%s Name:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Id, service.Name, config.Cmd)
+	glog.Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Name, service.Id, config.Cmd)
 
 	// use the docker client EventMonitor to listen for events from this container
 	s, err := em.Subscribe(ctr.ID)
@@ -614,28 +617,40 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	emc := make(chan struct{})
 
 	s.Handle(docker.Start, func(e docker.Event) error {
-		glog.V(1).Infof("container %s starting Name:%s for service ID:%s Name:%s Cmd:%+v", e["id"], serviceState.Id, service.Id, service.Name, config.Cmd)
+		glog.Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
 		emc <- struct{}{}
 		return nil
 	})
 
 	err = dc.StartContainer(ctr.ID, hostconfig)
 	if err != nil {
-		glog.Errorf("can't start container %s for service ID:%s Name:%s error: %v", ctr.ID, service.Id, service.Name, err)
+		glog.Errorf("can't start container %s for service Name:%s ID:%s error: %v", ctr.ID, service.Name, service.Id, err)
 		return false, err
 	}
 
 	// wait until we get notified that the container is started, or ten seconds, whichever comes first.
 	// TODO: make the timeout configurable
-	tout := time.After(10 * time.Second)
+	timeout := 10 * time.Second
+	tout := time.After(timeout)
 	select {
 	case <-emc:
-		glog.V(1).Infof("container %s started  Name:%s for service ID:%s Name:%s", ctr.ID, serviceState.Id, service.Id, service.Name)
+		glog.Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
 	case <-tout:
-		glog.Errorf("container %s start timed out Name:%s for service ID:%s Name:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Id, service.Name, config.Cmd)
+		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
+		// FIXME: WORKAROUND for issue where docker.Start event doesn't always notify
+		if container, err := dc.InspectContainer(ctr.ID); err != nil {
+			glog.Warning("container %s could not be inspected error:%v\n\n", ctr.ID, err)
+		} else {
+			glog.Warningf("container %s inspected State:%+v", ctr.ID, container.State)
+			if container.State.Running == true {
+				glog.Infof("container %s start event timed out, but is running - will not return start timed out", ctr.ID)
+				break
+			}
+		}
 		return false, fmt.Errorf("start timed out")
 	}
 
+	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
 	go a.waitForProcessToDie(dc, conn, ctr.ID, procFinished, serviceState)
 
 	return true, nil
@@ -700,11 +715,10 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		if err != nil {
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
-			glog.Infof("sv: %v", sv)
-			glog.Infof("Path: %s", sv.Path())
-			glog.Infof("RP: %s", volume.ResourcePath)
+			glog.Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
+			glog.Infof("FullResourcePath: %s", resourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
