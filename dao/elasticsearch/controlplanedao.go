@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/volume"
@@ -67,28 +68,28 @@ func NewNotFoundError(text string) error {
 }
 
 // closure for geting a model
-func getSource(index string, _type string) func(string, interface{}) error {
+func getSource(index string, _type string) func (string, interface{}) error {
 	return func(id string, source interface{}) error {
 		return core.GetSource(index, _type, id, &source)
 	}
 }
 
 // closure for searching a model
-func searchUri(index string, _type string) func(string) (core.SearchResult, error) {
+func searchUri(index string, _type string) func (string) (core.SearchResult, error) {
 	return func(query string) (core.SearchResult, error) {
 		return core.SearchUri(index, _type, query, "", 0)
 	}
 }
 
 // closure for testing model existence
-func exists(pretty *bool, index string, _type string) func(string) (bool, error) {
+func exists(pretty *bool, index string, _type string) func (string) (bool, error) {
 	return func(id string) (bool, error) {
 		return core.Exists(*pretty, index, _type, id)
 	}
 }
 
 // closure for indexing a model
-func create(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
+func create(pretty *bool, index string, _type string) func (string, interface{}) (api.BaseResponse, error) {
 	var (
 		parentId  string = ""
 		version   int    = 0
@@ -107,7 +108,7 @@ func create(pretty *bool, index string, _type string) func(string, interface{}) 
 }
 
 // closure for indexing a model
-func index(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
+func index(pretty *bool, index string, _type string) func (string, interface{}) (api.BaseResponse, error) {
 	var (
 		parentId  string = ""
 		version   int    = 0
@@ -126,7 +127,7 @@ func index(pretty *bool, index string, _type string) func(string, interface{}) (
 }
 
 // closure for deleting a model
-func _delete(pretty *bool, index string, _type string) func(string) (api.BaseResponse, error) {
+func _delete(pretty *bool, index string, _type string) func (string) (api.BaseResponse, error) {
 	return func(id string) (api.BaseResponse, error) {
 		//version=-1 and routing="" are not supported as of 9/30/13
 		return core.Delete(*pretty, index, _type, id, -1, "")
@@ -138,25 +139,25 @@ var (
 	Pretty bool = false
 
 	//model existance functions
-	userExists func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
+	userExists func (string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
 	//model index functions
-	newAddressAssignment func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
-	newUser              func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
+	newAddressAssignment func (string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
+	newUser              func (string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
 
 	//model index functions
-	indexUser func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
+	indexUser func (string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
 
 	//model delete functions
-	deleteAddressAssignment func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
-	deleteUser              func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
+	deleteAddressAssignment func (string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
+	deleteUser              func (string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
 
 	//model get functions
-	getUser func(string, interface{}) error = getSource("controlplane", "user")
+	getUser func (string, interface{}) error = getSource("controlplane", "user")
 
 	//model search functions, using uri based query
-	searchAddressAssignment func(string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
-	searchUserUri           func(string) (core.SearchResult, error) = searchUri("controlplane", "user")
+	searchAddressAssignment func (string) (core.SearchResult, error) = searchUri("controlplane", "addressassignment")
+	searchUserUri           func (string) (core.SearchResult, error) = searchUri("controlplane", "user")
 )
 
 // each time Serviced starts up a new password will be generated. This will be passed into
@@ -177,12 +178,12 @@ type ControlPlaneDao struct {
 }
 
 // convert search result of json host to dao.Host array
-func toAddressAssignments(result *core.SearchResult) (*[]service.AddressAssignment, error) {
+func toAddressAssignments(result *core.SearchResult) (*[]addressassignment.AddressAssignment, error) {
 	var err error = nil
 	var total = len(result.Hits.Hits)
-	var addressAssignments = make([]service.AddressAssignment, total)
+	var addressAssignments = make([]addressassignment.AddressAssignment, total)
 	for i := 0; i < total; i += 1 {
-		var addressAssignment service.AddressAssignment
+		var addressAssignment addressassignment.AddressAssignment
 		err = json.Unmarshal(result.Hits.Hits[i].Source, &addressAssignment)
 		if err == nil {
 			addressAssignments[i] = addressAssignment
@@ -357,7 +358,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (er
 		return errors.New("empty serviceId not allowed")
 	}
 
-	var traverse func(string) (string, error)
+	var traverse func (string) (string, error)
 
 	traverse = func(id string) (string, error) {
 		var service service.Service
@@ -387,7 +388,7 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	svc.Id = id
 
 	found := service.Service{}
-	if err := store.Get(datastore.Get(), service.Key(svc.Id), &found); err!= nil{
+	if err := store.Get(datastore.Get(), service.Key(svc.Id), &found); err != nil {
 		return err
 	}
 
@@ -476,9 +477,9 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
 	err := this.walkServices(id, func(svc *service.Service) error {
-		this.zkDao.RemoveService(svc.Id)
-		return nil
-	})
+			this.zkDao.RemoveService(svc.Id)
+			return nil
+		})
 
 	if err != nil {
 		//TODO: should we put them back?
@@ -489,12 +490,12 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	ctx := datastore.Get()
 
 	err = this.walkServices(id, func(svc *service.Service) error {
-		err := store.Delete(ctx, service.Key(svc.Id))
-		if err != nil {
-			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
-		}
-		return err
-	})
+			err := store.Delete(ctx, service.Key(svc.Id))
+			if err != nil {
+				glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
+			}
+			return err
+		})
 	if err != nil {
 		return err
 	}
@@ -758,7 +759,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	selectedHostId := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
 
-	assignments := []service.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
 	if err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
@@ -784,7 +785,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 						return err
 					}
 				}
-				assignment := service.AddressAssignment{}
+				assignment := addressassignment.AddressAssignment{}
 				assignment.AssignmentType = "static"
 				assignment.HostID = selectedHostId
 				assignment.PoolID = myService.PoolId
@@ -1019,7 +1020,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	if svc.ImageId != "" {
 		repotag := strings.SplitN(svc.ImageId, ":", 2)
 		path := strings.SplitN(repotag[0], "/", 3)
-		path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
+		path[len(path) - 1] = *tenantId + "_" + path[len(path) - 1]
 		repo := strings.Join(path, "/")
 
 		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
@@ -1118,25 +1119,25 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 
 // AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
 // id param contains id of newly created assignment if successful
-func (this *ControlPlaneDao) AssignAddress(assignment service.AddressAssignment, id *string) error {
-	err := assignment.Validate()
+func (this *ControlPlaneDao) AssignAddress(assignment addressassignment.AddressAssignment, id *string) error {
+	err := assignment.ValidEntity()
 	if err != nil {
 		return err
 	}
 
 	switch assignment.AssignmentType {
 	case "static":
-		{
-			//check host and IP exist
-			if err = this.validStaticIp(assignment.HostID, assignment.IPAddr); err != nil {
-				return err
-			}
+	{
+		//check host and IP exist
+		if err = this.validStaticIp(assignment.HostID, assignment.IPAddr); err != nil {
+			return err
 		}
+	}
 	case "virtual":
-		{
-			// TODO: need to check if virtual IP exists
-			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
-		}
+	{
+		// TODO: need to check if virtual IP exists
+		return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
+	}
 	default:
 		//Validate above should handle this but left here for completenes
 		return fmt.Errorf("Invalid assignment type %v", assignment.AssignmentType)
@@ -1211,7 +1212,7 @@ func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string
 }
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]service.AddressAssignment) error {
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assignments *[]addressassignment.AddressAssignment) error {
 	query := fmt.Sprintf("ServiceID:%s", serviceId)
 	results, err := this.queryAddressAssignments(query)
 	if err != nil {
@@ -1222,7 +1223,7 @@ func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceId string, assi
 }
 
 // queryAddressAssignments query for host ips; returns empty array if no results for query
-func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]service.AddressAssignment, error) {
+func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]addressassignment.AddressAssignment, error) {
 	result, err := searchAddressAssignment(query)
 	if err != nil {
 		return nil, err
@@ -1231,9 +1232,9 @@ func (this *ControlPlaneDao) queryAddressAssignments(query string) (*[]service.A
 }
 
 // getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
-func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*service.AddressAssignment, error) {
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*addressassignment.AddressAssignment, error) {
 	//TODO: this can probably be done w/ a query
-	assignments := []service.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	err := this.GetServiceAddressAssignments(serviceId, &assignments)
 	if err != nil {
 		return nil, err
@@ -1349,7 +1350,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 	// wait for completion of snapshot request - check only once a second
 	// BEWARE: this.zkDao.LoadSnapshotRequestW does not block like it should
 	//         thus cannot use idiomatic select on eventChan and time.After() channels
-	timeOutValue := time.Second * 60
+	timeOutValue := time.Second*60
 	endTime := time.Now().Add(timeOutValue)
 	for time.Now().Before(endTime) {
 		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
@@ -1367,7 +1368,7 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 			return nil
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1*time.Second)
 	}
 
 	err = fmt.Errorf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest)
@@ -1429,7 +1430,7 @@ func varPath() string {
 	if len(os.Getenv("SERVICED_HOME")) > 0 {
 		return path.Join(os.Getenv("SERVICED_HOME"), "var")
 	} else if user, err := user.Current(); err == nil {
-		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
+		return path.Join(os.TempDir(), "serviced-" + user.Username, "var")
 	} else {
 		defaultPath := "/tmp/serviced/var"
 		glog.Warningf("Defaulting varPath to:%v\n", defaultPath)

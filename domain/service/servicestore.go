@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-//NewStore creates a ResourcePool store
+//NewStore creates a Service  store
 func NewStore() *Store {
 	return &Store{}
 }
 
-//Store type for interacting with ResourcePool persistent storage
+//Store type for interacting with Service persistent storage
 type Store struct {
 	datastore.DataStore
 }
@@ -28,7 +28,7 @@ func (s *Store) GetServices(ctx datastore.Context) ([]*Service, error) {
 	return query(ctx, "_exists_:Id")
 }
 
-//GetServicesByPool returns services with the given pool id
+//GetServicesByPool returns services with the given tags
 func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]*Service, error) {
 	if len(tags) == 0 {
 		return nil, errors.New("empty tags not allowed")

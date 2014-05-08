@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 // Desired states of services.
@@ -59,19 +60,7 @@ type Service struct {
 
 type ServiceEndpoint struct {
 	servicedefinition.EndpointDefinition
-	AddressAssignment AddressAssignment
-}
-
-//AddressAssignment is used to track Ports that have been assigned to a Service.
-type AddressAssignment struct {
-	ID             string //Generated id
-	AssignmentType string //Static or Virtual
-	HostID         string //Host id if type is Static
-	PoolID         string //Pool id if type is Virtual
-	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           uint16 //Actual assigned port
-	ServiceID      string //Service using this assignment
-	EndpointName   string //Endpoint in the service using the assignment
+	AddressAssignment addressassignment.AddressAssignment
 }
 
 // Create a new Service.
@@ -261,7 +250,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
 }
 
-func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
+func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {
 		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
 	}
@@ -270,7 +259,7 @@ func (se *ServiceEndpoint) SetAssignment(aa *AddressAssignment) error {
 }
 
 //GetAssignment Returns nil if no assignment set
-func (se *ServiceEndpoint) GetAssignment() *AddressAssignment {
+func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment {
 	if se.AddressAssignment.ID == "" {
 		return nil
 	}
