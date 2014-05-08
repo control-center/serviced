@@ -146,8 +146,8 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	return &s, nil
 }
 
-func (t ServiceAPITest) RemoveService(id string) error {
-	if s, err := t.GetService(id); err != nil {
+func (t ServiceAPITest) RemoveService(config api.RemoveServiceConfig) error {
+	if s, err := t.GetService(config.ServiceID); err != nil {
 		return err
 	} else if s == nil {
 		return ErrNoServiceFound
@@ -433,6 +433,8 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    serviced service remove SERVICEID ...
 	//
 	// OPTIONS:
+	//    --remove-snapshots, -r	Remove snapshots associated with removed service
+
 }
 
 func ExampleServicedCLI_CmdServiceRemove_err() {

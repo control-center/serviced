@@ -26,6 +26,12 @@ type ServiceConfig struct {
 	RemotePorts *PortMap
 }
 
+// RemoveServiceConfig is the deserialized object from the command-line
+type RemoveServiceConfig struct {
+	ServiceID       string
+	RemoveSnapshots bool
+}
+
 // IPConfig is the deserialized object from the command-line
 type IPConfig struct {
 	ServiceID string
@@ -124,14 +130,18 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 }
 
 // RemoveService removes an existing service
-func (a *api) RemoveService(id string) error {
+func (a *api) RemoveService(config RemoveServiceConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
-	if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not clean up service history", err)
+	id := config.ServiceID
+
+	if config.RemoveSnapshots {
+		if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
+			return fmt.Errorf("could not clean up service history", err)
+		}
 	}
 
 	if err := client.RemoveService(id, &unusedInt); err != nil {
