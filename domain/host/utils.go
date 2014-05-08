@@ -5,6 +5,7 @@
 package host
 
 import (
+	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
 
@@ -97,18 +98,25 @@ func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error
 	if err != nil {
 		return []HostIPResource{}, err
 	}
+	keys := make([]string, len(ips))
+	i := 0
+	for key, _ := range ips {
+		keys[i] = key
+		i += 1
+	}
+	glog.V(4).Infof("localIPs: %v", keys)
 
 	glog.V(4).Infof("Interfaces on this host %v", ips)
 
 	hostIPResources := make([]HostIPResource, 0)
 
 	for _, ipaddr := range ipaddress {
-		normalIP := strings.Trim(strings.ToLower(ipaddr), " ")
-		iface, found := ips[normalIP]
+		glog.Infof("looking for '%s'", ipaddr)
+		iface, found := ips[ipaddr]
 		if !found {
 			return []HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
 		}
-		if isLoopBack(normalIP) {
+		if isLoopBack(ipaddr) {
 			return []HostIPResource{}, fmt.Errorf("loopback address %v cannot be used as an IP Resource", ipaddr)
 		}
 		hostIP := HostIPResource{}
@@ -151,6 +159,7 @@ func normalizeIP(ip string) string {
 
 func ipExists(ip string) bool {
 	interfaces, err := getInterfaceMap()
+	glog.V(5).Infof("looking for %s in %#", ip, pretty.Formatter(interfaces))
 	if err != nil {
 		glog.Error("Problem reading interfaces: ", err)
 		return false

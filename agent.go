@@ -151,6 +151,7 @@ func (a *HostAgent) Shutdown() error {
 	glog.V(2).Info("Issuing shutdown signal")
 	errc := make(chan error)
 	a.closing <- errc
+	glog.Info("exiting shutdown")
 	return <-errc
 }
 
@@ -915,6 +916,7 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 
 	for {
 
+		glog.V(3).Infof("creating hostdir: %s", hostPath)
 		conn.CreateDir(hostPath)
 
 		glog.V(3).Infof("getting children of %s", hostPath)

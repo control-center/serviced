@@ -63,11 +63,9 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	for _, ip := range payload.IPs {
 		IPs = append(IPs, ip.IPAddress)
 	}
-	//TODO: get user supplied IPs from UI
 	buildRequest := agent.BuildHostRequest{
-		IP:          hostIP,
-		PoolID:      payload.PoolID,
-		IPResources: IPs,
+		IP:     hostIP,
+		PoolID: payload.PoolID,
 	}
 	host, err := agentClient.BuildHost(buildRequest)
 	if err != nil {

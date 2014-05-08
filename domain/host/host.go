@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
 )
 
 //Host that runs the control plane agent.
@@ -100,6 +102,7 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 		// use the default IP of the host if specific IPs have not been requested
 		ipAddrs = append(ipAddrs, host.IPAddr)
 	}
+	glog.Infof("building with ipsAddrs: %v [%d]", ipAddrs, len(ipAddrs))
 	hostIPs, err := getIPResources(host.ID, ipAddrs...)
 	if err != nil {
 		return nil, err
