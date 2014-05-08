@@ -412,9 +412,15 @@ func ExampleServicedCLI_CmdServiceAdd_complete() {
 
 func ExampleServicedCLI_CmdServiceRemove() {
 	InitServiceAPITest("serviced", "service", "remove", "test-service-1")
+	InitServiceAPITest("serviced", "service", "remove", "test-service-2")
+	InitServiceAPITest("serviced", "service", "remove", "-R", "test-service-2")
+	InitServiceAPITest("serviced", "service", "remove", "-R=false", "test-service-2")
 
 	// Output:
 	// test-service-1
+	// test-service-2
+	// test-service-2
+	// test-service-2
 }
 
 func ExampleServicedCLI_CmdServiceRemove_usage() {
@@ -433,7 +439,7 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    serviced service remove SERVICEID ...
 	//
 	// OPTIONS:
-	//    --remove-snapshots, -r	Remove snapshots associated with removed service
+	//    --remove-snapshots, -R	Remove snapshots associated with removed service
 
 }
 

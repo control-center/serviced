@@ -45,7 +45,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
 				Flags: []cli.Flag{
-					cli.BoolTFlag{"remove-snapshots, r", "Remove snapshots associated with removed service"},
+					cli.BoolTFlag{"remove-snapshots, R", "Remove snapshots associated with removed service"},
 				},
 			}, {
 				Name:         "edit",
