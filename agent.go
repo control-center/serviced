@@ -568,8 +568,6 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
-	glog.Infof("creating container for service ID:%s Name:%s Cmd:%+v", service.Id, service.Name, config.Cmd)
-
 	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
@@ -588,13 +586,13 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		}
 		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
 		if pullerr != nil {
-			glog.Errorf("can't pull container %s: %v", service.ImageId, err)
+			glog.Errorf("can't pull container image %s: %v", service.ImageId, err)
 			return false, err
 		}
 
 		ctr, err = dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 		if err != nil {
-			glog.Errorf("can't create containter after pulling %v: %v", config, err)
+			glog.Errorf("can't create container after pulling %v: %v", config, err)
 			return false, err
 		}
 	case err != nil:
@@ -603,24 +601,26 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
+	glog.Infof("container %s created  Name:%s for service ID:%s Name:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Id, service.Name, config.Cmd)
+
 	// use the docker client EventMonitor to listen for events from this container
 	s, err := em.Subscribe(ctr.ID)
 	if err != nil {
-		glog.Errorf("can't subscribe to Docker events on %s: %v", ctr.ID, err)
+		glog.Errorf("can't subscribe to Docker events on container %s: %v", ctr.ID, err)
 		return false, err
 	}
 
 	emc := make(chan struct{})
 
 	s.Handle(docker.Start, func(e docker.Event) error {
-		glog.V(1).Infof("container %s starting", e["id"])
+		glog.V(1).Infof("container %s starting Name:%s for service ID:%s Name:%s Cmd:%+v", e["id"], serviceState.Id, service.Id, service.Name, config.Cmd)
 		emc <- struct{}{}
 		return nil
 	})
 
 	err = dc.StartContainer(ctr.ID, hostconfig)
 	if err != nil {
-		glog.Errorf("can't start container %s: %v", ctr.ID, err)
+		glog.Errorf("can't start container %s for service ID:%s Name:%s error: %v", ctr.ID, service.Id, service.Name, err)
 		return false, err
 	}
 
@@ -629,9 +629,9 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	tout := time.After(10 * time.Second)
 	select {
 	case <-emc:
-		glog.V(1).Infof("container %s started", ctr.ID)
+		glog.V(1).Infof("container %s started  Name:%s for service ID:%s Name:%s", ctr.ID, serviceState.Id, service.Id, service.Name)
 	case <-tout:
-		glog.Errorf("container start timed out")
+		glog.Errorf("container %s start timed out Name:%s for service ID:%s Name:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Id, service.Name, config.Cmd)
 		return false, fmt.Errorf("start timed out")
 	}
 
