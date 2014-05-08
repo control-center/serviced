@@ -715,10 +715,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
 			glog.Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
-			glog.Infof("Path: %s", sv.Path())
-			glog.Infof("RP: %s", volume.ResourcePath)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
+			glog.Infof("FullResourcePath: %s", resourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
