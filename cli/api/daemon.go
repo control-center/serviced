@@ -66,12 +66,12 @@ func (d *daemon) run() error {
 	var err error
 	d.hostID, err = utils.HostID()
 	if err != nil {
-		return fmt.Errorf("could not get hostid: %s", err)
+		glog.Fatalf("could not get hostid: %s", err)
 	}
 
 	l, err := net.Listen("tcp", options.Listen)
 	if err != nil {
-		return fmt.Errorf("Could not bind to port %v. Is another instance running", err)
+		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
 	}
 
 	//This asserts isvcs
@@ -81,16 +81,16 @@ func (d *daemon) run() error {
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
-		return fmt.Errorf("could not determine docker version: %s", err)
+		glog.Fatalf("could not determine docker version: %s", err)
 	}
 
 	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		return errors.New("serviced needs at least docker >= 0.8.1")
+		glog.Fatalf("serviced needs at least docker >= 0.8.1")
 	}
 
 	//TODO: is this needed for both agent and master?
 	if _, ok := volume.Registered(options.VFS); !ok {
-		return fmt.Errorf("no driver registered for %s", options.VFS)
+		glog.Fatalf("no driver registered for %s", options.VFS)
 	}
 
 	if options.Master {

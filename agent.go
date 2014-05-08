@@ -149,13 +149,8 @@ func injectContext(s *service.Service, cp dao.ControlPlane) error {
 // Shutdown stops the agent
 func (a *HostAgent) Shutdown() error {
 	glog.V(2).Info("Issuing shutdown signal")
-
 	errc := make(chan error)
-	to := time.AfterFunc(time.Second*5, func() {
-		errc <- fmt.Errorf("timeout shutting down damon")
-	})
 	a.closing <- errc
-	to.Stop()
 	glog.Info("exiting shutdown")
 	return <-errc
 }
@@ -922,11 +917,7 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 	for {
 
 		glog.V(3).Infof("creating hostdir: %s", hostPath)
-		to := time.AfterFunc(time.Second*5, func() {
-			conn.Close()
-		})
 		conn.CreateDir(hostPath)
-		to.Stop()
 
 		glog.V(3).Infof("getting children of %s", hostPath)
 		children, zkEvent, err := conn.ChildrenW(hostPath)
@@ -938,7 +929,6 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 			case errc := <-a.closing:
 				glog.V(1).Info("Agent received interrupt")
 				err = waitForSsNodes(processing, ssDone)
-				conn.Close()
 				errc <- err
 				return false
 			}
@@ -950,7 +940,6 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 		case errc := <-a.closing:
 			glog.V(1).Info("Agent received interrupt")
 			err = waitForSsNodes(processing, ssDone)
-			conn.Close()
 			errc <- err
 			return false
 
