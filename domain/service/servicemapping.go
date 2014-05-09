@@ -14,12 +14,12 @@ var (
 {
 	"service": {
 	  "properties": {
-		"ID" :             {"type": "string", "index":"not_analyzed"},
+		"Id" :             {"type": "string", "index":"not_analyzed"},
 		"Name":            {"type": "string", "index":"not_analyzed"},
 		"Startup":         {"type": "string", "index":"not_analyzed"},
 		"Context":         {"type": "string", "index":"not_analyzed"},
 		"Description":     {"type": "string", "index":"not_analyzed"},
-		"DeploymentID":     {"type": "string", "index":"not_analyzed"},
+		"DeploymentId":     {"type": "string", "index":"not_analyzed"},
 		"Tags":            {"type": "string", "index_name": "tag"},
 		"Instances":       {"type": "long",   "index":"not_analyzed"},
 		"InstancesLimits":       {
@@ -29,13 +29,13 @@ var (
 		  }
 		},
 		"DesiredState":    {"type": "long", "index":"not_analyzed"},
-		"ImageID":           {"type": "string", "index":"not_analyzed"},
-		"PoolID":          {"type": "string", "index":"not_analyzed"},
+		"ImageId":           {"type": "string", "index":"not_analyzed"},
+		"PoolId":          {"type": "string", "index":"not_analyzed"},
 		"Launch":          {"type": "string", "index":"not_analyzed"},
 		"HostPolicy":      {"type": "string", "index":"not_analyzed"},
 		"Hostname":        {"type": "string", "index":"not_analyzed"},
 		"Privileged":      {"type": "string", "index":"not_analyzed"},
-		"ParentServiceID": {"type": "string", "index":"not_analyzed"},
+		"ParentServiceId": {"type": "string", "index":"not_analyzed"},
 		"Volume":          {
 		  "properties":    {
 			"ResourcePath" : {"type": "string", "index":"not_analyzed"},

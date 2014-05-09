@@ -5,41 +5,34 @@
 package addressassignment
 
 import (
-	"errors"
+	"github.com/zenoss/serviced/validation"
+
 	"fmt"
 )
 
 //ValidEntity used to make sure AddressAssignment is in a valid state
 func (a *AddressAssignment) ValidEntity() error {
-	if a.ServiceID == "" {
-		return errors.New("field ServiceID must be set")
-	}
-	if a.EndpointName == "" {
-		return errors.New("field EndpointName must be set")
-	}
-	if a.IPAddr == "" {
-		return errors.New("field IPAddr must be set")
-	}
-	if a.Port == 0 {
-		return errors.New("field Port must be set")
-	}
+	v := validation.NewValidationError()
+	v.Add(validation.NotEmpty("ServiceID", a.ServiceID))
+	v.Add(validation.NotEmpty("EndpointName", a.EndpointName))
+	v.Add(validation.IsIP(a.IPAddr))
+	v.Add(validation.ValidPort(int(a.Port)))
 	switch a.AssignmentType {
 	case "static":
 		{
-			if a.HostID == "" {
-				return errors.New("field HostID must be set for static assignments")
-			}
+			v.Add(validation.NotEmpty("HostID", a.HostID))
 		}
 	case "virtual":
 		{
-			if a.PoolID == "" {
-				return errors.New("field PoolID must be set for virtual assignments")
-			}
-
+			v.Add(validation.NotEmpty("PoolID", a.PoolID))
 		}
 	default:
 		return fmt.Errorf("assignment type must be static of virtual, found %v", a.AssignmentType)
 	}
 
+	if v.HasError() {
+
+		return v
+	}
 	return nil
 }

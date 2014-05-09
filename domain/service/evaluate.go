@@ -12,11 +12,6 @@ import (
 	"text/template"
 )
 
-////GetService interface for getting services
-//type GetService interface {
-//	GetService(serviceID string, value *Service) error
-//}
-
 func parent(gs GetService) func(s Service) (Service, error) {
 	return func(svc Service) (Service, error) {
 		return gs(svc.ParentServiceId)

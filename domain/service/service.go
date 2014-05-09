@@ -44,7 +44,7 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []servicedefinition.Task
-	ParentServiceId  string
+	ParentServiceId string
 	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

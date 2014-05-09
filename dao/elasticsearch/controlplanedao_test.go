@@ -565,7 +565,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 
 	//set up host with IP
 	hostid := "TestHost"
-	ip := "testip"
+	ip := "10.0.1.5"
 	endpoint := "default"
 	serviceId := ""
 	h, err := host.Build("", "default", []string{}...)

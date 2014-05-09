@@ -52,7 +52,6 @@ func StringIn(check string, others ...string) error {
 
 func ValidPort(port int) error {
 	if port < 1 || port > 65535 {
-		fmt.Println("PORT ERROR", port)
 		return NewViolation(fmt.Sprintf("not in valid port range: %v", port))
 	}
 	return nil
