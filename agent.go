@@ -94,6 +94,9 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
+	if agent.mux.Enabled {
+		go agent.mux.ListenAndMux()
+	}
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""

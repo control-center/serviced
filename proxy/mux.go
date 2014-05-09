@@ -95,9 +95,12 @@ func (mux *TCPMux) ListenAndMux() {
 	var l net.Listener
 	var err error
 
+	defer glog.Info("leaving mux.ListenAndMux")
 	if mux.UseTLS == false {
+		glog.V(1).Infof("tcp mux listening on %d", mux.Port)
 		l, err = net.Listen("tcp4", fmt.Sprintf(":%d", mux.Port))
 	} else {
+		glog.V(1).Info("using TLS on mux")
 		cert, cerr := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 		if cerr != nil {
 			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", cerr)
@@ -105,6 +108,7 @@ func (mux *TCPMux) ListenAndMux() {
 		}
 
 		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
+		glog.V(1).Infof("TLS enabled tcp mux listening on %d", mux.Port)
 		l, err = tls.Listen("tcp4", fmt.Sprintf(":%d", mux.Port), &tlsConfig)
 	}
 	if err != nil {
@@ -119,6 +123,7 @@ func (mux *TCPMux) ListenAndMux() {
 			glog.Error("ListenAndMux Error (net.Accept): ", err)
 			return
 		}
+		glog.V(5).Infof("mux received connection from %s", conn.RemoteAddr())
 
 		go mux.muxConnection(conn)
 	}
