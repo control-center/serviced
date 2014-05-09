@@ -1099,7 +1099,7 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	}
 	name := matches[1]
 
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", this.dockerRegistry, tenantId, name), nil
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
