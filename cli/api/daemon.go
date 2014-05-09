@@ -46,15 +46,10 @@ import (
 	"time"
 )
 
-var minDockerVersion = version{0, 8, 1}
-
-// startDaemon starts the agent or master services on this host.
-func startDaemon() {
-	d := newDaemon()
-	d.start()
-}
+var minDockerVersion = version{0, 10, 0}
 
 type daemon struct {
+	staticIPs []string
 	cpDao     dao.ControlPlane
 	dsDriver  datastore.Driver
 	dsContext datastore.Context
@@ -63,15 +58,18 @@ type daemon struct {
 	zclient   *coordclient.Client
 }
 
-func newDaemon() *daemon {
-	return &daemon{}
+func newDaemon(staticIPs []string) (*daemon, error) {
+	d := &daemon{
+		staticIPs: staticIPs,
+	}
+	return d, nil
 }
 
-func (d *daemon) start() {
+func (d *daemon) run() error {
 	var err error
 	d.hostID, err = utils.HostID()
 	if err != nil {
-		glog.Fatalf("Could not get hostid", err)
+		glog.Fatalf("could not get hostid: %s", err)
 	}
 
 	l, err := net.Listen("tcp", options.Listen)
@@ -86,11 +84,11 @@ func (d *daemon) start() {
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
-		glog.Fatalf("Could not determine docker version: %s", err)
+		glog.Fatalf("could not determine docker version: %s", err)
 	}
 
 	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker >= 0.8.1")
+		glog.Fatalf("serviced needs at least docker >= %s", minDockerVersion)
 	}
 
 	//TODO: is this needed for both agent and master?
@@ -104,7 +102,7 @@ func (d *daemon) start() {
 		}
 	}
 	if options.Agent {
-		if err = d.startAgent(); err != nil {
+		if _, err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -120,7 +118,7 @@ func (d *daemon) start() {
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
-	http.Serve(l, nil) // start the server
+	return http.Serve(l, nil) // start the server
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
@@ -160,7 +158,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.regiseterMasterRPC(); err != nil {
+	if err = d.registerMasterRPC(); err != nil {
 		return err
 	}
 
@@ -170,7 +168,7 @@ func (d *daemon) startMaster() error {
 	return nil
 }
 
-func (d *daemon) startAgent() error {
+func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	mux := proxy.TCPMux{}
 
 	mux.CertPEMFile = options.CertPEMFile
@@ -179,7 +177,7 @@ func (d *daemon) startAgent() error {
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
 
-	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
+	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -188,7 +186,8 @@ func (d *daemon) startAgent() error {
 	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 	}
-	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil {
+	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
+	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 
@@ -200,6 +199,8 @@ func (d *daemon) startAgent() error {
 		err = hostAgent.Shutdown()
 		if err != nil {
 			glog.V(1).Infof("Agent shutdown with error: %v", err)
+		} else {
+			glog.Info("Agent shutdown")
 		}
 		isvcs.Mgr.Stop()
 		os.Exit(0)
@@ -211,10 +212,10 @@ func (d *daemon) startAgent() error {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
-	return nil
+	return hostAgent, nil
 }
 
-func (d *daemon) regiseterMasterRPC() error {
+func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
 	if err := rpc.RegisterName("Master", master.NewServer()); err != nil {

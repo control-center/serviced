@@ -85,7 +85,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"tls", "enable tls"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-					cli.StringFlag{"endpoint", api.GetGateway(), "serviced endpoint address"},
+					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
 				},

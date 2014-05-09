@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/utils"
 
+	"strings"
 	"testing"
 )
 
@@ -18,35 +19,30 @@ func TestGetInfo(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	agent := NewServer()
+	staticIPs := []string{ip}
+	agent := NewServer(staticIPs)
 	h := host.New()
-	request := BuildHostRequest{IP: "", PoolID: "testpool", IPResources: make([]string, 0)}
+	request := BuildHostRequest{IP: "", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
+	if err != nil && !strings.Contains(err.Error(), "not valid for this host") {
+		t.Fatalf("Unexpected error %v", err)
 	}
-	if len(h.IPs) != 1 {
-		t.Errorf("Unexpected result %v", h.IPs)
-	}
-	if h.IPAddr != ip {
-		t.Errorf("Expected ip %v, got %v", ip, h.IPs)
-	}
-	if h.IPs[0].IPAddress != ip {
-		t.Errorf("Expected ip %v, got %v", ip, h.IPs)
+	if len(h.IPs) != 0 {
+		t.Fatalf("Unexpected result %v (%d)", h.IPs, len(h.IPs))
 	}
 
-	request = BuildHostRequest{IP: "127.0.0.1", PoolID: "testpool", IPResources: []string{}}
+	request = BuildHostRequest{IP: "127.0.0.1", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
-		t.Errorf("Unexpected error %v", err)
+		t.Fatalf("Unexpected error %v", err)
 	}
 
-	request = BuildHostRequest{IP: "", PoolID: "testpool", IPResources: []string{"127.0.0.1"}}
+	request = BuildHostRequest{IP: "", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
+	if err == nil || !strings.Contains(err.Error(), "not valid for this host") {
 		t.Errorf("Unexpected error %v", err)
 	}
 

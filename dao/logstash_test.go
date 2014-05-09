@@ -11,7 +11,7 @@ package dao
 
 import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
-//	"github.com/zenoss/serviced/domain/service"
+	//	"github.com/zenoss/serviced/domain/service"
 
 	"fmt"
 	"io/ioutil"

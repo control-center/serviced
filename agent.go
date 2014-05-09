@@ -94,6 +94,9 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
+	if agent.mux.Enabled {
+		go agent.mux.ListenAndMux()
+	}
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""
@@ -157,6 +160,7 @@ func (a *HostAgent) Shutdown() error {
 	glog.V(2).Info("Issuing shutdown signal")
 	errc := make(chan error)
 	a.closing <- errc
+	glog.Info("exiting shutdown")
 	return <-errc
 }
 
@@ -578,6 +582,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	switch {
 	case err == docker.ErrNoSuchImage:
+
 		// get rid of the snapshot UUID from the ImageID before trying to pull it
 		re := regexp.MustCompile("(?P<head>[[:alpha:]\\.]+\\/[[:alpha:]]+\\/)[[:alpha:][:digit:]-]+_(?P<tail>[[:alnum:]-]+)")
 		if ok := re.MatchString(service.ImageId); !ok {
@@ -586,19 +591,21 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		}
 		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageId, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
 
+		glog.Infof("container pulling image %s Name:%s for service ID:%s Name:%s Cmd:%+v", repo, serviceState.Id, service.Id, service.Name, config.Cmd)
+
 		pullopts := docker.PullImageOptions{
 			Repository:   repo,
 			OutputStream: os.NewFile(uintptr(syscall.Stdout), "/dev/stdout"),
 		}
 		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
 		if pullerr != nil {
-			glog.Errorf("can't pull container %s: %v", service.ImageId, err)
+			glog.Errorf("can't pull container image %s: %v", service.ImageId, err)
 			return false, err
 		}
 
 		ctr, err = dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
 		if err != nil {
-			glog.Errorf("can't create containter after pulling %v: %v", config, err)
+			glog.Errorf("can't create container after pulling %v: %v", config, err)
 			return false, err
 		}
 	case err != nil:
@@ -607,38 +614,52 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
+	glog.Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Name, service.Id, config.Cmd)
+
 	// use the docker client EventMonitor to listen for events from this container
 	s, err := em.Subscribe(ctr.ID)
 	if err != nil {
-		glog.Errorf("can't subscribe to Docker events on %s: %v", ctr.ID, err)
+		glog.Errorf("can't subscribe to Docker events on container %s: %v", ctr.ID, err)
 		return false, err
 	}
 
 	emc := make(chan struct{})
 
 	s.Handle(docker.Start, func(e docker.Event) error {
-		glog.V(1).Infof("container %s starting", e["id"])
+		glog.Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
 		emc <- struct{}{}
 		return nil
 	})
 
 	err = dc.StartContainer(ctr.ID, hostconfig)
 	if err != nil {
-		glog.Errorf("can't start container %s: %v", ctr.ID, err)
+		glog.Errorf("can't start container %s for service Name:%s ID:%s error: %v", ctr.ID, service.Name, service.Id, err)
 		return false, err
 	}
 
 	// wait until we get notified that the container is started, or ten seconds, whichever comes first.
 	// TODO: make the timeout configurable
-	tout := time.After(10 * time.Second)
+	timeout := 10 * time.Second
+	tout := time.After(timeout)
 	select {
 	case <-emc:
-		glog.V(1).Infof("container %s started", ctr.ID)
+		glog.Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
 	case <-tout:
-		glog.Errorf("container start timed out")
+		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
+		// FIXME: WORKAROUND for issue where docker.Start event doesn't always notify
+		if container, err := dc.InspectContainer(ctr.ID); err != nil {
+			glog.Warning("container %s could not be inspected error:%v\n\n", ctr.ID, err)
+		} else {
+			glog.Warningf("container %s inspected State:%+v", ctr.ID, container.State)
+			if container.State.Running == true {
+				glog.Infof("container %s start event timed out, but is running - will not return start timed out", ctr.ID)
+				break
+			}
+		}
 		return false, fmt.Errorf("start timed out")
 	}
 
+	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
 	go a.waitForProcessToDie(dc, conn, ctr.ID, procFinished, serviceState)
 
 	return true, nil
@@ -703,11 +724,10 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		if err != nil {
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
-			glog.Infof("sv: %v", sv)
-			glog.Infof("Path: %s", sv.Path())
-			glog.Infof("RP: %s", volume.ResourcePath)
+			glog.Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
+			glog.Infof("FullResourcePath: %s", resourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
@@ -736,40 +756,14 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		return nil, nil, err
 	}
 
-	// config files
-	for filename, config := range service.ConfigFiles {
-		prefix := fmt.Sprintf("cp_%s_%s_", service.Id, strings.Replace(filename, "/", "__", -1))
-		f, err := writeConfFile(prefix, service.Id, filename, config.Content)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if err := chownConfFile(f.Name(), config.Owner, config.Permissions, service.ImageId); err != nil {
-			glog.Errorf("Could not chown config file for %s, %s: %s", service.Id, filename, err)
-		}
-
-		// everything worked!
-		binding := fmt.Sprintf("%s:%s", f.Name(), filename)
-		cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-		hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
-	}
-
-	// if this container is going to produce any logs, create the config and get the bind mounts
+	// bind mount everything we need for logstash-forwarder
 	if len(service.LogConfigs) != 0 {
-		// write out the log file config
-		configFileName, err := writeLogstashAgentConfig(service)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// bind mount the conf file and everything we need for logstash-forwarder
-		lsbms := getLogstashBindMounts(configFileName)
-		for _, binding := range strings.Split(lsbms, "-v") {
-			if len(binding) > 0 {
-				cfg.Volumes[strings.TrimSpace(strings.Split(binding, ":")[1])] = struct{}{}
-				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
-			}
-		}
+		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
+		logstashPath := utils.ResourcesDir() + "/logstash"
+		binding := fmt.Sprintf("%s:%s", logstashPath, LOGSTASH_CONTAINER_DIRECTORY)
+		cfg.Volumes[LOGSTASH_CONTAINER_DIRECTORY] = struct{}{}
+		hcfg.Binds = append(hcfg.Binds, binding)
+		glog.V(1).Infof("added logstash bind mount: %s", binding)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -814,6 +808,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		"CONTROLPLANE=1",
 		"CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store",
+		fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", tenantID),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
 
@@ -944,6 +939,7 @@ func (a *HostAgent) processChildrenAndWait(conn coordclient.Connection) bool {
 
 	for {
 
+		glog.V(3).Infof("creating hostdir: %s", hostPath)
 		conn.CreateDir(hostPath)
 
 		glog.V(3).Infof("getting children of %s", hostPath)

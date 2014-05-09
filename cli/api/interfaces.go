@@ -14,7 +14,7 @@ import (
 type API interface {
 
 	// Server
-	StartServer()
+	StartServer() error
 	StartProxy(ControllerOptions) error
 
 	// Hosts
