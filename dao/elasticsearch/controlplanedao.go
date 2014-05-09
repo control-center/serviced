@@ -10,6 +10,7 @@
 package elasticsearch
 
 import (
+	dutils "github.com/dotcloud/docker/utils"
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/indices"
@@ -1090,13 +1091,15 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 
 func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
 
-	re := regexp.MustCompile("([^/]+/)?([^:]+)(:.*)?")
-	matches := re.FindAllStringSubmatch(imageId, -1)
-	if len(matches) == 0 || len(matches[0]) < 2 {
-		return "", errors.New("malformed imageid")
+	repo, _ := dutils.ParseRepositoryTag(imageId)
+	re := regexp.MustCompile("/?([^/]+)\\z")
+	matches := re.FindStringSubmatch(repo)
+	if matches == nil {
+		fmt.Println("malformed imageid")
 	}
-	parts := strings.Split(matches[0][len(matches[0])-2], "/")
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, parts[len(parts)-1]), nil
+	name := matches[1]
+
+	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
