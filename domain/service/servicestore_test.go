@@ -37,13 +37,14 @@ func (s *S) SetUpTest(c *C) {
 }
 
 func (s *S) Test_ServiceCRUD(t *C) {
-
 	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
 	svc2 := Service{}
 
 	err := s.store.Get(s.ctx, Key(svc.Id), &svc2)
 	t.Assert(err, NotNil)
-	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+	if !datastore.IsErrNoSuchEntity(err) {
+		t.Fatalf("unexpected error type: %v", err)
+	}
 
 	err = s.store.Put(s.ctx, Key(svc.Id), svc)
 	t.Assert(err, IsNil)
@@ -64,7 +65,9 @@ func (s *S) Test_ServiceCRUD(t *C) {
 
 	err = s.store.Get(s.ctx, Key(svc.Id), &svc2)
 	t.Assert(err, NotNil)
-	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+	if !datastore.IsErrNoSuchEntity(err) {
+		t.Fatalf("unexpected error type: %v", err)
+	}
 
 }
 
