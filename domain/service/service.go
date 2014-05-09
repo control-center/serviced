@@ -263,7 +263,7 @@ func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment
 }
 
 func (se *ServiceEndpoint) RemoveAssignment() error {
-	se.AddressAssignment = AddressAssignment{}
+	se.AddressAssignment = addressassignment.AddressAssignment{}
 	return nil
 }
 

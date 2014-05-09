@@ -433,28 +433,27 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 	if id == "" {
 		return errors.New("empty Service.Id not allowed")
 	}
-	service.Id = id
+	svc.Id = id
 	//add assignment info to service
-	for idx := range service.Endpoints {
-		assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
+	for idx := range svc.Endpoints {
+		assignment, err := this.getEndpointAddressAssignments(svc.Id, svc.Endpoints[idx].Name)
 		if err != nil {
 			glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
 			return err
 		}
 		if assignment != nil {
 			//assignment exists
-			glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
-			service.Endpoints[idx].SetAssignment(assignment)
+			glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", svc.Endpoints[idx].Name, assignment)
+			svc.Endpoints[idx].SetAssignment(assignment)
 		} else {
-			service.Endpoints[idx].RemoveAssignment()
+			svc.Endpoints[idx].RemoveAssignment()
 		}
 	}
 
-	response, err := indexService(id, service)
-	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
-	if response.Ok {
-		//add address assignment info to ZK Service
-		return this.zkDao.UpdateService(service)
+	store := service.NewStore()
+	ctx := datastore.Get()
+	if err := store.Put(ctx, service.Key(id), svc); err != nil {
+		return err
 	}
 	return this.zkDao.UpdateService(svc)
 }
@@ -810,7 +809,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					return err
 				}
 
-				err = this.updateService(&myService)
+				err = this.updateService(myService)
 				if err != nil {
 					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
 					return err
@@ -1127,8 +1126,8 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 	store := addressassignment.NewStore()
 	key := addressassignment.Key(id)
 
-	var addr addressassignment.AddressAssignment
-	if err := store.Get(datastore.Get(), key, &addr); err != nil {
+	var assignment addressassignment.AddressAssignment
+	if err := store.Get(datastore.Get(), key, &assignment); err != nil {
 		return err
 	}
 
@@ -1136,17 +1135,15 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 		return err
 	}
 
-	for _, assignment := range *aas {
-		var service service.Service
-		if err := this.GetService(assignment.ServiceID, &service); err != nil {
-			glog.V(2).Infof("ControlPlaneDao.GetService service=%+v err=%s", assignment.ServiceID, err)
-			return err
-		}
+	var svc service.Service
+	if err := this.GetService(assignment.ServiceID, &svc); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetService service=%+v err=%s", assignment.ServiceID, err)
+		return err
+	}
 
-		if err := this.updateService(&service); err != nil {
-			glog.V(2).Infof("ControlPlaneDao.updateService service=%+v err=%s", assignment.ServiceID, err)
-			return err
-		}
+	if err := this.updateService(&svc); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.updateService service=%+v err=%s", assignment.ServiceID, err)
+		return err
 	}
 
 	return nil
