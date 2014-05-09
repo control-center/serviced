@@ -1095,7 +1095,7 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)
 	if matches == nil {
-		fmt.Println("malformed imageid")
+		return "", errors.New("malformed imageid")
 	}
 	name := matches[1]
 
