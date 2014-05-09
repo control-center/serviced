@@ -43,7 +43,7 @@ import (
 	"time"
 )
 
-var minDockerVersion = version{0, 10, 0}
+var minDockerVersion = version{0, 11, 1}
 
 type daemon struct {
 	staticIPs []string
