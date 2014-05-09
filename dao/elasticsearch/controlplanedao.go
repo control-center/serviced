@@ -1063,7 +1063,11 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 			return err
 		}
 
-		repo := this.renameImageId(imageId, *tenantId)
+		repo, err := this.renameImageId(imageId, *tenantId)
+		if err != nil {
+			glog.Errorf("malformed imageId: %s", imageId)
+			return err
+		}
 
 		options := docker.TagImageOptions{
 			Repo:  repo,
@@ -1084,10 +1088,15 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	return nil
 }
 
-func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) string {
-	repotag := strings.SplitN(imageId, ":", 2)
-	path := strings.SplitN(repotag[0], "/", 3)
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, path[len(path)-1])
+func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
+
+	re := regexp.MustCompile("([^/]+/)?([^:]+)(:.*)?")
+	matches := re.FindAllStringSubmatch(imageId, -1)
+	if len(matches) == 0 || len(matches[0]) < 2 {
+		return "", errors.New("malformed imageid")
+	}
+	name := matches[0][len(matches[0])-1]
+	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
@@ -1119,7 +1128,11 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageId != "" {
-		svc.ImageId = this.renameImageId(svc.ImageId, *tenantId)
+		name, err := this.renameImageId(svc.ImageId, *tenantId)
+		if err != nil {
+			return err
+		}
+		svc.ImageId = name
 	}
 
 	var serviceId string

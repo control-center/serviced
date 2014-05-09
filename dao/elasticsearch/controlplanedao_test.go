@@ -371,6 +371,19 @@ func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	}
 }
 
+func (dt *DaoTest) TestRenameImageId(t *C) {
+	imageId, err := dt.Dao.renameImageId("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
+	if err != nil {
+		t.Errorf("unexpected failure renamingImageId: %s", err)
+		t.FailNow()
+	}
+	expected := "localhost:5000/X_daily-zenoss5-core"
+	if imageId != expected {
+		t.Errorf("expected image '%s' got '%s'", expected, imageId)
+		t.FailNow()
+	}
+}
+
 func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.ID)
