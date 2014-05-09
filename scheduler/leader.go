@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 type leader struct {
@@ -222,9 +223,9 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 		// Is the service supposed to be running at all?
 		switch {
-		case svc.DesiredState == dao.SVC_STOP:
+		case svc.DesiredState == service.SVCStop:
 			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
-		case svc.DesiredState == dao.SVC_RUN:
+		case svc.DesiredState == service.SVCRun:
 			l.updateServiceInstances(&svc, serviceStates)
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", svc.DesiredState, svc.Name)
@@ -365,7 +366,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host) (*host.Host, error) {
 	var hostid string
 	for _, ep := range s.Endpoints {
-		if ep.AddressAssignment != (service.AddressAssignment{}) {
+		if ep.AddressAssignment != (addressassignment.AddressAssignment{}) {
 			hostid = ep.AddressAssignment.HostID
 			break
 		}

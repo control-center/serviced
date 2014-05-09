@@ -24,7 +24,7 @@ func HostEquals(t errorf, h1 *Host, h2 *Host) bool {
 		equals = false
 	}
 	if h1.PoolID != h2.PoolID {
-		t.Errorf("Host PoolId %v did not equal %v", h1.PoolID, h2.PoolID)
+		t.Errorf("Host PoolID %v did not equal %v", h1.PoolID, h2.PoolID)
 		equals = false
 	}
 	if h1.IPAddr != h2.IPAddr {
