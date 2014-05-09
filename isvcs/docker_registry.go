@@ -43,12 +43,11 @@ func registryHealthCheck() error {
 		if _, err := http.Get(url); err == nil {
 			break
 		} else {
-			if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
+			if time.Since(start) > timeout {
 				return fmt.Errorf("Could not startup docker-registry container.")
 			}
-			glog.V(2).Infof("Still trying to connect to docker-registry: %v", err)
-			time.Sleep(time.Millisecond * 100)
 		}
+		time.Sleep(time.Second)
 	}
 	return nil
 }
