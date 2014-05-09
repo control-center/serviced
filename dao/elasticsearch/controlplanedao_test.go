@@ -377,7 +377,7 @@ func (dt *DaoTest) TestRenameImageId(t *C) {
 		t.Errorf("unexpected failure renamingImageId: %s", err)
 		t.FailNow()
 	}
-	expected := "localhost:5000/X/daily-zenoss5-core"
+	expected := "localhost:5000/X_daily-zenoss5-core"
 	if imageId != expected {
 		t.Errorf("expected image '%s' got '%s'", expected, imageId)
 		t.FailNow()
