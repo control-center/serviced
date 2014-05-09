@@ -68,6 +68,7 @@ type HostAgent struct {
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
+	dockerRegistry  string // the docker registry to use
 }
 
 // assert that this implemenents the Agent interface
@@ -84,9 +85,10 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
+	agent.dockerRegistry = dockerRegistry
 	agent.master = master
 	agent.uiport = uiport
 	agent.dockerDNS = dockerDNS
