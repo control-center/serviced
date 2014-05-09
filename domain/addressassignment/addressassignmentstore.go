@@ -8,7 +8,7 @@ import (
 	"github.com/zenoss/serviced/datastore"
 )
 
-//NewAddressAssignmentStore creates a AddressAssignmentStore store
+//NewStore creates a AddressAssignmentStore store
 func NewStore() *Store {
 	return &Store{}
 }

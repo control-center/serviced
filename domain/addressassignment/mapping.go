@@ -16,7 +16,7 @@ var (
       "properties": {
         "AssignmentType" :  {"type": "string", "index":"not_analyzed"},
         "HostId":           {"type": "string", "index":"not_analyzed"},
-        "PoolId":           {"type": "string", "index":"not_analyzed"},
+        "PoolID":           {"type": "string", "index":"not_analyzed"},
         "IPAddr" :          {"type": "string", "index":"not_analyzed"},
         "Port" :            {"type": "long", "index":"not_analyzed"},
         "ServiceId" :       {"type": "string", "index":"not_analyzed"},
@@ -25,6 +25,7 @@ var (
     }
 }
 `
+	//MAPPING is the elastic mapping for an address assignment
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )
 

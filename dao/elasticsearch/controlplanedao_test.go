@@ -25,6 +25,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -230,22 +231,22 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()
 	s0.Id = "0"
-	s0.DesiredState = service.SVC_STOP
+	s0.DesiredState = service.SVCStop
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
 	s01.ParentServiceId = "0"
-	s01.DesiredState = service.SVC_STOP
+	s01.DesiredState = service.SVCStop
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.ParentServiceId = "01"
-	s011.DesiredState = service.SVC_STOP
+	s011.DesiredState = service.SVCStop
 
 	s02, _ := service.NewService()
 	s02.Id = "02"
 	s02.ParentServiceId = "0"
-	s02.DesiredState = service.SVC_STOP
+	s02.DesiredState = service.SVCStop
 
 	dt.Dao.AddService(*s0, &id)
 	dt.Dao.AddService(*s01, &id)
@@ -258,25 +259,25 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	svc := service.Service{}
 	dt.Dao.GetService("0", &svc)
-	if svc.DesiredState != service.SVC_RUN {
+	if svc.DesiredState != service.SVCRun {
 		t.Errorf("Service: 0 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("01", &svc)
-	if svc.DesiredState != service.SVC_RUN {
+	if svc.DesiredState != service.SVCRun {
 		t.Errorf("Service: 01 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("011", &svc)
-	if svc.DesiredState != service.SVC_RUN {
+	if svc.DesiredState != service.SVCRun {
 		t.Errorf("Service: 011 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("02", &svc)
-	if svc.DesiredState != service.SVC_RUN {
+	if svc.DesiredState != service.SVCRun {
 		t.Errorf("Service: 02 not requested to run: %+v", svc)
 		t.Fail()
 	}
@@ -444,7 +445,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []service.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.Id, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
@@ -467,7 +468,7 @@ func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
 }
 
 func (dt *DaoTest) TestAssignAddress(t *C) {
-	aa := service.AddressAssignment{}
+	aa := addressassignment.AddressAssignment{}
 	aid := ""
 	err := dt.Dao.AssignAddress(aa, &aid)
 	if err == nil {
@@ -504,7 +505,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	defer dt.Dao.RemoveService(serviceId, &unused)
 
 	//test for bad service id
-	aa = service.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
@@ -512,7 +513,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	//test for bad endpoint id
-	aa = service.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
@@ -520,7 +521,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// Valid assignment
-	aa = service.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err != nil {
@@ -529,7 +530,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// try to reassign; should fail
-	aa = service.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
 	other_aid := ""
 	err = dt.Dao.AssignAddress(aa, &other_aid)
 	if err == nil || "Address Assignment already exists" != err.Error() {

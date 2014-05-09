@@ -12,6 +12,7 @@ import (
 	"text/template"
 )
 
+//ServiceGetter interface for getting services
 type ServiceGetter interface {
 	GetService(serviceID string, value *Service) error
 }

@@ -12,33 +12,33 @@ import (
 //ValidEntity used to make sure AddressAssignment is in a valid state
 func (a *AddressAssignment) ValidEntity() error {
 	if a.ServiceID == "" {
-		return errors.New("ServiceId must be set")
+		return errors.New("field ServiceID must be set")
 	}
 	if a.EndpointName == "" {
-		return errors.New("EndpointName must be set")
+		return errors.New("field EndpointName must be set")
 	}
 	if a.IPAddr == "" {
-		return errors.New("IPAddr must be set")
+		return errors.New("field IPAddr must be set")
 	}
 	if a.Port == 0 {
-		return errors.New("Port must be set")
+		return errors.New("field Port must be set")
 	}
 	switch a.AssignmentType {
 	case "static":
 		{
 			if a.HostID == "" {
-				return errors.New("HostId must be set for static assignments")
+				return errors.New("field HostID must be set for static assignments")
 			}
 		}
 	case "virtual":
 		{
 			if a.PoolID == "" {
-				return errors.New("PoolId must be set for virtual assignments")
+				return errors.New("field PoolID must be set for virtual assignments")
 			}
 
 		}
 	default:
-		return fmt.Errorf("Assignment type must be static of virtual, found %v", a.AssignmentType)
+		return fmt.Errorf("assignment type must be static of virtual, found %v", a.AssignmentType)
 	}
 
 	return nil

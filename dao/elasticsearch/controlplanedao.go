@@ -455,7 +455,7 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.UpdateService: %+v", svc)
 	//cannot update service without validating it.
-	if svc.DesiredState == service.SVC_RUN {
+	if svc.DesiredState == service.SVCRun {
 		if err := this.validateServicesForStarting(&svc, nil); err != nil {
 			return err
 		}
@@ -844,7 +844,7 @@ func (this *ControlPlaneDao) StartService(serviceId string, unused *string) erro
 
 	visitor := func(svc *service.Service) error {
 		//start this service
-		svc.DesiredState = service.SVC_RUN
+		svc.DesiredState = service.SVCRun
 		err = this.updateService(svc)
 		if err != nil {
 			return err
@@ -913,7 +913,7 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 		if svc.Launch == commons.MANUAL {
 			return nil
 		}
-		svc.DesiredState = service.SVC_STOP
+		svc.DesiredState = service.SVCStop
 		if err := this.updateService(svc); err != nil {
 			return err
 		}
@@ -991,7 +991,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
-	ds := service.SVC_STOP
+	ds := service.SVCStop
 
 	exportedVolumes := make(map[string]string)
 	for k, v := range volumes {

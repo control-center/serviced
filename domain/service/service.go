@@ -12,19 +12,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
 	"time"
-	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 // Desired states of services.
 const (
-	SVC_RUN     = 1
-	SVC_STOP    = 0
-	SVN_RESTART = -1
+	SVCRun     = 1
+	SVCStop    = 0
+	SVCRestart = -1
 )
 
-// A Service that can run in serviced.
+// Service A Service that can run in serviced.
 type Service struct {
 	Id              string
 	Name            string
@@ -44,7 +44,7 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []servicedefinition.Task
-	ParentServiceId string
+	ParentServiceId  string
 	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -58,19 +58,20 @@ type Service struct {
 	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
 }
 
+//ServiceEndpoint endpoint exported or imported by a service
 type ServiceEndpoint struct {
 	servicedefinition.EndpointDefinition
 	AddressAssignment addressassignment.AddressAssignment
 }
 
-// Create a new Service.
+// NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
 	s.Id, err = utils.NewUUID()
 	return s, err
 }
 
-// Does the service have endpoint imports
+// HasImports Does the service have endpoint imports
 func (s *Service) HasImports() bool {
 	if s.Endpoints == nil {
 		return false
@@ -84,11 +85,13 @@ func (s *Service) HasImports() bool {
 	return false
 }
 
+//BuildServiceEndpoint build a ServiceEndpoint from a EndpointDefinition
 func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpoint {
 	return ServiceEndpoint{EndpointDefinition: epd}
 }
 
-func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string, poolID string, desiredState int, deploymentId string) (*Service, error) {
+//BuildService build a service from a ServiceDefinition.
+func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string, poolID string, desiredState int, deploymentID string) (*Service, error) {
 	svcuuid, err := utils.NewUUID()
 	if err != nil {
 		return nil, err
@@ -119,11 +122,11 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceId string
 	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Tasks = sd.Tasks
-	svc.ParentServiceId = parentServiceId
+	svc.ParentServiceId = parentServiceID
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = sd.Volumes
-	svc.DeploymentId = deploymentId
+	svc.DeploymentId = deploymentID
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
@@ -184,12 +187,12 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 	return result
 }
 
-// Add a virtual host for given service, this method avoids duplicates vhosts
+// AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
 func (s *Service) AddVirtualHost(application, vhostName string) error {
 	if s.Endpoints != nil {
 
 		//find the matching endpoint
-		for i := 0; i < len(s.Endpoints); i += 1 {
+		for i := range s.Endpoints {
 			ep := &s.Endpoints[i]
 
 			if ep.Application == application && ep.Purpose == "export" {
@@ -206,15 +209,15 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 		}
 	}
 
-	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
+	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
-// Remove a virtual host for given service
+// RemoveVirtualHost Remove a virtual host for given service
 func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	if s.Endpoints != nil {
 
 		//find the matching endpoint
-		for i := 0; i < len(s.Endpoints); i += 1 {
+		for i := range s.Endpoints {
 			ep := &s.Endpoints[i]
 
 			if ep.Application == application && ep.Purpose == "export" {
@@ -224,7 +227,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 
 				_vhostName := strings.ToLower(vhostName)
 				if len(ep.VHosts) == 1 && ep.VHosts[0] == _vhostName {
-					return fmt.Errorf("Cannot delete last vhost: %s", _vhostName)
+					return fmt.Errorf("cannot delete last vhost: %s", _vhostName)
 				}
 
 				found := false
@@ -247,12 +250,13 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 		}
 	}
 
-	return fmt.Errorf("Unable to find application %s in service: %s", application, s.Name)
+	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
+//SetAssignment sets the AddressAssignment for the endpoint
 func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {
-		return errors.New("Cannot assign address to endpoint without AddressResourceConfig")
+		return errors.New("cannot assign address to endpoint without AddressResourceConfig")
 	}
 	se.AddressAssignment = *aa
 	return nil
@@ -268,53 +272,54 @@ func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment 
 	return &result
 }
 
-func (a *Service) Equals(b *Service) bool {
-	if a.Id != b.Id {
+//Equals are they the same
+func (s *Service) Equals(b *Service) bool {
+	if s.Id != b.Id {
 		return false
 	}
-	if a.Name != b.Name {
+	if s.Name != b.Name {
 		return false
 	}
-	if a.Context != b.Context {
+	if s.Context != b.Context {
 		return false
 	}
-	if a.Startup != b.Startup {
+	if s.Startup != b.Startup {
 		return false
 	}
-	if a.Description != b.Description {
+	if s.Description != b.Description {
 		return false
 	}
-	if a.Instances != b.Instances {
+	if s.Instances != b.Instances {
 		return false
 	}
-	if a.ImageId != b.ImageId {
+	if s.ImageId != b.ImageId {
 		return false
 	}
-	if a.PoolId != b.PoolId {
+	if s.PoolId != b.PoolId {
 		return false
 	}
-	if a.DesiredState != b.DesiredState {
+	if s.DesiredState != b.DesiredState {
 		return false
 	}
-	if a.Launch != b.Launch {
+	if s.Launch != b.Launch {
 		return false
 	}
-	if a.Hostname != b.Hostname {
+	if s.Hostname != b.Hostname {
 		return false
 	}
-	if a.Privileged != b.Privileged {
+	if s.Privileged != b.Privileged {
 		return false
 	}
-	if a.HostPolicy != b.HostPolicy {
+	if s.HostPolicy != b.HostPolicy {
 		return false
 	}
-	if a.ParentServiceId != b.ParentServiceId {
+	if s.ParentServiceId != b.ParentServiceId {
 		return false
 	}
-	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {
+	if s.CreatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
-	if a.UpdatedAt.Unix() != b.CreatedAt.Unix() {
+	if s.UpdatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
 	return true

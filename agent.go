@@ -1020,7 +1020,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 
 		switch {
 
-		case hss.DesiredState == service.SVC_STOP:
+		case hss.DesiredState == service.SVCStop:
 			// This node is marked for death
 			glog.V(1).Infof("Service %s was marked for death, quitting", svc.Name)
 			if attached {
@@ -1035,7 +1035,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			// Something uninteresting happened. Why are we here?
 			glog.V(1).Infof("Service %s is attached in a child goroutine", svc.Name)
 
-		case hss.DesiredState == service.SVC_RUN &&
+		case hss.DesiredState == service.SVCRun &&
 			ss.Started.Year() <= 1 || ss.Terminated.Year() > 2:
 			// Should run, and either not started or process died
 			glog.V(1).Infof("Service %s does not appear to be running; starting", svc.Name)
