@@ -14,7 +14,6 @@ import (
 
 	"reflect"
 	"testing"
-	"time"
 )
 
 // This plumbs gocheck into testing
@@ -93,8 +92,6 @@ func (s *S) TestQuery(t *C) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-
-	time.Sleep(2000 * time.Millisecond)
 
 	query := search.Query().Search("_exists_:State")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)

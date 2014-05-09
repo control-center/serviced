@@ -50,7 +50,7 @@ func (hss *HostServiceState) SetVersion(version interface{}) {
 // Communicates to the agent that this service instance should stop
 func TerminateHostService(conn coordclient.Connection, hostId string, serviceStateId string) error {
 	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *HostServiceState) {
-		hss.DesiredState = dao.SVC_STOP
+		hss.DesiredState = service.SVCStop
 	})
 }
 
@@ -345,7 +345,7 @@ func RemoveService(conn coordclient.Connection, id string) error {
 	// First mark the service as needing to shutdown so the scheduler
 	// doesn't keep trying to schedule new instances
 	err := loadAndUpdateService(conn, id, func(s *service.Service) {
-		s.DesiredState = dao.SVC_STOP
+		s.DesiredState = service.SVCStop
 	})
 	if err != nil {
 		return err
@@ -578,7 +578,7 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 		HostId:         ss.HostId,
 		ServiceId:      ss.ServiceId,
 		ServiceStateId: ss.Id,
-		DesiredState:   dao.SVC_RUN,
+		DesiredState:   service.SVCRun,
 	}
 }
 
