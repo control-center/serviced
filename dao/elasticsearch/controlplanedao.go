@@ -1095,8 +1095,8 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	if len(matches) == 0 || len(matches[0]) < 2 {
 		return "", errors.New("malformed imageid")
 	}
-	name := matches[0][len(matches[0])-2]
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
+	parts := strings.Split(matches[0][len(matches[0])-2], "/")
+	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, parts[len(parts)-1]), nil
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
