@@ -19,10 +19,18 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
+	"encoding/json"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
+
+// keep track of the health status of our services
+var servicesHealth map[string]map[string]bool = make(map[string]map[string]bool)
+
+func init() {
+
+}
 
 type ServiceLogInfo struct {
 	ServiceID string
@@ -97,6 +105,14 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 
 // LogHealthCheck TODO add comment
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
+	_, ok := servicesHealth[result.ServiceId]
+	if !ok {
+		servicesHealth[result.ServiceId] = make(map[string]bool)
+	}
+	servicesHealth[result.ServiceId][result.Name] = result.Passed
+	sbytes, _ := json.Marshal(servicesHealth)
+	marshalled := string(sbytes)
+	glog.Info(marshalled)
 	if result.Passed {
 		glog.V(0).Infof("Service %s passed health check %s.", result.ServiceId, result.Name)
 	} else {
