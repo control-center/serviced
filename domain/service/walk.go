@@ -11,7 +11,7 @@ type Visit func(svc *Service) error
 type GetChildServices func(parentID string) ([]*Service, error)
 
 //GetService return a service, return error if not found
-type GetService func(serviceID string) (*Service, error)
+type GetService func(serviceID string) (Service, error)
 
 //Walk traverses the service hierarchy and calls the supplied Visit function on each service
 func Walk(serviceID string, visitFn Visit, getService GetService, getChildren GetChildServices) error {
@@ -22,7 +22,7 @@ func Walk(serviceID string, visitFn Visit, getService GetService, getChildren Ge
 	}
 
 	// do what you requested to do while visiting this node
-	err = visitFn(svc)
+	err = visitFn(&svc)
 	if err != nil {
 		return err
 	}

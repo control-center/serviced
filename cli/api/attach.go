@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 
 	"fmt"
@@ -160,15 +161,20 @@ func (a *api) GetRunningServiceActionCommand(serviceStateID string, action strin
 	}
 
 	// Evaluate service Actions for templates
-	service := running.Service
-	if err := running.Service.EvaluateActionsTemplate(client); err != nil {
-		return "", fmt.Errorf("could not evaluate service:%s  Actions:%+v  error:%s", service.Id, service.Actions, err)
+	svc := running.Service
+	getSvc := func(svcID string) (service.Service, error) {
+		s := service.Service{}
+		err := client.GetService(svcID, &s)
+		return s, err
+	}
+	if err := running.Service.EvaluateActionsTemplate(getSvc); err != nil {
+		return "", fmt.Errorf("could not evaluate service:%s  Actions:%+v  error:%s", svc.Id, svc.Actions, err)
 	}
 
 	// Parse the command
-	command, ok := service.Actions[action]
+	command, ok := svc.Actions[action]
 	if !ok {
-		glog.Infof("service: %+v", service)
+		glog.Infof("service: %+v", svc)
 		glog.Fatalf("cannot access action: %s", action)
 	}
 

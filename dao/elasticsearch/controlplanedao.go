@@ -866,10 +866,10 @@ func (this *ControlPlaneDao) walkServices(serviceID string, visitFn service.Visi
 	getChildren := func(parentID string) ([]*service.Service, error) {
 		return store.GetChildServices(ctx, parentID)
 	}
-	getService := func(svcID string) (*service.Service, error) {
+	getService := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := store.Get(ctx, service.Key(svcID), &svc)
-		return &svc, err
+		return svc, err
 	}
 
 	return service.Walk(serviceID, visitFn, getService, getChildren)
@@ -1003,13 +1003,19 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := this.GetService(svcID, &svc)
+		return svc, err
+	}
+
 	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(this); err != nil {
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		return err
 	}
 
 	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(this); err != nil {
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		return err
 	}
 

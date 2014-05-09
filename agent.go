@@ -139,11 +139,17 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *service.Service, cp dao.ControlPlane) error {
-	err := s.EvaluateLogConfigTemplate(cp)
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := cp.GetService(svcID, &svc)
+		return svc, err
+	}
+	err := s.EvaluateLogConfigTemplate(getSvc)
 	if err != nil {
 		return err
 	}
-	return s.EvaluateStartupTemplate(cp)
+	return s.EvaluateStartupTemplate(getSvc)
 }
 
 // Shutdown stops the agent

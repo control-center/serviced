@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/shell"
 )
 
@@ -52,15 +53,20 @@ func (a *api) RunShell(config ShellConfig) error {
 		return err
 	}
 
-	service, err := a.GetService(config.ServiceID)
+	svc, err := a.GetService(config.ServiceID)
 	if err != nil {
 		return err
 	}
 
-	if err := service.EvaluateRunsTemplate(client); err != nil {
-		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", service.Id, service.Runs, err)
+	getSvc := func(svcID string) (service.Service, error) {
+		s := service.Service{}
+		err := client.GetService(svcID, &s)
+		return s, err
 	}
-	command, ok := service.Runs[config.Command]
+	if err := svc.EvaluateRunsTemplate(getSvc); err != nil {
+		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.Id, svc.Runs, err)
+	}
+	command, ok := svc.Runs[config.Command]
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}

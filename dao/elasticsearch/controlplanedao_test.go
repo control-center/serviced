@@ -211,6 +211,74 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	}
 }
 
+func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
+	svc := service.Service{
+		Id:             "ParentServiceId",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
+		ImageId:        "test/pinger",
+		PoolId:         "default",
+		DesiredState:   1,
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+	childService1 := service.Service{
+		Id:              "childService1",
+		Name:            "childservice1",
+		Launch:          "auto",
+		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceId: "ParentServiceId",
+	}
+	childService2 := service.Service{
+		Id:              "childService2",
+		Name:            "childservice2",
+		Launch:          "auto",
+		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceId: "ParentServiceId",
+	}
+	// add a service with a subservice
+	id := "ParentServiceId"
+	var err error
+	if err = cp.AddService(svc, &id); err != nil {
+		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	childService1Id := "childService1"
+	childService2Id := "childService2"
+	if err = cp.AddService(childService1, &childService1Id); err != nil {
+		glog.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = cp.AddService(childService2, &childService2Id); err != nil {
+		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+	var unused int
+	var stringUnused string
+	// start the service
+	if err = cp.StartService(id, &stringUnused); err != nil {
+		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// stop the parent
+	if err = cp.StopService(id, &unused); err != nil {
+		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// verify the children have all stopped
+	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
+	var services []*Service
+	err = cp.GetServices(query, &services)
+	for _, subService := range services {
+		if subService.DesiredState == 1 && subService.ParentServiceId == id {
+			t.Errorf("Was expecting child services to be stopped %v", subService)
+		}
+	}
+
+}
+
+
 func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()

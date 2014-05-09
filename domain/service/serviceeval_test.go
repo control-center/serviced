@@ -7,28 +7,24 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package tests
+package service
 
 import (
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
-	"github.com/zenoss/serviced/dao/elasticsearch"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	. "gopkg.in/check.v1"
 
 	"fmt"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"testing"
 	"time"
 )
 
 var startup_testcases = []struct {
-	service  service.Service
+	service  Service
 	expected string
 }{
-	{service.Service{
+	{Service{
 		Id:              "0",
 		Name:            "Zenoss",
 		Context:         "",
@@ -37,10 +33,10 @@ var startup_testcases = []struct {
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
-		PoolId:          "",
+		PoolId:          "default",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []service.ServiceEndpoint{},
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -62,7 +58,7 @@ var startup_testcases = []struct {
 		},
 		Actions: map[string]string{"debug": "{{.Name}} debug", "stats": "{{.Name}} stats"},
 	}, ""},
-	{service.Service{
+	{Service{
 		Id:              "1",
 		Name:            "Collector",
 		Context:         "{\"RemoteHost\":\"a_hostname\"}",
@@ -71,10 +67,10 @@ var startup_testcases = []struct {
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
-		PoolId:          "",
+		PoolId:          "default",
 		DesiredState:    0,
-		Launch:          "",
-		Endpoints:       []service.ServiceEndpoint{},
+		Launch:          "auto",
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "0",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -82,7 +78,7 @@ var startup_testcases = []struct {
 		Snapshot:        servicedefinition.SnapshotCommands{},
 		Actions:         map[string]string{},
 	}, ""},
-	{service.Service{
+	{Service{
 		Id:              "2",
 		Name:            "pinger",
 		Context:         "{\"Count\": 32}",
@@ -94,14 +90,14 @@ var startup_testcases = []struct {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []service.ServiceEndpoint{},
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []servicedefinition.LogConfig{},
 		Snapshot:        servicedefinition.SnapshotCommands{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
-	{service.Service{
+	{Service{
 		Id:              "3",
 		Name:            "/bin/sh",
 		Context:         "",
@@ -113,7 +109,7 @@ var startup_testcases = []struct {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []service.ServiceEndpoint{},
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -123,10 +119,10 @@ var startup_testcases = []struct {
 }
 
 var endpoint_testcases = []struct {
-	service  service.Service
+	service  Service
 	expected string
 }{
-	{service.Service{
+	{Service{
 		Id:              "100",
 		Name:            "Zenoss",
 		Context:         "{\"RemoteHost\":\"hostname\"}",
@@ -135,15 +131,15 @@ var endpoint_testcases = []struct {
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
 		ImageId:         "",
-		PoolId:          "",
+		PoolId:          "default",
 		DesiredState:    0,
 		Launch:          "auto",
-		Endpoints:       []service.ServiceEndpoint{},
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}, ""},
-	{service.Service{
+	{Service{
 		Id:             "101",
 		Name:           "Collector",
 		Context:        "",
@@ -152,11 +148,11 @@ var endpoint_testcases = []struct {
 		Instances:      0,
 		InstanceLimits: domain.MinMax{0, 0},
 		ImageId:        "",
-		PoolId:         "",
+		PoolId:         "default",
 		DesiredState:   0,
-		Launch:         "",
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
+		Launch:         "auto",
+		Endpoints: []ServiceEndpoint{
+			ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
 					Purpose:     "something",
 					Protocol:    "tcp",
@@ -172,56 +168,35 @@ var endpoint_testcases = []struct {
 }
 
 var addresses []string
-var cp *elasticsearch.ControlPlaneDao
 
-func init() {
-	var unused int
-	var err error
-	isvcs.Init()
-	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
-	err = isvcs.Mgr.Wipe()
-	if err != nil {
-		glog.Fatalf("could not wipe isvcs(): %s", err)
-	}
-	if err := isvcs.Mgr.Start(); err != nil {
-		glog.Fatalf("Could not start es container: %s", err)
-	}
-
-	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
-	glog.Infof("zookeeper dsn: %s", dsn)
-	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
-	if err != nil {
-		glog.Fatalf("Could not start es container: %s", err)
-	}
-
-	time.Sleep(time.Second * 5)
-	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil, zclient, "/tmp", "rsync"); err != nil {
-		glog.Fatalf("could not start NewControlSvc(): %s", err)
-	}
-
-	if err == nil {
-		for _, testcase := range startup_testcases {
-			var id string
-			cp.RemoveService(testcase.service.Id, &unused)
-			if err = cp.AddService(testcase.service, &id); err != nil {
-				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
-			}
-		}
-		for _, testcase := range endpoint_testcases {
-			var id string
-			cp.RemoveService(testcase.service.Id, &unused)
-			if err = cp.AddService(testcase.service, &id); err != nil {
-				glog.Fatalf("Failed Loading Service: %+v, %s", testcase.service, err)
-			}
+func createSvcs(store *Store, ctx datastore.Context) error {
+	for _, testcase := range startup_testcases {
+		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+			return err
 		}
 	}
+	for _, testcase := range endpoint_testcases {
+		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *S) getSVC(svcID string) (Service, error) {
+	svc := Service{}
+	err := s.store.Get(s.ctx, Key(svcID), &svc)
+	return svc, err
 }
 
 //TestEvaluateLogConfigTemplate makes sure that the log config templates can be
 // parsed and evaluated correctly.
-func TestEvaluateLogConfigTemplate(t *testing.T) {
+func (s *S) TestEvaluateLogConfigTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
 	testcase := startup_testcases[0]
-	testcase.service.EvaluateLogConfigTemplate(cp)
+	testcase.service.EvaluateLogConfigTemplate(s.getSVC)
 	// check the tag
 	result := testcase.service.LogConfigs[0].LogTags[0].Value
 	if result != testcase.service.Name {
@@ -235,11 +210,14 @@ func TestEvaluateLogConfigTemplate(t *testing.T) {
 	}
 }
 
-func TestEvaluateStartupTemplate(t *testing.T) {
-	var err error
+func (s *S) TestEvaluateStartupTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
 	for _, testcase := range startup_testcases {
 		glog.Infof("Service.Startup before: %s", testcase.service.Startup)
-		err = testcase.service.EvaluateStartupTemplate(cp)
+		err = testcase.service.EvaluateStartupTemplate(s.getSVC)
+		t.Assert(err, IsNil)
 		glog.Infof("Service.Startup after: %s, error=%s", testcase.service.Startup, err)
 		result := testcase.service.Startup
 		if result != testcase.expected {
@@ -250,12 +228,13 @@ func TestEvaluateStartupTemplate(t *testing.T) {
 
 // TestEvaluateActionsTemplate makes sure that the Actions templates can be
 // parsed and evaluated correctly.
-func TestEvaluateActionsTemplate(t *testing.T) {
-	var err error
+func (s *S) TestEvaluateActionsTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
 	for _, testcase := range startup_testcases {
 		glog.Infof("Service.Actions before: %s", testcase.service.Actions)
-		err = testcase.service.EvaluateActionsTemplate(cp)
-		glog.Infof("Service.Actions after: %s, error=%s", testcase.service.Actions, err)
+		err = testcase.service.EvaluateActionsTemplate(s.getSVC)
+		glog.Infof("Service.Actions after: %v, error=%v", testcase.service.Actions, err)
 		for key, result := range testcase.service.Actions {
 			expected := fmt.Sprintf("%s %s", testcase.service.Name, key)
 			if result != expected {
@@ -266,13 +245,15 @@ func TestEvaluateActionsTemplate(t *testing.T) {
 	}
 }
 
-func TestEvaluateEndpointTemplate(t *testing.T) {
-	var err error
+func (s *S) TestEvaluateEndpointTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
 	for _, testcase := range endpoint_testcases {
 		if len(testcase.service.Endpoints) > 0 {
 			glog.Infof("Service.Endpoint[0].Application: %s", testcase.service.Endpoints[0].Application)
 			oldApp := testcase.service.Endpoints[0].Application
-			err = testcase.service.EvaluateEndpointTemplates(cp)
+			err = testcase.service.EvaluateEndpointTemplates(s.getSVC)
 			glog.Infof("Service.Endpoint[0].Application: %s, error=%s", testcase.service.Endpoints[0].Application, err)
 
 			result := testcase.service.Endpoints[0].Application
@@ -284,7 +265,7 @@ func TestEvaluateEndpointTemplate(t *testing.T) {
 			}
 
 			glog.Infof("Evaluate ServiceEndpoints a second time")
-			err = testcase.service.EvaluateEndpointTemplates(cp)
+			err = testcase.service.EvaluateEndpointTemplates(s.getSVC)
 			result = testcase.service.Endpoints[0].Application
 			if result != testcase.expected {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
@@ -296,8 +277,11 @@ func TestEvaluateEndpointTemplate(t *testing.T) {
 	}
 }
 
-func TestIncompleteStartupInjection(t *testing.T) {
-	svc := service.Service{
+func (s *S) TestIncompleteStartupInjection(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
+	svc := Service{
 		Id:              "1000",
 		Name:            "pinger",
 		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
@@ -309,143 +293,14 @@ func TestIncompleteStartupInjection(t *testing.T) {
 		PoolId:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
-		Endpoints:       []service.ServiceEndpoint{},
+		Endpoints:       []ServiceEndpoint{},
 		ParentServiceId: "0987654321",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
-	svc.EvaluateStartupTemplate(cp)
+	svc.EvaluateStartupTemplate(s.getSVC)
 	if svc.Startup == "/usr/bin/ping -c 64 zenoss.com" {
 		t.Errorf("Not expecting a match")
-	}
-}
-
-func TestStoppingParentStopsChildren(t *testing.T) {
-	svc := service.Service{
-		Id:             "ParentServiceId",
-		Name:           "ParentService",
-		Startup:        "/usr/bin/ping -c localhost",
-		Description:    "Ping a remote host a fixed number of times",
-		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
-		ImageId:        "test/pinger",
-		PoolId:         "default",
-		DesiredState:   1,
-		Launch:         "auto",
-		Endpoints:      []service.ServiceEndpoint{},
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	}
-	childService1 := service.Service{
-		Id:              "childService1",
-		Name:            "childservice1",
-		Launch:          "auto",
-		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
-	}
-	childService2 := service.Service{
-		Id:              "childService2",
-		Name:            "childservice2",
-		Launch:          "auto",
-		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
-	}
-	// add a service with a subservice
-	id := "ParentServiceId"
-	var err error
-	if err = cp.AddService(svc, &id); err != nil {
-		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
-	}
-
-	childService1Id := "childService1"
-	childService2Id := "childService2"
-	if err = cp.AddService(childService1, &childService1Id); err != nil {
-		glog.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
-	}
-	if err = cp.AddService(childService2, &childService2Id); err != nil {
-		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
-	}
-	var unused int
-	var stringUnused string
-	// start the service
-	if err = cp.StartService(id, &stringUnused); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
-	}
-	// stop the parent
-	if err = cp.StopService(id, &unused); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
-	}
-	// verify the children have all stopped
-	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
-	var services []*service.Service
-	err = cp.GetServices(query, &services)
-	for _, subService := range services {
-		if subService.DesiredState == 1 && subService.ParentServiceId == id {
-			t.Errorf("Was expecting child services to be stopped %v", subService)
-		}
-	}
-
-	defer cp.RemoveService(childService2Id, &unused)
-	defer cp.RemoveService(childService1Id, &unused)
-	defer cp.RemoveService(id, &unused)
-}
-
-func TestAddVirtualHost(t *testing.T) {
-	svc := service.Service{
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
-					Purpose:     "export",
-					Application: "server",
-					VHosts:      nil,
-				},
-			},
-		},
-	}
-
-	var err error
-	if err = svc.AddVirtualHost("empty_server", "name"); err == nil {
-		t.Errorf("Expected error adding vhost")
-	}
-
-	if err = svc.AddVirtualHost("server", "name"); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
-
-	//no duplicate hosts can be added... hostnames are case-insensitive
-	if err = svc.AddVirtualHost("server", "NAME"); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
-
-	if len(svc.Endpoints[0].VHosts) != 1 && (svc.Endpoints[0].VHosts)[0] != "name" {
-		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHosts)
-	}
-}
-
-func TestRemoveVirtualHost(t *testing.T) {
-	svc := service.Service{
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
-					Purpose:     "export",
-					Application: "server",
-					VHosts:      []string{"name0", "name1"},
-				},
-			},
-		},
-	}
-
-	var err error
-	if err = svc.RemoveVirtualHost("server", "name0"); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
-
-	if len(svc.Endpoints[0].VHosts) != 1 && svc.Endpoints[0].VHosts[0] != "name1" {
-		t.Errorf("Virtualhost incorrect, %+v should contain one host", svc.Endpoints[0].VHosts)
-	}
-
-	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
-		t.Errorf("Expected error removing vhost")
 	}
 }
