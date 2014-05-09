@@ -1095,7 +1095,7 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	if len(matches) == 0 || len(matches[0]) < 2 {
 		return "", errors.New("malformed imageid")
 	}
-	name := matches[0][len(matches[0])-1]
+	name := matches[0][len(matches[0])-2]
 	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
 }
 
