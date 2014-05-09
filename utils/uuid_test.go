@@ -47,3 +47,13 @@ func TestNewUUID62(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestConvertUp(t *testing.T) {
+	orig := "123456789abcdef"
+	conv := ConvertUp(orig, "0123456789abcdef")
+
+	if orig != conv {
+		t.Errorf("got %s, expected %s", orig, conv)
+	}
+}
+
