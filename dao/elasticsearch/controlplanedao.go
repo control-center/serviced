@@ -189,7 +189,7 @@ type ControlPlaneDao struct {
 	zkDao    *zzk.ZkDao
 	dfs      *dfs.DistributedFileSystem
 	//needed while we move things over
-	facade *facade.Facade
+	facade         *facade.Facade
 	dockerRegistry string
 }
 
@@ -1085,11 +1085,10 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 }
 
 func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) string {
-		repotag := strings.SplitN(imageId, ":", 2)
-		path := strings.SplitN(repotag[0], "/", 3)
-		return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, path[len(path)-1])
+	repotag := strings.SplitN(imageId, ":", 2)
+	path := strings.SplitN(repotag[0], "/", 3)
+	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, path[len(path)-1])
 }
-
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
@@ -1573,8 +1572,8 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName: hostName,
-		port:     port,
+		hostName:       hostName,
+		port:           port,
 		dockerRegistry: dockerRegistry,
 	}
 	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
