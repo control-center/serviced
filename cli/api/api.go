@@ -40,6 +40,7 @@ type Options struct {
 	HostAliases      []string
 	Verbosity        int
 	StaticIPs        []string
+	DockerRegistry   string
 }
 
 // LoadOptions overwrites the existing server options

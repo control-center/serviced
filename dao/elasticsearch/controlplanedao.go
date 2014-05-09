@@ -10,6 +10,7 @@
 package elasticsearch
 
 import (
+	dutils "github.com/dotcloud/docker/utils"
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
 	"github.com/mattbaird/elastigo/indices"
@@ -189,7 +190,8 @@ type ControlPlaneDao struct {
 	zkDao    *zzk.ZkDao
 	dfs      *dfs.DistributedFileSystem
 	//needed while we move things over
-	facade *facade.Facade
+	facade         *facade.Facade
+	dockerRegistry string
 }
 
 // convert search result of json services to service.Service array
@@ -1055,11 +1057,28 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	}
 
 	for imageId, _ := range imageIds {
-		_, err := dockerclient.InspectImage(imageId)
+
+		image, err := dockerclient.InspectImage(imageId)
 		if err != nil {
 			glog.Errorf("could not look up image: %s", imageId)
 			return err
 		}
+
+		repo, err := this.renameImageId(imageId, *tenantId)
+		if err != nil {
+			glog.Errorf("malformed imageId: %s", imageId)
+			return err
+		}
+
+		options := docker.TagImageOptions{
+			Repo:  repo,
+			Force: true,
+		}
+		if err := dockerclient.TagImage(image.ID, options); err != nil {
+			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			return err
+		}
+		// TODO: push image to local registry
 	}
 
 	for _, sd := range sds {
@@ -1068,6 +1087,19 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 		}
 	}
 	return nil
+}
+
+func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
+
+	repo, _ := dutils.ParseRepositoryTag(imageId)
+	re := regexp.MustCompile("/?([^/]+)\\z")
+	matches := re.FindStringSubmatch(repo)
+	if matches == nil {
+		return "", errors.New("malformed imageid")
+	}
+	name := matches[1]
+
+	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
@@ -1099,34 +1131,11 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageId != "" {
-		repotag := strings.SplitN(svc.ImageId, ":", 2)
-		path := strings.SplitN(repotag[0], "/", 3)
-		path[len(path)-1] = *tenantId + "_" + path[len(path)-1]
-		repo := strings.Join(path, "/")
-
-		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+		name, err := this.renameImageId(svc.ImageId, *tenantId)
 		if err != nil {
-			glog.Errorf("unable to start docker client")
 			return err
 		}
-
-		image, err := dockerclient.InspectImage(svc.ImageId)
-		if err != nil {
-			glog.Errorf("could not look up image: %s", sd.ImageID)
-			return err
-		}
-
-		options := docker.TagImageOptions{
-			Repo:  repo,
-			Force: true,
-		}
-
-		if err := dockerclient.TagImage(image.ID, options); err != nil {
-			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
-			return err
-		}
-
-		svc.ImageId = repo
+		svc.ImageId = name
 	}
 
 	var serviceId string
@@ -1573,14 +1582,15 @@ func (this *ControlPlaneDao) Send(service service.Service, files *[]string) erro
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName: hostName,
-		port:     port,
+		hostName:       hostName,
+		port:           port,
+		dockerRegistry: dockerRegistry,
 	}
 	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
 		return nil, err
@@ -1621,11 +1631,11 @@ func createSystemUser(s *ControlPlaneDao) error {
 	return s.UpdateUser(user, &unused)
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade)
+	s, err := NewControlPlaneDao(hostName, port, facade, dockerRegistry)
 	if err != nil {
 		return nil, err
 	}

@@ -174,7 +174,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
 
-	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
+	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -260,7 +260,7 @@ func (d *daemon) initZK() (*coordclient.Client, error) {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry)
 }
 
 func (d *daemon) initWeb() {

@@ -195,7 +195,7 @@ func init() {
 	}
 
 	time.Sleep(time.Second * 5)
-	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil, zclient, "/tmp", "rsync"); err != nil {
+	if cp, err = elasticsearch.NewControlSvc("localhost", 9200, nil, zclient, "/tmp", "rsync", "localhost:5000"); err != nil {
 		glog.Fatalf("could not start NewControlSvc(): %s", err)
 	}
 

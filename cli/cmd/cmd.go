@@ -64,7 +64,14 @@ func New(driver api.API) *ServicedCli {
 	if len(configEnv("STATIC_IPS", "")) > 0 {
 		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
 	}
+
+	defaultDockerRegistry := "localhost:5000"
+	if hostname, err := os.Hostname(); err == nil {
+		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
+	}
+
 	c.app.Flags = []cli.Flag{
+		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
 		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
@@ -118,6 +125,7 @@ func (c *ServicedCli) Run(args []string) {
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
+		DockerRegistry:   ctx.GlobalString("docker-registry"),
 		Port:             ctx.GlobalString("port"),
 		StaticIPs:        ctx.GlobalStringSlice("static-ip"),
 		UIPort:           ctx.GlobalString("uiport"),

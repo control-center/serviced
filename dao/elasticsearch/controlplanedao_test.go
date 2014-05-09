@@ -78,7 +78,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync")
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync", "localhost:5000")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -368,6 +368,19 @@ func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	err := dt.Dao.validateServicesForStarting(testService, nil)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
+	}
+}
+
+func (dt *DaoTest) TestRenameImageId(t *C) {
+	imageId, err := dt.Dao.renameImageId("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
+	if err != nil {
+		t.Errorf("unexpected failure renamingImageId: %s", err)
+		t.FailNow()
+	}
+	expected := "localhost:5000/X_daily-zenoss5-core"
+	if imageId != expected {
+		t.Errorf("expected image '%s' got '%s'", expected, imageId)
+		t.FailNow()
 	}
 }
 
