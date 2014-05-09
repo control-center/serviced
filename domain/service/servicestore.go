@@ -25,7 +25,7 @@ type Store struct {
 
 //GetServices returns all services
 func (s *Store) GetServices(ctx datastore.Context) ([]*Service, error) {
-	return query(ctx, "_exists_:ID")
+	return query(ctx, "_exists_:Id")
 }
 
 //GetTaggedServices returns services with the given tags
@@ -43,7 +43,7 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]*Serv
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
 	}
-	queryString := fmt.Sprintf("PoolID:%s", id)
+	queryString := fmt.Sprintf("PoolId:%s", id)
 	return query(ctx, queryString)
 }
 
@@ -54,7 +54,7 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]*Ser
 		return nil, errors.New("empty parent service id not allowed")
 	}
 
-	queryString := fmt.Sprintf("ParentServiceID:%s", parentID)
+	queryString := fmt.Sprintf("ParentServiceId:%s", parentID)
 	return query(ctx, queryString)
 }
 

@@ -1,11 +1,11 @@
 package dao
 
 import (
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 // A generic ControlPlane error
@@ -65,7 +65,7 @@ type ControlPlane interface {
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
 	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
+	GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD

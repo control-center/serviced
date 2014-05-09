@@ -5,6 +5,8 @@
 package addressassignment
 
 import (
+	"fmt"
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
 )
 
@@ -16,6 +18,18 @@ func NewStore() *Store {
 //Store type for interacting with AddressAssignment persistent storage
 type Store struct {
 	datastore.DataStore
+}
+
+func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]*AddressAssignment, error) {
+	query := fmt.Sprintf("ServiceID:%s", serviceID)
+	q := datastore.NewQuery(ctx)
+	elasticQuery := search.Query().Search(query)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //Key creates a Key suitable for getting, putting and deleting AddressAssignment

@@ -7,10 +7,10 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 const ()
@@ -210,7 +210,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []addressassignment.AddressAssignment
+	var addresses []*addressassignment.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

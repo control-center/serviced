@@ -14,11 +14,11 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 // A serviced client.
@@ -81,7 +81,7 @@ func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *st
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) (err error) {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 

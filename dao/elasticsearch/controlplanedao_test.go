@@ -20,12 +20,12 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -112,7 +112,6 @@ func (dt *DaoTest) SetUpTest(c *C) {
 
 func (dt *DaoTest) TestDao_NewService(t *C) {
 	svc := service.Service{}
-	dt.Dao.RemoveService("default", &unused)
 	err := dt.Dao.AddService(svc, &id)
 	if err == nil {
 		t.Errorf("Expected failure to create service %-v", svc)
@@ -167,91 +166,92 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 }
 
 func (dt *DaoTest) TestDao_GetService(t *C) {
-	dt.Dao.RemoveService("default", &unused)
-
 	svc, _ := service.NewService()
-	svc.Id = "default"
-	dt.Dao.AddService(*svc, &id)
+	svc.Name = "testname"
+	svc.PoolId = "default"
+	svc.Launch = "auto"
+	err := dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
 
 	var result service.Service
-	err := dt.Dao.GetService("default", &result)
+	err = dt.Dao.GetService(svc.Id, &result)
+	t.Assert(err, IsNil)
 	//XXX the time.Time types fail comparison despite being equal...
 	//	  as far as I can tell this is a limitation with Go
 	result.UpdatedAt = svc.UpdatedAt
 	result.CreatedAt = svc.CreatedAt
-	if err == nil {
-		if !svc.Equals(&result) {
-			t.Errorf("GetService Failed: expected=%+v, actual=%+v", svc, result)
-		}
-	} else {
-		t.Errorf("Unexpected Error Retrieving Service: err=%s", err)
+	if !svc.Equals(&result) {
+		t.Errorf("GetService Failed: expected=%+v, actual=%+v", svc, result)
 	}
 }
 
 func (dt *DaoTest) TestDao_GetServices(t *C) {
-	dt.Dao.RemoveService("0", &unused)
-	dt.Dao.RemoveService("1", &unused)
-	dt.Dao.RemoveService("2", &unused)
-	dt.Dao.RemoveService("3", &unused)
-	dt.Dao.RemoveService("4", &unused)
-	dt.Dao.RemoveService("01", &unused)
-	dt.Dao.RemoveService("011", &unused)
-	dt.Dao.RemoveService("02", &unused)
-	dt.Dao.RemoveService("default", &unused)
-
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "name"
+	svc.PoolId = "default"
+	svc.Launch = "auto"
 	svc.Description = "description"
 	svc.Instances = 0
-	dt.Dao.AddService(*svc, &id)
+
+	err := dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
 
 	var result []*service.Service
-	err := dt.Dao.GetServices(new(dao.EntityRequest), &result)
-	if err == nil && len(result) == 1 {
-		//XXX the time.Time types fail comparison despite being equal...
-		//	  as far as I can tell this is a limitation with Go
-		result[0].UpdatedAt = svc.UpdatedAt
-		result[0].CreatedAt = svc.CreatedAt
-		if !result[0].Equals(svc) {
-			t.Errorf("expected [%+v] actual=%+v", *svc, result)
-			t.Fail()
-		}
-	} else {
-		t.Errorf("Error Retrieving Services: err=%s, result=%s", err, result)
+	err = dt.Dao.GetServices(new(dao.EntityRequest), &result)
+	t.Assert(err, IsNil)
+	t.Assert(len(result), Equals, 1)
+	//XXX the time.Time types fail comparison despite being equal...
+	//	  as far as I can tell this is a limitation with Go
+	result[0].UpdatedAt = svc.UpdatedAt
+	result[0].CreatedAt = svc.CreatedAt
+	if !result[0].Equals(svc) {
+		t.Errorf("expected [%+v] actual=%+v", *svc, result)
 		t.Fail()
 	}
 }
 
 func (dt *DaoTest) TestDao_StartService(t *C) {
-	dt.Dao.RemoveService("0", &unused)
-	dt.Dao.RemoveService("01", &unused)
-	dt.Dao.RemoveService("011", &unused)
-	dt.Dao.RemoveService("02", &unused)
 
 	s0, _ := service.NewService()
 	s0.Id = "0"
+	s0.Name = "name"
+	s0.PoolId = "default"
+	s0.Launch = "auto"
 	s0.DesiredState = service.SVCStop
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
+	s01.Name = "name"
+	s01.PoolId = "default"
+	s01.Launch = "auto"
 	s01.ParentServiceId = "0"
 	s01.DesiredState = service.SVCStop
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
+	s011.Name = "name"
+	s011.PoolId = "default"
+	s011.Launch = "auto"
 	s011.ParentServiceId = "01"
 	s011.DesiredState = service.SVCStop
 
 	s02, _ := service.NewService()
 	s02.Id = "02"
+	s02.Name = "name"
+	s02.PoolId = "default"
+	s02.Launch = "auto"
 	s02.ParentServiceId = "0"
 	s02.DesiredState = service.SVCStop
 
-	dt.Dao.AddService(*s0, &id)
-	dt.Dao.AddService(*s01, &id)
-	dt.Dao.AddService(*s011, &id)
-	dt.Dao.AddService(*s02, &id)
+	err := dt.Dao.AddService(*s0, &id)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*s01, &id)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*s011, &id)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*s02, &id)
+	t.Assert(err, IsNil)
 
 	if err := dt.Dao.StartService("0", &unusedStr); err != nil {
 		t.Fatalf("could not start services: %v", err)
@@ -284,10 +284,6 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 }
 
 func (dt *DaoTest) TestDao_GetTenantId(t *C) {
-	dt.Dao.RemoveService("0", &unused)
-	dt.Dao.RemoveService("01", &unused)
-	dt.Dao.RemoveService("011", &unused)
-
 	var err error
 	var tenantId string
 	err = dt.Dao.GetTenantId("0", &tenantId)
@@ -297,19 +293,31 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	}
 
 	s0, _ := service.NewService()
+	s0.Name = "name"
+	s0.PoolId = "default"
+	s0.Launch = "auto"
 	s0.Id = "0"
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
 	s01.ParentServiceId = "0"
+	s01.Name = "name"
+	s01.PoolId = "default"
+	s01.Launch = "auto"
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.ParentServiceId = "01"
+	s011.Name = "name"
+	s011.PoolId = "default"
+	s011.Launch = "auto"
 
-	dt.Dao.AddService(*s0, &id)
-	dt.Dao.AddService(*s01, &id)
-	dt.Dao.AddService(*s011, &id)
+	err = dt.Dao.AddService(*s0, &id)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*s01, &id)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*s011, &id)
+	t.Assert(err, IsNil)
 
 	tenantId = ""
 	err = dt.Dao.GetTenantId("0", &tenantId)
@@ -415,7 +423,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 
 	testService := service.Service{
 		Id:     "assignIPsServiceID",
-		Name: "testsvc",
+		Name:   "testsvc",
 		Launch: "auto",
 		PoolId: assignIPsPool.ID,
 		Endpoints: []service.ServiceEndpoint{
@@ -445,7 +453,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []addressassignment.AddressAssignment{}
+	assignments := []*addressassignment.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.Id, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
@@ -454,9 +462,6 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
 	}
 
-	defer dt.Dao.RemoveService(testService.Id, &unused)
-	defer dt.Facade.RemoveResourcePool(dt.CTX, assignIPsPool.ID)
-	defer dt.Facade.RemoveHost(dt.CTX, assignIPsHost.ID)
 }
 
 func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
@@ -493,22 +498,21 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 
 	//set up service with endpoint
 	svc, _ := service.NewService()
+	svc.Name = "name"
+	svc.Launch = "auto"
+	svc.PoolId = "default"
 	ep := service.ServiceEndpoint{}
 	ep.Name = endpoint
 	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}
 	svc.Endpoints = []service.ServiceEndpoint{ep}
-	dt.Dao.AddService(*svc, &serviceId)
-	if err != nil {
-		t.Errorf("Unexpected error adding service: %v", err)
-		return
-	}
-	defer dt.Dao.RemoveService(serviceId, &unused)
+	err = dt.Dao.AddService(*svc, &serviceId)
+	t.Assert(err, IsNil)
 
 	//test for bad service id
 	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
-	if err == nil || "Found 0 Services with id blamsvc" != err.Error() {
+	if err == nil || "No such entity {kind:service, id:blamsvc}" != err.Error() {
 		t.Errorf("Expected error adding address %v", err)
 	}
 

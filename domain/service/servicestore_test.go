@@ -10,7 +10,6 @@ import (
 	. "gopkg.in/check.v1"
 
 	"testing"
-	"time"
 )
 
 // This plumbs gocheck into testing
@@ -26,90 +25,81 @@ var _ = Suite(&S{
 
 type S struct {
 	elastic.ElasticTest
-	ctx datastore.Context
-	ps  *Store
+	ctx   datastore.Context
+	store *Store
 }
 
 func (s *S) SetUpTest(c *C) {
 	s.ElasticTest.SetUpTest(c)
 	datastore.Register(s.Driver())
 	s.ctx = datastore.Get()
-	s.ps = NewStore()
+	s.store = NewStore()
 }
 
-func (s *S) Test_PoolCRUD(t *C) {
-	defer s.ps.Delete(s.ctx, Key("testid"))
+func (s *S) Test_ServiceCRUD(t *C) {
 
-	pool := New("testID")
-	pool2 := ResourcePool{}
+	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
+	svc2 := Service{}
 
-	time.Sleep(1000 * time.Millisecond)
-	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
-		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
-	}
+	err := s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	t.Assert(err, NotNil)
+	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 
-	err := s.ps.Put(s.ctx, Key(pool.ID), pool)
-	if err != nil {
-		t.Errorf("Unexpected failure creating pool %-v", pool)
-	}
+	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	t.Assert(err, IsNil)
 
 	//Test update
-	pool.CoreLimit = 1024
-	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
-	err = s.ps.Get(s.ctx, Key(pool.ID), &pool2)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	svc.Description = "new description"
+	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	t.Assert(err, IsNil)
 
-	if pool.CoreLimit != pool2.CoreLimit {
-		t.Errorf("pools did not match after update")
-	}
+	err = s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	t.Assert(err, IsNil)
+
+	t.Assert(svc2.Description, Equals, svc.Description)
 
 	//test delete
-	err = s.ps.Delete(s.ctx, Key(pool.ID))
-	err = s.ps.Get(s.ctx, Key(pool.ID), &pool2)
-	if err != nil && !datastore.IsErrNoSuchEntity(err) {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	err = s.store.Delete(s.ctx, Key(svc.Id))
+	t.Assert(err, IsNil)
+
+	err = s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	t.Assert(err, NotNil)
+	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 
 }
 
-func (s *S) Test_GetPools(t *C) {
-	defer s.ps.Delete(s.ctx, Key("Test_GetPools1"))
-	defer s.ps.Delete(s.ctx, Key("Test_GetPools2"))
+func (s *S) Test_GetServices(t *C) {
+	svcs, err := s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 0)
 
-	pools, err := s.ps.GetResourcePools(s.ctx)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 0 {
-		t.Errorf("Expected %v results, got %v :%#v", 0, len(pools), pools)
-	}
+	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
+	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	t.Assert(err, IsNil)
 
-	pool := New("Test_GetPools1")
-	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	time.Sleep(2000 * time.Millisecond)
-	pools, err = s.ps.GetResourcePools(s.ctx)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 1 {
-		t.Errorf("Expected %v results, got %v :%v", 1, len(pools), pools)
-	}
+	svcs, err = s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
 
-	pool.ID = "Test_GetHosts2"
-	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	svc.ParentServiceId = svc.Id
+	svc.Id = "Test_GetHosts2"
+	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	t.Assert(err, IsNil)
 
-	time.Sleep(2000 * time.Millisecond)
-	pools, err = s.ps.GetResourcePools(s.ctx)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 2 {
-		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
-	}
+	svcs, err = s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 2)
+
+	svcs, err = s.store.GetServicesByPool(s.ctx, "testPool")
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 2)
+
+	svc.Id = "Test_GetHosts3"
+	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	t.Assert(err, IsNil)
+
+	svcs, err = s.store.GetChildServices(s.ctx, "svc_test_id")
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 2)
 
 }
