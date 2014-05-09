@@ -60,6 +60,22 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
+func (a *HostAgent) GetService(serviceId string, response *service.Service) (err error) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return
+	}
+	defer controlClient.Close()
+
+	err = controlClient.GetService(serviceId, response)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Call the master's to retrieve its tenant id
 func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
 	client, err := NewControlClient(a.master)

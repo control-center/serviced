@@ -508,7 +508,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	// Restore the service templates ...
 	for templateId, template := range templates {
 		template.ID = templateId
-		if e := updateServiceTemplate(*template); e != nil {
+		if e := this.UpdateServiceTemplate(*template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateId, e)
 			return e
 		}

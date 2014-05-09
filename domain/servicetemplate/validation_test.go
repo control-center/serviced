@@ -18,6 +18,7 @@ import (
 
 func TestServiceTemplateValidate(t *testing.T) {
 	template := ServiceTemplate{}
+	template.ID = "test_id"
 	template.Services = []servicedefinition.ServiceDefinition{*ValidSvcDef}
 	err := template.ValidEntity()
 	if err != nil {
@@ -27,6 +28,7 @@ func TestServiceTemplateValidate(t *testing.T) {
 
 func TestServiceTemplateValidateNoServiceDefinitions(t *testing.T) {
 	template := ServiceTemplate{}
+	template.ID = "test_id"
 	err := template.ValidEntity()
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -39,21 +41,7 @@ func TestServiceTemplateValidateErrorVhost(t *testing.T) {
 	err := template.ValidEntity()
 	if err == nil {
 		t.Error("Expected error")
-	} else if !strings.Contains(err.Error(), "ServiceDefintion s2, duplicate vhost found: testhost") {
-		t.Errorf("Unexpected Error %v", err)
-	}
-}
-
-func TestServiceDefinitionEmptyEndpointName(t *testing.T) {
-	sd := CreateValidServiceDefinition()
-	sd.Services[0].Endpoints[0].Name = ""
-	template := ServiceTemplate{}
-	template.Services = []servicedefinition.ServiceDefinition{*sd}
-
-	err := template.ValidEntity()
-	if err == nil {
-		t.Error("Expected error")
-	} else if !strings.Contains(err.Error(), "Endpoint must have a name") {
+	} else if !strings.Contains(err.Error(), "duplicate vhost found: testhost; ServiceDefintion s2") {
 		t.Errorf("Unexpected Error %v", err)
 	}
 }

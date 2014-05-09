@@ -12,11 +12,11 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
-// ValidatEntiy ensure that a ServiceTemplate has valid values
+// ValidEntity ensure that a ServiceTemplate has valid values
 func (st *ServiceTemplate) ValidEntity() error {
 	//	trimmedID := strings.TrimSpace(st.ID)
 	violations := validation.NewValidationError()
-	//	violations.Add(validation.NotEmpty("ServiceTemplate.ID", st.ID))
+	violations.Add(validation.NotEmpty("ServiceTemplate.ID", st.ID))
 	//	violations.Add(validation.StringsEqual(st.ID, trimmedID, "leading and trailing spaces not allowed for service template id"))
 
 	//TODO: check name, description, config files.
@@ -37,7 +37,7 @@ func (st *ServiceTemplate) ValidEntity() error {
 		for _, ep := range sd.Endpoints {
 			for _, vhost := range ep.VHosts {
 				if _, found := vhosts[vhost]; found {
-					return fmt.Errorf("ServiceDefintion %s, duplicate vhost found: %s", sd, vhost)
+					return fmt.Errorf("duplicate vhost found: %s; ServiceDefintion %s", vhost, sd)
 				}
 				vhosts[vhost] = struct{}{}
 			}
@@ -51,6 +51,19 @@ func (st *ServiceTemplate) ValidEntity() error {
 
 	if len(violations.Errors) > 0 {
 		return violations
+	}
+	return nil
+}
+
+//ValidEntity makes sure all serviceTemplateWrapper have non-empty values
+func (st *serviceTemplateWrapper) ValidEntity() error {
+
+	v := validation.NewValidationError()
+	v.Add(validation.NotEmpty("ID", st.ID))
+	v.Add(validation.NotEmpty("Name", st.Name))
+	v.Add(validation.NotEmpty("Data", st.Data))
+	if v.HasError() {
+		return v
 	}
 	return nil
 }

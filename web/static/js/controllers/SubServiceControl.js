@@ -24,6 +24,17 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Action', name: 'vhost_actions'},
     ]);
 
+    $scope.ips = buildTable('Service', [
+        { id: 'Service', name: 'tbl_virtual_ip_service'},
+        { id: 'Application', name: 'tbl_virtual_ip_application'},
+        { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
+        { id: 'Host', name: 'tbl_virtual_ip_host'},
+        { id: 'Pool', name: 'tbl_virtual_ip_pool'},
+        { id: 'IPAddress', name: 'tbl_virtual_ip'},
+        { id: 'Port', name: 'tbl_virtual_ip_port'},
+        { id: 'Actions', name: 'tbl_virtual_ip_actions'}
+    ]);
+
     //add vhost data (includes name, app & service endpoint)
     $scope.vhosts.add = {};
 
@@ -32,6 +43,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+
+    $scope.click_pool = function(id) {
+        $location.path('/pools/' + id);
+    };
+
+    $scope.click_host = function(id) {
+        $location.path('/hosts/' + id);
     };
 
     $scope.modalAddVHost = function() {
@@ -56,6 +75,39 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $scope.vhosts.add = {};
             refreshServices($scope, resourcesService, false);
         });
+    };
+
+    // modalAssignIP opens a modal view to assign an ip address to a service
+    $scope.modalAssignIP = function(ip) {
+      $scope.ips.assign = {'ip':ip, 'value':null}
+      resourcesService.get_pool_ips( ip.PoolID, function( data) {
+        var options= [{'Value':'Automatic', 'IPAddr':null}]
+
+        //host ips
+        for(var i = 0; i < data.HostIPs.length; ++i) {
+          var IPAddr = data.HostIPs[i].IPAddress
+          var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
+          options.push({'Value': value, 'IPAddr':IPAddr})
+          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+            $scope.ips.assign.value = options[ options.length-1]
+          }
+        }
+        //TODO virtual ips
+
+        //default to automatic
+        if(!$scope.ips.assign.value) {
+          $scope.ips.assign.value = options[0]
+        }
+
+        $scope.ips.assign.options = options
+        $('#assignIP').modal('show');
+      })
+    };
+
+    $scope.AssignIP = function() {
+        var serviceID = $scope.ips.assign.ip.ServiceID;
+        var IP = $scope.ips.assign.value.IPAddr;
+        resourcesService.assign_ip( serviceID, IP) 
     };
 
     $scope.vhost_url = function( vhost) {

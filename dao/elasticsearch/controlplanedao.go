@@ -12,6 +12,7 @@ package elasticsearch
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
+	"github.com/mattbaird/elastigo/indices"
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -128,8 +129,12 @@ func index(pretty *bool, index string, _type string) func(string, interface{}) (
 // closure for deleting a model
 func _delete(pretty *bool, index string, _type string) func(string) (api.BaseResponse, error) {
 	return func(id string) (api.BaseResponse, error) {
-		//version=-1 and routing="" are not supported as of 9/30/13
-		return core.Delete(*pretty, index, _type, id, -1, "")
+		r, err := core.Delete(*pretty, index, _type, id, -1, "")
+		if err != nil {
+			return r, err
+		}
+		indices.Refresh(index)
+		return r, err
 	}
 }
 
@@ -143,29 +148,25 @@ var (
 	userExists         func(string) (bool, error) = exists(&Pretty, "controlplane", "user")
 
 	//model index functions
-	newService                func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
-	newServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "servicetemplatewrapper")
-	newAddressAssignment      func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
-	newUser                   func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
+	newService           func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "service")
+	newAddressAssignment func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "addressassignment")
+	newUser              func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
 
 	//model index functions
-	indexService                func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
-	indexServiceState           func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
-	indexServiceTemplateWrapper func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicetemplatewrapper")
-	indexUser                   func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
+	indexService      func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "service")
+	indexServiceState func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "servicestate")
+	indexUser         func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
 
 	//model delete functions
-	deleteService                func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
-	deleteServiceState           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
-	deleteServiceTemplateWrapper func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicetemplatewrapper")
-	deleteAddressAssignment      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
-	deleteUser                   func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
+	deleteService           func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "service")
+	deleteServiceState      func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "servicestate")
+	deleteAddressAssignment func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "addressassignment")
+	deleteUser              func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
 
 	//model get functions
-	getService                func(string, interface{}) error = getSource("controlplane", "service")
-	getServiceState           func(string, interface{}) error = getSource("controlplane", "servicestate")
-	getServiceTemplateWrapper func(string, interface{}) error = getSource("controlplane", "servicetemplatewrapper")
-	getUser                   func(string, interface{}) error = getSource("controlplane", "user")
+	getService      func(string, interface{}) error = getSource("controlplane", "service")
+	getServiceState func(string, interface{}) error = getSource("controlplane", "servicestate")
+	getUser         func(string, interface{}) error = getSource("controlplane", "user")
 
 	//model search functions, using uri based query
 	searchServiceUri        func(string) (core.SearchResult, error) = searchUri("controlplane", "service")
@@ -189,24 +190,6 @@ type ControlPlaneDao struct {
 	dfs      *dfs.DistributedFileSystem
 	//needed while we move things over
 	facade *facade.Facade
-}
-
-// convert search result of json host to dao.Host array
-func toServiceTemplateWrappers(result *core.SearchResult) ([]*servicetemplate.ServiceTemplateWrapper, error) {
-	var err error = nil
-	var total = len(result.Hits.Hits)
-	var wrappers []*servicetemplate.ServiceTemplateWrapper = make([]*servicetemplate.ServiceTemplateWrapper, total)
-	for i := 0; i < total; i += 1 {
-		var wrapper servicetemplate.ServiceTemplateWrapper
-		err = json.Unmarshal(result.Hits.Hits[i].Source, &wrapper)
-		if err == nil {
-			wrappers[i] = &wrapper
-		} else {
-			return nil, err
-		}
-	}
-
-	return wrappers, err
 }
 
 // convert search result of json services to service.Service array
@@ -427,7 +410,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (er
 		} else if service.ParentServiceId != "" {
 			return traverse(service.ParentServiceId)
 		} else {
-			glog.Infof("parent service: %+v", service)
+			glog.V(1).Infof("parent service: %+v", service)
 			return service.Id, nil
 		}
 	}
@@ -481,22 +464,26 @@ func (this *ControlPlaneDao) updateService(service *service.Service) error {
 		return errors.New("empty Service.Id not allowed")
 	}
 	service.Id = id
+	//add assignment info to service
+	for idx := range service.Endpoints {
+		assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
+		if err != nil {
+			glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
+			return err
+		}
+		if assignment != nil {
+			//assignment exists
+			glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
+			service.Endpoints[idx].SetAssignment(assignment)
+		} else {
+			service.Endpoints[idx].RemoveAssignment()
+		}
+	}
+
 	response, err := indexService(id, service)
 	glog.V(2).Infof("ControlPlaneDao.UpdateService response: %+v", response)
 	if response.Ok {
 		//add address assignment info to ZK Service
-		for idx := range service.Endpoints {
-			assignment, err := this.getEndpointAddressAssignments(service.Id, service.Endpoints[idx].Name)
-			if err != nil {
-				glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
-				return err
-			}
-			if assignment != nil {
-				//assignment exists
-				glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", service.Endpoints[idx].Name, assignment)
-				service.Endpoints[idx].SetAssignment(assignment)
-			}
-		}
 		return this.zkDao.UpdateService(service)
 	}
 	return err
@@ -513,45 +500,6 @@ func (this *ControlPlaneDao) UpdateService(service service.Service, unused *int)
 
 	}
 	return this.updateService(&service)
-}
-
-var updateServiceTemplate = func(template servicetemplate.ServiceTemplate) error {
-	id := strings.TrimSpace(template.ID)
-	if id == "" {
-		return errors.New("empty Template Id not allowed")
-	}
-	template.ID = id
-	if e := template.ValidEntity(); e != nil {
-		return fmt.Errorf("Error validating template: %v", e)
-	}
-	data, e := json.Marshal(template)
-	if e != nil {
-		glog.Errorf("Failed to marshal template")
-		return e
-	}
-	var wrapper servicetemplate.ServiceTemplateWrapper
-	templateExists := false
-	if e := getServiceTemplateWrapper(id, &wrapper); e == nil {
-		templateExists = true
-	}
-	wrapper.ID = id
-	wrapper.Name = template.Name
-	wrapper.Description = template.Description
-	wrapper.ApiVersion = 1
-	wrapper.TemplateVersion = 1
-	wrapper.Data = string(data)
-
-	if templateExists {
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate updating %s", id)
-		response, e := indexServiceTemplateWrapper(id, wrapper)
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate update %s response: %+v", id, response)
-		return e
-	} else {
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate creating %s", id)
-		response, e := newServiceTemplateWrapper(id, wrapper)
-		glog.V(2).Infof("ControlPlaneDao.updateServiceTemplate create %s response: %+v", id, response)
-		return e
-	}
 }
 
 // RemoveUser removes the user specified by the userName string
@@ -904,6 +852,13 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
 				}
+
+				err = this.updateService(&myService)
+				if err != nil {
+					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
+					return err
+				}
+
 				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.ID, assignment.EndpointName)
 			}
 		}
@@ -1055,11 +1010,10 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 }
 
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
-	var wrapper servicetemplate.ServiceTemplateWrapper
-	err := getServiceTemplateWrapper(request.TemplateId, &wrapper)
-
+	store := servicetemplate.NewStore()
+	template, err := store.Get(datastore.Get(), request.TemplateId)
 	if err != nil {
-		glog.Errorf("Unable to load template wrapper: %s", request.TemplateId)
+		glog.Errorf("unable to load template: %s", request.TemplateId)
 		return err
 	}
 
@@ -1070,13 +1024,6 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	}
 	if pool == nil {
 		return fmt.Errorf("poolid %s not found", request.PoolId)
-	}
-
-	var template servicetemplate.ServiceTemplate
-	err = json.Unmarshal([]byte(wrapper.Data), &template)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal template: %s", request.TemplateId)
-		return err
 	}
 
 	volumes := make(map[string]string)
@@ -1100,7 +1047,6 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	for _, svc := range sds {
 		getSubServiceImageIds(imageIds, svc)
 	}
-	glog.Infof("wtf: %v", imageIds)
 
 	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
@@ -1193,61 +1139,43 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 }
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	var err error
-	var uuid string
-	var response api.BaseResponse
-	var wrapper servicetemplate.ServiceTemplateWrapper
-
-	data, err := json.Marshal(serviceTemplate)
-	if err != nil {
-		return err
-	}
-
-	uuid, err = dao.NewUuid()
+	uuid, err := dao.NewUuid()
 	if err != nil {
 		return err
 	}
 	serviceTemplate.ID = uuid
 
-	if err = serviceTemplate.ValidEntity(); err != nil {
-		return fmt.Errorf("Error validating template: %v", err)
+	store := servicetemplate.NewStore()
+	if err = store.Put(datastore.Get(), serviceTemplate); err != nil {
+		return err
 	}
 
-	wrapper.ID = serviceTemplate.ID
-	wrapper.Name = serviceTemplate.Name
-	wrapper.Description = serviceTemplate.Description
-	wrapper.Data = string(data)
-	wrapper.ApiVersion = 1
-	wrapper.TemplateVersion = 1
-	response, err = newServiceTemplateWrapper(uuid, wrapper)
-	if response.Ok {
-		*templateId = uuid
-		err = nil
-	}
+	*templateId = uuid
 	// this takes a while so don't block the main thread
 	go this.reloadLogstashContainer()
 	return err
 }
 
 func (this *ControlPlaneDao) UpdateServiceTemplate(template servicetemplate.ServiceTemplate, unused *int) error {
-	result := updateServiceTemplate(template)
+	store := servicetemplate.NewStore()
+	if err := store.Put(datastore.Get(), template); err != nil {
+		return err
+	}
 	go this.reloadLogstashContainer() // don't block the main thread
-	return result
+	return nil
 }
 
 func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error {
 	// make sure it is a valid template first
-	var wrapper servicetemplate.ServiceTemplateWrapper
-	err := getServiceTemplateWrapper(id, &wrapper)
+	store := servicetemplate.NewStore()
 
+	_, err := store.Get(datastore.Get(), id)
 	if err != nil {
 		return fmt.Errorf("Unable to find template: %s", id)
 	}
 
 	glog.V(2).Infof("ControlPlaneDao.RemoveServiceTemplate: %s", id)
-	response, err := deleteServiceTemplateWrapper(id)
-	glog.V(2).Infof("ControlPlaneDao.RemoveServiceTemplate response: %+v", response)
-	if err != nil {
+	if err != store.Delete(datastore.Get(), id) {
 		return err
 	}
 	go this.reloadLogstashContainer()
@@ -1267,6 +1195,20 @@ func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) err
 	if err != nil {
 		return err
 	}
+
+	for _, assignment := range *aas {
+		var service service.Service
+		if err := this.GetService(assignment.ServiceID, &service); err != nil {
+			glog.V(2).Infof("ControlPlaneDao.GetService service=%+v err=%s", assignment.ServiceID, err)
+			return err
+		}
+
+		if err := this.updateService(&service); err != nil {
+			glog.V(2).Infof("ControlPlaneDao.updateService service=%+v err=%s", assignment.ServiceID, err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1404,23 +1346,15 @@ func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, end
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*servicetemplate.ServiceTemplate) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates")
-	query := search.Query().Search("_exists_:ID")
-	search_result, err := search.Search("controlplane").Type("servicetemplatewrapper").Size("1000").Query(query).Result()
-	glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates: err=%s", err)
+	store := servicetemplate.NewStore()
+	results, err := store.GetServiceTemplates(datastore.Get())
 	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetServiceTemplates: err=%s", err)
 		return err
 	}
-	result, err := toServiceTemplateWrappers(search_result)
 	templatemap := make(map[string]*servicetemplate.ServiceTemplate)
-	if err != nil {
-		return err
-	}
-	var total = len(result)
-	for i := 0; i < total; i += 1 {
-		var template servicetemplate.ServiceTemplate
-		wrapper := result[i]
-		err = json.Unmarshal([]byte(wrapper.Data), &template)
-		templatemap[wrapper.ID] = &template
+	for _, st := range results {
+		templatemap[st.ID] = st
 	}
 	*templates = templatemap
 	return nil
@@ -1622,7 +1556,6 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 			return err
 		} else {
 			glog.Infof("Got snap labels %v", snaplabels)
-			*labels = make([]string, len(snaplabels))
 			*labels = snaplabels
 		}
 	}

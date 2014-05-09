@@ -40,6 +40,8 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 		glog.Errorf("Could not unmarshal service at %s", path)
 		return nil, err
 	}
+	//Launch isn't usually in a file but it is required, this sets it to a default value if not set
+	svc.NormalizeLaunch()
 	svc.Name = filepath.Base(path)
 	if svc.ConfigFiles == nil {
 		svc.ConfigFiles = make(map[string]ConfigFile)

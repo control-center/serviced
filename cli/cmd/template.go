@@ -238,7 +238,7 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 
 	cfg := api.CompileTemplateConfig{
 		Dir: args[0],
-		Map: ctx.Generic("map").(*api.ImageMap),
+		Map: *ctx.Generic("map").(*api.ImageMap),
 	}
 
 	if template, err := c.driver.CompileServiceTemplate(cfg); err != nil {

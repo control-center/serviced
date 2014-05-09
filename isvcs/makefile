@@ -28,7 +28,7 @@ all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
 	mkdir -p $(REPO_DIR)/$(REPO)
 	rm -f $(EXPORT_CONTAINER_ID)
-	docker run -cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
+	docker run --cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
 	docker export `cat $(EXPORT_CONTAINER_ID)` | $(GZIP) > $(EXPORTED_FILE)
 	rm -f $(EXPORT_CONTAINER_ID)
 
