@@ -10,7 +10,6 @@ import (
 	. "gopkg.in/check.v1"
 
 	"testing"
-	"time"
 )
 
 // This plumbs gocheck into testing
@@ -43,7 +42,6 @@ func (s *S) Test_PoolCRUD(t *C) {
 	pool := New("testID")
 	pool2 := ResourcePool{}
 
-	time.Sleep(1000 * time.Millisecond)
 	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
@@ -90,7 +88,6 @@ func (s *S) Test_GetPools(t *C) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	time.Sleep(2000 * time.Millisecond)
 	pools, err = s.ps.GetResourcePools(s.ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -104,7 +101,6 @@ func (s *S) Test_GetPools(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	time.Sleep(2000 * time.Millisecond)
 	pools, err = s.ps.GetResourcePools(s.ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
