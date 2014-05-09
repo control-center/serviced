@@ -254,7 +254,13 @@ func (c *Controller) Run() (err error) {
 
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
-	service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
+	startService := func() (*subprocess.Instance, chan error) {
+		service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
+		c.handleRemotePorts()
+		return service, serviceExited
+	}
+
+	service, serviceExited := startService()
 
 	var restartAfter <-chan time.Time
 	for {
@@ -280,6 +286,7 @@ func (c *Controller) Run() (err error) {
 			c.handleRemotePorts()
 
 		case <-serviceExited:
+			glog.Infof("service process exited")
 			if !c.options.Service.Autorestart {
 				return
 			}
@@ -290,9 +297,8 @@ func (c *Controller) Run() (err error) {
 				return
 			}
 			glog.Infof("restarting service process")
-			service, serviceExited, _ = subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+			service, serviceExited = startService()
 			restartAfter = nil
-
 		}
 	}
 }
