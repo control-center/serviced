@@ -162,12 +162,12 @@
             </div>
           </td>
           <td style="text-align: center">
-            <img src="/static/img/greenball.png">
-          </td>
-          <td style="font-family: courier; font-size: 14px">
-            <span data-toggle="tooltip" data-placement="top" title="{{app.Startup}}">
-              {{app.Startup.length > 70 ? app.Startup.substr(0,66) + "..." : app.Startup}}
+            <span data-toggle="tooltip" data-placement="top" title="" id="health-tooltip-{{app.Id}}">
+              <img src="/static/img/greyball.png" id="health-{{app.Id}}">
             </span>
+          </td>
+          <td>
+            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
           </td>
         </tr>
       </tbody>

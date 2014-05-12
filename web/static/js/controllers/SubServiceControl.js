@@ -1,3 +1,6 @@
+
+
+
 function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -158,6 +161,43 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
         });
     };
+
+    var client = new elasticsearch.Client({host: 'https://localhost/api/controlplane/elastic'});
+    function query(ServiceId) {
+        return {body:{
+                    size: 1,
+                    query:{match:{message:"Change in service health status [" + ServiceId + "]"}},
+                    sort:[{"@timestamp": {order: "desc"}}]
+                }}
+    }
+    function updateHealth(ServiceId) {
+        client.search(query(ServiceId)).then(function(resp) {
+            msg = resp.hits.hits[0]._source.message;
+            msg = msg.split('['+ServiceId+']')[1];
+            data = JSON.parse(msg);
+            document.getElementById("health-tooltip-" + ServiceId).title = "";
+            passingAny = false;
+            failingAny = false;
+            for (var name in data) {
+                if (data[name]) {
+                    passingAny = true;
+                } else {
+                    failingAny = true;
+                }
+                document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name] + "\n";
+            }
+            if (!passingAny) {
+                document.getElementById("health-" + ServiceId).src = "/static/img/redball.png";
+            }
+            if (!failingAny) {
+                document.getElementById("health-" + ServiceId).src = "/static/img/greenball.png";
+            }
+            if (failingAny && passingAny) {
+                document.getElementById("health-" + ServiceId).src = "/static/img/yellowball.png";
+            }
+        });
+    }
+
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
     function updateRunning() {
@@ -166,6 +206,10 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 wait.running = true;
                 mashHostsToInstances();
             });
+        }
+        for (var i = 0; i < $scope.services.subservices.length; i++) {
+            var app = $scope.services.subservices[i];
+            updateHealth(app.Id);
         }
     }
     $interval(updateRunning, 3000);

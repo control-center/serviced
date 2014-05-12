@@ -126,14 +126,9 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{})
 		servicesHealth[result.ServiceId] = make(map[string]bool)
 	}
 	servicesHealth[result.ServiceId][result.Name] = result.Passed
-	sbytes, _ := json.Marshal(servicesHealth)
+	sbytes, _ := json.Marshal(servicesHealth[result.ServiceId])
 	marshalled := string(sbytes)
-	glog.Info(marshalled)
-	if result.Passed {
-		glog.V(0).Infof("Service %s passed health check %s.", result.ServiceId, result.Name)
-	} else {
-		glog.V(0).Infof("Service %s FAILED health check %s.", result.ServiceId, result.Name)
-	}
+	glog.Warningf("Change in service health status [%s] %s", result.ServiceId, marshalled)
 	return nil
 }
 
