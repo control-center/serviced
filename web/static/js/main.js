@@ -55,6 +55,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
             }).
+            when('/backuprestore', {
+                templateUrl: '/static/partials/view-backuprestore.html',
+                controller: BackupRestoreControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -920,6 +924,42 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        /**
+         * Creates a backup file of serviced
+         */
+        create_backup: function(callback){
+            $http.get('/backup/create').
+                success(function(data, status) {
+                    console.log('Backup complete! %s', data.Detail);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /**
+         * Restores a backup file of serviced
+         */
+        restore_backup: function(filename, callback){
+            $http.get('/backup/restore?filename=' + filename).
+                success(function(data, status) {
+                    console.log('Restore complete! %s', data.Detail);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
@@ -963,7 +1003,7 @@ function AuthService($cookies, $cookieStore, $location) {
             } else {
                 unauthorized($location);
             }
-        },
+        }
     };
 }
 

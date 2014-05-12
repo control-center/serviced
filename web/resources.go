@@ -474,3 +474,33 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient){
 	w.WriteJson(&SimpleResponse{servicedversion.Version, servicesLinks()})
 }
+
+func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	dir := "/tmp"
+	filepath := ""
+	err := client.Backup(dir, &filepath)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{filepath, servicesLinks()})
+}
+
+func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	err := r.ParseForm()
+	filepath := r.FormValue("filename")
+
+	if err != nil || filepath == ""{
+		RestBadRequest(w)
+		return
+	}
+
+	unused := 0
+
+	err = client.Restore(filepath, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{string(unused), servicesLinks()})
+}

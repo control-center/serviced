@@ -55,6 +55,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
             }).
+            when('/backuprestore', {
+                templateUrl: '/static/partials/view-backuprestore.html',
+                controller: BackupRestoreControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -920,6 +924,42 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        /**
+         * Creates a backup file of serviced
+         */
+        create_backup: function(callback){
+            $http.get('/backup/create').
+                success(function(data, status) {
+                    console.log('Backup complete! %s', data.Detail);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /**
+         * Restores a backup file of serviced
+         */
+        restore_backup: function(filename, callback){
+            $http.get('/backup/restore?filename=' + filename).
+                success(function(data, status) {
+                    console.log('Restore complete! %s', data.Detail);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
@@ -963,7 +1003,7 @@ function AuthService($cookies, $cookieStore, $location) {
             } else {
                 unauthorized($location);
             }
-        },
+        }
     };
 }
 
@@ -1450,6 +1490,31 @@ function itemClass(item) {
         cls += ' hidden';
     }
     return cls;
+}
+
+function BackupRestoreControl($scope, $routeParams, resourcesService, authService) {
+    // Ensure logged in
+    authService.checkLogin($scope);
+
+    $scope.name = "backupRestoreControl";
+    $scope.params = $routeParams;
+    $scope.breadcrumbs = [{ label: 'breadcrumb_backuprestore', itemClass: 'active' }];
+    $scope.backupFiles = ["/tmp/backup-2014-05-09-153412.tgz"];
+
+    $scope.createBackup = function(){
+        $('#workingModal').modal('show');
+        resourcesService.create_backup(function(data){
+            $scope.backupFiles.push(data.Detail);
+            $('#workingModal').modal('hide');
+        });
+    };
+
+    $scope.restoreBackup = function(filename){
+        $('#workingModal').modal('show');
+        resourcesService.restore_backup(filename, function(data){
+            $('#workingModal').modal('hide');
+        });
+    };
 }
 
 function CeleryLogControl($scope, authService) {
@@ -2004,7 +2069,6 @@ function EntryControl($scope, authService, resourcesService) {
     resourcesService.get_version(function(data){
         $scope['version'] = data.Detail;
     });
-    console.log($scope);
 }
 function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
     // Ensure logged in
@@ -2279,7 +2343,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID) });
+            refreshPools($scope, resourcesService, false);
         });
     };
 
@@ -2458,7 +2522,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     $scope.delSubpool = function(poolID) {
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){ removePool($scope, poolID); });
+            refreshPools($scope, resourcesService, false);
         });
     };
     $scope.newPool = {};
@@ -2692,6 +2756,9 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
         },
         { url: '#/logs', label: 'nav_logs',
             sublinks: [], target: "_self"
+        },
+        { url: '#/backuprestore', label: 'nav_backuprestore',
+            sublinks: [], target: "_self"
         }
     ];
 
@@ -2784,7 +2851,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.clickRemovePool = function(poolID) {
         console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false, function(){removePool($scope, poolID)});
+            refreshPools($scope, resourcesService, false);
         });
     };
 

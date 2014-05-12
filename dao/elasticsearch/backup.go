@@ -481,6 +481,8 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		return e
 	}
 
+	glog.Infof("HERE IS YOUR DIRECTORY: %v", restorePath())
+
 	defer func() {
 		if e := osRemoveAll(restorePath()); e != nil {
 			glog.Errorf("Could not remove %s: %v", restorePath(), e)
