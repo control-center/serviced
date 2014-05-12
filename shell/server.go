@@ -352,6 +352,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		"--autorestart=false",
 		"--logstash=false",
 		svc.Id,
+		"0",
 		shellcmd,
 	}
 
@@ -393,5 +394,6 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	cp.ReadyDFS(false, nil)
 	glog.Infof("Acquired!  Starting shell")
 
+	glog.V(1).Infof("command: docker %+v", argv)
 	return exec.Command(docker, argv...), nil
 }

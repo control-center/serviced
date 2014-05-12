@@ -73,3 +73,9 @@ func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]dom
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
 }
+
+// GetHostID returns the agent's host id
+func (a *LBClient) GetHostID(hostID *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHostID()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetHostID", "na", hostID)
+}
