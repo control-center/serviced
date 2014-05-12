@@ -370,7 +370,6 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("restarting service process")
 			service, serviceExited = startService()
 			restartAfter = nil
-<<<<<<< HEAD
 		}
 	}
 	for _, exitChannel := range healthExits {
@@ -440,8 +439,6 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			}
 		case <- exitChannel:
 			return
-=======
->>>>>>> develop
 		}
 	}
 }
