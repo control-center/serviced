@@ -320,7 +320,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	go func() {
 		rc, err := dc.WaitContainer(containerID)
-		if err != nil {
+		if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
 			glog.Errorf("docker wait exited with: %v : %d", err, rc)
 			// TODO: output of docker logs is potentially very large
 			// this should be implemented another way, perhaps a docker attach
@@ -340,7 +340,6 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				glog.Warning("Last 1000 bytes of container %s: %s", containerID, str)
 
 			}
-
 		}
 		glog.Infof("docker wait %s exited", containerID)
 		// get rid of the container
@@ -810,7 +809,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		"CONTROLPLANE=1",
 		"CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store",
-		fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", tenantID),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
 
@@ -832,7 +830,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		"service",
 		"proxy",
 		service.Id,
-		a.hostID,
 		strconv.Itoa(serviceState.InstanceId),
 		service.Startup)
 
