@@ -1,6 +1,9 @@
 package dfs
 
 import (
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
@@ -12,7 +15,7 @@ import (
 )
 
 var (
-	MockServices       []*dao.Service
+	MockServices       []*service.Service
 	MockPauseResume    map[string]bool
 	MockVolumeInstance MockVolume
 )
@@ -48,17 +51,17 @@ func (c *MockControlPlane) GetTenantId(serviceId string, tenantId *string) (err 
 	return
 }
 
-func (c *MockControlPlane) GetService(serviceId string, service *dao.Service) (err error) {
+func (c *MockControlPlane) GetService(serviceId string, svc *service.Service) (err error) {
 	switch serviceId {
 	case "nilservice-snapshot":
 		err = errors.New("no service found for serviceId")
 	default:
-		service = new(dao.Service)
+		svc = new(service.Service)
 	}
 	return
 }
 
-func (c *MockControlPlane) GetServices(request dao.EntityRequest, services *[]*dao.Service) (err error) {
+func (c *MockControlPlane) GetServices(request dao.EntityRequest, services *[]*service.Service) (err error) {
 	*services = MockServices
 	if len(MockServices) == 0 {
 		err = errors.New("no services found")
@@ -101,7 +104,7 @@ func (c *MockControlPlane) GetVolume(serviceId string, v *volume.Volume) (err er
 }
 
 func setUp() {
-	MockServices = make([]*dao.Service, 0)
+	MockServices = make([]*service.Service, 0)
 	MockPauseResume = make(map[string]bool)
 	MockVolumeInstance.name = ""
 
@@ -162,7 +165,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 	setUp()
 	defer tearDown()
 
-	var services []*dao.Service
+	var services []*service.Service
 
 	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New())
 	if err != nil {
@@ -198,30 +201,30 @@ func TestSnapshotPauseResume(t *testing.T) {
 		return
 	}
 
-	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetServices(unused, new([]*dao.Service)).Error() {
+	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetServices(unused, new([]*service.Service)).Error() {
 		t.Errorf("error not caught while acquiring the services")
 	}
 
 	// ~*~ service pause/resume ~*~
 	// pause is empty OR resume is empty
-	services = make([]*dao.Service, 3)
-	services[0] = &dao.Service{
+	services = make([]*service.Service, 3)
+	services[0] = &service.Service{
 		Id: "service0",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "",
 			Resume: "command",
 		},
 	}
-	services[1] = &dao.Service{
+	services[1] = &service.Service{
 		Id: "service1",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "command",
 			Resume: "",
 		},
 	}
-	services[2] = &dao.Service{
+	services[2] = &service.Service{
 		Id: "service2",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "",
 			Resume: "",
 		},
@@ -232,10 +235,10 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 
 	// error acquiring service states
-	services = make([]*dao.Service, 1)
-	services[0] = &dao.Service{
+	services = make([]*service.Service, 1)
+	services[0] = &service.Service{
 		Id: "nilstate-snapshot",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "command",
 			Resume: "command",
 		},
@@ -246,24 +249,24 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 
 	// pause fail
-	services = make([]*dao.Service, 3)
-	services[0] = &dao.Service{
+	services = make([]*service.Service, 3)
+	services[0] = &service.Service{
 		Id: "service0",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-success",
 			Resume: "resume-success",
 		},
 	}
-	services[1] = &dao.Service{
+	services[1] = &service.Service{
 		Id: "service1",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-fail",
 			Resume: "resume-success",
 		},
 	}
-	services[2] = &dao.Service{
+	services[2] = &service.Service{
 		Id: "service2",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-sucess",
 			Resume: "resume-fail",
 		},
@@ -282,24 +285,24 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 
 	// error while taking the snapshot
-	services = make([]*dao.Service, 3)
-	services[0] = &dao.Service{
+	services = make([]*service.Service, 3)
+	services[0] = &service.Service{
 		Id: "service0",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-success",
 			Resume: "resume-success",
 		},
 	}
-	services[1] = &dao.Service{
+	services[1] = &service.Service{
 		Id: "service1",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-success",
 			Resume: "resume-fail",
 		},
 	}
-	services[2] = &dao.Service{
+	services[2] = &service.Service{
 		Id: "service2",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-sucess",
 			Resume: "resume-success",
 		},
@@ -318,10 +321,10 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 
 	// * success
-	services = make([]*dao.Service, 1)
-	services[0] = &dao.Service{
+	services = make([]*service.Service, 1)
+	services[0] = &service.Service{
 		Id: "service0",
-		Snapshot: dao.SnapshotCommands{
+		Snapshot: servicedefinition.SnapshotCommands{
 			Pause:  "pause-success",
 			Resume: "resume-success",
 		},

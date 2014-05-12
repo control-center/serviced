@@ -52,8 +52,18 @@ func StringIn(check string, others ...string) error {
 
 func ValidPort(port int) error {
 	if port < 1 || port > 65535 {
-		fmt.Println("PORT ERROR", port)
 		return NewViolation(fmt.Sprintf("not in valid port range: %v", port))
+	}
+	return nil
+}
+
+func IntIn(check int, others ...int) error {
+	set := make(map[int]struct{}, len(others))
+	for _, val := range others {
+		set[val] = struct{}{}
+	}
+	if _, ok := set[check]; !ok {
+		return NewViolation(fmt.Sprintf("int %v not in %v", check, others))
 	}
 	return nil
 }

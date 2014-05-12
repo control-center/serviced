@@ -15,6 +15,7 @@ import (
 type Instance struct {
 	command        string
 	args           []string
+	env            []string
 	commandExit    chan error
 	closing        chan chan error
 	closeLock      sync.Mutex    // mutex to synchronize Close() calls
@@ -23,10 +24,11 @@ type Instance struct {
 }
 
 // New creates a subprocess.Instance
-func New(sigtermTimeout time.Duration, command string, args ...string) (*Instance, chan error, error) {
+func New(sigtermTimeout time.Duration, env []string, command string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
 		args:           args,
+		env:            env,
 		commandExit:    make(chan error, 1),
 		sigtermTimeout: sigtermTimeout,
 		signalChan:     make(chan os.Signal),
@@ -63,6 +65,7 @@ func (s *Instance) loop() {
 	setUpCmd := func(exitChan chan error) *exec.Cmd {
 		glog.Infof("about to execute: %s , %v[%d]", s.command, s.args, len(s.args))
 		cmd := exec.Command(s.command, s.args...)
+		cmd.Env = s.env
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin

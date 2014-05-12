@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 const ()
@@ -24,6 +25,12 @@ type ServiceConfig struct {
 	Command     string
 	LocalPorts  *PortMap
 	RemotePorts *PortMap
+}
+
+// RemoveServiceConfig is the deserialized object from the command-line
+type RemoveServiceConfig struct {
+	ServiceID       string
+	RemoveSnapshots bool
 }
 
 // IPConfig is the deserialized object from the command-line
@@ -124,14 +131,18 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 }
 
 // RemoveService removes an existing service
-func (a *api) RemoveService(id string) error {
+func (a *api) RemoveService(config RemoveServiceConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
-	if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not clean up service history", err)
+	id := config.ServiceID
+
+	if config.RemoveSnapshots {
+		if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
+			return fmt.Errorf("could not clean up service history", err)
+		}
 	}
 
 	if err := client.RemoveService(id, &unusedInt); err != nil {
@@ -209,7 +220,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []service.AddressAssignment
+	var addresses []*addressassignment.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

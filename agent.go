@@ -68,6 +68,7 @@ type HostAgent struct {
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
+	dockerRegistry  string // the docker registry to use
 }
 
 // assert that this implemenents the Agent interface
@@ -84,9 +85,10 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
+	agent.dockerRegistry = dockerRegistry
 	agent.master = master
 	agent.uiport = uiport
 	agent.dockerDNS = dockerDNS
@@ -142,11 +144,17 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *service.Service, cp dao.ControlPlane) error {
-	err := s.EvaluateLogConfigTemplate(cp)
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := cp.GetService(svcID, &svc)
+		return svc, err
+	}
+	err := s.EvaluateLogConfigTemplate(getSvc)
 	if err != nil {
 		return err
 	}
-	return s.EvaluateStartupTemplate(cp)
+	return s.EvaluateStartupTemplate(getSvc)
 }
 
 // Shutdown stops the agent
@@ -312,7 +320,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	go func() {
 		rc, err := dc.WaitContainer(containerID)
-		if err != nil {
+		if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
 			glog.Errorf("docker wait exited with: %v : %d", err, rc)
 			// TODO: output of docker logs is potentially very large
 			// this should be implemented another way, perhaps a docker attach
@@ -332,7 +340,6 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				glog.Warning("Last 1000 bytes of container %s: %s", containerID, str)
 
 			}
-
 		}
 		glog.Infof("docker wait %s exited", containerID)
 		// get rid of the container
@@ -802,7 +809,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		"CONTROLPLANE=1",
 		"CONTROLPLANE_CONSUMER_URL=http://localhost:22350/api/metrics/store",
-		fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", tenantID),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
 
@@ -824,7 +830,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		"service",
 		"proxy",
 		service.Id,
-		a.hostID,
 		strconv.Itoa(serviceState.InstanceId),
 		service.Startup)
 
@@ -1004,21 +1009,21 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			return
 		}
 
-		var service service.Service
-		if err := zzk.LoadService(conn, ss.ServiceId, &service); err != nil {
+		var svc service.Service
+		if err := zzk.LoadService(conn, ss.ServiceId, &svc); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
 			glog.Errorf(errS)
 			done <- stateResult{ssID, errors.New(errS)}
 			return
 		}
 
-		glog.V(1).Infof("Processing %s, desired state: %d", service.Name, hss.DesiredState)
+		glog.V(1).Infof("Processing %s, desired state: %d", svc.Name, hss.DesiredState)
 
 		switch {
 
-		case hss.DesiredState == dao.SVC_STOP:
+		case hss.DesiredState == service.SVCStop:
 			// This node is marked for death
-			glog.V(1).Infof("Service %s was marked for death, quitting", service.Name)
+			glog.V(1).Infof("Service %s was marked for death, quitting", svc.Name)
 			if attached {
 				err = a.terminateAttached(conn, procFinished, &ss)
 			} else {
@@ -1029,21 +1034,21 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 
 		case attached:
 			// Something uninteresting happened. Why are we here?
-			glog.V(1).Infof("Service %s is attached in a child goroutine", service.Name)
+			glog.V(1).Infof("Service %s is attached in a child goroutine", svc.Name)
 
-		case hss.DesiredState == dao.SVC_RUN &&
+		case hss.DesiredState == service.SVCRun &&
 			ss.Started.Year() <= 1 || ss.Terminated.Year() > 2:
 			// Should run, and either not started or process died
-			glog.V(1).Infof("Service %s does not appear to be running; starting", service.Name)
-			attached, err = a.startService(conn, procFinished, &service, &ss)
+			glog.V(1).Infof("Service %s does not appear to be running; starting", svc.Name)
+			attached, err = a.startService(conn, procFinished, &svc, &ss)
 
 		case ss.Started.Year() > 1 && ss.Terminated.Year() <= 1:
 			// Service superficially seems to be running. We need to attach
-			glog.V(1).Infof("Service %s appears to be running; attaching", service.Name)
+			glog.V(1).Infof("Service %s appears to be running; attaching", svc.Name)
 			attached, err = a.attachToService(conn, procFinished, &ss, &hss)
 
 		default:
-			glog.V(0).Infof("Unhandled service %s", service.Name)
+			glog.V(0).Infof("Unhandled service %s", svc.Name)
 		}
 
 		if !attached || err != nil {
@@ -1054,7 +1059,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			return
 		}
 
-		glog.V(3).Infoln("Successfully processed state for %s", service.Name)
+		glog.V(3).Infoln("Successfully processed state for %s", svc.Name)
 
 		select {
 
@@ -1062,7 +1067,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			glog.V(0).Info("Agent goroutine will stop watching ", ssID)
 			err = a.terminateAttached(conn, procFinished, &ss)
 			if err != nil {
-				glog.Errorf("Error terminating %s: %v", service.Name, err)
+				glog.Errorf("Error terminating %s: %v", svc.Name, err)
 			}
 			done <- stateResult{ssID, err}
 			return
@@ -1077,7 +1082,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 				glog.V(0).Info("Host service state deleted: ", ssID)
 				err = a.terminateAttached(conn, procFinished, &ss)
 				if err != nil {
-					glog.Errorf("Error terminating %s: %v", service.Name, err)
+					glog.Errorf("Error terminating %s: %v", svc.Name, err)
 				}
 				done <- stateResult{ssID, err}
 				return

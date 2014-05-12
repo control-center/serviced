@@ -31,10 +31,12 @@ var (
 	ErrInvalidEndpoint = errors.New("container: invalid endpoint")
 	// ErrInvalidTenantID is returned if a TenantID is empty or malformed
 	ErrInvalidTenantID = errors.New("container: invalid tenant id")
-	// ErrInvalidServicedID is returned if a ServiceID is empty or malformed
-	ErrInvalidServicedID = errors.New("container: invalid serviced id")
-	// ErrInvalidServiced is returned if a Service is empty or malformed
+	// ErrInvalidServiceID is returned if a ServiceID is empty or malformed
+	ErrInvalidServiceID = errors.New("container: invalid service id")
+	// ErrInvalidService is returned if a Service is empty or malformed
 	ErrInvalidService = errors.New("container: invalid serviced")
+	// ErrInvalidHostID is returned if the host is empty or malformed
+	ErrInvalidHostID = errors.New("container: invalid host id")
 )
 
 // ControllerOptions are options to be run when starting a new proxy server
@@ -42,7 +44,7 @@ type ControllerOptions struct {
 	ServicedEndpoint string
 	Service          struct {
 		ID          string   // The uuid of the service to launch
-		TenantID    string   // The tentant ID of the service
+		InstanceID  string   // The running instance ID
 		Autorestart bool     // Controller will restart the service if it exits
 		Command     []string // The command to launch
 	}
@@ -68,6 +70,8 @@ type ControllerOptions struct {
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
 	options            ControllerOptions
+	hostID             string
+	tenantID           string
 	metricForwarder    *MetricForwarder
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
@@ -97,8 +101,48 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 		return nil, err
 	}
 
-	glog.V(1).Infof("getService: service: %+v", service)
+	glog.V(1).Infof("getService: service id=%s: %+v", serviceID, service)
 	return &service, nil
+}
+
+// getServiceTenaneID retrieves a service's tenantID
+func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return "", err
+	}
+	defer client.Close()
+
+	var tenantID string
+	err = client.GetTenantId(serviceID, &tenantID)
+	if err != nil {
+		glog.Errorf("Error getting service %s's tenantID, error: %s", serviceID, err)
+		return "", err
+	}
+
+	glog.V(1).Infof("getServiceTenantID: service id=%s: %s", serviceID, tenantID)
+	return tenantID, nil
+}
+
+// getAgentHostID retrieves the agent's host id
+func getAgentHostID(lbClientPort string) (string, error) {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return "", err
+	}
+	defer client.Close()
+
+	var hostID string
+	err = client.GetHostID(&hostID)
+	if err != nil {
+		glog.Errorf("Error getting host id, error: %s", err)
+		return "", err
+	}
+
+	glog.V(1).Infof("getAgentHostID: %s", hostID)
+	return hostID, nil
 }
 
 // chownConfFile sets the owner and permissions for a file
@@ -188,9 +232,24 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidService
 	}
 
+	// get service
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
+	}
+
+	// get service tenantID
+	c.tenantID, err = getServiceTenantID(options.ServicedEndpoint, options.Service.ID)
+	if err != nil {
+		glog.Errorf("Invalid tenantID from serviceID:%s", options.Service.ID)
+		return c, ErrInvalidTenantID
+	}
+
+	// get host id
+	c.hostID, err = getAgentHostID(options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Invalid hostID")
+		return c, ErrInvalidHostID
 	}
 
 	if options.Logforwarder.Enabled {
@@ -203,6 +262,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		// last three years
 		// TODO: Either expose the 3 years a configurable or get rid of it
 		logforwarder, exited, err := subprocess.New(time.Second,
+			nil,
 			options.Logforwarder.Path,
 			"-old-files-hours=26280",
 			"-config", options.Logforwarder.ConfigFile)
@@ -218,14 +278,21 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if len(metricRedirect) == 0 {
 		glog.V(1).Infof("container.Controller does not have metric forwarding")
 	} else {
-		if len(options.Service.TenantID) == 0 {
+		if len(c.tenantID) <= 0 {
 			return nil, ErrInvalidTenantID
 		}
-		if len(options.Service.ID) > 0 {
-			return nil, ErrInvalidServicedID
+		if len(c.hostID) <= 0 {
+			return nil, ErrInvalidHostID
 		}
+		if len(options.Service.ID) <= 0 {
+			return nil, ErrInvalidServiceID
+		}
+
+		metricRedirect += "?controlplane_tenant_id=" + c.tenantID
 		metricRedirect += "&controlplane_service_id=" + options.Service.ID
-		metricRedirect += "?controlplane_tenant_id=" + options.Service.TenantID
+		metricRedirect += "&controlplane_host_id=" + c.hostID
+		metricRedirect += "&controlplane_instance_id=" + options.Service.InstanceID
+
 		//build and serve the container metric forwarder
 		forwarder, err := NewMetricForwarder(options.Metric.Address, metricRedirect)
 		if err != nil {
@@ -253,12 +320,19 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
+	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
-	service, serviceExited, _ := subprocess.New(time.Second*10, "/bin/sh", args...)
-	
-	healthExits := c.kickOffHealthChecks()
+	startService := func() (*subprocess.Instance, chan error) {
+		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
+		c.handleRemotePorts()
+		return service, serviceExited
+	}
 
+	service, serviceExited := startService()
+	healthExits := c.kickOffHealthChecks()
 	var restartAfter <-chan time.Time
 	for {
 		select {
@@ -283,6 +357,7 @@ func (c *Controller) Run() (err error) {
 			c.handleRemotePorts()
 
 		case <-serviceExited:
+			glog.Infof("service process exited")
 			if !c.options.Service.Autorestart {
 				return
 			}
@@ -293,8 +368,9 @@ func (c *Controller) Run() (err error) {
 				return
 			}
 			glog.Infof("restarting service process")
-			service, serviceExited, _ = subprocess.New(time.Second*10, c.options.Service.Command[0], args...)
+			service, serviceExited = startService()
 			restartAfter = nil
+<<<<<<< HEAD
 		}
 	}
 	for _, exitChannel := range healthExits {
@@ -364,6 +440,8 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			}
 		case <- exitChannel:
 			return
+=======
+>>>>>>> develop
 		}
 	}
 }

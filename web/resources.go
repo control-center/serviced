@@ -304,7 +304,12 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	svc.UpdatedAt = now
 
 	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(client); err != nil {
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.GetService(svcID, &svc)
+		return svc, err
+	}
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
 		RestServerError(w)
 		return
@@ -470,6 +475,6 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
 }
 
-func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient){
+func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	w.WriteJson(&SimpleResponse{servicedversion.Version, servicesLinks()})
 }

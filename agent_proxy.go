@@ -177,3 +177,10 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 	}
 	endpoints[key] = append(endpoints[key], &endpoint)
 }
+
+// GetHostID returns the agent's host id
+func (a *HostAgent) GetHostID(string, hostID *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
+	*hostID = a.hostID
+	return nil
+}
