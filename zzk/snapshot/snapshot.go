@@ -1,4 +1,4 @@
-package zzk
+package snapshot
 
 import (
 	"path"

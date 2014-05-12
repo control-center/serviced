@@ -1147,58 +1147,24 @@ func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) erro
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
-	glog.V(3).Infof("ControlPlaneDao.Snapshot entering snapshot with service=%s", serviceId)
-	defer glog.V(3).Infof("ControlPlaneDao.Snapshot finished snapshot for service=%s", serviceId)
 
-	var tenantId string
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao: dao.LocalSnapshot err=%s", err)
+	handler := snapshot.New(this.zClient, this)
+	request := snapshot.Snapshot{
+		ServiceID: serviceId,
+	}
+	if err := handler.Send(&request); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot: Failed to send request err: %s", err)
 		return err
 	}
 
-	// request a snapshot by placing request znode in zookeeper - leader will notice
-	snapshotRequest, err := dao.NewSnapshotRequest(serviceId, "")
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao: dao.NewSnapshotRequest err=%s", err)
+	var response snapshot.Snapshot
+	if err := handler.Recv(&response, serviceId); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.Snapshot: Failed to receive a response: %s", err)
 		return err
 	}
-	if err := this.zkDao.AddSnapshotRequest(snapshotRequest); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.zkDao.AddSnapshotRequest err=%s", err)
-		return err
-	}
-	// TODO:
-	//	requestId := snapshotRequest.Id
-	//	defer this.zkDao.RemoveSnapshotRequest(requestId)
 
-	glog.Infof("added snapshot request: %+v", snapshotRequest)
-
-	// wait for completion of snapshot request - check only once a second
-	// BEWARE: this.zkDao.LoadSnapshotRequestW does not block like it should
-	//         thus cannot use idiomatic select on eventChan and time.After() channels
-	timeOutValue := time.Second * 60
-	endTime := time.Now().Add(timeOutValue)
-	for time.Now().Before(endTime) {
-		glog.V(2).Infof("watching for snapshot completion for request: %+v", snapshotRequest)
-		_, err := this.zkDao.LoadSnapshotRequestW(snapshotRequest.Id, snapshotRequest)
-		switch {
-		case err != nil:
-			glog.Infof("failed snapshot request: %+v  error: %s", snapshotRequest, err)
-			return err
-		case snapshotRequest.SnapshotError != "":
-			glog.Infof("failed snapshot request: %+v  error: %s", snapshotRequest, snapshotRequest.SnapshotError)
-			return errors.New(snapshotRequest.SnapshotError)
-		case snapshotRequest.SnapshotLabel != "":
-			*label = snapshotRequest.SnapshotLabel
-			glog.Infof("completed snapshot request: %+v  label: %s", snapshotRequest, *label)
-			return nil
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-
-	err = fmt.Errorf("timed out waiting %v for snapshot: %+v", timeOutValue, snapshotRequest)
-	glog.Error(err)
-	return err
+	*label = response.Label
+	return response.Error
 }
 
 func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volume) error {
