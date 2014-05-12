@@ -10,10 +10,8 @@
 package elasticsearch
 
 import (
-	dutils "github.com/dotcloud/docker/utils"
 	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -21,11 +19,8 @@ import (
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
@@ -680,7 +675,6 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 	return this.zkDao.TerminateHostService(request.HostId, request.ServiceStateId)
 }
 
-
 func (this *ControlPlaneDao) StartShell(service service.Service, unused *int) error {
 	// TODO: implement stub
 	return nil
@@ -943,39 +937,4 @@ func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
 	s.dfs.Lock()
 	s.dfs.Unlock()
 	return
-}
-
-// writeLogstashConfiguration takes all the available
-// services and writes out the filters section for logstash.
-// This is required before logstash startsup
-func (s *ControlPlaneDao) writeLogstashConfiguration() error {
-	var templatesMap map[string]*servicetemplate.ServiceTemplate
-	if err := s.GetServiceTemplates(0, &templatesMap); err != nil {
-		return err
-	}
-
-	// FIXME: eventually this file should live in the DFS or the config should
-	// live in zookeeper to allow the agents to get to this
-	if err := dao.WriteConfigurationFile(templatesMap); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
-// This method depends on the elasticsearch container being up and running.
-func (s *ControlPlaneDao) reloadLogstashContainer() error {
-	err := s.writeLogstashConfiguration()
-	if err != nil {
-		glog.Fatalf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	glog.V(2).Info("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Fatalf("Could not start logstash container: %s", err)
-		return err
-	}
-	return nil
 }

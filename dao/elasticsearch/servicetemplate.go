@@ -6,36 +6,18 @@ package elasticsearch
 
 import (
 	dutils "github.com/dotcloud/docker/utils"
-	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/dfs"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/zzk"
 
 	"errors"
 	"fmt"
-	"math/rand"
-	"os"
-	"os/exec"
-	"os/user"
-	"path"
-	"path/filepath"
 	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
@@ -119,6 +101,57 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
 }
 
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+	// Always deploy in stopped state, starting is a separate step
+	ds := service.SVCStop
+
+	exportedVolumes := make(map[string]string)
+	for k, v := range volumes {
+		exportedVolumes[k] = v
+	}
+	svc, err := service.BuildService(sd, parentServiceId, pool, ds, deploymentId)
+	if err != nil {
+		return err
+	}
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := this.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	//for each endpoint, evaluate it's Application
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+		return err
+	}
+
+	//for each endpoint, evaluate it's Application
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+		return err
+	}
+
+	if parentServiceId == "" {
+		*tenantId = svc.Id
+	}
+
+	// Using the tenant id, tag the base image with the tenantID
+	if svc.ImageId != "" {
+		name, err := this.renameImageId(svc.ImageId, *tenantId)
+		if err != nil {
+			return err
+		}
+		svc.ImageId = name
+	}
+
+	var serviceId string
+	err = this.AddService(*svc, &serviceId)
+	if err != nil {
+		return err
+	}
+
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
+}
+
 func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// ensure that all images in the templates exist
 	imageIds := make(map[string]struct{})
@@ -187,4 +220,39 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	name := matches[1]
 
 	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
+}
+
+// writeLogstashConfiguration takes all the available
+// services and writes out the filters section for logstash.
+// This is required before logstash startsup
+func (s *ControlPlaneDao) writeLogstashConfiguration() error {
+	var templatesMap map[string]*servicetemplate.ServiceTemplate
+	if err := s.GetServiceTemplates(0, &templatesMap); err != nil {
+		return err
+	}
+
+	// FIXME: eventually this file should live in the DFS or the config should
+	// live in zookeeper to allow the agents to get to this
+	if err := dao.WriteConfigurationFile(templatesMap); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Anytime the available service definitions are modified
+// we need to restart the logstash container so it can write out
+// its new filter set.
+// This method depends on the elasticsearch container being up and running.
+func (s *ControlPlaneDao) reloadLogstashContainer() error {
+	err := s.writeLogstashConfiguration()
+	if err != nil {
+		glog.Fatalf("Could not write logstash configuration: %s", err)
+		return err
+	}
+	glog.V(2).Info("Starting logstash container")
+	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
+		glog.Fatalf("Could not start logstash container: %s", err)
+		return err
+	}
+	return nil
 }
