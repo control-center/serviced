@@ -142,12 +142,37 @@ func (ed *elasticDriver) indexURL() string {
 }
 
 func (ed *elasticDriver) isUp() bool {
+
+	if _, err := ed.getHealth(); err != nil {
+		return false
+	}
+	return true
+}
+
+func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
+	health := make(map[string]interface{})
 	healthURL := fmt.Sprintf("%v/_cluster/health", ed.elasticURL())
 	resp, err := http.Get(healthURL)
-	if err == nil && resp.StatusCode == 200 {
-		return true
+	if err != nil {
+		return health, err
 	}
-	return false
+	if resp.StatusCode != 200 {
+		return health, fmt.Errorf("http status: %v", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		glog.Errorf("error reading elastic health: %v", err)
+		return health, err
+	}
+	if err := json.Unmarshal(body, &health); err != nil {
+		glog.Errorf("error unmarshalling elastic health: %v; err: %v", string(body), err)
+		return health, err
+	}
+	glog.V(4).Infof("Elastic Health: %v; err: %v", string(body), err)
+	return health, nil
+
 }
 
 func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {

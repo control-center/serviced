@@ -7,8 +7,8 @@ package elastic
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
-	"github.com/mattbaird/elastigo/search"
 	"github.com/mattbaird/elastigo/indices"
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 
