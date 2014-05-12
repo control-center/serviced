@@ -16,7 +16,6 @@ func TestOnContainerStart(t *testing.T) {
 
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
-			Name: "xyzzy",
 			Config: &dockerclient.Config{
 				Image: "base",
 				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
@@ -25,9 +24,12 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	if _, err := StartContainer(cd); err != nil {
+	cid, err := StartContainer(cd)
+	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
+
+	StopContainer(cid)
 
 	if !started {
 		t.Fatal("OnContainerStart handler was not triggered")

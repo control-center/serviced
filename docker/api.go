@@ -79,5 +79,53 @@ func StartContainer(cd *ContainerDefinition) (string, error) {
 	}
 }
 
+func StopContainer(id string) error {
+	ec := make(chan error)
+
+	cmds.Stop <- stopreq{
+		request{ec, 30 * time.Second},
+		struct {
+			id string
+		}{id},
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		return ErrRequestTimeout
+	case <-done:
+		return ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 func OnContainerStart(props map[string]string, h HandlerFunc) {
+	ec := make(chan error)
+
+	cmds.OnContainerStart <- onstartreq{
+		request{ec, 1 * time.Second},
+		struct {
+			props map[string]string
+			hf    HandlerFunc
+		}{props, h},
+	}
+
+	select {
+	case <-time.After(1 * time.Second):
+		return
+	case <-done:
+		return
+	default:
+		switch _, ok := <-ec; {
+		case !ok:
+			return
+		default:
+			return
+		}
+	}
 }

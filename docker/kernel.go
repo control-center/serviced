@@ -23,12 +23,20 @@ type inspectreq struct {
 	args struct {
 		id string
 	}
-	respchan *dockerclient.Container
+	respchan chan *dockerclient.Container
 }
 
 type listreq struct {
 	request
 	respchan chan []string
+}
+
+type onstartreq struct {
+	request
+	args struct {
+		props map[string]string
+		hf    HandlerFunc
+	}
 }
 
 type startreq struct {
@@ -40,17 +48,34 @@ type startreq struct {
 	respchan chan string
 }
 
+type stopreq struct {
+	request
+	args struct {
+		id string
+	}
+}
+
+type guardedHandler struct {
+	props   map[string]string
+	handler HandlerFunc
+}
+
 var (
 	cmds = struct {
-		Inspect chan inspectreq
-		List    chan listreq
-		Start   chan startreq
+		Inspect          chan inspectreq
+		List             chan listreq
+		OnContainerStart chan onstartreq
+		Start            chan startreq
+		Stop             chan stopreq
 	}{
 		make(chan inspectreq),
 		make(chan listreq),
+		make(chan onstartreq),
 		make(chan startreq),
+		make(chan stopreq),
 	}
-	done = make(chan struct{})
+	onStartHandlers = []guardedHandler{}
+	done            = make(chan struct{})
 )
 
 func init() {
@@ -67,6 +92,13 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	if err != nil {
 		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
 	}
+
+	ks, err := em.Subscribe(dockerclient.AllThingsDocker)
+	if err != nil {
+		panic(fmt.Sprintf("can't subscribe to all Docker events: %v", err))
+	}
+
+	ks.Handle(dockerclient.Start, handleContainerStart)
 
 	for {
 		select {
@@ -90,6 +122,9 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			close(lr.errchan)
 			lr.respchan <- resp
+		case osr := <-cmds.OnContainerStart:
+			onStartHandlers = append(onStartHandlers, guardedHandler{osr.args.props, osr.args.hf})
+			close(osr.errchan)
 		case sr := <-cmds.Start:
 			ctr, err := dc.CreateContainer(*sr.args.ContainerOptions)
 			switch {
@@ -138,8 +173,23 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 					}
 				}
 			}(ctr.ID, sr.args.HostConfig, sr.respchan, sr.errchan, sr.request.timeout)
+		case stop := <-cmds.Stop:
+			err := dc.StopContainer(stop.args.id, uint(stop.timeout))
+			if err != nil {
+				stop.errchan <- err
+				continue
+			}
+
+			close(stop.errchan)
 		case <-done:
 			return nil
 		}
 	}
+}
+
+func handleContainerStart(e dockerclient.Event) error {
+	for _, gh := range onStartHandlers {
+		gh.handler()
+	}
+	return nil
 }
