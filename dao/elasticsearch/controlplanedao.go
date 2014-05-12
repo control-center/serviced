@@ -31,11 +31,9 @@ import (
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 
-	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -332,28 +330,6 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 	return
 }
 
-//hashPassword returns the sha-1 of a password
-func hashPassword(password string) string {
-	h := sha1.New()
-	io.WriteString(h, password)
-	return fmt.Sprintf("% x", h.Sum(nil))
-}
-
-//addUser places a new user record into elastic searchp
-func (this *ControlPlaneDao) AddUser(user dao.User, userName *string) error {
-	glog.V(2).Infof("ControlPlane.NewUser: %+v", user)
-	name := strings.TrimSpace(*userName)
-	user.Password = hashPassword(user.Password)
-
-	// save the user
-	response, err := newUser(name, user)
-	if response.Ok {
-		*userName = name
-		return nil
-	}
-	return err
-}
-
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (err error) {
 	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
@@ -409,26 +385,6 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	return this.zkDao.AddService(&svc)
 }
 
-//UpdateUser updates the user entry in elastic search. NOTE: It is assumed the
-//pasword is NOT hashed when updating the user record
-func (this *ControlPlaneDao) UpdateUser(user dao.User, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.UpdateUser: %+v", user)
-
-	id := strings.TrimSpace(user.Name)
-	if id == "" {
-		return errors.New("empty User.Name not allowed")
-	}
-
-	user.Name = id
-	user.Password = hashPassword(user.Password)
-	response, err := indexUser(id, user)
-	glog.V(2).Infof("ControlPlaneDao.UpdateUser response: %+v", response)
-	if response.Ok {
-		return nil
-	}
-	return err
-}
-
 // updateService internal method to use when service has been validated
 func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 	id := strings.TrimSpace(svc.Id)
@@ -473,14 +429,6 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 	return this.updateService(&svc)
 }
 
-// RemoveUser removes the user specified by the userName string
-func (this *ControlPlaneDao) RemoveUser(userName string, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.RemoveUser: %s", userName)
-	response, err := deleteUser(userName)
-	glog.V(2).Infof("ControlPlaneDao.RemoveUser response: %+v", response)
-	return err
-}
-
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
@@ -509,49 +457,6 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 		return err
 	}
 	//TODO: remove AddressAssignments with this Service
-	return nil
-}
-
-func (this *ControlPlaneDao) GetUser(userName string, user *dao.User) error {
-	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s", userName)
-	request := dao.User{}
-	err := getUser(userName, &request)
-	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s, user=%+v, err=%s", userName, request, err)
-	*user = request
-	return err
-}
-
-//ValidateCredentials takes a user name and password and validates them against a stored user
-func (this *ControlPlaneDao) ValidateCredentials(user dao.User, result *bool) error {
-	glog.V(2).Infof("ControlPlaneDao.ValidateCredentials: userName=%s", user.Name)
-	storedUser := dao.User{}
-	err := this.GetUser(user.Name, &storedUser)
-	if err != nil {
-		*result = false
-		return err
-	}
-
-	// hash the passed in password
-	hashedPassword := hashPassword(user.Password)
-
-	// confirm the password
-	if storedUser.Password != hashedPassword {
-		*result = false
-		return nil
-	}
-
-	// at this point we found the user and confirmed the password
-	*result = true
-	return nil
-}
-
-//GetSystemUser returns the system user's credentials. The "unused int" is required by the RPC interface.
-func (this *ControlPlaneDao) GetSystemUser(unused int, user *dao.User) error {
-	systemUser := dao.User{
-		Name:     SYSTEM_USER_NAME,
-		Password: INSTANCE_PASSWORD,
-	}
-	*user = systemUser
 	return nil
 }
 
@@ -1528,36 +1433,6 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	}
 
 	return dao, nil
-}
-
-//createSystemUser updates the running instance password as well as the user record in elastic
-func createSystemUser(s *ControlPlaneDao) error {
-	user := dao.User{}
-	err := s.GetUser(SYSTEM_USER_NAME, &user)
-	if err != nil {
-		glog.Warningf("%s", err)
-		glog.V(0).Info("'default' user not found; creating...")
-
-		// create the system user
-		user := dao.User{}
-		user.Name = SYSTEM_USER_NAME
-		userName := SYSTEM_USER_NAME
-
-		if err := s.AddUser(user, &userName); err != nil {
-			return err
-		}
-	}
-
-	// update the instance password
-	password, err := dao.NewUuid()
-	if err != nil {
-		return err
-	}
-	user.Name = SYSTEM_USER_NAME
-	user.Password = password
-	INSTANCE_PASSWORD = password
-	unused := 0
-	return s.UpdateUser(user, &unused)
 }
 
 func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string) (*ControlPlaneDao, error) {
