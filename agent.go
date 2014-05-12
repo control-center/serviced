@@ -830,7 +830,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		"service",
 		"proxy",
 		service.Id,
-		a.hostID,
 		strconv.Itoa(serviceState.InstanceId),
 		service.Startup)
 
