@@ -169,23 +169,33 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 document.getElementById("health-tooltip-" + ServiceId).title = "";
                 passingAny = false;
                 failingAny = false;
+                lateAny = false;
+                unknownAny = false;
                 for (var name in data) {
                     if (data[name] == "passed") {
                         passingAny = true;
-                    } else {
+                    } else if (data[name] == "failed") {
                         failingAny = true;
+                    } else if (data[name] == "late") {
+                        lateAny = true;
+                    } else if (data[name] == "unknown") {
+                        unknownAny = true;
                     }
                     document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name] + "\n";
                 }
-                if (!passingAny) {
-                    document.getElementById("health-" + ServiceId).src = "/static/img/redball.png";
+                function setColor(color) {
+                    document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
                 }
-                if (!failingAny) {
-                    document.getElementById("health-" + ServiceId).src = "/static/img/greenball.png";
+                if (failingAny) {
+                    setColor("red");
+                } else if ((lateAny || unknownAny) && !passingAny) {
+                    setColor("grey");
+                } else if (passingAny && (unknownAny || lateAny)) {
+                    setColor("yellow");
+                } else if (passingAny && !(unknownAny || lateAny)) {
+                    setColor("green");
                 }
-                if (failingAny && passingAny) {
-                    document.getElementById("health-" + ServiceId).src = "/static/img/yellowball.png";
-                }                
+
             }
         });
     }
