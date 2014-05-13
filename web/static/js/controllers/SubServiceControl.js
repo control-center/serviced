@@ -162,38 +162,30 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-    var client = new elasticsearch.Client({host: 'https://localhost/api/controlplane/elastic'});
-    function query(ServiceId) {
-        return {body:{
-                    size: 1,
-                    query:{match:{message:"Change in service health status [" + ServiceId + "]"}},
-                    sort:[{"@timestamp": {order: "desc"}}]
-                }}
-    }
     function updateHealth(ServiceId) {
-        client.search(query(ServiceId)).then(function(resp) {
-            msg = resp.hits.hits[0]._source.message;
-            msg = msg.split('['+ServiceId+']')[1];
-            data = JSON.parse(msg);
-            document.getElementById("health-tooltip-" + ServiceId).title = "";
-            passingAny = false;
-            failingAny = false;
-            for (var name in data) {
-                if (data[name]) {
-                    passingAny = true;
-                } else {
-                    failingAny = true;
+        $.getJSON("/servicehealth", function(healths) {
+            for (var ServiceId in healths) {
+                data = healths[ServiceId];
+                document.getElementById("health-tooltip-" + ServiceId).title = "";
+                passingAny = false;
+                failingAny = false;
+                for (var name in data) {
+                    if (data[name] == "passed") {
+                        passingAny = true;
+                    } else {
+                        failingAny = true;
+                    }
+                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name] + "\n";
                 }
-                document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name] + "\n";
-            }
-            if (!passingAny) {
-                document.getElementById("health-" + ServiceId).src = "/static/img/redball.png";
-            }
-            if (!failingAny) {
-                document.getElementById("health-" + ServiceId).src = "/static/img/greenball.png";
-            }
-            if (failingAny && passingAny) {
-                document.getElementById("health-" + ServiceId).src = "/static/img/yellowball.png";
+                if (!passingAny) {
+                    document.getElementById("health-" + ServiceId).src = "/static/img/redball.png";
+                }
+                if (!failingAny) {
+                    document.getElementById("health-" + ServiceId).src = "/static/img/greenball.png";
+                }
+                if (failingAny && passingAny) {
+                    document.getElementById("health-" + ServiceId).src = "/static/img/yellowball.png";
+                }                
             }
         });
     }
@@ -207,10 +199,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 mashHostsToInstances();
             });
         }
-        for (var i = 0; i < $scope.services.subservices.length; i++) {
-            var app = $scope.services.subservices[i];
-            updateHealth(app.Id);
-        }
+        updateHealth();
     }
     $interval(updateRunning, 3000);
     // Get a list of deployed apps

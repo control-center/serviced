@@ -12,11 +12,8 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/health"
 
 
 	"errors"
@@ -115,17 +112,9 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	return nil
 }
 
-// LogHealthCheck TODO add comment
+// LogHealthCheck proxies RegisterHealthCheck.
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
-	health.RegisterHealthCheck(result.ServiceId, result.Name, result.Passed)
-	// ctx := datastore.Get()
-	// ds := datastore.New()
-	// key := datastore.NewKey(result.ServiceId, "Health Check Result")
-	// err := ds.Put(ctx, key, &result)
-	// if err != nil {
-	// 	return err
-	// }
-	// glog.Warningf("%s %s %s", result.ServiceId, result.Name, result.Passed)
+	RegisterHealthCheck(result.ServiceId, result.Name, result.Passed)
 	return nil
 }
 

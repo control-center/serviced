@@ -68,7 +68,7 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
 }
 
-// LogHealthCheck TODO add comment.
+// LogHealthCheck stores a health check result.
 func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
 	glog.V(4).Infof("ControlPlaneAgent.LogHealthCheck()")
 	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, nil)

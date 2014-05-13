@@ -19,7 +19,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/health"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -214,7 +213,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		http.ListenAndServe(":50000", sio)
 	}()
 
-	go health.StartHealthMonitor()
+	go serviced.StartHealthMonitor()
 
 	return hostAgent, nil
 }
