@@ -15,7 +15,6 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 
-
 	"errors"
 	"github.com/zenoss/serviced/domain/service"
 	"strconv"

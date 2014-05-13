@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"sort"
@@ -21,7 +22,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"os/exec"
 )
 
 var (
@@ -379,14 +379,14 @@ func (c *Controller) Run() (err error) {
 }
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {
-	exitChannels := make(map[string] chan bool)
+	exitChannels := make(map[string]chan bool)
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return nil
 	}
 	defer client.Close()
-	var healthChecks map[string]domain.HealthCheck;
+	var healthChecks map[string]domain.HealthCheck
 	err = client.GetHealthCheck(c.options.Service.ID, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
@@ -397,7 +397,7 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 		exitChannels[key] = make(chan bool)
 		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
 	}
-	return exitChannels;
+	return exitChannels
 }
 
 func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
@@ -437,7 +437,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 				glog.Infof("Health check %s failed.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
 			}
-		case <- exitChannel:
+		case <-exitChannel:
 			return
 		}
 	}
