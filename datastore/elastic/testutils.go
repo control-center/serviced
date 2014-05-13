@@ -119,7 +119,7 @@ func (et *ElasticTest) SetUpTest(c *gocheck.C) {
 			select {
 			default:
 				health, err := et.driver.getHealth()
-				if err == nil && health["active_primary_shards"] != 0 {
+				if err == nil && (health["status"] == "green" || health["status"] == "yellow") {
 					up <- 1
 					break
 				}

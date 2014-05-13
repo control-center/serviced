@@ -142,11 +142,13 @@ func (ed *elasticDriver) indexURL() string {
 }
 
 func (ed *elasticDriver) isUp() bool {
-
-	if _, err := ed.getHealth(); err != nil {
+	health, err := ed.getHealth()
+	if err != nil {
+		glog.Errorf("isUp() err=%v", err)
 		return false
 	}
-	return true
+	status := health["status"]
+	return status == "green" || status == "yellow"
 }
 
 func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
