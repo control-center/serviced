@@ -5,7 +5,6 @@
 package elastic
 
 import (
-	"github.com/zenoss/glog"
 	gocheck "gopkg.in/check.v1"
 
 	"fmt"
@@ -111,34 +110,6 @@ func (et *ElasticTest) SetUpTest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	err = et.driver.Initialize(time.Second * et.InitTimeout)
 	c.Assert(err, gocheck.IsNil)
-
-	up := make(chan int)
-	quit := make(chan int)
-	go func() {
-		for {
-			select {
-			default:
-				health, err := et.driver.getHealth()
-				if err == nil && (health["status"] == "green" || health["status"] == "yellow") {
-					up <- 1
-					break
-				}
-				glog.Info("waiting for elastic shard")
-				time.Sleep(100 * time.Millisecond)
-			case <-quit:
-				return
-			}
-		}
-	}()
-
-	//wait for shard
-	select {
-	case <-up:
-		glog.V(4).Info("elastic shard is up")
-	case <-time.After(time.Second * 3):
-		quit <- 1
-		c.Fatal("timed out waiting for elastic shard")
-	}
 }
 
 //Driver returns the initialized driver

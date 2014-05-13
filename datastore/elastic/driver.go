@@ -84,6 +84,17 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 	if err := ed.postMappings(); err != nil {
 		return err
 	}
+
+	// postMapping and postIndex affect es health
+	go ed.checkHealth(quit, healthy)
+
+	select {
+	case <-healthy:
+		glog.V(4).Infof("Got response from Elastic")
+	case <-time.After(timeout):
+		return errors.New("timed Out waiting for response from Elastic")
+	}
+
 	return nil
 }
 
