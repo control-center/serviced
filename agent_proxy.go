@@ -12,25 +12,21 @@ package serviced
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/health"
+
 
 	"errors"
 	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
-	"encoding/json"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
-
-// keep track of the health status of our services
-var servicesHealth map[string]map[string]bool = make(map[string]map[string]bool)
-
-func init() {
-
-}
 
 type ServiceLogInfo struct {
 	ServiceID string
@@ -121,14 +117,15 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 
 // LogHealthCheck TODO add comment
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
-	_, ok := servicesHealth[result.ServiceId]
-	if !ok {
-		servicesHealth[result.ServiceId] = make(map[string]bool)
-	}
-	servicesHealth[result.ServiceId][result.Name] = result.Passed
-	sbytes, _ := json.Marshal(servicesHealth[result.ServiceId])
-	marshalled := string(sbytes)
-	glog.Warningf("Change in service health status [%s] %s", result.ServiceId, marshalled)
+	health.RegisterHealthCheck(result.ServiceId, result.Name, result.Passed)
+	// ctx := datastore.Get()
+	// ds := datastore.New()
+	// key := datastore.NewKey(result.ServiceId, "Health Check Result")
+	// err := ds.Put(ctx, key, &result)
+	// if err != nil {
+	// 	return err
+	// }
+	// glog.Warningf("%s %s %s", result.ServiceId, result.Name, result.Passed)
 	return nil
 }
 

@@ -432,10 +432,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			err = cmd.Run()
 			if err == nil {
 				glog.Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, true}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, nil)
 			} else {
 				glog.Infof("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, false}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
 			}
 		case <- exitChannel:
 			return

@@ -41,6 +41,11 @@ type HealthCheck struct {
 
 type HealthCheckResult struct {
 	ServiceId string
-	Name string
-	Passed bool
+	Name 	  string
+	Timestamp string
+	Passed 	  string
+}
+
+func (h *HealthCheckResult) ValidEntity() error {
+	return nil
 }
