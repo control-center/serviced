@@ -29,6 +29,7 @@ import (
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/snapshot"
 
 	"encoding/json"
 	"errors"
@@ -1148,7 +1149,14 @@ func (this *ControlPlaneDao) LocalSnapshot(serviceId string, label *string) erro
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 
-	handler := snapshot.New(this.zClient, this)
+	conn, err := this.zclient.GetConnection()
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDAO.Snapshot: Failed to connect: %s", err)
+		return err
+	}
+	defer conn.Close()
+
+	handler := snapshot.New(conn, this)
 	request := snapshot.Snapshot{
 		ServiceID: serviceId,
 	}
@@ -1157,8 +1165,8 @@ func (this *ControlPlaneDao) Snapshot(serviceId string, label *string) error {
 		return err
 	}
 
-	var response snapshot.Snapshot
-	if err := handler.Recv(&response, serviceId); err != nil {
+	response, err := handler.Recv(serviceId)
+	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshot: Failed to receive a response: %s", err)
 		return err
 	}

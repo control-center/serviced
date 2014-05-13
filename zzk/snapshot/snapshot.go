@@ -112,19 +112,21 @@ func (h *Handler) Send(snapshot *Snapshot) error {
 }
 
 // Recv waits for a snapshot to be complete
-func (h *Handler) Recv(snapshot *Snapshot, serviceID string) error {
+func (h *Handler) Recv(serviceID string) (*Snapshot, error) {
+	var snapshot Snapshot
+	node := snapshotPath(serviceID)
+
 	for {
-		p := snapshotPath(serviceID)
-		event, err := h.conn.GetW(p, snapshot)
+		event, err := h.conn.GetW(node, &snapshot)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if snapshot.done() {
 			// Delete the request
-			if err := h.conn.Delete(p); err != nil {
-				glog.Warningf("Could not delete snapshot request %s: %s", p, err)
+			if err := h.conn.Delete(node); err != nil {
+				glog.Warningf("Could not delete snapshot request %s: %s", node, err)
 			}
-			return nil
+			return &snapshot, nil
 		}
 		// Wait for something to happen
 		<-event
