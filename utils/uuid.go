@@ -32,10 +32,13 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 )
 
+
 const base62alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const base36alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 var randSource io.Reader = randReadT{}
 
@@ -67,16 +70,32 @@ func NewUUID62() (string, error) {
 	return ConvertUp(s, base62alphabet), nil
 }
 
-// ConvertUp converts a hexadecimal UUID string to a base alphabet greater than
-// 16. It is used here to compress a 32 character UUID down to 23 URL friendly
-// characters.
+// NewUUID62 createa a base-36 UUID.
+func NewUUID36() (string, error) {
+	b := make([]byte, 16)
+	_, err := randSource.Read(b)
+	if err != nil {
+		return "", err
+	}
+	s := fmt.Sprintf("%x", b)
+	return ConvertUp(s, base36alphabet), nil
+}
+
+// intLength returns the length of a integer represented by the given
+// bits in the given base.
+func intLength(bits, base int) int {
+	return int(math.Ceil(float64(bits) * math.Log10(2.0)/math.Log10(float64(base))))
+}
+
+
+// ConvertUp converts a hexadecimal UUID string to a base alphabet greater than 16. 
 func ConvertUp(oldNumber string, baseAlphabet string) string {
 	n := big.NewInt(0)
 	n.SetString(oldNumber, 16)
 
 	base := big.NewInt(int64(len(baseAlphabet)))
 
-	newNumber := make([]byte, 23) //converted size of max base-62 uuid
+	newNumber := make([]byte, intLength(16*8, len(baseAlphabet)))
 	i := len(newNumber)
 
 	for n.Int64() != 0 {

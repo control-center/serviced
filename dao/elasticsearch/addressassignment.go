@@ -93,7 +93,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment addressassignment.AddressA
 	if existing != nil {
 		return fmt.Errorf("Address Assignment already exists")
 	}
-	assignment.ID, err = utils.NewUUID()
+	assignment.ID, err = utils.NewUUID36()
 	if err != nil {
 		return err
 	}

@@ -72,7 +72,7 @@ type SnapshotRequest struct {
 // A new snapshot request instance (SnapshotRequest)
 func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
 	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.Id, err = utils.NewUUID()
+	snapshotRequest.Id, err = utils.NewUUID36()
 	if err == nil {
 		snapshotRequest.ServiceId = serviceId
 		snapshotRequest.SnapshotLabel = snapshotLabel

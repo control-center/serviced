@@ -22,7 +22,7 @@ import (
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	uuid, err := utils.NewUUID()
+	uuid, err := utils.NewUUID36()
 	if err != nil {
 		return err
 	}

@@ -229,7 +229,7 @@ func createSystemUser(s *ControlPlaneDao) error {
 	}
 
 	// update the instance password
-	password, err := utils.NewUUID()
+	password, err := utils.NewUUID36()
 	if err != nil {
 		return err
 	}
