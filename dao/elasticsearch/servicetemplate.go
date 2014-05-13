@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/utils"
 
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ import (
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	uuid, err := dao.NewUuid()
+	uuid, err := utils.NewUUID()
 	if err != nil {
 		return err
 	}
@@ -220,7 +221,7 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	}
 	name := matches[1]
 
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", this.dockerRegistry, tenantId, name), nil
 }
 
 // writeLogstashConfiguration takes all the available

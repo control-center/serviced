@@ -67,7 +67,7 @@ type ServiceEndpoint struct {
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = utils.NewUUID()
+	s.Id, err = utils.NewUUID62()
 	return s, err
 }
 
@@ -92,7 +92,7 @@ func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpo
 
 //BuildService build a service from a ServiceDefinition.
 func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string, poolID string, desiredState int, deploymentID string) (*Service, error) {
-	svcuuid, err := utils.NewUUID()
+	svcuuid, err := utils.NewUUID62()
 	if err != nil {
 		return nil, err
 	}
