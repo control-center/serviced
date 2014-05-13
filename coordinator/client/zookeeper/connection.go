@@ -188,7 +188,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 	return toClientEvent(zkEvent), xlateError(err)
 }
 
-// Children returns the children of the node at the give path.
+// Children returns the children of the node at the given path.
 func (c *Connection) Children(path string) (children []string, err error) {
 	if c.conn == nil {
 		return children, client.ErrClosedConnection

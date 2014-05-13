@@ -6,7 +6,6 @@ package facade
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
@@ -180,11 +179,10 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 
 func VirtualIPExists(proposedVirtualIP pool.VirtualIP, poolsVirtualIPs []pool.VirtualIP) bool {
 	for _, virtualIP := range poolsVirtualIPs {
-		// TODO: What should determine the SAME virtual IP address? Perhaps just IP address?
-		if proposedVirtualIP.PoolID == virtualIP.PoolID &&
-			proposedVirtualIP.IP == virtualIP.IP &&
-			proposedVirtualIP.Netmask == virtualIP.Netmask &&
-			proposedVirtualIP.BindInterface == virtualIP.BindInterface {
+		// the IP address is unique
+		// TODO: Is an IP address unique to just a pool? Suppose virtual IP X. Can pools X and Y both contain X?
+		// if so, we need to check PoolID as well
+		if proposedVirtualIP.IP == virtualIP.IP {
 			return true
 		}
 	}
@@ -220,9 +218,7 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 		return errors.New(errMsg)
 	}
 
-	// generate a UUID as a unique ID for the virtual IP
-	virtualIPuuid, _ := dao.NewUuid()
-	requestedVirtualIP.ID = virtualIPuuid
+	// TODO ... verify the virtual IP address is not identical to any static IPs
 
 	myPool.VirtualIPs = append(myPool.VirtualIPs, requestedVirtualIP)
 	if err := f.UpdateResourcePool(ctx, myPool); err != nil {
@@ -232,7 +228,7 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 	return nil
 }
 
-func (f *Facade) RemoveVirtualIP(ctx datastore.Context, virtualIPID string) error {
+func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIPAddress string) error {
 	myPools, err := f.GetResourcePools(ctx)
 	if err != nil {
 		return err
@@ -240,7 +236,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, virtualIPID string) erro
 
 	for _, myPool := range myPools {
 		for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
-			if virtualIP.ID == virtualIPID {
+			if virtualIP.IP == requestedVirtualIPAddress {
 				// delete the current VirtualIP
 				myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
 				if err := f.UpdateResourcePool(ctx, myPool); err != nil {
@@ -251,7 +247,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, virtualIPID string) erro
 		}
 	}
 
-	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address with ID: %v (does not exist)", virtualIPID)
+	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v (does not exist)", requestedVirtualIPAddress)
 	return errors.New(errMsg)
 }
 

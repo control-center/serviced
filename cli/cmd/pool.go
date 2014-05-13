@@ -229,13 +229,13 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newTable(0, 8, 2)
-		tableIPs.PrintRow("Interface Name / ID", "IP Address", "Type")
+		tableIPs := newTable(0, 3, 3)
+		tableIPs.PrintRow("Interface Name", "IP Address", "Type")
 		for _, ip := range poolIps.HostIPs {
 			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress, "static")
 		}
 		for _, ip := range poolIps.VirtualIPs {
-			tableIPs.PrintRow(ip.ID, ip.IP, "virtual")
+			tableIPs.PrintRow("", ip.IP, "virtual")
 		}
 		tableIPs.Flush()
 	}
@@ -250,8 +250,8 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 		return
 	}
 
-	requestVirtualIP := pool.VirtualIP{ID: "", PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], Index: ""}
-	if err := c.driver.AddVirtualIP(&requestVirtualIP); err != nil {
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], Index: ""}
+	if err := c.driver.AddVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}

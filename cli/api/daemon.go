@@ -186,6 +186,7 @@ func (d *daemon) startAgent() error {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 
+	// if a sigint or a sigterm are received at the OS level, shut down the agent and stop isvcs
 	go func() {
 		signalChan := make(chan os.Signal, 10)
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -205,6 +206,7 @@ func (d *daemon) startAgent() error {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
+
 	return nil
 }
 

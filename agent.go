@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/virtualips"
 
 	docker "github.com/zenoss/go-dockerclient"
 
@@ -340,7 +341,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	if err != nil {
 		return
-		//TODO: should	"cmd" be cleaned up before returning?
+		//TODO: should "cmd" be cleaned up before returning?
 	}
 
 	var sState *servicestate.ServiceState
@@ -823,17 +824,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
-	glog.V(1).Info("Starting HostAgent")
+	glog.Info("Starting HostAgent")
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
-
 			connc := make(chan coordclient.Connection)
 			var conn coordclient.Connection
 			done := make(chan struct{}, 1)
+
 			defer func() {
 				done <- struct{}{}
 			}()
+
 			go func() {
 				for {
 					c, err := a.zkClient.GetConnection()
@@ -841,6 +843,7 @@ func (a *HostAgent) start() {
 						connc <- c
 						return
 					}
+
 					// exit when our parent exits
 					select {
 					case <-done:
@@ -850,17 +853,23 @@ func (a *HostAgent) start() {
 				}
 				close(connc)
 			}()
+
 			select {
 			case errc := <-a.closing:
-				glog.V(0).Info("Received shutdown notice")
+				glog.Info("Received shutdown notice")
 				a.zkClient.Close()
 				errc <- errors.New("Unable to connect to zookeeper")
 				return false
 
 			case conn = <-connc:
-				glog.V(1).Info("Got a connected client")
+				glog.Info("Got a connected client")
 			}
+
 			defer conn.Close()
+
+			glog.Info(" ---------- calling WatchVirtualIPs")
+			go virtualips.New(nil, conn, nil).WatchVirtualIPs()
+
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {

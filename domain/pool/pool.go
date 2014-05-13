@@ -10,7 +10,6 @@ import (
 )
 
 type VirtualIP struct {
-	ID            string
 	PoolID        string
 	IP            string
 	Netmask       string

@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/virtualips"
 )
 
 type leader struct {
@@ -162,6 +163,8 @@ func (l *leader) watchServices() {
 	}()
 
 	conn.CreateDir(zzk.SERVICE_PATH)
+	virtualIPsHandler := virtualips.New(l.facade, l.conn, l.context)
+
 	for {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)
 		serviceIds, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
@@ -177,15 +180,6 @@ func (l *leader) watchServices() {
 				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
-		/*
-			select {
-			case evt := <-zkEvent:
-				glog.V(1).Info("Leader event: ", evt)
-			case serviceID := <-sDone:
-				glog.V(1).Info("Leading cleaning up for service ", serviceID)
-				delete(processing, serviceID)
-			}
-		*/
 
 		for {
 			select {
@@ -197,10 +191,9 @@ func (l *leader) watchServices() {
 				delete(processing, serviceID)
 				break
 			case <-time.After(10 * time.Second):
-				err := l.watchVirtualIPs()
-				//err := watchVirtualIPs(l.context, l.facade)
+				err := virtualIPsHandler.SyncVirtualIPs()
 				if err != nil {
-					glog.Warningf("watchVirtualIPs: %v", err)
+					glog.Warningf("virtualIPsHandler.SyncVirtualIPs: %v", err)
 				}
 			}
 		}
@@ -268,10 +261,8 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		case <-shutdown:
 			glog.V(1).Info("Leader stopping watch on ", svc.Name)
 			return
-
 		}
 	}
-
 }
 
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
