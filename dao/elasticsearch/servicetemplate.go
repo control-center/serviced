@@ -169,8 +169,9 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 
 		image, err := dockerclient.InspectImage(imageId)
 		if err != nil {
-			glog.Errorf("could not look up image: %s", imageId)
-			return err
+			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
+			glog.Error(err.Error())
+			return msg
 		}
 
 		repo, err := this.renameImageId(imageId, *tenantId)
