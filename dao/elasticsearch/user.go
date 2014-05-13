@@ -10,6 +10,9 @@
 package elasticsearch
 
 import (
+	"github.com/mattbaird/elastigo/api"
+	"github.com/mattbaird/elastigo/core"
+	"github.com/mattbaird/elastigo/indices"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 
@@ -19,6 +22,99 @@ import (
 	"io"
 	"strings"
 )
+
+var (
+	//enable pretty printed responses
+	Pretty bool = false
+
+	//model index functions
+	newUser func(string, interface{}) (api.BaseResponse, error) = create(&Pretty, "controlplane", "user")
+
+	//model index functions
+	indexUser func(string, interface{}) (api.BaseResponse, error) = index(&Pretty, "controlplane", "user")
+
+	//model delete functions
+	deleteUser func(string) (api.BaseResponse, error) = _delete(&Pretty, "controlplane", "user")
+
+	//model get functions
+	getUser func(string, interface{}) error = getSource("controlplane", "user")
+)
+
+// each time Serviced starts up a new password will be generated. This will be passed into
+// the containers so that they can authenticate against the API
+var SYSTEM_USER_NAME = "system_user"
+var INSTANCE_PASSWORD string
+
+// closure for geting a model
+func getSource(index string, _type string) func(string, interface{}) error {
+	return func(id string, source interface{}) error {
+		return core.GetSource(index, _type, id, &source)
+	}
+}
+
+// closure for searching a model
+func searchUri(index string, _type string) func(string) (core.SearchResult, error) {
+	return func(query string) (core.SearchResult, error) {
+		return core.SearchUri(index, _type, query, "", 0)
+	}
+}
+
+// closure for testing model existence
+func exists(pretty *bool, index string, _type string) func(string) (bool, error) {
+	return func(id string) (bool, error) {
+		return core.Exists(*pretty, index, _type, id)
+	}
+}
+
+// closure for indexing a model
+func create(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
+	var (
+		parentId  string = ""
+		version   int    = 0
+		op_type   string = "create"
+		routing   string = ""
+		timestamp string = ""
+		ttl       int    = 0
+		percolate string = ""
+		timeout   string = ""
+		refresh   bool   = true
+	)
+	return func(id string, data interface{}) (api.BaseResponse, error) {
+		return core.IndexWithParameters(
+			*pretty, index, _type, id, parentId, version, op_type, routing, timestamp, ttl, percolate, timeout, refresh, data)
+	}
+}
+
+// closure for indexing a model
+func index(pretty *bool, index string, _type string) func(string, interface{}) (api.BaseResponse, error) {
+	var (
+		parentId  string = ""
+		version   int    = 0
+		op_type   string = ""
+		routing   string = ""
+		timestamp string = ""
+		ttl       int    = 0
+		percolate string = ""
+		timeout   string = ""
+		refresh   bool   = true
+	)
+	return func(id string, data interface{}) (api.BaseResponse, error) {
+		return core.IndexWithParameters(
+			*pretty, index, _type, id, parentId, version, op_type, routing, timestamp, ttl, percolate, timeout, refresh, data)
+	}
+}
+
+// closure for deleting a model
+func _delete(pretty *bool, index string, _type string) func(string) (api.BaseResponse, error) {
+	return func(id string) (api.BaseResponse, error) {
+		r, err := core.Delete(*pretty, index, _type, id, -1, "")
+		if err != nil {
+			return r, err
+		}
+		indices.Refresh(index)
+		return r, err
+	}
+}
 
 //hashPassword returns the sha-1 of a password
 func hashPassword(password string) string {
