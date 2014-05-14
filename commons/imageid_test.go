@@ -160,3 +160,14 @@ func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tes
 func TestParse(t *testing.T) {
 	DoTest(t, ParseImageID, "Parse", imgidtests)
 }
+
+func TestString(t *testing.T) {
+	iid, err := ParseImageID("warner.bros:1948/dobbs/sierramadre:1925")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if iid.String() != "warner.bros:1948/dobbs/sierramadre:1925" {
+		t.Errorf("expecting: warner.bros:1948/dobbs/sierramadre:1925, got %s\n", iid.String())
+	}
+}

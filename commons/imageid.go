@@ -206,3 +206,28 @@ func ParseImageID(iid string) (*ImageID, error) {
 
 	return result, nil
 }
+
+// String returns a string representation of the ImageID structure
+func (iid ImageID) String() string {
+	s := []string{}
+
+	if iid.Host != "" {
+		s = append(s, iid.Host)
+	}
+
+	if iid.Port != 0 {
+		s = append(s, ":", strconv.Itoa(iid.Port), "/")
+	}
+
+	if iid.User != "" {
+		s = append(s, iid.User, "/")
+	}
+
+	s = append(s, iid.Repo)
+
+	if iid.Tag != "" {
+		s = append(s, ":", iid.Tag)
+	}
+
+	return strings.Join(s, "")
+}
