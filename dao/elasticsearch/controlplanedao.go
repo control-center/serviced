@@ -16,7 +16,6 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
@@ -24,13 +23,6 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	"github.com/zenoss/serviced/zzk/snapshot"
 
-	"errors"
-	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
-	"path"
-	"path/filepath"
 	"strconv"
 )
 
@@ -190,10 +182,6 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 
 func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error {
 	return dao.ControlPlaneError{"Unimplemented"}
-}
-
-func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
-	return this.zkDao.TerminateHostService(request.HostId, request.ServiceStateId)
 }
 
 func (this *ControlPlaneDao) StartShell(service service.Service, unused *int) error {
@@ -425,10 +413,4 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *co
 	}
 
 	return s, nil
-}
-
-func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
-	s.dfs.Lock()
-	s.dfs.Unlock()
-	return
 }
