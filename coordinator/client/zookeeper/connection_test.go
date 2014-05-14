@@ -14,51 +14,12 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func ensureZkFatjar() {
-	_, err := exec.LookPath("java")
-	if err != nil {
-		log.Fatal("Can't find java in path")
-	}
-
-	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/zookeeper-*-fatjar.jar")
-	if err != nil {
-		log.Fatal("Error search for files")
-	}
-	if len(jars) > 0 {
-		return
-	}
-
-	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not download fatjar: %s", err)
-	}
-
-	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not unzip fatjar: %s", err)
-	}
-	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
-	if err != nil {
-		log.Fatal("Could not make fatjar dir: %s", err)
-	}
-
-	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
-	if err != nil {
-		log.Fatal("Could not mv fatjar: %s", err)
-	}
-
-	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not rm fatjar.zip: %s", err)
-	}
-}
-
 func init() {
-	ensureZkFatjar()
+	EnsureZkFatjar()
 }
 
 func TestEnsureZkFatjar(t *testing.T) {
-	ensureZkFatjar()
+	EnsureZkFatjar()
 }
 
 type testNodeT struct {

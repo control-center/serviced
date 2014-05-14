@@ -94,12 +94,20 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	}, nil
 }
 
-func (c *Server) SetClient(client string) {
-	c.clients[client] = struct{}{}
+func (c *Server) Clients() []string {
+	clients := make([]string, len(c.clients))
+	i := 0
+	for key, _ := range c.clients {
+		clients[i] = key
+	}
+	return clients
 }
+func (c *Server) SetClients(clients ...string) {
+	c.clients = make(map[string]struct{})
 
-func (c *Server) RemoveClient(client string) {
-	delete(c.clients, client)
+	for _, client := range clients {
+		c.clients[client] = struct{}{}
+	}
 }
 
 func (c *Server) Sync() error {
@@ -193,8 +201,12 @@ func (c *Server) writeExports() error {
 	return atomicfile.WriteFile(etcExports, []byte(s), 0664)
 }
 
-// bindMount performs a bind mount of src to dst.
-func bindMount(src, dst string) error {
+type bindMountF func(string, string) error
+
+var bindMount bindMountF = bindMountImp
+
+// bindMountImp performs a bind mount of src to dst.
+func bindMountImp(src, dst string) error {
 	cmd, args := mntArgs(src, dst, "", "bind")
 	mount := exec.Command(cmd, args...)
 	return mount.Run()

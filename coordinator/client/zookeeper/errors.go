@@ -8,6 +8,8 @@ import (
 func xlateError(err error) error {
 
 	switch err {
+	case zklib.ErrNodeExists:
+		return client.ErrNodeExists
 	case zklib.ErrConnectionClosed:
 		return client.ErrConnectionClosed
 	case zklib.ErrUnknown:

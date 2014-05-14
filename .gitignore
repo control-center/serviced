@@ -18,6 +18,7 @@ pkg/serviced*.rpm
 pkg/serviced*.deb
 isvcs/images/
 pkg/templates/
+coordinator/storage/zookeeper-3.3.3
 coordinator/client/zookeeper/zookeeper-3.3.3
 
 # emacs tags file

@@ -68,6 +68,11 @@ func TestNewServer(t *testing.T) {
 	etcExports = path.Join(tempDir, "etc/exports")
 	exportsDir = path.Join(tempDir, "exports")
 
+	// neuter bindmount during tests
+	bindMount = func(string, string) error {
+		return nil
+	}
+
 	// create our test server
 	s, err := NewServer(baseDir, "foo", "192.168.1.0/24")
 	if err != nil {
@@ -95,13 +100,13 @@ func TestNewServer(t *testing.T) {
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
 	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults))
 
-	s.SetClient("192.168.1.21")
+	s.SetClients("192.168.1.21")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
 	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21"))
 
-	s.SetClient("192.168.1.20")
+	s.SetClients("192.168.1.21", "192.168.1.20")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
