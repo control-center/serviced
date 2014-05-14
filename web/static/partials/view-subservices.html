@@ -144,7 +144,7 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in services.subservices">
-          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap">
+          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap; width:200px">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
           <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">
@@ -161,7 +161,7 @@
               </label>
             </div>
           </td>
-          <td style="text-align: center">
+          <td style="text-align: center; width:60px">
             <span data-toggle="tooltip" data-placement="top" title="" id="health-tooltip-{{app.Id}}">
               <img src="/static/img/greyball.png" id="health-{{app.Id}}">
             </span>
