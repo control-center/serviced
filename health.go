@@ -10,17 +10,21 @@ import (
 
 var healthStatus map[string]map[string]string = make(map[string]map[string]string)
 var healthTime map[string]map[string]time.Time = make(map[string]map[string]time.Time)
+var healthExitChannel = make(chan bool)
 
+// RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *ControlClient) {
 	w.WriteJson(&healthStatus)
 }
 
+// RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
 func RegisterHealthCheck(serviceId string, name string, passed string) {
 	ensureHealthCheck(serviceId, name)
 	healthStatus[serviceId][name] = passed
 	healthTime[serviceId][name] = time.Now()
 }
 
+// ensureHealthCheck makes sure that a health check field exists before it is edited.
 func ensureHealthCheck(serviceId string, name string) {
 	_, ok := healthStatus[serviceId]
 	if !ok {
@@ -34,6 +38,7 @@ func ensureHealthCheck(serviceId string, name string) {
 	}
 }
 
+// Updates the services list and checks for a lack of data from a service.
 func StartHealthMonitor() {
 	ctx := datastore.Get()
 	ds := service.NewStore()
@@ -54,7 +59,13 @@ func StartHealthMonitor() {
 					}
 				}
 			}
-		default:
+		case _ = <-healthExitChannel:
+			return
 		}
 	}
+}
+
+// Stops the StartHealthMonitor function.
+func StopHealthMonitor() {
+	healthExitChannel<-true;
 }
