@@ -3,6 +3,7 @@ package commons
 import (
 	"bufio"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -201,6 +202,9 @@ func ParseImageID(iid string) (*ImageID, error) {
 	case readingRepo, readingRepoName:
 		result.Repo = string(scanbuf)
 	case readingTag:
+		if len(scanned) == 1 {
+			result.Repo = scanned[0]
+		}
 		result.Tag = string(scanbuf)
 	}
 
@@ -213,10 +217,10 @@ func (iid ImageID) String() string {
 
 	if iid.Host != "" {
 		s = append(s, iid.Host)
-	}
-
-	if iid.Port != 0 {
-		s = append(s, ":", strconv.Itoa(iid.Port), "/")
+		if iid.Port != 0 {
+			s = append(s, ":", strconv.Itoa(iid.Port))
+		}
+		s = append(s, "/")
 	}
 
 	if iid.User != "" {
@@ -230,4 +234,14 @@ func (iid ImageID) String() string {
 	}
 
 	return strings.Join(s, "")
+}
+
+// Validate returns true if the ImageID structure is valid.
+func (iid *ImageID) Validate() bool {
+	piid, err := ParseImageID(iid.String())
+	if err != nil {
+		return false
+	}
+
+	return reflect.DeepEqual(piid, iid)
 }

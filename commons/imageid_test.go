@@ -166,6 +166,10 @@ func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tes
 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
 				name, tt.in, imgid, tt.out)
 		}
+		if tt.in != imgid.String() {
+			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
+				name, tt.in, imgid.String(), tt.in)
+		}
 	}
 }
 
@@ -188,5 +192,30 @@ func TestBogusTag(t *testing.T) {
 	_, err := ParseImageID("sierramadre:feature/classic")
 	if err == nil {
 		t.Fatal("expected failure, bad tag")
+	}
+}
+
+func TestValidateInvalid(t *testing.T) {
+	iid := &ImageID{
+		Host: "warner.bros",
+		Port: 1948,
+		User: "d0bbs",
+		Repo: "sierramadre",
+		Tag:  "feature",
+	}
+
+	if iid.Validate() {
+		t.Fatal("expecting failure, bad user")
+	}
+}
+
+func TestValidateValid(t *testing.T) {
+	iid := &ImageID{
+		Repo: "sierramadre",
+		Tag:  "feature",
+	}
+
+	if !iid.Validate() {
+		t.Fatal("expecting success: ", iid.String())
 	}
 }
