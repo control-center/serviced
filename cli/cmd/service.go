@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/cli"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/dao"
 )
 
 // Initializer for serviced service subcommands
@@ -124,7 +125,7 @@ func (c *ServicedCli) initService() {
 				Usage:        "Run a predefined action in a running service container",
 				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID } ACTION",
 				BashComplete: c.printServicesFirst,
-				Action:       c.cmdServiceAction,
+				Before:       c.cmdServiceAction,
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -588,13 +589,14 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 }
 
 func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningService, error) {
-	if rss, err := c.driver.GetRunningServices(); err != nil {
+	rss, err := c.driver.GetRunningServices()
+	if err != nil {
 		return nil, err
 	}
 
 	var states []*dao.RunningService
 	for _, rs := range rss {
-		if rs.ServiceID == keyword || rs.Name == keyword || rs.Id == keyword || rs.DockerId == keyword {
+		if rs.ServiceId == keyword || rs.Name == keyword || rs.Id == keyword || rs.DockerId == keyword {
 			states = append(states, rs)
 		}
 	}
@@ -627,7 +629,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 
 	rs, err := c.searchForRunningService(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 
@@ -654,7 +656,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 }
 
 // serviced service action { SERVICEID | SERVICENAME | DOCKERID } ACTION
-func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
+func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -665,7 +667,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 
 	rs, err := c.searchForRunningService(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 
@@ -685,9 +687,12 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 		Args:    argv,
 	}
 
-	if err := c.driver.Action(cfg); err != nil {
+	if data, err := c.driver.Action(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmt.Printf("%s\n", data)
 	}
+
 	return fmt.Errorf("serviced service attach")
 }
 

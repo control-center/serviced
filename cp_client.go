@@ -158,18 +158,6 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
 }
 
-func (s *ControlClient) StartShell(service service.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
-}
-
-func (s *ControlClient) ExecuteShell(service service.Service, command *string) error {
-	return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
-}
-
-func (s *ControlClient) ShowCommands(service service.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
-}
-
 // Commits a container to an image and updates the DFS
 func (s *ControlClient) Commit(containerId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
@@ -200,14 +188,6 @@ func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
 
 func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
-}
-
-func (s *ControlClient) Get(service service.Service, file *string) error {
-	return s.rpcClient.Call("ControlPlane.Get", service, file)
-}
-
-func (s *ControlClient) Send(service service.Service, files *[]string) error {
-	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
 
 func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error {

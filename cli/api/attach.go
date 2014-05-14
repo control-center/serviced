@@ -7,10 +7,9 @@ import (
 
 // AttachConfig is the deserialized object from the command-line
 type AttachConfig struct {
-	ServiceID      string
-	ServiceStateID string
-	Command        string
-	Args           []string
+	Running *dao.RunningService
+	Command string
+	Args    []string
 }
 
 func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
@@ -35,10 +34,9 @@ func (a *api) Attach(config AttachConfig) error {
 	}
 
 	req := dao.AttachRequest{
-		ServiceID:      config.ServiceID,
-		ServiceStateID: config.ServiceStateID,
-		Command:        config.Command,
-		Args:           config.Args,
+		Running: config.Running,
+		Command: config.Command,
+		Args:    config.Args,
 	}
 
 	var res zkdocker.Attach
@@ -56,10 +54,9 @@ func (a *api) Action(config AttachConfig) ([]byte, error) {
 	}
 
 	req := dao.AttachRequest{
-		ServiceID:      config.ServiceID,
-		ServiceStateID: config.ServiceStateID,
-		Command:        config.Command,
-		Args:           config.Args,
+		Running: config.Running,
+		Command: config.Command,
+		Args:    config.Args,
 	}
 
 	var res zkdocker.Attach

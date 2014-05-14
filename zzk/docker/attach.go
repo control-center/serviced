@@ -100,7 +100,7 @@ func RecvAttach(conn client.Connection, hostID string, id string) (*Attach, erro
 		if err != nil {
 			return nil, err
 		}
-		if cmd.done() {
+		if cmd.Started {
 			// Delete the request
 			if err := conn.Delete(node); err != nil {
 				glog.Warningf("Could not delete command request %s: %s", node, err)

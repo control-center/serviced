@@ -33,7 +33,7 @@ type HostServiceRequest struct {
 }
 
 type AttachRequest struct {
-	Running RunningService
+	Running *RunningService
 	Command string
 	Args    []string
 }
@@ -137,15 +137,6 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	// Start an interative shell in a service container
-	StartShell(service service.Service, unused *int) error
-
-	// Execute a service container shell command
-	ExecuteShell(service service.Service, command *string) error
-
-	// Show available commands
-	ShowCommands(service service.Service, unused *int) error
-
 	// Rollback DFS and service image
 	Rollback(snapshotId string, unused *int) error
 
@@ -166,12 +157,6 @@ type ControlPlane interface {
 
 	// Delete snapshots for a given service
 	DeleteSnapshots(serviceId string, unused *int) error
-
-	// Download a file from a container
-	Get(service service.Service, file *string) error
-
-	// Upload file(s) to a container
-	Send(service service.Service, files *[]string) error
 
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error

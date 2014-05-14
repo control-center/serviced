@@ -3,6 +3,7 @@ package api
 import (
 	"io"
 
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
@@ -42,7 +43,7 @@ type API interface {
 	AssignIP(IPConfig) (string, error)
 
 	// RunningServices (ServiceStates)
-	GetRunningServices(string) (*RunningService, error)
+	GetRunningServices() ([]*dao.RunningService, error)
 	Attach(AttachConfig) error
 	Action(AttachConfig) ([]byte, error)
 
