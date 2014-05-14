@@ -1,0 +1,32 @@
+package atomicfile
+
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+)
+
+func WriteFile(filename string, data []byte, perm os.FileMode) error {
+	// find the dirname of the filename
+
+	d := filepath.Dir(filename)
+	if err := os.MkdirAll(d, 0755); err != nil {
+		return err
+	}
+
+	tempfile, err := ioutil.TempFile(d, filepath.Base(filename))
+	if err != nil {
+		return err
+	}
+	name := tempfile.Name()
+	defer os.Remove(name)
+
+	if err := tempfile.Close(); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(name, data, perm); err != nil {
+		return err
+	}
+	return os.Rename(name, filename)
+}

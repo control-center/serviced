@@ -59,7 +59,7 @@ func NewUUID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
-// NewUUID62 createa a base-62 UUID.
+// NewUUID62 returns a base-36 UUID with no dashes.
 func NewUUID62() (string, error) {
 	b := make([]byte, 16)
 	_, err := randSource.Read(b)
@@ -70,7 +70,7 @@ func NewUUID62() (string, error) {
 	return ConvertUp(s, base62alphabet), nil
 }
 
-// NewUUID62 createa a base-36 UUID.
+// NewUUID36 returns a base-36 UUID with no dashes.
 func NewUUID36() (string, error) {
 	b := make([]byte, 16)
 	_, err := randSource.Read(b)

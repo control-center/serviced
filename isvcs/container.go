@@ -12,7 +12,7 @@ package isvcs
 import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/circular"
+	"github.com/zenoss/serviced/commons/circular"
 	"github.com/zenoss/serviced/utils"
 
 	"errors"
