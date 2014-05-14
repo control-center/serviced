@@ -6,7 +6,7 @@ package web
 
 import (
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/health"
 )
 
 //getRoutes returns all registered rest routes
@@ -44,7 +44,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Services (Apps)
 		rest.Route{"GET", "/services", sc.AuthorizedClient(RestGetAllServices)},
-		rest.Route{"GET", "/servicehealth", sc.AuthorizedClient(serviced.RestGetHealthStatus)},
+		rest.Route{"GET", "/servicehealth", sc.AuthorizedClient(health.RestGetHealthStatus)},
 		rest.Route{"GET", "/services/:serviceId", sc.AuthorizedClient(RestGetService)},
 		rest.Route{"GET", "/services/:serviceId/running", sc.AuthorizedClient(RestGetRunningForService)},
 		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.AuthorizedClient(RestGetRunningService)},

@@ -166,8 +166,6 @@ func (d *daemon) startMaster() error {
 
 	d.startScheduler()
 
-	go serviced.StartHealthMonitor()
-
 	return nil
 }
 

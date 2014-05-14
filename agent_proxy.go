@@ -112,9 +112,14 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 }
 
 // LogHealthCheck proxies RegisterHealthCheck.
-func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
-	RegisterHealthCheck(result.ServiceId, result.Name, result.Passed)
-	return nil
+func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return err
+	}
+	err = controlClient.LogHealthCheck(result, unused)
+	return err
 }
 
 // addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api

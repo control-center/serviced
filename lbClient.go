@@ -69,7 +69,7 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 }
 
 // LogHealthCheck stores a health check result.
-func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, _ *struct{}) error {
+func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	glog.V(4).Infof("ControlPlaneAgent.LogHealthCheck()")
 	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, nil)
 }
