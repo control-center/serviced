@@ -142,6 +142,18 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// Docker ParseRepositoryTag testcase
+	{
+		"localhost.localdomain:5000/samalba/hipache:latest",
+		&ImageID{
+			Host: "localhost.localdomain",
+			Port: 5000,
+			User: "samalba",
+			Repo: "hipache",
+			Tag:  "latest",
+		},
+		"",
+	},
 }
 
 func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
@@ -169,5 +181,12 @@ func TestString(t *testing.T) {
 
 	if iid.String() != "warner.bros:1948/dobbs/sierramadre:1925" {
 		t.Errorf("expecting: warner.bros:1948/dobbs/sierramadre:1925, got %s\n", iid.String())
+	}
+}
+
+func TestBogusTag(t *testing.T) {
+	_, err := ParseImageID("sierramadre:feature/classic")
+	if err == nil {
+		t.Fatal("expected failure, bad tag")
 	}
 }
