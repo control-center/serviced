@@ -77,7 +77,7 @@ test: build_binary docker_ok
 	cd cli/cmd && go test $(GOTEST_FLAGS)
 	cd scheduler && go test $(GOTEST_FLAGS)
 	cd container && go test $(GOTEST_FLAGS)
-	cd commons && got test $(GOTEST_FLAGS)
+	cd commons && go test $(GOTEST_FLAGS)
 
 docker_ok:
 	if docker ps >/dev/null; then \

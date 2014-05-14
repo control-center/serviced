@@ -12,12 +12,17 @@ import (
 
 // states that the parser can be in as it scans
 const (
-	reading = iota
-	readingPort
-	readingPortOrTag
-	readingRepo
-	readingRepoName
-	readingTag
+	scanning = iota
+	scanningHost
+	scanningHostOrName
+	scanningName
+	scanningPort
+	scanningPortOrTag
+	scanningRepo
+	scanningRepoName
+	scanningRepoNameOrName
+	scanningTag
+	scanningUUID
 )
 
 // runes that we have to check for as we scan
@@ -29,10 +34,12 @@ var (
 	underscore rune
 )
 
+// ImageID represents a Docker Image identifier.
 type ImageID struct {
 	Host string
 	Port int
 	User string
+	UUID string
 	Repo string
 	Tag  string
 }
@@ -48,12 +55,14 @@ func init() {
 
 // ParseImageID parses the string representation of a Docker image ID into an ImageID structure.
 // The grammar used by the parser is:
-// image id = [host]repo[tag]
-// host     = {alpha|digit|'.'|'-'}+[port]
-// port     = ':'{digit}+
-// repo     = [user]name
-// user     = {alpha}+'/'
-// name     = {alpha|digit|'-'|'_'}+
+// image id = [host(':'port|'/')]reponame[':'tag]
+// host     = {alpha|digit|'.'|'-'}+
+// port     = {digit}+
+// reponame = [user'/']name
+// user     = {alpha}+
+// name     = [uuid'_']repo
+// uuid     = {alpha|digit|'-'}+
+// repo     = {alpha|digit|'-'}+
 // tag      = {alpha|digit}+
 // The grammar is ambiguous so the parser is a little messy in places.
 func ParseImageID(iid string) (*ImageID, error) {
@@ -62,150 +71,194 @@ func ParseImageID(iid string) (*ImageID, error) {
 	result := &ImageID{}
 
 	scanned := []string{}
-	scanbuf := []byte{}
+	tokbuf := []byte{}
 
-	readingHost := false
-	state := reading
+	state := scanning
 
 	for scanner.Scan() {
 		rune, _ := utf8.DecodeRune([]byte(scanner.Text()))
 		switch state {
-		case reading:
+		case scanning:
 			switch {
 			case unicode.IsLetter(rune):
-				scanbuf = append(scanbuf, byte(rune))
-			case unicode.IsDigit(rune):
-				scanbuf = append(scanbuf, byte(rune))
+				tokbuf = append(tokbuf, byte(rune))
+			case unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningHostOrName
 			case rune == period:
-				scanbuf = append(scanbuf, byte(rune))
-				readingHost = true
-			case rune == dash:
-				scanbuf = append(scanbuf, byte(rune))
-				readingHost = true
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningHost
 			case rune == colon:
-				if readingHost {
-					result.Host = string(scanbuf)
-					state = readingPort
-				} else {
-					scanned = append(scanned, string(scanbuf))
-				}
-				scanbuf = []byte{}
-				state = readingPortOrTag
+				scanned = append(scanned, string(tokbuf))
+				tokbuf = []byte{}
+				state = scanningPortOrTag
 			case rune == slash:
-				if readingHost {
-					result.Host = string(scanbuf)
-					state = readingRepo
-				} else {
-					scanned = append(scanned, string(scanbuf))
-				}
-				scanbuf = []byte{}
+				scanned = append(scanned, string(tokbuf))
+				tokbuf = []byte{}
+				state = scanningRepoNameOrName
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad hostname", iid)
+				return nil, fmt.Errorf("invalid ImageID %s", iid)
 			}
-		case readingPort:
+		case scanningHost:
+			switch {
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == period, rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+			case rune == colon:
+				result.Host = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningPort
+			case rune == slash:
+				result.Host = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningRepoName
+			default:
+				return nil, fmt.Errorf("invalid ImageID %s: bad hostname", iid)
+			}
+		case scanningHostOrName:
+			switch {
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+			case rune == period:
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningHost
+			case rune == underscore:
+				result.UUID = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningName
+			default:
+				return nil, fmt.Errorf("invalid ImageID %s: bad host or name", iid)
+			}
+		case scanningRepoNameOrName:
+			switch {
+			case unicode.IsLetter(rune):
+				tokbuf = append(tokbuf, byte(rune))
+			case unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningName
+			case rune == colon:
+				result.User = scanned[0]
+				scanned = []string{}
+				result.Repo = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningTag
+			case rune == slash:
+				result.Host = scanned[0]
+				scanned = []string{}
+				result.User = string(tokbuf)
+				state = scanningName
+			default:
+				return nil, fmt.Errorf("invalid ImageID %s: bad host or repo name", iid)
+			}
+		case scanningPort:
 			switch {
 			case unicode.IsDigit(rune):
-				scanbuf = append(scanbuf, byte(rune))
+				tokbuf = append(tokbuf, byte(rune))
 			case rune == slash:
-				portno, err := strconv.Atoi(string(scanbuf))
+				portno, err := strconv.Atoi(string(tokbuf))
 				if err != nil {
-					return nil, fmt.Errorf("Invalid ImageID %s: %v", iid, err)
+					return nil, fmt.Errorf("invalid ImageID %s: %v", iid, err)
 				}
 				result.Port = portno
-				scanbuf = []byte{}
-				state = readingRepo
+				tokbuf = []byte{}
+				state = scanningRepoName
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad port number", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad port number", iid)
 			}
-		case readingRepo:
+		case scanningRepoName:
 			switch {
 			case unicode.IsLetter(rune):
-				scanbuf = append(scanbuf, byte(rune))
-			case unicode.IsDigit(rune), rune == dash, rune == underscore:
-				scanbuf = append(scanbuf, byte(rune))
-				state = readingRepoName
+				tokbuf = append(tokbuf, byte(rune))
+			case unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningName
 			case rune == slash:
-				result.User = string(scanbuf)
-				scanbuf = []byte{}
-				state = readingRepoName
+				result.User = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningName
 			case rune == colon:
-				result.Repo = string(scanbuf)
-				scanbuf = []byte{}
-				state = readingTag
+				result.Repo = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningTag
+			case rune == underscore:
+				result.UUID = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningRepo
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad repo", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad repo name", iid)
 			}
-		case readingRepoName:
+		case scanningName:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
-				scanbuf = append(scanbuf, byte(rune))
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
 			case rune == colon:
-				result.Repo = string(scanbuf)
-				scanbuf = []byte{}
-				state = readingTag
+				result.Repo = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningTag
+			case rune == underscore:
+				result.UUID = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningRepo
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad reponame", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad name", iid)
 			}
-		case readingTag:
+		case scanningRepo:
+			switch {
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+				tokbuf = append(tokbuf, byte(rune))
+			case rune == colon:
+				result.Repo = string(tokbuf)
+				tokbuf = []byte{}
+				state = scanningTag
+			default:
+				return nil, fmt.Errorf("invalid ImageID %s: bad repo", iid)
+			}
+		case scanningTag:
 			switch {
 			case unicode.IsLetter(rune), unicode.IsDigit(rune):
-				scanbuf = append(scanbuf, byte(rune))
+				tokbuf = append(tokbuf, byte(rune))
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad tag", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad tag", iid)
 			}
-		case readingPortOrTag:
+		case scanningPortOrTag:
 			switch {
 			case unicode.IsDigit(rune):
-				scanbuf = append(scanbuf, byte(rune))
+				tokbuf = append(tokbuf, byte(rune))
 			case unicode.IsLetter(rune):
-				scanbuf = append(scanbuf, byte(rune))
-				state = readingTag
+				tokbuf = append(tokbuf, byte(rune))
+				result.Repo = scanned[0]
+				scanned = []string{}
+				state = scanningTag
 			case rune == slash:
-				portno, err := strconv.Atoi(string(scanbuf))
+				result.Host = scanned[0]
+				scanned = []string{}
+
+				portno, err := strconv.Atoi(string(tokbuf))
 				if err != nil {
-					return nil, fmt.Errorf("Invalid ImageID %s: %v", iid, err)
+					return nil, fmt.Errorf("invalid ImageID %s: %v", iid, err)
 				}
 				result.Port = portno
 
-				if len(scanned) > 0 {
-					result.Host = scanned[0]
-					scanned = []string{}
-				}
-
-				scanbuf = []byte{}
-				state = readingRepo
+				tokbuf = []byte{}
+				state = scanningRepoName
 			default:
-				return nil, fmt.Errorf("Invalid ImageID %s: bad port or tag", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad port or tag", iid)
 			}
 		}
 	}
 
 	switch state {
-	case reading:
-		if len(scanned) == 1 {
-			result.User = scanned[0]
-			result.Repo = string(scanbuf)
-		}
-		result.Repo = string(scanbuf)
-	case readingPort:
-		return nil, fmt.Errorf("Incomplete ImageID %s", iid)
-	case readingPortOrTag:
-		switch len(scanned) {
-		case 1:
-			result.Repo = scanned[0]
-			result.Tag = string(scanbuf)
-		case 2:
-			result.User = scanned[0]
-			result.Repo = scanned[1]
-			result.Tag = string(scanbuf)
-		}
-	case readingRepo, readingRepoName:
-		result.Repo = string(scanbuf)
-	case readingTag:
-		if len(scanned) == 1 {
-			result.Repo = scanned[0]
-		}
-		result.Tag = string(scanbuf)
+	case scanning, scanningRepoName, scanningName, scanningRepo:
+		result.Repo = string(tokbuf)
+	case scanningRepoNameOrName:
+		result.User = scanned[0]
+		result.Repo = string(tokbuf)
+	case scanningPort, scanningHost:
+		return nil, fmt.Errorf("incomplete ImageID %s", iid)
+	case scanningPortOrTag:
+		result.Repo = scanned[0]
+		result.Tag = string(tokbuf)
+	case scanningTag:
+		result.Tag = string(tokbuf)
 	}
 
 	return result, nil
@@ -225,6 +278,10 @@ func (iid ImageID) String() string {
 
 	if iid.User != "" {
 		s = append(s, iid.User, "/")
+	}
+
+	if iid.UUID != "" {
+		s = append(s, iid.UUID, "_")
 	}
 
 	s = append(s, iid.Repo)

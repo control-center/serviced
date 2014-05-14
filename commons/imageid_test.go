@@ -138,7 +138,8 @@ var imgidtests = []ImageIDTest{
 		&ImageID{
 			Host: "warner",
 			Port: 1948,
-			Repo: "543c56d1-2510-cd37-c0f4-cab544df985d_sierramadre",
+			UUID: "543c56d1-2510-cd37-c0f4-cab544df985d",
+			Repo: "sierramadre",
 		},
 		"",
 	},
