@@ -13,11 +13,11 @@ import (
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/proxy"
@@ -33,6 +33,7 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"errors"
 	"fmt"
@@ -191,6 +192,8 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 
+	d.startAgentListeners()
+
 	go func() {
 		signalChan := make(chan os.Signal, 10)
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -212,7 +215,25 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
+
 	return hostAgent, nil
+}
+
+func (d *daemon) startAgentListeners() {
+	// start agent listeners
+	var err error
+	if d.zclient == nil {
+		d.zclient, err = d.initZK()
+		if err != nil {
+			glog.Fatal("could not initialize zk client: ", err)
+		}
+	}
+	zconn, err := d.zclient.GetConnection()
+	if err != nil {
+		glog.Fatalf("could not connect to zk: ", err)
+	}
+
+	go zkdocker.ListenAttach(zconn, d.hostID)
 }
 
 func (d *daemon) registerMasterRPC() error {

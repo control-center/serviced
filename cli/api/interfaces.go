@@ -42,9 +42,7 @@ type API interface {
 	AssignIP(IPConfig) (string, error)
 
 	// RunningServices (ServiceStates)
-	FindRunningServices(string) ([]*RunningService, error)
-	GetRunningService(string) (*RunningService, error)
-	GetRunningServiceActionCommand(string, string) (string, error)
+	GetRunningServices(string) (*RunningService, error)
 	Attach(AttachConfig) error
 	Action(AttachConfig) ([]byte, error)
 

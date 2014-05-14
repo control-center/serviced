@@ -1,11 +1,12 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/domain/addressassignment"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 // A generic ControlPlane error
@@ -29,6 +30,12 @@ type ServiceStateRequest struct {
 type HostServiceRequest struct {
 	HostId         string
 	ServiceStateId string
+}
+
+type AttachRequest struct {
+	Running RunningService
+	Command string
+	Args    []string
 }
 
 // The ControlPlane interface is the API for a serviced master.
@@ -102,6 +109,12 @@ type ControlPlane interface {
 
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
+
+	// Attach to a running container
+	Attach(request AttachRequest, response *zkdocker.Attach) error
+
+	// Attach to a running container with a predefined action
+	Action(request AttachRequest, response *zkdocker.Attach) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

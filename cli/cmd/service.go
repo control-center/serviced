@@ -174,6 +174,23 @@ func (c *ServicedCli) serviceRuns(id string) (data []string) {
 	return
 }
 
+// Returns a list of actionable commands for a particular service
+func (c *ServicedCli) serviceActions(id string) (data []string) {
+	svc, err := c.driver.GetService(id)
+	if err != nil || svc == nil {
+		return
+	}
+
+	data = make([]string, len(svc.Actions))
+	i := 0
+	for a := range svc.Actions {
+		data[i] = a
+		i++
+	}
+
+	return
+}
+
 // Bash-completion command that prints a list of available services as the
 // first argument
 func (c *ServicedCli) printServicesFirst(ctx *cli.Context) {
@@ -570,45 +587,32 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
-// findServiceStateID finds the ServiceStateID from either DockerId, ServiceName, or ServiceId
-func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error) {
-	if serviceSpecifier == "" {
-		return "", fmt.Errorf("required serviceSpecifier is empty")
+func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningService, error) {
+	if rss, err := c.driver.GetRunningServices(); err != nil {
+		return nil, err
 	}
 
-	runningServices, err := c.driver.FindRunningServices(serviceSpecifier)
-	if err != nil {
-		return "", err
-	}
-
-	// validate results
-	if len(runningServices) < 1 {
-		return "", fmt.Errorf("did not find any running services matching specifier:'%s'", serviceSpecifier)
-	}
-	if len(runningServices) > 1 {
-		msg := fmt.Sprintf("only one running service is allowed to match specifier:'%s'  found:%d\n", serviceSpecifier, len(runningServices))
-		fmt.Fprintln(os.Stderr, msg)
-
-		tableMatched := newTable(0, 8, 2)
-		tableMatched.PrintRow("NAME", "SERVICEID", "DOCKERID")
-
-		var printTable func(string)
-		printTable = func(root string) {
-			for _, running := range runningServices {
-				tableMatched.PrintRow(
-					running.Service.Name,
-					running.State.ServiceId,
-					running.State.DockerId,
-				)
-			}
+	var states []*dao.RunningService
+	for _, rs := range rss {
+		if rs.ServiceID == keyword || rs.Name == keyword || rs.Id == keyword || rs.DockerId == keyword {
+			states = append(states, rs)
 		}
-		printTable("")
-		tableMatched.Flush()
-		return "", fmt.Errorf("%s", msg)
 	}
 
-	// return the service state id
-	return runningServices[0].State.Id, nil
+	switch len(states) {
+	case 0:
+		return nil, fmt.Errorf("no matches found")
+	case 1:
+		return states[0], nil
+	}
+
+	matches := newTable(0, 8, 2)
+	matches.PrintRow("NAME", "SERVICEID", "DOCKERID")
+	for _, row := range states {
+		matches.PrintRow(row.Name, row.ServiceId, row.DockerId)
+	}
+	matches.Flush()
+	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 
 // serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND ...]
@@ -616,35 +620,36 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.  attach needs at least 1 arg\n\n")
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "attach")
 		return nil
 	}
 
-	// retrieve serviceStateID from serviceSpecifier
-	serviceSpecifier := ctx.Args().First()
-	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
+	rs, err := c.searchForRunningService(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error looking for DOCKER_ID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		fmt.Fprintf(os.Stderr, err)
 		return err
 	}
 
-	// perform the attach
-	cfg := api.AttachConfig{
-		ServiceStateID: serviceStateID,
-		Command:        ctx.Args().Tail(),
+	var command string
+	if len(args) > 1 {
+		command = args[1]
 	}
 
-	if strings.TrimSpace(strings.Join(cfg.Command, "")) == "" {
-		cfg.Command = []string{"bash"}
+	var argv []string
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+
+	cfg := api.AttachConfig{
+		Running: rs,
+		Command: command,
+		Args:    argv,
 	}
 
 	if err := c.driver.Attach(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if err == nil {
-		return nil
 	}
-
 	return fmt.Errorf("serviced service attach")
 }
 
@@ -652,42 +657,38 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 	// verify args
 	args := ctx.Args()
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.  action needs at least 2 args\n\n")
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "action")
-		return
+		return nil
 	}
 
-	// retrieve serviceStateID from serviceSpecifier
-	serviceSpecifier := args[0]
-	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
+	rs, err := c.searchForRunningService(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not find ServiceStateId with specifier:'%v'  error:%v\n", serviceSpecifier, err)
-		return
+		fmt.Fprintf(os.Stderr, err)
+		return err
 	}
 
-	// retrieve action command from serviceStateID
-	actionSpecifier := args[1]
-	command, err := c.driver.GetRunningServiceActionCommand(serviceStateID, actionSpecifier)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not find action command with serviceStateID:'%v'  error:%v\n", serviceStateID, err)
-		return
+	var command string
+	if len(args) > 1 {
+		command = args[1]
 	}
 
-	// perform the action
+	var argv []string
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+
 	cfg := api.AttachConfig{
-		ServiceStateID: serviceStateID,
-		Command:        []string{command},
+		Running: rs,
+		Command: command,
+		Args:    argv,
 	}
 
-	if output, err := c.driver.Action(cfg); err != nil {
+	if err := c.driver.Action(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if err == nil {
-		fmt.Fprintf(os.Stdout, "%s", output)
-		return
 	}
-
-	return
+	return fmt.Errorf("serviced service attach")
 }
 
 // serviced service list-snapshot SERVICEID

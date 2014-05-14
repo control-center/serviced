@@ -18,8 +18,10 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	"github.com/zenoss/serviced/zzk/snapshot"
 
 	"errors"
@@ -30,7 +32,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 const (
@@ -51,6 +52,60 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
+}
+
+func (this *ControlPlaneDao) Attach(request dao.AttachRequest, response *zkdocker.Attach) error {
+	// Set up the request
+	var command []string
+	if request.Command != "" {
+		command = append([]string{request.Command}, request.Args...)
+	}
+
+	req := zkdocker.Attach{
+		HostID:   request.Running.HostId,
+		DockerID: request.Running.DockerId,
+		Command:  command,
+	}
+
+	// Determine if we can attach locally
+	if hostID, err := utils.HostID(); err != nil {
+		return err
+	} else if hostID == req.HostID {
+		return zkdocker.LocalAttach(&req)
+	} else if request.Command == "" {
+		return fmt.Errorf("cannot start remote shell")
+	}
+
+	// Open the zookeeper connection
+	conn, err := this.zclient.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Do a remote attach
+	id, err := zkdocker.SendAttach(conn, &req)
+	if err != nil {
+		return err
+	}
+
+	// Get the response
+	response, err = zkdocker.RecvAttach(conn, req.HostID, id)
+	return err
+}
+
+func (this *ControlPlaneDao) Action(request dao.AttachRequest, response *zkdocker.Attach) error {
+	// Get the service and update the request
+	var svc service.Service
+	if err := this.GetService(request.Running.ServiceId, &svc); err != nil {
+		return err
+	}
+	command, ok := svc.Actions[request.Command]
+	if !ok {
+		return fmt.Errorf("action not found for service %s: %s", svc.Id, request.Command)
+	}
+	request.Command = command
+	return this.Attach(request, response)
 }
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, services *[]*dao.RunningService) error {

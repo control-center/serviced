@@ -7,10 +7,10 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 const ()
@@ -84,7 +84,7 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 
 	var services []*service.Service
 	for i, s := range allServices {
-		if s.Name == name {
+		if s.Name == name || s.Id == name {
 			services = append(services, allServices[i])
 		}
 	}

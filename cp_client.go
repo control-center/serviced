@@ -14,11 +14,12 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/domain/addressassignment"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 // A serviced client.
@@ -233,4 +234,12 @@ func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) e
 
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
+
+func (s *ControlClient) Attach(req dao.AttachRequest, res *zkdocker.Attach) error {
+	return s.rpcClient.Call("ControlPlane.Attach", req, res)
+}
+
+func (s *ControlClient) Action(req dao.AttachRequest, res *zkdocker.Attach) error {
+	return s.rpcClient.Call("ControlPlane.Action", req, res)
 }
