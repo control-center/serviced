@@ -165,6 +165,9 @@ func (d *daemon) startMaster() error {
 	d.initWeb()
 
 	d.startScheduler()
+
+	go serviced.StartHealthMonitor()
+
 	return nil
 }
 
@@ -212,8 +215,6 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
-
-	go serviced.StartHealthMonitor()
 
 	return hostAgent, nil
 }
