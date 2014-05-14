@@ -38,6 +38,9 @@ func (c *Client) loop() {
 		version: nil,
 	}
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
+
+	leadNode := &Node{}
+	storageLead := c.conn.NewLeader("/storage/leader", leadNode)
 	for {
 		// keep from churning if we get errors
 		if err != nil {
@@ -54,21 +57,27 @@ func (c *Client) loop() {
 			continue
 		}
 		if err == client.ErrNodeExists {
-			node2 := Node{}
-			err = c.conn.Get(nodePath, &node2)
+			err = c.conn.Get(nodePath, node)
 			if err != nil {
 				continue
 			}
-			node.SetVersion(node2.Version())
+			node.Host = *c.host
 			err = c.conn.Set(nodePath, node)
 			if err != nil {
 				continue
 			}
 		}
+		err := storageLead.Current(leadNode)
+		if err != nil {
+			continue
+		}
 		e, err = c.conn.GetW(nodePath, node)
 		if err != nil {
 			continue
 		}
+
+		// setup the Client
+		glog.Infof("here we setup client to talk to %s", leadNode.Host.IPAddr)
 		select {
 		case <-c.closing:
 			return

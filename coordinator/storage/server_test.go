@@ -55,6 +55,10 @@ func TestServer(t *testing.T) {
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
 
+	hc1 := host.New()
+	hc1.ID = "nodeID_client1"
+	hc1.IPAddr = "192.168.1.10"
+
 	mockNfsServer := &mockNfsServerT{}
 
 	s, err := NewServer(mockNfsServer, h, conn)
@@ -73,7 +77,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("there should be no clients yet")
 	}
 	mockNfsServer.syncCalled = false
-	c1 := NewClient(h, conn)
+	c1 := NewClient(hc1, conn)
 	// give it some time
 	time.Sleep(time.Second * 2)
 	if !mockNfsServer.syncCalled {
@@ -83,7 +87,7 @@ func TestServer(t *testing.T) {
 	if len(mockNfsServer.clients) != 1 {
 		t.Fatalf("expecting 1 client, got %d", len(mockNfsServer.clients))
 	}
-	if mockNfsServer.clients[0] != h.IPAddr {
+	if mockNfsServer.clients[0] != hc1.IPAddr {
 		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsServer.clients[0])
 	}
 
