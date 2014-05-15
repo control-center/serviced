@@ -2,19 +2,14 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
 package container
 
 import (
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 const (
@@ -22,9 +17,10 @@ const (
 )
 
 //createFields makes the map of tags for the logstash config including the type
-func createFields(logConfig *servicedefinition.LogConfig) map[string]string {
+func createFields(service *service.Service, logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
+	fields["service"] = service.Id
 	for _, tag := range logConfig.LogTags {
 		fields[tag.Name] = tag.Value
 	}
@@ -55,14 +51,14 @@ func writeLogstashAgentConfig(confPath string, service *service.Service, resourc
 			"paths": [ "%s" ],
 			"fields": %s
 		}`
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(&service.LogConfigs[0])))
+	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(service, &service.LogConfigs[0])))
 	for _, logConfig := range service.LogConfigs[1:] {
 		logstashForwarderLogConf = logstashForwarderLogConf + `,
 				{
 					"paths": [ "%s" ],
 					"fields": %s
 				}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(&logConfig)))
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(service, &logConfig)))
 	}
 
 	logstashForwarderShipperConf := `
