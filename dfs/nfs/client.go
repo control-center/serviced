@@ -1,5 +1,6 @@
 package nfs
 
+// Client manages mounting an NFS mount
 type Client struct {
 	serverIP  string
 	nfsPath   string

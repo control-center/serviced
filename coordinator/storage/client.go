@@ -6,6 +6,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/dfs/nfs"
 	"github.com/zenoss/serviced/domain/host"
 )
 
@@ -37,6 +38,11 @@ func (c *Client) loop() {
 		Host:    *c.host,
 		version: nil,
 	}
+	leaderNode := &Node{
+		Host:    host.Host{},
+		version: nil,
+	}
+	leader := c.conn.NewLeader("/storage/leader", leaderNode)
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
 	for {
 		// keep from churning if we get errors
@@ -54,12 +60,11 @@ func (c *Client) loop() {
 			continue
 		}
 		if err == client.ErrNodeExists {
-			node2 := Node{}
-			err = c.conn.Get(nodePath, &node2)
+			err = c.conn.Get(nodePath, node)
 			if err != nil {
 				continue
 			}
-			node.SetVersion(node2.Version())
+			node.Host = *c.host
 			err = c.conn.Set(nodePath, node)
 			if err != nil {
 				continue
@@ -69,6 +74,12 @@ func (c *Client) loop() {
 		if err != nil {
 			continue
 		}
+		if err = leader.Current(leaderNode); err != nil {
+			continue
+		}
+
+		//err := nfs.Mount(fmt.Sprintf("%s:/serviced", "/opt/serviced/var"))
+		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
 		case <-c.closing:
 			return
