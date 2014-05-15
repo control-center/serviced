@@ -24,10 +24,26 @@ func (c *ServicedCli) initLog() {
 				// TODO: BashComplete: c.printLogExportCompletion,
 				Action: c.cmdExportLogs,
 				Flags: []cli.Flag{
-					cli.StringFlag{"from", "", "yyyy.mm.dd"},
-					cli.StringFlag{"to", "", "yyyy.mm.dd"},
-					cli.StringSliceFlag{"service", &cli.StringSlice{}, "service ID (includes all sub-services)"},
-					cli.StringFlag{"out", "", "path to output file"},
+					cli.StringFlag{
+						Name:  "from",
+						Value: "",
+						Usage: "yyyy.mm.dd",
+					},
+					cli.StringFlag{
+						Name:  "to",
+						Value: "",
+						Usage: "yyyy.mm.dd",
+					},
+					cli.StringSliceFlag{
+						Name:  "service",
+						Value: &cli.StringSlice{},
+						Usage: "service ID (includes all sub-services)",
+					},
+					cli.StringFlag{
+						Name:  "out",
+						Value: "",
+						Usage: "path to output file",
+					},
 				},
 			},
 		},

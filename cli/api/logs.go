@@ -39,16 +39,16 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		}
 		outfile = filepath.Join(pwd, "serviced-log-export.tgz")
 	}
-	if fp, e := filepath.Abs(outfile); e != nil {
+	fp, e := filepath.Abs(outfile)
+	if e != nil {
 		return fmt.Errorf("could not convert '%s' to an absolute path: %v", outfile, e)
-	} else {
-		outfile = filepath.Clean(fp)
 	}
-	if tgzfile, e := os.Create(outfile); e != nil {
+	outfile = filepath.Clean(fp)
+	tgzfile, e := os.Create(outfile)
+	if e != nil {
 		return fmt.Errorf("could not create %s: %s", outfile, e)
-	} else {
-		tgzfile.Close()
 	}
+	tgzfile.Close()
 	if e = os.Remove(outfile); e != nil {
 		return fmt.Errorf("could not remove %s: %s", outfile, e)
 	}
@@ -79,17 +79,17 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		for _, service := range services {
 			serviceMap[service.Id] = service
 		}
-		serviceIdMap := make(map[string]bool) //includes serviceIds, and their children as well
-		for _, serviceId := range serviceIds {
-			serviceIdMap[serviceId] = true
+		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
+		for _, serviceID := range serviceIds {
+			serviceIDMap[serviceID] = true
 		}
 		for _, service := range services {
 			srvc := service
 			for {
 				found := false
-				for _, serviceId := range serviceIds {
-					if srvc.Id == serviceId {
-						serviceIdMap[service.Id] = true
+				for _, serviceID := range serviceIds {
+					if srvc.Id == serviceID {
+						serviceIDMap[service.Id] = true
 						found = true
 						break
 					}
@@ -102,11 +102,11 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		}
 		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes
 		queryParts := []string{}
-		for serviceId := range serviceIdMap {
-			if re.FindStringIndex(serviceId) == nil {
-				return fmt.Errorf("invalid service ID format: %s", serviceId)
+		for serviceID := range serviceIDMap {
+			if re.FindStringIndex(serviceID) == nil {
+				return fmt.Errorf("invalid service ID format: %s", serviceID)
 			}
-			queryParts = append(queryParts, fmt.Sprintf("\"%s\"", strings.Replace(serviceId, "-", "\\-", -1)))
+			queryParts = append(queryParts, fmt.Sprintf("\"%s\"", strings.Replace(serviceID, "-", "\\-", -1)))
 		}
 		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
 	}
