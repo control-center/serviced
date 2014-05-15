@@ -407,27 +407,28 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		return
 	}
 	defer client.Close()
+	script_file, err := ioutil.TempFile("", name)
+	if err != nil {
+		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
+		return
+	}
+	defer os.Remove(script_file.Name())
+	err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
+	if err != nil {
+		glog.Errorf("Error writing script for health check %s: %s", name, err)
+		script_file.Close()
+		return
+	}
+	script_file.Close()
+	err = os.Chmod(script_file.Name(), os.FileMode(0777))
+	if err != nil {
+		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
+		script_file.Close()
+		return
+	}
 	for {
 		select {
 		case <-time.After(interval):
-			script_file, err := ioutil.TempFile("", name)
-			if err != nil {
-				glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
-				continue
-			}
-			err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
-			if err != nil {
-				glog.Errorf("Error writing script for health check %s: %s", name, err)
-				script_file.Close()
-				continue
-			}
-			script_file.Close()
-			err = os.Chmod(script_file.Name(), os.FileMode(0777))
-			if err != nil {
-				glog.Errorf("Error setting script executable for health check %s: %s", name, err)
-				script_file.Close()
-				continue
-			}
 			cmd := exec.Command("sh", "-c", script_file.Name())
 			err = cmd.Run()
 			if err == nil {
