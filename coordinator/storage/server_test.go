@@ -18,11 +18,11 @@ import (
 type mockNfsDriverT struct {
 	clients    []string
 	syncCalled bool
-	exportPath string
+	exportName string
 }
 
-func (m *mockNfsDriverT) ExportPath() string {
-	return m.exportPath
+func (m *mockNfsDriverT) ExportName() string {
+	return m.exportName
 }
 
 func (m *mockNfsDriverT) SetClients(client ...string) {
@@ -78,7 +78,7 @@ func TestServer(t *testing.T) {
 	hc1.IPAddr = "192.168.1.10"
 
 	mockNfsDriver := &mockNfsDriverT{
-		exportPath: fmt.Sprintf("%s:/serviced_var", h.IPAddr),
+		exportName: "serviced_var",
 	}
 
 	s, err := NewServer(mockNfsDriver, h, zclient)
@@ -111,8 +111,9 @@ func TestServer(t *testing.T) {
 		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsDriver.clients[0])
 	}
 
-	if remote != mockNfsDriver.exportPath {
-		t.Fatalf("remote should be %s", remote)
+	shareName := fmt.Sprintf("%s:/%s", h.IPAddr, mockNfsDriver.exportName)
+	if remote != shareName {
+		t.Fatalf("remote should be %s, not %s", remote, shareName)
 	}
 
 	glog.Info("about to call c1.Close()")

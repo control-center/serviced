@@ -19,14 +19,14 @@ type Server struct {
 }
 
 type StorageDriver interface {
-	ExportPath() string
+	ExportName() string
 	SetClients(clients ...string)
 	Sync() error
 }
 
 func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*Server, error) {
 
-	if len(driver.ExportPath()) < 9 {
+	if len(driver.ExportName()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
@@ -56,7 +56,7 @@ func (s *Server) loop() {
 	children := make([]string, 0)
 	node := &Node{
 		Host:       *s.host,
-		ExportPath: s.driver.ExportPath(),
+		ExportPath: fmt.Sprintf("%s:/%s", s.host.IPAddr, s.driver.ExportName()),
 		version:    nil,
 	}
 

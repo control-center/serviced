@@ -94,6 +94,10 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	}, nil
 }
 
+func (c *Server) ExportPath() string {
+	return fmt.Sprintf("%s:/%s", "127.0.0.1", c.exportedName)
+}
+
 func (c *Server) Clients() []string {
 	clients := make([]string, len(c.clients))
 	i := 0
