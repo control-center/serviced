@@ -15,7 +15,9 @@ import (
 
 	"errors"
 	"fmt"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"math/rand"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -32,14 +34,14 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	}
 	svc.Id = id
 
-	found := service.Service{}
-	if err := store.Get(datastore.Get(), service.Key(svc.Id), &found); err != nil && !datastore.IsErrNoSuchEntity(err) {
+	_, err := store.Get(datastore.Get(), svc.Id)
+	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		return err
 	} else if err == nil {
 		return fmt.Errorf("error adding service; %v already exists", id)
 	}
 
-	err := store.Put(datastore.Get(), service.Key(svc.Id), &svc)
+	err = store.Put(datastore.Get(), &svc)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.AddService: %+v", err)
 		return err
@@ -73,9 +75,60 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 		}
 	}
 
-	store := service.NewStore()
+	svcStore := service.NewStore()
 	ctx := datastore.Get()
-	if err := store.Put(ctx, service.Key(id), svc); err != nil {
+
+	//Deal with Service Config Files
+	oldSvc, err := svcStore.Get(ctx, svc.Id)
+	if err != nil {
+		return err
+	}
+	//For now always make sure originalConfigs stay the same, essentially they are immutable
+	svc.OriginalConfigs = oldSvc.OriginalConfigs
+
+	//check if config files haven't changed
+	if !reflect.DeepEqual(oldSvc.OriginalConfigs, svc.ConfigFiles) {
+		//lets validate Service before doing more work....
+		if err := svc.ValidEntity(); err != nil {
+			return err
+		}
+
+		tenantID, servicePath := "BLAM", "BLAM" //TODO: calculate service name path
+
+		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+		//config files are different, for each one that is different validate and add to newConfs
+		for key, oldConf := range oldSvc.OriginalConfigs {
+			if conf, found := svc.ConfigFiles[key]; found {
+				if !reflect.DeepEqual(oldConf, conf) {
+					newConf, err := serviceconfigfile.New(tenantID, servicePath, conf)
+					if err != nil {
+						return err
+					}
+					newConfs[key] = newConf
+				}
+			}
+		}
+
+		//Get current stored conf files and replace as needed
+		configStore := serviceconfigfile.NewStore()
+		existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+		if err != nil {
+			return err
+		}
+		foundConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+		for _, svcConfig := range existingConfs {
+			foundConfs[svcConfig.ConfFile.Filename] = svcConfig
+		}
+		//add or replace stored service config
+		for _, newConf := range newConfs {
+			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
+				newConf.ID = existing.ID
+			}
+			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
+		}
+	}
+
+	if err := svcStore.Put(ctx, svc); err != nil {
 		return err
 	}
 	return this.zkDao.UpdateService(svc)
@@ -112,7 +165,7 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	ctx := datastore.Get()
 
 	err = this.walkServices(id, func(svc *service.Service) error {
-		err := store.Delete(ctx, service.Key(svc.Id))
+		err := store.Delete(ctx, svc.Id)
 		if err != nil {
 			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
 		}
@@ -129,10 +182,9 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 func (this *ControlPlaneDao) GetService(id string, myService *service.Service) error {
 	glog.V(3).Infof("ControlPlaneDao.GetService: id=%s", id)
 	store := service.NewStore()
-	request := service.Service{}
-	err := store.Get(datastore.Get(), service.Key(id), &request)
+	request, err := store.Get(datastore.Get(), id)
 	glog.V(3).Infof("ControlPlaneDao.GetService: id=%s, service=%+v, err=%s", id, request, err)
-	*myService = request
+	*myService = *request
 	return err
 }
 
@@ -449,9 +501,8 @@ func (this *ControlPlaneDao) walkServices(serviceID string, visitFn service.Visi
 		return store.GetChildServices(ctx, parentID)
 	}
 	getService := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := store.Get(ctx, service.Key(svcID), &svc)
-		return svc, err
+		svc, err := store.Get(ctx, svcID)
+		return *svc, err
 	}
 
 	return service.Walk(serviceID, visitFn, getService, getChildren)

@@ -131,8 +131,7 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string) error {
 	store := service.NewStore()
 
-	svc := service.Service{}
-	err := store.Get(datastore.Get(), service.Key(serviceId), &svc)
+	svc, err := store.Get(datastore.Get(), serviceId)
 	if err != nil {
 		return err
 	}
