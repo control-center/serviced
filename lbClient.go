@@ -68,6 +68,12 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
 }
 
+// LogHealthCheck stores a health check result.
+func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	glog.V(4).Infof("ControlPlaneAgent.LogHealthCheck()")
+	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, nil)
+}
+
 // GetHealthCheck returns the health check configuration for a service, if it exists
 func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")

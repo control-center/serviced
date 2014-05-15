@@ -70,4 +70,7 @@ type API interface {
 	// Backup & Restore
 	Backup(string) (string, error)
 	Restore(string) error
+
+	// Logs
+	ExportLogs(serviceIds []string, to, from, outfile string) error
 }

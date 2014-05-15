@@ -166,6 +166,7 @@ func (d *daemon) startMaster() error {
 	d.initWeb()
 
 	d.startScheduler()
+
 	return nil
 }
 

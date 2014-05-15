@@ -1333,38 +1333,34 @@ function toggleRunning(app, status, servicesService) {
     // is so that when stopping takes a long time you can see that
     // something is happening. This doesn't update the color
     function updateAppText(app, text, notRunningText) {
-        var i;
         app.runningText = text;
         app.notRunningText = notRunningText;
         if (!app.children) {
             return;
         }
-        for (i=0; i<app.children.length;i++) {
+        for (var i=0; i<app.children.length;i++) {
             updateAppText(app.children[i], text, notRunningText);
         }
     }
 
     // updates the color and the running/non-running text of the
     // status buttons
-    function updateApp(app, desiredState) {
+    function updateApp(app) {
         var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                child = app.children[i];
-                child.DesiredState = desiredState;
-                updateRunning(child);
-                if (child.children && child.children.length) {
-                    updateApp(child, desiredState);
-                }
+                app.children[i].DesiredState = app.DesiredState;
+                updateApp(app.children[i]);
             }
         }
     }
+
     // stop service
     if ((newState == 0) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "stopping...", "ctl_running_blank");
     }
@@ -1373,7 +1369,7 @@ function toggleRunning(app, status, servicesService) {
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }
@@ -3109,6 +3105,9 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
     });
 }
 
+
+
+
 function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -3123,6 +3122,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
+        { id: 'Health', name: 'Health' },
         { id: 'Startup', name: 'label_service_startup' }
     ]);
 
@@ -3265,9 +3265,50 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             console.log('Updated %s', $scope.services.current.Id);
             var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
             lastCrumb.label = $scope.services.current.Name;
-
         });
     };
+
+    function updateHealth(ServiceId) {
+        $.getJSON("/servicehealth", function(healths) {
+            for (var ServiceId in healths) {
+                data = healths[ServiceId];
+                document.getElementById("health-tooltip-" + ServiceId).title = "";
+                passingAny = false;
+                failingAny = false;
+                lateAny = false;
+                unknownAny = false;
+                utc = Math.floor(Date.now()/1000);
+                for (var name in data) {
+                    if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                        data[name].Status = "unknown";
+                    }
+                    if (data[name].Status == "passed") {
+                        passingAny = true;
+                    } else if (data[name].Status == "failed") {
+                        failingAny = true;
+                    } else if (data[name].Status == "unknown") {
+                        unknownAny = true;
+                    }
+                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name].Status + "\n";
+                }
+                function setColor(color) {
+                    document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
+                }
+                if (failingAny) {
+                    setColor("red");
+                } else if (!passingAny && unknownAny) {
+                    setColor("grey");
+                } else if (passingAny && unknownAny) {
+                    setColor("yellow");
+                } else if (passingAny && !unknownAny) {
+                    setColor("green");
+                }
+            }
+        });
+    }
+
+    window.services = $scope.services;
+
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
     function updateRunning() {
@@ -3277,6 +3318,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 mashHostsToInstances();
             });
         }
+        updateHealth();
     }
     $interval(updateRunning, 3000);
     // Get a list of deployed apps

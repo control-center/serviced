@@ -144,9 +144,9 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in services.subservices">
-          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap">
+          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap; width:200px">
             <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
-          <td width="200">
+          <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
                 <input type="radio" name="running{{$index}}" 
@@ -161,8 +161,15 @@
               </label>
             </div>
           </td>
+          <td style="text-align: center; width:60px">
+            <span data-toggle="tooltip" data-placement="top" title="" id="health-tooltip-{{app.Id}}">
+              <div ng-if="app.children == undefined">
+                <img src="/static/img/greyball.png" id="health-{{app.Id}}">
+              </div>
+            </span>
+          </td>
           <td>
-			 {{app.Startup}}
+            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
           </td>
         </tr>
       </tbody>
