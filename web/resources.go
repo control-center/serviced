@@ -14,7 +14,6 @@ import (
 	"time"
 	"os"
 	"io/ioutil"
-//	"encoding/json"
 )
 
 var empty interface{}
@@ -384,7 +383,6 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 }
 
 // RestStartService starts the service with the given id and all of its children
-// Note: Your mother, trebek.
 func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
