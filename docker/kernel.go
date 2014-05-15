@@ -15,7 +15,6 @@ const (
 
 type request struct {
 	errchan chan error
-	timeout time.Duration
 }
 
 type inspectreq struct {
@@ -31,19 +30,12 @@ type listreq struct {
 	respchan chan []string
 }
 
-type onstartreq struct {
-	request
-	args struct {
-		props map[string]string
-		hf    HandlerFunc
-	}
-}
-
 type startreq struct {
 	request
 	args struct {
 		ContainerOptions *dockerclient.CreateContainerOptions
 		HostConfig       *dockerclient.HostConfig
+		ActionFunc       ContainerActionFunc
 	}
 	respchan chan string
 }
@@ -55,29 +47,25 @@ type stopreq struct {
 	}
 }
 
-type guardedHandler struct {
-	props   map[string]string
-	handler HandlerFunc
-}
-
 var (
 	cmds = struct {
-		Inspect          chan inspectreq
-		List             chan listreq
-		OnContainerStart chan onstartreq
-		Start            chan startreq
-		Stop             chan stopreq
+		Inspect chan inspectreq
+		List    chan listreq
+		Start   chan startreq
+		Stop    chan stopreq
 	}{
 		make(chan inspectreq),
 		make(chan listreq),
-		make(chan onstartreq),
 		make(chan startreq),
 		make(chan stopreq),
 	}
-	onStartHandlers = []guardedHandler{}
-	done            = make(chan struct{})
+	done  = make(chan struct{})
+	srin  = make(chan startreq)
+	srout = make(chan startreq)
 )
 
+// init starts up the kernel loop that is responsible for handling all the API calls
+// in a goroutine.
 func init() {
 	client, err := dockerclient.NewClient(dockerep)
 	if err != nil {
@@ -87,18 +75,15 @@ func init() {
 	go kernel(client, done)
 }
 
+// kernel is responsible for executing all the Docker client commands.
 func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	em, err := dc.MonitorEvents()
 	if err != nil {
 		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
 	}
 
-	ks, err := em.Subscribe(dockerclient.AllThingsDocker)
-	if err != nil {
-		panic(fmt.Sprintf("can't subscribe to all Docker events: %v", err))
-	}
-
-	ks.Handle(dockerclient.Start, handleContainerStart)
+	go startq(srin, srout)
+	go scheduler(srout)
 
 	for {
 		select {
@@ -122,57 +107,8 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			close(lr.errchan)
 			lr.respchan <- resp
-		case osr := <-cmds.OnContainerStart:
-			onStartHandlers = append(onStartHandlers, guardedHandler{osr.args.props, osr.args.hf})
-			close(osr.errchan)
 		case sr := <-cmds.Start:
-			ctr, err := dc.CreateContainer(*sr.args.ContainerOptions)
-			switch {
-			case err == dockerclient.ErrNoSuchImage:
-				if pullerr := dc.PullImage(dockerclient.PullImageOptions{
-					Repository:   sr.args.ContainerOptions.Config.Image,
-					OutputStream: os.NewFile(uintptr(syscall.Stdout), "/def/stdout"),
-				}, dockerclient.AuthConfiguration{}); pullerr != nil {
-					sr.errchan <- err
-					continue
-				}
-
-				ctr, err = dc.CreateContainer(*sr.args.ContainerOptions)
-				if err != nil {
-					sr.errchan <- err
-					continue
-				}
-			case err != nil:
-				sr.errchan <- err
-				continue
-			}
-
-			go func(cid string, hc *dockerclient.HostConfig, rc chan string, ec chan error, timeout time.Duration) {
-				s, err := em.Subscribe(cid)
-				if err != nil {
-					ec <- fmt.Errorf("can't subscribe to Docker events on container %s: %v", cid, err)
-				}
-
-				emc := make(chan struct{})
-
-				s.Handle(dockerclient.Start, func(e dockerclient.Event) error {
-					emc <- struct{}{}
-					return nil
-				})
-
-				err = dc.StartContainer(cid, hc)
-				if err != nil {
-					ec <- err
-				} else {
-					select {
-					case <-emc:
-						close(ec)
-						rc <- cid
-					case <-time.After(timeout):
-						ec <- fmt.Errorf("container start timed out for Docker container: %s", cid)
-					}
-				}
-			}(ctr.ID, sr.args.HostConfig, sr.respchan, sr.errchan, sr.request.timeout)
+			srin <- sr
 		case stop := <-cmds.Stop:
 			err := dc.StopContainer(stop.args.id, uint(stop.timeout))
 			if err != nil {
@@ -187,9 +123,80 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	}
 }
 
-func handleContainerStart(e dockerclient.Event) error {
-	for _, gh := range onStartHandlers {
-		gh.handler()
+// scheduler handles starting up containers. Container startup can take a long time so
+// the scheduler runs in its own goroutine and pulls requests off of the start queue.
+func scheduler(rc <-chan startreq, done chan struct{}) {
+	select {
+	case sr <- rc:
+		ctr, err := dc.CreateContainer(*sr.args.ContainerOptions)
+		switch {
+		case err == dockerclient.ErrNoSuchImage:
+			if pullerr := dc.PullImage(dockerclient.PullImageOptions{
+				Repository:   sr.args.ContainerOptions.Config.Image,
+				OutputStream: os.NewFile(uintptr(syscall.Stdout), "/def/stdout"),
+			}, dockerclient.AuthConfiguration{}); pullerr != nil {
+				sr.errchan <- err
+				continue
+			}
+
+			ctr, err = dc.CreateContainer(*sr.args.ContainerOptions)
+			if err != nil {
+				sr.errchan <- err
+				continue
+			}
+		case err != nil:
+			sr.errchan <- err
+			continue
+		}
+
+		err = dc.StartContainer(cid, hc)
+		if err != nil {
+			ec <- err
+		}
+
+		close(ec)
+
+		if sr.args.ActionFunc != nil {
+			sr.args.ActionFunc(cid)
+		}
+
+		rc <- cid
+	case <-done:
+		return
 	}
-	return nil
+}
+
+// startq implements an inifinite buffered channel of start requests. Requests are added via the
+// in channel and received on the next channel.
+func startq(in <-chan startreq, next chan<- startreq) {
+	defer close(next)
+
+	pending := []startreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			pending = append(pending, v)
+		case next <- pending[0]:
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
 }
