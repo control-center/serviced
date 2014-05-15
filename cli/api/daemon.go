@@ -169,7 +169,12 @@ func (d *daemon) startMaster() error {
 
 	d.startScheduler()
 
-	thisHost, err := host.Build(options.HostIPAddr, "unknown")
+        agentIP, err := utils.GetIPAddress()
+        if err != nil {
+                panic(err)
+        }
+
+	thisHost, err := host.Build(agentIP, "unknown")
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
@@ -190,6 +195,21 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	mux.Enabled = true
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
+
+	zkClient, err := d.initZK()
+	if err != nil {
+		return nil, err
+	}
+        agentIP, err := utils.GetIPAddress()
+        if err != nil {
+                panic(err)
+        }
+	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		panic(err)
+	}
+	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
 	if err != nil {

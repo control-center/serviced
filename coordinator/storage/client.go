@@ -18,16 +18,27 @@ type Client struct {
 	host    *host.Host
 	zclient    *client.Client
 	closing chan struct{}
+	mounted chan string
 }
 
 func NewClient(host *host.Host, zclient *client.Client) *Client {
 	c := &Client{
 		host:    host,
 		zclient: zclient,
+		mounted: make(chan string, 1),
 		closing: make(chan struct{}),
 	}
 	go c.loop()
 	return c
+}
+
+func (c *Client) Wait() string {
+	select {
+	case <-c.closing:
+	case s := <-c.mounted:
+		return s
+	}
+	return ""
 }
 
 func (c *Client) Close() {
@@ -96,6 +107,8 @@ func (c *Client) loop() {
 		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
+		case c.mounted <- leaderNode.ExportPath:
+			// notifying someone who cares
 		case <-c.closing:
 			return
 		case <-e:
