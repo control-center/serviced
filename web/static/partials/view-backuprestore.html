@@ -24,15 +24,31 @@
   </span>
 </div>
 
+<div id="backupInfo" class="alert alert-info" style="clear: both; display: none;">
+    <b>{{'backup_running' | translate}} - </b>
+    <span id="backupStatus"></span>
+</div>
+
 <table class="table table-striped table-bordered table-hover" id="backup_data" >
     <thead>
         <tr>
-            <th>Backup file</th>
+            <th>File Name</th>
+            <th>Modified</th>
+            <th>&nbsp;</th>
         </tr>
     </thead>
     <tbody>
-        <tr ng-repeat="filename in backupFiles" class="link">
-            <td ng-click="restoreBackup(filename)">{{filename}}</td>
+        <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true" class="link">
+            <td>{{fileInfo.name}}</td>
+            <td>{{fileInfo.mod_time | date: 'medium'}}</td>
+            <td>
+                <span class="add-control">
+                    <button class="btn-link" ng-click="restoreBackup(filename)">
+                        <span class="glyphicon glyphicon-refresh"></span>
+                        {{'backup_restore'|translate}}
+                    </button>
+                </span>
+            </td>
         </tr>
     </tbody>
 </table>
@@ -47,6 +63,7 @@
                         <span class="sr-only">Please wait...</span>
                     </div>
                 </div>
+
             </div>
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->

@@ -12,6 +12,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"os"
+	"io/ioutil"
+//	"encoding/json"
 )
 
 var empty interface{}
@@ -381,6 +384,7 @@ func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 }
 
 // RestStartService starts the service with the given id and all of its children
+// Note: Your mother, trebek.
 func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
@@ -476,9 +480,15 @@ func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *ser
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	dir := "/tmp"
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
+	dir := home + "/backup"
 	filepath := ""
-	err := client.Backup(dir, &filepath)
+	err := client.AsyncBackup(dir, &filepath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		RestServerError(w)
@@ -487,6 +497,12 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *serviced.
 }
 
 func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
 	err := r.ParseForm()
 	filepath := r.FormValue("filename")
 
@@ -497,10 +513,46 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *serviced
 
 	unused := 0
 
-	err = client.Restore(filepath, &unused)
+	err = client.Restore(home + "/" + filepath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{string(unused), servicesLinks()})
+}
+
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	type JsonizableFileInfo struct {
+		Name    string      `json:"name"`
+		Size    int64       `json:"size"`
+		Mode    os.FileMode `json:"mode"`
+		ModTime time.Time   `json:"mod_time"`
+	}
+
+	fileData := []JsonizableFileInfo{}
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+	backupFiles, _ := ioutil.ReadDir(home+"/backup")
+
+	for _, backupFileInfo := range backupFiles {
+		if !backupFileInfo.IsDir(){
+			fileInfo := JsonizableFileInfo{backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fileData = append(fileData, fileInfo)
+		}
+	}
+
+	w.WriteJson(&fileData)
+}
+
+func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	backupStatus := ""
+	err := client.BackupStatus("", &backupStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup status: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{backupStatus, servicesLinks()})
 }

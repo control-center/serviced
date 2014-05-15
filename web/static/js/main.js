@@ -960,6 +960,36 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        get_backup_files: function(callback){
+            $http.get('/backup/list').
+                success(function(data, status) {
+                    console.log('Retrieved list of backup files.');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving list of backup files.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        get_backup_status: function(callback){
+            $http.get('/backup/status').
+                success(function(data, status) {
+                    console.log('Retrieved status of backup.');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving status of backup.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }

@@ -25,6 +25,8 @@ import (
 	"time"
 )
 
+var backupOutput chan string = nil
+
 var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	user, e := user.Current()
 	if e != nil {
@@ -283,7 +285,35 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 	return imageSet
 }
 
+func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath *string) (err error){
+	go func() {
+		this.Backup(backupsDirectory, backupFilePath)
+	}()
+
+	return nil
+}
+
+func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) (err error){
+	timeout := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Second)
+		timeout <- true
+	}()
+
+	select {
+	case *backupStatus = <-backupOutput:
+	case <- timeout:
+		*backupStatus = "timeout"
+	}
+
+	return nil
+}
+
 func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
+	//open a channel for asynchronous Backup calls
+	backupOutput = make(chan string)
+	backupOutput <- "Starting backup"
+	time.Sleep(1 * time.Hour)
 	var (
 		templates      map[string]*servicetemplate.ServiceTemplate
 		services       []*service.Service
@@ -374,6 +404,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	i := 0
 	for imageId, imageTags := range imageIdTags {
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
+		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageId)
 		if e := exportDockerImageToFile(client, imageId, filename); e != nil {
 			if e == docker.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageId)
@@ -396,6 +427,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	// Dump all snapshots
 	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
 		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
+		backupOutput <- fmt.Sprintf("Taking snapshot of service: %v", service.Name)
 		var snapshotId string
 		if e := this.Snapshot(service.Id, &snapshotId); e != nil {
 			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
@@ -428,6 +460,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	}
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
+
 	for _, service := range services {
 		if service.ParentServiceId == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
@@ -444,6 +477,10 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 	}
 
 	glog.Infof("Created backup from dir:%s to file:%s", backupPath(), backupFilePath)
+
+	//close the channel for asynchronous calls to Backup
+	close(backupOutput)
+
 	return nil
 }
 

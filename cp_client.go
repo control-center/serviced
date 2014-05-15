@@ -230,6 +230,14 @@ func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) e
 	return s.rpcClient.Call("ControlPlane.Backup", backupDirectory, backupFilePath)
 }
 
+func (s *ControlClient) AsyncBackup(backupDirectory string, backupFilePath *string) error {
+	return s.rpcClient.Call("ControlPlane.AsyncBackup", backupDirectory, backupFilePath)
+}
+
+func (s *ControlClient) BackupStatus(notUsed string, backupStatus *string) error {
+	return s.rpcClient.Call("ControlPlane.BackupStatus", notUsed, backupStatus)
+}
+
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
 }
