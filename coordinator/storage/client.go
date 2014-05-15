@@ -101,9 +101,14 @@ func (c *Client) loop() {
 			continue
 		}
 
-		err = nfsMount(leaderNode.ExportPath, "/opt/serviced/var")
-		if err != nil {
-			continue
+		if leaderNode.IPAddr != c.host.IPAddr {
+			err = nfsMount(leaderNode.ExportPath, "/opt/serviced/var")
+			if err != nil {
+				glog.Infof("problem mouting %s: %s", leaderNode.ExportPath, err)
+				continue
+			}
+		} else {
+			glog.Info("skiping nfs mounting, server is localhost")
 		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
