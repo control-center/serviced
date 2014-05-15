@@ -21,16 +21,11 @@ import (
 	"time"
 )
 
-// Export logs
-// serviceIds: list of services to select (includes their children).
-//             empty slice means no filter
-// from: yyyy.mm.dd (inclusive)
-//       "" means unbounded
-// to: yyyy.mm.dd (inclusive)
-//     "" means unbounded
-// outfile: the exported logs will tgz'd and written here.
-//          "" means "./serviced-log-export.tgz".
-
+// ExportLogs exports logs from ElasticSearch.
+// serviceIds: list of services to select (includes their children). Empty slice means no filter
+// from: yyyy.mm.dd (inclusive), "" means unbounded
+// to: yyyy.mm.dd (inclusive), "" means unbounded
+// outfile: the exported logs will tgz'd and written here. "" means "./serviced-log-export.tgz".
 func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err error) {
 	var e error
 	files := []*os.File{}
@@ -107,7 +102,7 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		}
 		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes
 		queryParts := []string{}
-		for serviceId, _ := range serviceIdMap {
+		for serviceId := range serviceIdMap {
 			if re.FindStringIndex(serviceId) == nil {
 				return fmt.Errorf("invalid service ID format: %s", serviceId)
 			}
@@ -282,17 +277,18 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 	return multiLine.Host, multiLine.File, compactLines, nil
 }
 
-// Matches optional non-digits, 4 digits, optional non-digits, 2 digits, optional non-digits, 2 digits, optional non-digits
+// NormalizeYYYYMMDD matches optional non-digits, 4 digits, optional non-digits,
+// 2 digits, optional non-digits, 2 digits, optional non-digits
 // Returns those 8 digits formatted as "dddd.dd.dd", or error if unparseable.
 func NormalizeYYYYMMDD(s string) (string, error) {
-	match := yyyymmdd_matcher.FindStringSubmatch(s)
+	match := yyyymmddMatcher.FindStringSubmatch(s)
 	if match == nil {
 		return "", fmt.Errorf("could not parse '%s' as yyyymmdd", s)
 	}
 	return fmt.Sprintf("%s.%s.%s", match[1], match[2], match[3]), nil
 }
 
-var yyyymmdd_matcher = regexp.MustCompile("\\A[^0-9]*([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})[^0-9]*\\z")
+var yyyymmddMatcher = regexp.MustCompile("\\A[^0-9]*([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})[^0-9]*\\z")
 
 // Returns a list of all the dates with a logstash-YYYY.MM.DD index available in ElasticSearch.
 // The strings are in YYYY.MM.DD format, and in reverse chronological order.
@@ -306,7 +302,7 @@ var LogstashDays = func() ([]string, error) {
 		return []string{}, fmt.Errorf("couldn't parse response (%s): %s", response, e)
 	}
 	result := make([]string, 0, len(aliasMap))
-	for index, _ := range aliasMap {
+	for index := range aliasMap {
 		if trimmed := strings.TrimPrefix(index, "logstash-"); trimmed != index {
 			if trimmed, e = NormalizeYYYYMMDD(trimmed); e != nil {
 				trimmed = ""
