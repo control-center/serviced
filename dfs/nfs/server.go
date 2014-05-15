@@ -159,7 +159,6 @@ func (c *Server) hostsDeny() error {
 }
 
 func readFileIfExists(path string) (s string, err error) {
-	s := ""
 	var exists bool
 	if exists, err = doesExists(path); err != nil {
 		return s, err

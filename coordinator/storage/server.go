@@ -10,20 +10,24 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 )
 
+// Server manages the exporting of a file system to clients.
 type Server struct {
-	host      *host.Host
+	host    *host.Host
 	zclient *client.Client
-	closing   chan struct{}
-	driver StorageDriver
-	debug     chan string
+	closing chan struct{}
+	driver  StorageDriver
+	debug   chan string
 }
 
+// StorageDriver is an interface that storage subsystem must implement to be used
+// by this packages Server implementation.
 type StorageDriver interface {
 	ExportName() string
 	SetClients(clients ...string)
 	Sync() error
 }
 
+// NewServer returns a Server object to manage the exported file system
 func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*Server, error) {
 
 	if len(driver.ExportName()) < 9 {
@@ -31,17 +35,18 @@ func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*
 	}
 
 	s := &Server{
-		host:      host,
-		zclient:      zclient,
-		closing:   make(chan struct{}),
-		driver: driver,
-		debug:     make(chan string),
+		host:    host,
+		zclient: zclient,
+		closing: make(chan struct{}),
+		driver:  driver,
+		debug:   make(chan string),
 	}
 
 	go s.loop()
 	return s, nil
 }
 
+// Close informs the Server loop to shutdown.
 func (s *Server) Close() {
 	close(s.closing)
 }

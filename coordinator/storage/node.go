@@ -12,10 +12,12 @@ type Node struct {
 	version    interface{}
 }
 
+// Version returns the node version to implement the client.Node interface
 func (n *Node) Version() interface{} {
 	return n.version
 }
 
+// SetVersion sets the node version to implement the client.Node interface
 func (n *Node) SetVersion(version interface{}) {
 	n.version = version
 }

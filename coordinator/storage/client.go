@@ -12,15 +12,17 @@ import (
 
 type nfsMountT func(string, string) error
 
-var nfsMount nfsMountT = nfs.Mount
+var nfsMount = nfs.Mount
 
+// Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
 	host    *host.Host
-	zclient    *client.Client
+	zclient *client.Client
 	closing chan struct{}
 	mounted chan string
 }
 
+// NewClient returns a Client that manages remote mounts
 func NewClient(host *host.Host, zclient *client.Client) *Client {
 	c := &Client{
 		host:    host,
@@ -32,6 +34,7 @@ func NewClient(host *host.Host, zclient *client.Client) *Client {
 	return c
 }
 
+// Wait will block until the client is Closed() or it has mounted the remote filesystem
 func (c *Client) Wait() string {
 	select {
 	case <-c.closing:
@@ -41,6 +44,7 @@ func (c *Client) Wait() string {
 	return ""
 }
 
+// Close informs this client to shutdown its current operations.
 func (c *Client) Close() {
 	close(c.closing)
 }
