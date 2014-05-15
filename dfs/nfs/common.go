@@ -14,10 +14,8 @@ var etcFstab = "/etc/fstab"
 var etcExports = "/etc/exports"
 var exportsDir = "/exports"
 
-var (
-	ErrUnimplemented          = errors.New("unimplemented")
-	ErrMalformedNFSMountpoint = errors.New("malformed nfs mountpoint")
-)
+// ErrMalformedNFSMountpoint is returned when the nfs mountpoint string is malformed
+var ErrMalformedNFSMountpoint = errors.New("malformed nfs mountpoint")
 
 // exec.Command interface (for mocking)
 type commandFactoryT func(string, ...string) command
@@ -32,6 +30,7 @@ type command interface {
 	CombinedOutput() ([]byte, error)
 }
 
+// Mount attempts to mount the nfsPath to the localPath
 func Mount(nfsPath, localPath string) error {
 
 	parts := strings.Split(nfsPath, ":")
@@ -55,8 +54,4 @@ func Mount(nfsPath, localPath string) error {
 		}
 	}
 	return nil
-}
-
-func Umount(localPath string) error {
-	return ErrUnimplemented
 }

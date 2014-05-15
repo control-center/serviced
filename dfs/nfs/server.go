@@ -25,10 +25,14 @@ type Server struct {
 }
 
 var (
+	// ErrInvalidExportedName is returned when an exported name is not a valid single directory name
 	ErrInvalidExportedName = errors.New("nfs server: invalid exported name")
-	ErrInvalidBasePath     = errors.New("nfs server: invalid base path")
-	ErrBasePathNotDir      = errors.New("nfs server: base path not a directory")
-	ErrInvalidNetwork      = errors.New("nfs server: the network value is not CIDR")
+	// ErrInvalidBasePath is returned when the local path to export is invalid
+	ErrInvalidBasePath = errors.New("nfs server: invalid base path")
+	// ErrBasePathNotDir is returned when the base path is not a directory
+	ErrBasePathNotDir = errors.New("nfs server: base path not a directory")
+	// ErrInvalidNetwork is returned when the network specifier does not parse in CIDR format
+	ErrInvalidNetwork = errors.New("nfs server: the network value is not CIDR")
 )
 
 var (
@@ -66,6 +70,8 @@ func verifyExportsDir(path string) error {
 	return err
 }
 
+// NewServer returns a nfs.Server object that manages the given nfs mounts to
+// configured clients.
 func NewServer(basePath, exportedName, network string) (*Server, error) {
 
 	if len(exportedName) < 2 || strings.Contains(exportedName, "/") {
@@ -94,18 +100,22 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	}, nil
 }
 
+// ExportName returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportName() string {
 	return c.exportedName
 }
 
+// Clients returns the IP Addresses of the current clients
 func (c *Server) Clients() []string {
 	clients := make([]string, len(c.clients))
 	i := 0
-	for key, _ := range c.clients {
+	for key := range c.clients {
 		clients[i] = key
 	}
 	return clients
 }
+
+// SetClients replaces the existing clients with the new clients
 func (c *Server) SetClients(clients ...string) {
 	c.clients = make(map[string]struct{})
 
@@ -114,6 +124,7 @@ func (c *Server) SetClients(clients ...string) {
 	}
 }
 
+// Sync ensures that the nfs exports are visible to all clients
 func (c *Server) Sync() error {
 	if err := c.hostsDeny(); err != nil {
 		return err
@@ -147,18 +158,18 @@ func (c *Server) hostsDeny() error {
 	return atomicfile.WriteFile(etcHostsDeny, []byte(s), 0664)
 }
 
-func readFileIfExists(path string) (string, error) {
+func readFileIfExists(path string) (s string, err error) {
 	s := ""
-	if exists, err := doesExists(path); err != nil {
+	var exists bool
+	if exists, err = doesExists(path); err != nil {
 		return s, err
-	} else {
-		if exists {
-			bytes, err := ioutil.ReadFile(path)
-			if err != nil {
-				return s, err
-			}
-			s = string(bytes)
+	}
+	if exists {
+		bytes, err := ioutil.ReadFile(path)
+		if err != nil {
+			return s, err
 		}
+		s = string(bytes)
 	}
 	return s, nil
 }
@@ -176,9 +187,9 @@ func (c *Server) hostsAllow() error {
 	s = s + hostAllowDefaults
 	hosts := make([]string, len(c.clients))
 	i := 0
-	for key, _ := range c.clients {
+	for key := range c.clients {
 		hosts[i] = key
-		i += 1
+		i++
 	}
 	sort.Strings(hosts)
 	for _, h := range hosts {
@@ -207,7 +218,7 @@ func (c *Server) writeExports() error {
 
 type bindMountF func(string, string) error
 
-var bindMount bindMountF = bindMountImp
+var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
