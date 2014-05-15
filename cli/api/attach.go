@@ -1,7 +1,9 @@
 package api
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/utils"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
@@ -25,18 +27,37 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 
 	dc, err := a.connectDocker()
 	if err != nil {
-		return rss, err
+		return nil, err
 	}
 
 	for _, rs := range rss {
-		container, err := dc.InspectContainer(rs.Id + "/")
-		if err != nil {
-			return rss, err
+		if container, err := dc.InspectContainer(rs.Id); err == nil {
+			rs.DockerId = container.ID
+		} else {
+			glog.Warningf("Could not find docker ID for state %s: ", rs.Id, err)
 		}
-		rs.DockerId = container.ID
 	}
 
 	return rss, nil
+}
+
+func isLocal(request dao.AttachRequest) (bool, error) {
+	if hostID, err := utils.HostID(); err != nil {
+		return false, err
+	} else if hostID == request.Running.HostId {
+		var command []string
+		if request.Command != "" {
+			command = append([]string{request.Command}, request.Args...)
+		}
+
+		cmd := zkdocker.Attach{
+			HostID:   request.Running.HostId,
+			DockerID: request.Running.DockerId,
+			Command:  command,
+		}
+		return true, zkdocker.LocalAttach(&cmd)
+	}
+	return false, nil
 }
 
 // Attach runs an arbitrary shell command in a running service container
@@ -52,19 +73,20 @@ func (a *api) Attach(config AttachConfig) error {
 		Args:    config.Args,
 	}
 
-	var res zkdocker.Attach
-	if err := client.Attach(req, &res); err != nil {
+	// Try to attach locally
+	if ok, err := isLocal(req); ok || err != nil {
 		return err
 	}
 
-	return res.Error
+	// Try to attach remotely
+	return client.Attach(req, &unusedInt)
 }
 
 // Action runs a predefined action in a running service container
-func (a *api) Action(config AttachConfig) ([]byte, error) {
+func (a *api) Action(config AttachConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	req := dao.AttachRequest{
@@ -73,10 +95,5 @@ func (a *api) Action(config AttachConfig) ([]byte, error) {
 		Args:    config.Args,
 	}
 
-	var res zkdocker.Attach
-	if err := client.Action(req, &res); err != nil {
-		return nil, err
-	}
-
-	return res.Output, res.Error
+	return client.Action(req, &unusedInt)
 }

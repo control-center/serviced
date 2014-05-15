@@ -21,7 +21,6 @@ type Attach struct {
 	DockerID string
 	Command  []string
 	Started  bool
-	Output   []byte
 	Error    error
 	version  interface{}
 }
@@ -68,12 +67,7 @@ func ListenAttach(conn client.Connection, hostID string) {
 			}
 			go func() {
 				defer glog.V(1).Infof("Finished attaching to command: %v", cmd)
-				exec, err := attach(cmd.DockerID, cmd.Command)
-				if err != nil {
-					cmd.Error = err
-				} else {
-					cmd.Output, cmd.Error = exec.CombinedOutput()
-				}
+				cmd.Error = LocalAttach(&cmd)
 				if err := conn.Set(path, &cmd); err != nil {
 					glog.V(1).Infof("Could not update command at %s", path, err)
 				}

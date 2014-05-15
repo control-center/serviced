@@ -45,7 +45,7 @@ type API interface {
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]*dao.RunningService, error)
 	Attach(AttachConfig) error
-	Action(AttachConfig) ([]byte, error)
+	Action(AttachConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error

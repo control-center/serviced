@@ -6,7 +6,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 // A generic ControlPlane error
@@ -111,10 +110,10 @@ type ControlPlane interface {
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
 	// Attach to a running container
-	Attach(request AttachRequest, response *zkdocker.Attach) error
+	Attach(request AttachRequest, unused *int) error
 
 	// Attach to a running container with a predefined action
-	Action(request AttachRequest, response *zkdocker.Attach) error
+	Action(request AttachRequest, unused *int) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

@@ -605,7 +605,6 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
-		fmt.Printf("Service: %+v\n", states[0])
 		return states[0], nil
 	}
 
@@ -689,10 +688,8 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 			cfg.Args = args[2:]
 		}
 
-		if data, err := c.driver.Action(cfg); err != nil {
+		if err := c.driver.Action(cfg); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-		} else {
-			fmt.Printf("%s\n", data)
 		}
 	}
 

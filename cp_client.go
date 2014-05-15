@@ -19,7 +19,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/volume"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 // A serviced client.
@@ -216,10 +215,10 @@ func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
 }
 
-func (s *ControlClient) Attach(req dao.AttachRequest, res *zkdocker.Attach) error {
-	return s.rpcClient.Call("ControlPlane.Attach", req, res)
+func (s *ControlClient) Attach(req dao.AttachRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Attach", req, unused)
 }
 
-func (s *ControlClient) Action(req dao.AttachRequest, res *zkdocker.Attach) error {
-	return s.rpcClient.Call("ControlPlane.Action", req, res)
+func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Action", req, unused)
 }

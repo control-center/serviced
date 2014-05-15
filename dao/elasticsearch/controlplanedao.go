@@ -17,7 +17,6 @@ import (
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
@@ -45,27 +44,17 @@ type ControlPlaneDao struct {
 	dockerRegistry string
 }
 
-func (this *ControlPlaneDao) Attach(request dao.AttachRequest, response *zkdocker.Attach) error {
+func (this *ControlPlaneDao) Attach(request dao.AttachRequest, unused *int) error {
 	// Set up the request
 	var command []string
-	if request.Command != "" {
-		command = append([]string{request.Command}, request.Args...)
+	if request.Command == "" {
+		return fmt.Errorf("cannot start a remote shell")
 	}
-
+	command = append([]string{request.Command}, request.Args...)
 	req := zkdocker.Attach{
 		HostID:   request.Running.HostId,
 		DockerID: request.Running.DockerId,
 		Command:  command,
-	}
-
-	// Determine if we can attach locally
-	if hostID, err := utils.HostID(); err != nil {
-		return err
-	} else if hostID == req.HostID {
-		glog.Info("Attach to container locally")
-		return zkdocker.LocalAttach(&req)
-	} else if request.Command == "" {
-		return fmt.Errorf("cannot start remote shell")
 	}
 
 	// Open the zookeeper connection
@@ -77,17 +66,11 @@ func (this *ControlPlaneDao) Attach(request dao.AttachRequest, response *zkdocke
 	defer conn.Close()
 
 	// Do a remote attach
-	id, err := zkdocker.SendAttach(conn, &req)
-	if err != nil {
-		return err
-	}
-
-	// Get the response
-	response, err = zkdocker.RecvAttach(conn, req.HostID, id)
+	_, err = zkdocker.SendAttach(conn, &req)
 	return err
 }
 
-func (this *ControlPlaneDao) Action(request dao.AttachRequest, response *zkdocker.Attach) error {
+func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
 	// Get the service and update the request
 	var svc service.Service
 	if err := this.GetService(request.Running.ServiceId, &svc); err != nil {
@@ -98,7 +81,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, response *zkdocke
 		return fmt.Errorf("action not found for service %s: %s", svc.Id, request.Command)
 	}
 	request.Command = command
-	return this.Attach(request, response)
+	return this.Attach(request, unused)
 }
 
 func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
