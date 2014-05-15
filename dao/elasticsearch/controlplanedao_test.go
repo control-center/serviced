@@ -111,6 +111,12 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 }
 
+//TearDownSuite stops all isvcs
+func (dt *DaoTest) TearDownSuite(c *C) {
+	isvcs.Mgr.Stop()
+	dt.FacadeTest.TearDownSuite(c)
+}
+
 func (dt *DaoTest) TestDao_NewService(t *C) {
 	svc := service.Service{}
 	err := dt.Dao.AddService(svc, &id)
