@@ -6,6 +6,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/utils"
 )
 
 // TODO: change this to accept a random port on the host to stream data
@@ -79,7 +80,12 @@ func ListenAttach(conn client.Connection, hostID string) {
 }
 
 func SendAttach(conn client.Connection, cmd *Attach) (string, error) {
-	node := attachPath(cmd.HostID, newuuid())
+	uuid, err := utils.NewUUID()
+	if err != nil {
+		return "", err
+	}
+
+	node := attachPath(cmd.HostID, uuid)
 	if err := mkdir(conn, path.Dir(node)); err != nil {
 		return "", err
 	}

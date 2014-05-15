@@ -19,17 +19,6 @@ const (
 	urandomFilename = "/dev/urandom"
 )
 
-func newuuid() string {
-	f, err := os.Open(urandomFilename)
-	if err != nil {
-		panic(err)
-	}
-	b := make([]byte, 16)
-	defer f.Close()
-	f.Read(b)
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 func mkdir(conn client.Connection, dirpath string) error {
 	if exists, err := conn.Exists(dirpath); err != nil && err != client.ErrNoNode {
 		return err
