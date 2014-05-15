@@ -5,6 +5,7 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
@@ -331,7 +332,7 @@ func (c *Controller) Run() (err error) {
 	}
 
 	service, serviceExited := startService()
-
+	healthExits := c.kickOffHealthChecks()
 	var restartAfter <-chan time.Time
 	for {
 		select {
@@ -369,6 +370,75 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("restarting service process")
 			service, serviceExited = startService()
 			restartAfter = nil
+		}
+	}
+	for _, exitChannel := range healthExits {
+		exitChannel <- true
+	}
+	return
+}
+
+func (c *Controller) kickOffHealthChecks() map[string]chan bool {
+	exitChannels := make(map[string]chan bool)
+	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return nil
+	}
+	defer client.Close()
+	var healthChecks map[string]domain.HealthCheck
+	err = client.GetHealthCheck(c.options.Service.ID, &healthChecks)
+	if err != nil {
+		glog.Errorf("Error getting health checks: %s", err)
+		return nil
+	}
+	for key, mapping := range healthChecks {
+		glog.Infof("Kicking off health check %s.", key)
+		exitChannels[key] = make(chan bool)
+		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
+	}
+	return exitChannels
+}
+
+func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return
+	}
+	defer client.Close()
+	script_file, err := ioutil.TempFile("", name)
+	if err != nil {
+		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
+		return
+	}
+	defer script_file.Close()
+	defer os.Remove(script_file.Name())
+	err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
+	if err != nil {
+		glog.Errorf("Error writing script for health check %s: %s", name, err)
+		return
+	}
+	script_file.Close()
+	err = os.Chmod(script_file.Name(), os.FileMode(0777))
+	if err != nil {
+		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
+		return
+	}
+	for {
+		select {
+		case <-time.After(interval):
+			cmd := exec.Command("sh", "-c", script_file.Name())
+			err = cmd.Run()
+			if err == nil {
+				glog.Infof("Health check %s succeeded.", name)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, nil)
+			} else {
+				glog.Infof("Health check %s failed.", name)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
+			}
+		case <-exitChannel:
+			return
 		}
 	}
 }

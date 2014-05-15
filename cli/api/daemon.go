@@ -246,6 +246,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
+
 	return hostAgent, nil
 }
 
