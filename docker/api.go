@@ -30,7 +30,7 @@ func InspectContainer(id string) (*dockerclient.Container, error) {
 	rc := make(chan *dockerclient.Container)
 
 	cmds.Inspect <- inspectreq{
-		request{ec, 0 * time.Second},
+		request{ec},
 		struct {
 			id string
 		}{id},
@@ -50,6 +50,32 @@ func InspectContainer(id string) (*dockerclient.Container, error) {
 	}
 }
 
+// OnContainerStop associates a container action with the specified container. The action will be triggered when
+// that container is stopped.
+func OnContainerStop(id string, action ContainerActionFunc) error {
+	ec := make(chan error)
+
+	cmds.OnContainerStop <- onstopreq{
+		request{ec},
+		struct {
+			id     string
+			action ContainerActionFunc
+		}{id, action},
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 // StartContainer uses the information provided in the container definition cd to create and start a new Docker
 // container. If a container can't be started before the timeout expires an error is returned. After the container
 // is successfully started the onstart action function is executed.
@@ -58,11 +84,11 @@ func StartContainer(cd *ContainerDefinition, timeout time.Duration, onstart Cont
 	rc := make(chan string)
 
 	cmds.Start <- startreq{
-		request{ec, timeout},
+		request{ec},
 		struct {
-			ContainerOptions *dockerclient.CreateContainerOptions
-			HostConfig       *dockerclient.HostConfig
-			ActionFunc       ContainerActionFunc
+			containerOptions *dockerclient.CreateContainerOptions
+			hostConfig       *dockerclient.HostConfig
+			action           ContainerActionFunc
 		}{&cd.CreateContainerOptions, &cd.HostConfig, onstart},
 		rc,
 	}
@@ -88,10 +114,11 @@ func StopContainer(id string, timeout time.Duration) error {
 	ec := make(chan error)
 
 	cmds.Stop <- stopreq{
-		request{ec, timeout},
+		request{ec},
 		struct {
-			id string
-		}{id},
+			id      string
+			timeout uint
+		}{id, 10},
 	}
 
 	select {
