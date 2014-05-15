@@ -23,14 +23,14 @@ func init() {
 			Name:        "docker-registry",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     `cd /docker-registry && ./setup-configs.sh && export DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml && exec docker-registry`,
+			Command:     `cd /docker-registry && ./setup-configs.sh && export DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_serviced.yml && exec docker-registry`,
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,
 		},
 	)
 	if err != nil {
-		glog.Fatal("Error initializing docker-registry container: %s", err)
+		glog.Fatalf("Error initializing docker-registry container: %s", err)
 	}
 }
 
@@ -44,7 +44,7 @@ func registryHealthCheck() error {
 			break
 		} else {
 			if time.Since(start) > timeout {
-				return fmt.Errorf("Could not startup docker-registry container.")
+				return fmt.Errorf("could not startup docker-registry container")
 			}
 		}
 		time.Sleep(time.Second)
