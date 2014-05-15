@@ -10,6 +10,10 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 )
 
+type nfsMountT func(string, string) error
+
+var nfsMount nfsMountT = nfs.Mount
+
 type Client struct {
 	host    *host.Host
 	conn    client.Connection
@@ -78,7 +82,10 @@ func (c *Client) loop() {
 			continue
 		}
 
-		//err := nfs.Mount(fmt.Sprintf("%s:/serviced", "/opt/serviced/var"))
+		err = nfsMount(leaderNode.ExportPath, "/opt/serviced/var")
+		if err != nil {
+			continue
+		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
 		case <-c.closing:

@@ -7,8 +7,9 @@ import (
 // Node is a server that participate in serviced storage as a server or client
 type Node struct {
 	host.Host
-	Network string
-	version interface{}
+	Network    string
+	ExportPath string
+	version    interface{}
 }
 
 func (n *Node) Version() interface{} {

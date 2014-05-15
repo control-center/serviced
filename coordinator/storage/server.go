@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/zenoss/glog"
@@ -18,11 +19,17 @@ type Server struct {
 }
 
 type StorageServer interface {
+	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
 }
 
 func NewServer(nfsServer StorageServer, host *host.Host, conn client.Connection) (*Server, error) {
+
+	if len(nfsServer.ExportPath()) < 9 {
+		return nil, fmt.Errorf("export path can not be empty")
+	}
+
 	s := &Server{
 		host:      host,
 		conn:      conn,
@@ -47,8 +54,9 @@ func (s *Server) loop() {
 	var e <-chan client.Event
 	children := make([]string, 0)
 	node := &Node{
-		Host:    *s.host,
-		version: nil,
+		Host:       *s.host,
+		ExportPath: s.nfsServer.ExportPath(),
+		version:    nil,
 	}
 
 	glog.Info("creating leader")

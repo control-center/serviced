@@ -3,6 +3,7 @@ package storage
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
 
@@ -16,6 +17,11 @@ import (
 type mockNfsServerT struct {
 	clients    []string
 	syncCalled bool
+	exportPath string
+}
+
+func (m *mockNfsServerT) ExportPath() string {
+	return m.exportPath
 }
 
 func (m *mockNfsServerT) SetClients(client ...string) {
@@ -51,6 +57,18 @@ func TestServer(t *testing.T) {
 		t.Fatal("unexpected error getting connection")
 	}
 
+	defer func(orig func(string, string) error) {
+		nfsMount = orig
+	}(nfsMount)
+
+	var local, remote string
+	nfsMount = func(a, b string) error {
+		glog.Infof("client is mounting %s to %s", a, b)
+		remote = a
+		local = b
+		return nil
+	}
+
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
@@ -59,7 +77,9 @@ func TestServer(t *testing.T) {
 	hc1.ID = "nodeID_client1"
 	hc1.IPAddr = "192.168.1.10"
 
-	mockNfsServer := &mockNfsServerT{}
+	mockNfsServer := &mockNfsServerT{
+		exportPath: fmt.Sprintf("%s:/serviced_var", h.IPAddr),
+	}
 
 	s, err := NewServer(mockNfsServer, h, conn)
 	if err != nil {
@@ -89,6 +109,10 @@ func TestServer(t *testing.T) {
 	}
 	if mockNfsServer.clients[0] != hc1.IPAddr {
 		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsServer.clients[0])
+	}
+
+	if remote != mockNfsServer.exportPath {
+		t.Fatalf("remote should be %s", remote)
 	}
 
 	c1.Close()
