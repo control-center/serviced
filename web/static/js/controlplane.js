@@ -3265,7 +3265,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             console.log('Updated %s', $scope.services.current.Id);
             var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
             lastCrumb.label = $scope.services.current.Name;
-
         });
     };
 
@@ -3278,34 +3277,37 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 failingAny = false;
                 lateAny = false;
                 unknownAny = false;
+                utc = Math.floor(Date.now()/1000);
                 for (var name in data) {
-                    if (data[name] == "passed") {
+                    if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                        data[name].Status = "unknown";
+                    }
+                    if (data[name].Status == "passed") {
                         passingAny = true;
-                    } else if (data[name] == "failed") {
+                    } else if (data[name].Status == "failed") {
                         failingAny = true;
-                    } else if (data[name] == "late") {
-                        lateAny = true;
-                    } else if (data[name] == "unknown") {
+                    } else if (data[name].Status == "unknown") {
                         unknownAny = true;
                     }
-                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name] + "\n";
+                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name].Status + "\n";
                 }
                 function setColor(color) {
                     document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
                 }
                 if (failingAny) {
                     setColor("red");
-                } else if ((lateAny || unknownAny) && !passingAny) {
+                } else if (!passingAny && unknownAny) {
                     setColor("grey");
-                } else if (passingAny && (unknownAny || lateAny)) {
+                } else if (passingAny && unknownAny) {
                     setColor("yellow");
-                } else if (passingAny && !(unknownAny || lateAny)) {
+                } else if (passingAny && !unknownAny) {
                     setColor("green");
                 }
-
             }
         });
     }
+
+    window.services = $scope.services;
 
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together

@@ -7,7 +7,6 @@ import (
 
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/health"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
@@ -51,7 +50,6 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 				// passthru
 			}
 
-			go health.StartHealthMonitor(dao)
 			go leader.watchSnapshotRequests()
 			leader.watchServices()
 			return nil
