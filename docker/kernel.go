@@ -148,7 +148,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
 			if action, ok := eventactions[req.args.event][req.args.id]; ok {
-				action(req.args.id)
+				go action(req.args.id)
 			}
 			close(req.errchan)
 		case req := <-cmds.OnContainerStop:
