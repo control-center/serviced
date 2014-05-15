@@ -577,7 +577,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	glog.V(3).Infof(">>> CreateContainerOptions:\n%s", string(cjson))
 
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
-	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
+	glog.V(0).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
 	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
@@ -768,14 +768,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// add arguments to mount requested directory (if requested)
+	glog.V(0).Infof("Checking Mount options for service %#v", service)
 	for _, bindMountString := range a.mount {
+		glog.V(0).Infof("bindmount is  %#v", bindMountString)
 		splitMount := strings.Split(bindMountString, ",")
 		numMountArgs := len(splitMount)
 
 		if numMountArgs == 2 || numMountArgs == 3 {
-			requestedImage := splitMount[0]
-			hostPath := splitMount[1]
 
+			requestedImage := splitMount[0]
+			glog.V(0).Infof("mount requestedImage %#v", requestedImage)
+			hostPath := splitMount[1]
+			glog.V(0).Infof("mount hostPath %#v", hostPath)
 			// assume the container path is going to be the same as the host path
 			containerPath := hostPath
 
@@ -783,16 +787,25 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 			if numMountArgs > 2 {
 				containerPath = splitMount[2]
 			}
+			glog.V(0).Infof("mount containerPath %#v", containerPath)
 
 			// insert tenantId into requestedImage - see dao.DeployService
 			matchedRequestedImage := false
 			if requestedImage == "*" {
 				matchedRequestedImage = true
 			} else {
-				path := strings.SplitN(requestedImage, "/", 3)
-				path[len(path)-1] = tenantID + "_" + path[len(path)-1]
-				requestedImage = strings.Join(path, "/")
-				matchedRequestedImage = (requestedImage == service.ImageId)
+				imageID, err := commons.ParseImageID(requestedImage)
+				if err != nil {
+					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
+					continue
+				}
+				svcImageID, err := commons.ParseImageID(service.ImageId)
+				if err != nil {
+					glog.Errorf("error parsing service imageid %v; %v", service.ImageId, err)
+					continue
+				}
+				glog.V(0).Infof("mount checking %#v and %#v ", imageID, svcImageID)
+				matchedRequestedImage = (imageID.Repo == svcImageID.Repo)
 			}
 
 			if matchedRequestedImage {
