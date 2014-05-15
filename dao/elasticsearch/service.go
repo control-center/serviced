@@ -61,6 +61,8 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 	svc.Id = id
 	//add assignment info to service
 	for idx := range svc.Endpoints {
+		//TODO:  add endpoints and config files everytime a service is read. Breaking compile here so I remember
+		PLEASE_READ_COMMENT_HERE
 		assignment, err := this.getEndpointAddressAssignments(svc.Id, svc.Endpoints[idx].Name)
 		if err != nil {
 			glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
@@ -93,7 +95,7 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 			return err
 		}
 
-		tenantID, servicePath := "BLAM", "BLAM" //TODO: calculate service name path
+		tenantID, servicePath := "BLAM", "BLAM" //TODO: calculate service name path FIX ME!!!!
 
 		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
 		//config files are different, for each one that is different validate and add to newConfs
