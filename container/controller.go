@@ -412,18 +412,17 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
 		return
 	}
+	defer script_file.Close()
 	defer os.Remove(script_file.Name())
 	err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error writing script for health check %s: %s", name, err)
-		script_file.Close()
 		return
 	}
 	script_file.Close()
 	err = os.Chmod(script_file.Name(), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
-		script_file.Close()
 		return
 	}
 	for {
