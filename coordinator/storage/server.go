@@ -88,11 +88,13 @@ func (s *Server) loop() {
 
 		children, e, err = conn.ChildrenW("/storage/clients")
 		if err != nil {
+			glog.Errorf("err getting childrenw: %s", err)
 			continue
 		}
 
 		s.driver.SetClients(children...)
 		if err = s.driver.Sync(); err != nil {
+			glog.Errorf("err syncing driver: %s", err)
 			continue
 		}
 

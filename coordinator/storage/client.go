@@ -95,9 +95,11 @@ func (c *Client) loop() {
 		}
 		e, err = conn.GetW(nodePath, node)
 		if err != nil {
+			glog.Errorf("err getting node %s: %s", nodePath, err)
 			continue
 		}
 		if err = leader.Current(leaderNode); err != nil {
+			glog.Errorf("err getting current leader: %s", err)
 			continue
 		}
 
@@ -116,7 +118,8 @@ func (c *Client) loop() {
 			// notifying someone who cares
 		case <-c.closing:
 			return
-		case <-e:
+		case evt := <-e:
+			glog.Errorf("got zk event: %s", evt)
 			continue
 		}
 	}
