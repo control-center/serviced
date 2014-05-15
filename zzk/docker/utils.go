@@ -19,8 +19,6 @@ const (
 	urandomFilename = "/dev/urandom"
 )
 
-var bash, nsinit, sudo string
-
 func newuuid() string {
 	f, err := os.Open(urandomFilename)
 	if err != nil {
@@ -43,31 +41,29 @@ func mkdir(conn client.Connection, dirpath string) error {
 	return conn.CreateDir(dirpath)
 }
 
-func attach(containerID string, command []string) *exec.Cmd {
+func attach(containerID string, command []string) (*exec.Cmd, error) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		return nil, fmt.Errorf("bash not found: %s", err)
+	}
+	nsinit, err := exec.LookPath("nsinit")
+	if err != nil {
+		return nil, fmt.Errorf("nsinit not found: %s", err)
+	}
+	sudo, err := exec.LookPath("sudo")
+	if err != nil {
+		return nil, fmt.Errorf("sudo not found: %s", err)
+	}
+
 	attachCmd := []string{"--", bash}
 	if len(command) > 0 {
-		cmd := fmt.Sprintf("cd %s/%s && %s exec %s %s", nsInitRoot, containerID, nsinit, strings.Join(command, " "))
+		cmd := fmt.Sprintf("cd %s/%s && %s exec %s", nsInitRoot, containerID, nsinit, strings.Join(command, " "))
 		attachCmd = append(attachCmd, "-c", cmd)
 	}
-	return exec.Command(sudo, attachCmd...)
+	fmt.Println(attachCmd)
+	return exec.Command(sudo, attachCmd...), nil
 }
 
 func shell(imageID string, command []string) *exec.Cmd {
 	return nil
-}
-
-func init() {
-	var err error
-	bash, err = exec.LookPath("bash")
-	if err != nil {
-		panic(fmt.Errorf("bash not found: %s", err))
-	}
-	nsinit, err = exec.LookPath("nsinit")
-	if err != nil {
-		panic(fmt.Errorf("nsinit not found: %s", err))
-	}
-	sudo, err = exec.LookPath("sudo")
-	if err != nil {
-		panic(fmt.Errorf("sudo not found: %s", err))
-	}
 }

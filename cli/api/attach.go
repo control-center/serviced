@@ -19,8 +19,21 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 	}
 
 	var rss []*dao.RunningService
-	if err := client.GetRunningServices(nil, &rss); err != nil {
+	if err := client.GetRunningServices(&empty, &rss); err != nil {
 		return nil, err
+	}
+
+	dc, err := a.connectDocker()
+	if err != nil {
+		return rss, err
+	}
+
+	for _, rs := range rss {
+		container, err := dc.InspectContainer(rs.Id + "/")
+		if err != nil {
+			return rss, err
+		}
+		rs.DockerId = container.ID
 	}
 
 	return rss, nil
@@ -43,6 +56,7 @@ func (a *api) Attach(config AttachConfig) error {
 	if err := client.Attach(req, &res); err != nil {
 		return err
 	}
+
 	return res.Error
 }
 

@@ -605,6 +605,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
+		fmt.Printf("Service: %+v\n", states[0])
 		return states[0], nil
 	}
 
@@ -671,26 +672,28 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		return err
 	}
 
-	var command string
-	if len(args) > 1 {
-		command = args[1]
-	}
+	switch len(args) {
+	case 1:
+		actions := c.serviceActions(rs.ServiceId)
+		if len(actions) > 0 {
+			fmt.Println(strings.Join(actions, "\n"))
+		} else {
+			fmt.Fprintln(os.Stderr, "no actions found")
+		}
+	default:
+		cfg := api.AttachConfig{
+			Running: rs,
+			Command: args[1],
+		}
+		if len(args) > 2 {
+			cfg.Args = args[2:]
+		}
 
-	var argv []string
-	if len(args) > 2 {
-		argv = args[2:]
-	}
-
-	cfg := api.AttachConfig{
-		Running: rs,
-		Command: command,
-		Args:    argv,
-	}
-
-	if data, err := c.driver.Action(cfg); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	} else {
-		fmt.Printf("%s\n", data)
+		if data, err := c.driver.Action(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Printf("%s\n", data)
+		}
 	}
 
 	return fmt.Errorf("serviced service attach")

@@ -62,12 +62,14 @@ func (this *ControlPlaneDao) Attach(request dao.AttachRequest, response *zkdocke
 	if hostID, err := utils.HostID(); err != nil {
 		return err
 	} else if hostID == req.HostID {
+		glog.Info("Attach to container locally")
 		return zkdocker.LocalAttach(&req)
 	} else if request.Command == "" {
 		return fmt.Errorf("cannot start remote shell")
 	}
 
 	// Open the zookeeper connection
+	glog.Info("Attach to container remotely")
 	conn, err := this.zclient.GetConnection()
 	if err != nil {
 		return err

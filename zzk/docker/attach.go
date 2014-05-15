@@ -61,18 +61,22 @@ func ListenAttach(conn client.Connection, hostID string) {
 
 			// Do attach
 			glog.V(1).Infof("Attaching to service state via request: %v", cmd)
-			exec := attach(cmd.DockerID, cmd.Command)
 			cmd.Started = true
 			if err := conn.Set(path, &cmd); err != nil {
 				glog.V(1).Infof("Could not update command at %s", path, err)
 				continue
 			}
 			go func() {
-				cmd.Output, cmd.Error = exec.CombinedOutput()
+				defer glog.V(1).Infof("Finished attaching to command: %v", cmd)
+				exec, err := attach(cmd.DockerID, cmd.Command)
+				if err != nil {
+					cmd.Error = err
+				} else {
+					cmd.Output, cmd.Error = exec.CombinedOutput()
+				}
 				if err := conn.Set(path, &cmd); err != nil {
 					glog.V(1).Infof("Could not update command at %s", path, err)
 				}
-				glog.V(1).Infof("Finished attaching to command: %v", cmd)
 			}()
 		}
 		// Wait for an event that something changed
@@ -113,7 +117,11 @@ func RecvAttach(conn client.Connection, hostID string, id string) (*Attach, erro
 }
 
 func LocalAttach(cmd *Attach) error {
-	exec := attach(cmd.DockerID, cmd.Command)
+	exec, err := attach(cmd.DockerID, cmd.Command)
+	if err != nil {
+		return err
+	}
+
 	exec.Stdin = os.Stdin
 	exec.Stdout = os.Stdout
 	exec.Stderr = os.Stderr
