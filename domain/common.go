@@ -38,3 +38,14 @@ type HealthCheck struct {
 	Script   string        // A script to execute to verify the health of a service.
 	Interval time.Duration // The interval at which to execute the script.
 }
+
+type HealthCheckResult struct {
+	ServiceId string
+	Name      string
+	Timestamp string
+	Passed    string
+}
+
+func (h *HealthCheckResult) ValidEntity() error {
+	return nil
+}

@@ -94,4 +94,6 @@ type LoadBalancer interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
+
+	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
@@ -233,4 +234,8 @@ func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) e
 
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
+
+func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused)
 }
