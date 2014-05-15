@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 )
 
+// WriteFile will write the given data to the filename in an atomic manner so that
+// partial writes are not possible.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	// find the dirname of the filename
 
