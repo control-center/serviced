@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/utils"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
@@ -23,19 +22,6 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 	var rss []*dao.RunningService
 	if err := client.GetRunningServices(&empty, &rss); err != nil {
 		return nil, err
-	}
-
-	dc, err := a.connectDocker()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, rs := range rss {
-		if container, err := dc.InspectContainer(rs.Id); err == nil {
-			rs.DockerId = container.ID
-		} else {
-			glog.Warningf("Could not find docker ID for state %s: ", rs.Id, err)
-		}
 	}
 
 	return rss, nil

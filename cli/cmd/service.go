@@ -596,8 +596,17 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 
 	var states []*dao.RunningService
 	for _, rs := range rss {
-		if rs.ServiceId == keyword || rs.Name == keyword || rs.Id == keyword || rs.DockerId == keyword {
+		if rs.DockerId == "" {
+			continue
+		}
+
+		switch keyword {
+		case rs.ServiceId, rs.Name, rs.Id, rs.DockerId:
 			states = append(states, rs)
+		default:
+			if keyword == "" {
+				states = append(states, rs)
+			}
 		}
 	}
 

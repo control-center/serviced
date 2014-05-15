@@ -55,11 +55,12 @@ func attach(containerID string, command []string) (*exec.Cmd, error) {
 		return nil, fmt.Errorf("sudo not found: %s", err)
 	}
 
-	attachCmd := []string{sudo, "--", bash}
+	attachCmd := []string{sudo, "--", bash, "-c"}
+	bashcmd := fmt.Sprintf("cd %s/%s && %s exec bash", nsInitRoot, containerID, nsinit)
 	if len(command) > 0 {
-		cmd := fmt.Sprintf("cd %s/%s && %s exec %s", nsInitRoot, containerID, nsinit, strings.Join(command, " "))
-		attachCmd = append(attachCmd, "-c", cmd)
+		bashcmd = bashcmd + fmt.Sprintf(" -c \"%s\"", strings.Join(command, " "))
 	}
+	attachCmd = append(attachCmd, bashcmd)
 	fmt.Println(attachCmd)
 	return exec.Command(sudo, attachCmd...), nil
 }
