@@ -3,8 +3,10 @@ package storage
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -27,14 +29,15 @@ func TestClient(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
 
-	drv := zookeeper.Driver{}
 	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
 		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
+        zclient, err := client.New("zookeeper", dsn, basePath, nil)
 
-	conn, err := drv.GetConnection(dsn, basePath)
+
+	conn, err := zclient.GetConnection()
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}
@@ -42,11 +45,12 @@ func TestClient(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
-	c := NewClient(h, conn)
+	c := NewClient(h, zclient)
 	defer c.Close()
 	time.Sleep(time.Second * 5)
 
 	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
+	glog.Infof("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {
 		t.Fatalf("did not expect error checking for existence of %s: %s", nodePath, err)
 	} else {

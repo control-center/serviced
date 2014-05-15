@@ -12,29 +12,29 @@ import (
 
 type Server struct {
 	host      *host.Host
-	conn      client.Connection
+	zclient *client.Client
 	closing   chan struct{}
-	nfsServer StorageServer
+	driver StorageDriver
 	debug     chan string
 }
 
-type StorageServer interface {
+type StorageDriver interface {
 	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
 }
 
-func NewServer(nfsServer StorageServer, host *host.Host, conn client.Connection) (*Server, error) {
+func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*Server, error) {
 
-	if len(nfsServer.ExportPath()) < 9 {
+	if len(driver.ExportPath()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
 	s := &Server{
 		host:      host,
-		conn:      conn,
+		zclient:      zclient,
 		closing:   make(chan struct{}),
-		nfsServer: nfsServer,
+		driver: driver,
 		debug:     make(chan string),
 	}
 
@@ -44,7 +44,6 @@ func NewServer(nfsServer StorageServer, host *host.Host, conn client.Connection)
 
 func (s *Server) Close() {
 	close(s.closing)
-	s.conn.Close()
 }
 
 func (s *Server) loop() {
@@ -52,15 +51,17 @@ func (s *Server) loop() {
 	var err error
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
+
+	conn, _ := s.zclient.GetConnection()
 	children := make([]string, 0)
 	node := &Node{
 		Host:       *s.host,
-		ExportPath: s.nfsServer.ExportPath(),
+		ExportPath: s.driver.ExportPath(),
 		version:    nil,
 	}
 
 	glog.Info("creating leader")
-	storageLead := s.conn.NewLeader("/storage/leader", node)
+	storageLead := conn.NewLeader("/storage/leader", node)
 	defer storageLead.ReleaseLead()
 	for {
 		glog.Info("looping")
@@ -74,7 +75,7 @@ func (s *Server) loop() {
 		}
 		err = nil
 
-		if err = s.conn.CreateDir("/storage/clients"); err != nil && err != client.ErrNodeExists {
+		if err = conn.CreateDir("/storage/clients"); err != nil && err != client.ErrNodeExists {
 			glog.Errorf("err creating /storage/clients: %s", err)
 			continue
 		}
@@ -85,13 +86,13 @@ func (s *Server) loop() {
 			continue
 		}
 
-		children, e, err = s.conn.ChildrenW("/storage/clients")
+		children, e, err = conn.ChildrenW("/storage/clients")
 		if err != nil {
 			continue
 		}
 
-		s.nfsServer.SetClients(children...)
-		if err = s.nfsServer.Sync(); err != nil {
+		s.driver.SetClients(children...)
+		if err = s.driver.Sync(); err != nil {
 			continue
 		}
 

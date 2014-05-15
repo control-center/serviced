@@ -4,6 +4,7 @@ import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
 
@@ -14,20 +15,20 @@ import (
 	"time"
 )
 
-type mockNfsServerT struct {
+type mockNfsDriverT struct {
 	clients    []string
 	syncCalled bool
 	exportPath string
 }
 
-func (m *mockNfsServerT) ExportPath() string {
+func (m *mockNfsDriverT) ExportPath() string {
 	return m.exportPath
 }
 
-func (m *mockNfsServerT) SetClients(client ...string) {
+func (m *mockNfsDriverT) SetClients(client ...string) {
 	m.clients = client
 }
-func (m *mockNfsServerT) Sync() error {
+func (m *mockNfsDriverT) Sync() error {
 	m.syncCalled = true
 	return nil
 }
@@ -45,16 +46,15 @@ func TestServer(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
 
-	drv := zookeeper.Driver{}
 	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
 		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
 
-	conn, err := drv.GetConnection(dsn, basePath)
+	zclient, err := client.New("zookeeper", dsn, basePath, nil)
 	if err != nil {
-		t.Fatal("unexpected error getting connection")
+		t.Fatal("unexpected error getting zk client")
 	}
 
 	defer func(orig func(string, string) error) {
@@ -77,11 +77,11 @@ func TestServer(t *testing.T) {
 	hc1.ID = "nodeID_client1"
 	hc1.IPAddr = "192.168.1.10"
 
-	mockNfsServer := &mockNfsServerT{
+	mockNfsDriver := &mockNfsDriverT{
 		exportPath: fmt.Sprintf("%s:/serviced_var", h.IPAddr),
 	}
 
-	s, err := NewServer(mockNfsServer, h, conn)
+	s, err := NewServer(mockNfsDriver, h, zclient)
 	if err != nil {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
@@ -90,31 +90,32 @@ func TestServer(t *testing.T) {
 	// give it some time
 	time.Sleep(time.Second * 5)
 
-	if !mockNfsServer.syncCalled {
+	if !mockNfsDriver.syncCalled {
 		t.Fatalf("sync() should have been called by now")
 	}
-	if len(mockNfsServer.clients) != 0 {
+	if len(mockNfsDriver.clients) != 0 {
 		t.Fatalf("there should be no clients yet")
 	}
-	mockNfsServer.syncCalled = false
-	c1 := NewClient(hc1, conn)
+	mockNfsDriver.syncCalled = false
+	c1 := NewClient(hc1, zclient)
 	// give it some time
 	time.Sleep(time.Second * 2)
-	if !mockNfsServer.syncCalled {
+	if !mockNfsDriver.syncCalled {
 		t.Fatalf("sync() should have been called by now")
 	}
 
-	if len(mockNfsServer.clients) != 1 {
-		t.Fatalf("expecting 1 client, got %d", len(mockNfsServer.clients))
+	if len(mockNfsDriver.clients) != 1 {
+		t.Fatalf("expecting 1 client, got %d", len(mockNfsDriver.clients))
 	}
-	if mockNfsServer.clients[0] != hc1.IPAddr {
-		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsServer.clients[0])
+	if mockNfsDriver.clients[0] != hc1.IPAddr {
+		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsDriver.clients[0])
 	}
 
-	if remote != mockNfsServer.exportPath {
+	if remote != mockNfsDriver.exportPath {
 		t.Fatalf("remote should be %s", remote)
 	}
 
+	glog.Info("about to call c1.Close()")
 	c1.Close()
 }
 

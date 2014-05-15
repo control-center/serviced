@@ -26,8 +26,10 @@ import (
 	"github.com/zenoss/serviced/scheduler"
 	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/stats"
+	"github.com/zenoss/serviced/coordinator/storage"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/dfs/nfs"
 	// Need to do btrfs driver initializations
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	// Need to do rsync driver initializations
@@ -56,6 +58,7 @@ type daemon struct {
 	facade    *facade.Facade
 	hostID    string
 	zclient   *coordclient.Client
+	storageHandler *storage.Server
 }
 
 func newDaemon(staticIPs []string) (*daemon, error) {
@@ -165,6 +168,16 @@ func (d *daemon) startMaster() error {
 	d.initWeb()
 
 	d.startScheduler()
+
+	thisHost, err := host.Build(options.HostIPAddr, "unknown")
+	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
+		return err
+	} else {
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zclient)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

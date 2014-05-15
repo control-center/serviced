@@ -41,6 +41,7 @@ type Options struct {
 	Verbosity        int
 	StaticIPs        []string
 	DockerRegistry   string
+	HostIPAddr       string
 }
 
 // LoadOptions overwrites the existing server options

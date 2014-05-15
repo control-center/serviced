@@ -16,14 +16,14 @@ var nfsMount nfsMountT = nfs.Mount
 
 type Client struct {
 	host    *host.Host
-	conn    client.Connection
+	zclient    *client.Client
 	closing chan struct{}
 }
 
-func NewClient(host *host.Host, conn client.Connection) *Client {
+func NewClient(host *host.Host, zclient *client.Client) *Client {
 	c := &Client{
 		host:    host,
-		conn:    conn,
+		zclient: zclient,
 		closing: make(chan struct{}),
 	}
 	go c.loop()
@@ -46,7 +46,8 @@ func (c *Client) loop() {
 		Host:    host.Host{},
 		version: nil,
 	}
-	leader := c.conn.NewLeader("/storage/leader", leaderNode)
+	var leader client.Leader
+	var conn client.Connection
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
 	for {
 		// keep from churning if we get errors
@@ -58,23 +59,30 @@ func (c *Client) loop() {
 			}
 		}
 		err = nil
+		if leader == nil {
+			conn, err = c.zclient.GetConnection()
+			if err != nil {
+				continue
+			}
+			leader = conn.NewLeader("/storage/leader", leaderNode)
+		}
 
 		glog.Infof("creating %s", nodePath)
-		if err = c.conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
+		if err = conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
 			continue
 		}
 		if err == client.ErrNodeExists {
-			err = c.conn.Get(nodePath, node)
+			err = conn.Get(nodePath, node)
 			if err != nil {
 				continue
 			}
 			node.Host = *c.host
-			err = c.conn.Set(nodePath, node)
+			err = conn.Set(nodePath, node)
 			if err != nil {
 				continue
 			}
 		}
-		e, err = c.conn.GetW(nodePath, node)
+		e, err = conn.GetW(nodePath, node)
 		if err != nil {
 			continue
 		}
