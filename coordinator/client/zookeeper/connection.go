@@ -11,6 +11,7 @@ import (
 
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/glog"
 )
 
 var join = lpath.Join
@@ -191,7 +192,12 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(data, node)
+	if len(data) > 0 {
+		glog.V(11).Infof("got data %s", string(data))
+		err = json.Unmarshal(data, node)
+	} else {
+		err = client.ErrEmptyNode
+	}
 	node.SetVersion(stat)
 	return toClientEvent(zkEvent), xlateError(err)
 }
@@ -221,7 +227,12 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, node)
+	if len(data) > 0 {
+		glog.V(11).Infof("got data %s", string(data))
+		err = json.Unmarshal(data, node)
+	} else {
+		err = client.ErrEmptyNode
+	}
 	node.SetVersion(stat)
 	return xlateError(err)
 }

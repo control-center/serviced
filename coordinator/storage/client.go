@@ -80,16 +80,19 @@ func (c *Client) loop() {
 
 		glog.Infof("creating %s", nodePath)
 		if err = conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
+			glog.Errorf("could not create %s: %s", nodePath, err)
 			continue
 		}
 		if err == client.ErrNodeExists {
 			err = conn.Get(nodePath, node)
-			if err != nil {
+			if err != nil && err != client.ErrEmptyNode {
+				glog.Errorf("could not get %s: %s", nodePath, err)
 				continue
 			}
 			node.Host = *c.host
 			err = conn.Set(nodePath, node)
 			if err != nil {
+				glog.Errorf("problem updating %s: %s", nodePath, err)
 				continue
 			}
 		}
@@ -106,7 +109,7 @@ func (c *Client) loop() {
 		if leaderNode.IPAddr != c.host.IPAddr {
 			err = nfsMount(leaderNode.ExportPath, "/opt/serviced/var")
 			if err != nil {
-				glog.Infof("problem mouting %s: %s", leaderNode.ExportPath, err)
+				glog.Errorf("problem mouting %s: %s", leaderNode.ExportPath, err)
 				continue
 			}
 		} else {

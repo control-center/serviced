@@ -30,6 +30,7 @@ var (
 )
 
 var (
+	ErrEmptyNode          = errors.New("coord-client: empty node")
 	ErrInvalidVersionObj  = errors.New("coord-client: invalid version object")
 	ErrInvalidPath        = errors.New("coord-client: invalid path")
 	ErrInvalidNodeType    = errors.New("coord-client: invalid node type")
