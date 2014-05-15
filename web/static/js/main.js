@@ -990,6 +990,21 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        get_restore_status: function(callback){
+            $http.get('/backup/restore/status').
+                success(function(data, status) {
+                    console.log('Retrieved status of restore.');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving status of restore.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }

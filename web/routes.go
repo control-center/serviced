@@ -20,6 +20,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/backup/restore", sc.AuthorizedClient(RestBackupRestore)},
 		rest.Route{"GET", "/backup/list", sc.CheckAuth(RestBackupFileList)},
 		rest.Route{"GET", "/backup/status", sc.AuthorizedClient(RestBackupStatus)},
+		rest.Route{"GET", "/backup/restore/status", sc.AuthorizedClient(RestRestoreStatus)},
 		// Hosts
 		rest.Route{"GET", "/hosts", sc.CheckAuth(RestGetHosts)},
 		rest.Route{"POST", "/hosts/add", sc.CheckAuth(RestAddHost)},

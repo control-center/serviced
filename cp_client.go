@@ -241,3 +241,11 @@ func (s *ControlClient) BackupStatus(notUsed string, backupStatus *string) error
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
 }
+
+func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.AsyncRestore", backupFilePath, unused)
+}
+
+func (s *ControlClient) RestoreStatus(notUsed string, restoreStatus *string) error {
+	return s.rpcClient.Call("ControlPlane.RestoreStatus", notUsed, restoreStatus)
+}

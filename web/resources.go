@@ -513,7 +513,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *serviced
 
 	unused := 0
 
-	err = client.Restore(home + "/" + filepath, &unused)
+	err = client.AsyncRestore(home + "/backup/" + filepath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		RestServerError(w)
@@ -555,4 +555,14 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.
 		RestServerError(w)
 	}
 	w.WriteJson(&SimpleResponse{backupStatus, servicesLinks()})
+}
+
+func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	restoreStatus := ""
+	err := client.RestoreStatus("", &restoreStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore status: %v", err)
+		RestServerError(w)
+	}
+	w.WriteJson(&SimpleResponse{restoreStatus, servicesLinks()})
 }

@@ -23,9 +23,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"errors"
 )
 
 var backupOutput chan string = nil
+var restoreOutput chan string = nil
 
 var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	user, e := user.Current()
@@ -311,9 +313,21 @@ func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) 
 
 func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
 	//open a channel for asynchronous Backup calls
+	if backupOutput != nil {
+		e := errors.New("Another backup is currently in progress")
+		glog.Errorf("An error occured when starting backup: %v", e)
+		return e
+	}
 	backupOutput = make(chan string)
+
+	defer func() {
+		//close the channel for asynchronous calls to Backup
+		close(backupOutput)
+		backupOutput = nil
+	}()
+
 	backupOutput <- "Starting backup"
-	time.Sleep(1 * time.Hour)
+
 	var (
 		templates      map[string]*servicetemplate.ServiceTemplate
 		services       []*service.Service
@@ -478,9 +492,6 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 
 	glog.Infof("Created backup from dir:%s to file:%s", backupPath(), backupFilePath)
 
-	//close the channel for asynchronous calls to Backup
-	close(backupOutput)
-
 	return nil
 }
 
@@ -492,7 +503,46 @@ var getSnapshotPath = func(vfs, poolId, serviceId, snapshotId string) (string, e
 	return volume.SnapshotPath(snapshotId), nil
 }
 
+func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (err error){
+	go func() {
+		this.Restore(backupFilePath, unused)
+	}()
+
+	return nil
+}
+
+func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string) (err error){
+	timeout := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Second)
+		timeout <- true
+	}()
+
+	select {
+	case *restoreStatus = <-restoreOutput:
+	case <- timeout:
+		*restoreStatus = "timeout"
+	}
+
+	return nil
+}
+
 func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
+	if restoreOutput != nil {
+		e := errors.New("Another restore is currently in progress")
+		glog.Errorf("An error occured when starting restore: %v", e)
+		return e
+	}
+	restoreOutput = make(chan string)
+
+	defer func() {
+		//close the channel for asynchronous calls to Backup
+		close(restoreOutput)
+		restoreOutput = nil
+	}()
+
+	restoreOutput <- "Starting restore"
+	
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
@@ -517,8 +567,6 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		glog.Errorf("Could not find nor create %s: %v", restorePath(), e)
 		return e
 	}
-
-	glog.Infof("HERE IS YOUR DIRECTORY: %v", restorePath())
 
 	defer func() {
 		if e := osRemoveAll(restorePath()); e != nil {
@@ -547,6 +595,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	// Restore the service templates ...
 	for templateId, template := range templates {
 		template.ID = templateId
+		restoreOutput <- fmt.Sprintf("Restoring service template: %v", template.ID)
 		if e := this.UpdateServiceTemplate(*template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateId, e)
 			return e
@@ -565,6 +614,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		imageId := imageNameWithTags[0]
 		imageTags := imageNameWithTags[1:]
 		imageName := "imported:" + imageId
+		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
 		image, e := client.InspectImage(imageId)
 		if e != nil {
 			if e != docker.ErrNoSuchImage {
@@ -605,6 +655,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	}
 	for _, snapFile := range snapFiles {
 		snapshotId := strings.TrimSuffix(snapFile, ".tgz")
+		restoreOutput <- fmt.Sprintf("Restoring snapshot: %v", snapshotId)
 		if snapshotId == snapFile {
 			continue //the filename does not end with .tgz
 		}

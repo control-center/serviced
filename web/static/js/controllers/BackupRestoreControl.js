@@ -22,9 +22,12 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     };
 
     $scope.restoreBackup = function(filename){
-        $('#workingModal').modal('show');
+        $('#restoreInfo').show({
+            duration: 200,
+            easing: "linear"
+        });
         resourcesService.restore_backup(filename, function(data){
-            $('#workingModal').modal('hide');
+            setTimeout(getRestoreStatus, 1);
         });
     };
 
@@ -40,6 +43,22 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
                     $scope.backupFiles = data;
                 });
                 $("#backupInfo").hide({
+                    duration: 200,
+                    easing: "linear"
+                });
+            }
+        });
+    }
+
+    function getRestoreStatus(){
+        resourcesService.get_restore_status(function(data){
+            if(data.Detail != ""){
+                if(data.Detail != "timeout"){
+                    $("#restoreStatus").html(data.Detail);
+                }
+                setTimeout(getRestoreStatus, 1);
+            }else{
+                $("#restoreInfo").hide({
                     duration: 200,
                     easing: "linear"
                 });
