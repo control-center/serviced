@@ -121,6 +121,10 @@ func ParseImageID(iid string) (*ImageID, error) {
 			case rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 				state = scanningHost
+			case rune == colon:
+				scanned = append(scanned, string(tokbuf))
+				tokbuf = []byte{}
+				state = scanningPortOrTag
 			case rune == underscore:
 				result.UUID = string(tokbuf)
 				tokbuf = []byte{}
