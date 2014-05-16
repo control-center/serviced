@@ -35,6 +35,18 @@ type cancelactionreq struct {
 	}
 }
 
+type createreq struct {
+	request
+	args struct {
+		containerOptions *dockerclient.CreateContainerOptions
+		hostConfig       *dockerclient.HostConfig
+		start            bool
+		createaction     ContainerActionFunc
+		startaction      ContainerActionFunc
+	}
+	respchan chan string
+}
+
 type inspectreq struct {
 	request
 	args struct {
@@ -67,11 +79,10 @@ type onstopreq struct {
 type startreq struct {
 	request
 	args struct {
-		containerOptions *dockerclient.CreateContainerOptions
-		hostConfig       *dockerclient.HostConfig
-		action           ContainerActionFunc
+		id         string
+		hostConfig *dockerclient.HostConfig
+		action     ContainerActionFunc
 	}
-	respchan chan string
 }
 
 type stopreq struct {
@@ -86,6 +97,7 @@ var (
 	cmds = struct {
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
+		Create          chan createreq
 		Inspect         chan inspectreq
 		List            chan listreq
 		OnContainerStop chan onstopreq
@@ -95,6 +107,7 @@ var (
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
+		make(chan createreq),
 		make(chan inspectreq),
 		make(chan listreq),
 		make(chan onstopreq),
@@ -114,9 +127,7 @@ var (
 		dockerclient.Stop,
 		dockerclient.Untag,
 	}
-	done  = make(chan struct{})
-	srin  = make(chan startreq)
-	srout = make(chan startreq)
+	done = make(chan struct{})
 )
 
 // init starts up the kernel loop that is responsible for handling all the API calls
@@ -136,8 +147,15 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 
 	eventactions := mkEventActionTable()
 
-	go startq(srin, srout)
-	go scheduler(dc, srout, done)
+	si := make(chan startreq)
+	so := make(chan startreq)
+	go startq(si, so)
+
+	ci := make(chan createreq)
+	co := make(chan createreq)
+	go createq(ci, co)
+
+	go scheduler(dc, so, co, done)
 
 	for {
 		select {
@@ -165,6 +183,8 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 
 			delete(eventactions[event], req.args.id)
 			close(req.errchan)
+		case req := <-cmds.Create:
+			ci <- req
 		case req := <-cmds.Inspect:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -187,20 +207,14 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
-				go wcaction(Wildcard)
+				go wcaction(req.args.id)
 			}
 			if action, ok := eventactions[req.args.event][req.args.id]; ok {
 				go action(req.args.id)
 			}
 			close(req.errchan)
-		case req := <-cmds.OnContainerStop:
-			if _, ok := eventactions[dockerclient.Stop]; !ok {
-				eventactions[dockerclient.Stop] = make(map[string]ContainerActionFunc)
-			}
-			eventactions[dockerclient.Stop][req.args.id] = req.args.action
-			close(req.errchan)
 		case req := <-cmds.Start:
-			srin <- req
+			si <- req
 		case req := <-cmds.Stop:
 			err := dc.StopContainer(req.args.id, req.args.timeout)
 			if err != nil {
@@ -209,50 +223,70 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			close(req.errchan)
 		case <-done:
+			close(si)
+			close(ci)
 			return nil
 		}
 	}
 }
 
-// scheduler handles starting up containers. Container startup can take a long time so
-// the scheduler runs in its own goroutine and pulls requests off of the start queue.
-func scheduler(dc *dockerclient.Client, rc <-chan startreq, done chan struct{}) {
+// scheduler handles creating and starting up containers. Container creation can take a long time so
+// the scheduler runs in its own goroutine and pulls requests off of the create and start queues.
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done chan struct{}) {
 	for {
 		select {
-		case sr := <-rc:
-			ctr, err := dc.CreateContainer(*sr.args.containerOptions)
+		case req := <-crc:
+			ctr, err := dc.CreateContainer(*req.args.containerOptions)
 			switch {
 			case err == dockerclient.ErrNoSuchImage:
 				if pullerr := dc.PullImage(dockerclient.PullImageOptions{
-					Repository:   sr.args.containerOptions.Config.Image,
+					Repository:   req.args.containerOptions.Config.Image,
 					OutputStream: os.NewFile(uintptr(syscall.Stdout), "/def/stdout"),
 				}, dockerclient.AuthConfiguration{}); pullerr != nil {
-					sr.errchan <- err
+					req.errchan <- err
 					continue
 				}
 
-				ctr, err = dc.CreateContainer(*sr.args.containerOptions)
+				ctr, err = dc.CreateContainer(*req.args.containerOptions)
 				if err != nil {
-					sr.errchan <- err
+					req.errchan <- err
 					continue
 				}
 			case err != nil:
-				sr.errchan <- err
+				req.errchan <- err
 				continue
 			}
 
-			err = dc.StartContainer(ctr.ID, sr.args.hostConfig)
+			if req.args.createaction != nil {
+				req.args.createaction(ctr.ID)
+			}
+
+			if req.args.start {
+				err = dc.StartContainer(ctr.ID, req.args.hostConfig)
+				if err != nil {
+					req.errchan <- err
+					continue
+				}
+
+				if req.args.startaction != nil {
+					req.args.startaction(ctr.ID)
+				}
+			}
+
+			close(req.errchan)
+
+			req.respchan <- ctr.ID
+		case req := <-src:
+			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {
-				sr.errchan <- err
+				req.errchan <- err
 			}
 
-			close(sr.errchan)
-
-			if sr.args.action != nil {
-				sr.args.action(ctr.ID)
+			if req.args.action != nil {
+				req.args.action(req.args.id)
 			}
 
-			sr.respchan <- ctr.ID
+			close(req.errchan)
 		case <-done:
 			return
 		}
@@ -265,6 +299,41 @@ func startq(in <-chan startreq, next chan<- startreq) {
 	defer close(next)
 
 	pending := []startreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			pending = append(pending, v)
+		case next <- pending[0]:
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
+}
+
+// createq implements an inifinite buffered channel of create requests. Requests are added via the
+// in channel and received on the next channel.
+func createq(in <-chan createreq, next chan<- createreq) {
+	defer close(next)
+
+	pending := []createreq{}
 
 restart:
 	for {

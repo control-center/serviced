@@ -24,6 +24,39 @@ var (
 	ErrKernelShutdown = errors.New("docker: kernel shutdown")
 )
 
+// CreateContainer creates a new container and returns its id. The supplied action function, if
+// any, will be executed on successful creation of the container.
+func CreateContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (string, error) {
+	ec := make(chan error)
+	rc := make(chan string)
+
+	cmds.Create <- createreq{
+		request{ec},
+		struct {
+			containerOptions *dockerclient.CreateContainerOptions
+			hostConfig       *dockerclient.HostConfig
+			start            bool
+			createaction     ContainerActionFunc
+			startaction      ContainerActionFunc
+		}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart},
+		rc,
+	}
+
+	select {
+	case <-time.After(timeout):
+		return emptystr, ErrRequestTimeout
+	case <-done:
+		return emptystr, ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return <-rc, nil
+		default:
+			return emptystr, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 // InspectContainer returns information about the container specified by id.
 func InspectContainer(id string) (*dockerclient.Container, error) {
 	ec := make(chan error)
@@ -50,34 +83,55 @@ func InspectContainer(id string) (*dockerclient.Container, error) {
 	}
 }
 
-// StartContainer uses the information provided in the container definition cd to create and start a new Docker
-// container. If a container can't be started before the timeout expires an error is returned. After the container
-// is successfully started the onstart action function is executed.
-func StartContainer(cd *ContainerDefinition, timeout time.Duration, onstart ContainerActionFunc) (string, error) {
+// ListContainers returns a list (slice) of known Docker container ids.
+func ListContainers() ([]string, error) {
 	ec := make(chan error)
-	rc := make(chan string)
+	rc := make(chan []string)
 
-	cmds.Start <- startreq{
+	cmds.List <- listreq{
 		request{ec},
-		struct {
-			containerOptions *dockerclient.CreateContainerOptions
-			hostConfig       *dockerclient.HostConfig
-			action           ContainerActionFunc
-		}{&cd.CreateContainerOptions, &cd.HostConfig, onstart},
 		rc,
 	}
 
 	select {
-	case <-time.After(timeout):
-		return emptystr, ErrRequestTimeout
 	case <-done:
-		return emptystr, ErrKernelShutdown
+		return nil, ErrKernelShutdown
 	default:
 		switch err, ok := <-ec; {
 		case !ok:
 			return <-rc, nil
 		default:
-			return emptystr, fmt.Errorf("docker: request failed: %v", err)
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// StartContainer uses the information provided in the container definition cd to start a new Docker
+// container. If a container can't be started before the timeout expires an error is returned. After the container
+// is successfully started the onstart action function is executed.
+func StartContainer(id string, cd *ContainerDefinition, timeout time.Duration, onstart ContainerActionFunc) error {
+	ec := make(chan error)
+
+	cmds.Start <- startreq{
+		request{ec},
+		struct {
+			id         string
+			hostConfig *dockerclient.HostConfig
+			action     ContainerActionFunc
+		}{id, &cd.HostConfig, onstart},
+	}
+
+	select {
+	case <-time.After(timeout):
+		return ErrRequestTimeout
+	case <-done:
+		return ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
 }

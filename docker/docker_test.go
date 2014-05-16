@@ -20,7 +20,19 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	cid, err := StartContainer(cd, 600*time.Second, func(id string) error {
+	cid, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	sc := make(chan struct{})
+
+	OnContainerStart(cid, func(id string) error {
+		sc <- struct{}{}
+		return nil
+	})
+
+	err = StartContainer(cid, cd, 30*time.Second, func(id string) error {
 		started = true
 		return nil
 	})
@@ -28,11 +40,45 @@ func TestOnContainerStart(t *testing.T) {
 		t.Fatal("can't start container: ", err)
 	}
 
-	StopContainer(cid, 30)
-
-	if !started {
-		t.Fatal("OnContainerStart handler was not triggered")
+	select {
+	case <-sc:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for event")
 	}
+
+	StopContainer(cid, 30)
+}
+
+func TestOnContainerCreated(t *testing.T) {
+	cs := make(chan string)
+
+	OnContainerCreated(Wildcard, func(id string) error {
+		cs <- id
+		return nil
+	})
+
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	cid, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	select {
+	case <-cs:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for event")
+	}
+
+	StopContainer(cid, 30)
 }
 
 func TestOnContainerStop(t *testing.T) {
@@ -46,7 +92,7 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	cid, err := StartContainer(cd, 600*time.Second, nil)
+	cid, err := CreateContainer(cd, true, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
