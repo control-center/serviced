@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
@@ -177,4 +178,7 @@ type ControlPlane interface {
 
 	// Restore templates and services from a tgz file (inverse of Backup)
 	Restore(backupFilePath string, unused *int) error
+
+	// Register a health check result
+	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 }

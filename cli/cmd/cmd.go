@@ -112,6 +112,7 @@ func New(driver api.API) *ServicedCli {
 	c.initTemplate()
 	c.initService()
 	c.initSnapshot()
+	c.initLog()
 	c.initBackup()
 
 	return c
