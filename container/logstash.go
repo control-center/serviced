@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	LOGSTASH_CONTAINER_CONFIG = "/etc/logstash-forwarder.conf"
+	logstashContainerConfig = "/etc/logstash-forwarder.conf"
 )
 
 //createFields makes the map of tags for the logstash config including the type
