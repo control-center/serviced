@@ -58,7 +58,7 @@ func (s *Server) loop() {
 	var e <-chan client.Event
 
 	conn, _ := s.zclient.GetConnection()
-	children := make([]string, 0)
+	var children []string
 	node := &Node{
 		Host:       *s.host,
 		ExportPath: fmt.Sprintf("%s:/%s", s.host.IPAddr, s.driver.ExportName()),
