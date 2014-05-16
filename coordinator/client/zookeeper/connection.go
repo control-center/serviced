@@ -259,6 +259,7 @@ func (c *Connection) Set(path string, node client.Node) error {
 	return xlateError(err)
 }
 
+// EnsureZkFatjar downloads the zookeeper binaries for use in unit tests
 func EnsureZkFatjar() {
 	_, err := exec.LookPath("java")
 	if err != nil {
