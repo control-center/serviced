@@ -11,10 +11,28 @@ import (
 
 const (
 	dockerep = "unix:///var/run/docker.sock"
+	Wildcard = "*"
 )
 
 type request struct {
 	errchan chan error
+}
+
+type addactionreq struct {
+	request
+	args struct {
+		id     string
+		event  string
+		action ContainerActionFunc
+	}
+}
+
+type cancelactionreq struct {
+	request
+	args struct {
+		id    string
+		event string
+	}
 }
 
 type inspectreq struct {
@@ -66,6 +84,8 @@ type stopreq struct {
 
 var (
 	cmds = struct {
+		AddAction       chan addactionreq
+		CancelAction    chan cancelactionreq
 		Inspect         chan inspectreq
 		List            chan listreq
 		OnContainerStop chan onstopreq
@@ -73,12 +93,26 @@ var (
 		Start           chan startreq
 		Stop            chan stopreq
 	}{
+		make(chan addactionreq),
+		make(chan cancelactionreq),
 		make(chan inspectreq),
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
 		make(chan startreq),
 		make(chan stopreq),
+	}
+	dockerevents = []string{
+		dockerclient.Create,
+		dockerclient.Delete,
+		dockerclient.Destroy,
+		dockerclient.Die,
+		dockerclient.Export,
+		dockerclient.Kill,
+		dockerclient.Restart,
+		dockerclient.Start,
+		dockerclient.Stop,
+		dockerclient.Untag,
 	}
 	done  = make(chan struct{})
 	srin  = make(chan startreq)
@@ -98,34 +132,39 @@ func init() {
 
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc *dockerclient.Client, done chan struct{}) error {
-	em, err := dc.MonitorEvents()
-	if err != nil {
-		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
-	}
+	routeEventsToKernel(dc)
 
-	s, err := em.Subscribe(dockerclient.AllThingsDocker)
-	if err != nil {
-		panic(fmt.Sprintf("can't subscribe to Docker events: %v", err))
-	}
-
-	s.Handle(dockerclient.Create, eventToKernel)
-	s.Handle(dockerclient.Delete, eventToKernel)
-	s.Handle(dockerclient.Destroy, eventToKernel)
-	s.Handle(dockerclient.Die, eventToKernel)
-	s.Handle(dockerclient.Export, eventToKernel)
-	s.Handle(dockerclient.Kill, eventToKernel)
-	s.Handle(dockerclient.Restart, eventToKernel)
-	s.Handle(dockerclient.Start, eventToKernel)
-	s.Handle(dockerclient.Stop, eventToKernel)
-	s.Handle(dockerclient.Untag, eventToKernel)
-
-	eventactions := make(map[string]map[string]ContainerActionFunc)
+	eventactions := mkEventActionTable()
 
 	go startq(srin, srout)
 	go scheduler(dc, srout, done)
 
 	for {
 		select {
+		case req := <-cmds.AddAction:
+			event := req.args.event
+
+			if _, ok := eventactions[event]; !ok {
+				req.errchan <- fmt.Errorf("docker: unknown event type: %s", event)
+				continue
+			}
+
+			if _, ok := eventactions[event]; !ok {
+				eventactions[event] = make(map[string]ContainerActionFunc)
+			}
+
+			eventactions[event][req.args.id] = req.args.action
+			close(req.errchan)
+		case req := <-cmds.CancelAction:
+			event := req.args.event
+
+			if _, ok := eventactions[event]; !ok {
+				req.errchan <- fmt.Errorf("docker: unknown event type: %s", event)
+				continue
+			}
+
+			delete(eventactions[event], req.args.id)
+			close(req.errchan)
 		case req := <-cmds.Inspect:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -147,6 +186,9 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
+			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
+				go wcaction(Wildcard)
+			}
 			if action, ok := eventactions[req.args.event][req.args.id]; ok {
 				go action(req.args.id)
 			}
@@ -249,6 +291,32 @@ restart:
 
 	for _, v := range pending {
 		next <- v
+	}
+}
+
+func mkEventActionTable() map[string]map[string]ContainerActionFunc {
+	eat := make(map[string]map[string]ContainerActionFunc)
+
+	for _, de := range dockerevents {
+		eat[de] = make(map[string]ContainerActionFunc)
+	}
+
+	return eat
+}
+
+func routeEventsToKernel(dc *dockerclient.Client) {
+	em, err := dc.MonitorEvents()
+	if err != nil {
+		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
+	}
+
+	s, err := em.Subscribe(dockerclient.AllThingsDocker)
+	if err != nil {
+		panic(fmt.Sprintf("can't subscribe to Docker events: %v", err))
+	}
+
+	for _, de := range dockerevents {
+		s.Handle(de, eventToKernel)
 	}
 }
 
