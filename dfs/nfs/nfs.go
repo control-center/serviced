@@ -8,8 +8,10 @@ import (
 var nfsServiceName = "nfs-kernel-server"
 var usrBinService = "/usr/sbin/service"
 
+var reload = reloadImpl
+
 // reload triggers the kernel to reread its NFS exports.
-func reload() error {
+func reloadImpl() error {
 	// FIXME: this does not return the proper exit code to see if nfs is running
 	cmd := exec.Command(usrBinService, nfsServiceName, "reload")
 	output, err := cmd.CombinedOutput()

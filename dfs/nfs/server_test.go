@@ -88,6 +88,13 @@ func TestNewServer(t *testing.T) {
 		t.Fatalf("export dir does not exist: %s, %s", exportDir, err)
 	}
 
+	defer func(f func() error) {
+		reload = f
+	}(reload)
+	reload = func() error {
+		return nil
+	}
+
 	// we call .Sync() repeatedly, lets make a shortcut
 	sync := func() {
 		if err := s.Sync(); err != nil {
