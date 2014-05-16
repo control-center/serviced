@@ -16,9 +16,11 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
@@ -69,6 +71,8 @@ type HostAgent struct {
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
+	facade          *facade.Facade
+	context         datastore.Context
 }
 
 // assert that this implemenents the Agent interface
@@ -85,7 +89,7 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // Create a new HostAgent given the connection string to the
-func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDns []string, varPath string, mount []string, vfs string, zookeepers []string, mux TCPMux, facade *facade.Facade, context datastore.Context) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.master = master
@@ -95,6 +99,8 @@ func NewHostAgent(master string, uiport string, dockerDns []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
+	agent.facade = facade
+	agent.context = context
 	if agent.mux.Enabled {
 		go agent.mux.ListenAndMux()
 	}
@@ -868,7 +874,7 @@ func (a *HostAgent) start() {
 			defer conn.Close()
 
 			glog.Info(" ---------- calling WatchVirtualIPs")
-			go virtualips.New(nil, conn, nil).WatchVirtualIPs()
+			go virtualips.New(a.facade, conn, a.context).WatchVirtualIPs()
 
 			return a.processChildrenAndWait(conn)
 		}()

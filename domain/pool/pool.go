@@ -10,11 +10,11 @@ import (
 )
 
 type VirtualIP struct {
-	PoolID        string
-	IP            string
-	Netmask       string
-	BindInterface string
-	Index         string
+	PoolID         string
+	IP             string
+	Netmask        string
+	BindInterface  string
+	InterfaceIndex string
 }
 
 // ResourcePool A collection of computing resources with optional quotas.

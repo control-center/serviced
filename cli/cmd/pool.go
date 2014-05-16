@@ -250,7 +250,7 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 		return
 	}
 
-	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], Index: ""}
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], InterfaceIndex: ""}
 	if err := c.driver.AddVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

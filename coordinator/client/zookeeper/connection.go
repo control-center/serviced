@@ -43,7 +43,7 @@ func (c *Connection) SetID(id int) {
 	c.id = id
 }
 
-// NewLeader returns a managed leader onbject at the give path bound to the current
+// NewLeader returns a managed leader object at the given path bound to the current
 // connection.
 func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 	return &Leader{

@@ -173,7 +173,7 @@ func (d *daemon) startAgent() error {
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
 
-	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux)
+	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, d.facade, d.dsContext)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
