@@ -7,8 +7,6 @@ package serviceconfigfile
 import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
-
-	"fmt"
 )
 
 //NewStore creates a Service  store
@@ -24,10 +22,13 @@ type Store struct {
 //GetConfigFiles returns all Configuration Files in tenant service that have the given service path. The service path
 //is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
 func (s *Store) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
-	query := fmt.Sprintf("ServiceTenantID:%s AND ServicePath:%s", tenantID, svcPath)
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ServiceTenantID", tenantID),
+		search.Filter().Terms("ServicePath", svcPath),
+	)
+
 	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

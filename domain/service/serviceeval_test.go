@@ -171,12 +171,12 @@ var addresses []string
 
 func createSvcs(store *Store, ctx datastore.Context) error {
 	for _, testcase := range startup_testcases {
-		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
 		}
 	}
 	for _, testcase := range endpoint_testcases {
-		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
 		}
 	}
@@ -184,9 +184,8 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 }
 
 func (s *S) getSVC(svcID string) (Service, error) {
-	svc := Service{}
-	err := s.store.Get(s.ctx, Key(svcID), &svc)
-	return svc, err
+	svc, err := s.store.Get(s.ctx, svcID)
+	return *svc, err
 }
 
 //TestEvaluateLogConfigTemplate makes sure that the log config templates can be

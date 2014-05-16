@@ -11,11 +11,12 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"github.com/zenoss/serviced/domain/servicestate"
 
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -52,6 +53,69 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	return this.zkDao.AddService(&svc)
 }
 
+func (this *ControlPlaneDao) fillOutService(ctx datastore.Context, svc *service.Service) error {
+	if err := this.fillServiceAddr(svc); err != nil {
+		return err
+	}
+	if err := this.fillServiceConfigs(ctx, svc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) fillOutServices(ctx datastore.Context, svcs []*service.Service) error {
+	for _, svc := range svcs {
+		if err := this.fillOutService(ctx, svc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
+	glog.V(4).Infof("fillServiceConfigs for %s", svc.Id)
+	tenantID, servicePath, err := this.getTenantIdAndPath(svc.Id)
+	if err != nil {
+		return err
+	}
+	glog.V(4).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
+
+	configStore := serviceconfigfile.NewStore()
+	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	if err != nil {
+		return err
+	}
+	foundConfs := make(map[string]*servicedefinition.ConfigFile)
+	for _, svcConfig := range existingConfs {
+		foundConfs[svcConfig.ConfFile.Filename] = &svcConfig.ConfFile
+	}
+
+	//replace with stored service config
+	for name, conf := range foundConfs {
+		if _, found := svc.ConfigFiles[name]; found {
+			svc.ConfigFiles[name] = *conf
+		}
+	}
+	return nil
+}
+
+func (this *ControlPlaneDao) fillServiceAddr(svc *service.Service) error {
+	addrs, err := this.getAddressAssignments(svc.Id)
+	if err != nil {
+		return err
+	}
+	for idx := range svc.Endpoints {
+		if assignment, found := addrs[svc.Endpoints[idx].Name]; found {
+			//assignment exists
+			glog.V(4).Infof("setting address assignment on endpoint: %s, %v", svc.Endpoints[idx].Name, assignment)
+			svc.Endpoints[idx].SetAssignment(assignment)
+		} else {
+			svc.Endpoints[idx].RemoveAssignment()
+		}
+	}
+	return nil
+}
+
 // updateService internal method to use when service has been validated
 func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 	id := strings.TrimSpace(svc.Id)
@@ -59,23 +123,8 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 		return errors.New("empty Service.Id not allowed")
 	}
 	svc.Id = id
-	//add assignment info to service
-	for idx := range svc.Endpoints {
-		//TODO:  add endpoints and config files everytime a service is read. Breaking compile here so I remember
-		PLEASE_READ_COMMENT_HERE
-		assignment, err := this.getEndpointAddressAssignments(svc.Id, svc.Endpoints[idx].Name)
-		if err != nil {
-			glog.Errorf("ControlPlaneDao.UpdateService Error looking up address assignments: %v", err)
-			return err
-		}
-		if assignment != nil {
-			//assignment exists
-			glog.V(4).Infof("ControlPlaneDao.UpdateService setting address assignment on endpoint: %s, %v", svc.Endpoints[idx].Name, assignment)
-			svc.Endpoints[idx].SetAssignment(assignment)
-		} else {
-			svc.Endpoints[idx].RemoveAssignment()
-		}
-	}
+	//add assignment info to service so it is availble in zk
+	this.fillServiceAddr(svc)
 
 	svcStore := service.NewStore()
 	ctx := datastore.Get()
@@ -95,7 +144,10 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 			return err
 		}
 
-		tenantID, servicePath := "BLAM", "BLAM" //TODO: calculate service name path FIX ME!!!!
+		tenantID, servicePath, err := this.getTenantIdAndPath(svc.Id)
+		if err != nil {
+			return err
+		}
 
 		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
 		//config files are different, for each one that is different validate and add to newConfs
@@ -180,14 +232,28 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	return nil
 }
 
+//getService is an internal method that returns a Service without filling in all related service data like address assignments
+//and modified config files
+func (this *ControlPlaneDao) getService(id string) (*service.Service, error) {
+	glog.V(3).Infof("ControlPlaneDao.getService: id=%s", id)
+	store := service.NewStore()
+	return store.Get(datastore.Get(), id)
+}
+
 //
 func (this *ControlPlaneDao) GetService(id string, myService *service.Service) error {
 	glog.V(3).Infof("ControlPlaneDao.GetService: id=%s", id)
 	store := service.NewStore()
-	request, err := store.Get(datastore.Get(), id)
-	glog.V(3).Infof("ControlPlaneDao.GetService: id=%s, service=%+v, err=%s", id, request, err)
-	*myService = *request
-	return err
+	svc, err := store.Get(datastore.Get(), id)
+	if err != nil {
+		return err
+	}
+	if err = this.fillOutService(datastore.Get(), svc); err != nil {
+		return err
+	}
+	glog.V(3).Infof("ControlPlaneDao.GetService: id=%s, service=%+v, err=%s", id, svc, err)
+	*myService = *svc
+	return nil
 }
 
 //
@@ -197,6 +263,9 @@ func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]
 	results, err := store.GetServices(datastore.Get())
 	if err != nil {
 		glog.Error("ControlPlaneDao.GetServices: err=", err)
+		return err
+	}
+	if err = this.fillOutServices(datastore.Get(), results); err != nil {
 		return err
 	}
 	*services = results
@@ -215,6 +284,9 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 			glog.Error("ControlPlaneDao.GetTaggedServices: err=", err)
 			return err
 		}
+		if err = this.fillOutServices(datastore.Get(), results); err != nil {
+			return err
+		}
 		*services = results
 		glog.V(2).Infof("ControlPlaneDao.GetTaggedServices: services=%v", services)
 		return nil
@@ -226,29 +298,11 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (err error) {
-	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceId)
-	id := strings.TrimSpace(serviceId)
-	if id == "" {
-		return errors.New("empty serviceId not allowed")
-	}
-
-	var traverse func(string) (string, error)
-
-	traverse = func(id string) (string, error) {
-		var service service.Service
-		if err := this.GetService(id, &service); err != nil {
-			return "", err
-		} else if service.ParentServiceId != "" {
-			return traverse(service.ParentServiceId)
-		} else {
-			glog.V(1).Infof("parent service: %+v", service)
-			return service.Id, nil
-		}
-	}
-
-	*tenantId, err = traverse(id)
-	return
+func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
+	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceID)
+	var err error
+	*tenantId, _, err = this.getTenantIdAndPath(serviceID)
+	return err
 }
 
 // Get a service endpoint.
@@ -493,6 +547,45 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	return nil
 }
 
+func (this *ControlPlaneDao) getTenantIdAndPath(serviceID string) (string, string, error) {
+	id := strings.TrimSpace(serviceID)
+	if id == "" {
+		return "", "", errors.New("empty serviceId not allowed")
+	}
+
+	var traverse func(string) (string, error)
+	svcPath := make([]string, 0)
+
+	traverse = func(id string) (string, error) {
+		if svc, err := this.getService(id); err != nil {
+			return "", err
+		} else if svc.ParentServiceId != "" {
+			svcPath = append(svcPath, svc.Name)
+			return traverse(svc.ParentServiceId)
+		} else {
+			glog.V(1).Infof("parent service: %+v", svc)
+			svcPath = append(svcPath, svc.Name)
+			return svc.Id, nil
+		}
+	}
+
+	tenantId, err := traverse(id)
+	if err != nil {
+		return "", "", err
+	}
+	var svcPathName string
+	for i, part := range svcPath {
+		if i == 0 {
+			svcPathName = part
+		} else {
+			svcPathName = fmt.Sprintf("%s/%s", part, svcPath)
+		}
+	}
+	svcPathName = fmt.Sprintf("/%s", svcPathName)
+
+	return tenantId, svcPathName, nil
+}
+
 // traverse all the services (including the children of the provided service)
 func (this *ControlPlaneDao) walkServices(serviceID string, visitFn service.Visit) error {
 
@@ -504,7 +597,10 @@ func (this *ControlPlaneDao) walkServices(serviceID string, visitFn service.Visi
 	}
 	getService := func(svcID string) (service.Service, error) {
 		svc, err := store.Get(ctx, svcID)
-		return *svc, err
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *svc, nil
 	}
 
 	return service.Walk(serviceID, visitFn, getService, getChildren)

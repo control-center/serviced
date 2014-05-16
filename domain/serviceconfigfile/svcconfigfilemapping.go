@@ -16,7 +16,7 @@ var (
 	  "properties": {
 		"ID" :             {"type": "string", "index":"not_analyzed"},
 		"ServiceTenantID": {"type": "string", "index":"not_analyzed"},
-		"ServicePath":     {"type": "string", "index":"not_analyzed"},
+		"ServicePath":     {"type": "string", "index":"not_analyzed"}
 	  }
 	}
 }
