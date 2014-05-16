@@ -19,7 +19,7 @@ type Buffer struct {
 // TODO: this implementation is very simple and can be improved upon for
 // performance reasons. https://en.wikipedia.org/wiki/Circular_buffer
 
-// NewBuffer() returns a pointer to a Buffer with a maximum size of size.
+// NewBuffer returns a pointer to a Buffer with a maximum size of size.
 func NewBuffer(size int) *Buffer {
 	return &Buffer{
 		size:   size + 1,
@@ -27,7 +27,7 @@ func NewBuffer(size int) *Buffer {
 	}
 }
 
-// Write() writes p[]byte to the buffer and returns the number of bytes written.
+// Write writes p[]byte to the buffer and returns the number of bytes written.
 // Only the last b.size bytes are kept.
 func (b *Buffer) Write(p []byte) (n int, err error) {
 
@@ -37,7 +37,7 @@ func (b *Buffer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Read() reads up to len(p) bytes in to p; the actual number of bytes read is
+// Read reads up to len(p) bytes in to p; the actual number of bytes read is
 // returned (n) along with any error condition.
 func (b *Buffer) Read(p []byte) (n int, err error) {
 
@@ -46,12 +46,12 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 			break
 		}
 		p[i] = b.readbyte()
-		n += 1
+		n++
 	}
 	return n, nil
 }
 
-// writebyte() writes bbyte to the buffer
+// writebyte writes bbyte to the buffer
 func (b *Buffer) writebyte(bbyte byte) {
 	b.buffer[b.end] = bbyte
 	b.end = (b.end + 1) % b.size
@@ -60,7 +60,7 @@ func (b *Buffer) writebyte(bbyte byte) {
 	}
 }
 
-// readbyte() reads a byte from the buffer. Callers must ensure that the buffer
+// readbyte reads a byte from the buffer. Callers must ensure that the buffer
 // is not IsEmpty()
 func (b *Buffer) readbyte() (bbyte byte) {
 	bbyte = b.buffer[b.start]
@@ -68,7 +68,7 @@ func (b *Buffer) readbyte() (bbyte byte) {
 	return bbyte
 }
 
-// IsEmpty() will return true if the buffer is empty
+// IsEmpty will return true if the buffer is empty
 func (b *Buffer) IsEmpty() bool {
 	return b.end == b.start
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/mattbaird/elastigo/indices"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/utils"
 
 	"crypto/sha1"
 	"errors"
@@ -228,7 +229,7 @@ func createSystemUser(s *ControlPlaneDao) error {
 	}
 
 	// update the instance password
-	password, err := dao.NewUuid()
+	password, err := utils.NewUUID36()
 	if err != nil {
 		return err
 	}

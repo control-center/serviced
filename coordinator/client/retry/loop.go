@@ -1,6 +1,7 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
+
 package retry
 
 import (
@@ -20,6 +21,8 @@ type Loop struct {
 	done        bool
 }
 
+// NewLoop creates a loop object that executes the cancelable function according to the
+// given policy
 func NewLoop(policy Policy, cancelable func(chan chan error) chan error) Loop {
 	loop := Loop{
 		startTime:   time.Now(),
@@ -74,10 +77,12 @@ func (loop *Loop) loop() {
 	}
 }
 
+// Wait blocks until the loop exits
 func (loop Loop) Wait() error {
 	return <-loop.waiting
 }
 
+// Close stops the loop construct from attempting retries and notifies the running function to shutdown
 func (loop Loop) Close() error {
 	errc := make(chan error)
 	loop.closing <- errc

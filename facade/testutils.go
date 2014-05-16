@@ -7,12 +7,12 @@ package facade
 import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
-	gocheck "gopkg.in/check.v1"
-	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	gocheck "gopkg.in/check.v1"
 )
 
 //FacadeTest used for running tests where a facade type is needed.
@@ -34,7 +34,6 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.Mappings = append(ft.Mappings, service.MAPPING)
 	ft.Mappings = append(ft.Mappings, servicetemplate.MAPPING)
 	ft.Mappings = append(ft.Mappings, addressassignment.MAPPING)
-
 
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
