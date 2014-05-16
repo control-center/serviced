@@ -177,8 +177,14 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 		for _, newConf := range newConfs {
 			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
 				newConf.ID = existing.ID
+				//delete it from stored confs, left overs will be deleted from DB
+				delete(foundConfs, newConf.ConfFile.Filename)
 			}
 			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
+		}
+		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
+		for _, confToDelete := range foundConfs{
+			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
 		}
 	}
 
