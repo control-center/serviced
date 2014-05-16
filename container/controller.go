@@ -425,6 +425,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
+	var unused int = 0;
 	for {
 		select {
 		case <-time.After(interval):
@@ -432,10 +433,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			err = cmd.Run()
 			if err == nil {
 				glog.Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
 				glog.Infof("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return
