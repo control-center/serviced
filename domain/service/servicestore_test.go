@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"testing"
 )
 
@@ -39,6 +40,9 @@ func (s *S) SetUpTest(c *C) {
 func (s *S) Test_ServiceCRUD(t *C) {
 	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
 
+	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
+	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
+
 	svc2, err := s.store.Get(s.ctx, svc.Id)
 	t.Assert(err, NotNil)
 	if !datastore.IsErrNoSuchEntity(err) {
@@ -57,6 +61,8 @@ func (s *S) Test_ServiceCRUD(t *C) {
 	t.Assert(err, IsNil)
 
 	t.Assert(svc2.Description, Equals, svc.Description)
+	t.Assert(len(svc2.ConfigFiles), Equals, len(svc.OriginalConfigs))
+	t.Assert(svc2.ConfigFiles["testname"], Equals, svc.OriginalConfigs["testname"])
 
 	//test delete
 	err = s.store.Delete(s.ctx, svc.Id)

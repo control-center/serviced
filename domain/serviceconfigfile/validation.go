@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+//ValidEntity check if fields are valid
 func (scf SvcConfigFile) ValidEntity() error {
 	vErr := validation.NewValidationError()
 	vErr.Add(validation.NotEmpty("ID", scf.ID))

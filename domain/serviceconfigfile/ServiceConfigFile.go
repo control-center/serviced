@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/utils"
 )
 
+//SvcConfigFile is used to store and track service config files that have been modified
 type SvcConfigFile struct {
 	ID              string
 	ServiceTenantID string
@@ -16,6 +17,7 @@ type SvcConfigFile struct {
 	ConfFile        servicedefinition.ConfigFile
 }
 
+//New creates a SvcConfigFile
 func New(tenantID string, svcPath string, conf servicedefinition.ConfigFile) (*SvcConfigFile, error) {
 	uuid, err := utils.NewUUID()
 	if err != nil {

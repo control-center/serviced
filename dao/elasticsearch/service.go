@@ -73,24 +73,26 @@ func (this *ControlPlaneDao) fillOutServices(ctx datastore.Context, svcs []*serv
 }
 
 func (this *ControlPlaneDao) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	glog.V(4).Infof("fillServiceConfigs for %s", svc.Id)
+	glog.V(0).Infof("fillServiceConfigs for %s", svc.Id)
 	tenantID, servicePath, err := this.getTenantIdAndPath(svc.Id)
 	if err != nil {
 		return err
 	}
-	glog.V(4).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
+	glog.V(0).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
 
 	configStore := serviceconfigfile.NewStore()
 	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
 	if err != nil {
 		return err
 	}
+
+	//found confs are the modified confs for this service
 	foundConfs := make(map[string]*servicedefinition.ConfigFile)
 	for _, svcConfig := range existingConfs {
 		foundConfs[svcConfig.ConfFile.Filename] = &svcConfig.ConfFile
 	}
 
-	//replace with stored service config
+	//replace with stored service config only if it is an existing config
 	for name, conf := range foundConfs {
 		if _, found := svc.ConfigFiles[name]; found {
 			svc.ConfigFiles[name] = *conf
@@ -183,7 +185,7 @@ func (this *ControlPlaneDao) updateService(svc *service.Service) error {
 			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
 		}
 		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
-		for _, confToDelete := range foundConfs{
+		for _, confToDelete := range foundConfs {
 			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
 		}
 	}
