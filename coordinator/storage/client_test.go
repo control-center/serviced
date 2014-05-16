@@ -3,10 +3,10 @@ package storage
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -34,8 +34,7 @@ func TestClient(t *testing.T) {
 		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
-        zclient, err := client.New("zookeeper", dsn, basePath, nil)
-
+	zclient, err := client.New("zookeeper", dsn, basePath, nil)
 
 	conn, err := zclient.GetConnection()
 	if err != nil {

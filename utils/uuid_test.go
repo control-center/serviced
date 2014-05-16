@@ -56,4 +56,3 @@ func TestConvertUp(t *testing.T) {
 		t.Errorf("got %s, expected %s", orig, conv)
 	}
 }
-

@@ -678,7 +678,7 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 	// OPTIONS:
 	//    --saveas, -s 	saves the service instance with the given name
 	//    --interactive, -i	runs the service instance as a tty
-  //    -v '0'		log level for V logs
+	//    -v '0'		log level for V logs
 
 }
 

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/coordinator/client"
 )
 
 var join = lpath.Join

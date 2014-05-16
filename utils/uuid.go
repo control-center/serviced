@@ -36,7 +36,6 @@ import (
 	"math/big"
 )
 
-
 const base62alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const base36alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -84,11 +83,10 @@ func NewUUID36() (string, error) {
 // intLength returns the length of a integer represented by the given
 // bits in the given base.
 func intLength(bits, base int) int {
-	return int(math.Ceil(float64(bits) * math.Log10(2.0)/math.Log10(float64(base))))
+	return int(math.Ceil(float64(bits) * math.Log10(2.0) / math.Log10(float64(base))))
 }
 
-
-// ConvertUp converts a hexadecimal UUID string to a base alphabet greater than 16. 
+// ConvertUp converts a hexadecimal UUID string to a base alphabet greater than 16.
 func ConvertUp(oldNumber string, baseAlphabet string) string {
 	n := big.NewInt(0)
 	n.SetString(oldNumber, 16)
