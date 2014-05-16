@@ -3,10 +3,7 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 

@@ -58,11 +58,8 @@ var (
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
 	// ErrConnectionNotFound is returned when Close(id) is attemped on a connection id that does not exist
 	ErrConnectionNotFound = errors.New("coord-client: connection not found")
-)
-
-var (
-	ErrClosedConnection        = errors.New("coord-client: connection is closed")
-	ErrConnectionClosed        = errors.New("coord-client: connection closed")
+	// ErrConnectionClosed is returned when an operation is attemped on a closed connection
+	ErrConnectionClosed        = errors.New("coord-client: connection is closed")
 	ErrUnknown                 = errors.New("coord-client: unknown error")
 	ErrAPIError                = errors.New("coord-client: api error")
 	ErrNoNode                  = errors.New("coord-client: node does not exist")
