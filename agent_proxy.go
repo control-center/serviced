@@ -114,6 +114,7 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 // LogHealthCheck proxies RegisterHealthCheck.
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	controlClient, err := NewControlClient(a.master)
+	defer controlClient.Close()
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
 		return err
