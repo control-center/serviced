@@ -165,36 +165,39 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $.getJSON("/servicehealth", function(healths) {
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
-                document.getElementById("health-tooltip-" + ServiceId).title = "";
-                passingAny = false;
-                failingAny = false;
-                lateAny = false;
-                unknownAny = false;
-                utc = Math.floor(Date.now()/1000);
-                for (var name in data) {
-                    if (utc - data[name].Timestamp >= data[name].Interval * 2) {
-                        data[name].Status = "unknown";
+                element = document.getElementById("health-tooltip-" + ServiceId);
+                if (element != undefined) {
+                    element.title = "";
+                    passingAny = false;
+                    failingAny = false;
+                    lateAny = false;
+                    unknownAny = false;
+                    utc = Math.floor(Date.now()/1000);
+                    for (var name in data) {
+                        if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                            data[name].Status = "unknown";
+                        }
+                        if (data[name].Status == "passed") {
+                            passingAny = true;
+                        } else if (data[name].Status == "failed") {
+                            failingAny = true;
+                        } else if (data[name].Status == "unknown") {
+                            unknownAny = true;
+                        }
+                        element.title += name + ":" + data[name].Status + "\n";
                     }
-                    if (data[name].Status == "passed") {
-                        passingAny = true;
-                    } else if (data[name].Status == "failed") {
-                        failingAny = true;
-                    } else if (data[name].Status == "unknown") {
-                        unknownAny = true;
+                    function setColor(color) {
+                        document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
                     }
-                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name].Status + "\n";
-                }
-                function setColor(color) {
-                    document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
-                }
-                if (failingAny) {
-                    setColor("red");
-                } else if (!passingAny && unknownAny) {
-                    setColor("grey");
-                } else if (passingAny && unknownAny) {
-                    setColor("yellow");
-                } else if (passingAny && !unknownAny) {
-                    setColor("green");
+                    if (failingAny) {
+                        setColor("red");
+                    } else if (!passingAny && unknownAny) {
+                        setColor("grey");
+                    } else if (passingAny && unknownAny) {
+                        setColor("yellow");
+                    } else if (passingAny && !unknownAny) {
+                        setColor("green");
+                    }
                 }
             }
         });
@@ -208,8 +211,8 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 wait.running = true;
                 mashHostsToInstances();
             });
+            updateHealth();
         }
-        updateHealth();
     }
     $interval(updateRunning, 3000);
     // Get a list of deployed apps
