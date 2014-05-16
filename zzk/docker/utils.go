@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"strings"
