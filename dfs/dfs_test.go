@@ -1,10 +1,10 @@
 package dfs
 
 import (
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
 

@@ -2,6 +2,8 @@ package dao
 
 import (
 	"time"
+
+	"github.com/zenoss/serviced/utils"
 )
 
 type User struct {
@@ -70,7 +72,7 @@ type SnapshotRequest struct {
 // A new snapshot request instance (SnapshotRequest)
 func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
 	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.Id, err = NewUuid()
+	snapshotRequest.Id, err = utils.NewUUID36()
 	if err == nil {
 		snapshotRequest.ServiceId = serviceId
 		snapshotRequest.SnapshotLabel = snapshotLabel

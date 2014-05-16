@@ -36,7 +36,7 @@ type ServiceState struct {
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = utils.NewUUID()
+	serviceState.Id, err = utils.NewUUID36()
 	if err == nil {
 		serviceState.ServiceId = service.Id
 		serviceState.HostId = hostId

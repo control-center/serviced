@@ -7,13 +7,13 @@ package facade
 import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	gocheck "gopkg.in/check.v1"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	gocheck "gopkg.in/check.v1"
 )
 
 //FacadeTest used for running tests where a facade type is needed.

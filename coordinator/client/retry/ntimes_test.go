@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-var (
-	mockErr = errors.New("mockerr")
-)
-
 func TestNTimes(t *testing.T) {
 
 	n := NTimes(0, time.Millisecond*10)

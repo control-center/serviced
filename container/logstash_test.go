@@ -64,7 +64,7 @@ func getTestService() service.Service {
 	}
 }
 
-const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
+const logstashContainerDirectory = "/usr/local/serviced/resources/logstash"
 
 func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 	service := getTestService()
@@ -80,7 +80,7 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
+	if err := writeLogstashAgentConfig(confFileLocation, &service, logstashContainerDirectory); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
@@ -111,7 +111,7 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
+	if err := writeLogstashAgentConfig(confFileLocation, &service, logstashContainerDirectory); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
@@ -172,7 +172,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, &service, LOGSTASH_CONTAINER_DIRECTORY); err != nil {
+	if err := writeLogstashAgentConfig(confFileLocation, &service, logstashContainerDirectory); err != nil {
 		t.Errorf("Writing with empty tags produced an error %s", err)
 		return
 	}

@@ -206,7 +206,7 @@ func setupConfigFiles(service *service.Service) error {
 func setupLogstashFiles(service *service.Service, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(LOGSTASH_CONTAINER_CONFIG, service, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, service, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -407,35 +407,36 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		return
 	}
 	defer client.Close()
-	script_file, err := ioutil.TempFile("", name)
+	scriptFile, err := ioutil.TempFile("", name)
 	if err != nil {
 		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
 		return
 	}
-	defer script_file.Close()
-	defer os.Remove(script_file.Name())
-	err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
+	defer scriptFile.Close()
+	defer os.Remove(scriptFile.Name())
+	err = ioutil.WriteFile(scriptFile.Name(), []byte(script), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error writing script for health check %s: %s", name, err)
 		return
 	}
-	script_file.Close()
-	err = os.Chmod(script_file.Name(), os.FileMode(0777))
+	scriptFile.Close()
+	err = os.Chmod(scriptFile.Name(), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
+	var unused int = 0;
 	for {
 		select {
 		case <-time.After(interval):
-			cmd := exec.Command("sh", "-c", script_file.Name())
+			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
 				glog.Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
 				glog.Infof("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return
@@ -458,10 +459,10 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
+	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			if proxy, ok := proxies[key]; ok {
-				emptyAddressList := make([]string, 0)
 				proxy.SetNewAddresses(emptyAddressList)
 			}
 			continue
@@ -469,7 +470,7 @@ func (c *Controller) handleRemotePorts() {
 
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
-			glog.Infof("endpoints: %s, %v", key, *endpoint)
+			glog.V(2).Infof("endpoints: %s, %v", key, *endpoint)
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
 		}
 		sort.Strings(addresses)

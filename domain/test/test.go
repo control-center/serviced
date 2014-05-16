@@ -1,16 +1,15 @@
-
 package main
 
 import (
-	"github.com/zenoss/serviced/domain"
 	"encoding/json"
 	"fmt"
+	"github.com/zenoss/serviced/domain"
 	"time"
 )
 
 func main() {
 	hc := domain.HealthCheck{
-		Script: "boo!",
+		Script:   "boo!",
 		Interval: time.Second * 10,
 	}
 	bytes, _ := json.Marshal(hc)

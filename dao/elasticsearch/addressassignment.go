@@ -6,10 +6,10 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
 )
@@ -93,7 +93,7 @@ func (this *ControlPlaneDao) AssignAddress(assignment addressassignment.AddressA
 	if existing != nil {
 		return fmt.Errorf("Address Assignment already exists")
 	}
-	assignment.ID, err = dao.NewUuid()
+	assignment.ID, err = utils.NewUUID36()
 	if err != nil {
 		return err
 	}

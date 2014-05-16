@@ -6,14 +6,14 @@ import (
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
-	"time"
 	"sync"
+	"time"
 )
 
 type healthStatus struct {
-	Status string 
-	Timestamp int64 
-	Interval float64 
+	Status    string
+	Timestamp int64
+	Interval  float64
 }
 
 var healthStatuses map[string]map[string]*healthStatus = make(map[string]map[string]*healthStatus)
@@ -33,7 +33,7 @@ func RegisterHealthCheck(serviceId string, name string, passed string, d dao.Con
 	if !ok {
 		healthStatuses[serviceId] = make(map[string]*healthStatus)
 		var service service.Service
-		err := d.GetService(serviceId, &service) 
+		err := d.GetService(serviceId, &service)
 		if err != nil {
 			glog.Errorf("Unable to acquire services.")
 			return
