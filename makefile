@@ -64,10 +64,7 @@ dockerbuild: docker_ok
 	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
 test: build_binary docker_ok
-	cd commons && go test $(GOTEST_FLAGS)
-	cd commons/atomicfile && go test $(GOTEST_FLAGS)
-	cd commons/circular && go test $(GOTEST_FLAGS)
-	cd commons/subprocess && go test $(GOTEST_FLAGS)
+	go test ./commons/... $(GOTEST_FLAGS)
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
 	cd web && go test $(GOTEST_FLAGS)
