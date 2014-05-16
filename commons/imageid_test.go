@@ -155,6 +155,17 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// numbers in host name
+	{
+		"niblet3:5000/devimg:latest",
+		&ImageID{
+			Host: "niblet3",
+			Port: 5000,
+			Repo: "devimg",
+			Tag:  "latest",
+		},
+		"",
+	},
 }
 
 func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
