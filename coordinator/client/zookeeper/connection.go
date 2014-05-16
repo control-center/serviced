@@ -276,25 +276,25 @@ func EnsureZkFatjar() {
 
 	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
 	if err != nil {
-		log.Fatal("Could not download fatjar: %s", err)
+		log.Fatalf("Could not download fatjar: %s", err)
 	}
 
 	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
 	if err != nil {
-		log.Fatal("Could not unzip fatjar: %s", err)
+		log.Fatalf("Could not unzip fatjar: %s", err)
 	}
 	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
 	if err != nil {
-		log.Fatal("Could not make fatjar dir: %s", err)
+		log.Fatalf("Could not make fatjar dir: %s", err)
 	}
 
 	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
 	if err != nil {
-		log.Fatal("Could not mv fatjar: %s", err)
+		log.Fatalf("Could not mv fatjar: %s", err)
 	}
 
 	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
 	if err != nil {
-		log.Fatal("Could not rm fatjar.zip: %s", err)
+		log.Fatalf("Could not rm fatjar.zip: %s", err)
 	}
 }

@@ -13,7 +13,7 @@ func TestMntArgs(t *testing.T) {
 	name, args := mntArgs("/opt/serviced/var", "/exports/serviced_var", "", "bind")
 	if syscall.Getuid() == 0 {
 		if name != "mount" {
-			t.Fatal("as root, expected name to be 'mount' got '%s'", name)
+			t.Fatalf("as root, expected name to be 'mount' got '%s'", name)
 		}
 		expectedArgs := []string{"-o", "bind", "/opt/serviced/var", "/exports/serviced_var"}
 		if !reflect.DeepEqual(args, expectedArgs) {
@@ -21,7 +21,7 @@ func TestMntArgs(t *testing.T) {
 		}
 	} else {
 		if name != "sudo" {
-			t.Fatal("as non-root, expected name to be 'sudo' got '%s'", name)
+			t.Fatalf("as non-root, expected name to be 'sudo' got '%s'", name)
 		}
 		expectedArgs := []string{"mount", "-o", "bind", "/opt/serviced/var", "/exports/serviced_var"}
 		if !reflect.DeepEqual(args, expectedArgs) {

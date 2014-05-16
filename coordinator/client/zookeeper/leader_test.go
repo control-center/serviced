@@ -27,7 +27,7 @@ func TestLeader(t *testing.T) {
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
-		t.Fatal("unexpected error creating zk DSN: %s", err)
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
 

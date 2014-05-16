@@ -51,7 +51,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 	}
 	if !response.Exists {
 		glog.V(4).Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
-		return nil, datastore.ErrNoSuchEntity{key}
+		return nil, datastore.ErrNoSuchEntity{Key: key}
 	}
 	bytes := response.Source
 	return datastore.NewJSONMessage(bytes), nil
