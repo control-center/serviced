@@ -1,5 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
+
 package client
 
 import (
@@ -12,8 +14,10 @@ import (
 	"github.com/zenoss/serviced/coordinator/client/retry"
 )
 
+// EventType is a numerical type to identify event types.
 type EventType int32
 
+// Event describes a coordination client event
 type Event struct {
 	Type EventType
 	Path string // For non-session events, the path of the watched node.
@@ -21,26 +25,38 @@ type Event struct {
 }
 
 var (
-	EventNodeCreated         = EventType(1)
-	EventNodeDeleted         = EventType(2)
-	EventNodeDataChanged     = EventType(3)
+	// EventNodeCreated is emmited when a node is created
+	EventNodeCreated = EventType(1)
+	// EventNodeDeleted is emitted when a node is deleted
+	EventNodeDeleted = EventType(2)
+	// EventNodeDataChanged is emitted when a node's data is changed
+	EventNodeDataChanged = EventType(3)
+	// EventNodeChildrenChanged is emitted when any of the currently watched node's children is changed
 	EventNodeChildrenChanged = EventType(4)
-	EventSession             = EventType(-1)
-	EventNotWatching         = EventType(-2)
+	// EventSession is emitted when a disconnect or reconnect happens
+	EventSession = EventType(-1)
+	// EventNotWatching is emitted when the current watch expired
+	EventNotWatching = EventType(-2)
 )
 
 var (
-	ErrEmptyNode          = errors.New("coord-client: empty node")
-	ErrInvalidVersionObj  = errors.New("coord-client: invalid version object")
-	ErrInvalidPath        = errors.New("coord-client: invalid path")
-	ErrInvalidNodeType    = errors.New("coord-client: invalid node type")
-	ErrSerialization      = errors.New("coord-client: serialization error")
-	ErrInvalidDSN         = errors.New("coord-client: invalid DSN")
+	// ErrEmptyNode is returned when a get is performed and the node does not contain data
+	ErrEmptyNode = errors.New("coord-client: empty node")
+	// ErrInvalidVersionObj is returned when a node's Version() value is not understood by the underlying driver
+	ErrInvalidVersionObj = errors.New("coord-client: invalid version object")
+	// ErrInvalidPath is returned when the path to store a node is malformed or illegal
+	ErrInvalidPath = errors.New("coord-client: invalid path")
+	// ErrSerialization is returned when there is an error serializing a node
+	ErrSerialization = errors.New("coord-client: serialization error")
+	// ErrInvalidDSN is returned when the given DSN can not use interpreted by driver
+	ErrInvalidDSN = errors.New("coord-client: invalid DSN")
+	// ErrDriverDoesNotExist is returned when the specified driver is not registered
 	ErrDriverDoesNotExist = errors.New("coord-client: driver does not exist")
-	ErrNodeExists         = errors.New("coord-client: node exists")
-	ErrInvalidMachines    = errors.New("coord-client: invalid servers list")
-	ErrInvalidMachine     = errors.New("coord-client: invalid machine")
+	// ErrNodeExists is returned when an attempt at creating a node at a path where a node already exists
+	ErrNodeExists = errors.New("coord-client: node exists")
+	// ErrInvalidRetryPolicy is returned when a nil value is for a client policy
 	ErrInvalidRetryPolicy = errors.New("coord-client: invalid retry policy")
+	// ErrConnectionNotFound is returned when Close(id) is attemped on a connection id that does not exist
 	ErrConnectionNotFound = errors.New("coord-client: connection not found")
 )
 
@@ -220,7 +236,7 @@ func (client *Client) loop() {
 
 		case req := <-client.done:
 			// during a shutdown request, close all outstanding connections
-			for id, _ := range connections {
+			for id := range connections {
 				func() {
 					defer func() {
 						if r := recover(); r != nil {
@@ -280,10 +296,7 @@ func (client *Client) Close() {
 	<-response
 }
 
-func (client *Client) Unregister(id int) {
-
-}
-
+// SetRetryPolicy sets the given policy on the client
 func (client *Client) SetRetryPolicy(policy retry.Policy) error {
 	if policy == nil {
 		return ErrInvalidRetryPolicy
