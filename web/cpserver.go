@@ -73,7 +73,7 @@ func (sc *ServiceConfig) Serve() {
 	// TODO: when zookeeper registration is integrated we can be more event
 	// driven and only refresh the vhost map when service states change.
 	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.V(0).Infof("vhosthandler handling: %v", r)
+		glog.V(1).Infof("vhosthandler handling: %v", r)
 
 		var empty interface{}
 		services := []*dao.RunningService{}
@@ -106,7 +106,7 @@ func (sc *ServiceConfig) Serve() {
 
 		}
 
-		glog.V(0).Infof("vhosthandler VHost map: %v", vhosts)
+		glog.V(1).Infof("vhosthandler VHost map: %v", vhosts)
 
 		muxvars := mux.Vars(r)
 		svcstates, ok := vhosts[muxvars["subdomain"]]
@@ -146,7 +146,7 @@ func (sc *ServiceConfig) Serve() {
 	}
 
 	for _, ha := range sc.hostaliases {
-		glog.V(0).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
+		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
 		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 	}
