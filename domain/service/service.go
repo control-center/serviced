@@ -48,7 +48,7 @@ type Service struct {
 	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	DeploymentId    string
+	DeploymentID    string
 	DisableImage    bool
 	LogConfigs      []servicedefinition.LogConfig
 	Snapshot        servicedefinition.SnapshotCommands
@@ -126,7 +126,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = sd.Volumes
-	svc.DeploymentId = deploymentID
+	svc.DeploymentID = deploymentID
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment

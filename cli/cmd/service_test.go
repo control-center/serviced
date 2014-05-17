@@ -36,7 +36,7 @@ var DefaultTestServices = []*service.Service{
 		PoolId:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
-		DeploymentId:   "Zenoss-resmgr",
+		DeploymentID:   "Zenoss-resmgr",
 		Runs: map[string]string{
 			"hello":   "echo hello world",
 			"goodbye": "echo goodbye world",
@@ -51,7 +51,7 @@ var DefaultTestServices = []*service.Service{
 		PoolId:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
-		DeploymentId:   "Zenoss-core",
+		DeploymentID:   "Zenoss-core",
 	}, {
 		Id:             "test-service-3",
 		Name:           "zencommand",
@@ -62,7 +62,7 @@ var DefaultTestServices = []*service.Service{
 		PoolId:         "remote",
 		DesiredState:   1,
 		Launch:         "manual",
-		DeploymentId:   "Zenoss-core",
+		DeploymentID:   "Zenoss-core",
 	},
 }
 

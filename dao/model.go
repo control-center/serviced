@@ -40,7 +40,7 @@ type ApplicationEndpoint struct {
 type ServiceTemplateDeploymentRequest struct {
 	PoolId       string // Pool Id to deploy service into
 	TemplateId   string // Id of template to be deployed
-	DeploymentId string // Unique id of the instance of this template
+	DeploymentID string // Unique id of the instance of this template
 }
 
 // This is created by selecting from service_state and joining to service

@@ -281,7 +281,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					s.PoolId,
 					s.DesiredState,
 					s.Launch,
-					s.DeploymentId,
+					s.DeploymentID,
 				)
 				tableService.Indent()
 				printTree(s.Id)

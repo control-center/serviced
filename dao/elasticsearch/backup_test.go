@@ -304,7 +304,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		PoolId:         "default",
 		DesiredState:   0,
 		Volumes:        []servicedefinition.Volume{template_volume},
-		DeploymentId:   "backup_test",
+		DeploymentID:   "backup_test",
 	}
 
 	originalImageIds, e := all_docker_images(t)

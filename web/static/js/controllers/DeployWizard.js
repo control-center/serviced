@@ -5,7 +5,7 @@ function DeployWizard($scope, resourcesService) {
         return $scope.selectedTemplates().length > 0;
     };
 
-    var validDeploymentId = function() {
+    var validDeploymentID = function() {
         return $scope.install.deploymentId != undefined && $scope.install.deploymentId != "";
     }
 
@@ -22,7 +22,7 @@ function DeployWizard($scope, resourcesService) {
         {
             content: '/static/partials/wizard-modal-4.html',
             label: 'label_step_deploy',
-            validate: validDeploymentId
+            validate: validDeploymentID
         }
     ];
 
@@ -46,7 +46,7 @@ function DeployWizard($scope, resourcesService) {
                 '':'has-error';
         },
         deploymentIdFormDiv: function() {
-            return (!nextClicked || validDeploymentId()) ? '':'has-error';
+            return (!nextClicked || validDeploymentID()) ? '':'has-error';
         }
     };
     var nextClicked = false;
@@ -177,7 +177,7 @@ function DeployWizard($scope, resourcesService) {
             resourcesService.deploy_app_template({
                 poolID: $scope.install.selected.pool,
                 TemplateId: selected[i].Id,
-                DeploymentId: $scope.install.deploymentId
+                DeploymentID: $scope.install.deploymentId
             }, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
                     //start the service if requested
