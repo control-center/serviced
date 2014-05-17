@@ -30,7 +30,7 @@ type ServiceState struct {
 	PortMapping map[string][]domain.HostIpAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []service.ServiceEndpoint
 	HostIp      string
-	InstanceId  int
+	InstanceID  int
 }
 
 //A new service instance (ServiceState)

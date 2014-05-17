@@ -590,7 +590,7 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningServ
 	rs.StartedAt = ss.Started
 	rs.HostId = ss.HostId
 	rs.DockerId = ss.DockerId
-	rs.InstanceId = ss.InstanceId
+	rs.InstanceID = ss.InstanceID
 	rs.Startup = s.Startup
 	rs.Name = s.Name
 	rs.Description = s.Description

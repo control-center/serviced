@@ -843,7 +843,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		"service",
 		"proxy",
 		service.Id,
-		strconv.Itoa(serviceState.InstanceId),
+		strconv.Itoa(serviceState.InstanceID),
 		service.Startup)
 
 	if service.Privileged {

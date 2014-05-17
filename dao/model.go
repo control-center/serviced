@@ -58,7 +58,7 @@ type RunningService struct {
 	PoolId          string
 	DesiredState    int
 	ParentServiceID string
-	InstanceId      int
+	InstanceID      int
 }
 
 // An instantiation of a Snapshot request
