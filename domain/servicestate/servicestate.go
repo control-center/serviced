@@ -22,7 +22,7 @@ type ServiceState struct {
 	Id          string
 	ServiceID   string
 	HostId      string
-	DockerId    string
+	DockerID    string
 	PrivateIP   string
 	Scheduled   time.Time
 	Terminated  time.Time

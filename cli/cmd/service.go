@@ -570,7 +570,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
-// findServiceStateID finds the ServiceStateID from either DockerId, ServiceName, or ServiceID
+// findServiceStateID finds the ServiceStateID from either DockerID, ServiceName, or ServiceID
 func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error) {
 	if serviceSpecifier == "" {
 		return "", fmt.Errorf("required serviceSpecifier is empty")
@@ -598,7 +598,7 @@ func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error
 				tableMatched.PrintRow(
 					running.Service.Name,
 					running.State.ServiceID,
-					running.State.DockerId,
+					running.State.DockerID,
 				)
 			}
 		}

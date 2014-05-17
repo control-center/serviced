@@ -48,7 +48,7 @@ type RunningService struct {
 	Id              string
 	ServiceID       string
 	HostId          string
-	DockerId        string
+	DockerID        string
 	StartedAt       time.Time
 	Name            string
 	Startup         string

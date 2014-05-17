@@ -170,8 +170,8 @@ func (a *HostAgent) Shutdown() error {
 func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *servicestate.ServiceState, hss *zzk.HostServiceState) (bool, error) {
 
 	// get docker status
-	containerState, err := getDockerState(serviceState.DockerId)
-	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerId, containerState)
+	containerState, err := getDockerState(serviceState.DockerID)
+	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
 
 	switch {
 	case err == nil && !containerState.State.Running:
@@ -190,7 +190,7 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 		return false, err
 	}
 
-	go a.waitForProcessToDie(dc, conn, serviceState.DockerId, procFinished, serviceState)
+	go a.waitForProcessToDie(dc, conn, serviceState.DockerID, procFinished, serviceState)
 	return true, nil
 }
 
@@ -351,7 +351,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	// We are name the container the same as its service state ID, so use that as an alias
 	dockerID := serviceState.Id
-	serviceState.DockerId = dockerID
+	serviceState.DockerID = dockerID
 
 	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
@@ -373,7 +373,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	var sState *servicestate.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
-		ss.DockerId = ctr.ID
+		ss.DockerID = ctr.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIP = ctr.NetworkSettings.IPAddress
@@ -452,7 +452,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					continue
 				}
 				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
-					ss.DockerId = containerState.ID
+					ss.DockerID = containerState.ID
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIP = containerState.NetworkSettings.IPAddress

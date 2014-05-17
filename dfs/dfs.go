@@ -47,7 +47,7 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
 
 	hostCommand := []string{"/bin/bash", "-c",
-		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
+		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerID, nsinitPath, command)}
 	glog.Infof("ServiceID: %s, Command: %s", state.ServiceID, strings.Join(hostCommand, " "))
 	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
 
@@ -141,8 +141,8 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 		// Pause all running service states
 		for i, state := range states {
-			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerId)
-			if state.DockerId != "" {
+			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerID)
+			if state.DockerID != "" {
 				if iamRoot {
 					err := d.Pause(service, state)
 					defer d.Resume(service, state) // resume service state when snapshot is done

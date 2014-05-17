@@ -74,7 +74,7 @@ func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
 	return serviceStateID, nil
 }
 
-// FindRunningServices returns running services that match DockerId, ServiceName, or ServiceID
+// FindRunningServices returns running services that match DockerID, ServiceName, or ServiceID
 func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 	services, err := a.GetServices()
 	if err != nil {
@@ -91,15 +91,15 @@ func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 		}
 
 		for stateKey, state := range statesByServiceID {
-			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceID:%s  ServiceName:%s  DockerId:%s\n",
-				keyword, state.ServiceID, service.Name, state.DockerId)
-			if state.DockerId == "" {
+			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceID:%s  ServiceName:%s  DockerID:%s\n",
+				keyword, state.ServiceID, service.Name, state.DockerID)
+			if state.DockerID == "" {
 				continue
 			}
-			if keyword == state.ServiceID || keyword == service.Name || keyword == state.DockerId {
+			if keyword == state.ServiceID || keyword == service.Name || keyword == state.DockerID {
 
 				// validate that the running service found is a running docker container
-				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerId)
+				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerID)
 				if err != nil {
 					continue
 				}
@@ -236,8 +236,8 @@ func (a *api) attachExecUsingServiceStateID(serviceStateID string, cmd []string)
 	}
 
 	glog.V(1).Infof("retrieved service/state using serviceStateID:%s ==> serviceID:%s  serviceName:%s  dockerId:%s\n",
-		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerId)
-	return attachExecUsingContainerID(running.State.DockerId, cmd)
+		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerID)
+	return attachExecUsingContainerID(running.State.DockerID, cmd)
 }
 
 // Attach runs an arbitrary shell command in a running service container
@@ -280,8 +280,8 @@ func (a *api) attachRunUsingServiceStateID(serviceStateID string, cmd []string) 
 	}
 
 	glog.V(1).Infof("retrieved service/state using serviceStateID:%s ==> serviceID:%s  serviceName:%s  dockerId:%s\n",
-		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerId)
-	return attachRunUsingContainerID(running.State.DockerId, cmd)
+		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerID)
+	return attachRunUsingContainerID(running.State.DockerID, cmd)
 }
 
 // Action runs a predefined action in a running service container
