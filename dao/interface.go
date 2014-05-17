@@ -24,12 +24,12 @@ type EntityRequest interface{}
 
 type ServiceStateRequest struct {
 	ServiceID      string
-	ServiceStateId string
+	ServiceStateID string
 }
 
 type HostServiceRequest struct {
 	HostID         string
-	ServiceStateId string
+	ServiceStateID string
 }
 
 // The ControlPlane interface is the API for a serviced master.

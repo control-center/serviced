@@ -662,7 +662,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 	serviceSpecifier := args[0]
 	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not find ServiceStateId with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		fmt.Fprintf(os.Stderr, "could not find ServiceStateID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
 		return
 	}
 

@@ -34,7 +34,7 @@ type ZkConn struct {
 type HostServiceState struct {
 	HostID         string
 	ServiceID      string
-	ServiceStateId string
+	ServiceStateID string
 	DesiredState   int
 	version        interface{}
 }
@@ -276,7 +276,7 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 		}
 
 		var ss servicestate.ServiceState
-		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateId, &ss); err != nil {
+		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
 			return err
 		}
 		_ss[i] = sssToRs(&s, &ss)
@@ -577,7 +577,7 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
 		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
-		ServiceStateId: ss.Id,
+		ServiceStateID: ss.Id,
 		DesiredState:   service.SVCRun,
 	}
 }

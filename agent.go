@@ -195,7 +195,7 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 }
 
 func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
-	ssPath := zzk.ServiceStatePath(hss.ServiceID, hss.ServiceStateId)
+	ssPath := zzk.ServiceStatePath(hss.ServiceID, hss.ServiceStateID)
 	exists, err := conn.Exists(ssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get service state %s for delete because: %v", ssPath, err)
@@ -209,7 +209,7 @@ func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
 		}
 	}
 
-	hssPath := zzk.HostServiceStatePath(hss.HostID, hss.ServiceStateId)
+	hssPath := zzk.HostServiceStatePath(hss.HostID, hss.ServiceStateID)
 	exists, err = conn.Exists(hssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get host service state %s for delete becaus: %v", hssPath, err)
@@ -1001,7 +1001,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			done <- stateResult{ssID, errors.New(errS)}
 			return
 		}
-		if len(hss.ServiceStateId) == 0 || len(hss.ServiceID) == 0 {
+		if len(hss.ServiceStateID) == 0 || len(hss.ServiceID) == 0 {
 			errS := fmt.Sprintf("Service for %s is invalid", zzk.HostServiceStatePath(a.hostID, ssID))
 			glog.Error(errS)
 			done <- stateResult{ssID, errors.New(errS)}
@@ -1009,7 +1009,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 		}
 
 		var ss servicestate.ServiceState
-		if err := zzk.LoadServiceState(conn, hss.ServiceID, hss.ServiceStateId, &ss); err != nil {
+		if err := zzk.LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service state %s", ssID)
 			glog.Error(errS)
 			// This goroutine is watching a node for a service state that does not

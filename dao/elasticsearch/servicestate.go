@@ -12,7 +12,7 @@ import (
 
 func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *servicestate.ServiceState) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
-	return this.zkDao.GetServiceState(serviceState, request.ServiceID, request.ServiceStateId)
+	return this.zkDao.GetServiceState(serviceState, request.ServiceID, request.ServiceStateID)
 }
 
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*servicestate.ServiceState) error {
@@ -33,5 +33,5 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
-	return this.zkDao.TerminateHostService(request.HostID, request.ServiceStateId)
+	return this.zkDao.TerminateHostService(request.HostID, request.ServiceStateID)
 }
