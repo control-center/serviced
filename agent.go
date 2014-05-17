@@ -376,7 +376,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 		ss.DockerId = ctr.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		ss.PrivateIp = ctr.NetworkSettings.IPAddress
+		ss.PrivateIP = ctr.NetworkSettings.IPAddress
 		ss.PortMapping = make(map[string][]domain.HostIpAndPort)
 		for k, v := range ctr.NetworkSettings.Ports {
 			pm := []domain.HostIpAndPort{}
@@ -403,7 +403,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					proxyID := fmt.Sprintf("%v:%v", sState.ServiceID, endpoint.Name)
 
 					frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
-					backEnd := proxy.ProxyAddress{IP: sState.PrivateIp, Port: endpoint.PortNumber}
+					backEnd := proxy.ProxyAddress{IP: sState.PrivateIP, Port: endpoint.PortNumber}
 
 					err = a.proxyRegistry.CreateProxy(proxyID, endpoint.Protocol, frontEnd, backEnd)
 					if err != nil {
@@ -455,7 +455,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					ss.DockerId = containerState.ID
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-					ss.PrivateIp = containerState.NetworkSettings.IPAddress
+					ss.PrivateIP = containerState.NetworkSettings.IPAddress
 					ss.PortMapping = make(map[string][]domain.HostIpAndPort)
 					for k, v := range ctr.NetworkSettings.Ports {
 						pm := []domain.HostIpAndPort{}

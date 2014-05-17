@@ -120,7 +120,7 @@ func (sc *ServiceConfig) Serve() {
 		for _, svcep := range svcstates[0].Endpoints {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
-					rpurl := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIp, svcep.PortNumber)}
+					rpurl := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIP, svcep.PortNumber)}
 
 					glog.V(1).Infof("vhosthandler reverse proxy to: %v", rpurl)
 
