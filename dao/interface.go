@@ -117,7 +117,7 @@ type ControlPlane interface {
 	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 
 	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
+	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
 	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error

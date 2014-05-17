@@ -117,7 +117,7 @@
       "properties": {
         "Id" :             {"type": "string", "index":"not_analyzed"},
         "ServiceId":       {"type": "string", "index":"not_analyzed"},
-        "TemplateId":      {"type": "string", "index":"not_analyzed"},
+        "TemplateID":      {"type": "string", "index":"not_analyzed"},
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
       }
     }

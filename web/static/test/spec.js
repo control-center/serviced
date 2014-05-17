@@ -521,7 +521,7 @@ describe('ResourcesService', function() {
     });
 
     it('Can deploy templates to pools', function() {
-        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
+        var deployDef = { PoolId: 'bar', TemplateID: 'foo' };
         $httpBackend.expect('POST', '/templates/deploy', deployDef).
             respond({ Detail: 'Deployed' });
 

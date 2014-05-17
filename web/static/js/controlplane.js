@@ -1936,7 +1936,7 @@ function DeployWizard($scope, resourcesService) {
 
             resourcesService.deploy_app_template({
                 poolID: $scope.install.selected.pool,
-                TemplateId: selected[i].Id,
+                TemplateID: selected[i].Id,
                 DeploymentID: $scope.install.deploymentId
             }, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
