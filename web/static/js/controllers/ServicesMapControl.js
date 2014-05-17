@@ -43,11 +43,11 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
             };
             nodeClasses[service.Id] = 'service notrunning';
 
-            if (service.ParentServiceId !== '') {
-                var parent = $scope.services.mapped[service.ParentServiceId];
-                nodeClasses[service.ParentServiceId] = 'service meta';
+            if (service.ParentServiceID !== '') {
+                var parent = $scope.services.mapped[service.ParentServiceID];
+                nodeClasses[service.ParentServiceID] = 'service meta';
                 edges[edges.length] = {
-                    u: service.ParentServiceId,
+                    u: service.ParentServiceID,
                     v: key
                 };
             }

@@ -57,7 +57,7 @@ type RunningService struct {
 	ImageId         string
 	PoolId          string
 	DesiredState    int
-	ParentServiceId string
+	ParentServiceID string
 	InstanceId      int
 }
 

@@ -36,7 +36,7 @@ func getTestService() service.Service {
 		DesiredState:    0,
 		Launch:          "auto",
 		Endpoints:       []service.ServiceEndpoint{},
-		ParentServiceId: "",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs: []servicedefinition.LogConfig{
@@ -150,7 +150,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		DesiredState:    0,
 		Launch:          "auto",
 		Endpoints:       []service.ServiceEndpoint{},
-		ParentServiceId: "",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs: []servicedefinition.LogConfig{

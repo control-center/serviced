@@ -44,7 +44,7 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []servicedefinition.Task
-	ParentServiceId string
+	ParentServiceID string
 	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -122,7 +122,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Privileged = sd.Privileged
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Tasks = sd.Tasks
-	svc.ParentServiceId = parentServiceID
+	svc.ParentServiceID = parentServiceID
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = sd.Volumes
@@ -318,7 +318,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.HostPolicy != b.HostPolicy {
 		return false
 	}
-	if s.ParentServiceId != b.ParentServiceId {
+	if s.ParentServiceID != b.ParentServiceID {
 		return false
 	}
 	if s.CreatedAt.Unix() != b.CreatedAt.Unix() {

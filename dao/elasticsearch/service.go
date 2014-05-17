@@ -185,8 +185,8 @@ func (this *ControlPlaneDao) GetTenantId(serviceId string, tenantId *string) (er
 		var service service.Service
 		if err := this.GetService(id, &service); err != nil {
 			return "", err
-		} else if service.ParentServiceId != "" {
-			return traverse(service.ParentServiceId)
+		} else if service.ParentServiceID != "" {
+			return traverse(service.ParentServiceID)
 		} else {
 			glog.V(1).Infof("parent service: %+v", service)
 			return service.Id, nil
@@ -485,7 +485,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*s
 	for _, svc := range *servicesList {
 		servicesMap[svc.Id] = &treenode{
 			svc.Id,
-			svc.ParentServiceId,
+			svc.ParentServiceID,
 			[]*treenode{},
 		}
 	}
@@ -494,7 +494,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*s
 	root := treenode{"root", "", []*treenode{}}
 	for _, svc := range *servicesList {
 		node := servicesMap[svc.Id]
-		parent, found := servicesMap[svc.ParentServiceId]
+		parent, found := servicesMap[svc.ParentServiceID]
 		// no parent means this node belongs to root
 		if !found {
 			parent = &root

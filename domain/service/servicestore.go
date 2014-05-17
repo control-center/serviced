@@ -54,7 +54,7 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]*Ser
 		return nil, errors.New("empty parent service id not allowed")
 	}
 
-	queryString := fmt.Sprintf("ParentServiceId:%s", parentID)
+	queryString := fmt.Sprintf("ParentServiceID:%s", parentID)
 	return query(ctx, queryString)
 }
 

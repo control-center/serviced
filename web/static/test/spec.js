@@ -460,10 +460,10 @@ describe('ResourcesService', function() {
         });
         $httpBackend.flush();
         ser_top.map(function(ser) {
-            expect(ser.ParentServiceId).toBe('');
+            expect(ser.ParentServiceID).toBe('');
             if (ser.children) {
                 ser.children.map(function(child) {
-                    expect(child.ParentServiceId).toBe(ser.Id);
+                    expect(child.ParentServiceID).toBe(ser.Id);
                 });
             }
         });
@@ -1166,7 +1166,7 @@ function fake_running_for_host() {
             ImageId: "fakeImage1",
             PoolId: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         },
         {
             Id: "fakeRunning2",
@@ -1180,7 +1180,7 @@ function fake_running_for_host() {
             ImageId: "fakeImage1",
             PoolId: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         },
         {
             Id: "fakeRunning3",
@@ -1194,7 +1194,7 @@ function fake_running_for_host() {
             ImageId: "fakeImage3",
             PoolId: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         }
     ];
 }
@@ -1304,7 +1304,7 @@ var fake1 = {
             "Purpose": "remote"
         }
     ],
-    "ParentServiceId": ''
+    "ParentServiceID": ''
 };
 var service234 = {
     "Id": "service234",
@@ -1316,7 +1316,7 @@ var service234 = {
     "PoolId": "default",
     "DesiredState": 0,
     "Endpoints": null,
-    "ParentServiceId": ''
+    "ParentServiceID": ''
 };
 
 var fake1Child = {
@@ -1329,7 +1329,7 @@ var fake1Child = {
     "PoolId": "default",
     "DesiredState": 0,
     "Endpoints": null,
-    "ParentServiceId": "fakeId1"
+    "ParentServiceID": "fakeId1"
 };
 
 function fake_services() {

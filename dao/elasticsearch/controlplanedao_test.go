@@ -220,7 +220,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 
 func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	svc := service.Service{
-		Id:             "ParentServiceId",
+		Id:             "ParentServiceID",
 		Name:           "ParentService",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
@@ -240,7 +240,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Launch:          "auto",
 		PoolId:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
+		ParentServiceID: "ParentServiceID",
 	}
 	childService2 := service.Service{
 		Id:              "childService2",
@@ -248,10 +248,10 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Launch:          "auto",
 		PoolId:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
+		ParentServiceID: "ParentServiceID",
 	}
 	// add a service with a subservice
-	id := "ParentServiceId"
+	id := "ParentServiceID"
 	var err error
 	if err = dt.Dao.AddService(svc, &id); err != nil {
 		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
@@ -276,11 +276,11 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
-	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
+	query := fmt.Sprintf("ParentServiceID:%s AND NOT Launch:manual", id)
 	var services []*service.Service
 	err = dt.Dao.GetServices(query, &services)
 	for _, subService := range services {
-		if subService.DesiredState == 1 && subService.ParentServiceId == id {
+		if subService.DesiredState == 1 && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
@@ -301,7 +301,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s01.Name = "name"
 	s01.PoolId = "default"
 	s01.Launch = "auto"
-	s01.ParentServiceId = "0"
+	s01.ParentServiceID = "0"
 	s01.DesiredState = service.SVCStop
 
 	s011, _ := service.NewService()
@@ -309,7 +309,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s011.Name = "name"
 	s011.PoolId = "default"
 	s011.Launch = "auto"
-	s011.ParentServiceId = "01"
+	s011.ParentServiceID = "01"
 	s011.DesiredState = service.SVCStop
 
 	s02, _ := service.NewService()
@@ -317,7 +317,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s02.Name = "name"
 	s02.PoolId = "default"
 	s02.Launch = "auto"
-	s02.ParentServiceId = "0"
+	s02.ParentServiceID = "0"
 	s02.DesiredState = service.SVCStop
 
 	err := dt.Dao.AddService(*s0, &id)
@@ -376,14 +376,14 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
-	s01.ParentServiceId = "0"
+	s01.ParentServiceID = "0"
 	s01.Name = "name"
 	s01.PoolId = "default"
 	s01.Launch = "auto"
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
-	s011.ParentServiceId = "01"
+	s011.ParentServiceID = "01"
 	s011.Name = "name"
 	s011.PoolId = "default"
 	s011.Launch = "auto"

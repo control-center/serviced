@@ -35,7 +35,7 @@ var (
 		"HostPolicy":      {"type": "string", "index":"not_analyzed"},
 		"Hostname":        {"type": "string", "index":"not_analyzed"},
 		"Privileged":      {"type": "string", "index":"not_analyzed"},
-		"ParentServiceId": {"type": "string", "index":"not_analyzed"},
+		"ParentServiceID": {"type": "string", "index":"not_analyzed"},
 		"Volume":          {
 		  "properties":    {
 			"ResourcePath" : {"type": "string", "index":"not_analyzed"},

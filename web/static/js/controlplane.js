@@ -227,8 +227,8 @@ function ResourcesService($http, $location) {
                     cached_services_map[svc.Id] = svc;
                 });
                 data.map(function(svc) {
-                    if (svc.ParentServiceId !== '') {
-                        var parent = cached_services_map[svc.ParentServiceId];
+                    if (svc.ParentServiceID !== '') {
+                        var parent = cached_services_map[svc.ParentServiceID];
                         if (!parent.children) {
                             parent.children = [];
                         }
@@ -1260,10 +1260,10 @@ function getFullPath(allPools, pool) {
 }
 
 function getServiceLineage(mappedServices, service) {
-    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+    if (!mappedServices || !service.ParentServiceID || !mappedServices[service.ParentServiceID]) {
         return [ service ];
     }
-    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceID]);
     lineage.push(service);
     return lineage;
 }
@@ -2056,7 +2056,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: '',
+            ParentServiceID: '',
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
@@ -3031,11 +3031,11 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
             };
             nodeClasses[service.Id] = 'service notrunning';
 
-            if (service.ParentServiceId !== '') {
-                var parent = $scope.services.mapped[service.ParentServiceId];
-                nodeClasses[service.ParentServiceId] = 'service meta';
+            if (service.ParentServiceID !== '') {
+                var parent = $scope.services.mapped[service.ParentServiceID];
+                nodeClasses[service.ParentServiceID] = 'service meta';
                 edges[edges.length] = {
-                    u: service.ParentServiceId,
+                    u: service.ParentServiceID,
                     v: key
                 };
             }
@@ -3373,7 +3373,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: $scope.params.serviceId,
+            ParentServiceID: $scope.params.serviceId,
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
@@ -3394,7 +3394,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $('#addService').modal('show');
         };
         $scope.deleteService = function() {
-            var parent = $scope.services.current.ParentServiceId;
+            var parent = $scope.services.current.ParentServiceID;
             console.log('Parent: %s, Length: %d', parent, parent.length);
             resourcesService.remove_service($scope.params.serviceId, function() {
                 refreshServices($scope, resourcesService, false, function() {

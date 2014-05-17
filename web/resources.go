@@ -236,7 +236,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *service
 		return
 	}
 	for _, service := range allServices {
-		if len(service.ParentServiceId) == 0 {
+		if len(service.ParentServiceID) == 0 {
 			topServices = append(topServices, service)
 		}
 	}
@@ -294,7 +294,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	svc.ImageId = payload.ImageId
 	svc.Startup = payload.Startup
 	svc.Instances = payload.Instances
-	svc.ParentServiceId = payload.ParentServiceId
+	svc.ParentServiceID = payload.ParentServiceID
 	svc.DesiredState = payload.DesiredState
 	svc.Launch = payload.Launch
 	svc.Endpoints = payload.Endpoints
