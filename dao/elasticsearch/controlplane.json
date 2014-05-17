@@ -7,7 +7,7 @@
     "servicestate": {
       "properties": {
         "Id" :             {"type": "string", "index":"not_analyzed"},
-        "HostId":          {"type": "string", "index":"not_analyzed"},
+        "HostID":          {"type": "string", "index":"not_analyzed"},
         "ServiceID":       {"type": "string", "index":"not_analyzed"},
         "DockerID":        {"type": "string", "index":"not_analyzed"},
         "PrivateIP":       {"type": "string", "index":"not_analyzed"},

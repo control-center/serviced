@@ -15,7 +15,7 @@ var (
     "addressassignment": {
       "properties": {
         "AssignmentType" :  {"type": "string", "index":"not_analyzed"},
-        "HostId":           {"type": "string", "index":"not_analyzed"},
+        "HostID":           {"type": "string", "index":"not_analyzed"},
         "PoolID":           {"type": "string", "index":"not_analyzed"},
         "IPAddr" :          {"type": "string", "index":"not_analyzed"},
         "Port" :            {"type": "long", "index":"not_analyzed"},

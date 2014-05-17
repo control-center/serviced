@@ -32,7 +32,7 @@ type ZkConn struct {
 }
 
 type HostServiceState struct {
-	HostId         string
+	HostID         string
 	ServiceID      string
 	ServiceStateId string
 	DesiredState   int
@@ -144,7 +144,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
-	hostServicePath := HostServiceStatePath(state.HostId, state.Id)
+	hostServicePath := HostServiceStatePath(state.HostID, state.Id)
 	hss := SsToHss(state)
 	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
@@ -397,7 +397,7 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 		return err
 	}
 
-	hssPath := HostServiceStatePath(ss.HostId, serviceStateId)
+	hssPath := HostServiceStatePath(ss.HostID, serviceStateId)
 	hss := HostServiceState{}
 	if err := conn.Get(hssPath, &hss); err != nil {
 		glog.Errorf("Unable to get host service state %s for delete because: %v", hssPath, err)
@@ -575,7 +575,7 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 // ServiceState to HostServiceState
 func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
-		HostId:         ss.HostId,
+		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
 		ServiceStateId: ss.Id,
 		DesiredState:   service.SVCRun,
@@ -588,7 +588,7 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningServ
 	rs.Id = ss.Id
 	rs.ServiceID = ss.ServiceID
 	rs.StartedAt = ss.Started
-	rs.HostId = ss.HostId
+	rs.HostID = ss.HostID
 	rs.DockerID = ss.DockerID
 	rs.InstanceID = ss.InstanceID
 	rs.Startup = s.Startup

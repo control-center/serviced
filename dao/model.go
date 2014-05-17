@@ -13,7 +13,7 @@ type User struct {
 
 // An association between a host and a pool.
 type PoolHost struct {
-	HostId string
+	HostID string
 	PoolId string
 	HostIp string
 }
@@ -47,7 +47,7 @@ type ServiceTemplateDeploymentRequest struct {
 type RunningService struct {
 	Id              string
 	ServiceID       string
-	HostId          string
+	HostID          string
 	DockerID        string
 	StartedAt       time.Time
 	Name            string

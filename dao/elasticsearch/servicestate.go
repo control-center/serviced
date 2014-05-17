@@ -33,5 +33,5 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
-	return this.zkDao.TerminateHostService(request.HostId, request.ServiceStateId)
+	return this.zkDao.TerminateHostService(request.HostID, request.ServiceStateId)
 }

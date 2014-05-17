@@ -994,8 +994,8 @@ describe('fix_pool_paths', function() {
 
 function fake_hosts_for_pool(poolId) {
     var mappedHosts = {
-        "pool123": [{HostId: "host123", PoolId: "pool123"}],
-        "default": [{HostId: "abc", PoolId: "default"}, {HostId: "def", PoolId: "default"}]
+        "pool123": [{HostID: "host123", PoolId: "pool123"}],
+        "default": [{HostID: "abc", PoolId: "default"}, {HostID: "def", PoolId: "default"}]
     };
     return mappedHosts[poolId];
 }
@@ -1157,7 +1157,7 @@ function fake_running_for_host() {
         {
             Id: "fakeRunning1",
             ServiceID: "fakeService1",
-            HostId: "fakeHost1",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
             Startup: "/bin/true",
@@ -1171,7 +1171,7 @@ function fake_running_for_host() {
         {
             Id: "fakeRunning2",
             ServiceID: "fakeService1",
-            HostId: "fakeHost1",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
             Startup: "/bin/true",
@@ -1185,7 +1185,7 @@ function fake_running_for_host() {
         {
             Id: "fakeRunning3",
             ServiceID: "fakeService3",
-            HostId: "fakeHost1",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceBar",
             Startup: "/bin/false",

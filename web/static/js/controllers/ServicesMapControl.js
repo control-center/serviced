@@ -57,18 +57,18 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         for (var i=0; i < runningServices.length; i++) {
             var running = runningServices[i];
-            if (!addedHosts[running.HostId]) {
+            if (!addedHosts[running.HostID]) {
                 states[states.length] = {
-                    id: running.HostId,
-                    value: { label: $scope.hosts.mapped[running.HostId].Name }
+                    id: running.HostID,
+                    value: { label: $scope.hosts.mapped[running.HostID].Name }
                 };
-                nodeClasses[running.HostId] = 'host';
-                addedHosts[running.HostId] = true;
+                nodeClasses[running.HostID] = 'host';
+                addedHosts[running.HostID] = true;
             }
             nodeClasses[running.ServiceID] = 'service';
             edges[edges.length] = {
                 u: running.ServiceID,
-                v: running.HostId
+                v: running.HostID
             };
 
         }

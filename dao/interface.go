@@ -28,7 +28,7 @@ type ServiceStateRequest struct {
 }
 
 type HostServiceRequest struct {
-	HostId         string
+	HostID         string
 	ServiceStateId string
 }
 

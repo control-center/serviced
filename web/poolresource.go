@@ -158,7 +158,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	}
 	for _, host := range hosts {
 		ph := dao.PoolHost{
-			HostId: host.ID,
+			HostID: host.ID,
 			PoolId: poolID,
 			HostIp: host.IPAddr,
 		}

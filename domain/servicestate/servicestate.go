@@ -21,7 +21,7 @@ import (
 type ServiceState struct {
 	Id          string
 	ServiceID   string
-	HostId      string
+	HostID      string
 	DockerID    string
 	PrivateIP   string
 	Scheduled   time.Time
@@ -39,7 +39,7 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 	serviceState.Id, err = utils.NewUUID36()
 	if err == nil {
 		serviceState.ServiceID = service.Id
-		serviceState.HostId = hostId
+		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
 	}

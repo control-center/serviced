@@ -53,7 +53,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     $scope.killRunning = function(running) {
-        resourcesService.kill_running(running.HostId, running.Id, function() {
+        resourcesService.kill_running(running.HostID, running.Id, function() {
             refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
         });
     };

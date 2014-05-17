@@ -2185,7 +2185,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     $scope.killRunning = function(running) {
-        resourcesService.kill_running(running.HostId, running.Id, function() {
+        resourcesService.kill_running(running.HostID, running.Id, function() {
             refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
         });
     };
@@ -3045,18 +3045,18 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         for (var i=0; i < runningServices.length; i++) {
             var running = runningServices[i];
-            if (!addedHosts[running.HostId]) {
+            if (!addedHosts[running.HostID]) {
                 states[states.length] = {
-                    id: running.HostId,
-                    value: { label: $scope.hosts.mapped[running.HostId].Name }
+                    id: running.HostID,
+                    value: { label: $scope.hosts.mapped[running.HostID].Name }
                 };
-                nodeClasses[running.HostId] = 'host';
-                addedHosts[running.HostId] = true;
+                nodeClasses[running.HostID] = 'host';
+                addedHosts[running.HostID] = true;
             }
             nodeClasses[running.ServiceID] = 'service';
             edges[edges.length] = {
                 u: running.ServiceID,
-                v: running.HostId
+                v: running.HostID
             };
 
         }
@@ -3345,7 +3345,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
         for (var i=0; i < $scope.running.data.length; i++) {
             var instance = $scope.running.data[i];
-            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+            instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
     refreshHosts($scope, resourcesService, true, function() {
@@ -3358,7 +3358,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostId, app.Id, function() {
+        resourcesService.kill_running(app.HostID, app.Id, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();

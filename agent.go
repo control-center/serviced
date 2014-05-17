@@ -209,7 +209,7 @@ func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
 		}
 	}
 
-	hssPath := zzk.HostServiceStatePath(hss.HostId, hss.ServiceStateId)
+	hssPath := zzk.HostServiceStatePath(hss.HostID, hss.ServiceStateId)
 	exists, err = conn.Exists(hssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get host service state %s for delete becaus: %v", hssPath, err)

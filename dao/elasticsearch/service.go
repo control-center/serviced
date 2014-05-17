@@ -371,7 +371,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		}
 	}
 	assignmentRequest.IPAddress = poolsIpInfo[ipIndex].IPAddress
-	selectedHostId := poolsIpInfo[ipIndex].HostID
+	selectedHostID := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
@@ -402,7 +402,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				}
 				assignment := addressassignment.AddressAssignment{}
 				assignment.AssignmentType = "static"
-				assignment.HostID = selectedHostId
+				assignment.HostID = selectedHostID
 				assignment.PoolID = myService.PoolId
 				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
