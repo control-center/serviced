@@ -160,7 +160,7 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		ph := dao.PoolHost{
 			HostID: host.ID,
 			PoolID: poolID,
-			HostIp: host.IPAddr,
+			HostIP: host.IPAddr,
 		}
 		poolHosts = append(poolHosts, &ph)
 	}

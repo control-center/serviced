@@ -14,8 +14,8 @@ type MinMax struct {
 	Max int
 }
 
-type HostIpAndPort struct {
-	HostIp   string
+type HostIPAndPort struct {
+	HostIP   string
 	HostPort string
 }
 

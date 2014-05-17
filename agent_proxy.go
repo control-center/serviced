@@ -136,7 +136,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	}
 	endpoint.ContainerPort = uint16(port)
 	endpoint.HostPort = uint16(port)
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
@@ -149,7 +149,7 @@ func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.A
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }

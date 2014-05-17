@@ -336,7 +336,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 			return err
 		}
 
-		serviceState.HostIp = servicehost.IPAddr
+		serviceState.HostIP = servicehost.IPAddr
 		serviceState.InstanceID = i
 		err = zzk.AddServiceState(l.conn, serviceState)
 		if err != nil {

@@ -27,9 +27,9 @@ type ServiceState struct {
 	Scheduled   time.Time
 	Terminated  time.Time
 	Started     time.Time
-	PortMapping map[string][]domain.HostIpAndPort // protocol -> container port (internal) -> host port (external)
+	PortMapping map[string][]domain.HostIPAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []service.ServiceEndpoint
-	HostIp      string
+	HostIP      string
 	InstanceID  int
 }
 

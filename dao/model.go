@@ -15,7 +15,7 @@ type User struct {
 type PoolHost struct {
 	HostID string
 	PoolID string
-	HostIp string
+	HostIP string
 }
 
 //AssignmentRequest is used to couple a serviceId to an IPAddress
@@ -30,7 +30,7 @@ type ApplicationEndpoint struct {
 	ServiceID      string
 	ContainerPort  uint16
 	HostPort       uint16
-	HostIp         string
+	HostIP         string
 	ContainerIP    string
 	Protocol       string
 	VirtualAddress string

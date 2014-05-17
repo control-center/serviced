@@ -377,11 +377,11 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIP = ctr.NetworkSettings.IPAddress
-		ss.PortMapping = make(map[string][]domain.HostIpAndPort)
+		ss.PortMapping = make(map[string][]domain.HostIPAndPort)
 		for k, v := range ctr.NetworkSettings.Ports {
-			pm := []domain.HostIpAndPort{}
+			pm := []domain.HostIPAndPort{}
 			for _, pb := range v {
-				pm = append(pm, domain.HostIpAndPort{pb.HostIp, pb.HostPort})
+				pm = append(pm, domain.HostIPAndPort{pb.HostIp, pb.HostPort})
 			}
 			ss.PortMapping[string(k)] = pm
 		}
@@ -456,11 +456,11 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIP = containerState.NetworkSettings.IPAddress
-					ss.PortMapping = make(map[string][]domain.HostIpAndPort)
+					ss.PortMapping = make(map[string][]domain.HostIPAndPort)
 					for k, v := range ctr.NetworkSettings.Ports {
-						pm := []domain.HostIpAndPort{}
+						pm := []domain.HostIPAndPort{}
 						for _, pb := range v {
-							pm = append(pm, domain.HostIpAndPort{pb.HostIp, pb.HostPort})
+							pm = append(pm, domain.HostIPAndPort{pb.HostIp, pb.HostPort})
 						}
 						ss.PortMapping[string(k)] = pm
 					}

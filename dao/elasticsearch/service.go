@@ -244,7 +244,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(applicationRegex)
 				if match {
 					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
-						myService.Name, endpoint.Application, ss.HostIp, hostPort, protocol, containerPort)
+						myService.Name, endpoint.Application, ss.HostIP, hostPort, protocol, containerPort)
 					// if port/protocol undefined in the import, use the export's values
 					if endpoint.PortNumber != 0 {
 						containerPort = endpoint.PortNumber
@@ -256,7 +256,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 					ep.ServiceID = ss.ServiceID
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort
-					ep.HostIp = ss.HostIp
+					ep.HostIP = ss.HostIP
 					ep.ContainerIP = ss.PrivateIP
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
