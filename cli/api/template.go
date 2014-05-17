@@ -132,7 +132,7 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Servi
 	}
 
 	req := dao.ServiceTemplateDeploymentRequest{
-		PoolId:       config.PoolID,
+		PoolID:       config.PoolID,
 		TemplateID:   config.ID,
 		DeploymentID: config.DeploymentID,
 	}

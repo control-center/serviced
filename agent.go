@@ -721,7 +721,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	hcfg.Binds = []string{}
 
 	for _, volume := range service.Volumes {
-		sv, err := getSubvolume(a.varPath, service.PoolId, tenantID, a.vfs)
+		sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
 		if err != nil {
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {

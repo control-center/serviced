@@ -260,13 +260,13 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	if len(serviceStates) < service.Instances {
 		instancesToStart := service.Instances - len(serviceStates)
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
-		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolId)
+		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
 		if err != nil {
-			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolId, err)
+			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolID, err)
 			return err
 		}
 		if len(hosts) == 0 {
-			glog.Warningf("Pool %s has no hosts", service.PoolId)
+			glog.Warningf("Pool %s has no hosts", service.PoolID)
 			return nil
 		}
 

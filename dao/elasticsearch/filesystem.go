@@ -130,7 +130,7 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 		return err
 	}
 
-	if volume, err := getSubvolume(this.vfs, service.PoolId, tenantId); err != nil {
+	if volume, err := getSubvolume(this.vfs, service.PoolID, tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
 		return err
 	} else {
@@ -155,9 +155,9 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err
 	}
-	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v poolId=%s", service, service.PoolId)
+	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v poolId=%s", service, service.PoolID)
 
-	aVolume, err := getSubvolume(this.vfs, service.PoolId, tenantId)
+	aVolume, err := getSubvolume(this.vfs, service.PoolID, tenantId)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
 		return err

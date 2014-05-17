@@ -89,17 +89,17 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 		return err
 	}
 
-	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolId)
+	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolID)
 	if err != nil {
-		glog.Errorf("Unable to load resource pool: %s", request.PoolId)
+		glog.Errorf("Unable to load resource pool: %s", request.PoolID)
 		return err
 	}
 	if pool == nil {
-		return fmt.Errorf("poolid %s not found", request.PoolId)
+		return fmt.Errorf("poolid %s not found", request.PoolID)
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolId, "", volumes, request.DeploymentID, tenantId)
+	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolID, "", volumes, request.DeploymentID, tenantId)
 }
 
 func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {

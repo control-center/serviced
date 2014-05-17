@@ -521,7 +521,7 @@ describe('ResourcesService', function() {
     });
 
     it('Can deploy templates to pools', function() {
-        var deployDef = { PoolId: 'bar', TemplateID: 'foo' };
+        var deployDef = { PoolID: 'bar', TemplateID: 'foo' };
         $httpBackend.expect('POST', '/templates/deploy', deployDef).
             respond({ Detail: 'Deployed' });
 
@@ -979,23 +979,23 @@ describe('fix_pool_paths', function() {
             },
             hosts: {
                 all: [
-                    { PoolId: 'a3' },
-                    { PoolId: 'a1' },
-                    { PoolId: 'a2' }
+                    { PoolID: 'a3' },
+                    { PoolID: 'a1' },
+                    { PoolID: 'a2' }
                 ]
             }
         };
         fix_pool_paths(scope);
         scope.hosts.all.map(function(host) {
-            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolId].fullPath);
+            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolID].fullPath);
         });
     });
 });
 
 function fake_hosts_for_pool(poolId) {
     var mappedHosts = {
-        "pool123": [{HostID: "host123", PoolId: "pool123"}],
-        "default": [{HostID: "abc", PoolId: "default"}, {HostID: "def", PoolId: "default"}]
+        "pool123": [{HostID: "host123", PoolID: "pool123"}],
+        "default": [{HostID: "abc", PoolID: "default"}, {HostID: "def", PoolID: "default"}]
     };
     return mappedHosts[poolId];
 }
@@ -1164,7 +1164,7 @@ function fake_running_for_host() {
             Description: "A fake service",
             Instances: 2,
             ImageID: "fakeImage1",
-            PoolId: "default",
+            PoolID: "default",
             DesiredState: 1,
             ParentServiceID: ""
         },
@@ -1178,7 +1178,7 @@ function fake_running_for_host() {
             Description: "A fake service",
             Instances: 2,
             ImageID: "fakeImage1",
-            PoolId: "default",
+            PoolID: "default",
             DesiredState: 1,
             ParentServiceID: ""
         },
@@ -1192,7 +1192,7 @@ function fake_running_for_host() {
             Description: "Another fake service",
             Instances: 1,
             ImageID: "fakeImage3",
-            PoolId: "default",
+            PoolID: "default",
             DesiredState: 1,
             ParentServiceID: ""
         }
@@ -1252,7 +1252,7 @@ function fake_hosts() {
     return {
         "abc": {
             Id: "abc",
-            PoolId: "default",
+            PoolID: "default",
             Name: "abchost",
             IpAddr: "192.168.33.12",
             Cores: 2,
@@ -1261,7 +1261,7 @@ function fake_hosts() {
         },
         "def": {
             Id: "def",
-            PoolId: "default",
+            PoolID: "default",
             Name: "defhost",
             IpAddr: "192.168.33.13",
             Cores: 1,
@@ -1270,7 +1270,7 @@ function fake_hosts() {
         },
         "host123": {
             Id: "host123",
-            PoolId: "pool123",
+            PoolID: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.14",
             Cores: 2,
@@ -1278,7 +1278,7 @@ function fake_hosts() {
         },
         "fakeHost1": {
             Id: "fakeHost1",
-            PoolId: "pool123",
+            PoolID: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.15",
             Cores: 2,
@@ -1294,7 +1294,7 @@ var fake1 = {
     "Description": "Database service",
     "Instances": 0,
     "ImageID": "default",
-    "PoolId": "default",
+    "PoolID": "default",
     "DesiredState": 1,
     "Endpoints": [
         {
@@ -1313,7 +1313,7 @@ var service234 = {
     "Description": "",
     "Instances": 0,
     "ImageID": "",
-    "PoolId": "default",
+    "PoolID": "default",
     "DesiredState": 0,
     "Endpoints": null,
     "ParentServiceID": ''
@@ -1326,7 +1326,7 @@ var fake1Child = {
     "Description": "",
     "Instances": 0,
     "ImageID": "",
-    "PoolId": "default",
+    "PoolID": "default",
     "DesiredState": 0,
     "Endpoints": null,
     "ParentServiceID": "fakeId1"

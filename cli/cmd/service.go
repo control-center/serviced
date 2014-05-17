@@ -278,7 +278,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					s.Startup,
 					s.Instances,
 					s.ImageID,
-					s.PoolId,
+					s.PoolID,
 					s.DesiredState,
 					s.Launch,
 					s.DeploymentID,

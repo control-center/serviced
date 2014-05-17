@@ -14,7 +14,7 @@ type User struct {
 // An association between a host and a pool.
 type PoolHost struct {
 	HostID string
-	PoolId string
+	PoolID string
 	HostIp string
 }
 
@@ -38,7 +38,7 @@ type ApplicationEndpoint struct {
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
-	PoolId       string // Pool Id to deploy service into
+	PoolID       string // Pool Id to deploy service into
 	TemplateID   string // Id of template to be deployed
 	DeploymentID string // Unique id of the instance of this template
 }
@@ -55,7 +55,7 @@ type RunningService struct {
 	Description     string
 	Instances       int
 	ImageID         string
-	PoolId          string
+	PoolID          string
 	DesiredState    int
 	ParentServiceID string
 	InstanceID      int

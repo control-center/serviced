@@ -127,7 +127,7 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 
 	svc.Id = "default"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err = dt.Dao.AddService(svc, &id)
 	if err != nil {
@@ -148,7 +148,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -175,7 +175,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 func (dt *DaoTest) TestDao_GetService(t *C) {
 	svc, _ := service.NewService()
 	svc.Name = "testname"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -196,7 +196,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "name"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	svc.Description = "description"
 	svc.Instances = 0
@@ -227,7 +227,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Instances:      1,
 		InstanceLimits: domain.MinMax{1, 1},
 		ImageID:        "test/pinger",
-		PoolId:         "default",
+		PoolID:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
@@ -238,7 +238,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Id:              "childService1",
 		Name:            "childservice1",
 		Launch:          "auto",
-		PoolId:          "default",
+		PoolID:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
 		ParentServiceID: "ParentServiceID",
 	}
@@ -246,7 +246,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Id:              "childService2",
 		Name:            "childservice2",
 		Launch:          "auto",
-		PoolId:          "default",
+		PoolID:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
 		ParentServiceID: "ParentServiceID",
 	}
@@ -292,14 +292,14 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s0, _ := service.NewService()
 	s0.Id = "0"
 	s0.Name = "name"
-	s0.PoolId = "default"
+	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.DesiredState = service.SVCStop
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
 	s01.Name = "name"
-	s01.PoolId = "default"
+	s01.PoolID = "default"
 	s01.Launch = "auto"
 	s01.ParentServiceID = "0"
 	s01.DesiredState = service.SVCStop
@@ -307,7 +307,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.Name = "name"
-	s011.PoolId = "default"
+	s011.PoolID = "default"
 	s011.Launch = "auto"
 	s011.ParentServiceID = "01"
 	s011.DesiredState = service.SVCStop
@@ -315,7 +315,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s02, _ := service.NewService()
 	s02.Id = "02"
 	s02.Name = "name"
-	s02.PoolId = "default"
+	s02.PoolID = "default"
 	s02.Launch = "auto"
 	s02.ParentServiceID = "0"
 	s02.DesiredState = service.SVCStop
@@ -370,7 +370,7 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 	s0, _ := service.NewService()
 	s0.Name = "name"
-	s0.PoolId = "default"
+	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.Id = "0"
 
@@ -378,14 +378,14 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	s01.Id = "01"
 	s01.ParentServiceID = "0"
 	s01.Name = "name"
-	s01.PoolId = "default"
+	s01.PoolID = "default"
 	s01.Launch = "auto"
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.ParentServiceID = "01"
 	s011.Name = "name"
-	s011.PoolId = "default"
+	s011.PoolID = "default"
 	s011.Launch = "auto"
 
 	err = dt.Dao.AddService(*s0, &id)
@@ -514,7 +514,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		Id:     "assignIPsServiceID",
 		Name:   "testsvc",
 		Launch: "auto",
-		PoolId: assignIPsPool.ID,
+		PoolID: assignIPsPool.ID,
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -589,7 +589,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	svc, _ := service.NewService()
 	svc.Name = "name"
 	svc.Launch = "auto"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	ep := service.ServiceEndpoint{}
 	ep.Name = endpoint
 	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}

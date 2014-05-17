@@ -301,7 +301,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		Instances:      0,
 		InstanceLimits: domain.MinMax{0, 0},
 		ImageID:        imageId,
-		PoolId:         "default",
+		PoolID:         "default",
 		DesiredState:   0,
 		Volumes:        []servicedefinition.Volume{template_volume},
 		DeploymentID:   "backup_test",

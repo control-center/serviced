@@ -36,7 +36,7 @@ type Service struct {
 	Instances       int
 	InstanceLimits  domain.MinMax
 	ImageID         string
-	PoolId          string
+	PoolID          string
 	DesiredState    int
 	HostPolicy      servicedefinition.HostPolicy
 	Hostname        string
@@ -114,7 +114,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
 	svc.ImageID = sd.ImageID
-	svc.PoolId = poolID
+	svc.PoolID = poolID
 	svc.DesiredState = desiredState
 	svc.Launch = sd.Launch
 	svc.HostPolicy = sd.HostPolicy
@@ -300,7 +300,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.ImageID != b.ImageID {
 		return false
 	}
-	if s.PoolId != b.PoolId {
+	if s.PoolID != b.PoolID {
 		return false
 	}
 	if s.DesiredState != b.DesiredState {

@@ -474,19 +474,19 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 				glog.Errorf("Could not stop service %s: %v", service.Id, e)
 				return e
 			}
-			service.PoolId = existingService.PoolId
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
+			service.PoolID = existingService.PoolID
+			if existingPools[service.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				service.PoolID = "default"
 			}
 			if e := d.client.UpdateService(*service, unused); e != nil {
 				glog.Errorf("Could not update service %s: %v", service.Id, e)
 				return e
 			}
 		} else {
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
+			if existingPools[service.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				service.PoolID = "default"
 			}
 			var serviceId string
 			if e := d.client.AddService(*service, &serviceId); e != nil {

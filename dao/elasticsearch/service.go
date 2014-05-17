@@ -329,17 +329,17 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	}
 
 	// populate poolsIpInfo
-	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId)
+	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolID)
 	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
 	poolsIpInfo := poolIPs.HostIPs
 	if len(poolsIpInfo) < 1 {
-		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolId)
+		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolID)
 		return errors.New(msg)
 	}
-	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolId, len(poolsIpInfo))
+	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolID, len(poolsIpInfo))
 
 	rand.Seed(time.Now().UTC().UnixNano())
 	ipIndex := 0
@@ -366,7 +366,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		}
 
 		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolId)
+			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 			return errors.New(msg)
 		}
 	}
@@ -403,7 +403,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				assignment := addressassignment.AddressAssignment{}
 				assignment.AssignmentType = "static"
 				assignment.HostID = selectedHostID
-				assignment.PoolID = myService.PoolId
+				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
 				assignment.ServiceID = myService.Id
