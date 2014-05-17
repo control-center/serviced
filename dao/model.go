@@ -31,7 +31,7 @@ type ApplicationEndpoint struct {
 	ContainerPort  uint16
 	HostPort       uint16
 	HostIp         string
-	ContainerIp    string
+	ContainerIP    string
 	Protocol       string
 	VirtualAddress string
 }

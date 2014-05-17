@@ -257,7 +257,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort
 					ep.HostIp = ss.HostIp
-					ep.ContainerIp = ss.PrivateIp
+					ep.ContainerIP = ss.PrivateIp
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
 
