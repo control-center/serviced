@@ -44,7 +44,7 @@ func validOwnerSpec(owner string) bool {
 }
 
 // GetInterfaceIPAddress attempts to find the IP address based on interface name
-func GetInterfaceIpAddress(_interface string) (string, error) {
+func GetInterfaceIPAddress(_interface string) (string, error) {
 	output, err := exec.Command("/sbin/ip", "-4", "-o", "addr").Output()
 	if err != nil {
 		return "", err

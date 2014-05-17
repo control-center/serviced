@@ -18,10 +18,10 @@ type PoolHost struct {
 	HostIp string
 }
 
-//AssignmentRequest is used to couple a serviceId to an IpAddress
+//AssignmentRequest is used to couple a serviceId to an IPAddress
 type AssignmentRequest struct {
 	ServiceId      string
-	IpAddress      string
+	IPAddress      string
 	AutoAssignment bool
 }
 

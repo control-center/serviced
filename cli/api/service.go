@@ -212,7 +212,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 
 	req := dao.AssignmentRequest{
 		ServiceId:      config.ServiceID,
-		IpAddress:      config.IPAddress,
+		IPAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
 	}
 

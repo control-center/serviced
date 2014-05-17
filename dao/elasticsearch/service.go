@@ -357,7 +357,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		userProvidedIPAssignment = true
 
 		for index, hostIPResource := range poolsIpInfo {
-			if assignmentRequest.IpAddress == hostIPResource.IPAddress {
+			if assignmentRequest.IPAddress == hostIPResource.IPAddress {
 				// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
 				validIp = true
 				ipIndex = index
@@ -366,13 +366,13 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		}
 
 		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IpAddress, myService.PoolId)
+			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolId)
 			return errors.New(msg)
 		}
 	}
-	assignmentRequest.IpAddress = poolsIpInfo[ipIndex].IPAddress
+	assignmentRequest.IPAddress = poolsIpInfo[ipIndex].IPAddress
 	selectedHostId := poolsIpInfo[ipIndex].HostID
-	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
+	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
 	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
@@ -404,7 +404,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				assignment.AssignmentType = "static"
 				assignment.HostID = selectedHostId
 				assignment.PoolID = myService.PoolId
-				assignment.IPAddr = assignmentRequest.IpAddress
+				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
 				assignment.ServiceID = myService.Id
 				assignment.EndpointName = endpoint.Name
@@ -435,7 +435,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		return err
 	}
 
-	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceId, assignmentRequest.IpAddress)
+	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceId, assignmentRequest.IPAddress)
 	return nil
 }
 
