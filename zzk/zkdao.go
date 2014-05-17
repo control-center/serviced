@@ -33,7 +33,7 @@ type ZkConn struct {
 
 type HostServiceState struct {
 	HostId         string
-	ServiceId      string
+	ServiceID      string
 	ServiceStateId string
 	DesiredState   int
 	version        interface{}
@@ -134,7 +134,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
-	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 
 	serviceStateNode := &ServiceStateNode{
 		ServiceState: state,
@@ -160,7 +160,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	}
 	defer conn.Close()
 
-	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 	ssn := ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
@@ -271,12 +271,12 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 		}
 
 		var s service.Service
-		if err := LoadService(conn, hss.ServiceId, &s); err != nil {
+		if err := LoadService(conn, hss.ServiceID, &s); err != nil {
 			return err
 		}
 
 		var ss servicestate.ServiceState
-		if err := LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
+		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateId, &ss); err != nil {
 			return err
 		}
 		_ss[i] = sssToRs(&s, &ss)
@@ -576,7 +576,7 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
 		HostId:         ss.HostId,
-		ServiceId:      ss.ServiceId,
+		ServiceID:      ss.ServiceID,
 		ServiceStateId: ss.Id,
 		DesiredState:   service.SVCRun,
 	}
@@ -586,7 +586,7 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningService {
 	rs := &dao.RunningService{}
 	rs.Id = ss.Id
-	rs.ServiceId = ss.ServiceId
+	rs.ServiceID = ss.ServiceID
 	rs.StartedAt = ss.Started
 	rs.HostId = ss.HostId
 	rs.DockerId = ss.DockerId

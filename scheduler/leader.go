@@ -121,7 +121,7 @@ func (l *leader) watchSnapshotRequests() {
 
 			// TODO: perform snapshot request here
 			snapLabel := ""
-			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceId, &snapLabel); err != nil {
+			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceID, &snapLabel); err != nil {
 				glog.V(0).Infof("watchSnapshotRequests: snaps.ExecuteSnapshot err=%s", err)
 				snapshotRequest.SnapshotError = err.Error()
 				snapshotRequest.SnapshotLabel = snapLabel

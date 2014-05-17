@@ -20,7 +20,7 @@ import (
 // An instantiation of a Service.
 type ServiceState struct {
 	Id          string
-	ServiceId   string
+	ServiceID   string
 	HostId      string
 	DockerId    string
 	PrivateIp   string
@@ -38,7 +38,7 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 	serviceState = &ServiceState{}
 	serviceState.Id, err = utils.NewUUID36()
 	if err == nil {
-		serviceState.ServiceId = service.Id
+		serviceState.ServiceID = service.Id
 		serviceState.HostId = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints

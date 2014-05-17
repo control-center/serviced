@@ -225,9 +225,9 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		remoteEndpoints := make(map[string][]*dao.ApplicationEndpoint)
 
 		//build 'OR' query to grab all service states with in "service" tree
-		relatedServiceIds := walkTree(topService)
+		relatedServiceIDs := walkTree(topService)
 		var states []*servicestate.ServiceState
-		err = this.zkDao.GetServiceStates(&states, relatedServiceIds...)
+		err = this.zkDao.GetServiceStates(&states, relatedServiceIDs...)
 		if err != nil {
 			return
 		}
@@ -253,7 +253,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 						protocol = endpoint.Protocol
 					}
 					var ep dao.ApplicationEndpoint
-					ep.ServiceId = ss.ServiceId
+					ep.ServiceID = ss.ServiceID
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort
 					ep.HostIp = ss.HostIp
@@ -323,7 +323,7 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	myService := service.Service{}
-	err := this.GetService(assignmentRequest.ServiceId, &myService)
+	err := this.GetService(assignmentRequest.ServiceID, &myService)
 	if err != nil {
 		return err
 	}
@@ -375,7 +375,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
-	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
+	this.GetServiceAddressAssignments(assignmentRequest.ServiceID, &assignments)
 	if err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
@@ -430,12 +430,12 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	}
 
 	// traverse all the services
-	err = this.walkServices(assignmentRequest.ServiceId, visitor)
+	err = this.walkServices(assignmentRequest.ServiceID, visitor)
 	if err != nil {
 		return err
 	}
 
-	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceId, assignmentRequest.IPAddress)
+	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceID, assignmentRequest.IPAddress)
 	return nil
 }
 
@@ -462,13 +462,13 @@ func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
 		return []string{node.id}
 	}
-	relatedServiceIds := make([]string, 0)
+	relatedServiceIDs := make([]string, 0)
 	for _, childNode := range node.children {
 		for _, childId := range walkTree(childNode) {
-			relatedServiceIds = append(relatedServiceIds, childId)
+			relatedServiceIDs = append(relatedServiceIDs, childId)
 		}
 	}
-	return append(relatedServiceIds, node.id)
+	return append(relatedServiceIDs, node.id)
 }
 
 type treenode struct {

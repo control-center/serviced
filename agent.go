@@ -195,7 +195,7 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 }
 
 func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
-	ssPath := zzk.ServiceStatePath(hss.ServiceId, hss.ServiceStateId)
+	ssPath := zzk.ServiceStatePath(hss.ServiceID, hss.ServiceStateId)
 	exists, err := conn.Exists(ssPath)
 	if err != nil {
 		glog.V(0).Infof("Unable to get service state %s for delete because: %v", ssPath, err)
@@ -372,7 +372,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 	}
 
 	var sState *servicestate.ServiceState
-	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *servicestate.ServiceState) {
+	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 		ss.DockerId = ctr.ID
 		ss.Started = time.Now()
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -393,14 +393,14 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 		//start IP resource proxy for each endpoint
 		var service service.Service
-		if err = zzk.LoadService(conn, serviceState.ServiceId, &service); err != nil {
+		if err = zzk.LoadService(conn, serviceState.ServiceID, &service); err != nil {
 			glog.Warningf("Unable to read service %s: %v", serviceState.Id, err)
 		} else {
 			glog.V(4).Infof("Looking for address assignment in service %s:%s", service.Name, service.Id)
 			for _, endpoint := range service.Endpoints {
 				if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
 					glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", service.Name, service.Id, endpoint.Name)
-					proxyID := fmt.Sprintf("%v:%v", sState.ServiceId, endpoint.Name)
+					proxyID := fmt.Sprintf("%v:%v", sState.ServiceID, endpoint.Name)
 
 					frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
 					backEnd := proxy.ProxyAddress{IP: sState.PrivateIp, Port: endpoint.PortNumber}
@@ -416,7 +416,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 		}
 
-		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceId, serviceState.Id), serviceState.PortMapping)
+		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceID, serviceState.Id), serviceState.PortMapping)
 
 		loop := true
 		stateUpdateEvery := time.Tick(time.Second * 20)
@@ -451,7 +451,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 					glog.Errorf("Could not get docker state: %v", err)
 					continue
 				}
-				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceId, serviceState.Id, func(ss *servicestate.ServiceState) {
+				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 					ss.DockerId = containerState.ID
 					ss.Started = time.Now()
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -471,7 +471,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 			}
 		}
-		if err = zzk.ResetServiceState(conn, serviceState.ServiceId, serviceState.Id); err != nil {
+		if err = zzk.ResetServiceState(conn, serviceState.ServiceID, serviceState.Id); err != nil {
 			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
 		}
 
@@ -1001,7 +1001,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 			done <- stateResult{ssID, errors.New(errS)}
 			return
 		}
-		if len(hss.ServiceStateId) == 0 || len(hss.ServiceId) == 0 {
+		if len(hss.ServiceStateId) == 0 || len(hss.ServiceID) == 0 {
 			errS := fmt.Sprintf("Service for %s is invalid", zzk.HostServiceStatePath(a.hostID, ssID))
 			glog.Error(errS)
 			done <- stateResult{ssID, errors.New(errS)}
@@ -1009,7 +1009,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 		}
 
 		var ss servicestate.ServiceState
-		if err := zzk.LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
+		if err := zzk.LoadServiceState(conn, hss.ServiceID, hss.ServiceStateId, &ss); err != nil {
 			errS := fmt.Sprintf("Host service state unable to load service state %s", ssID)
 			glog.Error(errS)
 			// This goroutine is watching a node for a service state that does not
@@ -1023,8 +1023,8 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 		}
 
 		var svc service.Service
-		if err := zzk.LoadService(conn, ss.ServiceId, &svc); err != nil {
-			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceId)
+		if err := zzk.LoadService(conn, ss.ServiceID, &svc); err != nil {
+			errS := fmt.Sprintf("Host service state unable to load service %s", ss.ServiceID)
 			glog.Errorf(errS)
 			done <- stateResult{ssID, errors.New(errS)}
 			return

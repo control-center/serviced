@@ -23,7 +23,7 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceStateRequest struct {
-	ServiceId      string
+	ServiceID      string
 	ServiceStateId string
 }
 

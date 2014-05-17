@@ -65,9 +65,9 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
                 nodeClasses[running.HostId] = 'host';
                 addedHosts[running.HostId] = true;
             }
-            nodeClasses[running.ServiceId] = 'service';
+            nodeClasses[running.ServiceID] = 'service';
             edges[edges.length] = {
-                u: running.ServiceId,
+                u: running.ServiceID,
                 v: running.HostId
             };
 

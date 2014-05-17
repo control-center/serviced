@@ -12,7 +12,7 @@ import (
 
 func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *servicestate.ServiceState) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
-	return this.zkDao.GetServiceState(serviceState, request.ServiceId, request.ServiceStateId)
+	return this.zkDao.GetServiceState(serviceState, request.ServiceID, request.ServiceStateId)
 }
 
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*servicestate.ServiceState) error {

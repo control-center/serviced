@@ -40,7 +40,7 @@ type HealthCheck struct {
 }
 
 type HealthCheckResult struct {
-	ServiceId string
+	ServiceID string
 	Name      string
 	Timestamp string
 	Passed    string

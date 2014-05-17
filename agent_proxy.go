@@ -127,7 +127,7 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane"
+	endpoint.ServiceID = "controlplane"
 	endpoint.ContainerIP = "127.0.0.1"
 	port, err := strconv.Atoi(a.uiport[1:])
 	if err != nil {
@@ -145,7 +145,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane_consumer"
+	endpoint.ServiceID = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
@@ -160,7 +160,7 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
-			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceId, key, len(endpoints[key]))
+			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
 				glog.Warningf(" %+v", *ep)
 			}

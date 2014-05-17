@@ -83,7 +83,7 @@ func (c *MockControlPlane) GetServiceStates(serviceId string, state *[]*services
 	default:
 		s := make([]*servicestate.ServiceState, 1)
 		s[0] = &servicestate.ServiceState{
-			ServiceId: serviceId,
+			ServiceID: serviceId,
 			DockerId:  serviceId,
 		}
 		*state = s

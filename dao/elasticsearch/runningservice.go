@@ -23,5 +23,5 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, serv
 
 func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
 	glog.V(3).Infof("ControlPlaneDao.GetRunningService: request=%v", request)
-	return this.zkDao.GetRunningService(request.ServiceId, request.ServiceStateId, running)
+	return this.zkDao.GetRunningService(request.ServiceID, request.ServiceStateId, running)
 }

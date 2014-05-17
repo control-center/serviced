@@ -74,7 +74,7 @@ func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
 	return serviceStateID, nil
 }
 
-// FindRunningServices returns running services that match DockerId, ServiceName, or ServiceId
+// FindRunningServices returns running services that match DockerId, ServiceName, or ServiceID
 func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 	services, err := a.GetServices()
 	if err != nil {
@@ -83,7 +83,7 @@ func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 
 	var runningServices []*RunningService
 	for serviceKey, service := range services {
-		glog.V(2).Infof("looking for keyword:%s in service:  ServiceId:%s  ServiceName:%s\n",
+		glog.V(2).Infof("looking for keyword:%s in service:  ServiceID:%s  ServiceName:%s\n",
 			keyword, service.Id, service.Name)
 		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
 		if err != nil {
@@ -91,12 +91,12 @@ func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 		}
 
 		for stateKey, state := range statesByServiceID {
-			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
-				keyword, state.ServiceId, service.Name, state.DockerId)
+			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceID:%s  ServiceName:%s  DockerId:%s\n",
+				keyword, state.ServiceID, service.Name, state.DockerId)
 			if state.DockerId == "" {
 				continue
 			}
-			if keyword == state.ServiceId || keyword == service.Name || keyword == state.DockerId {
+			if keyword == state.ServiceID || keyword == service.Name || keyword == state.DockerId {
 
 				// validate that the running service found is a running docker container
 				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerId)
@@ -132,9 +132,9 @@ func (a *api) GetRunningService(serviceStateID string) (*RunningService, error) 
 	}
 
 	// retrieve the service
-	service, err := a.GetService(state.ServiceId)
+	service, err := a.GetService(state.ServiceID)
 	if err != nil {
-		glog.Errorf("could not get service from state.ServiceID:%s  error:%v\n", state.ServiceId, err)
+		glog.Errorf("could not get service from state.ServiceID:%s  error:%v\n", state.ServiceID, err)
 		return nil, err
 	}
 

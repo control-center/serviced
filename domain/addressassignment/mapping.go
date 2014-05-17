@@ -19,7 +19,7 @@ var (
         "PoolID":           {"type": "string", "index":"not_analyzed"},
         "IPAddr" :          {"type": "string", "index":"not_analyzed"},
         "Port" :            {"type": "long", "index":"not_analyzed"},
-        "ServiceId" :       {"type": "string", "index":"not_analyzed"},
+        "ServiceID" :       {"type": "string", "index":"not_analyzed"},
         "EndpointName" :    {"type": "string", "index":"not_analyzed"}
       }
     }

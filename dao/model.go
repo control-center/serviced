@@ -20,14 +20,14 @@ type PoolHost struct {
 
 //AssignmentRequest is used to couple a serviceId to an IPAddress
 type AssignmentRequest struct {
-	ServiceId      string
+	ServiceID      string
 	IPAddress      string
 	AutoAssignment bool
 }
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId      string
+	ServiceID      string
 	ContainerPort  uint16
 	HostPort       uint16
 	HostIp         string
@@ -46,7 +46,7 @@ type ServiceTemplateDeploymentRequest struct {
 // This is created by selecting from service_state and joining to service
 type RunningService struct {
 	Id              string
-	ServiceId       string
+	ServiceID       string
 	HostId          string
 	DockerId        string
 	StartedAt       time.Time
@@ -64,7 +64,7 @@ type RunningService struct {
 // An instantiation of a Snapshot request
 type SnapshotRequest struct {
 	Id            string
-	ServiceId     string
+	ServiceID     string
 	SnapshotLabel string
 	SnapshotError string
 }
@@ -74,7 +74,7 @@ func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest
 	snapshotRequest = &SnapshotRequest{}
 	snapshotRequest.Id, err = utils.NewUUID36()
 	if err == nil {
-		snapshotRequest.ServiceId = serviceId
+		snapshotRequest.ServiceID = serviceId
 		snapshotRequest.SnapshotLabel = snapshotLabel
 		snapshotRequest.SnapshotError = ""
 	}

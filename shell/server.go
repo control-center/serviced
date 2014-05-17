@@ -317,8 +317,8 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	glog.Infof("Connected to the control plane at port %s", port)
 
-	if err := cp.GetService(cfg.ServiceId, &svc); err != nil {
-		glog.Errorf("unable to find service %s", cfg.ServiceId)
+	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
+		glog.Errorf("unable to find service %s", cfg.ServiceID)
 		return nil, err
 	}
 

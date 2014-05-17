@@ -84,7 +84,7 @@ func (sc *ServiceConfig) Serve() {
 		for _, s := range services {
 			var svc service.Service
 
-			if err := client.GetService(s.ServiceId, &svc); err != nil {
+			if err := client.GetService(s.ServiceID, &svc); err != nil {
 				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
 			}
 
@@ -93,8 +93,8 @@ func (sc *ServiceConfig) Serve() {
 			for _, vhep := range vheps {
 				for _, vh := range vhep.VHosts {
 					svcstates := []*servicestate.ServiceState{}
-					if err := client.GetServiceStates(s.ServiceId, &svcstates); err != nil {
-						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceId, err), http.StatusInternalServerError)
+					if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
+						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceID, err), http.StatusInternalServerError)
 						return
 					}
 

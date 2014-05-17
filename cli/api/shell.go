@@ -26,7 +26,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	command = append(command, config.Args...)
 
 	cfg := shell.ProcessConfig{
-		ServiceId: config.ServiceID,
+		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
 		Command:   strings.Join(command, " "),
@@ -73,7 +73,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	command = strings.Join(append([]string{command}, config.Args...), " ")
 
 	cfg := shell.ProcessConfig{
-		ServiceId: config.ServiceID,
+		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
 		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),

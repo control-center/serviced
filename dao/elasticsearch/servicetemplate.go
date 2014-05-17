@@ -102,7 +102,7 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolId, "", volumes, request.DeploymentID, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
 	ds := service.SVCStop
 
@@ -110,7 +110,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	for k, v := range volumes {
 		exportedVolumes[k] = v
 	}
-	svc, err := service.BuildService(sd, parentServiceId, pool, ds, deploymentId)
+	svc, err := service.BuildService(sd, parentServiceID, pool, ds, deploymentId)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
-	if parentServiceId == "" {
+	if parentServiceID == "" {
 		*tenantId = svc.Id
 	}
 
@@ -153,7 +153,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// ensure that all images in the templates exist
 	imageIds := make(map[string]struct{})
 	for _, svc := range sds {
@@ -193,7 +193,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	}
 
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}

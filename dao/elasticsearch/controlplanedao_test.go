@@ -419,7 +419,7 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoValidServiceForStart_ServiceId",
+		Id: "TestDaoValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -440,7 +440,7 @@ func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 
 func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoInvalidServiceForStart_ServiceId",
+		Id: "TestDaoInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -741,7 +741,7 @@ func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
 
 	srExpected := dao.SnapshotRequest{
 		Id:            "request13",
-		ServiceId:     "12345",
+		ServiceID:     "12345",
 		SnapshotLabel: "foo",
 		SnapshotError: "bar",
 	}
@@ -761,7 +761,7 @@ func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
 		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
 	}
 
-	srExpected.ServiceId = "67890"
+	srExpected.ServiceID = "67890"
 	srExpected.SnapshotLabel = "bin"
 	srExpected.SnapshotError = "baz"
 	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {

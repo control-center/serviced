@@ -128,7 +128,7 @@ describe('SubServiceControl', function() {
 
     it('Provides service logs', function() {
         $scope.editService = {};
-        $scope.viewLog({Id: 'fake123', ServiceId: 'fake1'});
+        $scope.viewLog({Id: 'fake123', ServiceID: 'fake1'});
         expect($scope.editService.log).toBe(fake_service_logs().Detail);
     });
 
@@ -240,7 +240,7 @@ describe('HostDetails', function() {
 
     it('Provides a \'click_app\' function', function() {
         expect($scope.click_app).not.toBeUndefined();
-        $scope.click_app({ServiceId: 'test'});
+        $scope.click_app({ServiceID: 'test'});
         expect($location.path()).toBe('/services/test');
     });
 
@@ -1156,7 +1156,7 @@ function fake_running_for_host() {
     return [
         {
             Id: "fakeRunning1",
-            ServiceId: "fakeService1",
+            ServiceID: "fakeService1",
             HostId: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
@@ -1170,7 +1170,7 @@ function fake_running_for_host() {
         },
         {
             Id: "fakeRunning2",
-            ServiceId: "fakeService1",
+            ServiceID: "fakeService1",
             HostId: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
@@ -1184,7 +1184,7 @@ function fake_running_for_host() {
         },
         {
             Id: "fakeRunning3",
-            ServiceId: "fakeService3",
+            ServiceID: "fakeService3",
             HostId: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceBar",

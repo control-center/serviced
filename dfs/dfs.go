@@ -48,15 +48,15 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 
 	hostCommand := []string{"/bin/bash", "-c",
 		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
-	glog.Infof("ServiceId: %s, Command: %s", state.ServiceId, strings.Join(hostCommand, " "))
+	glog.Infof("ServiceID: %s, Command: %s", state.ServiceID, strings.Join(hostCommand, " "))
 	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
+		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
 		return output, err
 	}
-	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
+	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceID, output)
 	return output, nil
 }
 
