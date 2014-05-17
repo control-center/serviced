@@ -386,7 +386,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 
-	argv = append(argv, svc.ImageId)
+	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)
 
 	// wait for the DFS to be ready in order to start container on the latest image

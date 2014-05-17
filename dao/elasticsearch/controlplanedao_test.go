@@ -226,7 +226,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
 		InstanceLimits: domain.MinMax{1, 1},
-		ImageId:        "test/pinger",
+		ImageID:        "test/pinger",
 		PoolId:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
@@ -463,10 +463,10 @@ func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestRenameImageId(t *C) {
-	imageId, err := dt.Dao.renameImageId("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
+func (dt *DaoTest) TestRenameImageID(t *C) {
+	imageId, err := dt.Dao.renameImageID("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
 	if err != nil {
-		t.Errorf("unexpected failure renamingImageId: %s", err)
+		t.Errorf("unexpected failure renamingImageID: %s", err)
 		t.FailNow()
 	}
 	expected := "localhost:5000/X/daily-zenoss5-core"

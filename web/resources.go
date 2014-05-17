@@ -291,7 +291,7 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	svc.Context = payload.Context
 	svc.Tags = payload.Tags
 	svc.PoolId = payload.PoolId
-	svc.ImageId = payload.ImageId
+	svc.ImageID = payload.ImageID
 	svc.Startup = payload.Startup
 	svc.Instances = payload.Instances
 	svc.ParentServiceID = payload.ParentServiceID

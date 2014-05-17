@@ -521,7 +521,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 		return fmt.Errorf("unsupported owner specification: %s", owner)
 	}
 
-	uid, gid, err := getInternalImageIds(owner, dockerImage)
+	uid, gid, err := getInternalImageIDs(owner, dockerImage)
 	if err != nil {
 		return err
 	}
@@ -586,11 +586,11 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 
 		// get rid of the snapshot UUID from the ImageID before trying to pull it
 		re := regexp.MustCompile("(?P<head>[[:alpha:]\\.]+\\/[[:alpha:]]+\\/)[[:alpha:][:digit:]-]+_(?P<tail>[[:alnum:]-]+)")
-		if ok := re.MatchString(service.ImageId); !ok {
-			glog.Errorf("can't determine repo from image id %s: %v", service.ImageId, err)
+		if ok := re.MatchString(service.ImageID); !ok {
+			glog.Errorf("can't determine repo from image id %s: %v", service.ImageID, err)
 			return false, err
 		}
-		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageId, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
+		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageID, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
 
 		glog.Infof("container pulling image %s Name:%s for service ID:%s Name:%s Cmd:%+v", repo, serviceState.Id, service.Id, service.Name, config.Cmd)
 
@@ -600,7 +600,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		}
 		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
 		if pullerr != nil {
-			glog.Errorf("can't pull container image %s: %v", service.ImageId, err)
+			glog.Errorf("can't pull container image %s: %v", service.ImageID, err)
 			return false, err
 		}
 
@@ -689,7 +689,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
-	cfg.Image = service.ImageId
+	cfg.Image = service.ImageID
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[docker.Port]struct{})
@@ -733,7 +733,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
 
-			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageId, volume.Owner, volume.Permission); err != nil {
+			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
 				glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 			}
 
@@ -799,9 +799,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
 					continue
 				}
-				svcImageID, err := commons.ParseImageID(service.ImageId)
+				svcImageID, err := commons.ParseImageID(service.ImageID)
 				if err != nil {
-					glog.Errorf("error parsing service imageid %v; %v", service.ImageId, err)
+					glog.Errorf("error parsing service imageid %v; %v", service.ImageID, err)
 					continue
 				}
 				glog.V(0).Infof("mount checking %#v and %#v ", imageID, svcImageID)

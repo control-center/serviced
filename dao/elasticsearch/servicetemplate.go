@@ -136,12 +136,12 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	}
 
 	// Using the tenant id, tag the base image with the tenantID
-	if svc.ImageId != "" {
-		name, err := this.renameImageId(svc.ImageId, *tenantId)
+	if svc.ImageID != "" {
+		name, err := this.renameImageID(svc.ImageID, *tenantId)
 		if err != nil {
 			return err
 		}
-		svc.ImageId = name
+		svc.ImageID = name
 	}
 
 	var serviceId string
@@ -157,7 +157,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	// ensure that all images in the templates exist
 	imageIds := make(map[string]struct{})
 	for _, svc := range sds {
-		getSubServiceImageIds(imageIds, svc)
+		getSubServiceImageIDs(imageIds, svc)
 	}
 
 	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
@@ -175,7 +175,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 			return msg
 		}
 
-		repo, err := this.renameImageId(imageId, *tenantId)
+		repo, err := this.renameImageID(imageId, *tenantId)
 		if err != nil {
 			glog.Errorf("malformed imageId: %s", imageId)
 			return err
@@ -200,18 +200,18 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	return nil
 }
 
-func getSubServiceImageIds(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
+func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
 	found := struct{}{}
 
 	if len(svc.ImageID) != 0 {
 		ids[svc.ImageID] = found
 	}
 	for _, s := range svc.Services {
-		getSubServiceImageIds(ids, s)
+		getSubServiceImageIDs(ids, s)
 	}
 }
 
-func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
+func (this *ControlPlaneDao) renameImageID(imageId, tenantId string) (string, error) {
 
 	repo, _ := dutils.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")

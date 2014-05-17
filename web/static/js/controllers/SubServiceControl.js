@@ -269,7 +269,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
 

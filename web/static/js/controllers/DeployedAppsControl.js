@@ -81,7 +81,7 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
     $scope.click_secondary = function(navlink) {

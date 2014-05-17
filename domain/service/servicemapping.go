@@ -29,7 +29,7 @@ var (
 		  }
 		},
 		"DesiredState":    {"type": "long", "index":"not_analyzed"},
-		"ImageId":           {"type": "string", "index":"not_analyzed"},
+		"ImageID":           {"type": "string", "index":"not_analyzed"},
 		"PoolId":          {"type": "string", "index":"not_analyzed"},
 		"Launch":          {"type": "string", "index":"not_analyzed"},
 		"HostPolicy":      {"type": "string", "index":"not_analyzed"},

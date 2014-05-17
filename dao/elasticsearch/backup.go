@@ -276,8 +276,8 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 		visit(&template.Services)
 	}
 	for _, service := range services {
-		if service.ImageId != "" {
-			imageSet[service.ImageId] = true
+		if service.ImageID != "" {
+			imageSet[service.ImageID] = true
 		}
 	}
 	return imageSet

@@ -115,7 +115,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	s := service.Service{
 		Name:           config.Name,
 		PoolId:         config.PoolID,
-		ImageId:        config.ImageID,
+		ImageID:        config.ImageID,
 		Endpoints:      endpoints,
 		Startup:        config.Command,
 		Instances:      1,

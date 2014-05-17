@@ -250,7 +250,7 @@ func init() {
 	userSpecCache.lookup = make(map[string]uidgid)
 }
 
-func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
+func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 
 	userSpecCache.Lock()
 	defer userSpecCache.Unlock()
@@ -270,7 +270,7 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	pattern := regexp.MustCompile(`^\d+ \d+$`)
 
 	if !pattern.MatchString(s) {
-		err = fmt.Errorf("unexpected output from getInternalImageIds: %s", s)
+		err = fmt.Errorf("unexpected output from getInternalImageIDs: %s", s)
 		return
 	}
 	fields := strings.Fields(s)

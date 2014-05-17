@@ -18,7 +18,7 @@
               "Porpose": "import"
             }
           ],
-          "ImageId": "ubuntu",
+          "ImageID": "ubuntu",
           "Instances": {
             "min": 1
           },

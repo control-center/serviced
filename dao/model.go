@@ -54,7 +54,7 @@ type RunningService struct {
 	Startup         string
 	Description     string
 	Instances       int
-	ImageId         string
+	ImageID         string
 	PoolId          string
 	DesiredState    int
 	ParentServiceID string

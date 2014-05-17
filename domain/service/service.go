@@ -35,7 +35,7 @@ type Service struct {
 	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
 	InstanceLimits  domain.MinMax
-	ImageId         string
+	ImageID         string
 	PoolId          string
 	DesiredState    int
 	HostPolicy      servicedefinition.HostPolicy
@@ -113,7 +113,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
-	svc.ImageId = sd.ImageID
+	svc.ImageID = sd.ImageID
 	svc.PoolId = poolID
 	svc.DesiredState = desiredState
 	svc.Launch = sd.Launch
@@ -297,7 +297,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.Instances != b.Instances {
 		return false
 	}
-	if s.ImageId != b.ImageId {
+	if s.ImageID != b.ImageID {
 		return false
 	}
 	if s.PoolId != b.PoolId {

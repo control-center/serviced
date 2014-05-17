@@ -1163,7 +1163,7 @@ function fake_running_for_host() {
             Startup: "/bin/true",
             Description: "A fake service",
             Instances: 2,
-            ImageId: "fakeImage1",
+            ImageID: "fakeImage1",
             PoolId: "default",
             DesiredState: 1,
             ParentServiceID: ""
@@ -1177,7 +1177,7 @@ function fake_running_for_host() {
             Startup: "/bin/true",
             Description: "A fake service",
             Instances: 2,
-            ImageId: "fakeImage1",
+            ImageID: "fakeImage1",
             PoolId: "default",
             DesiredState: 1,
             ParentServiceID: ""
@@ -1191,7 +1191,7 @@ function fake_running_for_host() {
             Startup: "/bin/false",
             Description: "Another fake service",
             Instances: 1,
-            ImageId: "fakeImage3",
+            ImageID: "fakeImage3",
             PoolId: "default",
             DesiredState: 1,
             ParentServiceID: ""
@@ -1209,7 +1209,7 @@ function fake_templates() {
                     "Name": "hellod",
                     "Command": "/bin/sh -c \"while true; do echo hello world; sleep 1; done\"",
                     "Description": "",
-                    "ImageId": "",
+                    "ImageID": "",
                     "Instances": null,
                     "Endpoints": [
                         {
@@ -1231,7 +1231,7 @@ function fake_templates() {
                     "Name": "hellod",
                     "Command": "/bin/sh -c \"while true; do echo hello; sleep 1; done\"",
                     "Description": "",
-                    "ImageId": "",
+                    "ImageID": "",
                     "Instances": null,
                     "Endpoints": [
                         {
@@ -1293,7 +1293,7 @@ var fake1 = {
     "Startup": "/usr/libexec/mysqld",
     "Description": "Database service",
     "Instances": 0,
-    "ImageId": "default",
+    "ImageID": "default",
     "PoolId": "default",
     "DesiredState": 1,
     "Endpoints": [
@@ -1312,7 +1312,7 @@ var service234 = {
     "Startup": "/opt/zenoss/bin/zeneventd",
     "Description": "",
     "Instances": 0,
-    "ImageId": "",
+    "ImageID": "",
     "PoolId": "default",
     "DesiredState": 0,
     "Endpoints": null,
@@ -1325,7 +1325,7 @@ var fake1Child = {
     "Startup": "/opt/zenoss/bin/zeneventd",
     "Description": "",
     "Instances": 0,
-    "ImageId": "",
+    "ImageID": "",
     "PoolId": "default",
     "DesiredState": 0,
     "Endpoints": null,
