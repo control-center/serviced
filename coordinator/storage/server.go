@@ -69,7 +69,7 @@ func (s *Server) loop() {
 	storageLead := conn.NewLeader("/storage/leader", node)
 	defer storageLead.ReleaseLead()
 	for {
-		glog.Info("looping")
+		glog.V(2).Info("looping")
 		// keep from churning if we get errors
 		if err != nil {
 			select {

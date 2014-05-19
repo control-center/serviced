@@ -578,7 +578,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	glog.V(3).Infof(">>> CreateContainerOptions:\n%s", string(cjson))
 
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
-	glog.V(0).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
+	glog.V(2).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
 	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
 	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
@@ -616,7 +616,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		return false, err
 	}
 
-	glog.Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Name, service.Id, config.Cmd)
+	glog.V(2).Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Name, service.Id, config.Cmd)
 
 	// use the docker client EventMonitor to listen for events from this container
 	s, err := em.Subscribe(ctr.ID)
@@ -628,7 +628,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	emc := make(chan struct{})
 
 	s.Handle(docker.Start, func(e docker.Event) error {
-		glog.Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
+		glog.V(2).Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
 		emc <- struct{}{}
 		return nil
 	})
@@ -645,7 +645,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	tout := time.After(timeout)
 	select {
 	case <-emc:
-		glog.Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
+		glog.V(0).Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
 	case <-tout:
 		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
 		// FIXME: WORKAROUND for issue where docker.Start event doesn't always notify
@@ -726,10 +726,10 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		if err != nil {
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
-			glog.Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
+			glog.V(2).Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
-			glog.Infof("FullResourcePath: %s", resourcePath)
+			glog.V(2).Infof("FullResourcePath: %s", resourcePath)
 			if err = os.MkdirAll(resourcePath, 0770); err != nil {
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
@@ -769,18 +769,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// add arguments to mount requested directory (if requested)
-	glog.V(0).Infof("Checking Mount options for service %#v", service)
+	glog.V(2).Infof("Checking Mount options for service %#v", service)
 	for _, bindMountString := range a.mount {
-		glog.V(0).Infof("bindmount is  %#v", bindMountString)
+		glog.V(2).Infof("bindmount is  %#v", bindMountString)
 		splitMount := strings.Split(bindMountString, ",")
 		numMountArgs := len(splitMount)
 
 		if numMountArgs == 2 || numMountArgs == 3 {
 
 			requestedImage := splitMount[0]
-			glog.V(0).Infof("mount requestedImage %#v", requestedImage)
+			glog.V(2).Infof("mount requestedImage %#v", requestedImage)
 			hostPath := splitMount[1]
-			glog.V(0).Infof("mount hostPath %#v", hostPath)
+			glog.V(2).Infof("mount hostPath %#v", hostPath)
 			// assume the container path is going to be the same as the host path
 			containerPath := hostPath
 
@@ -788,7 +788,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 			if numMountArgs > 2 {
 				containerPath = splitMount[2]
 			}
-			glog.V(0).Infof("mount containerPath %#v", containerPath)
+			glog.V(2).Infof("mount containerPath %#v", containerPath)
 
 			// insert tenantId into requestedImage - see dao.DeployService
 			matchedRequestedImage := false
@@ -805,7 +805,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 					glog.Errorf("error parsing service imageid %v; %v", service.ImageID, err)
 					continue
 				}
-				glog.V(0).Infof("mount checking %#v and %#v ", imageID, svcImageID)
+				glog.V(2).Infof("mount checking %#v and %#v ", imageID, svcImageID)
 				matchedRequestedImage = (imageID.Repo == svcImageID.Repo)
 			}
 
