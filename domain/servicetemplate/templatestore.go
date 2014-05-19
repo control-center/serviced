@@ -19,7 +19,7 @@ func NewStore() *Store {
 
 //Store type for interacting with ResourcePool persistent storage
 type Store struct {
-	datastore.DataStore
+	ds datastore.DataStore
 }
 
 // Put adds or updates a ServiceTemplate
@@ -32,14 +32,14 @@ func (s *Store) Put(ctx datastore.Context, st ServiceTemplate) error {
 	if err != nil {
 		return err
 	}
-	return s.DataStore.Put(ctx, Key(wrapper.ID), wrapper)
+	return s.ds.Put(ctx, Key(wrapper.ID), wrapper)
 }
 
 // Get a ServiceTemplate by id. Return ErrNoSuchEntity if not found
 func (s *Store) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) {
 	var wrapper serviceTemplateWrapper
 
-	if err := s.DataStore.Get(ctx, Key(id), &wrapper); err != nil {
+	if err := s.ds.Get(ctx, Key(id), &wrapper); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +49,7 @@ func (s *Store) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) 
 
 // Delete removes the a ServiceTemplate if it exists
 func (s *Store) Delete(ctx datastore.Context, id string) error {
-	return s.DataStore.Delete(ctx, Key(id))
+	return s.ds.Delete(ctx, Key(id))
 }
 
 // GetServiceTemplates returns all ServiceTemplates

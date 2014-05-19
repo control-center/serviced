@@ -172,6 +172,61 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 		t.Fail()
 	}
 }
+func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
+	svc, _ := service.NewService()
+	svc.Id = "default"
+	svc.Name = "default"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+
+	err := dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	//Conf file update shouldn't occur because original service didn't have conf files
+	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
+	svc.ConfigFiles = map[string]servicedefinition.ConfigFile{"testname": confFile}
+	err = dt.Dao.UpdateService(*svc, &unused)
+	t.Assert(err, IsNil)
+
+	result := service.Service{}
+	dt.Dao.GetService("default", &result)
+	t.Assert(0, Equals, len(result.ConfigFiles))
+
+	//test update conf file works
+	svc, _ = service.NewService()
+	svc.Id = "default_conf"
+	svc.Name = "default"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
+
+	err = dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(1, Equals, len(result.OriginalConfigs))
+	t.Assert(result.ConfigFiles, DeepEquals, svc.OriginalConfigs)
+	t.Assert(result.ConfigFiles, DeepEquals, result.OriginalConfigs)
+
+	confFile2 := servicedefinition.ConfigFile{Content: "Test content 2", Filename: "testname"}
+	svc.ConfigFiles = map[string]servicedefinition.ConfigFile{"testname": confFile2}
+	err = dt.Dao.UpdateService(*svc, &unused)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(result.ConfigFiles["testname"], DeepEquals, confFile2)
+	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
+
+	//now delete service and re-add, it should have previous modified config file
+	err = dt.Dao.RemoveService(svc.Id, &unused)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(result.ConfigFiles["testname"], DeepEquals, confFile2)
+	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
+
+}
 
 func (dt *DaoTest) TestDao_GetService(t *C) {
 	svc, _ := service.NewService()

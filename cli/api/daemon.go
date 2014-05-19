@@ -19,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
@@ -276,6 +277,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	eDriver.AddMapping(servicetemplate.MAPPING)
 	eDriver.AddMapping(service.MAPPING)
 	eDriver.AddMapping(addressassignment.MAPPING)
+	eDriver.AddMapping(serviceconfigfile.MAPPING)
 	eDriver.AddMapping(user.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {

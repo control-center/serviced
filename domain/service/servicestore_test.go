@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"testing"
 )
 
@@ -38,32 +39,36 @@ func (s *S) SetUpTest(c *C) {
 
 func (s *S) Test_ServiceCRUD(t *C) {
 	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
-	svc2 := Service{}
 
-	err := s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
+	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
+
+	svc2, err := s.store.Get(s.ctx, svc.Id)
 	t.Assert(err, NotNil)
 	if !datastore.IsErrNoSuchEntity(err) {
 		t.Fatalf("unexpected error type: %v", err)
 	}
 
-	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
 	//Test update
 	svc.Description = "new description"
-	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
-	err = s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	svc2, err = s.store.Get(s.ctx, svc.Id)
 	t.Assert(err, IsNil)
 
 	t.Assert(svc2.Description, Equals, svc.Description)
+	t.Assert(len(svc2.ConfigFiles), Equals, len(svc.OriginalConfigs))
+	t.Assert(svc2.ConfigFiles["testname"], Equals, svc.OriginalConfigs["testname"])
 
 	//test delete
-	err = s.store.Delete(s.ctx, Key(svc.Id))
+	err = s.store.Delete(s.ctx, svc.Id)
 	t.Assert(err, IsNil)
 
-	err = s.store.Get(s.ctx, Key(svc.Id), &svc2)
+	svc2, err = s.store.Get(s.ctx, svc.Id)
 	t.Assert(err, NotNil)
 	if !datastore.IsErrNoSuchEntity(err) {
 		t.Fatalf("unexpected error type: %v", err)
@@ -77,7 +82,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(len(svcs), Equals, 0)
 
 	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
-	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
 	svcs, err = s.store.GetServices(s.ctx)
@@ -86,7 +91,7 @@ func (s *S) Test_GetServices(t *C) {
 
 	svc.ParentServiceID = svc.Id
 	svc.Id = "Test_GetHosts2"
-	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
 	svcs, err = s.store.GetServices(s.ctx)
@@ -98,7 +103,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(len(svcs), Equals, 2)
 
 	svc.Id = "Test_GetHosts3"
-	err = s.store.Put(s.ctx, Key(svc.Id), svc)
+	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
 	svcs, err = s.store.GetChildServices(s.ctx, "svc_test_id")
