@@ -21,11 +21,28 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// no host, underscore in repo
+	{
+		"dobbs/sierra_madre",
+		&ImageID{
+			User: "dobbs",
+			Repo: "sierra_madre",
+		},
+		"",
+	},
 	// no host top-level
 	{
 		"sierramadre",
 		&ImageID{
 			Repo: "sierramadre",
+		},
+		"",
+	},
+	// no host top-level underscore in repo
+	{
+		"sierra_madre",
+		&ImageID{
+			Repo: "sierra_madre",
 		},
 		"",
 	},
