@@ -44,7 +44,14 @@ type createreq struct {
 		createaction     ContainerActionFunc
 		startaction      ContainerActionFunc
 	}
-	respchan chan string
+	respchan chan dockerclient.Container
+}
+
+type deletereq struct {
+	request
+	args struct {
+		removeOptions dockerclient.RemoveContainerOptions
+	}
 }
 
 type inspectreq struct {
@@ -53,6 +60,13 @@ type inspectreq struct {
 		id string
 	}
 	respchan chan *dockerclient.Container
+}
+
+type killreq struct {
+	request
+	args struct {
+		id string
+	}
 }
 
 type listreq struct {
@@ -73,6 +87,14 @@ type onstopreq struct {
 	args struct {
 		id     string
 		action ContainerActionFunc
+	}
+}
+
+type restartreq struct {
+	request
+	args struct {
+		id      string
+		timeout uint
 	}
 }
 
@@ -98,20 +120,26 @@ var (
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
 		Create          chan createreq
+		Delete          chan deletereq
 		Inspect         chan inspectreq
+		Kill            chan killreq
 		List            chan listreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
+		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
 		make(chan createreq),
+		make(chan deletereq),
 		make(chan inspectreq),
+		make(chan killreq),
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
+		make(chan restartreq),
 		make(chan startreq),
 		make(chan stopreq),
 	}
@@ -185,6 +213,13 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 		case req := <-cmds.Create:
 			ci <- req
+		case req := <-cmds.Delete:
+			err := dc.RemoveContainer(req.args.removeOptions)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
 		case req := <-cmds.Inspect:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -193,6 +228,13 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			close(req.errchan)
 			req.respchan <- ctr
+		case req := <-cmds.Kill:
+			err := dc.KillContainer(req.args.id)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
 		case req := <-cmds.List:
 			apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
 			if err != nil {
@@ -211,6 +253,14 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			if action, ok := eventactions[req.args.event][req.args.id]; ok {
 				go action(req.args.id)
+			}
+			close(req.errchan)
+		case req := <-cmds.Restart:
+			// FIXME: this should really be done by the scheduler since the timeout could be long.
+			err := dc.RestartContainer(req.args.id, req.args.timeout)
+			if err != nil {
+				req.errchan <- err
+				continue
 			}
 			close(req.errchan)
 		case req := <-cmds.Start:
@@ -275,7 +325,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 			close(req.errchan)
 
-			req.respchan <- ctr.ID
+			req.respchan <- *ctr
 		case req := <-src:
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {

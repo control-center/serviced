@@ -8,8 +8,6 @@ import (
 )
 
 func TestOnContainerStart(t *testing.T) {
-	var started bool
-
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -20,22 +18,18 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	cid, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	ctr, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't create container: ", err)
 	}
 
 	sc := make(chan struct{})
 
-	OnContainerStart(cid, func(id string) error {
+	ctr.OnEvent(Start, func(id string) {
 		sc <- struct{}{}
-		return nil
 	})
 
-	err = StartContainer(cid, cd, 30*time.Second, func(id string) error {
-		started = true
-		return nil
-	})
+	err = ctr.Start(30*time.Second, nil)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -46,15 +40,14 @@ func TestOnContainerStart(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
-	StopContainer(cid, 30)
+	ctr.Stop(30)
 }
 
 func TestOnContainerCreated(t *testing.T) {
 	cs := make(chan string)
 
-	OnContainerCreated(Wildcard, func(id string) error {
+	OnContainerCreated(Wildcard, func(id string) {
 		cs <- id
-		return nil
 	})
 
 	cd := &ContainerDefinition{
@@ -67,7 +60,7 @@ func TestOnContainerCreated(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	cid, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	ctr, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't create container: ", err)
 	}
@@ -78,7 +71,7 @@ func TestOnContainerCreated(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
-	StopContainer(cid, 30)
+	ctr.Stop(30)
 }
 
 func TestOnContainerStop(t *testing.T) {
@@ -92,19 +85,18 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	cid, err := CreateContainer(cd, true, 600*time.Second, nil, nil)
+	ctr, err := CreateContainer(cd, true, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
 	ec := make(chan struct{})
 
-	OnContainerStop(cid, func(cid string) error {
+	ctr.OnEvent(Stop, func(cid string) {
 		ec <- struct{}{}
-		return nil
 	})
 
-	StopContainer(cid, 30)
+	ctr.Stop(30)
 
 	select {
 	case <-ec:
