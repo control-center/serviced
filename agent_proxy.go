@@ -127,8 +127,8 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane"
-	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ServiceID = "controlplane"
+	endpoint.ContainerIP = "127.0.0.1"
 	port, err := strconv.Atoi(a.uiport[1:])
 	if err != nil {
 		glog.Errorf("Unable to interpret ui port.")
@@ -136,7 +136,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	}
 	endpoint.ContainerPort = uint16(port)
 	endpoint.HostPort = uint16(port)
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
@@ -145,11 +145,11 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane_consumer"
-	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ServiceID = "controlplane_consumer"
+	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
@@ -160,7 +160,7 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
-			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceId, key, len(endpoints[key]))
+			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
 				glog.Warningf(" %+v", *ep)
 			}

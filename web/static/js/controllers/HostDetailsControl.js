@@ -42,18 +42,18 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
-        resourcesService.get_service_state_logs(running.ServiceId, running.Id, function(log) {
+        resourcesService.get_service_state_logs(running.ServiceID, running.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
     };
 
     $scope.click_app = function(instance) {
-        $location.path('/services/' + instance.ServiceId);
+        $location.path('/services/' + instance.ServiceID);
     };
 
     $scope.killRunning = function(running) {
-        resourcesService.kill_running(running.HostId, running.Id, function() {
+        resourcesService.kill_running(running.HostID, running.Id, function() {
             refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
         });
     };

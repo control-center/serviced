@@ -43,7 +43,7 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]*Serv
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
 	}
-	queryString := fmt.Sprintf("PoolId:%s", id)
+	queryString := fmt.Sprintf("PoolID:%s", id)
 	return query(ctx, queryString)
 }
 
@@ -54,7 +54,7 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]*Ser
 		return nil, errors.New("empty parent service id not allowed")
 	}
 
-	queryString := fmt.Sprintf("ParentServiceId:%s", parentID)
+	queryString := fmt.Sprintf("ParentServiceID:%s", parentID)
 	return query(ctx, queryString)
 }
 

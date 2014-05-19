@@ -23,13 +23,13 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceStateRequest struct {
-	ServiceId      string
-	ServiceStateId string
+	ServiceID      string
+	ServiceStateID string
 }
 
 type HostServiceRequest struct {
-	HostId         string
-	ServiceStateId string
+	HostID         string
+	ServiceStateID string
 }
 
 // The ControlPlane interface is the API for a serviced master.
@@ -117,7 +117,7 @@ type ControlPlane interface {
 	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 
 	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
+	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
 	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
