@@ -12,17 +12,14 @@ import (
 
 // states that the parser can be in as it scans
 const (
-	scanning = iota
+	scanningHostOrRepoName = iota
 	scanningHost
-	scanningHostOrName
-	scanningName
-	scanningPort
 	scanningPortOrTag
-	scanningRepo
+	scanningPort
+	scanningRepoNameOrRepo
 	scanningRepoName
-	scanningRepoNameOrName
+	scanningRepo
 	scanningTag
-	scanningUUID
 )
 
 // runes that we have to check for as we scan
@@ -39,7 +36,6 @@ type ImageID struct {
 	Host string
 	Port int
 	User string
-	UUID string
 	Repo string
 	Tag  string
 }
@@ -58,12 +54,10 @@ func init() {
 // image id = [host(':'port|'/')]reponame[':'tag]
 // host     = {alpha|digit|'.'|'-'}+
 // port     = {digit}+
-// reponame = [user'/']name
-// user     = {alpha}+
-// name     = [uuid'_']repo
-// uuid     = {alpha|digit|'-'}+
-// repo     = {alpha|digit|'-'}+
-// tag      = {alpha|digit}+
+// reponame = [user'/']repo
+// user     = {alpha|digit|'-'|'_'}+
+// repo     = {alpha|digit|'-'|'_'}+
+// tag      = {alpha|digit|'-'}+
 // The grammar is ambiguous so the parser is a little messy in places.
 func ParseImageID(iid string) (*ImageID, error) {
 	scanner := bufio.NewScanner(strings.NewReader(iid))
@@ -73,31 +67,31 @@ func ParseImageID(iid string) (*ImageID, error) {
 	scanned := []string{}
 	tokbuf := []byte{}
 
-	state := scanning
+	state := scanningHostOrRepoName
 
 	for scanner.Scan() {
 		rune, _ := utf8.DecodeRune([]byte(scanner.Text()))
 		switch state {
-		case scanning:
+		case scanningHostOrRepoName:
 			switch {
-			case unicode.IsLetter(rune):
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
 				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsDigit(rune), rune == dash:
-				tokbuf = append(tokbuf, byte(rune))
-				state = scanningHostOrName
 			case rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 				state = scanningHost
+			case rune == underscore:
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningRepoName
+			case rune == slash:
+				scanned = append(scanned, string(tokbuf))
+				tokbuf = []byte{}
+				state = scanningRepoNameOrRepo
 			case rune == colon:
 				scanned = append(scanned, string(tokbuf))
 				tokbuf = []byte{}
 				state = scanningPortOrTag
-			case rune == slash:
-				scanned = append(scanned, string(tokbuf))
-				tokbuf = []byte{}
-				state = scanningRepoNameOrName
 			default:
-				return nil, fmt.Errorf("invalid ImageID %s", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad host or name", iid)
 			}
 		case scanningHost:
 			switch {
@@ -114,31 +108,10 @@ func ParseImageID(iid string) (*ImageID, error) {
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad hostname", iid)
 			}
-		case scanningHostOrName:
+		case scanningRepoNameOrRepo:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
 				tokbuf = append(tokbuf, byte(rune))
-			case rune == period:
-				tokbuf = append(tokbuf, byte(rune))
-				state = scanningHost
-			case rune == colon:
-				scanned = append(scanned, string(tokbuf))
-				tokbuf = []byte{}
-				state = scanningPortOrTag
-			case rune == underscore:
-				result.UUID = string(tokbuf)
-				tokbuf = []byte{}
-				state = scanningName
-			default:
-				return nil, fmt.Errorf("invalid ImageID %s: bad host or name", iid)
-			}
-		case scanningRepoNameOrName:
-			switch {
-			case unicode.IsLetter(rune):
-				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsDigit(rune), rune == dash:
-				tokbuf = append(tokbuf, byte(rune))
-				state = scanningName
 			case rune == colon:
 				result.User = scanned[0]
 				scanned = []string{}
@@ -149,7 +122,8 @@ func ParseImageID(iid string) (*ImageID, error) {
 				result.Host = scanned[0]
 				scanned = []string{}
 				result.User = string(tokbuf)
-				state = scanningName
+				tokbuf = []byte{}
+				state = scanningRepo
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad host or repo name", iid)
 			}
@@ -170,44 +144,22 @@ func ParseImageID(iid string) (*ImageID, error) {
 			}
 		case scanningRepoName:
 			switch {
-			case unicode.IsLetter(rune):
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
 				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsDigit(rune), rune == dash:
-				tokbuf = append(tokbuf, byte(rune))
-				state = scanningName
 			case rune == slash:
 				result.User = string(tokbuf)
 				tokbuf = []byte{}
-				state = scanningName
+				state = scanningRepo
 			case rune == colon:
 				result.Repo = string(tokbuf)
 				tokbuf = []byte{}
 				state = scanningTag
-			case rune == underscore:
-				result.UUID = string(tokbuf)
-				tokbuf = []byte{}
-				state = scanningRepo
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad repo name", iid)
 			}
-		case scanningName:
-			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
-				tokbuf = append(tokbuf, byte(rune))
-			case rune == colon:
-				result.Repo = string(tokbuf)
-				tokbuf = []byte{}
-				state = scanningTag
-			case rune == underscore:
-				result.UUID = string(tokbuf)
-				tokbuf = []byte{}
-				state = scanningRepo
-			default:
-				return nil, fmt.Errorf("invalid ImageID %s: bad name", iid)
-			}
 		case scanningRepo:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
 				tokbuf = append(tokbuf, byte(rune))
 			case rune == colon:
 				result.Repo = string(tokbuf)
@@ -218,7 +170,7 @@ func ParseImageID(iid string) (*ImageID, error) {
 			}
 		case scanningTag:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune):
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
 				tokbuf = append(tokbuf, byte(rune))
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad tag", iid)
@@ -227,7 +179,7 @@ func ParseImageID(iid string) (*ImageID, error) {
 			switch {
 			case unicode.IsDigit(rune):
 				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsLetter(rune):
+			case unicode.IsLetter(rune), rune == dash:
 				tokbuf = append(tokbuf, byte(rune))
 				result.Repo = scanned[0]
 				scanned = []string{}
@@ -251,9 +203,9 @@ func ParseImageID(iid string) (*ImageID, error) {
 	}
 
 	switch state {
-	case scanning, scanningRepoName, scanningName, scanningRepo:
+	case scanningHostOrRepoName, scanningRepoName, scanningRepo:
 		result.Repo = string(tokbuf)
-	case scanningRepoNameOrName:
+	case scanningRepoNameOrRepo:
 		result.User = scanned[0]
 		result.Repo = string(tokbuf)
 	case scanningPort, scanningHost:
@@ -282,10 +234,6 @@ func (iid ImageID) String() string {
 
 	if iid.User != "" {
 		s = append(s, iid.User, "/")
-	}
-
-	if iid.UUID != "" {
-		s = append(s, iid.UUID, "_")
 	}
 
 	s = append(s, iid.Repo)

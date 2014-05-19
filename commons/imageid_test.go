@@ -21,11 +21,28 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// no host, underscore in repo
+	{
+		"dobbs/sierra_madre",
+		&ImageID{
+			User: "dobbs",
+			Repo: "sierra_madre",
+		},
+		"",
+	},
 	// no host top-level
 	{
 		"sierramadre",
 		&ImageID{
 			Repo: "sierramadre",
+		},
+		"",
+	},
+	// no host top-level underscore in repo
+	{
+		"sierra_madre",
+		&ImageID{
+			Repo: "sierra_madre",
 		},
 		"",
 	},
@@ -98,6 +115,16 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// short host
+	{
+		"warner/dobbs/sierramadre",
+		&ImageID{
+			Host: "warner",
+			User: "dobbs",
+			Repo: "sierramadre",
+		},
+		"",
+	},
 	// host tagged
 	{
 		"warner.bros/dobbs/sierramadre:1925",
@@ -132,14 +159,14 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
-	// short hostname:port uuid name
+	// short hostname:port uuid tag
 	{
-		"warner:1948/543c56d1-2510-cd37-c0f4-cab544df985d_sierramadre",
+		"warner:1948/sierramadre:543c56d1-2510-cd37-c0f4-cab544df985d",
 		&ImageID{
 			Host: "warner",
 			Port: 1948,
-			UUID: "543c56d1-2510-cd37-c0f4-cab544df985d",
 			Repo: "sierramadre",
+			Tag:  "543c56d1-2510-cd37-c0f4-cab544df985d",
 		},
 		"",
 	},
@@ -163,6 +190,16 @@ var imgidtests = []ImageIDTest{
 			Port: 5000,
 			Repo: "devimg",
 			Tag:  "latest",
+		},
+		"",
+	},
+	{
+		"cp:5000/7j8ihkqdlkmqvvia886tvyf8g/zenoss5x",
+		&ImageID{
+			Host: "cp",
+			Port: 5000,
+			User: "7j8ihkqdlkmqvvia886tvyf8g",
+			Repo: "zenoss5x",
 		},
 		"",
 	},
@@ -211,7 +248,7 @@ func TestValidateInvalid(t *testing.T) {
 	iid := &ImageID{
 		Host: "warner.bros",
 		Port: 1948,
-		User: "d0bbs",
+		User: "d%bbs",
 		Repo: "sierramadre",
 		Tag:  "feature",
 	}
@@ -224,7 +261,7 @@ func TestValidateInvalid(t *testing.T) {
 func TestValidateValid(t *testing.T) {
 	iid := &ImageID{
 		Repo: "sierramadre",
-		Tag:  "feature",
+		Tag:  "543c56d1-2510-cd37-c0f4-cab544df985d",
 	}
 
 	if !iid.Validate() {

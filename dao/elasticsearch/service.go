@@ -26,7 +26,7 @@ import (
 
 // AddService add a service. Return error if service already exists
 func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) error {
-	glog.V(0).Infof("ControlPlaneDao.AddService: %+v", svc)
+	glog.V(2).Infof("ControlPlaneDao.AddService: %+v", svc)
 	store := service.NewStore()
 
 	id := strings.TrimSpace(svc.Id)
@@ -48,7 +48,7 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 		return err
 	}
 	*serviceId = id
-	glog.V(0).Infof("ControlPlaneDao.AddService: id %+v; return id %v", id, serviceId)
+	glog.V(2).Infof("ControlPlaneDao.AddService: id %+v; return id %v", id, serviceId)
 
 	return this.zkDao.AddService(&svc)
 }
