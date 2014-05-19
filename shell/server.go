@@ -15,8 +15,8 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/user"
 )
 
 var empty interface{}
@@ -378,7 +378,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	// set the systemuser and password
 	unused := 0
-	systemUser := dao.User{}
+	systemUser := user.User{}
 	err = cp.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for client %s", err)

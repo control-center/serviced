@@ -27,6 +27,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	userdomain "github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -844,7 +845,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 }
 
 func (dt *DaoTest) TestUser_UserOperations(t *C) {
-	user := dao.User{
+	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}
@@ -854,7 +855,7 @@ func (dt *DaoTest) TestUser_UserOperations(t *C) {
 		t.Fatalf("Failure creating a user %s", err)
 	}
 
-	newUser := dao.User{}
+	newUser := userdomain.User{}
 	err = dt.Dao.GetUser("Pepe", &newUser)
 	if err != nil {
 		t.Fatalf("Failure getting user %s", err)
@@ -878,7 +879,7 @@ func (dt *DaoTest) TestUser_UserOperations(t *C) {
 }
 
 func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
-	user := dao.User{
+	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}
@@ -888,7 +889,7 @@ func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
 		t.Fatalf("Failure creating a user %s", err)
 	}
 	var isValid bool
-	attemptUser := dao.User{
+	attemptUser := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}
