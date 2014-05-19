@@ -83,26 +83,26 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
 	store := servicetemplate.NewStore()
-	template, err := store.Get(datastore.Get(), request.TemplateId)
+	template, err := store.Get(datastore.Get(), request.TemplateID)
 	if err != nil {
-		glog.Errorf("unable to load template: %s", request.TemplateId)
+		glog.Errorf("unable to load template: %s", request.TemplateID)
 		return err
 	}
 
-	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolId)
+	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolID)
 	if err != nil {
-		glog.Errorf("Unable to load resource pool: %s", request.PoolId)
+		glog.Errorf("Unable to load resource pool: %s", request.PoolID)
 		return err
 	}
 	if pool == nil {
-		return fmt.Errorf("poolid %s not found", request.PoolId)
+		return fmt.Errorf("poolid %s not found", request.PoolID)
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
+	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolID, "", volumes, request.DeploymentID, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
 	ds := service.SVCStop
 
@@ -110,7 +110,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	for k, v := range volumes {
 		exportedVolumes[k] = v
 	}
-	svc, err := service.BuildService(sd, parentServiceId, pool, ds, deploymentId)
+	svc, err := service.BuildService(sd, parentServiceID, pool, ds, deploymentId)
 	if err != nil {
 		return err
 	}
@@ -131,17 +131,17 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
-	if parentServiceId == "" {
+	if parentServiceID == "" {
 		*tenantId = svc.Id
 	}
 
 	// Using the tenant id, tag the base image with the tenantID
-	if svc.ImageId != "" {
-		name, err := this.renameImageId(svc.ImageId, *tenantId)
+	if svc.ImageID != "" {
+		name, err := this.renameImageID(svc.ImageID, *tenantId)
 		if err != nil {
 			return err
 		}
-		svc.ImageId = name
+		svc.ImageID = name
 	}
 
 	var serviceId string
@@ -153,11 +153,11 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// ensure that all images in the templates exist
 	imageIds := make(map[string]struct{})
 	for _, svc := range sds {
-		getSubServiceImageIds(imageIds, svc)
+		getSubServiceImageIDs(imageIds, svc)
 	}
 
 	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
@@ -175,7 +175,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 			return msg
 		}
 
-		repo, err := this.renameImageId(imageId, *tenantId)
+		repo, err := this.renameImageID(imageId, *tenantId)
 		if err != nil {
 			glog.Errorf("malformed imageId: %s", imageId)
 			return err
@@ -193,25 +193,25 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	}
 
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getSubServiceImageIds(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
+func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
 	found := struct{}{}
 
 	if len(svc.ImageID) != 0 {
 		ids[svc.ImageID] = found
 	}
 	for _, s := range svc.Services {
-		getSubServiceImageIds(ids, s)
+		getSubServiceImageIDs(ids, s)
 	}
 }
 
-func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
+func (this *ControlPlaneDao) renameImageID(imageId, tenantId string) (string, error) {
 
 	repo, _ := dutils.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")

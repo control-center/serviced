@@ -127,7 +127,7 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 
 	svc.Id = "default"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err = dt.Dao.AddService(svc, &id)
 	if err != nil {
@@ -148,7 +148,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -175,7 +175,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 
 	err := dt.Dao.AddService(*svc, &id)
@@ -194,7 +194,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc, _ = service.NewService()
 	svc.Id = "default_conf"
 	svc.Name = "default"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
 
@@ -230,7 +230,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 func (dt *DaoTest) TestDao_GetService(t *C) {
 	svc, _ := service.NewService()
 	svc.Name = "testname"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -251,7 +251,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	svc, _ := service.NewService()
 	svc.Id = "default"
 	svc.Name = "name"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	svc.Launch = "auto"
 	svc.Description = "description"
 	svc.Instances = 0
@@ -275,14 +275,14 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 
 func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	svc := service.Service{
-		Id:             "ParentServiceId",
+		Id:             "ParentServiceID",
 		Name:           "ParentService",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
 		InstanceLimits: domain.MinMax{1, 1},
-		ImageId:        "test/pinger",
-		PoolId:         "default",
+		ImageID:        "test/pinger",
+		PoolID:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
@@ -293,20 +293,20 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Id:              "childService1",
 		Name:            "childservice1",
 		Launch:          "auto",
-		PoolId:          "default",
+		PoolID:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
+		ParentServiceID: "ParentServiceID",
 	}
 	childService2 := service.Service{
 		Id:              "childService2",
 		Name:            "childservice2",
 		Launch:          "auto",
-		PoolId:          "default",
+		PoolID:          "default",
 		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
-		ParentServiceId: "ParentServiceId",
+		ParentServiceID: "ParentServiceID",
 	}
 	// add a service with a subservice
-	id := "ParentServiceId"
+	id := "ParentServiceID"
 	var err error
 	if err = dt.Dao.AddService(svc, &id); err != nil {
 		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
@@ -331,11 +331,11 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
-	query := fmt.Sprintf("ParentServiceId:%s AND NOT Launch:manual", id)
+	query := fmt.Sprintf("ParentServiceID:%s AND NOT Launch:manual", id)
 	var services []*service.Service
 	err = dt.Dao.GetServices(query, &services)
 	for _, subService := range services {
-		if subService.DesiredState == 1 && subService.ParentServiceId == id {
+		if subService.DesiredState == 1 && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
@@ -347,32 +347,32 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s0, _ := service.NewService()
 	s0.Id = "0"
 	s0.Name = "name"
-	s0.PoolId = "default"
+	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.DesiredState = service.SVCStop
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
 	s01.Name = "name"
-	s01.PoolId = "default"
+	s01.PoolID = "default"
 	s01.Launch = "auto"
-	s01.ParentServiceId = "0"
+	s01.ParentServiceID = "0"
 	s01.DesiredState = service.SVCStop
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
 	s011.Name = "name"
-	s011.PoolId = "default"
+	s011.PoolID = "default"
 	s011.Launch = "auto"
-	s011.ParentServiceId = "01"
+	s011.ParentServiceID = "01"
 	s011.DesiredState = service.SVCStop
 
 	s02, _ := service.NewService()
 	s02.Id = "02"
 	s02.Name = "name"
-	s02.PoolId = "default"
+	s02.PoolID = "default"
 	s02.Launch = "auto"
-	s02.ParentServiceId = "0"
+	s02.ParentServiceID = "0"
 	s02.DesiredState = service.SVCStop
 
 	err := dt.Dao.AddService(*s0, &id)
@@ -425,22 +425,22 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 	s0, _ := service.NewService()
 	s0.Name = "name"
-	s0.PoolId = "default"
+	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.Id = "0"
 
 	s01, _ := service.NewService()
 	s01.Id = "01"
-	s01.ParentServiceId = "0"
+	s01.ParentServiceID = "0"
 	s01.Name = "name"
-	s01.PoolId = "default"
+	s01.PoolID = "default"
 	s01.Launch = "auto"
 
 	s011, _ := service.NewService()
 	s011.Id = "011"
-	s011.ParentServiceId = "01"
+	s011.ParentServiceID = "01"
 	s011.Name = "name"
-	s011.PoolId = "default"
+	s011.PoolID = "default"
 	s011.Launch = "auto"
 
 	err = dt.Dao.AddService(*s0, &id)
@@ -474,7 +474,7 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoValidServiceForStart_ServiceId",
+		Id: "TestDaoValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -495,7 +495,7 @@ func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
 
 func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoInvalidServiceForStart_ServiceId",
+		Id: "TestDaoInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -518,10 +518,10 @@ func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestRenameImageId(t *C) {
-	imageId, err := dt.Dao.renameImageId("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
+func (dt *DaoTest) TestRenameImageID(t *C) {
+	imageId, err := dt.Dao.renameImageID("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
 	if err != nil {
-		t.Errorf("unexpected failure renamingImageId: %s", err)
+		t.Errorf("unexpected failure renamingImageID: %s", err)
 		t.FailNow()
 	}
 	expected := "localhost:5000/X/daily-zenoss5-core"
@@ -569,7 +569,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		Id:     "assignIPsServiceID",
 		Name:   "testsvc",
 		Launch: "auto",
-		PoolId: assignIPsPool.ID,
+		PoolID: assignIPsPool.ID,
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -644,7 +644,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	svc, _ := service.NewService()
 	svc.Name = "name"
 	svc.Launch = "auto"
-	svc.PoolId = "default"
+	svc.PoolID = "default"
 	ep := service.ServiceEndpoint{}
 	ep.Name = endpoint
 	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}
@@ -796,7 +796,7 @@ func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
 
 	srExpected := dao.SnapshotRequest{
 		Id:            "request13",
-		ServiceId:     "12345",
+		ServiceID:     "12345",
 		SnapshotLabel: "foo",
 		SnapshotError: "bar",
 	}
@@ -816,7 +816,7 @@ func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
 		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
 	}
 
-	srExpected.ServiceId = "67890"
+	srExpected.ServiceID = "67890"
 	srExpected.SnapshotLabel = "bin"
 	srExpected.SnapshotError = "baz"
 	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {

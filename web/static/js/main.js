@@ -227,8 +227,8 @@ function ResourcesService($http, $location) {
                     cached_services_map[svc.Id] = svc;
                 });
                 data.map(function(svc) {
-                    if (svc.ParentServiceId !== '') {
-                        var parent = cached_services_map[svc.ParentServiceId];
+                    if (svc.ParentServiceID !== '') {
+                        var parent = cached_services_map[svc.ParentServiceID];
                         if (!parent.children) {
                             parent.children = [];
                         }
@@ -1168,7 +1168,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceId:service.Id,
+          ServiceID:service.Id,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
@@ -1260,10 +1260,10 @@ function getFullPath(allPools, pool) {
 }
 
 function getServiceLineage(mappedServices, service) {
-    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+    if (!mappedServices || !service.ParentServiceID || !mappedServices[service.ParentServiceID]) {
         return [ service ];
     }
-    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceID]);
     lineage.push(service);
     return lineage;
 }
@@ -1458,7 +1458,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
-        $scope.running.sort = 'InstanceId';
+        $scope.running.sort = 'InstanceID';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace

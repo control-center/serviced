@@ -14,7 +14,7 @@ import (
 
 func parent(gs GetService) func(s Service) (Service, error) {
 	return func(svc Service) (Service, error) {
-		return gs(svc.ParentServiceId)
+		return gs(svc.ParentServiceID)
 	}
 }
 func context() func(s Service) (map[string]interface{}, error) {

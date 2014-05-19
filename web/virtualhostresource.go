@@ -161,8 +161,8 @@ func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *servic
 
 		for _, endpoint := range service.Endpoints {
 			if len(endpoint.VHosts) > 0 {
-				parent, _ := serviceTree[service.ParentServiceId]
-				for ; len(parent.ParentServiceId) != 0; parent, _ = serviceTree[parent.ParentServiceId] {
+				parent, _ := serviceTree[service.ParentServiceID]
+				for ; len(parent.ParentServiceID) != 0; parent, _ = serviceTree[parent.ParentServiceID] {
 				}
 
 				for _, vhost := range endpoint.VHosts {

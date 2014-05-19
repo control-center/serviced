@@ -154,8 +154,8 @@ func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.Se
 	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
 }
 
-func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
+func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
 func (s *ControlClient) StartShell(service service.Service, unused *int) error {

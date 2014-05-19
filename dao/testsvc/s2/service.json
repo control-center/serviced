@@ -16,7 +16,7 @@
                     "Permissions": "660"
                 }
           },
-          "ImageId": "ubuntu",
+          "ImageID": "ubuntu",
           "Instances": {
             "min": 1
           },

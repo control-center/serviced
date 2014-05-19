@@ -94,10 +94,10 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 						break
 					}
 				}
-				if found || srvc.ParentServiceId == "" {
+				if found || srvc.ParentServiceID == "" {
 					break
 				}
-				srvc = serviceMap[srvc.ParentServiceId]
+				srvc = serviceMap[srvc.ParentServiceID]
 			}
 		}
 		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes

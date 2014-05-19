@@ -14,8 +14,8 @@ type MinMax struct {
 	Max int
 }
 
-type HostIpAndPort struct {
-	HostIp   string
+type HostIPAndPort struct {
+	HostIP   string
 	HostPort string
 }
 
@@ -40,7 +40,7 @@ type HealthCheck struct {
 }
 
 type HealthCheckResult struct {
-	ServiceId string
+	ServiceID string
 	Name      string
 	Timestamp string
 	Passed    string

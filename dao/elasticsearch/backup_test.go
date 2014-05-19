@@ -300,14 +300,14 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		Startup:        "echo",
 		Instances:      0,
 		InstanceLimits: domain.MinMax{0, 0},
-		ImageId:        imageId,
-		PoolId:         "default",
+		ImageID:        imageId,
+		PoolID:         "default",
 		DesiredState:   0,
 		Volumes:        []servicedefinition.Volume{template_volume},
-		DeploymentId:   "backup_test",
+		DeploymentID:   "backup_test",
 	}
 
-	originalImageIds, e := all_docker_images(t)
+	originalImageIDs, e := all_docker_images(t)
 	if e != nil {
 		t.Fatalf("Failure getting list of docker images: %s", e)
 	}
@@ -365,13 +365,13 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	}
 
 	// Check: old docker image still there, no new docker images
-	currentImageIds, e := all_docker_images(t)
+	currentImageIDs, e := all_docker_images(t)
 	if e != nil {
 		t.Fatalf("Failure getting list of docker images: %s", e)
 	}
-	if !reflect.DeepEqual(originalImageIds, currentImageIds) {
-		t.Errorf("Expected docker images: %+v", originalImageIds)
-		t.Errorf("  Actual docker images: %+v", currentImageIds)
+	if !reflect.DeepEqual(originalImageIDs, currentImageIDs) {
+		t.Errorf("Expected docker images: %+v", originalImageIDs)
+		t.Errorf("  Actual docker images: %+v", currentImageIDs)
 		t.Fatal("Unexpected difference")
 	}
 
@@ -435,25 +435,25 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 
 	// Check: new docker image imported, with same tags as old.
 	// TODO: (Is there some way to compare the contents of the images?)
-	currentImageIds, e = all_docker_images(t)
+	currentImageIDs, e = all_docker_images(t)
 	if e != nil {
 		t.Fatalf("Failure getting list of docker images: %s", e)
 	}
-	if _, found := currentImageIds[imageId[0:12]]; found {
+	if _, found := currentImageIDs[imageId[0:12]]; found {
 		t.Fatal("Unexpectedly found original docker image still exists!")
 	}
 
-	delete(originalImageIds, imageId[0:12])
-	for imageId, _ := range originalImageIds {
-		if _, found := currentImageIds[imageId]; !found {
+	delete(originalImageIDs, imageId[0:12])
+	for imageId, _ := range originalImageIDs {
+		if _, found := currentImageIDs[imageId]; !found {
 			t.Fatalf("An unrelated docker image %s went missing!", imageId)
 		}
-		delete(currentImageIds, imageId)
+		delete(currentImageIDs, imageId)
 	}
-	if len(currentImageIds) != 1 {
-		t.Fatalf("Expected to find one (1) new docker image. Found %d", len(currentImageIds))
+	if len(currentImageIDs) != 1 {
+		t.Fatalf("Expected to find one (1) new docker image. Found %d", len(currentImageIDs))
 	}
-	for imageId, _ := range currentImageIds {
+	for imageId, _ := range currentImageIDs {
 		currentTags, e := get_docker_image_tags(t, imageId)
 		if e != nil {
 			t.Fatalf("Failure getting docker image %s tags: %s", imageId, e)

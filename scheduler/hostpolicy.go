@@ -42,7 +42,7 @@ hosts:
 	for _, h := range hosts {
 		rss := sp.hinfo.ServicesOnHost(h)
 		for _, rs := range rss {
-			if rs.ServiceId == svc.Id {
+			if rs.ServiceID == svc.Id {
 				// This host already has an instance of this service. Move on.
 				continue hosts
 			}

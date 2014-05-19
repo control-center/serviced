@@ -471,7 +471,7 @@ func (c *Controller) handleRemotePorts() {
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
 			glog.V(2).Infof("endpoints: %s, %v", key, *endpoint)
-			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
+			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
 		}
 		sort.Strings(addresses)
 

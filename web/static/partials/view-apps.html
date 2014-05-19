@@ -46,8 +46,8 @@
         <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">		  
           <td ng-click="click_app(app.Id)">{{app.Name}}</td>
           <td ng-class="app.deploymentClass"> <span ng-class="app.deploymentIcon"></span> {{app.Deployment}} </td>
-          <td>{{app.DeploymentId}}</td>
-          <td>{{app.PoolId}}</td>
+          <td>{{app.DeploymentID}}</td>
+          <td>{{app.PoolID}}</td>
           <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url( vhost)}}" target="_blank">{{vhost_url(vhost)}}</a></p></td>
           <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">

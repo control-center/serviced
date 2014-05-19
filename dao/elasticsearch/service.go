@@ -341,9 +341,9 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 		remoteEndpoints := make(map[string][]*dao.ApplicationEndpoint)
 
 		//build 'OR' query to grab all service states with in "service" tree
-		relatedServiceIds := walkTree(topService)
+		relatedServiceIDs := walkTree(topService)
 		var states []*servicestate.ServiceState
-		err = this.zkDao.GetServiceStates(&states, relatedServiceIds...)
+		err = this.zkDao.GetServiceStates(&states, relatedServiceIDs...)
 		if err != nil {
 			return
 		}
@@ -360,7 +360,7 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(applicationRegex)
 				if match {
 					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
-						myService.Name, endpoint.Application, ss.HostIp, hostPort, protocol, containerPort)
+						myService.Name, endpoint.Application, ss.HostIP, hostPort, protocol, containerPort)
 					// if port/protocol undefined in the import, use the export's values
 					if endpoint.PortNumber != 0 {
 						containerPort = endpoint.PortNumber
@@ -369,11 +369,11 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceId string, response *map
 						protocol = endpoint.Protocol
 					}
 					var ep dao.ApplicationEndpoint
-					ep.ServiceId = ss.ServiceId
+					ep.ServiceID = ss.ServiceID
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort
-					ep.HostIp = ss.HostIp
-					ep.ContainerIp = ss.PrivateIp
+					ep.HostIP = ss.HostIP
+					ep.ContainerIP = ss.PrivateIP
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
 
@@ -439,23 +439,23 @@ func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	myService := service.Service{}
-	err := this.GetService(assignmentRequest.ServiceId, &myService)
+	err := this.GetService(assignmentRequest.ServiceID, &myService)
 	if err != nil {
 		return err
 	}
 
 	// populate poolsIpInfo
-	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolId)
+	poolIPs, err := this.facade.GetPoolIPs(datastore.Get(), myService.PoolID)
 	if err != nil {
 		glog.Errorf("GetPoolsIPInfo failed: %v", err)
 		return err
 	}
 	poolsIpInfo := poolIPs.HostIPs
 	if len(poolsIpInfo) < 1 {
-		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolId)
+		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolID)
 		return errors.New(msg)
 	}
-	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolId, len(poolsIpInfo))
+	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolID, len(poolsIpInfo))
 
 	rand.Seed(time.Now().UTC().UnixNano())
 	ipIndex := 0
@@ -473,7 +473,7 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		userProvidedIPAssignment = true
 
 		for index, hostIPResource := range poolsIpInfo {
-			if assignmentRequest.IpAddress == hostIPResource.IPAddress {
+			if assignmentRequest.IPAddress == hostIPResource.IPAddress {
 				// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
 				validIp = true
 				ipIndex = index
@@ -482,16 +482,16 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		}
 
 		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IpAddress, myService.PoolId)
+			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 			return errors.New(msg)
 		}
 	}
-	assignmentRequest.IpAddress = poolsIpInfo[ipIndex].IPAddress
-	selectedHostId := poolsIpInfo[ipIndex].HostID
-	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IpAddress)
+	assignmentRequest.IPAddress = poolsIpInfo[ipIndex].IPAddress
+	selectedHostID := poolsIpInfo[ipIndex].HostID
+	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
-	this.GetServiceAddressAssignments(assignmentRequest.ServiceId, &assignments)
+	this.GetServiceAddressAssignments(assignmentRequest.ServiceID, &assignments)
 	if err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
@@ -518,9 +518,9 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 				}
 				assignment := addressassignment.AddressAssignment{}
 				assignment.AssignmentType = "static"
-				assignment.HostID = selectedHostId
-				assignment.PoolID = myService.PoolId
-				assignment.IPAddr = assignmentRequest.IpAddress
+				assignment.HostID = selectedHostID
+				assignment.PoolID = myService.PoolID
+				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
 				assignment.ServiceID = myService.Id
 				assignment.EndpointName = endpoint.Name
@@ -546,12 +546,12 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 	}
 
 	// traverse all the services
-	err = this.walkServices(assignmentRequest.ServiceId, visitor)
+	err = this.walkServices(assignmentRequest.ServiceID, visitor)
 	if err != nil {
 		return err
 	}
 
-	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceId, assignmentRequest.IpAddress)
+	glog.Infof("All services requiring an explicit IP address (at this moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceID, assignmentRequest.IPAddress)
 	return nil
 }
 
@@ -567,9 +567,9 @@ func (this *ControlPlaneDao) getTenantIdAndPath(serviceID string) (string, strin
 	traverse = func(id string) (string, error) {
 		if svc, err := this.getService(id); err != nil {
 			return "", err
-		} else if svc.ParentServiceId != "" {
+		} else if svc.ParentServiceID != "" {
 			svcPath = append(svcPath, svc.Name)
-			return traverse(svc.ParentServiceId)
+			return traverse(svc.ParentServiceID)
 		} else {
 			glog.V(1).Infof("parent service: %+v", svc)
 			svcPath = append(svcPath, svc.Name)
@@ -619,13 +619,13 @@ func walkTree(node *treenode) []string {
 	if len(node.children) == 0 {
 		return []string{node.id}
 	}
-	relatedServiceIds := make([]string, 0)
+	relatedServiceIDs := make([]string, 0)
 	for _, childNode := range node.children {
 		for _, childId := range walkTree(childNode) {
-			relatedServiceIds = append(relatedServiceIds, childId)
+			relatedServiceIDs = append(relatedServiceIDs, childId)
 		}
 	}
-	return append(relatedServiceIds, node.id)
+	return append(relatedServiceIDs, node.id)
 }
 
 type treenode struct {
@@ -642,7 +642,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*s
 	for _, svc := range *servicesList {
 		servicesMap[svc.Id] = &treenode{
 			svc.Id,
-			svc.ParentServiceId,
+			svc.ParentServiceID,
 			[]*treenode{},
 		}
 	}
@@ -651,7 +651,7 @@ func (this *ControlPlaneDao) getServiceTree(serviceId string, servicesList *[]*s
 	root := treenode{"root", "", []*treenode{}}
 	for _, svc := range *servicesList {
 		node := servicesMap[svc.Id]
-		parent, found := servicesMap[svc.ParentServiceId]
+		parent, found := servicesMap[svc.ParentServiceID]
 		// no parent means this node belongs to root
 		if !found {
 			parent = &root
