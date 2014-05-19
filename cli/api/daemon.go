@@ -9,12 +9,17 @@ import (
 	"github.com/zenoss/serviced"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
+	"github.com/zenoss/serviced/coordinator/storage"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/dfs/nfs"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/proxy"
@@ -43,16 +48,17 @@ import (
 	"time"
 )
 
-var minDockerVersion = version{0, 10, 0}
+var minDockerVersion = version{0, 11, 1}
 
 type daemon struct {
-	staticIPs []string
-	cpDao     dao.ControlPlane
-	dsDriver  datastore.Driver
-	dsContext datastore.Context
-	facade    *facade.Facade
-	hostID    string
-	zclient   *coordclient.Client
+	staticIPs      []string
+	cpDao          dao.ControlPlane
+	dsDriver       datastore.Driver
+	dsContext      datastore.Context
+	facade         *facade.Facade
+	hostID         string
+	zclient        *coordclient.Client
+	storageHandler *storage.Server
 }
 
 func newDaemon(staticIPs []string) (*daemon, error) {
@@ -162,6 +168,22 @@ func (d *daemon) startMaster() error {
 	d.initWeb()
 
 	d.startScheduler()
+
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	thisHost, err := host.Build(agentIP, "unknown")
+	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
+		return err
+	} else {
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zclient)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -173,6 +195,21 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	mux.Enabled = true
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
+
+	zkClient, err := d.initZK()
+	if err != nil {
+		return nil, err
+	}
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
+	}
+	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		panic(err)
+	}
+	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
 	if err != nil {
@@ -209,6 +246,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		sio := shell.NewProcessExecutorServer(options.Port)
 		http.ListenAndServe(":50000", sio)
 	}()
+
 	return hostAgent, nil
 }
 
@@ -231,10 +269,12 @@ func (d *daemon) registerMasterRPC() error {
 }
 func (d *daemon) initDriver() (datastore.Driver, error) {
 
-	//TODO: figure out elastic mappings
 	eDriver := elastic.New("localhost", 9200, "controlplane")
 	eDriver.AddMapping(host.MAPPING)
 	eDriver.AddMapping(pool.MAPPING)
+	eDriver.AddMapping(servicetemplate.MAPPING)
+	eDriver.AddMapping(service.MAPPING)
+	eDriver.AddMapping(addressassignment.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {
 		return nil, err

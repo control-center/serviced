@@ -236,7 +236,7 @@ func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *service
 		return
 	}
 	for _, service := range allServices {
-		if len(service.ParentServiceId) == 0 {
+		if len(service.ParentServiceID) == 0 {
 			topServices = append(topServices, service)
 		}
 	}
@@ -290,11 +290,11 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	svc.Description = payload.Description
 	svc.Context = payload.Context
 	svc.Tags = payload.Tags
-	svc.PoolId = payload.PoolId
-	svc.ImageId = payload.ImageId
+	svc.PoolID = payload.PoolID
+	svc.ImageID = payload.ImageID
 	svc.Startup = payload.Startup
 	svc.Instances = payload.Instances
-	svc.ParentServiceId = payload.ParentServiceId
+	svc.ParentServiceID = payload.ParentServiceID
 	svc.DesiredState = payload.DesiredState
 	svc.Launch = payload.Launch
 	svc.Endpoints = payload.Endpoints
@@ -304,7 +304,12 @@ func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	svc.UpdatedAt = now
 
 	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(client); err != nil {
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.GetService(svcID, &svc)
+		return svc, err
+	}
+	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
 		RestServerError(w)
 		return
@@ -470,6 +475,6 @@ func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
 }
 
-func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient){
+func RestGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	w.WriteJson(&SimpleResponse{servicedversion.Version, servicesLinks()})
 }

@@ -227,8 +227,8 @@ function ResourcesService($http, $location) {
                     cached_services_map[svc.Id] = svc;
                 });
                 data.map(function(svc) {
-                    if (svc.ParentServiceId !== '') {
-                        var parent = cached_services_map[svc.ParentServiceId];
+                    if (svc.ParentServiceID !== '') {
+                        var parent = cached_services_map[svc.ParentServiceID];
                         if (!parent.children) {
                             parent.children = [];
                         }
@@ -1168,7 +1168,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceId:service.Id,
+          ServiceID:service.Id,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
@@ -1260,10 +1260,10 @@ function getFullPath(allPools, pool) {
 }
 
 function getServiceLineage(mappedServices, service) {
-    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+    if (!mappedServices || !service.ParentServiceID || !mappedServices[service.ParentServiceID]) {
         return [ service ];
     }
-    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceID]);
     lineage.push(service);
     return lineage;
 }
@@ -1333,38 +1333,34 @@ function toggleRunning(app, status, servicesService) {
     // is so that when stopping takes a long time you can see that
     // something is happening. This doesn't update the color
     function updateAppText(app, text, notRunningText) {
-        var i;
         app.runningText = text;
         app.notRunningText = notRunningText;
         if (!app.children) {
             return;
         }
-        for (i=0; i<app.children.length;i++) {
+        for (var i=0; i<app.children.length;i++) {
             updateAppText(app.children[i], text, notRunningText);
         }
     }
 
     // updates the color and the running/non-running text of the
     // status buttons
-    function updateApp(app, desiredState) {
+    function updateApp(app) {
         var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                child = app.children[i];
-                child.DesiredState = desiredState;
-                updateRunning(child);
-                if (child.children && child.children.length) {
-                    updateApp(child, desiredState);
-                }
+                app.children[i].DesiredState = app.DesiredState;
+                updateApp(app.children[i]);
             }
         }
     }
+
     // stop service
     if ((newState == 0) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "stopping...", "ctl_running_blank");
     }
@@ -1373,7 +1369,7 @@ function toggleRunning(app, status, servicesService) {
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }
@@ -1462,7 +1458,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
-        $scope.running.sort = 'InstanceId';
+        $scope.running.sort = 'InstanceID';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace

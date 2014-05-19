@@ -103,7 +103,7 @@ class ServicedShell(object):
         self.socket.on('result', self.onResult)
         self.socket.on('stdout', self.onStdout)        
         self.socket.on('stderr', self.onStderr)        
-        self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceId': service_id, 'Envv': []})
+        self.socket.emit('process', {'Command': command, 'IsTTY': False, 'ServiceID': service_id, 'Envv': []})
         self.socket.wait()
 
 

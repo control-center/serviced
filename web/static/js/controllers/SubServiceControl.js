@@ -1,3 +1,6 @@
+
+
+
 function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -12,6 +15,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
+        { id: 'Health', name: 'Health' },
         { id: 'Startup', name: 'label_service_startup' }
     ]);
 
@@ -68,7 +72,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         }
 
         var name = $scope.vhosts.add.name;
-        var serviceId = $scope.vhosts.add.app_ep.ServiceId;
+        var serviceId = $scope.vhosts.add.app_ep.ServiceID;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
         resourcesService.add_vhost( serviceId, serviceEndpoint, name, function() {
             $scope.vhosts.add = {};
@@ -136,7 +140,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
-        resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
+        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -154,9 +158,48 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             console.log('Updated %s', $scope.services.current.Id);
             var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
             lastCrumb.label = $scope.services.current.Name;
-
         });
     };
+
+    function updateHealth(ServiceID) {
+        $.getJSON("/servicehealth", function(healths) {
+            for (var ServiceID in healths) {
+                data = healths[ServiceID];
+                document.getElementById("health-tooltip-" + ServiceID).title = "";
+                passingAny = false;
+                failingAny = false;
+                lateAny = false;
+                unknownAny = false;
+                utc = Math.floor(Date.now()/1000);
+                for (var name in data) {
+                    if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                        data[name].Status = "unknown";
+                    }
+                    if (data[name].Status == "passed") {
+                        passingAny = true;
+                    } else if (data[name].Status == "failed") {
+                        failingAny = true;
+                    } else if (data[name].Status == "unknown") {
+                        unknownAny = true;
+                    }
+                    document.getElementById("health-tooltip-" + ServiceID).title += name + ":" + data[name].Status + "\n";
+                }
+                function setColor(color) {
+                    document.getElementById("health-" + ServiceID).src = "/static/img/"+color+"ball.png";
+                }
+                if (failingAny) {
+                    setColor("red");
+                } else if (!passingAny && unknownAny) {
+                    setColor("grey");
+                } else if (passingAny && unknownAny) {
+                    setColor("yellow");
+                } else if (passingAny && !unknownAny) {
+                    setColor("green");
+                }
+            }
+        });
+    }
+
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
     function updateRunning() {
@@ -166,6 +209,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 mashHostsToInstances();
             });
         }
+        updateHealth();
     }
     $interval(updateRunning, 3000);
     // Get a list of deployed apps
@@ -192,7 +236,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
         for (var i=0; i < $scope.running.data.length; i++) {
             var instance = $scope.running.data[i];
-            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+            instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
     refreshHosts($scope, resourcesService, true, function() {
@@ -205,7 +249,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostId, app.Id, function() {
+        resourcesService.kill_running(app.HostID, app.Id, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();
@@ -220,12 +264,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: $scope.params.serviceId,
+            ParentServiceID: $scope.params.serviceId,
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
 
@@ -241,7 +285,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $('#addService').modal('show');
         };
         $scope.deleteService = function() {
-            var parent = $scope.services.current.ParentServiceId;
+            var parent = $scope.services.current.ParentServiceID;
             console.log('Parent: %s, Length: %d', parent, parent.length);
             resourcesService.remove_service($scope.params.serviceId, function() {
                 refreshServices($scope, resourcesService, false, function() {

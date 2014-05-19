@@ -6,7 +6,7 @@ import (
 )
 
 func TestSubprocess(t *testing.T) {
-	s, exited, err := New(time.Second*5, "sleep", "1")
+	s, exited, err := New(time.Second*5, nil, "sleep", "1")
 	if err != nil {
 		t.Fatalf("expected subprocess to start: %s", err)
 	}

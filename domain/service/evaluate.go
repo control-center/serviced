@@ -12,24 +12,19 @@ import (
 	"text/template"
 )
 
-type GetService interface {
-	GetService(serviceID string, value *Service) error
-}
-
-func parent(gs GetService) func(s Service) (value Service, err error) {
-	return func(s Service) (value Service, err error) {
-		err = gs.GetService(s.ParentServiceId, &value)
-		return
+func parent(gs GetService) func(s Service) (Service, error) {
+	return func(svc Service) (Service, error) {
+		return gs(svc.ParentServiceID)
 	}
 }
-
-func context(gs GetService) func(s Service) (ctx map[string]interface{}, err error) {
-	return func(s Service) (ctx map[string]interface{}, err error) {
-		err = json.Unmarshal([]byte(s.Context), &ctx)
+func context() func(s Service) (map[string]interface{}, error) {
+	return func(s Service) (map[string]interface{}, error) {
+		ctx := make(map[string]interface{})
+		err := json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
 			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.Id, s.Context, err)
 		}
-		return
+		return ctx, err
 	}
 }
 
@@ -72,7 +67,7 @@ func (service *Service) EvaluateRunsTemplate(gs GetService) (err error) {
 func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) string {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
-		"context": context(gs),
+		"context": context(),
 	}
 	// parse the template
 	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
@@ -85,7 +80,7 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 	}
 
 	// something went wrong, warn them
-	glog.Warning("Evaluating template %s produced the following error %s ", serviceTemplate, err)
+	glog.Warningf("Evaluating template %v produced the following error %v ", serviceTemplate, err)
 	return ""
 }
 
@@ -122,7 +117,7 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
-		"context": context(gs),
+		"context": context(),
 	}
 
 	for i, ep := range service.Endpoints {

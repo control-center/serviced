@@ -317,8 +317,8 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	glog.Infof("Connected to the control plane at port %s", port)
 
-	if err := cp.GetService(cfg.ServiceId, &svc); err != nil {
-		glog.Errorf("unable to find service %s", cfg.ServiceId)
+	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
+		glog.Errorf("unable to find service %s", cfg.ServiceID)
 		return nil, err
 	}
 
@@ -352,6 +352,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		"--autorestart=false",
 		"--logstash=false",
 		svc.Id,
+		"0",
 		shellcmd,
 	}
 
@@ -385,7 +386,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 
-	argv = append(argv, svc.ImageId)
+	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)
 
 	// wait for the DFS to be ready in order to start container on the latest image
@@ -393,5 +394,6 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	cp.ReadyDFS(false, nil)
 	glog.Infof("Acquired!  Starting shell")
 
+	glog.V(1).Infof("command: docker %+v", argv)
 	return exec.Command(docker, argv...), nil
 }

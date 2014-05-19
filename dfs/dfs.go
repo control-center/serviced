@@ -2,15 +2,15 @@ package dfs
 
 import (
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/service"
-	docker "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
 	"errors"
@@ -47,16 +47,16 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
 
 	hostCommand := []string{"/bin/bash", "-c",
-		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerId, nsinitPath, command)}
-	glog.Infof("ServiceId: %s, Command: %s", state.ServiceId, strings.Join(hostCommand, " "))
+		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerID, nsinitPath, command)}
+	glog.Infof("ServiceID: %s, Command: %s", state.ServiceID, strings.Join(hostCommand, " "))
 	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceId, output, err)
+		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
 		return output, err
 	}
-	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceId, output)
+	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceID, output)
 	return output, nil
 }
 
@@ -141,8 +141,8 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 		// Pause all running service states
 		for i, state := range states {
-			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerId)
-			if state.DockerId != "" {
+			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerID)
+			if state.DockerID != "" {
 				if iamRoot {
 					err := d.Pause(service, state)
 					defer d.Resume(service, state) // resume service state when snapshot is done
@@ -474,19 +474,19 @@ func (d *DistributedFileSystem) rollbackServices(restorePath string) error {
 				glog.Errorf("Could not stop service %s: %v", service.Id, e)
 				return e
 			}
-			service.PoolId = existingService.PoolId
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
+			service.PoolID = existingService.PoolID
+			if existingPools[service.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				service.PoolID = "default"
 			}
 			if e := d.client.UpdateService(*service, unused); e != nil {
 				glog.Errorf("Could not update service %s: %v", service.Id, e)
 				return e
 			}
 		} else {
-			if existingPools[service.PoolId] == nil {
-				glog.Infof("Changing PoolId of service %s from %s to default", service.Id, service.PoolId)
-				service.PoolId = "default"
+			if existingPools[service.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				service.PoolID = "default"
 			}
 			var serviceId string
 			if e := d.client.AddService(*service, &serviceId); e != nil {

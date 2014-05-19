@@ -26,19 +26,19 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	endpoints := make(map[string][]*dao.ApplicationEndpoint)
 
 	consumer_endpoint := dao.ApplicationEndpoint{}
-	consumer_endpoint.ServiceId = "controlplane_consumer"
-	consumer_endpoint.ContainerIp = "127.0.0.1"
+	consumer_endpoint.ServiceID = "controlplane_consumer"
+	consumer_endpoint.ContainerIP = "127.0.0.1"
 	consumer_endpoint.ContainerPort = 8444
 	consumer_endpoint.HostPort = 8443
-	consumer_endpoint.HostIp = "127.0.0.1"
+	consumer_endpoint.HostIP = "127.0.0.1"
 	consumer_endpoint.Protocol = "tcp"
 
 	controlplane_endpoint := dao.ApplicationEndpoint{}
-	controlplane_endpoint.ServiceId = "controlplane"
-	controlplane_endpoint.ContainerIp = "127.0.0.1"
+	controlplane_endpoint.ServiceID = "controlplane"
+	controlplane_endpoint.ContainerIP = "127.0.0.1"
 	controlplane_endpoint.ContainerPort = 443
 	controlplane_endpoint.HostPort = 443
-	controlplane_endpoint.HostIp = "127.0.0.1"
+	controlplane_endpoint.HostIP = "127.0.0.1"
 	controlplane_endpoint.Protocol = "tcp"
 
 	agent.addContolPlaneEndpoint(endpoints)

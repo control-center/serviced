@@ -45,7 +45,7 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 
 	for i := range rss {
 		s := service.Service{}
-		if err := hi.dao.GetService(rss[i].ServiceId, &s); err != nil {
+		if err := hi.dao.GetService(rss[i].ServiceID, &s); err != nil {
 			glog.Errorf("cannot retrieve service information for running service (%v)", err)
 			return // this host won't be scheduled
 		}

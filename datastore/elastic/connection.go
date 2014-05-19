@@ -7,8 +7,8 @@ package elastic
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/mattbaird/elastigo/core"
-	"github.com/mattbaird/elastigo/search"
 	"github.com/mattbaird/elastigo/indices"
+	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 
@@ -51,7 +51,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 	}
 	if !response.Exists {
 		glog.V(4).Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
-		return nil, datastore.ErrNoSuchEntity{key}
+		return nil, datastore.ErrNoSuchEntity{Key: key}
 	}
 	bytes := response.Source
 	return datastore.NewJSONMessage(bytes), nil

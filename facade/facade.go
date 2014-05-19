@@ -7,18 +7,24 @@ package facade
 import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicetemplate"
 )
 
 // New creates an initialized Facade instance
 func New() *Facade {
 	return &Facade{
-		host.NewStore(),
-		pool.NewStore(),
+		hostStore:     host.NewStore(),
+		poolStore:     pool.NewStore(),
+		serviceStore:  service.NewStore(),
+		templateStore: servicetemplate.NewStore(),
 	}
 }
 
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
-	hostStore *host.HostStore
-	poolStore *pool.Store
+	hostStore     *host.HostStore
+	poolStore     *pool.Store
+	templateStore *servicetemplate.Store
+	serviceStore  *service.Store
 }
