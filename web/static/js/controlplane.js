@@ -3321,7 +3321,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             updateHealth();
         }
     }
-    $interval(updateRunning, 3000);
+    if(!angular.isDefined($scope.updateRunningInterval)) {
+        $scope.updateRunningInterval = $interval(updateRunning, 3000);
+    }
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, true, function() {
         if ($scope.services.current) {
@@ -3338,6 +3340,11 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
+    });
+
+    $scope.$on('$destroy', function() {
+        $interval.cancel($scope.updateRunningInterval);
+        $scope.updateRunningInterval = undefined;
     });
 
     var wait = { hosts: false, running: false };
