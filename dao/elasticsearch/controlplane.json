@@ -32,12 +32,6 @@
         "TemplateId":      {"type": "string", "index":"not_analyzed"},
         "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
       }
-    },
-    "user": {
-      "properties":{        
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "Password":       {"type": "string", "index":"not_analyzed"}
-      }
     }
   }
 }

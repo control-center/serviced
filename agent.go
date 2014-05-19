@@ -19,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
@@ -682,7 +683,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	// get the system user
 	unused := 0
-	systemUser := dao.User{}
+	systemUser := user.User{}
 	err = client.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
