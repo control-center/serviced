@@ -26,19 +26,4 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-//func convert(results datastore.Results) ([]*User, error) {
-//	hosts := make([]*User, results.Len())
-//	glog.V(4).Infof("Results are %v", results)
-//	for idx := range hosts {
-//		var host User
-//		err := results.Get(idx, &host)
-//		if err != nil {
-//			return nil, err
-//		}
-//		glog.V(4).Infof("Adding %v to hosts", host)
-//		hosts[idx] = &host
-//	}
-//	return hosts, nil
-//}
-
 var kind = "user"
