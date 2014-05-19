@@ -109,8 +109,8 @@ func NewServiceMap(services []*service.Service) ServiceMap {
 
 // Add appends a service to the service map
 func (m *ServiceMap) Add(service *service.Service) {
-	list := (*m)[service.ParentServiceId]
-	(*m)[service.ParentServiceId] = append(list, service)
+	list := (*m)[service.ParentServiceID]
+	(*m)[service.ParentServiceID] = append(list, service)
 }
 
 // Get procures services by parent id

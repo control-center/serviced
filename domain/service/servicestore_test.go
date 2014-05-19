@@ -37,7 +37,7 @@ func (s *S) SetUpTest(c *C) {
 }
 
 func (s *S) Test_ServiceCRUD(t *C) {
-	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
+	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 	svc2 := Service{}
 
 	err := s.store.Get(s.ctx, Key(svc.Id), &svc2)
@@ -76,7 +76,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 0)
 
-	svc := &Service{Id: "svc_test_id", PoolId: "testPool", Name: "svc_name", Launch: "auto"}
+	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 	err = s.store.Put(s.ctx, Key(svc.Id), svc)
 	t.Assert(err, IsNil)
 
@@ -84,7 +84,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 1)
 
-	svc.ParentServiceId = svc.Id
+	svc.ParentServiceID = svc.Id
 	svc.Id = "Test_GetHosts2"
 	err = s.store.Put(s.ctx, Key(svc.Id), svc)
 	t.Assert(err, IsNil)

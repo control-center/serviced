@@ -45,7 +45,7 @@ func (t *TestHostInfo) PrioritizeByMemory(hosts []*host.Host) ([]*host.Host, err
 func (t *TestHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
 	result := []*dao.RunningService{}
 	for _, s := range t.services[h] {
-		result = append(result, &dao.RunningService{ServiceId: s})
+		result = append(result, &dao.RunningService{ServiceID: s})
 	}
 	return result
 }

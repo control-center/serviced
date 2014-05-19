@@ -43,11 +43,11 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
             };
             nodeClasses[service.Id] = 'service notrunning';
 
-            if (service.ParentServiceId !== '') {
-                var parent = $scope.services.mapped[service.ParentServiceId];
-                nodeClasses[service.ParentServiceId] = 'service meta';
+            if (service.ParentServiceID !== '') {
+                var parent = $scope.services.mapped[service.ParentServiceID];
+                nodeClasses[service.ParentServiceID] = 'service meta';
                 edges[edges.length] = {
-                    u: service.ParentServiceId,
+                    u: service.ParentServiceID,
                     v: key
                 };
             }
@@ -57,18 +57,18 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         for (var i=0; i < runningServices.length; i++) {
             var running = runningServices[i];
-            if (!addedHosts[running.HostId]) {
+            if (!addedHosts[running.HostID]) {
                 states[states.length] = {
-                    id: running.HostId,
-                    value: { label: $scope.hosts.mapped[running.HostId].Name }
+                    id: running.HostID,
+                    value: { label: $scope.hosts.mapped[running.HostID].Name }
                 };
-                nodeClasses[running.HostId] = 'host';
-                addedHosts[running.HostId] = true;
+                nodeClasses[running.HostID] = 'host';
+                addedHosts[running.HostID] = true;
             }
-            nodeClasses[running.ServiceId] = 'service';
+            nodeClasses[running.ServiceID] = 'service';
             edges[edges.length] = {
-                u: running.ServiceId,
-                v: running.HostId
+                u: running.ServiceID,
+                v: running.HostID
             };
 
         }

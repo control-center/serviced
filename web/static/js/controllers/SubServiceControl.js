@@ -72,7 +72,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         }
 
         var name = $scope.vhosts.add.name;
-        var serviceId = $scope.vhosts.add.app_ep.ServiceId;
+        var serviceId = $scope.vhosts.add.app_ep.ServiceID;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
         resourcesService.add_vhost( serviceId, serviceEndpoint, name, function() {
             $scope.vhosts.add = {};
@@ -140,7 +140,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
-        resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
+        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -161,7 +161,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-    function updateHealth(ServiceId) {
+    function updateHealth(ServiceID) {
         $.getJSON("/servicehealth", function(healths) {
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
@@ -246,7 +246,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
         for (var i=0; i < $scope.running.data.length; i++) {
             var instance = $scope.running.data[i];
-            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+            instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
     refreshHosts($scope, resourcesService, true, function() {
@@ -259,7 +259,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostId, app.Id, function() {
+        resourcesService.kill_running(app.HostID, app.Id, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();
@@ -274,12 +274,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: $scope.params.serviceId,
+            ParentServiceID: $scope.params.serviceId,
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
 
@@ -295,7 +295,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $('#addService').modal('show');
         };
         $scope.deleteService = function() {
-            var parent = $scope.services.current.ParentServiceId;
+            var parent = $scope.services.current.ParentServiceID;
             console.log('Parent: %s, Length: %d', parent, parent.length);
             resourcesService.remove_service($scope.params.serviceId, function() {
                 refreshServices($scope, resourcesService, false, function() {

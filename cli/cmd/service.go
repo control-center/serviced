@@ -277,11 +277,11 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					s.Id,
 					s.Startup,
 					s.Instances,
-					s.ImageId,
-					s.PoolId,
+					s.ImageID,
+					s.PoolID,
 					s.DesiredState,
 					s.Launch,
-					s.DeploymentId,
+					s.DeploymentID,
 				)
 				tableService.Indent()
 				printTree(s.Id)
@@ -570,7 +570,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
-// findServiceStateID finds the ServiceStateID from either DockerId, ServiceName, or ServiceId
+// findServiceStateID finds the ServiceStateID from either DockerID, ServiceName, or ServiceID
 func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error) {
 	if serviceSpecifier == "" {
 		return "", fmt.Errorf("required serviceSpecifier is empty")
@@ -597,8 +597,8 @@ func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error
 			for _, running := range runningServices {
 				tableMatched.PrintRow(
 					running.Service.Name,
-					running.State.ServiceId,
-					running.State.DockerId,
+					running.State.ServiceID,
+					running.State.DockerID,
 				)
 			}
 		}
@@ -662,7 +662,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 	serviceSpecifier := args[0]
 	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not find ServiceStateId with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		fmt.Fprintf(os.Stderr, "could not find ServiceStateID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
 		return
 	}
 

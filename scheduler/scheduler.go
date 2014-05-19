@@ -57,7 +57,7 @@ func (s *scheduler) Stop() error {
 }
 
 type hostNodeT struct {
-	HostId  string
+	HostID  string
 	version interface{}
 }
 
@@ -74,7 +74,7 @@ func (s *scheduler) loop() {
 		s.shutdown <- err
 	}()
 
-	hostNode := hostNodeT{HostId: s.instance_id}
+	hostNode := hostNodeT{HostID: s.instance_id}
 	leader := s.conn.NewLeader("/scheduler", &hostNode)
 	events, err := leader.TakeLead()
 	if err != nil {

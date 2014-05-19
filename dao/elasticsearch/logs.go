@@ -23,7 +23,7 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 		glog.V(1).Info("Unable to find any running services for ", id)
 		return nil
 	}
-	cmd := exec.Command("docker", "logs", serviceStates[0].DockerId)
+	cmd := exec.Command("docker", "logs", serviceStates[0].DockerID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Unable to return logs because: %v", err)
@@ -37,13 +37,13 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 	/* TODO: This command does not support logs on other hosts */
 	glog.V(3).Info("ControlPlaneDao.GetServiceStateLogs id=", request)
 	var serviceState servicestate.ServiceState
-	err := this.zkDao.GetServiceState(&serviceState, request.ServiceId, request.ServiceStateId)
+	err := this.zkDao.GetServiceState(&serviceState, request.ServiceID, request.ServiceStateID)
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceState, err)
 		return err
 	}
 
-	cmd := exec.Command("docker", "logs", serviceState.DockerId)
+	cmd := exec.Command("docker", "logs", serviceState.DockerID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Unable to return logs because: %v", err)
