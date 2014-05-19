@@ -82,6 +82,20 @@ test: build_binary docker_ok
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 
+smoketest: docker_ok
+	echo "HIHIHIH"
+
+docker_smoketest: docker_ok
+	docker build -t zenoss/serviced-build build
+	mkdir -p $(dockercache)
+	docker run --rm \
+		--privileged \
+		-w /go/src/github.com/zenoss/serviced \
+		-v $$PWD:/go/src/github.com/zenoss/serviced \
+		-v $(dockercache):/var/lib/docker \
+		zenoss/serviced-build \
+		/bin/bash -c "/usr/local/bin/wrapdocker && make smoketest"
+
 docker_ok:
 	if docker ps >/dev/null; then \
 		echo "docker OK"; \
