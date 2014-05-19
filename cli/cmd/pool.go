@@ -59,7 +59,7 @@ func (c *ServicedCli) initPool() {
 			}, {
 				Name:         "remove-virtual-ip",
 				Usage:        "Remove a virtual IP address from a pool",
-				Description:  "serviced pool remove-virtual-ip VIRTUALIPID",
+				Description:  "serviced pool remove-virtual-ip POOLID IPADDRESS",
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdRemoveVirtualIP,
 			},
@@ -229,7 +229,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newTable(0, 3, 3)
+		tableIPs := newTable(0, 10, 2)
 		tableIPs.PrintRow("Interface Name", "IP Address", "Type")
 		for _, ip := range poolIps.HostIPs {
 			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress, "static")
@@ -244,7 +244,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 // serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE
 func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 {
+	if len(args) < 1 || len(args) > 4 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add-virtual-ip")
 		return
@@ -259,21 +259,20 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 	fmt.Println("Added virtual IP:", args[1])
 }
 
-// serviced pool remove-virtual-ip VIRTUALIPID ...
+// serviced pool remove-virtual-ip POOLID IPADDRESS
 func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 {
+	if len(args) < 1 || len(args) > 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "remove-virtual-ip")
 		return
 	}
 
-	for _, id := range args {
-		if err := c.driver.RemoveVirtualIP(args[0]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		} else {
-			fmt.Println("Removed virtual IP: ", id)
-		}
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: "", BindInterface: "", InterfaceIndex: ""}
+	if err := c.driver.RemoveVirtualIP(requestVirtualIP); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else {
+		fmt.Printf("Removed virtual IP: %v from pool %v\n", args[1], args[0])
 	}
 }

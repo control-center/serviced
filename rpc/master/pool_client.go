@@ -57,6 +57,6 @@ func (c *Client) AddVirtualIP(requestVirtualIP pool.VirtualIP) error {
 }
 
 //RemoveVirtualIP removes a VirtualIP from a specific pool
-func (c *Client) RemoveVirtualIP(requestedVirtualIPAddress string) error {
-	return c.call("RemoveVirtualIP", requestedVirtualIPAddress, nil)
+func (c *Client) RemoveVirtualIP(requestVirtualIP pool.VirtualIP) error {
+	return c.call("RemoveVirtualIP", requestVirtualIP, nil)
 }

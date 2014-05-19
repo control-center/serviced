@@ -69,6 +69,6 @@ func (s *Server) AddVirtualIP(requestVirtualIP pool.VirtualIP, _ *struct{}) erro
 }
 
 // RemoveVirtualIP removes a specific virtual IP from a pool
-func (s *Server) RemoveVirtualIP(requestedVirtualIPAddress string, _ *struct{}) error {
-	return s.f.RemoveVirtualIP(s.context(), requestedVirtualIPAddress)
+func (s *Server) RemoveVirtualIP(requestVirtualIP pool.VirtualIP, _ *struct{}) error {
+	return s.f.RemoveVirtualIP(s.context(), requestVirtualIP)
 }

@@ -228,7 +228,7 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 	return nil
 }
 
-func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIPAddress string) error {
+func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
 	myPools, err := f.GetResourcePools(ctx)
 	if err != nil {
 		return err
@@ -236,7 +236,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIPAddres
 
 	for _, myPool := range myPools {
 		for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
-			if virtualIP.IP == requestedVirtualIPAddress {
+			if virtualIP.IP == requestedVirtualIP.IP {
 				// delete the current VirtualIP
 				myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
 				if err := f.UpdateResourcePool(ctx, myPool); err != nil {
@@ -247,7 +247,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIPAddres
 		}
 	}
 
-	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v (does not exist)", requestedVirtualIPAddress)
+	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v (does not exist)", requestedVirtualIP.IP)
 	return errors.New(errMsg)
 }
 

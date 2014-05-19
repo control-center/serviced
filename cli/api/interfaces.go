@@ -30,7 +30,7 @@ type API interface {
 	RemoveResourcePool(string) error
 	GetPoolIPs(string) (*facade.PoolIPs, error)
 	AddVirtualIP(pool.VirtualIP) error
-	RemoveVirtualIP(string) error
+	RemoveVirtualIP(pool.VirtualIP) error
 
 	// Services
 	GetServices() ([]*service.Service, error)

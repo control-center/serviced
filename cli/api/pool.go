@@ -89,11 +89,11 @@ func (a *api) AddVirtualIP(requestVirtualIP pool.VirtualIP) error {
 }
 
 // Add a VirtualIP to a specific pool
-func (a *api) RemoveVirtualIP(requestedVirtualIPAddress string) error {
+func (a *api) RemoveVirtualIP(requestVirtualIP pool.VirtualIP) error {
 	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	return client.RemoveVirtualIP(requestedVirtualIPAddress)
+	return client.RemoveVirtualIP(requestVirtualIP)
 }
