@@ -85,19 +85,6 @@ test: build_binary docker_ok
 smoketest: build_binary docker_ok
 	./smoke.sh
 
-docker_smoketest: docker_ok
-	docker build -t zenoss/serviced-build build
-	echo "Using dock-in-docker cache dir $(dockercache)"
-	mkdir -p $(dockercache)
-	docker run --rm \
-	--privileged \
-	-v $(dockercache):/var/lib/docker \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	-w /go/src/github.com/zenoss/serviced \
-	-t \
-	zenoss/serviced-build /bin/bash \
-	-c '/usr/local/bin/wrapdocker && make smoketest'
-
 docker_ok:
 	if docker ps >/dev/null; then \
 		echo "docker OK"; \
