@@ -117,8 +117,6 @@ func CreateVirtualInterfaceMap() (error, []pool.VirtualIP) {
 		interfaceMap = append(interfaceMap, pool.VirtualIP{PoolID: "", IP: strings.TrimSpace(string(virtualIP)), Netmask: "", BindInterface: bindInterface, InterfaceIndex: interfaceIndex})
 	}
 
-	glog.Infof(" ********** Virtual Interface Map: %v", interfaceMap)
-
 	return nil, interfaceMap
 }
 
@@ -218,7 +216,6 @@ func (h *Handler) ConfigureVIP(vip string) error {
 		return err
 	}
 	for _, virtualInterface := range interfaceMap {
-		glog.Infof(" ##### Interface on the map: %v", virtualInterface)
 		if vip == virtualInterface.IP {
 			vipPresent = true
 		}
@@ -423,9 +420,9 @@ func (h *Handler) WatchVirtualIPs() {
 }
 
 type VIP struct {
-	HostID  string
-	VIP     string
-	version interface{}
+	HostID    string
+	VirtualIP string
+	version   interface{}
 }
 
 func (v *VIP) Version() interface{}           { return v.version }
@@ -439,10 +436,7 @@ func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtua
 		glog.Errorf("Could not get host ID: %v", err)
 		return
 	}
-	vipOwnerNode := &VIP{
-		HostID: hostID,
-		VIP:    virtualIPAddress,
-	}
+	vipOwnerNode := &VIP{HostID: hostID, VirtualIP: virtualIPAddress}
 	vipOwner := h.conn.NewLeader(virtualIPsPath(virtualIPAddress), vipOwnerNode)
 	vipOwnerResponse := make(chan error)
 
@@ -463,7 +457,7 @@ func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtua
 			if err != nil {
 				glog.Errorf("Error in attempting to secure a lock on %v: %v", virtualIPsPath(virtualIPAddress), err)
 			} else {
-				glog.Infof(" +++++ I OWN THE LOCK FOR VIP: %v", virtualIPsPath(virtualIPAddress))
+				glog.Infof("Locked virtual IP address: %v on %v", virtualIPsPath(virtualIPAddress), vipOwnerNode.HostID)
 				if err := h.ConfigureVIP(virtualIPAddress); err != nil {
 					glog.Errorf("Failed to configure VIP: %v", virtualIPAddress)
 				}
