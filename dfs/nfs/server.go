@@ -199,9 +199,14 @@ func (c *Server) hostsAllow() error {
 }
 
 func (c *Server) writeExports() error {
+
+	network := c.network
+	if network == "0.0.0.0/0" {
+		network = "*" // turn this in to nfs 'allow all hosts' syntax
+	}
 	s := fmt.Sprintf("%s\t%s(rw,fsid=0,insecure,no_subtree_check,async)\n"+
 		"%s/%s\t%s(rw,nohide,insecure,no_subtree_check,async)\n",
-		exportsPath, c.network, exportsPath, c.exportedName, c.network)
+		exportsPath, network, exportsPath, c.exportedName, network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
 	}
