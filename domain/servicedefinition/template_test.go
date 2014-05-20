@@ -25,15 +25,15 @@ func init() {
 				ConfigFiles: map[string]ConfigFile{
 					"/etc/my.cnf": ConfigFile{Owner: "root:root", Filename: "/etc/my.cnf", Permissions: "0660", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []EndpointDefinition{
+					EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Name:        "www",
 						Purpose:     "export",
 					},
-					ServiceEndpoint{
+					EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
@@ -68,8 +68,8 @@ func init() {
 						Content:     "baz\n",
 					},
 				},
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []EndpointDefinition{
+					EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",

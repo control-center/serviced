@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -142,7 +143,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	}
 }
 
-// serviced host add [[--ip IP] ...] HOST:PORT POOLID
+// serviced host add HOST:PORT POOLID
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -156,11 +157,23 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		fmt.Println(err)
 		return
 	}
+	if ip := net.ParseIP(address.Host); ip == nil {
+		// Host did not parse, try resolving
+		addr, err := net.ResolveTCPAddr("tcp", args[0])
+		if err != nil {
+			fmt.Printf("Could not resolve %s.\n\n", args[0])
+			return
+		}
+		address.Host = addr.IP.String()
+		if strings.HasPrefix(address.Host, "127.") {
+			fmt.Printf("%s must not resolve to a loopback address\n\n", args[0])
+			return
+		}
+	}
 
 	cfg := api.HostConfig{
 		Address: &address,
 		PoolID:  args[1],
-		IPs:     ctx.StringSlice("ip"),
 	}
 
 	if host, err := c.driver.AddHost(cfg); err != nil {

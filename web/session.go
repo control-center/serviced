@@ -4,7 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
+	userdomain "github.com/zenoss/serviced/domain/user"
 
 	"crypto/rand"
 	"encoding/base64"
@@ -140,7 +140,7 @@ func RestLogin(w *rest.ResponseWriter, r *rest.Request, client *serviced.Control
 func cpValidateLogin(creds *Login, client *serviced.ControlClient) bool {
 	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds)
 	// create a client
-	user := dao.User{
+	user := userdomain.User{
 		Name:     creds.Username,
 		Password: creds.Password,
 	}

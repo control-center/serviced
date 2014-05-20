@@ -227,8 +227,8 @@ function ResourcesService($http, $location) {
                     cached_services_map[svc.Id] = svc;
                 });
                 data.map(function(svc) {
-                    if (svc.ParentServiceId !== '') {
-                        var parent = cached_services_map[svc.ParentServiceId];
+                    if (svc.ParentServiceID !== '') {
+                        var parent = cached_services_map[svc.ParentServiceID];
                         if (!parent.children) {
                             parent.children = [];
                         }
@@ -314,6 +314,36 @@ function ResourcesService($http, $location) {
     };
 
     return {
+
+        /*
+         * Assign an ip address to a service endpoint and it's children.  Leave IP parameter
+         * null for automatic assignment.
+         *
+         * @param {serviceID} string the serviceID to assign an ip address
+         * @param {ip} string ip address to assign to service, set as null for automatic assignment
+         * @param {function} callback data is passed to a callback on success.
+         */
+        assign_ip: function(serviceID, ip, callback) {
+          var url = '/services/' + serviceID + "/ip";
+          if (ip != null) {
+            url = url + "/" + ip
+          }
+          $http.put(url).
+              success(function(data, status) {
+                  console.log('Assigned IP');
+                  if (callback) {
+                    callback(data);
+                  }
+              }).
+              error(function(data, status) {
+                  // TODO error screen
+                  console.error('Unable to assign ip');
+                  if (status === 401) {
+                      unauthorized($location);
+                  }
+              });
+        },
+
         /*
          * Get the most recently retrieved map of resource pools.
          * This will also retrieve the data if it has not yet been
@@ -329,6 +359,47 @@ function ResourcesService($http, $location) {
             } else {
                 _get_pools(callback);
             }
+        },
+
+        /*
+         * Get a Pool
+         * @param {string} poolID the pool id
+         * @param {function} callback Pool data is passed to a callback on success.
+         */
+        get_pool: function(poolID, callback) {
+            $http.get('/pools/' + poolID).
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, poolID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /*
+         * Get all possible ips for a resource pool
+         *
+         * @param {boolean} cacheOk Whether or not cached data is OK to use.
+         * @param {function} callback Pool data is passed to a callback on success.
+         */
+        get_pool_ips: function(poolID, callback) {
+            $http.get('/pools/' + poolID + "/ips").
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, poolID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         },
 
         /*
@@ -600,6 +671,26 @@ function ResourcesService($http, $location) {
             } else {
                 _get_hosts(callback);
             }
+        },
+
+        /*
+         * Get a host
+         * @param {string} hostID the host id
+         * @param {function} callback host data is passed to a callback on success.
+         */
+        get_host: function(hostID, callback) {
+            $http.get('/hosts/' + hostID).
+                success(function(data, status) {
+                    console.log('Retrieved %s for %s', data, hostID);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Unable to acquire host: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         },
 
         /*
@@ -904,6 +995,22 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+        /**
+         * Gets the Serviced version from the server
+         */
+        get_version: function(callback){
+            $http.get('/version').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Could not retrieve Serviced version from server.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
         }
     };
 }
@@ -1019,6 +1126,39 @@ function aggregateVhosts( service) {
   }
   return vhosts;
 }
+// collect all address assignments for a service
+function aggregateAddressAssigments( service, api) {
+  var assignments = [];
+  if (service.Endpoints) {
+    for (var i in service.Endpoints) {
+      var endpoint = service.Endpoints[i];
+      if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != "") {
+        var assignment = {
+          'ID': endpoint.AddressAssignment.ID,
+          'AssignmentType': endpoint.AddressAssignment.AssignmentType,
+          'EndpointName': endpoint.AddressAssignment.EndpointName,
+          'HostID': endpoint.AddressAssignment.HostID,
+          'HostName': 'unknown',
+          'PoolID': endpoint.AddressAssignment.PoolID,
+          'IPAddr': endpoint.AddressAssignment.IPAddr,
+          'Port': endpoint.AddressAssignment.Port,
+          'ServiceID': endpoint.AddressAssignment.ServiceID,
+          'ServiceName': service.Name
+        }
+        api.get_host( assignment.HostID, function(data) {
+          assignment.HostName = data.Name
+        })
+        assignments.push( assignment)
+      }
+    }
+  }
+
+  for (var i in service.children) {
+    var child_service = service.children[i];
+    assignments = assignments.concat( aggregateAddressAssigments( child_service, api));
+  }
+  return assignments;
+}
 
 // collect all virtual hosts options for provided service
 function aggregateVhostOptions( service) {
@@ -1028,7 +1168,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceId:service.Id,
+          ServiceID:service.Id,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
@@ -1090,15 +1230,20 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
             $scope.editService = $.extend({}, $scope.services.current);
-            // we need a flattened view of all children
 
+            // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current);
+            }
+
+            // aggregate virtual ip and virtual host data
+            if ($scope.services.current) {
                 $scope.vhosts.data = aggregateVhosts( $scope.services.current);
                 $scope.vhosts.options = aggregateVhostOptions( $scope.services.current);
                 if ($scope.vhosts.options.length > 0) {
                   $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
                 }
+                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService)
             }
         }
         if (extraCallback) {
@@ -1115,10 +1260,10 @@ function getFullPath(allPools, pool) {
 }
 
 function getServiceLineage(mappedServices, service) {
-    if (!mappedServices || !service.ParentServiceId || !mappedServices[service.ParentServiceId]) {
+    if (!mappedServices || !service.ParentServiceID || !mappedServices[service.ParentServiceID]) {
         return [ service ];
     }
-    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceId]);
+    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceID]);
     lineage.push(service);
     return lineage;
 }
@@ -1188,38 +1333,34 @@ function toggleRunning(app, status, servicesService) {
     // is so that when stopping takes a long time you can see that
     // something is happening. This doesn't update the color
     function updateAppText(app, text, notRunningText) {
-        var i;
         app.runningText = text;
         app.notRunningText = notRunningText;
         if (!app.children) {
             return;
         }
-        for (i=0; i<app.children.length;i++) {
+        for (var i=0; i<app.children.length;i++) {
             updateAppText(app.children[i], text, notRunningText);
         }
     }
 
     // updates the color and the running/non-running text of the
     // status buttons
-    function updateApp(app, desiredState) {
+    function updateApp(app) {
         var i, child;
         updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
-                child = app.children[i];
-                child.DesiredState = desiredState;
-                updateRunning(child);
-                if (child.children && child.children.length) {
-                    updateApp(child, desiredState);
-                }
+                app.children[i].DesiredState = app.DesiredState;
+                updateApp(app.children[i]);
             }
         }
     }
+
     // stop service
     if ((newState == 0) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "stopping...", "ctl_running_blank");
     }
@@ -1228,7 +1369,7 @@ function toggleRunning(app, status, servicesService) {
     if ((newState == 1) || (newState == -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
-            updateApp(app, newState);
+            updateApp(app);
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }
@@ -1317,7 +1458,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
     resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
         $scope.running.data = runningServices;
-        $scope.running.sort = 'InstanceId';
+        $scope.running.sort = 'InstanceID';
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
@@ -1434,23 +1575,4 @@ function itemClass(item) {
         cls += ' hidden';
     }
     return cls;
-}
-
-function removePool(scope, poolID){
-    // clear out the pool we just deleted in case it is stuck in a database index
-    for(var i=0; i < scope.pools.data.length; ++i){
-        if(scope.pools.data[i].ID === poolID){
-            scope.pools.data.splice(i, 1);
-        }
-    }
-    for(var i=0; i < scope.pools.flattened.length; ++i){
-        if(scope.pools.flattened[i].ID === poolID){
-            scope.pools.flattened.splice(i, 1);
-        }
-    }
-    for(var i=0; i < scope.pools.tree.length; ++i){
-        if(scope.pools.tree[i].ID === poolID){
-            scope.pools.tree.splice(i, 1);
-        }
-    }
 }

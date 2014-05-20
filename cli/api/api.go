@@ -39,6 +39,8 @@ type Options struct {
 	ESStartupTimeout int
 	HostAliases      []string
 	Verbosity        int
+	StaticIPs        []string
+	DockerRegistry   string
 }
 
 // LoadOptions overwrites the existing server options
@@ -68,8 +70,13 @@ func New() API {
 }
 
 // Starts the agent or master services on this host
-func (a *api) StartServer() {
-	startDaemon()
+func (a *api) StartServer() error {
+	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+	d, err := newDaemon(options.StaticIPs)
+	if err != nil {
+		return err
+	}
+	return d.run()
 }
 
 // Opens a connection to the master if not already connected
@@ -85,10 +92,10 @@ func (a *api) connectMaster() (*master.Client, error) {
 }
 
 // Opens a connection to the agent if not already connected
-func (a *api) connectAgent() (*agent.Client, error) {
+func (a *api) connectAgent(address string) (*agent.Client, error) {
 	if a.agent == nil {
 		var err error
-		a.agent, err = agent.NewClient(options.Port)
+		a.agent, err = agent.NewClient(address)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

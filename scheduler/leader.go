@@ -9,6 +9,7 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
@@ -122,7 +123,7 @@ func (l *leader) watchSnapshotRequests() {
 
 			// TODO: perform snapshot request here
 			snapLabel := ""
-			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceId, &snapLabel); err != nil {
+			if err := cpDao.LocalSnapshot(snapshotRequest.ServiceID, &snapLabel); err != nil {
 				glog.V(0).Infof("watchSnapshotRequests: snaps.ExecuteSnapshot err=%s", err)
 				snapshotRequest.SnapshotError = err.Error()
 				snapshotRequest.SnapshotLabel = snapLabel
@@ -242,9 +243,9 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 		// Is the service supposed to be running at all?
 		switch {
-		case svc.DesiredState == dao.SVC_STOP:
+		case svc.DesiredState == service.SVCStop:
 			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
-		case svc.DesiredState == dao.SVC_RUN:
+		case svc.DesiredState == service.SVCRun:
 			l.updateServiceInstances(&svc, serviceStates)
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", svc.DesiredState, svc.Name)
@@ -277,13 +278,13 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	if len(serviceStates) < service.Instances {
 		instancesToStart := service.Instances - len(serviceStates)
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
-		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolId)
+		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
 		if err != nil {
-			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolId, err)
+			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolID, err)
 			return err
 		}
 		if len(hosts) == 0 {
-			glog.Warningf("Pool %s has no hosts", service.PoolId)
+			glog.Warningf("Pool %s has no hosts", service.PoolID)
 			return nil
 		}
 
@@ -298,13 +299,13 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 
 }
 
-// getFreeInstanceIds looks up running instances of this service and returns n
+// getFreeInstanceIDs looks up running instances of this service and returns n
 // unused instance ids.
-// Note: getFreeInstanceIds does NOT validate that instance ids do not exceed
+// Note: getFreeInstanceIDs does NOT validate that instance ids do not exceed
 // max number of instances for the service. We're already doing that check in
 // another, better place. It is guaranteed that either nil or n ids will be
 // returned.
-func getFreeInstanceIds(conn coordclient.Connection, svc *service.Service, n int) ([]int, error) {
+func getFreeInstanceIDs(conn coordclient.Connection, svc *service.Service, n int) ([]int, error) {
 	var (
 		states []*servicestate.ServiceState
 		ids    []int
@@ -317,7 +318,7 @@ func getFreeInstanceIds(conn coordclient.Connection, svc *service.Service, n int
 	// Populate the used set
 	used := make(map[int]struct{})
 	for _, s := range states {
-		used[s.InstanceId] = struct{}{}
+		used[s.InstanceID] = struct{}{}
 	}
 	// Find n unused ids
 	for i := 0; len(ids) < n; i++ {
@@ -332,7 +333,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
-	freeids, err := getFreeInstanceIds(l.conn, svc, numToStart)
+	freeids, err := getFreeInstanceIDs(l.conn, svc, numToStart)
 	if err != nil {
 		return err
 	}
@@ -353,8 +354,8 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 			return err
 		}
 
-		serviceState.HostIp = servicehost.IPAddr
-		serviceState.InstanceId = i
+		serviceState.HostIP = servicehost.IPAddr
+		serviceState.InstanceID = i
 		err = zzk.AddServiceState(l.conn, serviceState)
 		if err != nil {
 			glog.Errorf("Leader unable to add service state: %v", err)
@@ -368,11 +369,11 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	for i := 0; i < numToKill; i++ {
-		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostId, serviceStates[i].Id)
+		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].Id)
 		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-		err := zzk.TerminateHostService(conn, serviceStates[i].HostId, serviceStates[i].Id)
+		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].Id)
 		if err != nil {
-			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostId, serviceStates[i].Id)
+			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].Id)
 		}
 	}
 }
@@ -383,7 +384,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host) (*host.Host, error) {
 	var hostid string
 	for _, ep := range s.Endpoints {
-		if ep.AddressAssignment != (service.AddressAssignment{}) {
+		if ep.AddressAssignment != (addressassignment.AddressAssignment{}) {
 			hostid = ep.AddressAssignment.HostID
 			break
 		}

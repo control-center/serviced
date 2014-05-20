@@ -7,8 +7,13 @@ package facade
 import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	gocheck "gopkg.in/check.v1"
 )
 
@@ -28,6 +33,11 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	}
 	ft.Mappings = append(ft.Mappings, host.MAPPING)
 	ft.Mappings = append(ft.Mappings, pool.MAPPING)
+	ft.Mappings = append(ft.Mappings, service.MAPPING)
+	ft.Mappings = append(ft.Mappings, servicetemplate.MAPPING)
+	ft.Mappings = append(ft.Mappings, addressassignment.MAPPING)
+	ft.Mappings = append(ft.Mappings, serviceconfigfile.MAPPING)
+	ft.Mappings = append(ft.Mappings, user.MAPPING)
 
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())

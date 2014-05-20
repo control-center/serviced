@@ -1,5 +1,5 @@
 {
-          "Command": "/usr/bin/python -m SimpleHTTPServer",
+          "Command": "/usr/bin/python3 -m http.server",
           "Endpoints": [{
               "Name": "websvc",
               "Application": "websvc",
@@ -16,7 +16,7 @@
                     "Permissions": "660"
                 }
           },
-          "ImageId": "ubuntu",
+          "ImageID": "ubuntu",
           "Instances": {
             "min": 1
           },

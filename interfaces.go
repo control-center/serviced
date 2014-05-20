@@ -68,7 +68,7 @@ type ContainerState struct {
 		Gateway     string
 		Bridge      string
 		PortMapping map[string]map[string]string
-		Ports       map[string][]domain.HostIpAndPort
+		Ports       map[string][]domain.HostIPAndPort
 	}
 	SysInitPath    string
 	ResolvConfPath string
@@ -94,4 +94,6 @@ type LoadBalancer interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
+
+	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 }

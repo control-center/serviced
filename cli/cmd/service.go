@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -43,6 +44,9 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID ...",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"remove-snapshots, R", "Remove snapshots associated with removed service"},
+				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -73,18 +77,21 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "proxy",
 				Usage:        "Starts a server proxy for a container",
-				Description:  "serviced service proxy SERVICEID COMMAND",
+				Description:  "serviced service proxy SERVICEID INSTANCEID COMMAND",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceProxy,
 				Flags: []cli.Flag{
+					cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/logstash-forwarder", "path to the logstash-forwarder binary"},
+					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
 					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
 					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.BoolTFlag{"tls", "enable tls"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-					cli.StringFlag{"endpoint", api.GetGateway(), "serviced endpoint address"},
+					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
+					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "shell",
@@ -95,15 +102,15 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "run",
 				Usage:        "Runs a service command in a service instance",
-				Description:  "serviced service run SERVICEID [COMMAND]",
+				Description:  "serviced service run SERVICEID COMMAND [ARGS]",
 				BashComplete: c.printServiceRun,
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
-					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 				},
 			}, {
@@ -270,11 +277,11 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					s.Id,
 					s.Startup,
 					s.Instances,
-					s.ImageId,
-					s.PoolId,
+					s.ImageID,
+					s.PoolID,
 					s.DesiredState,
 					s.Launch,
-					s.DeploymentId,
+					s.DeploymentID,
 				)
 				tableService.Indent()
 				printTree(s.Id)
@@ -323,7 +330,12 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 	}
 
 	for _, id := range args {
-		if err := c.driver.RemoveService(id); err != nil {
+		cfg := api.RemoveServiceConfig{
+			ServiceID:       id,
+			RemoveSnapshots: ctx.Bool("remove-snapshots"),
+		}
+
+		if err := c.driver.RemoveService(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)
@@ -434,14 +446,20 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	}
 }
 
-// serviced service proxy SERVICED COMMAND
+// serviced service proxy SERVICE_ID INSTANCEID COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
+	if len(ctx.Args()) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
 
-	api.LoadProxyOptions(api.ProxyOptions{
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Println(err)
+	}
+
+	args := ctx.Args()
+	options := api.ControllerOptions{
 		MuxPort:          ctx.GlobalInt("muxport"),
 		Mux:              ctx.GlobalBool("mux"),
 		TLS:              ctx.GlobalBool("tls"),
@@ -450,14 +468,14 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 		Autorestart:      ctx.GlobalBool("autorestart"),
 		Logstash:         ctx.GlobalBool("logstash"),
-	})
-
-	cfg := api.ProxyConfig{
-		ServiceID: ctx.Args().First(),
-		Command:   ctx.Args().Tail(),
+		LogstashBinary:   ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:   ctx.GlobalString("forwarder-config"),
+		ServiceID:        args[0],
+		InstanceID:       args[1],
+		Command:          args[2:],
 	}
 
-	if err := c.driver.StartProxy(cfg); err != nil {
+	if err := c.driver.StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -470,6 +488,11 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
+	}
+
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Println(err)
 	}
 
 	var (
@@ -529,7 +552,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(args) > 2 {
 		argv = args[2:]
 	}
-	saveAs = ctx.GlobalString("saveas")
+	saveAs = serviced.GetLabel(serviceID)
 	isTTY = ctx.GlobalBool("interactive")
 
 	config := api.ShellConfig{
@@ -547,7 +570,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
-// findServiceStateID finds the ServiceStateID from either DockerId, ServiceName, or ServiceId
+// findServiceStateID finds the ServiceStateID from either DockerID, ServiceName, or ServiceID
 func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error) {
 	if serviceSpecifier == "" {
 		return "", fmt.Errorf("required serviceSpecifier is empty")
@@ -574,8 +597,8 @@ func (c *ServicedCli) findServiceStateID(serviceSpecifier string) (string, error
 			for _, running := range runningServices {
 				tableMatched.PrintRow(
 					running.Service.Name,
-					running.State.ServiceId,
-					running.State.DockerId,
+					running.State.ServiceID,
+					running.State.DockerID,
 				)
 			}
 		}
@@ -639,7 +662,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) {
 	serviceSpecifier := args[0]
 	serviceStateID, err := c.findServiceStateID(serviceSpecifier)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not find ServiceStateId with specifier:'%v'  error:%v\n", serviceSpecifier, err)
+		fmt.Fprintf(os.Stderr, "could not find ServiceStateID with specifier:'%v'  error:%v\n", serviceSpecifier, err)
 		return
 	}
 

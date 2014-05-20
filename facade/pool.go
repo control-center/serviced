@@ -109,6 +109,7 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, 
 
 	for _, pool := range pools {
 		f.calcPoolCapacity(ctx, pool)
+		f.calcPoolCommitment(ctx, pool)
 	}
 
 	return pools, err
@@ -146,6 +147,23 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 
 	pool.CoreCapacity = coreCapacity
 	pool.MemoryCapacity = memCapacity
+
+	return err
+}
+
+func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePool) error {
+	services, err := f.serviceStore.GetServicesByPool(ctx, pool.ID)
+
+	if err != nil {
+		return err
+	}
+
+	memCommitment := uint64(0)
+	for _, service := range services {
+		memCommitment = memCommitment + service.RAMCommitment
+	}
+
+	pool.MemoryCommitment = memCommitment
 
 	return err
 }

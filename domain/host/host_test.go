@@ -9,7 +9,6 @@ import (
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/validation"
 
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -171,7 +170,7 @@ func Test_getIPResources(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip), fmt.Sprintf("   %v   ", ip)}
+	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip)}
 	for _, validIP := range validIPs {
 		ips, err = getIPResources("dummy_hostId", validIP)
 		if err != nil {

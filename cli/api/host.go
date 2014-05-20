@@ -34,20 +34,15 @@ func (a *api) GetHost(id string) (*host.Host, error) {
 
 // Adds a new host
 func (a *api) AddHost(config HostConfig) (*host.Host, error) {
-	agentClient, err := a.connectAgent()
+	agentClient, err := a.connectAgent(config.Address.String())
 	if err != nil {
 		return nil, err
 	}
 
 	req := agent.BuildHostRequest{
-		// HACK BEGIN: domain/host HostAdd fails when IP is set to IP_ADDR:PORT
-		//			when given config.Address.String().  As a temporary workaround,
-		//			simply pass IP_ADDR via config.Address.Host
-		IP: config.Address.Host,
-		// HACK END
-
-		PoolID:      config.PoolID,
-		IPResources: config.IPs,
+		IP:     config.Address.Host,
+		Port:   config.Address.Port,
+		PoolID: config.PoolID,
 	}
 
 	h, err := agentClient.BuildHost(req)

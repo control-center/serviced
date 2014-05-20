@@ -84,6 +84,17 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 	if err := ed.postMappings(); err != nil {
 		return err
 	}
+
+	// postMapping and postIndex affect es health
+	go ed.checkHealth(quit, healthy)
+
+	select {
+	case <-healthy:
+		glog.V(4).Infof("Got response from Elastic")
+	case <-time.After(timeout):
+		return errors.New("timed Out waiting for response from Elastic")
+	}
+
 	return nil
 }
 
@@ -142,12 +153,39 @@ func (ed *elasticDriver) indexURL() string {
 }
 
 func (ed *elasticDriver) isUp() bool {
+	health, err := ed.getHealth()
+	if err != nil {
+		glog.Errorf("isUp() err=%v", err)
+		return false
+	}
+	status := health["status"]
+	return status == "green" || status == "yellow"
+}
+
+func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
+	health := make(map[string]interface{})
 	healthURL := fmt.Sprintf("%v/_cluster/health", ed.elasticURL())
 	resp, err := http.Get(healthURL)
-	if err == nil && resp.StatusCode == 200 {
-		return true
+	if err != nil {
+		return health, err
 	}
-	return false
+	if resp.StatusCode != 200 {
+		return health, fmt.Errorf("http status: %v", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		glog.Errorf("error reading elastic health: %v", err)
+		return health, err
+	}
+	if err := json.Unmarshal(body, &health); err != nil {
+		glog.Errorf("error unmarshalling elastic health: %v; err: %v", string(body), err)
+		return health, err
+	}
+	glog.V(4).Infof("Elastic Health: %v; err: %v", string(body), err)
+	return health, nil
+
 }
 
 func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {

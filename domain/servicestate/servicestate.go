@@ -20,26 +20,26 @@ import (
 // An instantiation of a Service.
 type ServiceState struct {
 	Id          string
-	ServiceId   string
-	HostId      string
-	DockerId    string
-	PrivateIp   string
+	ServiceID   string
+	HostID      string
+	DockerID    string
+	PrivateIP   string
 	Scheduled   time.Time
 	Terminated  time.Time
 	Started     time.Time
-	PortMapping map[string][]domain.HostIpAndPort // protocol -> container port (internal) -> host port (external)
+	PortMapping map[string][]domain.HostIPAndPort // protocol -> container port (internal) -> host port (external)
 	Endpoints   []service.ServiceEndpoint
-	HostIp      string
-	InstanceId  int
+	HostIP      string
+	InstanceID  int
 }
 
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = utils.NewUUID()
+	serviceState.Id, err = utils.NewUUID36()
 	if err == nil {
-		serviceState.ServiceId = service.Id
-		serviceState.HostId = hostId
+		serviceState.ServiceID = service.Id
+		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
 	}

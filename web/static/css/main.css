@@ -69,7 +69,6 @@ table .btn,
 
 .toggle.btn-group > .btn.active:last-child:not(:first-child) {
     padding-left: 15px;
-    width: 75px;
 }
 
 .toggle.btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
@@ -82,7 +81,6 @@ table .btn,
 
 .toggle.btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
     padding-right: 15px;
-    width: 75px;
 }
 
 .btn-group > .btn > input[type="radio"] {
@@ -762,4 +760,16 @@ rect {
 
 .popover table{
     white-space: nowrap;
+}
+
+.chartContainer {
+  position: relative;
+}
+
+.nvtooltip h3{
+    font-size: 12px;
+}
+
+.nvtooltip p{
+    font-weight: bold;
 }

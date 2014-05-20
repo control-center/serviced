@@ -276,8 +276,8 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 		visit(&template.Services)
 	}
 	for _, service := range services {
-		if service.ImageId != "" {
-			imageSet[service.ImageId] = true
+		if service.ImageID != "" {
+			imageSet[service.ImageID] = true
 		}
 	}
 	return imageSet
@@ -412,9 +412,9 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 				}
 			}
 		}()
-		snapDir, e := getSnapshotPath(this.vfs, service.PoolId, service.Id, snapshotId)
+		snapDir, e := getSnapshotPath(this.vfs, service.PoolID, service.Id, snapshotId)
 		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
+			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
 			return "", e
 		}
 		snapFile := backupPath("snapshots", fmt.Sprintf("%s.tgz", snapshotId))
@@ -429,7 +429,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
 	for _, service := range services {
-		if service.ParentServiceId == "" {
+		if service.ParentServiceID == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
 				glog.Errorf("Could not save snapshot of service %s: %v", service.Id, e)
 				return e
@@ -508,7 +508,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	// Restore the service templates ...
 	for templateId, template := range templates {
 		template.ID = templateId
-		if e := updateServiceTemplate(*template); e != nil {
+		if e := this.UpdateServiceTemplate(*template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateId, e)
 			return e
 		}
@@ -602,9 +602,9 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 			continue
 		}
 
-		snapDir, e := getSnapshotPath(this.vfs, service.PoolId, service.Id, snapshotId)
+		snapDir, e := getSnapshotPath(this.vfs, service.PoolID, service.Id, snapshotId)
 		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolId, service.Id, e)
+			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
 			return e
 		}
 

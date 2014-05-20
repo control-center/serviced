@@ -79,14 +79,10 @@ func GetESStartupTimeout() int {
 }
 
 // GetGateway returns the default gateway
-func GetGateway() string {
-	if proxyOptions.ServicedEndpoint != "" {
-		return proxyOptions.ServicedEndpoint
-	}
-
+func GetGateway(defaultRPCPort int) string {
 	cmd := exec.Command("ip", "route")
 	output, err := cmd.Output()
-	localhost := URL{"127.0.0.1", "4979"}
+	localhost := URL{"127.0.0.1", defaultRPCPort}
 
 	if err != nil {
 		glog.V(2).Info("Error checking gateway: ", err)
@@ -97,7 +93,7 @@ func GetGateway() string {
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 2 && fields[0] == "default" {
-			endpoint := URL{fields[2], "4979"}
+			endpoint := URL{fields[2], defaultRPCPort}
 			return endpoint.String()
 		}
 	}

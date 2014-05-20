@@ -9,12 +9,22 @@ import (
 	"github.com/zenoss/serviced"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
+	"github.com/zenoss/serviced/coordinator/storage"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dao/elasticsearch"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/zenoss/serviced/dfs/nfs"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/scheduler"
@@ -40,32 +50,31 @@ import (
 	"time"
 )
 
-var minDockerVersion = version{0, 8, 1}
-
-// startDaemon starts the agent or master services on this host.
-func startDaemon() {
-	d := newDaemon()
-	d.start()
-}
+var minDockerVersion = version{0, 11, 1}
 
 type daemon struct {
-	cpDao     dao.ControlPlane
-	dsDriver  datastore.Driver
-	dsContext datastore.Context
-	facade    *facade.Facade
-	hostID    string
-	zclient   *coordclient.Client
+	staticIPs      []string
+	cpDao          dao.ControlPlane
+	dsDriver       datastore.Driver
+	dsContext      datastore.Context
+	facade         *facade.Facade
+	hostID         string
+	zclient        *coordclient.Client
+	storageHandler *storage.Server
 }
 
-func newDaemon() *daemon {
-	return &daemon{}
+func newDaemon(staticIPs []string) (*daemon, error) {
+	d := &daemon{
+		staticIPs: staticIPs,
+	}
+	return d, nil
 }
 
-func (d *daemon) start() {
+func (d *daemon) run() error {
 	var err error
 	d.hostID, err = utils.HostID()
 	if err != nil {
-		glog.Fatalf("Could not get hostid", err)
+		glog.Fatalf("could not get hostid: %s", err)
 	}
 
 	l, err := net.Listen("tcp", options.Listen)
@@ -80,11 +89,11 @@ func (d *daemon) start() {
 
 	dockerVersion, err := serviced.GetDockerVersion()
 	if err != nil {
-		glog.Fatalf("Could not determine docker version: %s", err)
+		glog.Fatalf("could not determine docker version: %s", err)
 	}
 
 	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		glog.Fatal("serviced needs at least docker >= 0.8.1")
+		glog.Fatalf("serviced needs at least docker >= %s", minDockerVersion)
 	}
 
 	//TODO: is this needed for both agent and master?
@@ -98,7 +107,7 @@ func (d *daemon) start() {
 		}
 	}
 	if options.Agent {
-		if err = d.startAgent(); err != nil {
+		if _, err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -114,7 +123,7 @@ func (d *daemon) start() {
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
-	http.Serve(l, nil) // start the server
+	return http.Serve(l, nil) // start the server
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
@@ -154,18 +163,34 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.regiseterMasterRPC(); err != nil {
+	if err = d.registerMasterRPC(); err != nil {
 		return err
 	}
 
 	d.initWeb()
 
 	d.startScheduler()
+
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	thisHost, err := host.Build(agentIP, "unknown")
+	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
+		return err
+	} else {
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zclient)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (d *daemon) startAgent() error {
-	mux := serviced.TCPMux{}
+func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
+	mux := proxy.TCPMux{}
 
 	mux.CertPEMFile = options.CertPEMFile
 	mux.KeyPEMFile = options.KeyPEMFile
@@ -173,7 +198,23 @@ func (d *daemon) startAgent() error {
 	mux.Port = options.MuxPort
 	mux.UseTLS = options.TLS
 
-	hostAgent, err := serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, d.facade, d.dsContext)
+	zkClient, err := d.initZK()
+	if err != nil {
+		return nil, err
+	}
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
+	}
+	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		panic(err)
+	}
+	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient.Wait()
+
+	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry, d.facade, d.dsContext)
+
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -182,7 +223,8 @@ func (d *daemon) startAgent() error {
 	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 	}
-	if err = rpc.RegisterName("Agent", agent.NewServer()); err != nil {
+	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
+	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 
@@ -195,6 +237,8 @@ func (d *daemon) startAgent() error {
 		err = hostAgent.Shutdown()
 		if err != nil {
 			glog.V(1).Infof("Agent shutdown with error: %v", err)
+		} else {
+			glog.Info("Agent shutdown")
 		}
 		isvcs.Mgr.Stop()
 		os.Exit(0)
@@ -207,10 +251,10 @@ func (d *daemon) startAgent() error {
 		http.ListenAndServe(":50000", sio)
 	}()
 
-	return nil
+	return hostAgent, nil
 }
 
-func (d *daemon) regiseterMasterRPC() error {
+func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
 	if err := rpc.RegisterName("Master", master.NewServer()); err != nil {
@@ -229,8 +273,14 @@ func (d *daemon) regiseterMasterRPC() error {
 }
 func (d *daemon) initDriver() (datastore.Driver, error) {
 
-	//TODO: figure out elastic mappings
 	eDriver := elastic.New("localhost", 9200, "controlplane")
+	eDriver.AddMapping(host.MAPPING)
+	eDriver.AddMapping(pool.MAPPING)
+	eDriver.AddMapping(servicetemplate.MAPPING)
+	eDriver.AddMapping(service.MAPPING)
+	eDriver.AddMapping(addressassignment.MAPPING)
+	eDriver.AddMapping(serviceconfigfile.MAPPING)
+	eDriver.AddMapping(user.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {
 		return nil, err
@@ -256,7 +306,7 @@ func (d *daemon) initZK() (*coordclient.Client, error) {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry)
 }
 
 func (d *daemon) initWeb() {

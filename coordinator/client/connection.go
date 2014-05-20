@@ -1,27 +1,36 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
+
 package client
 
+// Driver is an interface that allows the coordination.Client
+// to get a connection from a driver
 type Driver interface {
 	GetConnection(dsn, basePath string) (Connection, error)
 }
 
+// Lock is the interface that a lock implemenation must implement
 type Lock interface {
 	Lock() error
 	Unlock() error
 }
+
+// Leader is the interface that a Leaer implementation must implement
 type Leader interface {
 	TakeLead() (<-chan Event, error)
 	ReleaseLead() error
 	Current(node Node) error
 }
 
+// Node is the interface that a serializable object must implement to
+// be stored in a coordination service
 type Node interface {
-	Version() int32
-	SetVersion(int32)
+	Version() interface{}
+	SetVersion(interface{})
 }
 
+// Connection is the interface that allows interaction with the coordination service
 type Connection interface {
 	Close()
 	SetID(int)

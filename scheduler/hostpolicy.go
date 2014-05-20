@@ -25,10 +25,10 @@ func NewServiceHostPolicy(s *service.Service, cp dao.ControlPlane) *ServiceHostP
 
 func (sp *ServiceHostPolicy) SelectHost(hosts []*host.Host) (*host.Host, error) {
 	switch sp.svc.HostPolicy {
-	case servicedefinition.PREFER_SEPARATE:
+	case servicedefinition.PreferSeparate:
 		glog.V(2).Infof("Using PREFER_SEPARATE host policy")
 		return sp.preferSeparateHosts(hosts)
-	case servicedefinition.REQUIRE_SEPARATE:
+	case servicedefinition.RequireSeparate:
 		glog.V(2).Infof("Using REQUIRE_SEPARATE host policy")
 		return sp.requireSeparateHosts(hosts)
 	default:
@@ -42,7 +42,7 @@ hosts:
 	for _, h := range hosts {
 		rss := sp.hinfo.ServicesOnHost(h)
 		for _, rs := range rss {
-			if rs.ServiceId == svc.Id {
+			if rs.ServiceID == svc.Id {
 				// This host already has an instance of this service. Move on.
 				continue hosts
 			}

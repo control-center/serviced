@@ -57,12 +57,12 @@ func (s *scheduler) Stop() error {
 }
 
 type hostNodeT struct {
-	HostId  string
-	version int32
+	HostID  string
+	version interface{}
 }
 
-func (h *hostNodeT) Version() int32           { return h.version }
-func (h *hostNodeT) SetVersion(version int32) { h.version = version }
+func (h *hostNodeT) Version() interface{}           { return h.version }
+func (h *hostNodeT) SetVersion(version interface{}) { h.version = version }
 
 func (s *scheduler) loop() {
 	glog.V(3).Infoln("entering scheduler")
@@ -74,7 +74,7 @@ func (s *scheduler) loop() {
 		s.shutdown <- err
 	}()
 
-	hostNode := hostNodeT{HostId: s.instance_id}
+	hostNode := hostNodeT{HostID: s.instance_id}
 	leader := s.conn.NewLeader("/scheduler", &hostNode)
 	events, err := leader.TakeLead()
 	if err != nil {

@@ -28,7 +28,7 @@ type EntityStore interface {
 	// Put adds or updates an entity
 	Put(ctx Context, key Key, entity ValidEntity) error
 
-	// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
+	// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
 	Get(ctx Context, key Key, entity ValidEntity) error
 
 	// Delete removes the entity
@@ -78,7 +78,7 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	return conn.Put(key, jsonMsg)
 }
 
-// Get adds an entity. Return ErrNoSuchEntity if nothing found for the key.
+// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
 func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	if ctx == nil {
 		return ErrNilContext

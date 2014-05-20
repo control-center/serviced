@@ -52,6 +52,22 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
+func (a *HostAgent) GetService(serviceId string, response *service.Service) (err error) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return
+	}
+	defer controlClient.Close()
+
+	err = controlClient.GetService(serviceId, response)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Call the master's to retrieve its tenant id
 func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
 	client, err := NewControlClient(a.master)
@@ -95,12 +111,24 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	return nil
 }
 
+// LogHealthCheck proxies RegisterHealthCheck.
+func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	controlClient, err := NewControlClient(a.master)
+	defer controlClient.Close()
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return err
+	}
+	err = controlClient.LogHealthCheck(result, unused)
+	return err
+}
+
 // addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane"
-	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ServiceID = "controlplane"
+	endpoint.ContainerIP = "127.0.0.1"
 	port, err := strconv.Atoi(a.uiport[1:])
 	if err != nil {
 		glog.Errorf("Unable to interpret ui port.")
@@ -108,7 +136,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	}
 	endpoint.ContainerPort = uint16(port)
 	endpoint.HostPort = uint16(port)
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
@@ -117,11 +145,11 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceId = "controlplane_consumer"
-	endpoint.ContainerIp = "127.0.0.1"
+	endpoint.ServiceID = "controlplane_consumer"
+	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
-	endpoint.HostIp = strings.Split(a.master, ":")[0]
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
@@ -132,11 +160,18 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
-			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceId, key, len(endpoints[key]))
+			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
 				glog.Warningf(" %+v", *ep)
 			}
 		}
 	}
 	endpoints[key] = append(endpoints[key], &endpoint)
+}
+
+// GetHostID returns the agent's host id
+func (a *HostAgent) GetHostID(string, hostID *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
+	*hostID = a.hostID
+	return nil
 }

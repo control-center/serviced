@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
@@ -24,6 +25,12 @@ type ServiceConfig struct {
 	Command     string
 	LocalPorts  *PortMap
 	RemotePorts *PortMap
+}
+
+// RemoveServiceConfig is the deserialized object from the command-line
+type RemoveServiceConfig struct {
+	ServiceID       string
+	RemoveSnapshots bool
 }
 
 // IPConfig is the deserialized object from the command-line
@@ -106,13 +113,13 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	}
 
 	s := service.Service{
-		Name:      config.Name,
-		PoolId:    config.PoolID,
-		ImageId:   config.ImageID,
-		Endpoints: endpoints,
-		Startup:   config.Command,
-		Instances: 1,
-		InstanceLimits: domain.MinMax{1,1},
+		Name:           config.Name,
+		PoolID:         config.PoolID,
+		ImageID:        config.ImageID,
+		Endpoints:      endpoints,
+		Startup:        config.Command,
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1},
 	}
 
 	var id string
@@ -124,14 +131,18 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 }
 
 // RemoveService removes an existing service
-func (a *api) RemoveService(id string) error {
+func (a *api) RemoveService(config RemoveServiceConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
-	if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not clean up service history", err)
+	id := config.ServiceID
+
+	if config.RemoveSnapshots {
+		if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
+			return fmt.Errorf("could not clean up service history", err)
+		}
 	}
 
 	if err := client.RemoveService(id, &unusedInt); err != nil {
@@ -200,8 +211,8 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 	}
 
 	req := dao.AssignmentRequest{
-		ServiceId:      config.ServiceID,
-		IpAddress:      config.IPAddress,
+		ServiceID:      config.ServiceID,
+		IPAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
 	}
 
@@ -209,7 +220,7 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 		return "", err
 	}
 
-	var addresses []service.AddressAssignment
+	var addresses []*addressassignment.AddressAssignment
 	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
 		return "", err
 	}

@@ -12,7 +12,7 @@ import (
 //GetResourcePool gets the host for the give hostID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
-	if err := c.call("GetResourcePools", poolID, response); err != nil {
+	if err := c.call("GetResourcePool", poolID, response); err != nil {
 		return nil, err
 	}
 	return response, nil

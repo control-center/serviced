@@ -3,70 +3,32 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 )
 
-func ensureZkFatjar() {
-	_, err := exec.LookPath("java")
-	if err != nil {
-		log.Fatal("Can't find java in path")
-	}
-
-	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/zookeeper-*-fatjar.jar")
-	if err != nil {
-		log.Fatal("Error search for files")
-	}
-	if len(jars) > 0 {
-		return
-	}
-
-	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not download fatjar: %s", err)
-	}
-
-	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not unzip fatjar: %s", err)
-	}
-	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
-	if err != nil {
-		log.Fatal("Could not make fatjar dir: %s", err)
-	}
-
-	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
-	if err != nil {
-		log.Fatal("Could not mv fatjar: %s", err)
-	}
-
-	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatal("Could not rm fatjar.zip: %s", err)
-	}
-}
-
 func init() {
-	ensureZkFatjar()
+	EnsureZkFatjar()
 }
 
 func TestEnsureZkFatjar(t *testing.T) {
-	ensureZkFatjar()
+	EnsureZkFatjar()
 }
 
 type testNodeT struct {
 	Name    string
-	version int32
+	version interface{}
 }
 
-func (n *testNodeT) SetVersion(version int32) { n.version = version }
-func (n *testNodeT) Version() int32           { return n.version }
+func (n *testNodeT) SetVersion(version interface{}) {
+	glog.Infof("seting version to: %v", version)
+	n.version = version
+}
+func (n *testNodeT) Version() interface{} { return n.version }
 
 func TestZkDriver(t *testing.T) {
 	basePath := "/basePath"
@@ -83,7 +45,7 @@ func TestZkDriver(t *testing.T) {
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
-		t.Fatal("unexpected error creating zk DSN: %s", err)
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
 
@@ -116,6 +78,7 @@ func TestZkDriver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating /foo/bar should work: %s", err)
 	}
+	t.Logf("testNode version: %v", testNode.Version())
 
 	exists, err = conn.Exists("/foo/bar")
 	if err != nil {
@@ -136,6 +99,13 @@ func TestZkDriver(t *testing.T) {
 
 	if testNode.Name != testNode2.Name {
 		t.Fatalf("expected testNodes to match %s  --- %s", testNode.Name, testNode2.Name)
+	}
+
+	err = conn.Get("/foo/bar", testNode2)
+	t.Logf("testNode version: %v", testNode2.Version().(*zklib.Stat).Version)
+	testNode2.Name = "abc"
+	if err := conn.Set("/foo/bar", testNode2); err != nil {
+		t.Fatalf("Could not update testNode: %s", err)
 	}
 
 	err = conn.Delete("/foo")

@@ -1,6 +1,7 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
+
 package retry
 
 import (
@@ -12,7 +13,7 @@ type once struct {
 	done              chan struct{}
 }
 
-// OneTime returns a policy that retries only once.
+// Once returns a policy that retries only once.
 func Once(sleepBetweenRetry time.Duration) Policy {
 	return once{
 		sleepBetweenRetry: sleepBetweenRetry,

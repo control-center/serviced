@@ -22,7 +22,7 @@ type DeployTemplateConfig struct {
 // CompileTemplateConfig is the configuration object to conpile a template directory
 type CompileTemplateConfig struct {
 	Dir string
-	Map *ImageMap
+	Map ImageMap
 }
 
 // Gets all available service templates
@@ -104,28 +104,24 @@ func (a *api) RemoveServiceTemplate(id string) error {
 
 // CompileTemplate builds a template given a source path
 func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.ServiceTemplate, error) {
-	sd, err := servicedefinition.BuildFromPath(config.Dir)
+	st, err := template.BuildFromPath(config.Dir)
 	if err != nil {
 		return nil, err
 	}
 
 	var mapImageNames func(*servicedefinition.ServiceDefinition)
 	mapImageNames = func(svc *servicedefinition.ServiceDefinition) {
-		if imageID, found := (*config.Map)[svc.ImageID]; found {
-			(*svc).ImageID = imageID
+		if imageID, found := config.Map[svc.ImageID]; found {
+			svc.ImageID = imageID
 		}
-		for i := range (*svc).Services {
+		for i := range svc.Services {
 			mapImageNames(&svc.Services[i])
 		}
 	}
-	mapImageNames(sd)
-
-	t := template.ServiceTemplate{
-		Services: []servicedefinition.ServiceDefinition{*sd},
-		Name:     sd.Name,
+	for idx := range st.Services {
+		mapImageNames(&st.Services[idx])
 	}
-
-	return &t, nil
+	return st, nil
 }
 
 // DeployTemplate deploys a template given its template ID
@@ -136,9 +132,9 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Servi
 	}
 
 	req := dao.ServiceTemplateDeploymentRequest{
-		PoolId:       config.PoolID,
-		TemplateId:   config.ID,
-		DeploymentId: config.DeploymentID,
+		PoolID:       config.PoolID,
+		TemplateID:   config.ID,
+		DeploymentID: config.DeploymentID,
 	}
 
 	var id string

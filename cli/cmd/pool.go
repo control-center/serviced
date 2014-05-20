@@ -199,7 +199,11 @@ func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 	}
 
 	for _, id := range args {
-		if err := c.driver.RemoveResourcePool(id); err != nil {
+		if p, err := c.driver.GetResourcePool(id); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+		} else if p == nil {
+			fmt.Fprintf(os.Stderr, "%s: pool not found", id)
+		} else if err := c.driver.RemoveResourcePool(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
 		} else {
 			fmt.Println(id)

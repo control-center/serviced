@@ -10,7 +10,6 @@ import (
 	. "gopkg.in/check.v1"
 
 	"testing"
-	"time"
 )
 
 // This plumbs gocheck into testing
@@ -42,7 +41,6 @@ func (s *S) Test_HostCRUD(t *C) {
 
 	var host2 Host
 
-	time.Sleep(1000 * time.Millisecond)
 	if err := s.hs.Get(s.ctx, HostKey("testid"), &host2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
@@ -141,7 +139,6 @@ func (s *S) Test_GetHosts(t *C) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	time.Sleep(1000 * time.Millisecond)
 	hosts, err := s.hs.GetN(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -155,7 +152,6 @@ func (s *S) Test_GetHosts(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	time.Sleep(1000 * time.Millisecond)
 	hosts, err = s.hs.GetN(s.ctx, 1000)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -195,7 +191,6 @@ func (s *S) Test_FindHostsInPool(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	time.Sleep(1000 * time.Millisecond)
 	hosts, err := s.hs.FindHostsWithPoolID(s.ctx, "blam")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

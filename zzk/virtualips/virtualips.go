@@ -425,11 +425,11 @@ func (h *Handler) WatchVirtualIPs() {
 type VIP struct {
 	HostID  string
 	VIP     string
-	version int32
+	version interface{}
 }
 
-func (n *VIP) SetVersion(version int32) { n.version = version }
-func (n *VIP) Version() int32           { return n.version }
+func (v *VIP) Version() interface{}           { return v.version }
+func (v *VIP) SetVersion(version interface{}) { v.version = version }
 
 func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtualIPAddress string) {
 	glog.Infof(" ### Started WatchVirtualIP: %v", virtualIPAddress)

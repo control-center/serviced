@@ -32,25 +32,25 @@ type ZkConn struct {
 }
 
 type HostServiceState struct {
-	HostId         string
-	ServiceId      string
-	ServiceStateId string
+	HostID         string
+	ServiceID      string
+	ServiceStateID string
 	DesiredState   int
-	version        int32
+	version        interface{}
 }
 
-func (hss *HostServiceState) Version() int32 {
+func (hss *HostServiceState) Version() interface{} {
 	return hss.version
 }
 
-func (hss *HostServiceState) SetVersion(version int32) {
+func (hss *HostServiceState) SetVersion(version interface{}) {
 	hss.version = version
 }
 
 // Communicates to the agent that this service instance should stop
 func TerminateHostService(conn coordclient.Connection, hostId string, serviceStateId string) error {
 	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *HostServiceState) {
-		hss.DesiredState = dao.SVC_STOP
+		hss.DesiredState = service.SVCStop
 	})
 }
 
@@ -84,14 +84,14 @@ func (zkdao *ZkDao) AddService(service *service.Service) error {
 
 type ServiceNode struct {
 	Service *service.Service
-	version int32
+	version interface{}
 }
 
-func (s *ServiceNode) Version() int32 {
+func (s *ServiceNode) Version() interface{} {
 	return s.version
 }
 
-func (s *ServiceNode) SetVersion(version int32) {
+func (s *ServiceNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
@@ -112,14 +112,14 @@ func AddService(conn coordclient.Connection, service *service.Service) error {
 
 type ServiceStateNode struct {
 	ServiceState *servicestate.ServiceState
-	version      int32
+	version      interface{}
 }
 
-func (s *ServiceStateNode) Version() int32 {
+func (s *ServiceStateNode) Version() interface{} {
 	return s.version
 }
 
-func (s *ServiceStateNode) SetVersion(version int32) {
+func (s *ServiceStateNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
@@ -134,7 +134,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
-	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 
 	serviceStateNode := &ServiceStateNode{
 		ServiceState: state,
@@ -144,7 +144,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
-	hostServicePath := HostServiceStatePath(state.HostId, state.Id)
+	hostServicePath := HostServiceStatePath(state.HostID, state.Id)
 	hss := SsToHss(state)
 	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
@@ -160,7 +160,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	}
 	defer conn.Close()
 
-	serviceStatePath := ServiceStatePath(state.ServiceId, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 	ssn := ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
@@ -271,12 +271,12 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 		}
 
 		var s service.Service
-		if err := LoadService(conn, hss.ServiceId, &s); err != nil {
+		if err := LoadService(conn, hss.ServiceID, &s); err != nil {
 			return err
 		}
 
 		var ss servicestate.ServiceState
-		if err := LoadServiceState(conn, hss.ServiceId, hss.ServiceStateId, &ss); err != nil {
+		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
 			return err
 		}
 		_ss[i] = sssToRs(&s, &ss)
@@ -345,7 +345,7 @@ func RemoveService(conn coordclient.Connection, id string) error {
 	// First mark the service as needing to shutdown so the scheduler
 	// doesn't keep trying to schedule new instances
 	err := loadAndUpdateService(conn, id, func(s *service.Service) {
-		s.DesiredState = dao.SVC_STOP
+		s.DesiredState = service.SVCStop
 	})
 	if err != nil {
 		return err
@@ -397,7 +397,7 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 		return err
 	}
 
-	hssPath := HostServiceStatePath(ss.HostId, serviceStateId)
+	hssPath := HostServiceStatePath(ss.HostID, serviceStateId)
 	hss := HostServiceState{}
 	if err := conn.Get(hssPath, &hss); err != nil {
 		glog.Errorf("Unable to get host service state %s for delete because: %v", hssPath, err)
@@ -575,10 +575,10 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 // ServiceState to HostServiceState
 func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
-		HostId:         ss.HostId,
-		ServiceId:      ss.ServiceId,
-		ServiceStateId: ss.Id,
-		DesiredState:   dao.SVC_RUN,
+		HostID:         ss.HostID,
+		ServiceID:      ss.ServiceID,
+		ServiceStateID: ss.Id,
+		DesiredState:   service.SVCRun,
 	}
 }
 
@@ -586,19 +586,19 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningService {
 	rs := &dao.RunningService{}
 	rs.Id = ss.Id
-	rs.ServiceId = ss.ServiceId
+	rs.ServiceID = ss.ServiceID
 	rs.StartedAt = ss.Started
-	rs.HostId = ss.HostId
-	rs.DockerId = ss.DockerId
-	rs.InstanceId = ss.InstanceId
+	rs.HostID = ss.HostID
+	rs.DockerID = ss.DockerID
+	rs.InstanceID = ss.InstanceID
 	rs.Startup = s.Startup
 	rs.Name = s.Name
 	rs.Description = s.Description
 	rs.Instances = s.Instances
-	rs.PoolId = s.PoolId
-	rs.ImageId = s.ImageId
+	rs.PoolID = s.PoolID
+	rs.ImageID = s.ImageID
 	rs.DesiredState = s.DesiredState
-	rs.ParentServiceId = s.ParentServiceId
+	rs.ParentServiceID = s.ParentServiceID
 	return rs
 }
 
@@ -619,11 +619,11 @@ func (zkdao *ZkDao) AddSnapshotRequest(snapshotRequest *dao.SnapshotRequest) err
 
 type SnapShotRequestNode struct {
 	SnapshotRequest *dao.SnapshotRequest
-	version         int32
+	version         interface{}
 }
 
-func (s *SnapShotRequestNode) Version() int32           { return s.version }
-func (s *SnapShotRequestNode) SetVersion(version int32) { s.version = version }
+func (s *SnapShotRequestNode) Version() interface{}           { return s.version }
+func (s *SnapShotRequestNode) SetVersion(version interface{}) { s.version = version }
 
 func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
 	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.Id)

@@ -33,25 +33,23 @@ func (sd *ServiceDefinition) validate(context *validationContext) error {
 		return fmt.Errorf("service Definition %v: %v", sd.Name, err)
 	}
 
-	//make sure launch attribute is valid and normalize case to the constants
-	err := sd.NormalizeLaunch()
-	if err != nil {
-		return fmt.Errorf("service definition %v: %v", sd.Name, err)
+	if err := validation.StringIn(sd.Launch, commons.AUTO, commons.MANUAL); err != nil {
+		return fmt.Errorf("service definition %v: invalid launch setting %v", sd.Name, err)
 	}
 
 	//validate endpoint config
 	names := make(map[string]struct{})
 	for _, se := range sd.Endpoints {
-		if err = se.ValidEntity(); err != nil {
-			return fmt.Errorf("Service Definition %v: %v", sd.Name, err)
+		if err := se.ValidEntity(); err != nil {
+			return fmt.Errorf("service definition %v: %v", sd.Name, err)
 		}
-		if err = context.validateVHost(se); err != nil {
-			return fmt.Errorf("Service Definition %v: %v", sd.Name, err)
+		if err := context.validateVHost(se); err != nil {
+			return fmt.Errorf("service definition %v: %v", sd.Name, err)
 		}
 		//enable unique endpoint name validation
 		trimName := strings.Trim(se.Name, " ")
 		if _, found := names[trimName]; found {
-			return fmt.Errorf("Service Definition %v: Endpoint name %s not unique in service definition", sd.Name, trimName)
+			return fmt.Errorf("service definition %v: Endpoint name %s not unique in service definition", sd.Name, trimName)
 		}
 		names[trimName] = struct{}{}
 	}
@@ -70,21 +68,14 @@ func validServiceDefinitions(ds *[]ServiceDefinition, context *validationContext
 	return nil
 }
 
-//normalizeLaunch validates and normalizes the launch string. Set the normalized value of launch that matches
-// constants. If string is not a valid value returns error. Launch must be empty, "auto", or "manual", if it's empty
-// default it to "AUTO"
-func (sd *ServiceDefinition) NormalizeLaunch() error {
-	testStr := sd.Launch
+//NormalizeLaunch normalizes the launch string. Sets to commons.AUTO if empty otherwise just trims and lower cases. Does
+//not check if value is valid
+func (sd *ServiceDefinition) NormalizeLaunch() {
+	testStr := strings.Trim(strings.ToLower(sd.Launch), " ")
 	if testStr == "" {
 		testStr = commons.AUTO
-	} else {
-		testStr = strings.Trim(strings.ToLower(testStr), " ")
-		if testStr != commons.AUTO && testStr != commons.MANUAL {
-			return fmt.Errorf("invalid launch setting (%s)", sd.Launch)
-		}
 	}
 	sd.Launch = testStr
-	return nil
 }
 
 //validationContext is used to keep track of things to validate in nested service definitions
@@ -97,7 +88,7 @@ func (vc validationContext) validateVHost(se EndpointDefinition) error {
 	if len(se.VHosts) > 0 {
 		for _, vhost := range se.VHosts {
 			if _, found := vc.vhosts[vhost]; found {
-				return fmt.Errorf("Duplicate Vhost found: %v", vhost)
+				return fmt.Errorf("duplicate Vhost found: %v", vhost)
 			}
 			vc.vhosts[vhost] = se
 		}
@@ -109,14 +100,14 @@ func (vc validationContext) validateVHost(se EndpointDefinition) error {
 func (se EndpointDefinition) ValidEntity() error {
 	trimName := strings.Trim(se.Name, " ")
 	if trimName == "" {
-		return fmt.Errorf("Service Definition %v: Endpoint must have a name %v", se.Name, se)
+		return fmt.Errorf("service definition %v: endpoint must have a name %v", se.Name, se)
 	}
 	if se.Purpose != "import" {
 		if err := validation.ValidPort(int(se.PortNumber)); err != nil {
-			return fmt.Errorf("Endpoint '%s': %s", se.Name, err)
+			return fmt.Errorf("endpoint '%s': %s", se.Name, err)
 		}
 		if err := applicationValidation(se.Application); err != nil {
-			return fmt.Errorf("Endpoint '%s': %s", se.Name, err)
+			return fmt.Errorf("endpoint '%s': %s", se.Name, err)
 		}
 	}
 	return se.AddressConfig.ValidEntity()
@@ -125,7 +116,7 @@ func (se EndpointDefinition) ValidEntity() error {
 func applicationValidation(application string) error {
 	_, err := regexp.Compile(application)
 	if err != nil {
-		err = fmt.Errorf("Illegal application regexp %s", err)
+		err = fmt.Errorf("illegal application regexp %s", err)
 	}
 	return err
 }
@@ -137,11 +128,11 @@ func (arc AddressResourceConfig) ValidEntity() error {
 	if arc.Protocol != "" || arc.Port > 0 {
 		//some setting, now lets make sure they are valid
 		if err := validation.ValidPort(int(arc.Port)); err != nil {
-			violations.Add(fmt.Errorf("AddressResourceConfig: %v", err))
+			violations.Add(fmt.Errorf("error AddressResourceConfig: %v", err))
 		}
 
 		if err := validation.StringIn(arc.Protocol, commons.TCP, commons.UDP); err != nil {
-			violations.Add(fmt.Errorf("AddressResourceConfig: invalid protocol: %v", err))
+			violations.Add(fmt.Errorf("error AddressResourceConfig: invalid protocol: %v", err))
 		}
 
 	}
@@ -156,4 +147,3 @@ func (arc *AddressResourceConfig) Normalize() {
 	testProto := strings.Trim(strings.ToLower(arc.Protocol), " ")
 	arc.Protocol = testProto
 }
-

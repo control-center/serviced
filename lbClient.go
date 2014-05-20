@@ -4,6 +4,8 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
+
 	"net/rpc"
 )
 
@@ -41,6 +43,12 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints)
 }
 
+// GetService returns a service for the given service id request.
+func (a *LBClient) GetService(serviceId string, service *service.Service) error {
+	glog.V(0).Infof("ControlPlaneAgent.GetService()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetService", serviceId, service)
+}
+
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
 func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetProxySnapshotQuiece()")
@@ -60,8 +68,20 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
 }
 
+// LogHealthCheck stores a health check result.
+func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	glog.V(4).Infof("ControlPlaneAgent.LogHealthCheck()")
+	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, unused)
+}
+
 // GetHealthCheck returns the health check configuration for a service, if it exists
 func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
+}
+
+// GetHostID returns the agent's host id
+func (a *LBClient) GetHostID(hostID *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetHostID()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetHostID", "na", hostID)
 }

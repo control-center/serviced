@@ -14,7 +14,7 @@ UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := zenoss/isvcs_build
 REPO               := zctrl/isvcs
-TAG                := v6
+TAG                := v7
 REPO_DIR           := images
 REPO_EXISTS        := .repo_tag_exists_$(TAG)
 BUILD_REPO_EXISTS  := .build_repo_exists
@@ -28,7 +28,7 @@ all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
 	mkdir -p $(REPO_DIR)/$(REPO)
 	rm -f $(EXPORT_CONTAINER_ID)
-	docker run -cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
+	docker run --cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
 	docker export `cat $(EXPORT_CONTAINER_ID)` | $(GZIP) > $(EXPORTED_FILE)
 	rm -f $(EXPORT_CONTAINER_ID)
 
