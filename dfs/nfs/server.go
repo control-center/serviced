@@ -221,9 +221,26 @@ var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
-	cmd, args := mntArgs(src, dst, "", "bind")
-	mount := exec.Command(cmd, args...)
-	return mount.Run()
+	runMountCommand:= func (options ...string) error {
+		cmd, args := mntArgs(src, dst, "", options...)
+		mount := exec.Command(cmd, args...)
+		return mount.Run()
+	}
+	returnErr := runMountCommand("bind")
+	if returnErr != nil {
+		// If the mount fails, it could be due to a stale NFS handle, signalled
+		// by a return code of 32. Stale handle can occur if e.g., the source
+		// directory has been deleted and restored (a common occurrence in the
+		// dev workflow) Try again, with remount option.
+		if exitError, ok := returnErr.(*exec.ExitError); ok {
+			if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
+				if (status.ExitStatus() & 32) != 0 {
+					returnErr = runMountCommand("bind", "remount")
+				}
+			}
+		}
+	}
+	return returnErr
 }
 
 func doesExists(path string) (bool, error) {
@@ -240,15 +257,15 @@ func doesExists(path string) (bool, error) {
 // mntArgs computes the required arguments for the mount command given
 // fs (src fs), dst (mount point), fsType (ext3, xfs, etc), options (parameters
 // passed to the -o flag).
-func mntArgs(fs, dst, fsType, options string) (cmd string, args []string) {
+func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []string) {
 	args = make([]string, 0)
 	if syscall.Getuid() != 0 {
 		args = append(args, "sudo")
 	}
 	args = append(args, "mount")
-	if len(options) > 0 {
+	for _, option := range options{
 		args = append(args, "-o")
-		args = append(args, options)
+		args = append(args, option)
 	}
 	if len(fsType) > 0 {
 		args = append(args, "-t")
