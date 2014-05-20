@@ -9,9 +9,10 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 
 	"encoding/json"
-	"path"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 	"time"
 )
@@ -100,7 +101,12 @@ func TestServer(t *testing.T) {
 		t.Fatalf("there should be no clients yet")
 	}
 	mockNfsDriver.syncCalled = false
-	c1, err := NewClient(hc1, zclient, "/opt/serviced/var")
+	tmpVar, err := ioutil.TempDir("", "serviced_var")
+	if err != nil {
+		t.Fatalf("could not create tempdir: %s", err)
+	}
+	defer os.RemoveAll(tmpVar)
+	c1, err := NewClient(hc1, zclient, tmpVar)
 	if err != nil {
 		t.Fatalf("could not create client: %s", err)
 	}
