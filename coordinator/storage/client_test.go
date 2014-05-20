@@ -10,6 +10,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -47,7 +48,12 @@ func TestClient(t *testing.T) {
 	defer func(old func(string, os.FileMode) error) {
 		mkdirAll = old
 	}(mkdirAll)
-	c, err := NewClient(h, zclient, "/opt/serviced/var")
+	dir, err := ioutil.TempDir("", "serviced_var_")
+	if err != nil {
+		t.Fatalf("could not create tempdir: %s", err)
+	}
+	defer os.RemoveAll(dir)
+	c, err := NewClient(h, zclient, dir)
 	if err != nil {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}
