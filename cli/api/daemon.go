@@ -210,7 +210,10 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err != nil {
 		panic(err)
 	}
-	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+	if err != nil {
+		glog.Fatalf("could not create an NFS client: %s", err)
+	}
 	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)

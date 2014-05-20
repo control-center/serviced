@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 
 	"encoding/json"
+	"path"
 	"fmt"
 	"os"
 	"testing"
@@ -19,10 +20,11 @@ type mockNfsDriverT struct {
 	clients    []string
 	syncCalled bool
 	exportName string
+	exportPath string
 }
 
-func (m *mockNfsDriverT) ExportName() string {
-	return m.exportName
+func (m *mockNfsDriverT) ExportPath() string {
+	return path.Join(m.exportPath, m.exportName)
 }
 
 func (m *mockNfsDriverT) SetClients(client ...string) {
@@ -78,6 +80,7 @@ func TestServer(t *testing.T) {
 	hc1.IPAddr = "192.168.1.10"
 
 	mockNfsDriver := &mockNfsDriverT{
+		exportPath: "/exports",
 		exportName: "serviced_var",
 	}
 
@@ -97,7 +100,10 @@ func TestServer(t *testing.T) {
 		t.Fatalf("there should be no clients yet")
 	}
 	mockNfsDriver.syncCalled = false
-	c1 := NewClient(hc1, zclient)
+	c1, err := NewClient(hc1, zclient, "/opt/serviced/var")
+	if err != nil {
+		t.Fatalf("could not create client: %s", err)
+	}
 	// give it some time
 	time.Sleep(time.Second * 2)
 	if !mockNfsDriver.syncCalled {
@@ -111,7 +117,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsDriver.clients[0])
 	}
 
-	shareName := fmt.Sprintf("%s:/%s", h.IPAddr, mockNfsDriver.exportName)
+	shareName := fmt.Sprintf("%s:%s", h.IPAddr, mockNfsDriver.ExportPath())
 	if remote != shareName {
 		t.Fatalf("remote should be %s, not %s", remote, shareName)
 	}

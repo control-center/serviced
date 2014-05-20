@@ -44,7 +44,13 @@ func TestClient(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
-	c := NewClient(h, zclient)
+	defer func(old func(string, os.FileMode) error) {
+		mkdirAll = old
+	}(mkdirAll)
+	c, err := NewClient(h, zclient, "/opt/serviced/var")
+	if err != nil {
+		t.Fatalf("unexpected error creating client: %s", err)
+	}
 	defer c.Close()
 	time.Sleep(time.Second * 5)
 

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/zenoss/glog"
@@ -13,25 +14,32 @@ import (
 type nfsMountT func(string, string) error
 
 var nfsMount = nfs.Mount
+var mkdirAll = os.MkdirAll
 
 // Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
 	host    *host.Host
 	zclient *client.Client
+	localPath string
 	closing chan struct{}
 	mounted chan string
 }
 
 // NewClient returns a Client that manages remote mounts
-func NewClient(host *host.Host, zclient *client.Client) *Client {
+func NewClient(host *host.Host, zclient *client.Client, localPath string) (*Client, error) {
+
+	if err := mkdirAll(localPath, 0755); err != nil {
+		return nil, err
+	}
 	c := &Client{
 		host:    host,
 		zclient: zclient,
+		localPath: localPath,
 		mounted: make(chan string, 1),
 		closing: make(chan struct{}),
 	}
 	go c.loop()
-	return c
+	return c, nil
 }
 
 // Wait will block until the client is Closed() or it has mounted the remote filesystem
@@ -111,7 +119,7 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			err = nfsMount(leaderNode.ExportPath, "/opt/serviced/var")
+			err = nfsMount(leaderNode.ExportPath,  c.localPath)
 			if err != nil {
 				glog.Errorf("problem mouting %s: %s", leaderNode.ExportPath, err)
 				continue
