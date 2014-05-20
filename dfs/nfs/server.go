@@ -101,8 +101,8 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 }
 
 // ExportName returns the external export name; foo for nfs export /exports/foo
-func (c *Server) ExportName() string {
-	return c.exportedName
+func (c *Server) ExportPath() string {
+	return path.Join(exportsPath, c.exportedName)
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -199,9 +199,9 @@ func (c *Server) hostsAllow() error {
 }
 
 func (c *Server) writeExports() error {
-	s := fmt.Sprintf("/export\t%s(rw,fsid=0,insecure,no_subtree_check,async)\n"+
-		"/export/%s\t%s(rw,nohide,insecure,no_subtree_check,async)",
-		c.network, c.exportedName, c.network)
+	s := fmt.Sprintf("%s\t%s(rw,fsid=0,insecure,no_subtree_check,async)\n"+
+		"%s/%s\t%s(rw,nohide,insecure,no_subtree_check,async)\n",
+		exportsPath, c.network, exportsPath, c.exportedName, c.network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
 	}
