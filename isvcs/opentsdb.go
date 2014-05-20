@@ -22,7 +22,7 @@ func init() {
 			Name:    "opentsdb",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: `cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf`,
+			Command: `cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf`,
 			//only expose 8443 (the consumer port to the host)
 			Ports:   []int{8443, 8888, 9090},
 			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
