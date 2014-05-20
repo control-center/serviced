@@ -177,6 +177,10 @@ func (d *daemon) startMaster() error {
 	}
 
 	thisHost, err := host.Build(agentIP, "unknown")
+	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
+		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
+		return err
+	}
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
