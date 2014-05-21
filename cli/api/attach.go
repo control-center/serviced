@@ -4,12 +4,11 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 )
 
 // AttachConfig is the deserialized object from the command-line
@@ -224,13 +223,14 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	if err != nil {
 		return err
 	}
-	err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
-	if err != nil {
-		if strings.Contains(err.Error(), "setns bad file descriptor") {
-			return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
-		}
-	}
-	return err
+	return utils.NSInitWithRetry(fullCmd)
+	//err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+	//if err != nil {
+	//	if strings.Contains(err.Error(), "setns bad file descriptor") {
+	//		return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+	//	}
+	//}
+	//return err
 }
 
 // attachExecUsingServiceStateID connects to a container and executes an arbitrary bash command
