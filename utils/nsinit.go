@@ -33,6 +33,8 @@ func NSInitWithRetry(cmd []string) error {
 	if err := f.Sync(); err != nil {
 		return err
 	}
-	err = syscall.Exec("/bin/bash", []string{f.Name()}, os.Environ())
+	command := []string{f.Name()}
+	command = append(command, cmd...)
+	err = syscall.Exec("/bin/bash", command, os.Environ())
 	return nil
 }
