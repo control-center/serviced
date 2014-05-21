@@ -224,8 +224,6 @@ func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.Servic
 }
 
 func (this *ControlPlaneDao) renameImageID(imageId, tenantId string) (string, error) {
-	debug.PrintStack()
-	glog.Errorf("imageId: %s, tenantId: %s", imageId, tenantId)
 
 	repo, _ := dutils.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
