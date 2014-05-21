@@ -336,7 +336,6 @@ func (c *Controller) Run() (err error) {
 		return service, serviceExited
 	}
 
-	var healthExits map[string]chan bool
 	prereqsPassed := make(chan bool)
 	var startAfter <-chan time.Time
 	service := &subprocess.Instance{}
