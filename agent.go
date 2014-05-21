@@ -904,7 +904,7 @@ func (a *HostAgent) start() {
 
 			defer conn.Close()
 
-			glog.Info(" ---------- calling WatchVirtualIPs")
+			// watch for zookeeper nodes /VIPs/IP
 			go virtualips.New(a.facade, conn, a.context).WatchVirtualIPs()
 
 			return a.processChildrenAndWait(conn)

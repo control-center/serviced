@@ -198,6 +198,7 @@ func (l *leader) watchServices() {
 				delete(processing, serviceID)
 				break
 			case <-time.After(10 * time.Second):
+				// every 10 seconds, sync the virtual IPs in the model to zookeeper nodes /VIPs/VIP
 				err := virtualIPsHandler.SyncVirtualIPs()
 				if err != nil {
 					glog.Warningf("virtualIPsHandler.SyncVirtualIPs: %v", err)

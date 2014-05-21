@@ -205,6 +205,7 @@ func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 }
 
 func (ft *FacadeTest) Test_VirtualIPs(t *C) {
+	fmt.Println(" ##### Test_VirtualIPs")
 	myPoolID := "Test_VirtualIPs"
 	assignIPsPool := pool.New(myPoolID)
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
@@ -298,6 +299,105 @@ func (ft *FacadeTest) Test_VirtualIPs(t *C) {
 
 	if IPs.VirtualIPs[0].IP != someIPAddresses[2] {
 		t.Fatalf("Expected %v but found %v", someIPAddresses[2], IPs.VirtualIPs[0].IP)
+	}
+
+	if err := ft.Facade.RemoveVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: someIPAddresses[2], Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err != nil {
+		t.Errorf("RemoveVirtualIP failed: %v", err)
+	}
+}
+
+func (ft *FacadeTest) Test_InvalidVirtualIPs(t *C) {
+	fmt.Println(" ##### Test_InvalidVirtualIPs")
+	myPoolID := "Test_InvalidVirtualIPs"
+	assignIPsPool := pool.New(myPoolID)
+	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
+	defer func() {
+		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
+	}()
+
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	hostID := "aHost"
+	ipAddress1 := "192.168.100.10"
+
+	assignIPsHostIPResources := []host.HostIPResource{}
+	oneHostIPResource := host.HostIPResource{}
+	oneHostIPResource.HostID = hostID
+	oneHostIPResource.IPAddress = ipAddress1
+	myInterfaceName := "eth0"
+	oneHostIPResource.InterfaceName = myInterfaceName
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	if err != nil {
+		t.Fatalf("could not build host for test: %v", err)
+	}
+	assignIPsHost.ID = hostID
+	assignIPsHost.PoolID = assignIPsPool.ID
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
+	if err != nil {
+		t.Fatalf("failed to add host: %v", err)
+	}
+	defer func() {
+		ft.Facade.RemoveHost(ft.CTX, assignIPsHost.ID)
+	}()
+	time.Sleep(2 * time.Second)
+
+	invalidIPAddresses := []string{"192.F.100.20", "192.168.100.3*", "192.168.100", "192..168.100.50"}
+	// try adding invalid IPs
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: invalidIPAddresses[0], Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("AddVirtualIP should have failed on: %v", invalidIPAddresses[0])
+	}
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: invalidIPAddresses[1], Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("AddVirtualIP should have failed on: %v", invalidIPAddresses[1])
+	}
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: invalidIPAddresses[2], Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("AddVirtualIP should have failed on: %v", invalidIPAddresses[2])
+	}
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: invalidIPAddresses[3], Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("AddVirtualIP should have failed on: %v", invalidIPAddresses[3])
+	}
+
+	validIPAddress := "192.168.100.20"
+	invalidPoolID := "invalidPoolID"
+	// try adding a with an invalid poolID
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: invalidPoolID, IP: validIPAddress, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("AddVirtualIP should have failed on invalid pool ID: %v", invalidPoolID)
+	}
+
+	// add an already present static IP
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: ipAddress1, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("Added an IP that was already (%v) there... should have failed.", validIPAddress)
+	}
+
+	// add a virtual IP
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: validIPAddress, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err != nil {
+		t.Errorf("AddVirtualIP failed: %v", err)
+	}
+
+	// try to add an already added virtual IP
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: validIPAddress, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("Added an IP that was already (%v) there... should have failed.", validIPAddress)
+	}
+
+	notAddedIPAddress := "192.168.100.30"
+	// try removing a virtual IP that has not been added
+	if err := ft.Facade.RemoveVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: notAddedIPAddress, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("Tried to remove a virtual IP that was NOT in the pool: %v", notAddedIPAddress)
+	}
+
+	// try removing a static IP
+	if err := ft.Facade.RemoveVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: ipAddress1, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("Tried to remove a virtual IP that was NOT in the pool: %v", notAddedIPAddress)
+	}
+
+	// try removing with an invalid pool ID
+	if err := ft.Facade.RemoveVirtualIP(ft.CTX, pool.VirtualIP{PoolID: invalidPoolID, IP: validIPAddress, Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err == nil {
+		t.Errorf("Invalid Pool ID (%v) should have failed.", invalidPoolID)
 	}
 }
 

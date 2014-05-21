@@ -18,7 +18,7 @@ import (
 
 const (
 	zkVirtualIPs             = "/VIPs"
-	VIRTUAL_INTERFACE_PREFIX = ":cpvip"
+	VIRTUAL_INTERFACE_PREFIX = ":zvip"
 )
 
 func virtualIPsPath(nodes ...string) string {
@@ -51,7 +51,6 @@ func GenerateInterfaceName(virtualIP pool.VirtualIP) (string, error) {
 }
 
 func DetermineVirtualInterfaceIndex(virtualIPToAdd pool.VirtualIP, interfaceMap []pool.VirtualIP) (string, error) {
-	glog.Infof(" ##### Starting... DetermineVirtualInterfaceIndex")
 	MAX_INDEX := 100
 	interfaceIndex := 0
 
@@ -68,9 +67,7 @@ func DetermineVirtualInterfaceIndex(virtualIPToAdd pool.VirtualIP, interfaceMap 
 			if err != nil {
 				return "", err
 			}
-			glog.Infof(" ########## checking %v === %v", proposedInterfaceName, currentInterfaceName)
 			if proposedInterfaceName == currentInterfaceName {
-				glog.Warningf("Proposed interface name: %v is already taken...", proposedInterfaceName)
 				proposedInterfaceNameIsAcceptable = false
 				break
 			}
@@ -87,7 +84,6 @@ func DetermineVirtualInterfaceIndex(virtualIPToAdd pool.VirtualIP, interfaceMap 
 }
 
 func CreateVirtualInterfaceMap() (error, []pool.VirtualIP) {
-	glog.Info("Creating Virtual Interface Map...")
 	interfaceMap := []pool.VirtualIP{}
 
 	//ifconfig | awk '/cpvip/{print $1}'
@@ -96,7 +92,7 @@ func CreateVirtualInterfaceMap() (error, []pool.VirtualIP) {
 		glog.Warningf("Determining virtual interfaces failed: %v --- %v", virtualInterfaceNames, err)
 		return err, interfaceMap
 	}
-	glog.Infof("Control plane virtual interfaces: %v", string(virtualInterfaceNames))
+	glog.V(2).Infof("Control plane virtual interfaces: %v", string(virtualInterfaceNames))
 
 	for _, virtualInterfaceName := range strings.Fields(string(virtualInterfaceNames)) {
 		virtualInterfaceName = strings.TrimSpace(virtualInterfaceName)
@@ -165,7 +161,7 @@ func AddVirtualIP(virtualIP pool.VirtualIP) error {
 		return errors.New(msg)
 	}
 
-	glog.Infof("Added %v: %v", virtualInterfaceName, virtualIP)
+	glog.Infof("Added virtual interface/IP: %v (%v)", virtualInterfaceName, virtualIP)
 	return nil
 }
 
@@ -181,7 +177,7 @@ func RemoveVirtualIP(virtualIP pool.VirtualIP) error {
 		return errors.New(msg)
 	}
 
-	glog.Infof("Removed interface: %s %v", virtualInterfaceName, virtualIP)
+	glog.Infof("Removed virtual interface/IP: %v (%v)", virtualInterfaceName, virtualIP)
 	return nil
 }
 
@@ -229,7 +225,7 @@ func (h *Handler) ConfigureVIP(vip string) error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("##### Determined index: %v", interfaceIndex)
+	glog.V(2).Infof(" ### Determined interface index: %v", interfaceIndex)
 	myPool.VirtualIPs[myVirtualIPPosition].InterfaceIndex = interfaceIndex
 	if err := h.facade.UpdateResourcePool(h.context, myPool); err != nil {
 		return err
@@ -239,7 +235,6 @@ func (h *Handler) ConfigureVIP(vip string) error {
 		return err
 	}
 
-	glog.Infof("Virtual IP Address: %v has been configured on this host.", vip)
 	return nil
 }
 
@@ -250,14 +245,13 @@ func (h *Handler) RemoveAllVirtualIPs() error {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
 	}
-	glog.Infof("Removing all virtual IPs...")
+	glog.V(2).Infof("Removing all virtual IPs...")
 	for _, virtualIP := range interfaceMap {
 		if err := RemoveVirtualIP(virtualIP); err != nil {
 			return err
 		}
-		glog.Infof("Virtual IP address: %v has been removed from this host.", virtualIP.IP)
 	}
-	glog.Infof("All virtual IPs have been removed.")
+	glog.V(2).Infof("All virtual IPs have been removed.")
 	return nil
 }
 
@@ -286,7 +280,6 @@ func (h *Handler) PrepareAndRemoveVirtualIP(virtualIPAddress string) error {
 			if err := RemoveVirtualIP(virtualIP); err != nil {
 				return err
 			}
-			glog.Infof("Virtual IP address: %v has been removed from this host.", virtualIPAddress)
 			return nil
 		}
 	}
@@ -314,16 +307,13 @@ func SetSubtract(a []string, b []string) []string {
 
 // Listen listens for changes on the event node and processes the snapshot
 func (h *Handler) WatchVirtualIPs() {
-	glog.Infof("started WatchVirtualIPs ... going to watch %v", virtualIPsPath())
-	defer glog.Info("finished WatchVirtualIPs")
-
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
 
 	// When this function exits, ensure that any started goroutines get
 	// a signal to shutdown
 	defer func() {
-		glog.Info("Shutting down child goroutines")
+		glog.Info("Shutting down virtual IP child goroutines")
 		for key, shutdown := range processing {
 			glog.Info("Sending shutdown signal for ", key)
 			shutdown <- 1
@@ -399,7 +389,7 @@ func (h *Handler) WatchVirtualIPs() {
 		if len(addedVirtualIPAddresses) > 0 {
 			for _, virtualIPAddress := range addedVirtualIPAddresses {
 				if processing[virtualIPAddress] == nil {
-					glog.Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
+					glog.V(2).Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
 					virtualIPChannel := make(chan int)
 					processing[virtualIPAddress] = virtualIPChannel
 					go h.WatchVirtualIP(virtualIPChannel, sDone, virtualIPAddress)
@@ -429,7 +419,7 @@ func (v *VIP) Version() interface{}           { return v.version }
 func (v *VIP) SetVersion(version interface{}) { v.version = version }
 
 func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtualIPAddress string) {
-	glog.Infof(" ### Started WatchVirtualIP: %v", virtualIPAddress)
+	glog.V(2).Infof(" ### Started WatchVirtualIP: %v", virtualIPAddress)
 
 	hostID, err := utils.HostID()
 	if err != nil {
@@ -441,7 +431,7 @@ func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtua
 	vipOwnerResponse := make(chan error)
 
 	defer func() {
-		glog.Infof(" ### Exiting WatchVirtualIP: %v", virtualIPAddress)
+		glog.V(2).Infof(" ### Exiting WatchVirtualIP: %v", virtualIPAddress)
 		done <- virtualIPAddress
 	}()
 
@@ -465,16 +455,13 @@ func (h *Handler) WatchVirtualIP(shutdown <-chan int, done chan<- string, virtua
 
 		// agent stopping
 		case <-shutdown:
-			glog.Infof("Agent stopped VIP %v", virtualIPsPath(virtualIPAddress))
+			glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(virtualIPAddress))
 			return
 		}
 	}
 }
 
 func (h *Handler) SyncVirtualIPs() error {
-	glog.Info("started syncVirtualIPs")
-	defer glog.Info("finished syncVirtualIPs")
-
 	myPool, err := h.GetMyPool()
 	if err != nil {
 		return err
