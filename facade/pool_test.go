@@ -39,23 +39,23 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 	poolID := "Test_UpdateResourcePool"
 	defer ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 
-	pool := pool.New(poolID)
-	ft.Facade.AddResourcePool(ft.CTX, pool)
+	myPool := pool.New(poolID)
+	ft.Facade.AddResourcePool(ft.CTX, myPool)
 
-	pool.Priority = 1
-	pool.CoreLimit = 1
-	pool.MemoryLimit = 1
-	err := ft.Facade.UpdateResourcePool(ft.CTX, pool)
+	myPool.Priority = 1
+	myPool.CoreLimit = 1
+	myPool.MemoryLimit = 1
+	err := ft.Facade.UpdateResourcePool(ft.CTX, myPool)
 	if err != nil {
-		t.Errorf("Failure updating resource pool %-v with error: %s", pool, err)
+		t.Errorf("Failure updating resource pool %-v with error: %s", myPool, err)
 		t.Fail()
 	}
 
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
-	result.CreatedAt = pool.CreatedAt
-	result.UpdatedAt = pool.UpdatedAt
-	if *pool != *result {
-		t.Errorf("%+v != %+v", pool, result)
+	result.CreatedAt = myPool.CreatedAt
+	result.UpdatedAt = myPool.UpdatedAt
+	if myPool.Equals(result) {
+		t.Errorf("%+v != %+v", myPool, result)
 		t.Fail()
 	}
 }
@@ -77,7 +77,7 @@ func (ft *FacadeTest) Test_GetResourcePool(t *C) {
 	result.CreatedAt = rp.CreatedAt
 	result.UpdatedAt = rp.UpdatedAt
 	if err == nil {
-		if *rp != *result {
+		if rp.Equals(result) {
 			t.Errorf("Unexpected ResourcePool: expected=%+v, actual=%+v", rp, result)
 		}
 	} else {
@@ -135,7 +135,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	if err == nil && len(result) == 1 {
 		result[0].CreatedAt = rp.CreatedAt
 		result[0].UpdatedAt = rp.UpdatedAt
-		if *result[0] != *rp {
+		if result[0].Equals(rp) {
 			t.Fatalf("expected [%+v] actual=%s", rp, result)
 		}
 	} else {
@@ -143,7 +143,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	}
 }
 
-func (ft *FacadeTest) Test_GetPoolsIPInfo(t *C) {
+func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
@@ -200,6 +200,64 @@ func (ft *FacadeTest) Test_GetPoolsIPInfo(t *C) {
 		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[1].IPAddress)
 	}
 
+}
+
+func (ft *FacadeTest) Test_AddVirtualIP1(t *C) {
+	assignIPsPool := pool.New("assignIPsPoolID")
+	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
+	defer func() {
+		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
+	}()
+
+	if err != nil {
+		t.Errorf("Failure creating resource pool %-v with error: %s", assignIPsPool, err)
+		t.Fail()
+	}
+
+	hostID := "assignIPsHost"
+	ipAddress1 := "192.168.100.10"
+	ipAddress2 := "10.50.9.1"
+
+	assignIPsHostIPResources := []host.HostIPResource{}
+	oneHostIPResource := host.HostIPResource{}
+	oneHostIPResource.HostID = hostID
+	oneHostIPResource.IPAddress = ipAddress1
+	oneHostIPResource.InterfaceName = "eth0"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+	oneHostIPResource.HostID = "A"
+	oneHostIPResource.IPAddress = ipAddress2
+	oneHostIPResource.InterfaceName = "eth1"
+	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
+
+	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	if err != nil {
+		t.Fatalf("could not build host for test: %v", err)
+	}
+	assignIPsHost.ID = hostID
+	assignIPsHost.PoolID = assignIPsPool.ID
+	assignIPsHost.IPs = assignIPsHostIPResources
+	err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
+	if err != nil {
+		t.Fatalf("failed to add host: %v", err)
+	}
+	defer func() {
+		ft.Facade.RemoveHost(ft.CTX, assignIPsHost.ID)
+	}()
+	time.Sleep(2 * time.Second)
+	IPs, err := ft.Facade.GetPoolIPs(ft.CTX, assignIPsPool.ID)
+	if err != nil {
+		t.Error("GetPoolIps failed")
+	}
+	if len(IPs.HostIPs) != 2 {
+		t.Fatalf("Expected 2 addresses, found %v", len(IPs.HostIPs))
+	}
+
+	if IPs.HostIPs[0].IPAddress != ipAddress1 {
+		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[0].IPAddress)
+	}
+	if IPs.HostIPs[1].IPAddress != ipAddress2 {
+		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[1].IPAddress)
+	}
 }
 
 func (ft *FacadeTest) Test_PoolCapacity(t *C) {

@@ -55,23 +55,6 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 	return err
 }
 
-// GetResourcePool returns  an ResourcePool ip id. nil if not found
-func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
-	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
-	var entity pool.ResourcePool
-	err := f.poolStore.Get(ctx, pool.Key(id), &entity)
-	if datastore.IsErrNoSuchEntity(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	f.calcPoolCapacity(ctx, &entity)
-
-	return &entity, nil
-}
-
 // UpdateResourcePool updates a ResourcePool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	glog.V(2).Infof("Facade.UpdateResourcePool: %+v", entity)
@@ -113,6 +96,23 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, 
 	}
 
 	return pools, err
+}
+
+// GetResourcePool returns  an ResourcePool ip id. nil if not found
+func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
+	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
+	var entity pool.ResourcePool
+	err := f.poolStore.Get(ctx, pool.Key(id), &entity)
+	if datastore.IsErrNoSuchEntity(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	f.calcPoolCapacity(ctx, &entity)
+
+	return &entity, nil
 }
 
 //CreateDefaultPool creates the default pool if it does not exists, it is idempotent
