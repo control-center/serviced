@@ -82,6 +82,9 @@ test: build_binary docker_ok
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 
+smoketest: build_binary docker_ok
+	./smoke.sh
+
 docker_ok:
 	if docker ps >/dev/null; then \
 		echo "docker OK"; \
