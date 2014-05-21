@@ -102,10 +102,6 @@ test_dir_config() {
     return 0
 }
 
-install_wget() {
-    ${SERVICED} service attach s1 apt-get -y install wget
-}
-
 test_port_mapped() {
     [ "$(${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt)" == "baz" ] || return 1
     return 0
@@ -127,7 +123,6 @@ test_vhost        && succeed "VHost is up and listening"                || fail 
 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
-install_wget
 test_port_mapped  && succeed "Port is imported correctly"               || fail "Port was not imported correctly"
 
 # "trap cleanup EXIT", above, will handle cleanup
