@@ -4,12 +4,14 @@ import (
 	"io/ioutil"
 	"os"
 	"syscall"
+
+	"github.com/zenoss/glog"
 )
 
 var BASH_SCRIPT = `
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 COMMAND="$@"
-trap "rm -f ${DIR}/$$.stderr" EXIT
+#trap "rm -f ${DIR}/$$.stderr" EXIT
 for i in {1..10}; do
 	SEEN=0
 	${COMMAND} 2> >(tee ${DIR}/$$.stderr >&2)
@@ -26,7 +28,7 @@ func NSInitWithRetry(cmd []string) error {
 		return err
 	}
 	defer f.Close()
-	defer os.Remove(f.Name())
+	//defer os.Remove(f.Name())
 	if _, err := f.WriteString(BASH_SCRIPT); err != nil {
 		return err
 	}
@@ -35,6 +37,7 @@ func NSInitWithRetry(cmd []string) error {
 	}
 	command := []string{f.Name()}
 	command = append(command, cmd...)
+	glog.V(0).Infof("Here's the command: %s", command)
 	err = syscall.Exec("/bin/bash", command, os.Environ())
 	return nil
 }
