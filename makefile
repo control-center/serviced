@@ -83,7 +83,7 @@ test: build_binary docker_ok
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 
 smoketest: build_binary docker_ok
-	/bin/bash smoke.sh || $(shell exit 1)
+	/bin/bash smoke.sh
 
 docker_ok:
 	if docker ps >/dev/null; then \
