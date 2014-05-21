@@ -325,6 +325,8 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGQUIT)
 
 	env := os.Environ()
+	env = append(env, "CONTROLPLANE=1")
+	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
