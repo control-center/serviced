@@ -74,6 +74,17 @@ func TestNewServer(t *testing.T) {
 		return nil
 	}
 
+	defer func(f func() error) {
+		reload = f
+	}(reload)
+	reload = func() error {
+		return nil
+	}
+	defer func(f func() error) {
+		start = f
+	}(start)
+	start = reload
+
 	// create our test server
 	s, err := NewServer(baseDir, "foo", "192.168.1.0/24")
 	if err != nil {
@@ -88,17 +99,6 @@ func TestNewServer(t *testing.T) {
 	if exists, err := dirExists(exportDir); err != nil || !exists {
 		t.Fatalf("export dir does not exist: %s, %s", exportDir, err)
 	}
-
-	defer func(f func() error) {
-		reload = f
-	}(reload)
-	reload = func() error {
-		return nil
-	}
-	defer func(f func() error) {
-		start = f
-	}(start)
-	start = reload
 
 	// we call .Sync() repeatedly, lets make a shortcut
 	sync := func() {
