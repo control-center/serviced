@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"syscall"
 	"time"
@@ -248,6 +249,8 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
+			log.Printf("Docker event: %v\n", req)
+
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
 				go wcaction(req.args.id)
 			}

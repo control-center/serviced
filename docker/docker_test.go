@@ -18,7 +18,7 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	ctr, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't create container: ", err)
 	}
@@ -60,7 +60,7 @@ func TestOnContainerCreated(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	ctr, err := CreateContainer(cd, false, 600*time.Second, nil, nil)
+	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't create container: ", err)
 	}
@@ -85,7 +85,7 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.HostConfig{},
 	}
 
-	ctr, err := CreateContainer(cd, true, 600*time.Second, nil, nil)
+	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -103,4 +103,94 @@ func TestOnContainerStop(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timed out waiting for event")
 	}
+}
+
+func TestCancelOnEvent(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	ec := make(chan struct{})
+
+	ctr.OnEvent(Start, func(id string) {
+		ec <- struct{}{}
+	})
+
+	ctr.OnEvent(Stop, func(id string) {
+		ec <- struct{}{}
+	})
+
+	ctr.CancelOnEvent(Start)
+
+	ctr.Start(1*time.Second, nil)
+
+	select {
+	case <-ec:
+		t.Fatal("OnEvent fired")
+	case <-time.After(2 * time.Second):
+		// success
+	}
+
+	ctr.Stop(30)
+
+	select {
+	case <-ec:
+	case <-time.After(30 * time.Second):
+		t.Fatal("Time out waiting for Stop event")
+	}
+}
+
+func TestRestartContainer(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	restartch := make(chan struct{})
+	diech := make(chan struct{})
+
+	ctr.OnEvent(Die, func(id string) {
+		diech <- struct{}{}
+	})
+
+	ctr.OnEvent(Restart, func(id string) {
+		restartch <- struct{}{}
+	})
+
+	ctr.Restart(10 * time.Second)
+
+	select {
+	case <-diech:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for Stop event")
+	}
+
+	select {
+	case <-restartch:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for Start event")
+	}
+
+	ctr.Stop(5)
 }

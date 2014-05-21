@@ -40,9 +40,9 @@ var (
 	ErrKernelShutdown = errors.New("docker: kernel shutdown")
 )
 
-// CreateContainer creates a new container and returns its id. The supplied action function, if
+// NewContainer creates a new container and returns its id. The supplied action function, if
 // any, will be executed on successful creation of the container.
-func CreateContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
+func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
 	ec := make(chan error)
 	rc := make(chan dockerclient.Container)
 
@@ -202,7 +202,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 
 // StopContainer stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
-func (c *Container) Stop(timeout time.Duration) error {
+func (c *Container) Stop(timeout time.Duration, wait bool) error {
 	ec := make(chan error)
 
 	cmds.Stop <- stopreq{
