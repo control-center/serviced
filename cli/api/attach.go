@@ -5,7 +5,9 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -228,15 +230,18 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 
 	for i := 0; i < 10; i++ {
 		//err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+
+		errorBuffer := &bytes.Buffer{}
 		command := exec.Command(fullCmd[0], fullCmd[1:]...)
 		command.Stdin = os.Stdin
 		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
+		command.Stderr = io.MultiWriter(os.Stderr, errorBuffer)
 		err = command.Run()
 
 		if err != nil {
-			glog.Infof("retry #%d  error:%v", i, err)
-			if strings.Contains(err.Error(), "setns bad file descriptor") {
+			glog.Infof("retry #%d  errorBuffer:%v", i, errorBuffer.String())
+			if strings.Contains(errorBuffer.String(), "setns bad file descriptor") {
+				errorBuffer.Reset()
 				time.Sleep(500 * time.Millisecond)
 			} else {
 				return err
