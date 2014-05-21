@@ -225,11 +225,15 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	if err != nil {
 		return err
 	}
-	err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
-	if err != nil {
-		if strings.Contains(err.Error(), "setns bad file descriptor") {
-			time.Sleep(500 * time.Millisecond)
-			return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+
+	for i := 0; i < 10; i++ {
+		err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+		if err != nil {
+			if strings.Contains(err.Error(), "setns bad file descriptor") {
+				time.Sleep(500 * time.Millisecond)
+			} else {
+				return err
+			}
 		}
 	}
 	return err
