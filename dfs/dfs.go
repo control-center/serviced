@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -54,8 +55,15 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
-		return output, err
+		if strings.Contains(string(output), "setns bad file descriptor") {
+			time.Sleep(500 * time.Millisecond)
+			cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
+			output, err = cmd.CombinedOutput()
+		}
+		if err != nil {
+			glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
+			return output, err
+		}
 	}
 	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceID, output)
 	return output, nil

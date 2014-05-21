@@ -5,11 +5,14 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
+	//"syscall"
+	"time"
 )
 
 // AttachConfig is the deserialized object from the command-line
@@ -224,10 +227,27 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	if err != nil {
 		return err
 	}
-	err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
-	if err != nil {
-		if strings.Contains(err.Error(), "setns bad file descriptor") {
-			return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+
+	for i := 0; i < 100; i++ {
+		//err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+
+		errorBuffer := &bytes.Buffer{}
+		command := exec.Command(fullCmd[0], fullCmd[1:]...)
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+		command.Stderr = io.MultiWriter(os.Stderr, errorBuffer)
+		err = command.Run()
+
+		if err != nil {
+			glog.Infof("retry #%d  errorBuffer:%v", i, errorBuffer.String())
+			if strings.Contains(errorBuffer.String(), "setns bad file descriptor") {
+				errorBuffer.Reset()
+				time.Sleep(10 * time.Millisecond)
+			} else {
+				return err
+			}
+		} else {
+			return nil
 		}
 	}
 	return err
@@ -270,8 +290,15 @@ func attachRunUsingContainerID(containerID string, cmd []string) ([]byte, error)
 
 	output, err := command.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command:'%s' output: %s  error: %s\n", cmd, output, err)
-		return output, err
+		if strings.Contains(string(output), "setns bad file descriptor") {
+			time.Sleep(500 * time.Millisecond)
+			command := exec.Command(fullCmd[0], fullCmd[1:]...)
+			output, err = command.CombinedOutput()
+		}
+		if err != nil {
+			glog.Errorf("Error running command:'%s' output: %s  error: %s\n", cmd, output, err)
+			return output, err
+		}
 	}
 	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", cmd, output)
 	return output, nil
