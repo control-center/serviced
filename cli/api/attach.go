@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
+	//"syscall"
 	"time"
 )
 
@@ -227,7 +227,13 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	}
 
 	for i := 0; i < 10; i++ {
-		err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+		//err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+		command := exec.Command(fullCmd[0], fullCmd[1:]...)
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+		err = command.Run()
+
 		if err != nil {
 			glog.Infof("retry #%d  error:%v", i, err)
 			if strings.Contains(err.Error(), "setns bad file descriptor") {
