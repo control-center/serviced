@@ -247,21 +247,20 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 }
 
 func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
-	myPools, err := f.GetResourcePools(ctx)
+	myPool, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
 	if err != nil {
 		return err
 	}
 
-	for _, myPool := range myPools {
-		for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
-			if virtualIP.IP == requestedVirtualIP.IP {
-				// delete the current VirtualIP
-				myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
-				if err := f.UpdateResourcePool(ctx, myPool); err != nil {
-					return err
-				}
-				return nil
+	for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
+		if virtualIP.IP == requestedVirtualIP.IP {
+			// delete the current VirtualIP
+			myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
+			if err := f.UpdateResourcePool(ctx, myPool); err != nil {
+				return err
 			}
+			glog.Infof("Removed virtual IP: %v from pool: %v", virtualIP.IP, requestedVirtualIP.PoolID)
+			return nil
 		}
 	}
 
