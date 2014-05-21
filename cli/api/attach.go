@@ -229,6 +229,7 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	for i := 0; i < 10; i++ {
 		err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 		if err != nil {
+			glog.Infof("retry #%d  error:%v", i, err)
 			if strings.Contains(err.Error(), "setns bad file descriptor") {
 				time.Sleep(500 * time.Millisecond)
 			} else {
