@@ -96,4 +96,6 @@ type LoadBalancer interface {
 	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	GetPrereqs(serviceId string, prereqs *[]domain.Prereq) error
 }

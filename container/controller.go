@@ -327,13 +327,17 @@ func (c *Controller) Run() (err error) {
 
 	startService := func() (*subprocess.Instance, chan error) {
 		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
-		c.handleRemotePorts()
 		return service, serviceExited
 	}
 
-	service, serviceExited := startService()
+	var healthExits map[string]chan bool
+	prereqsPassed := make(chan bool)
+	var startAfter <-chan time.Time
+	service := &subprocess.Instance{}
+	serviceExited := make(chan error, 1)
+	c.handleRemotePorts()
+	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
-	var restartAfter <-chan time.Time
 	for {
 		select {
 		case sig := <-sigc:
@@ -353,6 +357,10 @@ func (c *Controller) Run() (err error) {
 			default:
 			}
 
+		case <-prereqsPassed:
+			glog.Infof("PASSED THE PREREQS, BITCHES")
+			startAfter = time.After(time.Millisecond * 1)
+
 		case <-time.After(time.Second * 10):
 			c.handleRemotePorts()
 
@@ -361,21 +369,59 @@ func (c *Controller) Run() (err error) {
 			if !c.options.Service.Autorestart {
 				return
 			}
-			restartAfter = time.After(time.Second * 10)
+			startAfter = time.After(time.Second * 10)
 
-		case <-restartAfter:
+		case <-startAfter:
 			if !c.options.Service.Autorestart {
 				return
 			}
 			glog.Infof("restarting service process")
 			service, serviceExited = startService()
-			restartAfter = nil
+			startAfter = nil
 		}
 	}
 	for _, exitChannel := range healthExits {
 		exitChannel <- true
 	}
 	return
+}
+
+func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return nil
+	}
+	defer client.Close()
+	var prereqs []domain.Prereq
+	err = client.GetPrereqs(c.options.Service.ID, &prereqs)
+	if err != nil {
+		glog.Errorf("Error getting prereqs.");
+		return nil;
+	}
+	for {
+		select {
+		case <- time.After(time.Second * 1):
+			failedAny := false
+			for _, script := range prereqs {
+				cmd := exec.Command("sh", "-c", script.Script)
+				err = cmd.Run()
+				if err != nil {
+					glog.V(0).Infof("Failed prereq %s, not starting service.", script.Script)
+					failedAny = true
+					break
+				} else {
+					glog.Infof("Passed prereq %s.", script.Script)
+				}
+			}
+			if !failedAny {
+				glog.V(0).Infof("Passed all prereqs.")
+				prereqsPassed <- true
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {

@@ -80,6 +80,12 @@ func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]dom
 	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
 }
 
+// GetPrereq returns the prereq configuration for a service, if it exists
+func (a *LBClient) GetPrereqs(serviceId string, prereqs *[]domain.Prereq) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetPrereq()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetPrereqs", serviceId, prereqs)
+}
+
 // GetHostID returns the agent's host id
 func (a *LBClient) GetHostID(hostID *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHostID()")

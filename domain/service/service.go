@@ -57,6 +57,7 @@ type Service struct {
 	RAMCommitment   uint64
 	Actions         map[string]string
 	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
+	Prereqs			[]domain.Prereq // Optional list of scripts that must be successfully run before kicking off the service command.
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -135,6 +136,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
 	svc.HealthChecks = sd.HealthChecks
+	svc.Prereqs = sd.Prereqs
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
