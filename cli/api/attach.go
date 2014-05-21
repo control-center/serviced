@@ -270,8 +270,13 @@ func attachRunUsingContainerID(containerID string, cmd []string) ([]byte, error)
 
 	output, err := command.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command:'%s' output: %s  error: %s\n", cmd, output, err)
-		return output, err
+		if strings.Contains(string(output), "setns bad file descriptor") {
+			output, err = command.CombinedOutput()
+		}
+		if err != nil {
+			glog.Errorf("Error running command:'%s' output: %s  error: %s\n", cmd, output, err)
+			return output, err
+		}
 	}
 	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", cmd, output)
 	return output, nil
