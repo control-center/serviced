@@ -224,7 +224,13 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	if err != nil {
 		return err
 	}
-	return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+	err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+	if err != nil {
+		if strings.Contains(err.Error(), "setns bad file descriptor") {
+			return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+		}
+	}
+	return err
 }
 
 // attachExecUsingServiceStateID connects to a container and executes an arbitrary bash command
