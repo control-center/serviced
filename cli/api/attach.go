@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // AttachConfig is the deserialized object from the command-line
@@ -227,6 +228,7 @@ func attachExecUsingContainerID(containerID string, cmd []string) error {
 	err = syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 	if err != nil {
 		if strings.Contains(err.Error(), "setns bad file descriptor") {
+			time.Sleep(500 * time.Millisecond)
 			return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
 		}
 	}
@@ -271,6 +273,7 @@ func attachRunUsingContainerID(containerID string, cmd []string) ([]byte, error)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "setns bad file descriptor") {
+			time.Sleep(500 * time.Millisecond)
 			command := exec.Command(fullCmd[0], fullCmd[1:]...)
 			output, err = command.CombinedOutput()
 		}
