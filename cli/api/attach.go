@@ -271,6 +271,7 @@ func attachRunUsingContainerID(containerID string, cmd []string) ([]byte, error)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "setns bad file descriptor") {
+			command := exec.Command(fullCmd[0], fullCmd[1:]...)
 			output, err = command.CombinedOutput()
 		}
 		if err != nil {
