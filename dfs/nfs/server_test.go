@@ -95,6 +95,10 @@ func TestNewServer(t *testing.T) {
 	reload = func() error {
 		return nil
 	}
+	defer func(f func() error) {
+		start = f
+	}(start)
+	start = reload
 
 	// we call .Sync() repeatedly, lets make a shortcut
 	sync := func() {

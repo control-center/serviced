@@ -91,6 +91,10 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		return nil, ErrInvalidNetwork
 	}
 
+	if err := start(); err != nil {
+		return nil, err
+	}
+
 	return &Server{
 		basePath:      basePath,
 		exportedName:  exportedName,
