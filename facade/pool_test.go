@@ -202,8 +202,9 @@ func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 
 }
 
-func (ft *FacadeTest) Test_AddVirtualIP1(t *C) {
-	assignIPsPool := pool.New("assignIPsPoolID")
+func (ft *FacadeTest) Test_AddVirtualIP(t *C) {
+	myPoolID := "aPoolID"
+	assignIPsPool := pool.New(myPoolID)
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
 		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
@@ -214,19 +215,15 @@ func (ft *FacadeTest) Test_AddVirtualIP1(t *C) {
 		t.Fail()
 	}
 
-	hostID := "assignIPsHost"
+	hostID := "aHost"
 	ipAddress1 := "192.168.100.10"
-	ipAddress2 := "10.50.9.1"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
 	oneHostIPResource := host.HostIPResource{}
 	oneHostIPResource.HostID = hostID
 	oneHostIPResource.IPAddress = ipAddress1
-	oneHostIPResource.InterfaceName = "eth0"
-	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
-	oneHostIPResource.HostID = "A"
-	oneHostIPResource.IPAddress = ipAddress2
-	oneHostIPResource.InterfaceName = "eth1"
+	myInterfaceName := "eth0"
+	oneHostIPResource.InterfaceName = myInterfaceName
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
 	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
@@ -244,19 +241,25 @@ func (ft *FacadeTest) Test_AddVirtualIP1(t *C) {
 		ft.Facade.RemoveHost(ft.CTX, assignIPsHost.ID)
 	}()
 	time.Sleep(2 * time.Second)
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: "192.168.100.20", Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err != nil {
+		t.Error("AddVirtualIP failed: %v", err)
+	}
 	IPs, err := ft.Facade.GetPoolIPs(ft.CTX, assignIPsPool.ID)
 	if err != nil {
 		t.Error("GetPoolIps failed")
 	}
-	if len(IPs.HostIPs) != 2 {
-		t.Fatalf("Expected 2 addresses, found %v", len(IPs.HostIPs))
+	if len(IPs.VirtualIPs) != 1 {
+		t.Fatalf("Expected 1 address, found %v", len(IPs.VirtualIPs))
 	}
-
-	if IPs.HostIPs[0].IPAddress != ipAddress1 {
-		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[0].IPAddress)
+	if err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{PoolID: myPoolID, IP: "192.168.100.30", Netmask: "255.255.255.0", BindInterface: myInterfaceName, InterfaceIndex: ""}); err != nil {
+		t.Error("AddVirtualIP failed: %v", err)
 	}
-	if IPs.HostIPs[1].IPAddress != ipAddress2 {
-		t.Errorf("Unexpected IP address: %v", IPs.HostIPs[1].IPAddress)
+	IPs, err := ft.Facade.GetPoolIPs(ft.CTX, assignIPsPool.ID)
+	if err != nil {
+		t.Error("GetPoolIps failed")
+	}
+	if len(IPs.VirtualIPs) != 2 {
+		t.Fatalf("Expected 2 address, found %v", len(IPs.VirtualIPs))
 	}
 }
 
