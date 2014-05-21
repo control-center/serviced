@@ -24,14 +24,9 @@ add_to_etc_hosts() {
 }
 
 cleanup() {
-    echo "Killing serviced at pid ${SERVICED_PID}..."
-    sudo kill -9 ${SERVICED_PID}
-    echo "Killing extant containers..."
+    sudo pkill -9 serviced
     docker kill $(docker ps -q)
-    sleep 1
-    echo "Clearing out serviced state..."
     sudo rm -rf /tmp/serviced-root/var/isvcs/*
-    echo
 }
 trap cleanup EXIT
 
@@ -39,7 +34,6 @@ trap cleanup EXIT
 start_serviced() {
     echo "Starting serviced..."
     sudo GOPATH=${GOPATH} PATH=${PATH} ${PWD}/serviced/serviced -master -agent &
-    SERVICED_PID=$[$!+3]
     echo "Waiting 60 seconds for serviced to become the leader..."
     for i in {1..60}; do
         wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null && return 0
@@ -85,6 +79,7 @@ test_vhost() {
 }
 
 test_assigned_ip() {
+    sleep 5 # Sometimes this takes a little while to start up, but no reason to fail
     wget ${IP}:1000 -qO- &>/dev/null || return 1
     return 0
 }
@@ -107,6 +102,9 @@ test_port_mapped() {
     [ "$(${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt)" == "baz" ] || return 1
     return 0
 }
+
+# Force a clean environment
+cleanup
 
 # Setup
 add_to_etc_hosts
