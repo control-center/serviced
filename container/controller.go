@@ -363,7 +363,6 @@ func (c *Controller) Run() (err error) {
 			}
 
 		case <-prereqsPassed:
-			glog.Infof("PASSED THE PREREQS, BITCHES")
 			startAfter = time.After(time.Millisecond * 1)
 
 		case <-time.After(time.Second * 10):
