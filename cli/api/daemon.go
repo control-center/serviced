@@ -177,6 +177,10 @@ func (d *daemon) startMaster() error {
 	}
 
 	thisHost, err := host.Build(agentIP, "unknown")
+	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
+		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
+		return err
+	}
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
@@ -210,7 +214,10 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err != nil {
 		panic(err)
 	}
-	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+	if err != nil {
+		glog.Fatalf("could not create an NFS client: %s", err)
+	}
 	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)

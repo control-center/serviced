@@ -13,9 +13,9 @@
             },{
               "Name": "websvc",
               "Application": "websvc",
-              "PortNumber": 8080,
+              "PortNumber": 9090,
               "Protocol": "tcp",
-              "Porpose": "import"
+              "Purpose": "import"
             }
           ],
           "ImageID": "ubuntu",
