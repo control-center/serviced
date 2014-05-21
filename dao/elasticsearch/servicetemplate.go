@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"runtime/debug"
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
