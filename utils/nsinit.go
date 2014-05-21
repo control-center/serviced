@@ -36,8 +36,8 @@ func NSInitWithRetry(cmd []string) error {
 	if err := f.Sync(); err != nil {
 		return err
 	}
-	command := []string{f.Name()}
+	command := []string{"/bin/bash", f.Name()}
 	glog.V(0).Infof("Here's the command: %s", command)
-	err = syscall.Exec("/bin/bash", command, os.Environ())
+	err = syscall.Exec("/usr/bin/sudo", command, os.Environ())
 	return nil
 }

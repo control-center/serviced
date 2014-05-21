@@ -212,7 +212,7 @@ func generateAttachCommand(containerID string, bashcmd []string) ([]string, erro
 
 	attachCmd := fmt.Sprintf("cd %s/%s && %s exec %s", nsInitRoot, containerID,
 		exeMap["nsinit"], strings.Join(bashcmd, " "))
-	fullCmd := []string{exeMap["sudo"], "--", "/bin/bash", "-c", attachCmd}
+	fullCmd := []string{attachCmd}
 	glog.V(1).Infof("attach command for container:%v command: %v\n", containerID, fullCmd)
 	return fullCmd, nil
 }
