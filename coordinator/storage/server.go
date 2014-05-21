@@ -22,7 +22,7 @@ type Server struct {
 // StorageDriver is an interface that storage subsystem must implement to be used
 // by this packages Server implementation.
 type StorageDriver interface {
-	ExportName() string
+	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
 }
@@ -30,7 +30,7 @@ type StorageDriver interface {
 // NewServer returns a Server object to manage the exported file system
 func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*Server, error) {
 
-	if len(driver.ExportName()) < 9 {
+	if len(driver.ExportPath()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
@@ -61,7 +61,7 @@ func (s *Server) loop() {
 	var children []string
 	node := &Node{
 		Host:       *s.host,
-		ExportPath: fmt.Sprintf("%s:/%s", s.host.IPAddr, s.driver.ExportName()),
+		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
 		version:    nil,
 	}
 

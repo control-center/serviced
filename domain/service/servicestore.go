@@ -38,11 +38,8 @@ func (s *Store) Get(ctx datastore.Context, id string) (*Service, error) {
 		return nil, err
 	}
 	//Copy original config files
-	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
-	for key, val := range svc.OriginalConfigs {
-		svc.ConfigFiles[key] = val
-	}
 
+	fillConfig(svc)
 	return svc, nil
 }
 
@@ -97,6 +94,13 @@ func query(ctx datastore.Context, query string) ([]*Service, error) {
 	return convert(results)
 }
 
+func fillConfig(svc *Service) {
+	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	for key, val := range svc.OriginalConfigs {
+		svc.ConfigFiles[key] = val
+	}
+}
+
 func convert(results datastore.Results) ([]*Service, error) {
 	svcs := make([]*Service, results.Len())
 	for idx := range svcs {
@@ -105,6 +109,7 @@ func convert(results datastore.Results) ([]*Service, error) {
 		if err != nil {
 			return nil, err
 		}
+		fillConfig(&svc)
 		svcs[idx] = &svc
 	}
 	return svcs, nil

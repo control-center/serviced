@@ -176,6 +176,10 @@ func chownConfFile(filename, owner, permissions string) error {
 // writeConfFile writes a config file
 func writeConfFile(config servicedefinition.ConfigFile) error {
 	// write file with default perms
+	if err := os.MkdirAll(filepath.Dir(config.Filename), 0755); err != nil {
+		glog.Errorf("could not create directories for config file: %s", config.Filename)
+		return err
+	}
 	if err := ioutil.WriteFile(config.Filename, []byte(config.Content), os.FileMode(0664)); err != nil {
 		glog.Errorf("Could not write out config file %s", config.Filename)
 		return err
@@ -321,6 +325,8 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGQUIT)
 
 	env := os.Environ()
+	env = append(env, "CONTROLPLANE=1")
+	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
@@ -471,7 +477,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
-	var unused int = 0;
+	var unused int = 0
 	for {
 		select {
 		case <-time.After(interval):

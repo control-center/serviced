@@ -73,12 +73,12 @@ func (this *ControlPlaneDao) fillOutServices(ctx datastore.Context, svcs []*serv
 }
 
 func (this *ControlPlaneDao) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	glog.V(4).Infof("fillServiceConfigs for %s", svc.Id)
+	glog.V(3).Infof("fillServiceConfigs for %s", svc.Id)
 	tenantID, servicePath, err := this.getTenantIdAndPath(svc.Id)
 	if err != nil {
 		return err
 	}
-	glog.V(4).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
+	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
 
 	configStore := serviceconfigfile.NewStore()
 	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)

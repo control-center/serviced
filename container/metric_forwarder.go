@@ -4,6 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	rest "github.com/zenoss/go-json-rest"
 
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +20,9 @@ type MetricForwarder struct {
 
 // NewMetricForwarder creates a new metric forwarder at port, all metrics are forwarded to metricsRedirectURL
 func NewMetricForwarder(port, metricsRedirectURL string) (config *MetricForwarder, err error) {
+	if len(port) < 4 {
+		return nil, fmt.Errorf("invalid port specification: '%s'", port)
+	}
 	config = &MetricForwarder{
 		port:               port,
 		metricsRedirectURL: metricsRedirectURL,
