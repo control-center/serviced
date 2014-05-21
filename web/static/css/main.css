@@ -775,3 +775,33 @@ rect {
 .nvtooltip p{
     font-weight: bold;
 }
+
+/* bootstrap override */
+.bg-primary{
+    background-color: #6b6b6b;}
+
+
+/* notifications */
+
+.notification {
+    margin-bottom: 20px;
+}
+.notification > *{
+    vertical-align: middle;
+}
+
+/* notification icons */
+.notification .dialogIcon {
+    font-size: 1.2em;
+    top: -1px;
+}
+
+/* backup info notification */
+.notification.backupInfo {
+    clear: both;
+    padding: 15px;
+}
+.notification.backupInfo .backupRunning {
+    margin: 0 5px;
+    font-size: 1.4em;
+}

@@ -24,11 +24,6 @@
   </span>
 </div>
 
-<p id="backupInfo" class="bg-primary" style="clear: both; display: none; padding: 15px;">
-    <b>{{'backup_running' | translate}} - </b>
-    <span id="backupStatus"></span>
-</p>
-
 <p id="restoreInfo" class="bg-primary" style="clear: both; display: none; padding: 15px;">
     <b>{{'restore_running' | translate}} - </b>
     <span id="restoreStatus"></span>
@@ -57,3 +52,12 @@
         </tr>
     </tbody>
 </table>
+
+<script type="text/ng-template" id="backupInfoNotification.html">
+    <div class="bg-info notification backupInfo" style="display:none;"> \
+        <span class="dialogIcon glyphicon glyphicon-info-sign"></span> \
+        <span class="backupRunning">Backup Running</span> \
+        <span class="backupStatus"></span> \
+        <button type="button" class="close" aria-hidden="true">&times;</button> \
+    </div>
+</script>

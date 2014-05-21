@@ -1537,7 +1537,11 @@ function itemClass(item) {
     return cls;
 }
 
-function BackupRestoreControl($scope, $routeParams, resourcesService, authService) {
+function BackupRestoreControl($scope, $routeParams, resourcesService, authService, $translate, $templateCache) {
+
+    // cache reference to backup notification
+    var backupNotification;
+
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -1551,20 +1555,20 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     });
 
     $scope.createBackup = function(){
-        $('#backupInfo').show({
-            duration: 200,
-            easing: "linear"
-        });
+
+        // if existing backup, dont do anything?
+
+        backupNotification = createBackupNotification("Backup Running");
+        $("#backup_data").before(backupNotification);
+        backupNotification.show("fast");
+
         resourcesService.create_backup(function(data){
             setTimeout(getBackupStatus, 1);
         });
     };
 
     $scope.restoreBackup = function(filename){
-        $('#restoreInfo').show({
-            duration: 200,
-            easing: "linear"
-        });
+        $('#restoreInfo').show("fast");
         resourcesService.restore_backup(filename, function(data){
             setTimeout(getRestoreStatus, 1);
         });
@@ -1572,27 +1576,26 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
     function getBackupStatus(){
         resourcesService.get_backup_status(function(data){
-            if(data.Detail != ""){
-                if(data.Detail != "timeout"){
-                    $("#backupStatus").html(data.Detail);
+            if(data.Detail !== ""){
+                if(data.Detail !== "timeout"){
+                    backupNotification.find(".backupStatus").html(data.Detail);
                 }
                 setTimeout(getBackupStatus, 1);
             }else{
                 resourcesService.get_backup_files(function(data){
                     $scope.backupFiles = data;
                 });
-                $("#backupInfo").hide({
-                    duration: 200,
-                    easing: "linear"
-                });
+
+                console.log($scope);
+                successifyNotification(backupNotification);
             }
         });
     }
 
     function getRestoreStatus(){
         resourcesService.get_restore_status(function(data){
-            if(data.Detail != ""){
-                if(data.Detail != "timeout"){
+            if(data.Detail !== ""){
+                if(data.Detail !== "timeout"){
                     $("#restoreStatus").html(data.Detail);
                 }
                 setTimeout(getRestoreStatus, 1);
@@ -1602,6 +1605,28 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
                     easing: "linear"
                 });
             }
+        });
+    }
+
+    function createBackupNotification(message){
+        var notify = $($templateCache.get("backupInfoNotification.html"));
+        notify.find(".backupRunning").text(message);
+        return notify;
+    }
+
+    function successifyNotification(notification){
+        // change notification color, icon, text, etc
+        notification.removeClass("bg-info").addClass("bg-success");
+        notification.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
+        // TODO - localization of text
+        notification.find(".backupRunning").text("Backup Complete");
+        notification.find(".backupStatus").html("");
+
+        // show close button and make it active
+        notification.find(".close").show().off().on("click", function(e){
+            notification.hide("fast", function(){
+                notification.remove();
+            });
         });
     }
 }
