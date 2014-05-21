@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -38,6 +39,10 @@ var (
 	// ErrInvalidHostID is returned if the host is empty or malformed
 	ErrInvalidHostID = errors.New("container: invalid host id")
 )
+
+// containerEnvironmentFile writes out all the environment variables passed to the container so
+// that programs that switch users can access those environment strings
+const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
@@ -314,6 +319,30 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	return c, nil
 }
 
+func writeEnvFile(env []string) (err error) {
+	fo, err := os.Create(containerEnvironmentFile)
+	if err != nil {
+		glog.Errorf("Could not create container environment file '%s': %s", containerEnvironmentFile, err)
+		return err
+	}
+	defer func() {
+		if err != nil {
+			fo.Close()
+		} else {
+			err = fo.Close()
+		}
+	}()
+	w := bufio.NewWriter(fo)
+	for _, value := range env {
+		w.WriteString(value)
+		w.WriteString("\n")
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	return err
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
@@ -329,6 +358,11 @@ func (c *Controller) Run() (err error) {
 	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
+
+	if err := writeEnvFile(env); err != nil {
+		return err
+	}
+
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
 	startService := func() (*subprocess.Instance, chan error) {
