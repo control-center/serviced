@@ -18,7 +18,7 @@
               "Purpose": "import"
             }
           ],
-          "ImageID": "ubuntu",
+          "ImageID": "zenoss/ubuntu:wget",
           "Instances": {
             "min": 1
           },

@@ -16,7 +16,7 @@
                     "Permissions": "660"
                 }
           },
-          "ImageID": "ubuntu",
+          "ImageID": "zenoss/ubuntu:wget",
           "Instances": {
             "min": 1
           },
