@@ -4,6 +4,7 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
@@ -302,16 +303,17 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	}
 
 	// Parse the image information
-	imageID := container.Config.Image
-	repopath := strings.SplitN(imageID, ":", 2)[0]
-	parts := strings.SplitN(repopath, "/", 3)
-	reponame := parts[len(parts)-1]
-	id := strings.SplitN(reponame, "_", 2)[0]
+	imageId, err := commons.ParseImageID(container.Config.Image)
+	if err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
+		return "", err
+	}
+	tenantId := imageId.User
 
 	// Verify the image exists and has the latest tag
 	var image *docker.APIImages
-	images, err := d.findImages(id, DOCKER_LATEST)
-	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), id)
+	images, err := d.findImages(tenantId, DOCKER_LATEST)
+	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), tenantId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
@@ -341,13 +343,13 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 
 	// Update the dfs
 	var theVolume volume.Volume
-	if err := d.client.GetVolume(id, &theVolume); err != nil {
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return "", err
 	}
 
 	// Snapshot the filesystem and images
-	output, err := d.Snapshot(id)
+	output, err := d.Snapshot(tenantId)
 	if err != nil {
 		err = fmt.Errorf("failed to create snapshot: %s", err)
 	}
@@ -511,18 +513,12 @@ func (d *DistributedFileSystem) findImages(id, tag string) (images []docker.APII
 	} else {
 		for _, image := range all {
 			for _, repotag := range image.RepoTags {
-				// check if the tags match
-				if !strings.HasSuffix(repotag, ":"+tag) {
+				imageId, err := commons.ParseImageID(repotag)
+				if err != nil {
 					continue
 				}
-
-				// figure out the repo
-				repo := strings.TrimSuffix(repotag, ":"+tag)
-
-				// verify that the repo matches
-				repoparts := strings.SplitN(repo, "/", 3)
-				reponame := repoparts[len(repoparts)-1]
-				if strings.HasPrefix(reponame, id+"_") {
+				if imageId.Tag == tag && imageId.User == id {
+					repo := strings.TrimSuffix(repotag, ":"+tag)
 					image.Repository = repo
 					image.Tag = tag
 					images = append(images, image)
