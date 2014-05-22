@@ -18,7 +18,7 @@ var (
         "Name":           {"type": "string", "index":"not_analyzed"},
         "KernelVersion":  {"type": "string", "index":"not_analyzed"},
         "KernelRelease":  {"type": "string", "index":"not_analyzed"},
-        "PoolId":         {"type": "string", "index":"not_analyzed"},
+        "PoolID":         {"type": "string", "index":"not_analyzed"},
         "IpAddr":         {"type": "string", "index":"not_analyzed"},
         "Cores":          {"type": "long", "index":"not_analyzed"},
         "Memory":         {"type": "long", "index":"not_analyzed"},
@@ -36,6 +36,7 @@ var (
     }
 }
 `
+	//MAPPING is the elastic mapping for a host
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )
 

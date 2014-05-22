@@ -14,9 +14,12 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -80,7 +83,7 @@ func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *st
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]service.AddressAssignment) (err error) {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 
@@ -152,8 +155,8 @@ func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.Se
 	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
 }
 
-func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
+func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
 func (s *ControlClient) StartShell(service service.Service, unused *int) error {
@@ -214,11 +217,11 @@ func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
 }
 
-func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
+func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
 	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
 }
 
-func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
+func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
 	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
 }
 
@@ -240,6 +243,10 @@ func (s *ControlClient) BackupStatus(notUsed string, backupStatus *string) error
 
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
+
+func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused)
 }
 
 func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {

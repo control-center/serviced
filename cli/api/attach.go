@@ -2,13 +2,12 @@ package api
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/utils"
 
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 )
 
 // AttachConfig is the deserialized object from the command-line
@@ -73,7 +72,7 @@ func (a *api) getServiceStateIDFromDocker(containerID string) (string, error) {
 	return serviceStateID, nil
 }
 
-// FindRunningServices returns running services that match DockerId, ServiceName, or ServiceId
+// FindRunningServices returns running services that match DockerID, ServiceName, or ServiceID
 func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 	services, err := a.GetServices()
 	if err != nil {
@@ -82,7 +81,7 @@ func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 
 	var runningServices []*RunningService
 	for serviceKey, service := range services {
-		glog.V(2).Infof("looking for keyword:%s in service:  ServiceId:%s  ServiceName:%s\n",
+		glog.V(2).Infof("looking for keyword:%s in service:  ServiceID:%s  ServiceName:%s\n",
 			keyword, service.Id, service.Name)
 		statesByServiceID, err := a.getServiceStatesByServiceID(service.Id)
 		if err != nil {
@@ -90,15 +89,15 @@ func (a *api) FindRunningServices(keyword string) ([]*RunningService, error) {
 		}
 
 		for stateKey, state := range statesByServiceID {
-			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceId:%s  ServiceName:%s  DockerId:%s\n",
-				keyword, state.ServiceId, service.Name, state.DockerId)
-			if state.DockerId == "" {
+			glog.V(2).Infof("looking for keyword:%s in   state:  ServiceID:%s  ServiceName:%s  DockerID:%s\n",
+				keyword, state.ServiceID, service.Name, state.DockerID)
+			if state.DockerID == "" {
 				continue
 			}
-			if keyword == state.ServiceId || keyword == service.Name || keyword == state.DockerId {
+			if keyword == state.ServiceID || keyword == service.Name || keyword == state.DockerID {
 
 				// validate that the running service found is a running docker container
-				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerId)
+				serviceStateID, err := a.getServiceStateIDFromDocker(state.DockerID)
 				if err != nil {
 					continue
 				}
@@ -131,9 +130,9 @@ func (a *api) GetRunningService(serviceStateID string) (*RunningService, error) 
 	}
 
 	// retrieve the service
-	service, err := a.GetService(state.ServiceId)
+	service, err := a.GetService(state.ServiceID)
 	if err != nil {
-		glog.Errorf("could not get service from state.ServiceID:%s  error:%v\n", state.ServiceId, err)
+		glog.Errorf("could not get service from state.ServiceID:%s  error:%v\n", state.ServiceID, err)
 		return nil, err
 	}
 
@@ -160,65 +159,29 @@ func (a *api) GetRunningServiceActionCommand(serviceStateID string, action strin
 	}
 
 	// Evaluate service Actions for templates
-	service := running.Service
-	if err := running.Service.EvaluateActionsTemplate(client); err != nil {
-		return "", fmt.Errorf("could not evaluate service:%s  Actions:%+v  error:%s", service.Id, service.Actions, err)
+	svc := running.Service
+	getSvc := func(svcID string) (service.Service, error) {
+		s := service.Service{}
+		err := client.GetService(svcID, &s)
+		return s, err
+	}
+	if err := running.Service.EvaluateActionsTemplate(getSvc); err != nil {
+		return "", fmt.Errorf("could not evaluate service:%s  Actions:%+v  error:%s", svc.Id, svc.Actions, err)
 	}
 
 	// Parse the command
-	command, ok := service.Actions[action]
+	command, ok := svc.Actions[action]
 	if !ok {
-		glog.Infof("service: %+v", service)
+		glog.Infof("service: %+v", svc)
 		glog.Fatalf("cannot access action: %s", action)
 	}
 
 	return command, nil
 }
 
-// exePaths returns the full path to the given executables in a map
-func exePaths(exes []string) (map[string]string, error) {
-	exeMap := map[string]string{}
-
-	for _, exe := range exes {
-		path, err := exec.LookPath(exe)
-		if err != nil {
-			glog.Errorf("exe:'%v' not found error:%v\n", exe, err)
-			return nil, err
-		}
-
-		exeMap[exe] = path
-	}
-
-	return exeMap, nil
-}
-
-// generateAttachCommand returns a slice containing nsinit command to exec
-func generateAttachCommand(containerID string, bashcmd []string) ([]string, error) {
-	if containerID == "" {
-		return []string{}, fmt.Errorf("will not attach to container with empty containerID")
-	}
-
-	exeMap, err := exePaths([]string{"sudo", "nsinit"})
-	if err != nil {
-		return []string{}, err
-	}
-
-	nsInitRoot := "/var/lib/docker/execdriver/native" // has container.json
-
-	attachCmd := fmt.Sprintf("cd %s/%s && %s exec %s", nsInitRoot, containerID,
-		exeMap["nsinit"], strings.Join(bashcmd, " "))
-	fullCmd := []string{exeMap["sudo"], "--", "/bin/bash", "-c", attachCmd}
-	glog.V(1).Infof("attach command for container:%v command: %v\n", containerID, fullCmd)
-	return fullCmd, nil
-}
-
 // attachExecUsingContainerID connects to a container and executes an arbitrary bash command
 func attachExecUsingContainerID(containerID string, cmd []string) error {
-	fullCmd, err := generateAttachCommand(containerID, cmd)
-	if err != nil {
-		return err
-	}
-	return syscall.Exec(fullCmd[0], fullCmd[0:], os.Environ())
+	return utils.ExecNSInitWithRetry(containerID, cmd)
 }
 
 // attachExecUsingServiceStateID connects to a container and executes an arbitrary bash command
@@ -230,8 +193,8 @@ func (a *api) attachExecUsingServiceStateID(serviceStateID string, cmd []string)
 	}
 
 	glog.V(1).Infof("retrieved service/state using serviceStateID:%s ==> serviceID:%s  serviceName:%s  dockerId:%s\n",
-		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerId)
-	return attachExecUsingContainerID(running.State.DockerId, cmd)
+		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerID)
+	return attachExecUsingContainerID(running.State.DockerID, cmd)
 }
 
 // Attach runs an arbitrary shell command in a running service container
@@ -250,19 +213,7 @@ func (a *api) Attach(config AttachConfig) error {
 
 // attachRunUsingContainerID attaches to a service state container and runs an arbitrary bash command
 func attachRunUsingContainerID(containerID string, cmd []string) ([]byte, error) {
-	fullCmd, err := generateAttachCommand(containerID, cmd)
-	if err != nil {
-		return nil, err
-	}
-	command := exec.Command(fullCmd[0], fullCmd[1:]...)
-
-	output, err := command.CombinedOutput()
-	if err != nil {
-		glog.Errorf("Error running command:'%s' output: %s  error: %s\n", cmd, output, err)
-		return output, err
-	}
-	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", cmd, output)
-	return output, nil
+	return utils.RunNSInitWithRetry(containerID, cmd)
 }
 
 // attachRunUsingServiceStateID attaches to a service state container and runs an arbitrary bash command
@@ -274,8 +225,8 @@ func (a *api) attachRunUsingServiceStateID(serviceStateID string, cmd []string) 
 	}
 
 	glog.V(1).Infof("retrieved service/state using serviceStateID:%s ==> serviceID:%s  serviceName:%s  dockerId:%s\n",
-		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerId)
-	return attachRunUsingContainerID(running.State.DockerId, cmd)
+		serviceStateID, running.Service.Id, running.Service.Name, running.State.DockerID)
+	return attachRunUsingContainerID(running.State.DockerID, cmd)
 }
 
 // Action runs a predefined action in a running service container

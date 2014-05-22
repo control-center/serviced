@@ -76,12 +76,12 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: '',
+            ParentServiceID: '',
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
     $scope.click_secondary = function(navlink) {

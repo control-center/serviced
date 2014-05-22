@@ -5,6 +5,8 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 var (
@@ -43,18 +45,18 @@ func (t *TestHostInfo) PrioritizeByMemory(hosts []*host.Host) ([]*host.Host, err
 func (t *TestHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
 	result := []*dao.RunningService{}
 	for _, s := range t.services[h] {
-		result = append(result, &dao.RunningService{ServiceId: s})
+		result = append(result, &dao.RunningService{ServiceID: s})
 	}
 	return result
 }
 
-func (t *TestHostInfo) addServiceToHost(svc *dao.Service, h *host.Host) {
+func (t *TestHostInfo) addServiceToHost(svc *service.Service, h *host.Host) {
 	t.services[h] = append(t.services[h], svc.Id)
 }
 
 func TestLeastCommitted(t *testing.T) {
 	BeforeEach()
-	svc := dao.Service{HostPolicy: dao.LEAST_COMMITTED}
+	svc := service.Service{HostPolicy: servicedefinition.LeastCommitted}
 	policy := ServiceHostPolicy{&svc, testinfo}
 	if h, _ := policy.SelectHost(unprioritized); h != most {
 		t.Fatalf("Expected most host but got %s", h.ID)
@@ -64,7 +66,7 @@ func TestLeastCommitted(t *testing.T) {
 
 func TestPreferSeparate(t *testing.T) {
 	BeforeEach()
-	svc := dao.Service{HostPolicy: dao.PREFER_SEPARATE}
+	svc := service.Service{HostPolicy: servicedefinition.PreferSeparate}
 	policy := ServiceHostPolicy{&svc, testinfo}
 
 	testinfo.addServiceToHost(&svc, most)
@@ -86,7 +88,7 @@ func TestPreferSeparate(t *testing.T) {
 
 func TestRequireSeparate(t *testing.T) {
 	BeforeEach()
-	svc := dao.Service{HostPolicy: dao.REQUIRE_SEPARATE}
+	svc := service.Service{HostPolicy: servicedefinition.RequireSeparate}
 	policy := ServiceHostPolicy{&svc, testinfo}
 
 	testinfo.addServiceToHost(&svc, most)

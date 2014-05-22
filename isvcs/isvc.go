@@ -21,7 +21,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zctrl/isvcs"
-	IMAGE_TAG  = "v6"
+	IMAGE_TAG  = "v7"
 )
 
 func Init() {
@@ -47,6 +47,9 @@ func Init() {
 		glog.Fatalf("%s", err)
 	}
 	if err := Mgr.Register(celery); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(dockerRegistry); err != nil {
 		glog.Fatalf("%s", err)
 	}
 }

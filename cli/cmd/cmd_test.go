@@ -56,8 +56,9 @@ func InitAPITest(args ...string) {
 	New(DefaultAPITest).Run(args)
 }
 
-func (t APITest) StartServer() {
+func (t APITest) StartServer() error {
 	fmt.Println("starting server")
+	return nil
 }
 
 func ExampleServicedCLI_CmdInit_logging() {

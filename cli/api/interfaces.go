@@ -14,7 +14,7 @@ import (
 type API interface {
 
 	// Server
-	StartServer()
+	StartServer() error
 	StartProxy(ControllerOptions) error
 
 	// Hosts
@@ -35,7 +35,7 @@ type API interface {
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]*service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
-	RemoveService(string) error
+	RemoveService(RemoveServiceConfig) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) (*host.Host, error)
 	StopService(string) error
@@ -71,4 +71,7 @@ type API interface {
 	// Backup & Restore
 	Backup(string) (string, error)
 	Restore(string) error
+
+	// Logs
+	ExportLogs(serviceIds []string, to, from, outfile string) error
 }

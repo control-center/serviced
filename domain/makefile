@@ -19,6 +19,8 @@ build:
 	cd servicetemplate && go build
 	cd service && go build
 	cd servicestate && go build
+	cd addressassignment && go build
+	cd serviceconfigfile && go build
 
 test: build
 	go test $(GOTEST_FLAGS)
@@ -28,6 +30,8 @@ test: build
 	cd servicetemplate && go test $(GOTEST_FLAGS)
 	cd service && go test $(GOTEST_FLAGS)
 	cd servicestate && go test $(GOTEST_FLAGS)
+	cd addressassignment && go test $(GOTEST_FLAGS)
+	cd serviceconfigfile && go test $(GOTEST_FLAGS)
 
 clean:
 	go clean
@@ -37,3 +41,5 @@ clean:
 	cd servicetemplate && go clean
 	cd service && go clean
 	cd servicestate && go clean
+	cd addressassignment && go clean
+	cd serviceconfigfile && go clean

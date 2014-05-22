@@ -111,7 +111,7 @@ func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) (*s
 	}
 	s := service.Service{
 		Id:     fmt.Sprintf("%s-service", cfg.ID),
-		PoolId: cfg.PoolID,
+		PoolID: cfg.PoolID,
 	}
 	return &s, nil
 }

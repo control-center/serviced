@@ -35,6 +35,31 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	w.WriteJson(&poolsMap)
 }
 
+//RestGetPool retrieves a Resource Pools. Response is ResourcePool
+func RestGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		RestServerError(w)
+		return
+	}
+
+	pool, err := client.GetResourcePool(poolID)
+	if err != nil {
+		glog.Error("Could not get resource pool: ", err)
+		RestServerError(w)
+		return
+	}
+
+	glog.V(4).Infof("RestGetPool: id %s, pool %#v", poolID, pool)
+	w.WriteJson(&pool)
+}
+
 //RestAddPool add a resource pool. Request input is pool.ResourcePool
 func RestAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload pool.ResourcePool
@@ -133,12 +158,37 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	}
 	for _, host := range hosts {
 		ph := dao.PoolHost{
-			HostId: host.ID,
-			PoolId: poolID,
-			HostIp: host.IPAddr,
+			HostID: host.ID,
+			PoolID: poolID,
+			HostIP: host.IPAddr,
 		}
 		poolHosts = append(poolHosts, &ph)
 	}
 	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolID)
 	w.WriteJson(&poolHosts)
+}
+
+//RestGetPoolIps retrieves a Resource Pools. Response is ResourcePool
+func RestGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		RestBadRequest(w)
+		return
+	}
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		RestServerError(w)
+		return
+	}
+
+	ips, err := client.GetPoolIPs(poolID)
+	if err != nil {
+		glog.Error("Could not get resource pool: ", err)
+		RestServerError(w)
+		return
+	}
+
+	glog.V(4).Infof("RestGetPoolIps: id %s, pool %#v", poolID, ips)
+	w.WriteJson(&ips)
 }

@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/zenoss/cli"
 	"github.com/zenoss/glog"
@@ -14,6 +17,29 @@ type ServicedCli struct {
 	driver api.API
 	app    *cli.App
 }
+
+const envPrefix = "SERVICED_"
+
+func configEnv(key string, defaultVal string) string {
+	s := os.Getenv(envPrefix + key)
+	if len(s) == 0 {
+		return defaultVal
+	}
+	return s
+}
+func configInt(key string, defaultVal int) int {
+	s := configEnv(key, "")
+	if len(s) == 0 {
+		return defaultVal
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return v
+}
+
+const defaultRPCPort = 4979
 
 // New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
@@ -34,14 +60,26 @@ func New(driver api.API) *ServicedCli {
 	c.app.Version = servicedversion.Version
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
+	staticIps := cli.StringSlice{}
+	if len(configEnv("STATIC_IPS", "")) > 0 {
+		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
+	}
+
+	defaultDockerRegistry := "localhost:5000"
+	if hostname, err := os.Hostname(); err == nil {
+		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
+	}
+
 	c.app.Flags = []cli.Flag{
+		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
+		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
 		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},
-		cli.StringFlag{"uiport", ":443", "port for ui"},
-		cli.StringFlag{"listen", ":4979", "port for local serviced (example.com:8080)"},
+		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
+		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
-		cli.IntFlag{"mux", 22250, "multiplexing port"},
+		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", varPath, "path to store serviced data"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private key)"},
@@ -63,7 +101,7 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
 		cli.StringFlag{"logstashtype", "", "enable logstash logging and define the type"},
 		cli.StringFlag{"logstashurl", "172.17.42.1:5042", "logstash url and port"},
-		cli.IntFlag{"v", 0, "log level for V logs"},
+		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
@@ -74,6 +112,7 @@ func New(driver api.API) *ServicedCli {
 	c.initTemplate()
 	c.initService()
 	c.initSnapshot()
+	c.initLog()
 	c.initBackup()
 
 	return c
@@ -87,7 +126,9 @@ func (c *ServicedCli) Run(args []string) {
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
+		DockerRegistry:   ctx.GlobalString("docker-registry"),
 		Port:             ctx.GlobalString("port"),
+		StaticIPs:        ctx.GlobalStringSlice("static-ip"),
 		UIPort:           ctx.GlobalString("uiport"),
 		Listen:           ctx.GlobalString("listen"),
 		DockerDNS:        ctx.GlobalStringSlice("docker-dns"),

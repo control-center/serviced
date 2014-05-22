@@ -44,7 +44,7 @@ func validOwnerSpec(owner string) bool {
 }
 
 // GetInterfaceIPAddress attempts to find the IP address based on interface name
-func GetInterfaceIpAddress(_interface string) (string, error) {
+func GetInterfaceIPAddress(_interface string) (string, error) {
 	output, err := exec.Command("/sbin/ip", "-4", "-o", "addr").Output()
 	if err != nil {
 		return "", err
@@ -250,7 +250,7 @@ func init() {
 	userSpecCache.lookup = make(map[string]uidgid)
 }
 
-func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
+func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 
 	userSpecCache.Lock()
 	defer userSpecCache.Unlock()
@@ -270,7 +270,7 @@ func getInternalImageIds(userSpec, imageSpec string) (uid, gid int, err error) {
 	pattern := regexp.MustCompile(`^\d+ \d+$`)
 
 	if !pattern.MatchString(s) {
-		err = fmt.Errorf("unexpected output from getInternalImageIds: %s", s)
+		err = fmt.Errorf("unexpected output from getInternalImageIDs: %s", s)
 		return
 	}
 	fields := strings.Fields(s)

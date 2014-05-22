@@ -28,6 +28,7 @@ var (
     }
 }
 `
+	//MAPPING is the elastic mapping for a resource pool
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )
 

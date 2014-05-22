@@ -6,6 +6,7 @@ package web
 
 import (
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/health"
 )
 
 //getRoutes returns all registered rest routes
@@ -23,6 +24,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/backup/restore/status", sc.AuthorizedClient(RestRestoreStatus)},
 		// Hosts
 		rest.Route{"GET", "/hosts", sc.CheckAuth(RestGetHosts)},
+		rest.Route{"GET", "/hosts/:hostId", sc.CheckAuth(RestGetHost)},
 		rest.Route{"POST", "/hosts/add", sc.CheckAuth(RestAddHost)},
 		rest.Route{"DELETE", "/hosts/:hostId", sc.CheckAuth(RestRemoveHost)},
 		rest.Route{"PUT", "/hosts/:hostId", sc.CheckAuth(RestUpdateHost)},
@@ -30,18 +32,23 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.AuthorizedClient(RestKillRunning)},
 
 		// Pools
-		rest.Route{"POST", "/pools/add", sc.CheckAuth(RestAddPool)},
-		rest.Route{"GET", "/pools/:poolId/hosts", sc.CheckAuth(RestGetHostsForResourcePool)},
+		rest.Route{"GET", "/pools/:poolId", sc.CheckAuth(RestGetPool)},
 		rest.Route{"DELETE", "/pools/:poolId", sc.CheckAuth(RestRemovePool)},
 		rest.Route{"PUT", "/pools/:poolId", sc.CheckAuth(RestUpdatePool)},
+		rest.Route{"POST", "/pools/add", sc.CheckAuth(RestAddPool)},
 		rest.Route{"GET", "/pools", sc.CheckAuth(RestGetPools)},
+		rest.Route{"GET", "/pools/:poolId/hosts", sc.CheckAuth(RestGetHostsForResourcePool)},
 
 		// Pools (VirtualIP)
 		rest.Route{"PUT", "/pools/:poolId/virtualip", sc.AuthorizedClient(RestAddPoolVirtualIP)},
 		rest.Route{"DELETE", "/pools/:poolId/virtualip/*id", sc.AuthorizedClient(RestRemovePoolVirtualIP)},
 
+		// Pools (IPs)
+		rest.Route{"GET", "/pools/:poolId/ips", sc.CheckAuth(RestGetPoolIps)},
+
 		// Services (Apps)
 		rest.Route{"GET", "/services", sc.AuthorizedClient(RestGetAllServices)},
+		rest.Route{"GET", "/servicehealth", sc.AuthorizedClient(health.RestGetHealthStatus)},
 		rest.Route{"GET", "/services/:serviceId", sc.AuthorizedClient(RestGetService)},
 		rest.Route{"GET", "/services/:serviceId/running", sc.AuthorizedClient(RestGetRunningForService)},
 		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.AuthorizedClient(RestGetRunningService)},
@@ -59,6 +66,10 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestAddVirtualHost)},
 		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestRemoveVirtualHost)},
 
+		// Services (IP)
+		rest.Route{"PUT", "/services/:serviceId/ip", sc.AuthorizedClient(RestServiceAutomaticAssignIP)},
+		rest.Route{"PUT", "/services/:serviceId/ip/*ip", sc.AuthorizedClient(RestServiceManualAssignIP)},
+
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", sc.AuthorizedClient(RestGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", sc.AuthorizedClient(RestDeployAppTemplate)},
@@ -66,9 +77,11 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		// Login
 		rest.Route{"POST", "/login", sc.UnAuthorizedClient(RestLogin)},
 		rest.Route{"DELETE", "/login", RestLogout},
+
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", sc.AuthorizedClient(RestGetTopServices)},
 		rest.Route{"GET", "/running", sc.AuthorizedClient(RestGetAllRunning)},
+
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", FavIcon},
 		rest.Route{"GET", "/static*resource", StaticData},

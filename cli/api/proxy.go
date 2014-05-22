@@ -6,26 +6,27 @@ import (
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
-	TentantID        string   // The top level service id
-	ServiceID        string   // The uuid of the service to launch
-	Command          []string // The command to launch
-	MuxPort          int      // the TCP port for the remote mux
-	Mux              bool     // True if a remote mux is used
-	TLS              bool     // True if TLS should be used on the mux
-	KeyPEMFile       string   // path to the KeyPEMfile
-	CertPEMFile      string   // path to the CertPEMfile
-	ServicedEndpoint string
-	Autorestart      bool
-	Logstash         bool
-	LogstashBinary   string // path to the logstash-forwarder binary
-	LogstashConfig   string // path to the logstash-forwarder config file
+	ServiceID           string   // The uuid of the service to launch
+	InstanceID          string   // The service state instance id
+	Command             []string // The command to launch
+	MuxPort             int      // the TCP port for the remote mux
+	Mux                 bool     // True if a remote mux is used
+	TLS                 bool     // True if TLS should be used on the mux
+	KeyPEMFile          string   // path to the KeyPEMfile
+	CertPEMFile         string   // path to the CertPEMfile
+	ServicedEndpoint    string
+	Autorestart         bool
+	MetricForwarderPort string // port to which container processes send performance data to
+	Logstash            bool
+	LogstashBinary      string // path to the logstash-forwarder binary
+	LogstashConfig      string // path to the logstash-forwarder config file
 }
 
 func (c ControllerOptions) toContainerControllerOptions() container.ControllerOptions {
 	options := container.ControllerOptions{}
 	options.ServicedEndpoint = c.ServicedEndpoint
-	options.Service.TenantID = c.TentantID
 	options.Service.Autorestart = c.Autorestart
+	options.Service.InstanceID = c.InstanceID
 	options.Service.ID = c.ServiceID
 	options.Service.Command = c.Command
 	options.Mux.Port = c.MuxPort
@@ -36,6 +37,8 @@ func (c ControllerOptions) toContainerControllerOptions() container.ControllerOp
 	options.Logforwarder.Enabled = c.Logstash
 	options.Logforwarder.Path = c.LogstashBinary
 	options.Logforwarder.ConfigFile = c.LogstashConfig
+	options.Metric.Address = c.MetricForwarderPort
+	options.Metric.RemoteEndoint = "http://localhost:8444/api/metrics/store"
 	return options
 }
 
