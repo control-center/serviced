@@ -245,8 +245,11 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 func (this *ControlPlaneDao) getService(id string) (service.Service, error) {
 	glog.V(3).Infof("ControlPlaneDao.getService: id=%s", id)
 	store := service.NewStore()
-	service, err := store.Get(datastore.Get(), id)
-	return *service, err
+	svc, err := store.Get(datastore.Get(), id)
+	if err != nil || svc == nil {
+		return service.Service{}, err
+	}
+	return *svc, err
 }
 
 //
