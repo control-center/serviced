@@ -13,15 +13,17 @@ import (
 
 var BASH_SCRIPT = `
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-trap "rm -f ${DIR}/$$.stderr ${BASH_SOURCE[0]}" EXIT
+export SEENFILE="${DIR}/$$.found"
+trap "rm -f ${SEENFILE} ${BASH_SOURCE[0]}" EXIT
 for i in {1..10}; do
-	SEEN=0
-	{{{{COMMAND}}}} 2> >(tee ${DIR}/$$.stderr >&2)
+	rm -f ${SEENFILE}
+	{{{{COMMAND}}}} 2> >(awk '/setns /{print >ENVIRON["SEENFILE"];next} {print}' >&2)
 	RESULT=$?
-	[ "${RESULT}" == 0 ] && exit 0
-	grep setns ${DIR}/$$.stderr || exit ${RESULT}
+	sleep 0.1  # allow time to flush for awk writefile
+	[ -s "${SEENFILE}" ] || exit ${RESULT}
 done
-exit ${RESULT}
+{{{{COMMAND}}}}
+exit $?
 `
 
 func createWrapperScript(cmd []string) ([]string, error) {
@@ -30,7 +32,7 @@ func createWrapperScript(cmd []string) ([]string, error) {
 		return nil, err
 	}
 	defer f.Close()
-	script := strings.Replace(BASH_SCRIPT, "{{{{COMMAND}}}}", strings.Join(cmd, " "), 1)
+	script := strings.Replace(BASH_SCRIPT, "{{{{COMMAND}}}}", strings.Join(cmd, " "), -1)
 	if _, err := f.WriteString(script); err != nil {
 		return nil, err
 	}
