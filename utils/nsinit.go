@@ -28,7 +28,7 @@ func createWrapperScript(cmd []string) ([]string, error) {
 		return nil, err
 	}
 	defer f.Close()
-	script := strings.Replace(BASH_SCRIPT, "{{{{COMMAND}}}}", strings.Join(cmd, " "), 1)
+	script := strings.Replace(BASH_SCRIPT, "{{{{COMMAND}}}}", strings.Join(cmd, " "), -1)
 	if _, err := f.WriteString(script); err != nil {
 		return nil, err
 	}
