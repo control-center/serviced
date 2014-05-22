@@ -1558,9 +1558,10 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         // if existing backup, dont do anything?
 
-        backupNotification = createBackupNotification("Backup Running");
+        /*JsDbg*/debugger;// TODO - localization of message
+        backupNotification = new Notification("Backup Running");
         $("#backup_data").before(backupNotification);
-        backupNotification.show("fast");
+        backupNotification.show();
 
         resourcesService.create_backup(function(data){
             setTimeout(getBackupStatus, 1);
@@ -1578,7 +1579,7 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
         resourcesService.get_backup_status(function(data){
             if(data.Detail !== ""){
                 if(data.Detail !== "timeout"){
-                    backupNotification.find(".backupStatus").html(data.Detail);
+                    backupNotification.updateStatus(data.Detail);
                 }
                 setTimeout(getBackupStatus, 1);
             }else{
@@ -1586,8 +1587,8 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
                     $scope.backupFiles = data;
                 });
 
-                console.log($scope);
-                successifyNotification(backupNotification);
+                // TODO - localization of message
+                backupNotification.successify("Backup Complete");
             }
         });
     }
@@ -1608,27 +1609,52 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
         });
     }
 
-    function createBackupNotification(message){
-        var notify = $($templateCache.get("backupInfoNotification.html"));
-        notify.find(".backupRunning").text(message);
-        return notify;
-    }
 
-    function successifyNotification(notification){
-        // change notification color, icon, text, etc
-        notification.removeClass("bg-info").addClass("bg-success");
-        notification.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
-        // TODO - localization of text
-        notification.find(".backupRunning").text("Backup Complete");
-        notification.find(".backupStatus").html("");
-
-        // show close button and make it active
-        notification.find(".close").show().off().on("click", function(e){
-            notification.hide("fast", function(){
-                notification.remove();
-            });
-        });
+    // NOTE: this might not be the angular way to do this.
+    // plus this notification should eventually be reusable
+    // outside of just backup/restore
+    
+    /**
+     * Notification
+     * creates a notification. fun!
+     */
+    function Notification(title){
+        this.$el = $($templateCache.get("backupInfoNotification.html"));
+        this.$status = this.$el.find(".backupStatus");
+        this.$title = this.$el.find(".backupRunning");
+        this.updateTitle(title);
     }
+    Notification.prototype = {
+        constructor: Notification,
+
+        // makes notification successy
+        successify: function(title, msg){
+            // change notification color, icon, text, etc
+            this.$el.removeClass("bg-info").addClass("bg-success");
+            this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
+            
+            this.updateTitle(title);
+            this.updateStatus(msg);
+
+            // show close button and make it active
+            this.$el.find(".close").show().off().on("click", function(e){
+                this.$el.hide("fast", function(){
+                    this.$el.remove();
+                }.bind(this));
+            }.bind(this));
+        },
+        // updates the status message (the smaller text)
+        updateStatus: function(msg){
+            this.$status.html(msg || "");
+        },
+        // updates the notification title (larger text)
+        updateTitle: function(title){
+            this.$title.text(title || "");
+        },
+        show: function(){
+            this.$el.show("fast");
+        }
+    };
 }
 function CeleryLogControl($scope, authService) {
     // Ensure logged in

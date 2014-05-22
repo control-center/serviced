@@ -16,11 +16,21 @@ module.exports = function(grunt){
                 src: 'static/js/controlplane.js',
                 dest: 'static/js/controlplane.min.js'
             }
+        },
+        watch: {
+            dev: {
+                options: {
+                    livereload: true
+                },
+                files: ["**/*", "!static/js/controlplane.js", "!static/js/controlplane.min.js"],
+                tasks: ["concat"]
+            }
         }
     });
 
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-contrib-watch');
 
     grunt.registerTask('default', ['concat', 'uglify']);
 }
