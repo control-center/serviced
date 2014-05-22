@@ -6,6 +6,7 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -30,17 +31,30 @@ func HostID() (hostid string, err error) {
 	return strings.TrimSpace(string(stdout)), err
 }
 
-// GetIPAddress attempts to find the IP address to the default outbout interface.
+// GetIPAddress attempts to find the IP address to the default outbound interface.
 func GetIPAddress() (ip string, err error) {
-	ip, err = getIPAddrFromOutGoingConnection()
-	switch {
-	case err != nil:
+	ifaces, err := net.Interfaces()
+	if err != nil {
 		return "", err
-	case err == nil && strings.HasPrefix(ip, "127"):
-		return "", fmt.Errorf("unable to identify local ip address")
-	default:
-		return ip, err
 	}
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			ipnet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			v4 := ipnet.IP.To4()
+			if v4 == nil || v4[0] == 127 { // loopback address
+				continue
+			}
+			return v4.String(), nil
+		}
+	}
+	return "", errors.New("cannot find local IP address")
 }
 
 // GetMemorySize attempts to get the size of the installed RAM.
