@@ -76,7 +76,7 @@ type Controller struct {
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
 	closing            chan chan error
-	prereqs 		   []domain.Prereq
+	prereqs            []domain.Prereq
 }
 
 // Close shuts down the controller
@@ -307,7 +307,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	// Keep a copy of the service prerequisites in the Controller object.
-	c.prereqs = service.Prereqs;
+	c.prereqs = service.Prereqs
 
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
