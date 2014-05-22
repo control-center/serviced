@@ -14,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/utils"
 
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ import (
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	uuid, err := dao.NewUuid()
+	uuid, err := utils.NewUUID36()
 	if err != nil {
 		return err
 	}
@@ -82,26 +83,26 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
 	store := servicetemplate.NewStore()
-	template, err := store.Get(datastore.Get(), request.TemplateId)
+	template, err := store.Get(datastore.Get(), request.TemplateID)
 	if err != nil {
-		glog.Errorf("unable to load template: %s", request.TemplateId)
+		glog.Errorf("unable to load template: %s", request.TemplateID)
 		return err
 	}
 
-	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolId)
+	pool, err := this.facade.GetResourcePool(datastore.Get(), request.PoolID)
 	if err != nil {
-		glog.Errorf("Unable to load resource pool: %s", request.PoolId)
+		glog.Errorf("Unable to load resource pool: %s", request.PoolID)
 		return err
 	}
 	if pool == nil {
-		return fmt.Errorf("poolid %s not found", request.PoolId)
+		return fmt.Errorf("poolid %s not found", request.PoolID)
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateId, request.PoolId, "", volumes, request.DeploymentId, tenantId)
+	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolID, "", volumes, request.DeploymentID, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
 	ds := service.SVCStop
 
@@ -109,7 +110,7 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 	for k, v := range volumes {
 		exportedVolumes[k] = v
 	}
-	svc, err := service.BuildService(sd, parentServiceId, pool, ds, deploymentId)
+	svc, err := service.BuildService(sd, parentServiceID, pool, ds, deploymentId)
 	if err != nil {
 		return err
 	}
@@ -130,53 +131,32 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
-	if parentServiceId == "" {
+	if parentServiceID == "" {
 		*tenantId = svc.Id
 	}
 
 	// Using the tenant id, tag the base image with the tenantID
-	if svc.ImageId != "" {
-		name, err := this.renameImageId(svc.ImageId, *tenantId)
+	if svc.ImageID != "" {
+		name, err := this.renameImageID(svc.ImageID, *tenantId)
 		if err != nil {
 			return err
 		}
-		svc.ImageId = name
-	}
 
-	var serviceId string
-	err = this.AddService(*svc, &serviceId)
-	if err != nil {
-		return err
-	}
-
-	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
-}
-
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceId string, volumes map[string]string, deploymentId string, tenantId *string) error {
-	// ensure that all images in the templates exist
-	imageIds := make(map[string]struct{})
-	for _, svc := range sds {
-		getSubServiceImageIds(imageIds, svc)
-	}
-
-	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("unable to start docker client")
-		return err
-	}
-
-	for imageId, _ := range imageIds {
-
-		image, err := dockerclient.InspectImage(imageId)
+		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
 		if err != nil {
-			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
+			glog.Errorf("unable to start docker client")
+			return err
+		}
+		image, err := dockerclient.InspectImage(svc.ImageID)
+		if err != nil {
+			msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 			glog.Error(err.Error())
 			return msg
 		}
 
-		repo, err := this.renameImageId(imageId, *tenantId)
+		repo, err := this.renameImageID(svc.ImageID, *tenantId)
 		if err != nil {
-			glog.Errorf("malformed imageId: %s", imageId)
+			glog.Errorf("malformed imageId: %s", svc.ImageID)
 			return err
 		}
 
@@ -188,29 +168,61 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
 			return err
 		}
-		// TODO: push image to local registry
+		svc.ImageID = name
+
+	}
+
+	var serviceId string
+	err = this.AddService(*svc, &serviceId)
+	if err != nil {
+		return err
+	}
+
+	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
+}
+
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
+	// ensure that all images in the templates exist
+	imageIds := make(map[string]struct{})
+	for _, svc := range sds {
+		getSubServiceImageIDs(imageIds, svc)
+	}
+
+	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("unable to start docker client")
+		return err
+	}
+
+	for imageId, _ := range imageIds {
+		_, err := dockerclient.InspectImage(imageId)
+		if err != nil {
+			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
+			glog.Error(err.Error())
+			return msg
+		}
 	}
 
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parentServiceId, volumes, deploymentId, tenantId); err != nil {
+		if err := this.deployServiceDefinition(sd, template, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getSubServiceImageIds(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
+func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
 	found := struct{}{}
 
 	if len(svc.ImageID) != 0 {
 		ids[svc.ImageID] = found
 	}
 	for _, s := range svc.Services {
-		getSubServiceImageIds(ids, s)
+		getSubServiceImageIDs(ids, s)
 	}
 }
 
-func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, error) {
+func (this *ControlPlaneDao) renameImageID(imageId, tenantId string) (string, error) {
 
 	repo, _ := dutils.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
@@ -220,7 +232,7 @@ func (this *ControlPlaneDao) renameImageId(imageId, tenantId string) (string, er
 	}
 	name := matches[1]
 
-	return fmt.Sprintf("%s/%s_%s", this.dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", this.dockerRegistry, tenantId, name), nil
 }
 
 // writeLogstashConfiguration takes all the available

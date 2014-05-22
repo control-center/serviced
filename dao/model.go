@@ -2,6 +2,8 @@ package dao
 
 import (
 	"time"
+
+	"github.com/zenoss/serviced/utils"
 )
 
 type User struct {
@@ -11,58 +13,58 @@ type User struct {
 
 // An association between a host and a pool.
 type PoolHost struct {
-	HostId string
-	PoolId string
-	HostIp string
+	HostID string
+	PoolID string
+	HostIP string
 }
 
-//AssignmentRequest is used to couple a serviceId to an IpAddress
+//AssignmentRequest is used to couple a serviceId to an IPAddress
 type AssignmentRequest struct {
-	ServiceId      string
-	IpAddress      string
+	ServiceID      string
+	IPAddress      string
 	AutoAssignment bool
 }
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
-	ServiceId      string
+	ServiceID      string
 	ContainerPort  uint16
 	HostPort       uint16
-	HostIp         string
-	ContainerIp    string
+	HostIP         string
+	ContainerIP    string
 	Protocol       string
 	VirtualAddress string
 }
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
-	PoolId       string // Pool Id to deploy service into
-	TemplateId   string // Id of template to be deployed
-	DeploymentId string // Unique id of the instance of this template
+	PoolID       string // Pool Id to deploy service into
+	TemplateID   string // Id of template to be deployed
+	DeploymentID string // Unique id of the instance of this template
 }
 
 // This is created by selecting from service_state and joining to service
 type RunningService struct {
 	Id              string
-	ServiceId       string
-	HostId          string
-	DockerId        string
+	ServiceID       string
+	HostID          string
+	DockerID        string
 	StartedAt       time.Time
 	Name            string
 	Startup         string
 	Description     string
 	Instances       int
-	ImageId         string
-	PoolId          string
+	ImageID         string
+	PoolID          string
 	DesiredState    int
-	ParentServiceId string
-	InstanceId      int
+	ParentServiceID string
+	InstanceID      int
 }
 
 // An instantiation of a Snapshot request
 type SnapshotRequest struct {
 	Id            string
-	ServiceId     string
+	ServiceID     string
 	SnapshotLabel string
 	SnapshotError string
 }
@@ -70,9 +72,9 @@ type SnapshotRequest struct {
 // A new snapshot request instance (SnapshotRequest)
 func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
 	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.Id, err = NewUuid()
+	snapshotRequest.Id, err = utils.NewUUID36()
 	if err == nil {
-		snapshotRequest.ServiceId = serviceId
+		snapshotRequest.ServiceID = serviceId
 		snapshotRequest.SnapshotLabel = snapshotLabel
 		snapshotRequest.SnapshotError = ""
 	}

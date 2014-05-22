@@ -3,10 +3,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/zenoss/cli"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/dao"
@@ -14,6 +16,15 @@ import (
 
 // Initializer for serviced service subcommands
 func (c *ServicedCli) initService() {
+
+	defaultMetricsForwarderPort := ":22350"
+	if cpConsumerUrl, err := url.Parse(os.Getenv("CONTROLPLANE_CONSUMER_URL")); err == nil {
+		hostParts := strings.Split(cpConsumerUrl.Host, ":")
+		if len(hostParts) == 2 {
+			defaultMetricsForwarderPort = ":" + hostParts[1]
+		}
+	}
+
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "service",
 		Usage:       "Administers services",
@@ -91,6 +102,7 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
+					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
@@ -295,11 +307,11 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					s.Id,
 					s.Startup,
 					s.Instances,
-					s.ImageId,
-					s.PoolId,
+					s.ImageID,
+					s.PoolID,
 					s.DesiredState,
 					s.Launch,
-					s.DeploymentId,
+					s.DeploymentID,
 				)
 				tableService.Indent()
 				printTree(s.Id)
@@ -464,6 +476,17 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	}
 }
 
+// sendLogMessage sends a log message to the host agent
+func sendLogMessage(lbClientPort string, serviceLogInfo serviced.ServiceLogInfo) error {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return err
+	}
+	defer client.Close()
+	return client.SendLogMessage(serviceLogInfo, nil)
+}
+
 // serviced service proxy SERVICE_ID INSTANCEID COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	if len(ctx.Args()) < 3 {
@@ -478,22 +501,28 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:          ctx.GlobalInt("muxport"),
-		Mux:              ctx.GlobalBool("mux"),
-		TLS:              ctx.GlobalBool("tls"),
-		KeyPEMFile:       ctx.GlobalString("keyfile"),
-		CertPEMFile:      ctx.GlobalString("certfile"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
-		Autorestart:      ctx.GlobalBool("autorestart"),
-		Logstash:         ctx.GlobalBool("logstash"),
-		LogstashBinary:   ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:   ctx.GlobalString("forwarder-config"),
-		ServiceID:        args[0],
-		InstanceID:       args[1],
-		Command:          args[2:],
+		MuxPort:             ctx.GlobalInt("muxport"),
+		Mux:                 ctx.GlobalBool("mux"),
+		TLS:                 ctx.GlobalBool("tls"),
+		KeyPEMFile:          ctx.GlobalString("keyfile"),
+		CertPEMFile:         ctx.GlobalString("certfile"),
+		ServicedEndpoint:    ctx.GlobalString("endpoint"),
+		Autorestart:         ctx.GlobalBool("autorestart"),
+		MetricForwarderPort: ctx.GlobalString("metric-forwarder-port"),
+		Logstash:            ctx.GlobalBool("logstash"),
+		LogstashBinary:      ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:      ctx.GlobalString("forwarder-config"),
+		ServiceID:           args[0],
+		InstanceID:          args[1],
+		Command:             args[2:],
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
+		sendLogMessage(options.ServicedEndpoint,
+			serviced.ServiceLogInfo{
+				ServiceID: options.ServiceID,
+				Message:   "container controller terminated with: " + err.Error(),
+			})
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -596,12 +625,12 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 
 	var states []*dao.RunningService
 	for _, rs := range rss {
-		if rs.DockerId == "" {
+		if rs.DockerID == "" {
 			continue
 		}
 
 		switch keyword {
-		case rs.ServiceId, rs.Name, rs.Id, rs.DockerId:
+		case rs.ServiceID, rs.Name, rs.Id, rs.DockerID:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
@@ -620,7 +649,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	matches := newTable(0, 8, 2)
 	matches.PrintRow("NAME", "SERVICEID", "DOCKERID")
 	for _, row := range states {
-		matches.PrintRow(row.Name, row.ServiceId, row.DockerId)
+		matches.PrintRow(row.Name, row.ServiceID, row.DockerID)
 	}
 	matches.Flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
@@ -682,7 +711,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 
 	switch len(args) {
 	case 1:
-		actions := c.serviceActions(rs.ServiceId)
+		actions := c.serviceActions(rs.ServiceID)
 		if len(actions) > 0 {
 			fmt.Println(strings.Join(actions, "\n"))
 		} else {

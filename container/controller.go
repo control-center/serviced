@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -38,6 +39,10 @@ var (
 	// ErrInvalidHostID is returned if the host is empty or malformed
 	ErrInvalidHostID = errors.New("container: invalid host id")
 )
+
+// containerEnvironmentFile writes out all the environment variables passed to the container so
+// that programs that switch users can access those environment strings
+const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
@@ -176,6 +181,10 @@ func chownConfFile(filename, owner, permissions string) error {
 // writeConfFile writes a config file
 func writeConfFile(config servicedefinition.ConfigFile) error {
 	// write file with default perms
+	if err := os.MkdirAll(filepath.Dir(config.Filename), 0755); err != nil {
+		glog.Errorf("could not create directories for config file: %s", config.Filename)
+		return err
+	}
 	if err := ioutil.WriteFile(config.Filename, []byte(config.Content), os.FileMode(0664)); err != nil {
 		glog.Errorf("Could not write out config file %s", config.Filename)
 		return err
@@ -206,7 +215,7 @@ func setupConfigFiles(service *service.Service) error {
 func setupLogstashFiles(service *service.Service, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(LOGSTASH_CONTAINER_CONFIG, service, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, service, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -310,6 +319,30 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	return c, nil
 }
 
+func writeEnvFile(env []string) (err error) {
+	fo, err := os.Create(containerEnvironmentFile)
+	if err != nil {
+		glog.Errorf("Could not create container environment file '%s': %s", containerEnvironmentFile, err)
+		return err
+	}
+	defer func() {
+		if err != nil {
+			fo.Close()
+		} else {
+			err = fo.Close()
+		}
+	}()
+	w := bufio.NewWriter(fo)
+	for _, value := range env {
+		w.WriteString(value)
+		w.WriteString("\n")
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	return err
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
@@ -321,8 +354,15 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGQUIT)
 
 	env := os.Environ()
+	env = append(env, "CONTROLPLANE=1")
+	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
+
+	if err := writeEnvFile(env); err != nil {
+		return err
+	}
+
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
 	startService := func() (*subprocess.Instance, chan error) {
@@ -407,35 +447,36 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		return
 	}
 	defer client.Close()
-	script_file, err := ioutil.TempFile("", name)
+	scriptFile, err := ioutil.TempFile("", name)
 	if err != nil {
 		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
 		return
 	}
-	defer script_file.Close()
-	defer os.Remove(script_file.Name())
-	err = ioutil.WriteFile(script_file.Name(), []byte(script), os.FileMode(0777))
+	defer scriptFile.Close()
+	defer os.Remove(scriptFile.Name())
+	err = ioutil.WriteFile(scriptFile.Name(), []byte(script), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error writing script for health check %s: %s", name, err)
 		return
 	}
-	script_file.Close()
-	err = os.Chmod(script_file.Name(), os.FileMode(0777))
+	scriptFile.Close()
+	err = os.Chmod(scriptFile.Name(), os.FileMode(0777))
 	if err != nil {
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
+	var unused int = 0
 	for {
 		select {
 		case <-time.After(interval):
-			cmd := exec.Command("sh", "-c", script_file.Name())
+			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
 				glog.Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
 				glog.Infof("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, nil)
+				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return
@@ -458,10 +499,10 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
+	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			if proxy, ok := proxies[key]; ok {
-				emptyAddressList := make([]string, 0)
 				proxy.SetNewAddresses(emptyAddressList)
 			}
 			continue
@@ -469,8 +510,8 @@ func (c *Controller) handleRemotePorts() {
 
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
-			glog.Infof("endpoints: %s, %v", key, *endpoint)
-			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIp, endpoint.HostPort)
+			glog.V(2).Infof("endpoints: %s, %v", key, *endpoint)
+			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
 		}
 		sort.Strings(addresses)
 

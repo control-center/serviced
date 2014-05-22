@@ -2,12 +2,15 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"log"
+	"os/exec"
 	lpath "path"
+	"path/filepath"
 	"strings"
-
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
@@ -75,7 +78,7 @@ func (c *Connection) SetOnClose(f func(int)) {
 // Create places data at the node at the given path.
 func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
-		return client.ErrClosedConnection
+		return client.ErrConnectionClosed
 	}
 
 	p := join(c.basePath, path)
@@ -114,7 +117,7 @@ func (d *dirNode) SetVersion(v interface{}) { d.version = v }
 // CreateDir creates an empty node at the given path.
 func (c *Connection) CreateDir(path string) error {
 	if c.conn == nil {
-		return client.ErrClosedConnection
+		return client.ErrConnectionClosed
 	}
 	return xlateError(c.Create(path, &dirNode{}))
 }
@@ -122,7 +125,7 @@ func (c *Connection) CreateDir(path string) error {
 // Exists checks if a node exists at the given path.
 func (c *Connection) Exists(path string) (bool, error) {
 	if c.conn == nil {
-		return false, client.ErrClosedConnection
+		return false, client.ErrConnectionClosed
 	}
 	exists, _, err := c.conn.Exists(join(c.basePath, path))
 	return exists, xlateError(err)
@@ -131,7 +134,7 @@ func (c *Connection) Exists(path string) (bool, error) {
 // Delete will delete all nodes at the given path or any subpath
 func (c *Connection) Delete(path string) error {
 	if c.conn == nil {
-		return client.ErrClosedConnection
+		return client.ErrConnectionClosed
 	}
 	children, _, err := c.conn.Children(join(c.basePath, path))
 	if err != nil {
@@ -166,7 +169,7 @@ func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
 // events that will yield the next event at that node.
 func (c *Connection) ChildrenW(path string) (children []string, event <-chan client.Event, err error) {
 	if c.conn == nil {
-		return children, event, client.ErrClosedConnection
+		return children, event, client.ErrConnectionClosed
 	}
 	children, _, zkEvent, err := c.conn.ChildrenW(join(c.basePath, path))
 	if err != nil {
@@ -178,7 +181,7 @@ func (c *Connection) ChildrenW(path string) (children []string, event <-chan cli
 // GetW gets the node at the given path and return a channel to watch for events on that node.
 func (c *Connection) GetW(path string, node client.Node) (event <-chan client.Event, err error) {
 	if c.conn == nil {
-		return nil, client.ErrClosedConnection
+		return nil, client.ErrConnectionClosed
 	}
 	return c.getW(join(c.basePath, path), node)
 }
@@ -189,7 +192,12 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(data, node)
+	if len(data) > 0 {
+		glog.V(11).Infof("got data %s", string(data))
+		err = json.Unmarshal(data, node)
+	} else {
+		err = client.ErrEmptyNode
+	}
 	node.SetVersion(stat)
 	return toClientEvent(zkEvent), xlateError(err)
 }
@@ -197,7 +205,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 // Children returns the children of the node at the give path.
 func (c *Connection) Children(path string) (children []string, err error) {
 	if c.conn == nil {
-		return children, client.ErrClosedConnection
+		return children, client.ErrConnectionClosed
 	}
 	children, _, err = c.conn.Children(join(c.basePath, path))
 	if err != nil {
@@ -209,7 +217,7 @@ func (c *Connection) Children(path string) (children []string, err error) {
 // Get returns the node at the given path.
 func (c *Connection) Get(path string, node client.Node) (err error) {
 	if c.conn == nil {
-		return client.ErrClosedConnection
+		return client.ErrConnectionClosed
 	}
 	return c.get(join(c.basePath, path), node)
 }
@@ -219,7 +227,12 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, node)
+	if len(data) > 0 {
+		glog.V(11).Infof("got data %s", string(data))
+		err = json.Unmarshal(data, node)
+	} else {
+		err = client.ErrEmptyNode
+	}
 	node.SetVersion(stat)
 	return xlateError(err)
 }
@@ -227,7 +240,7 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 // Set serializes the give node and places it at the given path.
 func (c *Connection) Set(path string, node client.Node) error {
 	if c.conn == nil {
-		return client.ErrClosedConnection
+		return client.ErrConnectionClosed
 	}
 	data, err := json.Marshal(node)
 	if err != nil {
@@ -244,4 +257,44 @@ func (c *Connection) Set(path string, node client.Node) error {
 	}
 	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
 	return xlateError(err)
+}
+
+// EnsureZkFatjar downloads the zookeeper binaries for use in unit tests
+func EnsureZkFatjar() {
+	_, err := exec.LookPath("java")
+	if err != nil {
+		log.Fatal("Can't find java in path")
+	}
+
+	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/zookeeper-*-fatjar.jar")
+	if err != nil {
+		log.Fatal("Error search for files")
+	}
+	if len(jars) > 0 {
+		return
+	}
+
+	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
+	if err != nil {
+		log.Fatalf("Could not download fatjar: %s", err)
+	}
+
+	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
+	if err != nil {
+		log.Fatalf("Could not unzip fatjar: %s", err)
+	}
+	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
+	if err != nil {
+		log.Fatalf("Could not make fatjar dir: %s", err)
+	}
+
+	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
+	if err != nil {
+		log.Fatalf("Could not mv fatjar: %s", err)
+	}
+
+	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
+	if err != nil {
+		log.Fatalf("Could not rm fatjar.zip: %s", err)
+	}
 }

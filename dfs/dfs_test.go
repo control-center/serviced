@@ -1,10 +1,10 @@
 package dfs
 
 import (
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/volume"
 
@@ -83,8 +83,8 @@ func (c *MockControlPlane) GetServiceStates(serviceId string, state *[]*services
 	default:
 		s := make([]*servicestate.ServiceState, 1)
 		s[0] = &servicestate.ServiceState{
-			ServiceId: serviceId,
-			DockerId:  serviceId,
+			ServiceID: serviceId,
+			DockerID:  serviceId,
 		}
 		*state = s
 	}
@@ -113,28 +113,28 @@ func setUp() {
 
 		switch command {
 		case "pause-fail":
-			if MockPauseResume[state.DockerId] {
+			if MockPauseResume[state.DockerID] {
 				err = errors.New("service already halted")
 			} else {
 				err = errors.New("failed to pause service")
-				MockPauseResume[state.DockerId] = false
+				MockPauseResume[state.DockerID] = false
 			}
 		case "pause-success":
-			if MockPauseResume[state.DockerId] {
+			if MockPauseResume[state.DockerID] {
 				err = errors.New("service already halted")
 			} else {
-				MockPauseResume[state.DockerId] = true
+				MockPauseResume[state.DockerID] = true
 			}
 		case "resume-fail":
-			if MockPauseResume[state.DockerId] {
+			if MockPauseResume[state.DockerID] {
 				err = errors.New("failed to resume service")
 			} else {
 				err = errors.New("service already running")
-				MockPauseResume[state.DockerId] = false
+				MockPauseResume[state.DockerID] = false
 			}
 		case "resume-success":
-			if MockPauseResume[state.DockerId] {
-				MockPauseResume[state.DockerId] = false
+			if MockPauseResume[state.DockerID] {
+				MockPauseResume[state.DockerID] = false
 			} else {
 				err = errors.New("service already running")
 			}

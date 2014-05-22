@@ -32,12 +32,12 @@ var startup_testcases = []struct {
 		Description:     "Zenoss 5.x",
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
-		ImageId:         "",
-		PoolId:          "default",
+		ImageID:         "",
+		PoolID:          "default",
 		DesiredState:    0,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs: []servicedefinition.LogConfig{
@@ -66,12 +66,12 @@ var startup_testcases = []struct {
 		Description:     "",
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
-		ImageId:         "",
-		PoolId:          "default",
+		ImageID:         "",
+		PoolID:          "default",
 		DesiredState:    0,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "0",
+		ParentServiceID: "0",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []servicedefinition.LogConfig{},
@@ -86,12 +86,12 @@ var startup_testcases = []struct {
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
 		InstanceLimits:  domain.MinMax{1, 1},
-		ImageId:         "test/pinger",
-		PoolId:          "default",
+		ImageID:         "test/pinger",
+		PoolID:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "1",
+		ParentServiceID: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []servicedefinition.LogConfig{},
@@ -105,12 +105,12 @@ var startup_testcases = []struct {
 		Description:     "Execute ls -l on .",
 		Instances:       1,
 		InstanceLimits:  domain.MinMax{1, 1},
-		ImageId:         "test/bin_sh",
-		PoolId:          "default",
+		ImageID:         "test/bin_sh",
+		PoolID:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "1",
+		ParentServiceID: "1",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		LogConfigs:      []servicedefinition.LogConfig{},
@@ -130,12 +130,12 @@ var endpoint_testcases = []struct {
 		Description:     "Zenoss 5.x",
 		Instances:       0,
 		InstanceLimits:  domain.MinMax{0, 0},
-		ImageId:         "",
-		PoolId:          "default",
+		ImageID:         "",
+		PoolID:          "default",
 		DesiredState:    0,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}, ""},
@@ -147,8 +147,8 @@ var endpoint_testcases = []struct {
 		Description:    "",
 		Instances:      0,
 		InstanceLimits: domain.MinMax{0, 0},
-		ImageId:        "",
-		PoolId:         "default",
+		ImageID:        "",
+		PoolID:         "default",
 		DesiredState:   0,
 		Launch:         "auto",
 		Endpoints: []ServiceEndpoint{
@@ -161,7 +161,7 @@ var endpoint_testcases = []struct {
 				},
 			},
 		},
-		ParentServiceId: "100",
+		ParentServiceID: "100",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}, "hostname_collector"},
@@ -171,12 +171,12 @@ var addresses []string
 
 func createSvcs(store *Store, ctx datastore.Context) error {
 	for _, testcase := range startup_testcases {
-		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
 		}
 	}
 	for _, testcase := range endpoint_testcases {
-		if err := store.Put(ctx, Key(testcase.service.Id), &testcase.service); err != nil {
+		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
 		}
 	}
@@ -184,9 +184,8 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 }
 
 func (s *S) getSVC(svcID string) (Service, error) {
-	svc := Service{}
-	err := s.store.Get(s.ctx, Key(svcID), &svc)
-	return svc, err
+	svc, err := s.store.Get(s.ctx, svcID)
+	return *svc, err
 }
 
 //TestEvaluateLogConfigTemplate makes sure that the log config templates can be
@@ -289,12 +288,12 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
 		InstanceLimits:  domain.MinMax{1, 1},
-		ImageId:         "test/pinger",
-		PoolId:          "default",
+		ImageID:         "test/pinger",
+		PoolID:          "default",
 		DesiredState:    1,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceId: "0987654321",
+		ParentServiceID: "0987654321",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}

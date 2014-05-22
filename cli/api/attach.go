@@ -30,15 +30,15 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 func isLocal(request dao.AttachRequest) (bool, error) {
 	if hostID, err := utils.HostID(); err != nil {
 		return false, err
-	} else if hostID == request.Running.HostId {
+	} else if hostID == request.Running.HostID {
 		var command []string
 		if request.Command != "" {
 			command = append([]string{request.Command}, request.Args...)
 		}
 
 		cmd := zkdocker.Attach{
-			HostID:   request.Running.HostId,
-			DockerID: request.Running.DockerId,
+			HostID:   request.Running.HostID,
+			DockerID: request.Running.DockerID,
 			Command:  command,
 		}
 		return true, zkdocker.LocalAttach(&cmd)

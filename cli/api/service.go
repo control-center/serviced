@@ -114,8 +114,8 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 
 	s := service.Service{
 		Name:           config.Name,
-		PoolId:         config.PoolID,
-		ImageId:        config.ImageID,
+		PoolID:         config.PoolID,
+		ImageID:        config.ImageID,
 		Endpoints:      endpoints,
 		Startup:        config.Command,
 		Instances:      1,
@@ -211,8 +211,8 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 	}
 
 	req := dao.AssignmentRequest{
-		ServiceId:      config.ServiceID,
-		IpAddress:      config.IPAddress,
+		ServiceID:      config.ServiceID,
+		IPAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
 	}
 

@@ -104,10 +104,9 @@ deb: stage_deb
 		-n $(NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
-		-d apparmor-utils \
-		-d lxc \
-		-d 'lxc-docker > 0.8.0' \
-		--after-install aa-workaround.sh \
+		-d nfs-kernel-server \
+		-d nfs-common \
+		-d 'lxc-docker >= 0.11.1' \
 		-t deb \
 		-a x86_64 \
 		-C pkgroot \

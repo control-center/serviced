@@ -19,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -154,8 +155,8 @@ func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.Se
 	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused)
 }
 
-func (s *ControlClient) RemoveServiceTemplate(serviceTemplateId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateId, unused)
+func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
 // Commits a container to an image and updates the DFS
@@ -196,11 +197,11 @@ func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
 }
 
-func (s *ControlClient) ValidateCredentials(user dao.User, result *bool) error {
+func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
 	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
 }
 
-func (s *ControlClient) GetSystemUser(unused int, user *dao.User) error {
+func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
 	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
 }
 

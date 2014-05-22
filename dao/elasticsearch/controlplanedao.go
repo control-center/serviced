@@ -52,8 +52,8 @@ func (this *ControlPlaneDao) Attach(request dao.AttachRequest, unused *int) erro
 	}
 	command = append([]string{request.Command}, request.Args...)
 	req := zkdocker.Attach{
-		HostID:   request.Running.HostId,
-		DockerID: request.Running.DockerId,
+		HostID:   request.Running.HostID,
+		DockerID: request.Running.DockerID,
 		Command:  command,
 	}
 
@@ -73,7 +73,7 @@ func (this *ControlPlaneDao) Attach(request dao.AttachRequest, unused *int) erro
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
 	// Get the service and update the request
 	var svc service.Service
-	if err := this.GetService(request.Running.ServiceId, &svc); err != nil {
+	if err := this.GetService(request.Running.ServiceID, &svc); err != nil {
 		return err
 	}
 	command, ok := svc.Actions[request.Command]

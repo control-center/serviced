@@ -32,11 +32,12 @@ type Service struct {
 	Startup         string
 	Description     string
 	Tags            []string
+	OriginalConfigs map[string]servicedefinition.ConfigFile
 	ConfigFiles     map[string]servicedefinition.ConfigFile
 	Instances       int
 	InstanceLimits  domain.MinMax
-	ImageId         string
-	PoolId          string
+	ImageID         string
+	PoolID          string
 	DesiredState    int
 	HostPolicy      servicedefinition.HostPolicy
 	Hostname        string
@@ -44,11 +45,11 @@ type Service struct {
 	Launch          string
 	Endpoints       []ServiceEndpoint
 	Tasks           []servicedefinition.Task
-	ParentServiceId string
+	ParentServiceID string
 	Volumes         []servicedefinition.Volume
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	DeploymentId    string
+	DeploymentID    string
 	DisableImage    bool
 	LogConfigs      []servicedefinition.LogConfig
 	Snapshot        servicedefinition.SnapshotCommands
@@ -67,7 +68,7 @@ type ServiceEndpoint struct {
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = utils.NewUUID()
+	s.Id, err = utils.NewUUID36()
 	return s, err
 }
 
@@ -92,7 +93,7 @@ func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpo
 
 //BuildService build a service from a ServiceDefinition.
 func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string, poolID string, desiredState int, deploymentID string) (*Service, error) {
-	svcuuid, err := utils.NewUUID()
+	svcuuid, err := utils.NewUUID36()
 	if err != nil {
 		return nil, err
 	}
@@ -113,20 +114,21 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
-	svc.ImageId = sd.ImageID
-	svc.PoolId = poolID
+	svc.ImageID = sd.ImageID
+	svc.PoolID = poolID
 	svc.DesiredState = desiredState
 	svc.Launch = sd.Launch
 	svc.HostPolicy = sd.HostPolicy
 	svc.Hostname = sd.Hostname
 	svc.Privileged = sd.Privileged
+	svc.OriginalConfigs = sd.ConfigFiles
 	svc.ConfigFiles = sd.ConfigFiles
 	svc.Tasks = sd.Tasks
-	svc.ParentServiceId = parentServiceID
+	svc.ParentServiceID = parentServiceID
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 	svc.Volumes = sd.Volumes
-	svc.DeploymentId = deploymentID
+	svc.DeploymentID = deploymentID
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
@@ -297,10 +299,10 @@ func (s *Service) Equals(b *Service) bool {
 	if s.Instances != b.Instances {
 		return false
 	}
-	if s.ImageId != b.ImageId {
+	if s.ImageID != b.ImageID {
 		return false
 	}
-	if s.PoolId != b.PoolId {
+	if s.PoolID != b.PoolID {
 		return false
 	}
 	if s.DesiredState != b.DesiredState {
@@ -318,7 +320,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.HostPolicy != b.HostPolicy {
 		return false
 	}
-	if s.ParentServiceId != b.ParentServiceId {
+	if s.ParentServiceID != b.ParentServiceID {
 		return false
 	}
 	if s.CreatedAt.Unix() != b.CreatedAt.Unix() {

@@ -72,7 +72,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         }
 
         var name = $scope.vhosts.add.name;
-        var serviceId = $scope.vhosts.add.app_ep.ServiceId;
+        var serviceId = $scope.vhosts.add.app_ep.ServiceID;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
         resourcesService.add_vhost( serviceId, serviceEndpoint, name, function() {
             $scope.vhosts.add = {};
@@ -140,7 +140,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
-        resourcesService.get_service_state_logs(serviceState.ServiceId, serviceState.Id, function(log) {
+        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.Id, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
@@ -161,40 +161,43 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-    function updateHealth(ServiceId) {
+    function updateHealth(ServiceID) {
         $.getJSON("/servicehealth", function(healths) {
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
-                document.getElementById("health-tooltip-" + ServiceId).title = "";
-                passingAny = false;
-                failingAny = false;
-                lateAny = false;
-                unknownAny = false;
-                utc = Math.floor(Date.now()/1000);
-                for (var name in data) {
-                    if (utc - data[name].Timestamp >= data[name].Interval * 2) {
-                        data[name].Status = "unknown";
+                element = document.getElementById("health-tooltip-" + ServiceId);
+                if (element != undefined) {
+                    element.title = "";
+                    passingAny = false;
+                    failingAny = false;
+                    lateAny = false;
+                    unknownAny = false;
+                    utc = Math.floor(Date.now()/1000);
+                    for (var name in data) {
+                        if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                            data[name].Status = "unknown";
+                        }
+                        if (data[name].Status == "passed") {
+                            passingAny = true;
+                        } else if (data[name].Status == "failed") {
+                            failingAny = true;
+                        } else if (data[name].Status == "unknown") {
+                            unknownAny = true;
+                        }
+                        element.title += name + ":" + data[name].Status + "\n";
                     }
-                    if (data[name].Status == "passed") {
-                        passingAny = true;
-                    } else if (data[name].Status == "failed") {
-                        failingAny = true;
-                    } else if (data[name].Status == "unknown") {
-                        unknownAny = true;
+                    function setColor(color) {
+                        document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
                     }
-                    document.getElementById("health-tooltip-" + ServiceId).title += name + ":" + data[name].Status + "\n";
-                }
-                function setColor(color) {
-                    document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
-                }
-                if (failingAny) {
-                    setColor("red");
-                } else if (!passingAny && unknownAny) {
-                    setColor("grey");
-                } else if (passingAny && unknownAny) {
-                    setColor("yellow");
-                } else if (passingAny && !unknownAny) {
-                    setColor("green");
+                    if (failingAny) {
+                        setColor("red");
+                    } else if (!passingAny && unknownAny) {
+                        setColor("grey");
+                    } else if (passingAny && unknownAny) {
+                        setColor("yellow");
+                    } else if (passingAny && !unknownAny) {
+                        setColor("green");
+                    }
                 }
             }
         });
@@ -208,10 +211,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 wait.running = true;
                 mashHostsToInstances();
             });
+            updateHealth();
         }
-        updateHealth();
     }
-    $interval(updateRunning, 3000);
+    if(!angular.isDefined($scope.updateRunningInterval)) {
+        $scope.updateRunningInterval = $interval(updateRunning, 3000);
+    }
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, true, function() {
         if ($scope.services.current) {
@@ -230,13 +235,18 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         }
     });
 
+    $scope.$on('$destroy', function() {
+        $interval.cancel($scope.updateRunningInterval);
+        $scope.updateRunningInterval = undefined;
+    });
+
     var wait = { hosts: false, running: false };
     var mashHostsToInstances = function() {
         if (!wait.hosts || !wait.running) return;
 
         for (var i=0; i < $scope.running.data.length; i++) {
             var instance = $scope.running.data[i];
-            instance.hostName = $scope.hosts.mapped[instance.HostId].Name;
+            instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
     refreshHosts($scope, resourcesService, true, function() {
@@ -249,7 +259,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostId, app.Id, function() {
+        resourcesService.kill_running(app.HostID, app.Id, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();
@@ -264,12 +274,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
-            ParentServiceId: $scope.params.serviceId,
+            ParentServiceID: $scope.params.serviceId,
             DesiredState: 1,
             Launch: 'auto',
             Instances: 1,
             Description: '',
-            ImageId: ''
+            ImageID: ''
         };
     };
 
@@ -285,7 +295,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             $('#addService').modal('show');
         };
         $scope.deleteService = function() {
-            var parent = $scope.services.current.ParentServiceId;
+            var parent = $scope.services.current.ParentServiceID;
             console.log('Parent: %s, Length: %d', parent, parent.length);
             resourcesService.remove_service($scope.params.serviceId, function() {
                 refreshServices($scope, resourcesService, false, function() {

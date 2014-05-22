@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -23,13 +24,13 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceStateRequest struct {
-	ServiceId      string
-	ServiceStateId string
+	ServiceID      string
+	ServiceStateID string
 }
 
 type HostServiceRequest struct {
-	HostId         string
-	ServiceStateId string
+	HostID         string
+	ServiceStateID string
 }
 
 type AttachRequest struct {
@@ -129,7 +130,7 @@ type ControlPlane interface {
 	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 
 	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
+	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
 	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
@@ -162,10 +163,10 @@ type ControlPlane interface {
 	GetVolume(serviceId string, theVolume *volume.Volume) error
 
 	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, user *User) error
+	GetSystemUser(unused int, user *user.User) error
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(user User, result *bool) error
+	ValidateCredentials(user user.User, result *bool) error
 
 	// Waits for the DFS to be ready
 	ReadyDFS(bool, *int) error

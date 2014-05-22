@@ -32,11 +32,11 @@ var DefaultTestServices = []*service.Service{
 		Startup:        "startup command 1",
 		Instances:      0,
 		InstanceLimits: domain.MinMax{0, 0},
-		ImageId:        "quay.io/zenossinc/tenantid1-core5x",
-		PoolId:         "default",
+		ImageID:        "quay.io/zenossinc/tenantid1-core5x",
+		PoolID:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
-		DeploymentId:   "Zenoss-resmgr",
+		DeploymentID:   "Zenoss-resmgr",
 		Runs: map[string]string{
 			"hello":   "echo hello world",
 			"goodbye": "echo goodbye world",
@@ -47,22 +47,22 @@ var DefaultTestServices = []*service.Service{
 		Startup:        "startup command 2",
 		Instances:      1,
 		InstanceLimits: domain.MinMax{1, 1},
-		ImageId:        "quay.io/zenossinc/tenantid2-core5x",
-		PoolId:         "default",
+		ImageID:        "quay.io/zenossinc/tenantid2-core5x",
+		PoolID:         "default",
 		DesiredState:   1,
 		Launch:         "auto",
-		DeploymentId:   "Zenoss-core",
+		DeploymentID:   "Zenoss-core",
 	}, {
 		Id:             "test-service-3",
 		Name:           "zencommand",
 		Startup:        "startup command 3",
 		Instances:      2,
 		InstanceLimits: domain.MinMax{2, 2},
-		ImageId:        "quay.io/zenossinc/tenantid1-opentsdb",
-		PoolId:         "remote",
+		ImageID:        "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolID:         "remote",
 		DesiredState:   1,
 		Launch:         "manual",
-		DeploymentId:   "Zenoss-core",
+		DeploymentID:   "Zenoss-core",
 	},
 }
 
@@ -135,8 +135,8 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	s := service.Service{
 		Id:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
 		Name:           config.Name,
-		PoolId:         config.PoolID,
-		ImageId:        config.ImageID,
+		PoolID:         config.PoolID,
+		ImageID:        config.ImageID,
 		Endpoints:      endpoints,
 		Startup:        config.Command,
 		Instances:      1,
@@ -678,7 +678,7 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 	// OPTIONS:
 	//    --saveas, -s 	saves the service instance with the given name
 	//    --interactive, -i	runs the service instance as a tty
-  //    -v '0'		log level for V logs
+	//    -v '0'		log level for V logs
 
 }
 

@@ -15,8 +15,8 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/user"
 )
 
 var empty interface{}
@@ -317,8 +317,8 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	glog.Infof("Connected to the control plane at port %s", port)
 
-	if err := cp.GetService(cfg.ServiceId, &svc); err != nil {
-		glog.Errorf("unable to find service %s", cfg.ServiceId)
+	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
+		glog.Errorf("unable to find service %s", cfg.ServiceID)
 		return nil, err
 	}
 
@@ -378,7 +378,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 	// set the systemuser and password
 	unused := 0
-	systemUser := dao.User{}
+	systemUser := user.User{}
 	err = cp.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for client %s", err)
@@ -386,7 +386,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 
-	argv = append(argv, svc.ImageId)
+	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)
 
 	// wait for the DFS to be ready in order to start container on the latest image

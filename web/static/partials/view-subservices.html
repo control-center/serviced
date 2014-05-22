@@ -46,7 +46,7 @@
         <div class="vertical-info" ng-show="dev">
           <label for="app_data_image">{{'label_service_image'|translate}}</label>
           <input type="text" id="app_data_image" class="image"
-                 ng-model="services.current.ImageId"></input>
+                 ng-model="services.current.ImageID"></input>
         </div>
       </div>
       <div class="details-actions">	    
@@ -190,10 +190,10 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in running.data | orderBy:running.sort">
-          <td>{{app.InstanceId}}</td>
+          <td>{{app.InstanceID}}</td>
           <td>{{app.Name}}</td>
           <td>{{app.hostName}}</td>
-          <td>{{app.DockerId}}</td>
+          <td>{{app.DockerID}}</td>
           <td>
             <button ng-click="viewLog(app)" class="btn btn-link">{{'action_view_log'|translate}}</button>
             |

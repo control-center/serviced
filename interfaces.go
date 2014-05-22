@@ -68,7 +68,7 @@ type ContainerState struct {
 		Gateway     string
 		Bridge      string
 		PortMapping map[string]map[string]string
-		Ports       map[string][]domain.HostIpAndPort
+		Ports       map[string][]domain.HostIPAndPort
 	}
 	SysInitPath    string
 	ResolvConfPath string

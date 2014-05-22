@@ -64,20 +64,26 @@ dockerbuild: docker_ok
 	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
 
 test: build_binary docker_ok
+	go test ./commons/... $(GOTEST_FLAGS)
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
 	cd web && go test $(GOTEST_FLAGS)
 	cd serviced && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
-	cd datastore && make test
-	cd domain && make test
+	cd datastore && make test $(GOTEST_FLAGS)
+	cd domain && make test $(GOTEST_FLAGS)
 	cd facade && go test $(GOTEST_FLAGS)
-	cd rpc && make test
+	cd rpc && make test $(GOTEST_FLAGS)
 	cd cli/api && go test $(GOTEST_FLAGS)
 	cd cli/cmd && go test $(GOTEST_FLAGS)
 	cd scheduler && go test $(GOTEST_FLAGS)
 	cd container && go test $(GOTEST_FLAGS)
-	cd commons && go test $(GOTEST_FLAGS)
+	cd dfs/nfs && go test $(GOTEST_FLAGS)
+	cd coordinator/client && go test $(GOTEST_FLAGS)
+	cd coordinator/storage && go test $(GOTEST_FLAGS)
+
+smoketest: build_binary docker_ok
+	/bin/bash smoke.sh
 
 docker_ok:
 	if docker ps >/dev/null; then \

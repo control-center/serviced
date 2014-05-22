@@ -21,11 +21,11 @@ func init() {
 func CreateValidServiceDefinition() *ServiceDefinition {
 	// should we make the service definition from the dao test package public and use here?
 	return &ServiceDefinition{
-		Name: "testsvc",
+		Name:   "testsvc",
 		Launch: "auto",
 		Services: []ServiceDefinition{
 			ServiceDefinition{
-				Name: "s1",
+				Name:   "s1",
 				Launch: "auto",
 				Endpoints: []EndpointDefinition{
 					EndpointDefinition{
@@ -60,7 +60,7 @@ func CreateValidServiceDefinition() *ServiceDefinition {
 			},
 			ServiceDefinition{
 				Name:    "s2",
-				Launch: "auto",
+				Launch:  "auto",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageID: "ubuntu",
 				Endpoints: []EndpointDefinition{
