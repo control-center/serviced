@@ -111,24 +111,6 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	return nil
 }
 
-// GetPrereq returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetPrereqs(serviceId string, prereqs *[]domain.Prereq) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetPrereq()")
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-	var svc service.Service
-	err = controlClient.GetService(serviceId, &svc)
-	if err != nil {
-		return err
-	}
-	*prereqs = svc.Prereqs
-	return nil
-}
-
 // LogHealthCheck proxies RegisterHealthCheck.
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	controlClient, err := NewControlClient(a.master)
