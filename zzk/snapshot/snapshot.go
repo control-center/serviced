@@ -5,7 +5,6 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
 )
 
 const (
@@ -34,29 +33,17 @@ func (s *Snapshot) SetVersion(version interface{}) { s.version = version }
 
 func (s *Snapshot) done() bool { return s.Label != "" || s.Error != nil }
 
-// Handler handles zookeeper operations for snapshots
-type Handler struct {
-	conn client.Connection
-	dao  dao.ControlPlane
-}
-
-// New starts a new event listener
-func New(conn client.Connection, dao dao.ControlPlane) *Handler {
-	return &Handler{
-		conn: conn,
-		dao:  dao,
-	}
-}
+// TakeSnapshot is the function call for taking the snapshot
+type TakeSnapshot func(serviceID string) (label string, err error)
 
 // Listen listens for changes on the event node and processes the snapshot
-func (h *Handler) Listen() {
-
+func Listen(conn client.Connection, ts TakeSnapshot) {
 	// Make the path if it doesn't exist
-	if exists, err := h.conn.Exists(snapshotPath()); err != nil && err != client.ErrNoNode {
+	if exists, err := conn.Exists(snapshotPath()); err != nil && err != client.ErrNoNode {
 		glog.Errorf("Error checking path %s: %s", snapshotPath(), err)
 		return
 	} else if !exists {
-		if err := h.conn.CreateDir(snapshotPath()); err != nil {
+		if err := conn.CreateDir(snapshotPath()); err != nil {
 			glog.Errorf("Could not create path %s: %s", snapshotPath(), err)
 			return
 		}
@@ -64,7 +51,7 @@ func (h *Handler) Listen() {
 
 	// Wait for snapshot events
 	for {
-		nodes, event, err := h.conn.ChildrenW(snapshotPath())
+		nodes, event, err := conn.ChildrenW(snapshotPath())
 		if err != nil {
 			glog.Errorf("Could not watch snapshots: %s", err)
 			return
@@ -74,7 +61,7 @@ func (h *Handler) Listen() {
 			// Get the request
 			path := snapshotPath(serviceID)
 			var snapshot Snapshot
-			if err := h.conn.Get(path, &snapshot); err != nil {
+			if err := conn.Get(path, &snapshot); err != nil {
 				glog.V(1).Infof("Could not get snapshot %s: %s", serviceID, err)
 				continue
 			}
@@ -86,16 +73,12 @@ func (h *Handler) Listen() {
 
 			// Do snapshot
 			glog.V(1).Infof("Taking snapshot for request: %v", snapshot)
-			var label string
-			err := h.dao.LocalSnapshot(snapshot.ServiceID, &label)
-			if err != nil {
+			snapshot.Label, snapshot.Error = ts(snapshot.ServiceID)
+			if snapshot.Error != nil {
 				glog.V(1).Infof("Snapshot failed for request: %v", snapshot)
 			}
-
 			// Update request
-			snapshot.Label = label
-			snapshot.Error = err
-			if err := h.conn.Set(path, &snapshot); err != nil {
+			if err := conn.Set(path, &snapshot); err != nil {
 				glog.V(1).Infof("Could not update snapshot request %s: %s", serviceID, err)
 				continue
 			}
@@ -108,26 +91,26 @@ func (h *Handler) Listen() {
 }
 
 // Send sends a new snapshot request to the queue
-func (h *Handler) Send(snapshot *Snapshot) error {
-	return h.conn.Create(snapshotPath(snapshot.ServiceID), snapshot)
+func Send(conn client.Connection, snapshot *Snapshot) error {
+	return conn.Create(snapshotPath(snapshot.ServiceID), snapshot)
 }
 
 // Recv waits for a snapshot to be complete
-func (h *Handler) Recv(serviceID string) (*Snapshot, error) {
+func Recv(conn client.Connection, serviceID string) (Snapshot, error) {
 	var snapshot Snapshot
 	node := snapshotPath(serviceID)
 
 	for {
-		event, err := h.conn.GetW(node, &snapshot)
+		event, err := conn.GetW(node, &snapshot)
 		if err != nil {
-			return nil, err
+			return snapshot, err
 		}
 		if snapshot.done() {
 			// Delete the request
-			if err := h.conn.Delete(node); err != nil {
+			if err := conn.Delete(node); err != nil {
 				glog.Warningf("Could not delete snapshot request %s: %s", node, err)
 			}
-			return &snapshot, nil
+			return snapshot, nil
 		}
 		// Wait for something to happen
 		<-event

@@ -242,10 +242,11 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 
 //getService is an internal method that returns a Service without filling in all related service data like address assignments
 //and modified config files
-func (this *ControlPlaneDao) getService(id string) (*service.Service, error) {
+func (this *ControlPlaneDao) getService(id string) (service.Service, error) {
 	glog.V(3).Infof("ControlPlaneDao.getService: id=%s", id)
 	store := service.NewStore()
-	return store.Get(datastore.Get(), id)
+	service, err := store.Get(datastore.Get(), id)
+	return *service, err
 }
 
 //

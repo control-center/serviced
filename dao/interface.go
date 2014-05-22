@@ -142,7 +142,7 @@ type ControlPlane interface {
 	Commit(containerId string, label *string) error
 
 	// Performs a local snapshot from the host
-	LocalSnapshot(serviceId string, label *string) error
+	TakeSnapshot(serviceId string, label *string) error
 
 	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error

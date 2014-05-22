@@ -170,8 +170,8 @@ func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 }
 
 // Performs a DFS snapshot locally (via the host)
-func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+func (s *ControlClient) TakeSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.TakeSnapshot", serviceId, label)
 }
 
 // Performs a DFS snapshot via the scheduler

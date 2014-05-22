@@ -51,7 +51,14 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 				// passthru
 			}
 
-			go snapshot.New(conn, dao).Listen()
+			// creates a listener for snapshots with a function call to take snapshots
+			// and return the label and error message
+			go snapshot.Listen(conn, func(serviceID string) (string, error) {
+				var label string
+				err := dao.TakeSnapshot(serviceID, &label)
+				return label, err
+			})
+
 			leader.watchServices()
 			return nil
 		}()
