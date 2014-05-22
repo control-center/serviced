@@ -92,6 +92,7 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
+
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
 	client, err := serviced.NewLBClient(lbClientPort)
 	if err != nil {
@@ -338,6 +339,7 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
+		w.WriteString("export ")
 		w.WriteString(value)
 		w.WriteString("\n")
 	}
