@@ -308,9 +308,11 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
-	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceID)
-	var err error
-	*tenantId, _, err = this.getTenantIdAndPath(serviceID)
+	svc, err := this.getService(serviceID)
+	if err != nil {
+		return err
+	}
+	*tenantId, err = svc.GetTenantID(this.getService)
 	return err
 }
 
