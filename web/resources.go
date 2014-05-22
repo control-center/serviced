@@ -384,8 +384,8 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *service
 	w.WriteJson(&simpleResponse{logs, serviceLinks(serviceID)})
 }
 
-// RestStartService starts the service with the given id and all of its children
-func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restStartService starts the service with the given id and all of its children
+func restStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w)
@@ -400,8 +400,8 @@ func RestStartService(w *rest.ResponseWriter, r *rest.Request, client *serviced.
 	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
 }
 
-// RestStopService stop the service with the given id and all of its children
-func RestStopService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restStopService stop the service with the given id and all of its children
+func restStopService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w)

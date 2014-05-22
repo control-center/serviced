@@ -14,8 +14,8 @@ import (
 	"strings"
 )
 
-//RestGetHosts gets all hosts. Response is map[host-id]host.Host
-func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+//restGetHosts gets all hosts. Response is map[host-id]host.Host
+func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	response := make(map[string]*host.Host)
 	client, err := ctx.getMasterClient()
 	if err != nil {
@@ -37,8 +37,8 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	w.WriteJson(&response)
 }
 
-//RestGetHost retrieves a host. Response is Host
-func RestGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+//restGetHost retrieves a host. Response is Host
+func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		restBadRequest(w)
@@ -58,12 +58,12 @@ func RestGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	glog.V(4).Infof("RestGetHost: id %s, host %#v", hostID, host)
+	glog.V(4).Infof("restGetHost: id %s, host %#v", hostID, host)
 	w.WriteJson(&host)
 }
 
-//RestAddHost adds a Host. Request input is host.Host
-func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+//restAddHost adds a Host. Request input is host.Host
+func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload host.Host
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -114,8 +114,8 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&simpleResponse{"Added host", hostLinks(host.ID)})
 }
 
-//RestUpdateHost updates a host. Request input is host.Host
-func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+//restUpdateHost updates a host. Request input is host.Host
+func restUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		restBadRequest(w)
@@ -146,8 +146,8 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&simpleResponse{"Updated host", hostLinks(hostID)})
 }
 
-//RestRemoveHost removes a host using host-id
-func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+//restRemoveHost removes a host using host-id
+func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		restBadRequest(w)

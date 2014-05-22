@@ -9,8 +9,8 @@ import (
 	"net/url"
 )
 
-// RestServiceAutomaticAssignIP rest resource for automatic assigning ips to a service
-func RestServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restServiceAutomaticAssignIP rest resource for automatic assigning ips to a service
+func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)
@@ -28,8 +28,8 @@ func RestServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 	restSuccess(w)
 }
 
-// RestServiceManualAssignIP rest resource for manual assigning ips to a service
-func RestServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restServiceManualAssignIP rest resource for manual assigning ips to a service
+func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)

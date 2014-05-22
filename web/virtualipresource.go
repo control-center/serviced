@@ -16,8 +16,8 @@ type virtualIPRequest struct {
 	BindInterface string
 }
 
-// RestAddPoolVirtualIP takes a poolID, IP, netmask, and bindinterface and adds it
-func RestAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restAddPoolVirtualIP takes a poolID, IP, netmask, and bindinterface and adds it
+func restAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	//TODO replace virtualiprequest with model object
 	var request virtualIPRequest
 	err := r.DecodeJsonPayload(&request)
@@ -31,8 +31,8 @@ func RestAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *servi
 	restSuccess(w)
 }
 
-// RestRemovePoolVirtualIP deletes virtualip
-func RestRemovePoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restRemovePoolVirtualIP deletes virtualip
+func restRemovePoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	id, err := url.QueryUnescape(r.PathParam("id"))
 	if err != nil {
 		glog.Errorf("Could not get virtual ip - id: %v", err)

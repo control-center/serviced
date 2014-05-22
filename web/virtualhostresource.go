@@ -17,8 +17,8 @@ type virtualHostRequest struct {
 	VirtualHostName string
 }
 
-// RestAddVirtualHost parses payload, adds the vhost to the service, then updates the service
-func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restAddVirtualHost parses payload, adds the vhost to the service, then updates the service
+func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var request virtualHostRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
@@ -82,8 +82,8 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 	restSuccess(w)
 }
 
-// RestRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
-func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
+func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceId: %v", err)
@@ -138,8 +138,8 @@ type virtualHost struct {
 	ServiceEndpoint string
 }
 
-// RestGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
+func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var services []*service.Service
 	err := client.GetServices(&empty, &services)
 	if err != nil {
