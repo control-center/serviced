@@ -18,6 +18,7 @@ func actionPath(nodes ...string) string {
 	return path.Join(p...)
 }
 
+// Action is the request node for initialized a serviced action on a host
 type Action struct {
 	HostID   string
 	DockerID string
@@ -26,9 +27,13 @@ type Action struct {
 	version  interface{}
 }
 
-func (a *Action) Version() interface{}           { return a.version }
+// Version is an implementation of client.Node
+func (a *Action) Version() interface{} { return a.version }
+
+// SetVersion is an implementation of client.Node
 func (a *Action) SetVersion(version interface{}) { a.version = version }
 
+// ListenAction listens for new actions for a particular host
 func ListenAction(conn client.Connection, hostID string) {
 	// Make the path if it doesn't exist
 	node := actionPath(hostID)
@@ -86,6 +91,7 @@ func ListenAction(conn client.Connection, hostID string) {
 	}
 }
 
+// SendAction sends an action request to a particular host
 func SendAction(conn client.Connection, action *Action) (string, error) {
 	uuid, err := utils.NewUUID()
 	if err != nil {

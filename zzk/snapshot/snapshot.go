@@ -34,6 +34,7 @@ func (s *Snapshot) SetVersion(version interface{}) { s.version = version }
 
 func (s *Snapshot) done() bool { return s.Label != "" || s.Error != nil }
 
+// Handler handles zookeeper operations for snapshots
 type Handler struct {
 	conn client.Connection
 	dao  dao.ControlPlane
