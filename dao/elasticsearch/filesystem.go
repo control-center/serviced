@@ -71,8 +71,12 @@ func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 	}
 
 	res, err := zkSnapshot.Recv(conn, serviceID)
+	if err != nil {
+		return err
+	}
+
 	*label = res.Label
-	return err
+	return res.Error
 }
 
 func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {
