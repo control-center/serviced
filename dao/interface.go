@@ -45,6 +45,9 @@ type ControlPlane interface {
 	// Add a new service
 	AddService(service service.Service, serviceId *string) error
 
+	// Deploy a new service
+	DeployService(service ServiceDeploymentRequest, serviceId *string) error
+
 	// Update an existing service
 	UpdateService(service service.Service, unused *int) error
 
