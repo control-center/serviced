@@ -12,11 +12,15 @@ import (
 )
 
 var BASH_SCRIPT = `
-trap "rm -f ${BASH_SOURCE[0]}" EXIT
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+export SEENFILE="${DIR}/$$.found"
+trap "rm -f ${SEENFILE} ${BASH_SOURCE[0]}" EXIT
 for i in {1..10}; do
-	{{{{COMMAND}}}} |& awk '/setns /{found=42;next} {print} END{exit found}'
-	results=("${PIPESTATUS[@]}")
-	"${results[1]}" == 42 ] || exit ${results[0]}
+	rm -f ${SEENFILE}
+	{{{{COMMAND}}}} 2> >(awk '/setns /{print >ENVIRON["SEENFILE"];next} {print}' >&2)
+	RESULT=$?
+	sleep 0.1  # allow time to flush for awk writefile
+	[ -s "${SEENFILE}" ] || exit ${RESULT}
 done
 {{{{COMMAND}}}}
 exit $?
