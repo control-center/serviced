@@ -28,7 +28,7 @@ func (a *Action) SetVersion(version interface{}) { a.version = version }
 func ListenAction(conn client.Connection, hostID string) {
 	// Make the path if it doesn't exist
 	node := actionPath(hostID)
-	if err := mkdir(conn, node); err != nil {
+	if err := conn.CreateDir(node); err != nil {
 		glog.Errorf("Could not create path %s: %s", node, err)
 		return
 	}
@@ -89,7 +89,7 @@ func SendAction(conn client.Connection, action *Action) (string, error) {
 	}
 
 	node := actionPath(action.HostID, uuid)
-	if err := mkdir(conn, path.Dir(node)); err != nil {
+	if err := conn.CreateDir(path.Dir(node)); err != nil {
 		return "", err
 	}
 
