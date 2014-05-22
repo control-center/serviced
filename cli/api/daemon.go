@@ -177,6 +177,11 @@ func (d *daemon) startMaster() error {
 	}
 
 	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
+	}
+
 	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
 		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
 		return err
