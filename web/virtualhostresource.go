@@ -17,19 +17,19 @@ type virtualHostRequest struct {
 	VirtualHostName string
 }
 
-// RestAddVirtualHost parses payload, adds the vhost to the service, then updates the service
-func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restAddVirtualHost parses payload, adds the vhost to the service, then updates the service
+func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var request virtualHostRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	var services []*service.Service
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -42,7 +42,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 
 	if service == nil {
 		glog.Errorf("Could not find service: %s", services)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -57,7 +57,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 			for _, host := range endpoint.VHosts {
 				if host == _vhost {
 					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.Id)
-					RestServerError(w)
+					restServerError(w)
 					return
 				}
 			}
@@ -67,7 +67,7 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
 	if err != nil {
 		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -75,32 +75,32 @@ func RestAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
-	RestSuccess(w)
+	restSuccess(w)
 }
 
-// RestRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
-func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
+func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceId: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	application, err := url.QueryUnescape(r.PathParam("application"))
 	if err != nil {
 		glog.Errorf("Failed getting application: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	hostname, err := url.QueryUnescape(r.PathParam("name"))
 	if err != nil {
 		glog.Errorf("Failed getting hostname: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
@@ -108,14 +108,14 @@ func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serv
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	err = service.RemoveVirtualHost(application, hostname)
 	if err != nil {
 		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -123,11 +123,11 @@ func RestRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serv
 	err = client.UpdateService(service, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
-	RestSuccess(w)
+	restSuccess(w)
 }
 
 // Get all virtual hosts
@@ -138,13 +138,13 @@ type virtualHost struct {
 	ServiceEndpoint string
 }
 
-// RestGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func RestGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+// restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
+func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	var services []*service.Service
 	err := client.GetServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
