@@ -18,7 +18,9 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
+	"fmt"
 	"strconv"
 )
 
@@ -42,33 +44,52 @@ type ControlPlaneDao struct {
 	dockerRegistry string
 }
 
-func (this *ControlPlaneDao) RestartService(serviceId string, unused *int) error {
-	return dao.ControlPlaneError{"Unimplemented"}
+func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
+	// Get the service and update the request
+	getService := func(serviceID string) (service.Service, error) {
+		var s service.Service
+		err := this.GetService(request.Running.ServiceID, &s)
+		return s, err
+	}
+
+	svc, err := getService(request.Running.ServiceID)
+	if err != nil {
+		return err
+	}
+
+	var command []string
+	if request.Command == "" {
+		return fmt.Errorf("missing command")
+	}
+
+	if err := svc.EvaluateActionsTemplate(getService); err != nil {
+		return err
+	}
+
+	action, ok := svc.Actions[request.Command]
+	if !ok {
+		return fmt.Errorf("action not found for service %s: %s", svc.Id, request.Command)
+	}
+
+	command = append([]string{action}, request.Args...)
+	req := zkdocker.Action{
+		HostID:   request.Running.HostID,
+		DockerID: request.Running.DockerID,
+		Command:  command,
+	}
+
+	conn, err := this.zclient.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = zkdocker.SendAction(conn, &req)
+	return err
 }
 
-func (this *ControlPlaneDao) StartShell(service service.Service, unused *int) error {
-	// TODO: implement stub
-	return nil
-}
-
-func (this *ControlPlaneDao) ExecuteShell(service service.Service, command *string) error {
-	// TODO: implement stub
-	return nil
-}
-
-func (this *ControlPlaneDao) ShowCommands(service service.Service, unused *int) error {
-	// TODO: implement stub
-	return nil
-}
-
-func (this *ControlPlaneDao) Get(service service.Service, file *string) error {
-	// TODO: implement stub
-	return nil
-}
-
-func (this *ControlPlaneDao) Send(service service.Service, files *[]string) error {
-	// TODO: implment stub
-	return nil
+func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
+	return dao.ControlPlaneError{"unimplemented"}
 }
 
 // Create a elastic search control plane data access object

@@ -84,7 +84,7 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 
 	var services []*service.Service
 	for i, s := range allServices {
-		if s.Name == name {
+		if s.Name == name || s.Id == name {
 			services = append(services, allServices[i])
 		}
 	}
