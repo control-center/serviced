@@ -32,15 +32,15 @@ func HostID() (hostid string, err error) {
 
 // GetIPAddress attempts to find the IP address to the default outbout interface.
 func GetIPAddress() (ip string, err error) {
-	ip, err = getIPAddrFromHostname()
-	if err != nil || strings.HasPrefix(ip, "127") {
-		ip, err = getIPAddrFromOutGoingConnection()
-		if err == nil && strings.HasPrefix(ip, "127") {
-			return "", fmt.Errorf("unable to identify local ip address")
-		}
+	ip, err = getIPAddrFromOutGoingConnection()
+	switch {
+	case err != nil:
+		return "", err
+	case err == nil && strings.HasPrefix(ip, "127"):
+		return "", fmt.Errorf("unable to identify local ip address")
+	default:
+		return ip, err
 	}
-
-	return ip, err
 }
 
 // GetMemorySize attempts to get the size of the installed RAM.
