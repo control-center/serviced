@@ -19,14 +19,14 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	response := make(map[string]*host.Host)
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	hosts, err := client.GetHosts()
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
@@ -41,20 +41,20 @@ func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 func RestGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	host, err := client.GetHost(hostID)
 	if err != nil {
 		glog.Error("Could not get host: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -68,7 +68,7 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	// Save the pool ID and IP address for later. GetInfo wipes these
@@ -80,7 +80,7 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -95,30 +95,30 @@ func RestAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	host, err := agentClient.BuildHost(buildRequest)
 	if err != nil {
 		glog.Errorf("Unable to get remote host info: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	masterClient, err := ctx.getMasterClient()
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	err = masterClient.AddHost(*host)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(0).Info("Added host ", host.ID)
-	w.WriteJson(&SimpleResponse{"Added host", hostLinks(host.ID)})
+	w.WriteJson(&simpleResponse{"Added host", hostLinks(host.ID)})
 }
 
 //RestUpdateHost updates a host. Request input is host.Host
 func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	glog.V(3).Infof("Received update request for %s", hostID)
@@ -126,46 +126,46 @@ func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	masterClient, err := ctx.getMasterClient()
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	err = masterClient.UpdateHost(payload)
 	if err != nil {
 		glog.Errorf("Unable to update host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(1).Info("Updated host ", hostID)
-	w.WriteJson(&SimpleResponse{"Updated host", hostLinks(hostID)})
+	w.WriteJson(&simpleResponse{"Updated host", hostLinks(hostID)})
 }
 
 //RestRemoveHost removes a host using host-id
 func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	masterClient, err := ctx.getMasterClient()
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	err = masterClient.RemoveHost(hostID)
 	if err != nil {
 		glog.Errorf("Could not remove host: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(0).Info("Removed host ", hostID)
-	w.WriteJson(&SimpleResponse{"Removed host", hostsLinks()})
+	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
 }

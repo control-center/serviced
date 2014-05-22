@@ -17,14 +17,14 @@ import (
 func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	pools, err := client.GetResourcePools()
 	if err != nil {
 		glog.Error("Could not get resource pools: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	poolsMap := make(map[string]*pool.ResourcePool)
@@ -39,20 +39,20 @@ func RestGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 func RestGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	pool, err := client.GetResourcePool(poolID)
 	if err != nil {
 		glog.Error("Could not get resource pool: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
@@ -66,74 +66,74 @@ func RestAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode pool payload: ", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	err = client.AddResourcePool(payload)
 	if err != nil {
 		glog.Error("Unable to add pool: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(0).Info("Added pool ", payload.ID)
-	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(payload.ID)})
+	w.WriteJson(&simpleResponse{"Added resource pool", poolLinks(payload.ID)})
 }
 
 //RestUpdatePool updates a resource pool. Request input is pool.ResourcePool
 func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	var payload pool.ResourcePool
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode pool payload: ", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	err = client.UpdateResourcePool(payload)
 	if err != nil {
 		glog.Error("Unable to update pool: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(1).Info("Updated pool ", poolID)
-	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolID)})
+	w.WriteJson(&simpleResponse{"Updated resource pool", poolLinks(poolID)})
 }
 
 //RestRemovePool removes a resource pool using pool-id
 func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	err = client.RemoveResourcePool(poolID)
 	if err != nil {
 		glog.Error("Could not remove resource pool: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	glog.V(0).Info("Removed pool ", poolID)
-	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
+	w.WriteJson(&simpleResponse{"Removed resource pool", poolsLinks()})
 }
 
 //RestGetHostsForResourcePool gets all Hosts in a resource pool. response is [dao.PoolHost]
@@ -142,18 +142,18 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	hosts, err := client.FindHostsInPool(poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 	for _, host := range hosts {
@@ -172,20 +172,20 @@ func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 func RestGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	client, err := ctx.getMasterClient()
 	if err != nil {
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 
 	ips, err := client.GetPoolIPs(poolID)
 	if err != nil {
 		glog.Error("Could not get resource pool: ", err)
-		RestServerError(w)
+		restServerError(w)
 		return
 	}
 

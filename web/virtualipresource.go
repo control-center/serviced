@@ -22,13 +22,13 @@ func RestAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *servi
 	var request virtualIPRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	glog.V(0).Infof("Add virtual ip: %+v", request)
 	//TODO make call to dao service
-	RestSuccess(w)
+	restSuccess(w)
 }
 
 // RestRemovePoolVirtualIP deletes virtualip
@@ -36,11 +36,11 @@ func RestRemovePoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *se
 	id, err := url.QueryUnescape(r.PathParam("id"))
 	if err != nil {
 		glog.Errorf("Could not get virtual ip - id: %v", err)
-		RestBadRequest(w)
+		restBadRequest(w)
 		return
 	}
 
 	glog.V(0).Infof("Remove virtual ip - id=%s", id)
 	//TODO make call to dao service
-	RestSuccess(w)
+	restSuccess(w)
 }
