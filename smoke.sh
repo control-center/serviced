@@ -123,6 +123,6 @@ test_vhost        && succeed "VHost is up and listening"                || fail 
 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
-test_port_mapped  && succeed "Port is imported correctly"               || fail "Port was not imported correctly"
+test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Either unable to attach to container or endpoint was not imported"
 
 # "trap cleanup EXIT", above, will handle cleanup
