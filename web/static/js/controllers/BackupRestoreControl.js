@@ -1,8 +1,5 @@
 function BackupRestoreControl($scope, $routeParams, resourcesService, authService, $translate, $templateCache) {
 
-    // cache reference to backup notification
-    var backupNotification;
-
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -15,59 +12,105 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
         $scope.backupFiles = data;
     });
 
+    // localization messages
+    var BACKUP_RUNNING = $translate("backup_running"),
+        BACKUP_COMPLETE = $translate("backup_complete"),
+        RESTORE_RUNNING = $translate("restore_running"),
+        RESTORE_COMPLETE = $translate("restore_complete"),
+        ERROR = $translate("error");
+
+    // track if backup or restore are running and only
+    // allow one at a time
+    var backupRunning = false,
+        restoreRunning = false;
+
     $scope.createBackup = function(){
 
-        // if existing backup, dont do anything?
+        if(backupRunning || restoreRunning){
+            alert("Hey man, hold on a sec...");
+            return;
+        }
 
-        /*JsDbg*/debugger;// TODO - localization of message
-        backupNotification = new Notification("Backup Running");
-        $("#backup_data").before(backupNotification);
-        backupNotification.show();
+        var notification = new Notification(BACKUP_RUNNING);
+        $("#backup_data").before(notification.$el);
+        notification.show();
 
-        resourcesService.create_backup(function(data){
-            setTimeout(getBackupStatus, 1);
-        });
+        backupRunning = true;
+
+        // resourcesService.create_backup(function(data){
+        //     setTimeout(function(){
+        //         getBackupStatus(notification);
+        //     }, 1);
+        // });
     };
 
     $scope.restoreBackup = function(filename){
-        $('#restoreInfo').show("fast");
-        resourcesService.restore_backup(filename, function(data){
-            setTimeout(getRestoreStatus, 1);
-        });
+
+        if(backupRunning || restoreRunning){
+            alert("Hey man, hold on a sec...");
+            return;
+        }
+        
+        var notification = new Notification(RESTORE_RUNNING);
+        $("#backup_data").before(notification.$el);
+        notification.show();
+
+        restoreRunning = true;
+
+        // resourcesService.restore_backup(filename, function(data){
+        //     setTimeout(function(){
+        //         getRestoreStatus(notification);
+        //     }, 1);
+        // });
     };
 
-    function getBackupStatus(){
+    function getBackupStatus(notification){
         resourcesService.get_backup_status(function(data){
+
             if(data.Detail !== ""){
                 if(data.Detail !== "timeout"){
-                    backupNotification.updateStatus(data.Detail);
+                    notification.updateStatus(data.Detail);
                 }
-                setTimeout(getBackupStatus, 1);
+                setTimeout(function(){
+                    getBackupStatus(notification);
+                }, 1);
+
+            // TODO - safer way to check for error
+            }else if(~data.Detail.indexOf("ERROR")){
+                notification.failify(ERROR, data.Detail);
+                backupRunning = false;
+
             }else{
                 resourcesService.get_backup_files(function(data){
                     $scope.backupFiles = data;
                 });
-
-                // TODO - localization of message
-                backupNotification.successify("Backup Complete");
+                notification.successify(BACKUP_COMPLETE);
+                backupRunning = false;
             }
         });
     }
 
-    function getRestoreStatus(){
+    function getRestoreStatus(notification){
         resourcesService.get_restore_status(function(data){
             if(data.Detail !== ""){
                 if(data.Detail !== "timeout"){
-                    $("#restoreStatus").html(data.Detail);
+                    notification.updateStatus( data.Detail);
                 }
-                setTimeout(getRestoreStatus, 1);
+                setTimeout(function(){
+                    getRestoreStatus(notification);
+                }, 1);
+
+            // TODO - safer way to check for error
+            }else if(~data.Detail.indexOf("ERROR")){
+                notification.failify(ERROR, data.Detail);
+                restoreRunning = false;
+
             }else{
-                $("#restoreInfo").hide({
-                    duration: 200,
-                    easing: "linear"
-                });
+                notification.successify(RESTORE_COMPLETE);
+                restoreRunning = false;
             }
         });
+
     }
 
 
@@ -77,13 +120,17 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     
     /**
      * Notification
-     * creates a notification. fun!
+     * Creates a notification. Great for parties!
      */
     function Notification(title){
         this.$el = $($templateCache.get("backupInfoNotification.html"));
         this.$status = this.$el.find(".backupStatus");
         this.$title = this.$el.find(".backupRunning");
         this.updateTitle(title);
+
+        // bind onClose context so it doesn't have
+        // to be rebound for each event listener
+        this.onClose = this.onClose.bind(this);
     }
     Notification.prototype = {
         constructor: Notification,
@@ -98,22 +145,40 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
             this.updateStatus(msg);
 
             // show close button and make it active
-            this.$el.find(".close").show().off().on("click", function(e){
-                this.$el.hide("fast", function(){
-                    this.$el.remove();
-                }.bind(this));
+            this.$el.find(".close").show().off().on("click", this.onClose);
+        },
+
+        // makes notification fail :(
+        failify: function(title, msg){
+            // change notification color, icon, text, etc
+            this.$el.removeClass("bg-info").addClass("bg-danger");
+            this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-remove-sign");
+            
+            this.updateTitle(title);
+            this.updateStatus(msg);
+
+            // show close button and make it active
+            this.$el.find(".close").show().off().on("click", this.onClose);
+        },
+
+        onClose: function(e){
+            this.$el.slideUp("fast", function(){
+                this.$el.remove();
             }.bind(this));
         },
+
         // updates the status message (the smaller text)
         updateStatus: function(msg){
             this.$status.html(msg || "");
         },
+
         // updates the notification title (larger text)
         updateTitle: function(title){
             this.$title.text(title || "");
         },
+
         show: function(){
-            this.$el.show("fast");
+            this.$el.slideDown("fast");
         }
     };
 }

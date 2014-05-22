@@ -776,18 +776,22 @@ rect {
     font-weight: bold;
 }
 
+
 /* bootstrap override */
 .bg-primary{
-    background-color: #6b6b6b;}
-
+    background-color: #6b6b6b;
+}
 
 /* notifications */
 
 .notification {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 .notification > *{
     vertical-align: middle;
+}
+.notification .close {
+    margin-top: 4px;
 }
 
 /* notification icons */
@@ -805,3 +809,31 @@ rect {
     margin: 0 5px;
     font-size: 1.4em;
 }
+.notification.bg-info .dialogIcon,
+.notification.bg-info .backupRunning {
+    color: #7890b6;
+}
+.notification.bg-success .dialogIcon,
+.notification.bg-success .backupRunning {
+    color: green;
+}
+.notification.bg-danger .dialogIcon,
+.notification.bg-danger .backupRunning {
+    color: #7A0000;
+}
+
+/* animate dialogIcon to show that it's working */
+.notification.bg-info .dialogIcon {
+    animation: throb 3s infinite;
+    -webkit-animation: throb 3s infinite;
+}
+@keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}@-webkit-keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}
+
