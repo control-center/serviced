@@ -12,16 +12,13 @@ import (
 )
 
 var BASH_SCRIPT = `
-DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-trap "rm -f ${DIR}/$$.stderr ${BASH_SOURCE[0]}" EXIT
+trap "rm -f ${BASH_SOURCE[0]}" EXIT
 for i in {1..10}; do
-	SEEN=0
-	{{{{COMMAND}}}} 2> >(tee ${DIR}/$$.stderr >&2)
-	RESULT=$?
-	[ "${RESULT}" == 0 ] && exit 0
-	grep setns ${DIR}/$$.stderr || exit ${RESULT}
+	{{{{COMMAND}}}} |& awk '/setns /{found=42;next} {print} END{exit found}'
+	[ "${PIPESTATUS[1]}" == 42 ] || exit ${PIPESTATUS[0]}
 done
-exit ${RESULT}
+{{{{COMMAND}}}}
+exit $?
 `
 
 func createWrapperScript(cmd []string) ([]string, error) {
