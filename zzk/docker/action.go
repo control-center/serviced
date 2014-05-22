@@ -65,7 +65,10 @@ func ListenAction(conn client.Connection, hostID string) {
 
 			go func() {
 				defer conn.Delete(path)
-				err := utils.ExecNSInitWithRetry(action.DockerID, action.Command)
+				result, err := utils.RunNSInitWithRetry(action.DockerID, action.Command)
+				if result != nil && len(result) > 0 {
+					glog.Info(string(result))
+				}
 				if err != nil {
 					glog.Warningf("Error running command `%s` on container %s: %s", action.Command, action.DockerID, err)
 				} else {

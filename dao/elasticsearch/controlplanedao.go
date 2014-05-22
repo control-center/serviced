@@ -46,14 +46,24 @@ type ControlPlaneDao struct {
 
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
 	// Get the service and update the request
-	var svc service.Service
-	if err := this.GetService(request.Running.ServiceID, &svc); err != nil {
+	getService := func(serviceID string) (service.Service, error) {
+		var s service.Service
+		err := this.GetService(request.Running.ServiceID, &s)
+		return s, err
+	}
+
+	svc, err := getService(request.Running.ServiceID)
+	if err != nil {
 		return err
 	}
 
 	var command []string
 	if request.Command == "" {
 		return fmt.Errorf("missing command")
+	}
+
+	if err := svc.EvaluateActionsTemplate(getService); err != nil {
+		return err
 	}
 
 	action, ok := svc.Actions[request.Command]

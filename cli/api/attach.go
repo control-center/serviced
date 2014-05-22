@@ -29,18 +29,21 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 }
 
 // Attach runs an arbitrary shell command in a running service container
-func (a *api) Attach(config AttachConfig) ([]byte, error) {
+func (a *api) Attach(config AttachConfig) error {
 	if hostID, err := utils.HostID(); err != nil {
-		return nil, err
+		return err
 	} else if hostID == config.Running.HostID {
 		var command []string
 		if config.Command != "" {
 			command = append([]string{config.Command}, config.Args...)
+		} else {
+			command = append([]string{}, "/bin/bash")
 		}
-		return utils.RunNSInitWithRetry(config.Running.DockerID, command)
+
+		return utils.ExecNSInitWithRetry(config.Running.DockerID, command)
 	}
 
-	return nil, fmt.Errorf("container does not reside locally on host")
+	return fmt.Errorf("container does not reside locally on host")
 }
 
 // Action runs a predefined action in a running service container
