@@ -43,7 +43,7 @@ start_serviced() {
     echo "Starting serviced..."
     sudo GOPATH=${GOPATH} PATH=${PATH} ${PWD}/serviced/serviced -master -agent &
     echo "Waiting 60 seconds for serviced to become the leader..."
-    for i in {1..120}; do
+    for i in {1..60}; do
         wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null && return 0
         sleep 1
     done
