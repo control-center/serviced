@@ -37,7 +37,7 @@ type ServiceDefinition struct {
 	Runs          map[string]string             // Map of commands that can be executed with 'serviced run ...'
 	Actions       map[string]string             // Map of commands that can be executed with 'serviced action ...'
 	HealthChecks  map[string]domain.HealthCheck // HealthChecks for a service.
-	Prereqs       []domain.Prereq 				// Optional list of scripts that must be successfully run before kicking off the service command.
+	Prereqs       []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 }
 
 // SnapshotCommands commands to be called during and after a snapshot

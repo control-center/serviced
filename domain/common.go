@@ -47,7 +47,7 @@ type HealthCheckResult struct {
 }
 
 type Prereq struct {
-	Name string
+	Name   string
 	Script string
 }
 
