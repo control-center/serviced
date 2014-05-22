@@ -13,6 +13,7 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 default: build_binary
 
 install: build_binary bash-complete
+	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install github.com/zenoss/serviced/serviced
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
 
