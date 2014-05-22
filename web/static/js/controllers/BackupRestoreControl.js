@@ -26,8 +26,11 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
     $scope.createBackup = function(){
 
-        if(backupRunning || restoreRunning){
-            alert("Hey man, hold on a sec...");
+        if(backupRunning){
+            new SimpleModal("Cannot begin backup", "A backup is already in progress.").show();
+            return;
+        }else if(restoreRunning){
+            new SimpleModal("Cannot begin backup", "A restore is in progress.").show();
             return;
         }
 
@@ -46,8 +49,11 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
     $scope.restoreBackup = function(filename){
 
-        if(backupRunning || restoreRunning){
-            alert("Hey man, hold on a sec...");
+        if(restoreRunning){
+            new SimpleModal("Cannot begin restore", "A restore is already in progress.").show();
+            return;
+        }else if(backupRunning){
+            new SimpleModal("Cannot begin restore", "A backup is in progress.").show();
             return;
         }
         
@@ -179,6 +185,37 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         show: function(){
             this.$el.slideDown("fast");
+        }
+    };
+
+    /**
+     * SimpleModal
+     * Super simple modal with just an ok button to close it
+     * Uses bootstrap's modal. Impress your friends!
+     */
+    function SimpleModal(title, message){
+        //genericModal.html
+        this.$el = $($templateCache.get("simpleModal.html"));
+        this.$el.find(".modal-title").text(title);
+        this.$el.find(".modal-body").text(message);
+
+        this.$el.find(".closeButt").on("click", this.remove.bind(this));
+    }
+    SimpleModal.prototype = {
+        constructor: SimpleModal,
+
+        // attaches to dom and shows
+        show: function(){
+            $("body").append(this.$el);
+            this.$el.modal("show");
+        },
+
+        // removes from dom and destroys
+        remove: function(){
+            this.$el.modal("hide").on("hidden.bs.modal", function(){
+                this.$el.remove();
+            }.bind(this));
+
         }
     };
 }
