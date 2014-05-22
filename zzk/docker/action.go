@@ -89,13 +89,8 @@ func SendAction(conn client.Connection, action *Action) (string, error) {
 	}
 
 	node := actionPath(action.HostID, uuid)
-	if err := conn.CreateDir(path.Dir(node)); err != nil {
-		return "", err
-	}
-
 	if err := conn.Create(node, action); err != nil {
 		return "", err
 	}
-
 	return path.Base(node), nil
 }
