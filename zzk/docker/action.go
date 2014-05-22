@@ -8,8 +8,12 @@ import (
 	"github.com/zenoss/serviced/utils"
 )
 
+const (
+	zkAction = "/docker/action"
+)
+
 func actionPath(nodes ...string) string {
-	p := []string{zkDocker, zkAction}
+	p := []string{zkAction}
 	p = append(p, nodes...)
 	return path.Join(p...)
 }
