@@ -15,7 +15,6 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
-	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
@@ -45,14 +44,7 @@ type ControlPlaneDao struct {
 }
 
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
-	// Get the service and update the request
-	getService := func(serviceID string) (service.Service, error) {
-		var s service.Service
-		err := this.GetService(request.Running.ServiceID, &s)
-		return s, err
-	}
-
-	svc, err := getService(request.Running.ServiceID)
+	svc, err := this.getService(request.Running.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -62,7 +54,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		return fmt.Errorf("missing command")
 	}
 
-	if err := svc.EvaluateActionsTemplate(getService); err != nil {
+	if err := svc.EvaluateActionsTemplate(this.getService); err != nil {
 		return err
 	}
 

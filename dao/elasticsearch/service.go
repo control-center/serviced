@@ -242,10 +242,14 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 
 //getService is an internal method that returns a Service without filling in all related service data like address assignments
 //and modified config files
-func (this *ControlPlaneDao) getService(id string) (*service.Service, error) {
+func (this *ControlPlaneDao) getService(id string) (service.Service, error) {
 	glog.V(3).Infof("ControlPlaneDao.getService: id=%s", id)
 	store := service.NewStore()
-	return store.Get(datastore.Get(), id)
+	svc, err := store.Get(datastore.Get(), id)
+	if err != nil || svc == nil {
+		return service.Service{}, err
+	}
+	return *svc, err
 }
 
 //
@@ -307,9 +311,11 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
-	glog.V(2).Infof("ControlPlaneDao.GetTenantId: %s", serviceID)
-	var err error
-	*tenantId, _, err = this.getTenantIdAndPath(serviceID)
+	svc, err := this.getService(serviceID)
+	if err != nil {
+		return err
+	}
+	*tenantId, err = svc.GetTenantID(this.getService)
 	return err
 }
 
