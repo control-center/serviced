@@ -15,7 +15,8 @@ var BASH_SCRIPT = `
 trap "rm -f ${BASH_SOURCE[0]}" EXIT
 for i in {1..10}; do
 	{{{{COMMAND}}}} |& awk '/setns /{found=42;next} {print} END{exit found}'
-	[ "${PIPESTATUS[1]}" == 42 ] || exit ${PIPESTATUS[0]}
+	results=("${PIPESTATUS[@]}")
+	"${results[1]}" == 42 ] || exit ${results[0]}
 done
 {{{{COMMAND}}}}
 exit $?
