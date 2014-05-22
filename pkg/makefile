@@ -73,6 +73,7 @@ stage: build pkgroot
 	cp ../web/static pkgroot$(INSTALL_DIR)/share/web -R
 	cp ../shell/static pkgroot$(INSTALL_DIR)/share/shell -R
 	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
+	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
 	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
 	# stage any templates that are present
