@@ -449,12 +449,6 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		return err
 	}
 
-	if len(poolIPs.HostIPs) == 0 {
-		msg := fmt.Sprintf("No static IP addresses are available in pool %s.", myService.PoolID)
-		return errors.New(msg)
-	}
-	glog.Infof("Pool %v contains %v available static IP(s)", myService.PoolID, len(poolIPs.HostIPs))
-
 	rand.Seed(time.Now().UTC().UnixNano())
 	userProvidedIPAssignment := false
 	selectedHostId := ""
@@ -479,24 +473,24 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 		// manual IP provided
 		// verify that the user provided IP address is available in the pool
 		glog.Infof("Manual IP Address Assignment")
-		validIp := false
+		validIP := false
 		userProvidedIPAssignment = true
 
 		for _, hostIPResource := range poolIPs.HostIPs {
 			if assignmentRequest.IPAddress == hostIPResource.IPAddress {
 				assignmentType = "static"
-				validIp = true
+				validIP = true
 				assignmentRequest.IPAddress = hostIPResource.IPAddress
 				selectedHostId = hostIPResource.HostID
 				break
 			}
 		}
 
-		if !validIp {
+		if !validIP {
 			for _, virtualIP := range poolIPs.VirtualIPs {
 				if assignmentRequest.IPAddress == virtualIP.IP {
 					assignmentType = "virtual"
-					validIp = true
+					validIP = true
 					assignmentRequest.IPAddress = virtualIP.IP
 					// TODO: Should we somehow know what host has a virtual IP???
 					//selectedHostId = virtualIP.HostID
@@ -505,8 +499,8 @@ func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, 
 			}
 		}
 
-		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
+		if !validIP {
+			msg := fmt.Sprintf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 			return errors.New(msg)
 		}
 	}
@@ -691,7 +685,7 @@ func (this *ControlPlaneDao) validateServicesForStarting(svc *service.Service, _
 		}
 
 		if needsAnAddressAssignment {
-			msg := fmt.Sprintf("Service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
+			msg := fmt.Sprintf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
 			return errors.New(msg)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)

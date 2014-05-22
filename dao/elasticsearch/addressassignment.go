@@ -124,7 +124,7 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+		return fmt.Errorf("requested static IP is not available: %v", ipAddr)
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func (this *ControlPlaneDao) validVirtualIp(poolID string, ipAddr string) error 
 		}
 	}
 	if !found {
-		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+		return fmt.Errorf("requested static IP is not available: %v", ipAddr)
 	}
 	return nil
 }
