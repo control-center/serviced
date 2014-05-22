@@ -81,6 +81,7 @@ type Controller struct {
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
 	closing            chan chan error
+	prereqs            []domain.Prereq
 }
 
 // Close shuts down the controller
@@ -91,6 +92,7 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
+
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
 	client, err := serviced.NewLBClient(lbClientPort)
 	if err != nil {
@@ -310,6 +312,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.metricForwarder = forwarder
 	}
 
+	// Keep a copy of the service prerequisites in the Controller object.
+	c.prereqs = service.Prereqs
+
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
 		glog.Errorf("Invalid commandif ")
@@ -334,6 +339,7 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
+		w.WriteString("export ")
 		w.WriteString(value)
 		w.WriteString("\n")
 	}
@@ -367,13 +373,16 @@ func (c *Controller) Run() (err error) {
 
 	startService := func() (*subprocess.Instance, chan error) {
 		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
-		c.handleRemotePorts()
 		return service, serviceExited
 	}
 
-	service, serviceExited := startService()
+	prereqsPassed := make(chan bool)
+	var startAfter <-chan time.Time
+	service := &subprocess.Instance{}
+	serviceExited := make(chan error, 1)
+	c.handleRemotePorts()
+	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
-	var restartAfter <-chan time.Time
 	for {
 		select {
 		case sig := <-sigc:
@@ -393,29 +402,53 @@ func (c *Controller) Run() (err error) {
 			default:
 			}
 
+		case <-prereqsPassed:
+			startAfter = time.After(time.Millisecond * 1)
+
 		case <-time.After(time.Second * 10):
 			c.handleRemotePorts()
 
 		case <-serviceExited:
-			glog.Infof("service process exited")
+			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
 				return
 			}
-			restartAfter = time.After(time.Second * 10)
+			glog.Infof("Restarting service process in 10 seconds.")
+			startAfter = time.After(time.Second * 10)
 
-		case <-restartAfter:
-			if !c.options.Service.Autorestart {
-				return
-			}
-			glog.Infof("restarting service process")
+		case <-startAfter:
+			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
-			restartAfter = nil
+			startAfter = nil
 		}
 	}
 	for _, exitChannel := range healthExits {
 		exitChannel <- true
 	}
 	return
+}
+
+func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	for _ = range time.Tick(1 * time.Second) {
+		failedAny := false
+		for _, script := range c.prereqs {
+			cmd := exec.Command("sh", "-c", script.Script)
+			err := cmd.Run()
+			if err != nil {
+				glog.Warningf("Failed prereq [%s], not starting service.", script.Name)
+				failedAny = true
+				break
+			} else {
+				glog.Infof("Passed prereq [%s].", script.Name)
+			}
+		}
+		if !failedAny {
+			glog.Infof("Passed all prereqs.")
+			prereqsPassed <- true
+			return nil
+		}
+	}
+	return nil
 }
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {

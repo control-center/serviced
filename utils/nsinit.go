@@ -13,14 +13,15 @@ import (
 
 var BASH_SCRIPT = `
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-export SEENFILE="${DIR}/$$.found"
-trap "rm -f ${SEENFILE} ${BASH_SOURCE[0]}" EXIT
+export OUTPUT="${DIR}/$$.output"
+trap "rm -f ${OUTPUT} ${BASH_SOURCE[0]}" EXIT
+{{{{CHDIR}}}} || exit 2
 for i in {1..10}; do
-	rm -f ${SEENFILE}
-	{{{{COMMAND}}}} 2> >(awk '/setns /{print >ENVIRON["SEENFILE"];next} {print}' >&2)
+	rm -f ${OUTPUT}
+	script -q -e -c "{{{{COMMAND}}}}" ${OUTPUT}
 	RESULT=$?
-	sleep 0.1  # allow time to flush for awk writefile
-	[ -s "${SEENFILE}" ] || exit ${RESULT}
+	sleep 0.1  # allow time for OUTPUT to be flushed
+	grep setns ${OUTPUT} >/dev/null || exit ${RESULT}
 done
 {{{{COMMAND}}}}
 exit $?
@@ -32,7 +33,8 @@ func createWrapperScript(cmd []string) ([]string, error) {
 		return nil, err
 	}
 	defer f.Close()
-	script := strings.Replace(BASH_SCRIPT, "{{{{COMMAND}}}}", strings.Join(cmd, " "), -1)
+	script := strings.Replace(BASH_SCRIPT, "{{{{CHDIR}}}}", cmd[0], -1)
+	script = strings.Replace(script, "{{{{COMMAND}}}}", cmd[1], -1)
 	if _, err := f.WriteString(script); err != nil {
 		return nil, err
 	}
@@ -52,6 +54,7 @@ func ExecNSInitWithRetry(containerID string, bashcmd []string) error {
 	if err != nil {
 		return err
 	}
+	glog.V(1).Infof("exec command for container:%v command: %v\n", containerID, command)
 	return syscall.Exec(command[0], command[0:], os.Environ())
 }
 
@@ -87,11 +90,10 @@ func generateAttachCommand(containerID string, bashcmd []string) ([]string, erro
 
 	nsInitRoot := "/var/lib/docker/execdriver/native" // has container.json
 
-	attachCmd := fmt.Sprintf("cd %s/%s && %s exec %s", nsInitRoot, containerID,
-		exeMap["nsinit"], strings.Join(bashcmd, " "))
-	fullCmd := []string{attachCmd}
-	glog.V(1).Infof("attach command for container:%v command: %v\n", containerID, fullCmd)
-	return fullCmd, nil
+	cdCmd := fmt.Sprintf("cd %s/%s", nsInitRoot, containerID)
+	attachCmd := fmt.Sprintf("%s exec %s", exeMap["nsinit"], strings.Join(bashcmd, " "))
+	glog.V(1).Infof("attach command for container:%v command: %v; %v\n", containerID, cdCmd, attachCmd)
+	return []string{cdCmd, attachCmd}, nil
 }
 
 // exePaths returns the full path to the given executables in a map

@@ -46,6 +46,11 @@ type HealthCheckResult struct {
 	Passed    string
 }
 
+type Prereq struct {
+	Name   string
+	Script string
+}
+
 func (h *HealthCheckResult) ValidEntity() error {
 	return nil
 }
