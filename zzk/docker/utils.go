@@ -11,7 +11,7 @@ import (
 
 const (
 	zkDocker = "/docker"
-	zkAttach = "/attach"
+	zkAction = "/action"
 	zkShell  = "/shell"
 
 	nsInitRoot      = "/var/lib/docker/execdriver/native"

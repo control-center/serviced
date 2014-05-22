@@ -687,9 +687,14 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		Args:    argv,
 	}
 
-	if err := c.driver.Attach(cfg); err != nil {
+	result, err := c.driver.Attach(cfg)
+	if result != nil && len(result) > 0 {
+		fmt.Println(result)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
+
 	return fmt.Errorf("serviced service attach")
 }
 

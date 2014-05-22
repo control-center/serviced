@@ -217,10 +217,6 @@ func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
 }
 
-func (s *ControlClient) Attach(req dao.AttachRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Attach", req, unused)
-}
-
 func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Action", req, unused)
 }

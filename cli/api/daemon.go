@@ -276,7 +276,7 @@ func (d *daemon) startAgentListeners() {
 		glog.Fatalf("could not connect to zk: ", err)
 	}
 
-	go zkdocker.ListenAttach(zconn, d.hostID)
+	go zkdocker.ListenAction(zconn, d.hostID)
 }
 
 func (d *daemon) registerMasterRPC() error {

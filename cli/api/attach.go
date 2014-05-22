@@ -1,9 +1,10 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/utils"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 // AttachConfig is the deserialized object from the command-line
@@ -27,45 +28,19 @@ func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
 	return rss, nil
 }
 
-func isLocal(request dao.AttachRequest) (bool, error) {
-	if hostID, err := utils.HostID(); err != nil {
-		return false, err
-	} else if hostID == request.Running.HostID {
-		var command []string
-		if request.Command != "" {
-			command = append([]string{request.Command}, request.Args...)
-		}
-
-		cmd := zkdocker.Attach{
-			HostID:   request.Running.HostID,
-			DockerID: request.Running.DockerID,
-			Command:  command,
-		}
-		return true, zkdocker.LocalAttach(&cmd)
-	}
-	return false, nil
-}
-
 // Attach runs an arbitrary shell command in a running service container
-func (a *api) Attach(config AttachConfig) error {
-	client, err := a.connectDAO()
-	if err != nil {
-		return err
+func (a *api) Attach(config AttachConfig) ([]byte, error) {
+	if hostID, err := utils.HostID(); err != nil {
+		return nil, err
+	} else if hostID == config.Running.HostID {
+		var command []string
+		if config.Command != "" {
+			command = append([]string{config.Command}, config.Args...)
+		}
+		return utils.RunNSInitWithRetry(config.Running.DockerID, command)
 	}
 
-	req := dao.AttachRequest{
-		Running: config.Running,
-		Command: config.Command,
-		Args:    config.Args,
-	}
-
-	// Try to attach locally
-	if ok, err := isLocal(req); ok || err != nil {
-		return err
-	}
-
-	// Try to attach remotely
-	return client.Attach(req, &unusedInt)
+	return nil, fmt.Errorf("container does not reside locally on host")
 }
 
 // Action runs a predefined action in a running service container

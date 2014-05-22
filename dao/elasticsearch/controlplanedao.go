@@ -44,44 +44,38 @@ type ControlPlaneDao struct {
 	dockerRegistry string
 }
 
-func (this *ControlPlaneDao) Attach(request dao.AttachRequest, unused *int) error {
-	// Set up the request
-	var command []string
-	if request.Command == "" {
-		return fmt.Errorf("cannot start a remote shell")
-	}
-	command = append([]string{request.Command}, request.Args...)
-	req := zkdocker.Attach{
-		HostID:   request.Running.HostID,
-		DockerID: request.Running.DockerID,
-		Command:  command,
-	}
-
-	// Open the zookeeper connection
-	glog.Info("Attach to container remotely")
-	conn, err := this.zclient.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	// Do a remote attach
-	_, err = zkdocker.SendAttach(conn, &req)
-	return err
-}
-
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
 	// Get the service and update the request
 	var svc service.Service
 	if err := this.GetService(request.Running.ServiceID, &svc); err != nil {
 		return err
 	}
-	command, ok := svc.Actions[request.Command]
+
+	var command []string
+	if request.Command == "" {
+		return fmt.Errorf("missing command")
+	}
+
+	action, ok := svc.Actions[request.Command]
 	if !ok {
 		return fmt.Errorf("action not found for service %s: %s", svc.Id, request.Command)
 	}
-	request.Command = command
-	return this.Attach(request, unused)
+
+	command = append([]string{action}, request.Args...)
+	req := zkdocker.Action{
+		HostID:   request.Running.HostID,
+		DockerID: request.Running.DockerID,
+		Command:  command,
+	}
+
+	conn, err := this.zclient.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = zkdocker.SendAction(conn, &req)
+	return err
 }
 
 func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
