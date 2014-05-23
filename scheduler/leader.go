@@ -167,7 +167,7 @@ func (l *leader) watchServices() {
 
 	virtualIPsHandler := virtualips.New(l.facade, l.conn, l.context)
 	// remove all virtual IPs that may be present before starting the loop
-	if err := virtualIPsHandler.RemoveAllVirtualIPs(); err != nil {
+	if err := virtualips.RemoveAllVirtualIPs(); err != nil {
 		glog.Errorf("RemoveAllVirtualIPs failed: %v", err)
 		return
 	}

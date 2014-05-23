@@ -184,7 +184,7 @@ func unbindVirtualIP(virtualInterface string) error {
 }
 
 // add (bind) a virtual IP on the agent
-func (h *virtualIPHandler) addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
+func addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
 	glog.Infof("start addVirtualIP")
 	defer glog.Infof("end addVirtualIP")
 	// confirm the virtual IP is not already on this host
@@ -217,7 +217,7 @@ func (h *virtualIPHandler) addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
 }
 
 // remove (unbind) all virtual IPs on the agent
-func (h *virtualIPHandler) RemoveAllVirtualIPs() error {
+func RemoveAllVirtualIPs() error {
 	// confirm the virtual IP is on this host and remove it
 	err, interfaceMap := createVirtualInterfaceMap()
 	if err != nil {
@@ -235,7 +235,7 @@ func (h *virtualIPHandler) RemoveAllVirtualIPs() error {
 }
 
 // remove (unbind) a virtual IP from the agent
-func (h *virtualIPHandler) removeVirtualIP(virtualIPAddress string) error {
+func removeVirtualIP(virtualIPAddress string) error {
 	// confirm the VIP is on this host and remove it
 	err, interfaceMap := createVirtualInterfaceMap()
 	if err != nil {
@@ -301,13 +301,13 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 	}
 
 	// remove all virtual IPs that may be present before starting the loop
-	if err := h.RemoveAllVirtualIPs(); err != nil {
+	if err := RemoveAllVirtualIPs(); err != nil {
 		glog.Errorf("RemoveAllVirtualIPs failed: %v", err)
 		return
 	}
 
 	var oldVirtualIPNodeIDs []string
-	var currentVirtualIPNodeIDs []string // these are actual virtual IP addresses
+	var currentVirtualIPNodeIDs []string // these are virtual IP addresses
 	var virtualIPsNodeEvent <-chan client.Event
 	var err error
 
@@ -339,7 +339,7 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 					glog.Infof("node %v no longer exists, stopping corresponding goroutine...", virtualIPAddress)
 					// this VIP node has been deleted from zookeeper
 					// Remove the VIP from the host
-					if err := h.removeVirtualIP(virtualIPAddress); err != nil {
+					if err := removeVirtualIP(virtualIPAddress); err != nil {
 						glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
 					}
 					// therefore, stop the go routine responsible for watching this particular VIP
@@ -375,7 +375,7 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 		case evt := <-virtualIPsNodeEvent:
 			glog.Infof("%v event: %v", virtualIPsPath(), evt)
 
-		// a child goroutine has been terminated
+		// a child goroutine has stopped
 		case virtualIPAddress := <-sDone:
 			glog.Info("Cleaning up for virtual IP: ", virtualIPAddress)
 			delete(processing, virtualIPAddress)
@@ -401,8 +401,9 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 		return
 	}
 
+	// try to lock
 	vipOwnerNode := &virtualIPNode{HostID: hostID, VirtualIP: watchingVirtualIP}
-	vipOwner := h.conn.NewLeader(virtualIPsPath(watchingVirtualIP.IP, "Locked"), vipOwnerNode)
+	vipOwner := h.conn.NewLeader(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode)
 	vipOwnerResponse := make(chan error)
 
 	defer func() {
@@ -423,7 +424,7 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 			} else {
 				// the lock has been secured
 				glog.Infof("Locked virtual IP address: %v on %v", virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode.HostID)
-				if err := h.addVirtualIP(watchingVirtualIP); err != nil {
+				if err := addVirtualIP(watchingVirtualIP); err != nil {
 					glog.Errorf("Failed to add virtual IP %v: %v", watchingVirtualIP.IP, err)
 				}
 				if err := h.conn.Set(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode); err != nil {
@@ -439,13 +440,16 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 	}
 }
 
-// responsible for monitoring the virtual IPs in the model, and creating a zookeeper node for each virtual IP found
+// responsible for monitoring the virtual IPs in the model
+// if a new virtual IP is added, create a zookeeper node corresponding to the new virtual IP
+// if a virtual IP is removed, remove the zookeeper node corresponding to that virtual IP
 func (h *virtualIPHandler) SyncVirtualIPs() error {
 	myPool, err := h.getMyPool()
 	if err != nil {
 		return err
 	}
 
+	// create root VirtualIPs node if it does not exists
 	exists, err := h.conn.Exists(virtualIPsPath())
 	if err != nil {
 		glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
@@ -485,6 +489,7 @@ func (h *virtualIPHandler) SyncVirtualIPs() error {
 			}
 		}
 		if removedVirtualIP {
+			// remove virtual IP from zookeeper
 			nodeToDeletePath := virtualIPsPath(child)
 			if err := h.conn.Delete(nodeToDeletePath); err != nil {
 				glog.Errorf("conn.Delete failed:%v (attempting to delete %v))", err, nodeToDeletePath)

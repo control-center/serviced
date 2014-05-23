@@ -6,6 +6,7 @@ package pool
 
 import (
 	"reflect"
+	"sort"
 	"time"
 )
 
@@ -32,6 +33,22 @@ type ResourcePool struct {
 	UpdatedAt        time.Time
 }
 
+type ByIP []VirtualIP
+
+func (b ByIP) Len() int           { return len(b) }
+func (b ByIP) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b ByIP) Less(i, j int) bool { return b[i].IP < b[j].IP } // sort by IP address
+
+func (a *ResourcePool) VirtualIPsEqual(b *ResourcePool) bool {
+	// DeepEqual requires the order to be identical, therefore, sort!
+	sort.Sort(ByIP(a.VirtualIPs))
+	sort.Sort(ByIP(b.VirtualIPs))
+	if reflect.DeepEqual(a.VirtualIPs, b.VirtualIPs) {
+		return true
+	}
+	return false
+}
+
 // Equal returns true if two resource pools are equal
 func (a *ResourcePool) Equals(b *ResourcePool) bool {
 	if a.ID != b.ID {
@@ -43,8 +60,7 @@ func (a *ResourcePool) Equals(b *ResourcePool) bool {
 	if a.ParentID != b.ParentID {
 		return false
 	}
-	// TODO: Fix me! DeepEqual will return true only if the order is identical
-	if reflect.DeepEqual(a.VirtualIPs, b.VirtualIPs) {
+	if !a.VirtualIPsEqual(b) {
 		return false
 	}
 	if a.Priority != b.Priority {
