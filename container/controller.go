@@ -339,7 +339,7 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
-		if !strings.HasPrefix("HOME=", value) {
+		if !strings.HasPrefix(value, "HOME=") {
 			w.WriteString("export ")
 			w.WriteString(value)
 			w.WriteString("\n")
