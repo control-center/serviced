@@ -443,7 +443,11 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 			}
 		}
 		if !failedAny {
-			glog.Infof("Passed all prereqs.")
+			if len(c.prereqs) > 0 {
+				glog.Infof("Passed all prereqs.")
+			} else {
+				glog.Infof("No prereqs to pass.")
+			}
 			prereqsPassed <- true
 			return nil
 		}
