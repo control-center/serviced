@@ -1,0 +1,10 @@
+{
+          "Command": "/loadavg.sh",
+          "ImageID": "ubuntu",
+          "Instances": {
+            "min": 1
+          },
+          "ConfigFiles": {
+            "/loadavg.sh":  { "Owner": "root:root", "Filename": "/loadavg.sh", "Permissions": "0775"}
+          }
+}

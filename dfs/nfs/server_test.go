@@ -1,6 +1,7 @@
 package nfs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -41,7 +42,7 @@ func dirExists(path string) (bool, error) {
 	return s.IsDir(), err
 }
 
-var expectedExports = "/export\t192.168.1.0/24(rw,fsid=0,insecure,no_subtree_check,async)\n/export/foo\t192.168.1.0/24(rw,nohide,insecure,no_subtree_check,async)"
+var expectedExports = "%s\t192.168.1.0/24(rw,fsid=0,insecure,no_subtree_check,async)\n%s/foo\t192.168.1.0/24(rw,nohide,insecure,no_subtree_check,async)\n"
 
 func TestNewServer(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
@@ -73,6 +74,17 @@ func TestNewServer(t *testing.T) {
 		return nil
 	}
 
+	defer func(f func() error) {
+		reload = f
+	}(reload)
+	reload = func() error {
+		return nil
+	}
+	defer func(f func() error) {
+		start = f
+	}(start)
+	start = reload
+
 	// create our test server
 	s, err := NewServer(baseDir, "foo", "192.168.1.0/24")
 	if err != nil {
@@ -88,13 +100,6 @@ func TestNewServer(t *testing.T) {
 		t.Fatalf("export dir does not exist: %s, %s", exportDir, err)
 	}
 
-	defer func(f func() error) {
-		reload = f
-	}(reload)
-	reload = func() error {
-		return nil
-	}
-
 	// we call .Sync() repeatedly, lets make a shortcut
 	sync := func() {
 		if err := s.Sync(); err != nil {
@@ -105,21 +110,21 @@ func TestNewServer(t *testing.T) {
 
 	// assert that the defaults get written out
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+"\n"))
 
 	s.SetClients("192.168.1.21")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21\n"))
 
 	s.SetClients("192.168.1.21", "192.168.1.20")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n"))
 
-	assertFileContents(t, etcExports, []byte(expectedExports))
+	assertFileContents(t, etcExports, []byte(fmt.Sprintf(expectedExports, exportsPath, exportsPath)))
 
 }
 

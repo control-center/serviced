@@ -4,12 +4,14 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 
 	"encoding/json"
@@ -17,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -39,25 +40,7 @@ var (
 
 // runServiceCommand attaches to a service state container and executes an arbitrary bash command
 var runServiceCommand = func(state *servicestate.ServiceState, command string) ([]byte, error) {
-	nsinitPath, err := exec.LookPath("nsinit")
-	if err != nil {
-		return []byte{}, err
-	}
-
-	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
-
-	hostCommand := []string{"/bin/bash", "-c",
-		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerID, nsinitPath, command)}
-	glog.Infof("ServiceID: %s, Command: %s", state.ServiceID, strings.Join(hostCommand, " "))
-	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
-		return output, err
-	}
-	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceID, output)
-	return output, nil
+	return utils.RunNSInitWithRetry(state.DockerID, []string{command})
 }
 
 type DistributedFileSystem struct {
@@ -302,16 +285,17 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	}
 
 	// Parse the image information
-	imageID := container.Config.Image
-	repopath := strings.SplitN(imageID, ":", 2)[0]
-	parts := strings.SplitN(repopath, "/", 3)
-	reponame := parts[len(parts)-1]
-	id := strings.SplitN(reponame, "_", 2)[0]
+	imageId, err := commons.ParseImageID(container.Config.Image)
+	if err != nil {
+		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
+		return "", err
+	}
+	tenantId := imageId.User
 
 	// Verify the image exists and has the latest tag
 	var image *docker.APIImages
-	images, err := d.findImages(id, DOCKER_LATEST)
-	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), id)
+	images, err := d.findImages(tenantId, DOCKER_LATEST)
+	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), tenantId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
@@ -341,13 +325,13 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 
 	// Update the dfs
 	var theVolume volume.Volume
-	if err := d.client.GetVolume(id, &theVolume); err != nil {
+	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return "", err
 	}
 
 	// Snapshot the filesystem and images
-	output, err := d.Snapshot(id)
+	output, err := d.Snapshot(tenantId)
 	if err != nil {
 		err = fmt.Errorf("failed to create snapshot: %s", err)
 	}
@@ -511,18 +495,12 @@ func (d *DistributedFileSystem) findImages(id, tag string) (images []docker.APII
 	} else {
 		for _, image := range all {
 			for _, repotag := range image.RepoTags {
-				// check if the tags match
-				if !strings.HasSuffix(repotag, ":"+tag) {
+				imageId, err := commons.ParseImageID(repotag)
+				if err != nil {
 					continue
 				}
-
-				// figure out the repo
-				repo := strings.TrimSuffix(repotag, ":"+tag)
-
-				// verify that the repo matches
-				repoparts := strings.SplitN(repo, "/", 3)
-				reponame := repoparts[len(repoparts)-1]
-				if strings.HasPrefix(reponame, id+"_") {
+				if imageId.Tag == tag && imageId.User == id {
+					repo := strings.TrimSuffix(repotag, ":"+tag)
 					image.Repository = repo
 					image.Tag = tag
 					images = append(images, image)

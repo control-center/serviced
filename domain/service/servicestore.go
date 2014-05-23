@@ -7,6 +7,7 @@ package service
 import (
 	"github.com/mattbaird/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 
 	"errors"
 	"fmt"
@@ -20,7 +21,31 @@ func NewStore() *Store {
 
 //Store type for interacting with Service persistent storage
 type Store struct {
-	datastore.DataStore
+	ds datastore.DataStore
+}
+
+// Put adds or updates a Service
+func (s *Store) Put(ctx datastore.Context, svc *Service) error {
+	//No need to store ConfigFiles
+	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	return s.ds.Put(ctx, Key(svc.Id), svc)
+}
+
+// Get a Service by id. Return ErrNoSuchEntity if not found
+func (s *Store) Get(ctx datastore.Context, id string) (*Service, error) {
+	svc := &Service{}
+	if err := s.ds.Get(ctx, Key(id), svc); err != nil {
+		return nil, err
+	}
+	//Copy original config files
+
+	fillConfig(svc)
+	return svc, nil
+}
+
+// Delete removes the a Service if it exists
+func (s *Store) Delete(ctx datastore.Context, id string) error {
+	return s.ds.Delete(ctx, Key(id))
 }
 
 //GetServices returns all services
@@ -69,6 +94,13 @@ func query(ctx datastore.Context, query string) ([]*Service, error) {
 	return convert(results)
 }
 
+func fillConfig(svc *Service) {
+	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	for key, val := range svc.OriginalConfigs {
+		svc.ConfigFiles[key] = val
+	}
+}
+
 func convert(results datastore.Results) ([]*Service, error) {
 	svcs := make([]*Service, results.Len())
 	for idx := range svcs {
@@ -77,14 +109,23 @@ func convert(results datastore.Results) ([]*Service, error) {
 		if err != nil {
 			return nil, err
 		}
+		fillConfig(&svc)
 		svcs[idx] = &svc
 	}
 	return svcs, nil
 }
 
-//Key creates a Key suitable for getting, putting and deleting ResourcePools
+//Key creates a Key suitable for getting, putting and deleting Services
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-var kind = "service"
+//confFileKey creates a Key suitable for getting, putting and deleting svcConfigFile
+func confFileKey(id string) datastore.Key {
+	return datastore.NewKey(confKind, id)
+}
+
+var (
+	kind     = "service"
+	confKind = "serviceconfig"
+)

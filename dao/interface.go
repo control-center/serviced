@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/volume"
 )
 
@@ -30,6 +31,12 @@ type ServiceStateRequest struct {
 type HostServiceRequest struct {
 	HostID         string
 	ServiceStateID string
+}
+
+type AttachRequest struct {
+	Running *RunningService
+	Command string
+	Args    []string
 }
 
 // The ControlPlane interface is the API for a serviced master.
@@ -104,6 +111,9 @@ type ControlPlane interface {
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
+	// Attach to a running container with a predefined action
+	Action(request AttachRequest, unused *int) error
+
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
 
@@ -125,15 +135,6 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	// Start an interative shell in a service container
-	StartShell(service service.Service, unused *int) error
-
-	// Execute a service container shell command
-	ExecuteShell(service service.Service, command *string) error
-
-	// Show available commands
-	ShowCommands(service service.Service, unused *int) error
-
 	// Rollback DFS and service image
 	Rollback(snapshotId string, unused *int) error
 
@@ -141,7 +142,7 @@ type ControlPlane interface {
 	Commit(containerId string, label *string) error
 
 	// Performs a local snapshot from the host
-	LocalSnapshot(serviceId string, label *string) error
+	TakeSnapshot(serviceId string, label *string) error
 
 	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
@@ -155,20 +156,14 @@ type ControlPlane interface {
 	// Delete snapshots for a given service
 	DeleteSnapshots(serviceId string, unused *int) error
 
-	// Download a file from a container
-	Get(service service.Service, file *string) error
-
-	// Upload file(s) to a container
-	Send(service service.Service, files *[]string) error
-
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error
 
 	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, user *User) error
+	GetSystemUser(unused int, user *user.User) error
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(user User, result *bool) error
+	ValidateCredentials(user user.User, result *bool) error
 
 	// Waits for the DFS to be ready
 	ReadyDFS(bool, *int) error

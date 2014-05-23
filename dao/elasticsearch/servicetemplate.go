@@ -141,7 +141,35 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		if err != nil {
 			return err
 		}
+
+		dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+		if err != nil {
+			glog.Errorf("unable to start docker client")
+			return err
+		}
+		image, err := dockerclient.InspectImage(svc.ImageID)
+		if err != nil {
+			msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
+			glog.Error(err.Error())
+			return msg
+		}
+
+		repo, err := this.renameImageID(svc.ImageID, *tenantId)
+		if err != nil {
+			glog.Errorf("malformed imageId: %s", svc.ImageID)
+			return err
+		}
+
+		options := docker.TagImageOptions{
+			Repo:  repo,
+			Force: true,
+		}
+		if err := dockerclient.TagImage(image.ID, options); err != nil {
+			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			return err
+		}
 		svc.ImageID = name
+
 	}
 
 	var serviceId string
@@ -167,29 +195,12 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	}
 
 	for imageId, _ := range imageIds {
-
-		image, err := dockerclient.InspectImage(imageId)
+		_, err := dockerclient.InspectImage(imageId)
 		if err != nil {
 			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
 			glog.Error(err.Error())
 			return msg
 		}
-
-		repo, err := this.renameImageID(imageId, *tenantId)
-		if err != nil {
-			glog.Errorf("malformed imageId: %s", imageId)
-			return err
-		}
-
-		options := docker.TagImageOptions{
-			Repo:  repo,
-			Force: true,
-		}
-		if err := dockerclient.TagImage(image.ID, options); err != nil {
-			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
-			return err
-		}
-		// TODO: push image to local registry
 	}
 
 	for _, sd := range sds {

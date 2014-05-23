@@ -19,7 +19,9 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/proxy"
@@ -35,6 +37,7 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"errors"
 	"fmt"
@@ -175,6 +178,15 @@ func (d *daemon) startMaster() error {
 	}
 
 	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
+	}
+
+	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
+		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
+		return err
+	}
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
@@ -208,7 +220,10 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err != nil {
 		panic(err)
 	}
-	nfsClient := storage.NewClient(thisHost, zkClient)
+	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+	if err != nil {
+		glog.Fatalf("could not create an NFS client: %s", err)
+	}
 	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
@@ -224,6 +239,8 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
+
+	d.startAgentListeners()
 
 	go func() {
 		signalChan := make(chan os.Signal, 10)
@@ -248,6 +265,23 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	}()
 
 	return hostAgent, nil
+}
+
+func (d *daemon) startAgentListeners() {
+	// start agent listeners
+	var err error
+	if d.zclient == nil {
+		d.zclient, err = d.initZK()
+		if err != nil {
+			glog.Fatal("could not initialize zk client: ", err)
+		}
+	}
+	zconn, err := d.zclient.GetConnection()
+	if err != nil {
+		glog.Fatalf("could not connect to zk: ", err)
+	}
+
+	go zkdocker.ListenAction(zconn, d.hostID)
 }
 
 func (d *daemon) registerMasterRPC() error {
@@ -275,6 +309,8 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	eDriver.AddMapping(servicetemplate.MAPPING)
 	eDriver.AddMapping(service.MAPPING)
 	eDriver.AddMapping(addressassignment.MAPPING)
+	eDriver.AddMapping(serviceconfigfile.MAPPING)
+	eDriver.AddMapping(user.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {
 		return nil, err

@@ -27,6 +27,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	userdomain "github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
 	_ "github.com/zenoss/serviced/volume"
@@ -170,6 +171,61 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
 		t.Fail()
 	}
+}
+func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
+	svc, _ := service.NewService()
+	svc.Id = "default"
+	svc.Name = "default"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+
+	err := dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	//Conf file update shouldn't occur because original service didn't have conf files
+	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
+	svc.ConfigFiles = map[string]servicedefinition.ConfigFile{"testname": confFile}
+	err = dt.Dao.UpdateService(*svc, &unused)
+	t.Assert(err, IsNil)
+
+	result := service.Service{}
+	dt.Dao.GetService("default", &result)
+	t.Assert(0, Equals, len(result.ConfigFiles))
+
+	//test update conf file works
+	svc, _ = service.NewService()
+	svc.Id = "default_conf"
+	svc.Name = "default"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
+
+	err = dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(1, Equals, len(result.OriginalConfigs))
+	t.Assert(result.ConfigFiles, DeepEquals, svc.OriginalConfigs)
+	t.Assert(result.ConfigFiles, DeepEquals, result.OriginalConfigs)
+
+	confFile2 := servicedefinition.ConfigFile{Content: "Test content 2", Filename: "testname"}
+	svc.ConfigFiles = map[string]servicedefinition.ConfigFile{"testname": confFile2}
+	err = dt.Dao.UpdateService(*svc, &unused)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(result.ConfigFiles["testname"], DeepEquals, confFile2)
+	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
+
+	//now delete service and re-add, it should have previous modified config file
+	err = dt.Dao.RemoveService(svc.Id, &unused)
+	t.Assert(err, IsNil)
+	err = dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+	dt.Dao.GetService("default_conf", &result)
+	t.Assert(1, Equals, len(result.ConfigFiles))
+	t.Assert(result.ConfigFiles["testname"], DeepEquals, confFile2)
+	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
+
 }
 
 func (dt *DaoTest) TestDao_GetService(t *C) {
@@ -844,7 +900,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 }
 
 func (dt *DaoTest) TestUser_UserOperations(t *C) {
-	user := dao.User{
+	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}
@@ -854,7 +910,7 @@ func (dt *DaoTest) TestUser_UserOperations(t *C) {
 		t.Fatalf("Failure creating a user %s", err)
 	}
 
-	newUser := dao.User{}
+	newUser := userdomain.User{}
 	err = dt.Dao.GetUser("Pepe", &newUser)
 	if err != nil {
 		t.Fatalf("Failure getting user %s", err)
@@ -878,7 +934,7 @@ func (dt *DaoTest) TestUser_UserOperations(t *C) {
 }
 
 func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
-	user := dao.User{
+	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}
@@ -888,7 +944,7 @@ func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
 		t.Fatalf("Failure creating a user %s", err)
 	}
 	var isValid bool
-	attemptUser := dao.User{
+	attemptUser := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
 	}

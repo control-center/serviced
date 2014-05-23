@@ -19,6 +19,42 @@ func init() {
 		Description: "Top level service. This directory is part of a unit test.",
 		Services: []ServiceDefinition{
 			ServiceDefinition{
+				Name:    "postmetrics",
+				Command: "/loadavg.sh",
+				ImageID: "ubuntu",
+				ConfigFiles: map[string]ConfigFile{
+					"/loadavg.sh": ConfigFile{Owner: "root:root", Filename: "/loadavg.sh", Permissions: "0775", Content: `#!/bin/bash
+ 
+interval=1
+
+
+if [ ! -x /usr/bin/curl ]; then
+	if ! apt-get install -y curl ;then
+		echo "Could not install curl"
+		exit 1
+	fi
+	
+fi
+echo "posting loadavg at $interval second(s) interval"
+while :
+	do
+	now=` + "`date +%s`" + `
+	value=` + "`cat /proc/loadavg | cut -d ' ' -f 1`" + `
+	data="{\"control\":{\"type\":null,\"value\":null},\"metrics\":[{\"metric\":\"loadavg\",\"timestamp\":$now,\"value\":$value,\"tags\":{\"name\":\"value\"}}]}"
+ 
+	output=` + "`curl -s -XPOST -H \"Content-Type: application/json\" -d \"$data\" \"$CONTROLPLANE_CONSUMER_URL\"`" + `
+ 
+	if ! [[ "$output" == *OK* ]]
+	then
+		echo "failure";
+	fi
+ 
+	sleep $interval
+done
+`},
+				},
+			},
+			ServiceDefinition{
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageID: "ubuntu",
@@ -140,7 +176,7 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 			return false, fmt.Sprintf("%s has configFile %s, but %s does not", a, filename, b)
 		}
 		if confFile != b.ConfigFiles[filename] {
-			return false, fmt.Sprintf("ConfigFile mismatch %s, a: %v, b: %v", filename, confFile, b.ConfigFiles[filename])
+			return false, fmt.Sprintf("ConfigFile mismatch %s, a: \n\n%s \n\nb: \n\n%s", filename, confFile, b.ConfigFiles[filename])
 		}
 	}
 

@@ -1,22 +1,22 @@
 {
-          "Command": "/usr/bin/python3 -m http.server",
+          "Command": "/usr/bin/python3 -m http.server 9090",
           "Endpoints": [{
               "Name": "websvc",
               "Application": "websvc",
-              "PortNumber": 8000,
+              "PortNumber": 9090,
               "Protocol": "tcp",
               "Purpose": "export",
               "VHosts": ["websvc"]
             }
           ],
           "ConfigFiles": {
-                "/foo/bar.txt": {
-                    "Filename": "/foo/bar.txt",
-                    "Owner": "zenoss:zenoss",
+                "/etc/bar.txt": {
+                    "Filename": "/etc/bar.txt",
+                    "Owner": "root:root",
                     "Permissions": "660"
                 }
           },
-          "ImageID": "ubuntu",
+          "ImageID": "zenoss/ubuntu:wget",
           "Instances": {
             "min": 1
           },

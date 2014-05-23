@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -38,6 +39,10 @@ var (
 	// ErrInvalidHostID is returned if the host is empty or malformed
 	ErrInvalidHostID = errors.New("container: invalid host id")
 )
+
+// containerEnvironmentFile writes out all the environment variables passed to the container so
+// that programs that switch users can access those environment strings
+const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
@@ -76,6 +81,7 @@ type Controller struct {
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
 	closing            chan chan error
+	prereqs            []domain.Prereq
 }
 
 // Close shuts down the controller
@@ -86,6 +92,7 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
+
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
 	client, err := serviced.NewLBClient(lbClientPort)
 	if err != nil {
@@ -176,6 +183,10 @@ func chownConfFile(filename, owner, permissions string) error {
 // writeConfFile writes a config file
 func writeConfFile(config servicedefinition.ConfigFile) error {
 	// write file with default perms
+	if err := os.MkdirAll(filepath.Dir(config.Filename), 0755); err != nil {
+		glog.Errorf("could not create directories for config file: %s", config.Filename)
+		return err
+	}
 	if err := ioutil.WriteFile(config.Filename, []byte(config.Content), os.FileMode(0664)); err != nil {
 		glog.Errorf("Could not write out config file %s", config.Filename)
 		return err
@@ -301,6 +312,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		c.metricForwarder = forwarder
 	}
 
+	// Keep a copy of the service prerequisites in the Controller object.
+	c.prereqs = service.Prereqs
+
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
 		glog.Errorf("Invalid commandif ")
@@ -308,6 +322,31 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	return c, nil
+}
+
+func writeEnvFile(env []string) (err error) {
+	fo, err := os.Create(containerEnvironmentFile)
+	if err != nil {
+		glog.Errorf("Could not create container environment file '%s': %s", containerEnvironmentFile, err)
+		return err
+	}
+	defer func() {
+		if err != nil {
+			fo.Close()
+		} else {
+			err = fo.Close()
+		}
+	}()
+	w := bufio.NewWriter(fo)
+	for _, value := range env {
+		w.WriteString("export ")
+		w.WriteString(value)
+		w.WriteString("\n")
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	return err
 }
 
 // Run executes the controller's main loop and block until the service exits
@@ -321,19 +360,29 @@ func (c *Controller) Run() (err error) {
 		syscall.SIGQUIT)
 
 	env := os.Environ()
+	env = append(env, "CONTROLPLANE=1")
+	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
+
+	if err := writeEnvFile(env); err != nil {
+		return err
+	}
+
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
 	startService := func() (*subprocess.Instance, chan error) {
 		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
-		c.handleRemotePorts()
 		return service, serviceExited
 	}
 
-	service, serviceExited := startService()
+	prereqsPassed := make(chan bool)
+	var startAfter <-chan time.Time
+	service := &subprocess.Instance{}
+	serviceExited := make(chan error, 1)
+	c.handleRemotePorts()
+	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
-	var restartAfter <-chan time.Time
 	for {
 		select {
 		case sig := <-sigc:
@@ -353,29 +402,53 @@ func (c *Controller) Run() (err error) {
 			default:
 			}
 
+		case <-prereqsPassed:
+			startAfter = time.After(time.Millisecond * 1)
+
 		case <-time.After(time.Second * 10):
 			c.handleRemotePorts()
 
 		case <-serviceExited:
-			glog.Infof("service process exited")
+			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
 				return
 			}
-			restartAfter = time.After(time.Second * 10)
+			glog.Infof("Restarting service process in 10 seconds.")
+			startAfter = time.After(time.Second * 10)
 
-		case <-restartAfter:
-			if !c.options.Service.Autorestart {
-				return
-			}
-			glog.Infof("restarting service process")
+		case <-startAfter:
+			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
-			restartAfter = nil
+			startAfter = nil
 		}
 	}
 	for _, exitChannel := range healthExits {
 		exitChannel <- true
 	}
 	return
+}
+
+func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	for _ = range time.Tick(1 * time.Second) {
+		failedAny := false
+		for _, script := range c.prereqs {
+			cmd := exec.Command("sh", "-c", script.Script)
+			err := cmd.Run()
+			if err != nil {
+				glog.Warningf("Failed prereq [%s], not starting service.", script.Name)
+				failedAny = true
+				break
+			} else {
+				glog.Infof("Passed prereq [%s].", script.Name)
+			}
+		}
+		if !failedAny {
+			glog.Infof("Passed all prereqs.")
+			prereqsPassed <- true
+			return nil
+		}
+	}
+	return nil
 }
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {
@@ -425,7 +498,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
-	var unused int = 0;
+	var unused int = 0
 	for {
 		select {
 		case <-time.After(interval):

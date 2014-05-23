@@ -13,6 +13,7 @@ dockercache := /tmp/serviced-dind-$(pwdchecksum)
 default: build_binary
 
 install: build_binary bash-complete
+	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install github.com/zenoss/serviced/serviced
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
 
@@ -30,6 +31,17 @@ go:
 pkgs:
 	cd pkg && make rpm && make deb
 
+dockerbuild_binaryx: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build make build_binary
+
 dockerbuild_binary: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
@@ -46,6 +58,16 @@ dockerbuild_binary: docker_ok
 	zenoss/serviced-build /bin/bash \
 	-c '/usr/local/bin/wrapdocker && make build_binary'
 
+dockerbuildx: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build make build_binary pkgs
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
@@ -81,6 +103,9 @@ test: build_binary docker_ok
 	cd dfs/nfs && go test $(GOTEST_FLAGS)
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
+
+smoketest: build_binary docker_ok
+	/bin/bash smoke.sh
 
 docker_ok:
 	if docker ps >/dev/null; then \

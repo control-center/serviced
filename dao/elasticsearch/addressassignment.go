@@ -131,8 +131,7 @@ func (this *ControlPlaneDao) validStaticIp(hostId string, ipAddr string) error {
 func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string) error {
 	store := service.NewStore()
 
-	svc := service.Service{}
-	err := store.Get(datastore.Get(), service.Key(serviceId), &svc)
+	svc, err := store.Get(datastore.Get(), serviceId)
 	if err != nil {
 		return err
 	}
@@ -150,18 +149,29 @@ func (this *ControlPlaneDao) validEndpoint(serviceId string, endpointName string
 }
 
 // getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
-func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceId string, endpointName string) (*addressassignment.AddressAssignment, error) {
-	//TODO: this can probably be done w/ a query
+func (this *ControlPlaneDao) getAddressAssignments(serviceID string) (map[string]*addressassignment.AddressAssignment, error) {
 	assignments := []*addressassignment.AddressAssignment{}
-	err := this.GetServiceAddressAssignments(serviceId, &assignments)
+	err := this.GetServiceAddressAssignments(serviceID, &assignments)
 	if err != nil {
 		return nil, err
 	}
 
+	addrs := make(map[string]*addressassignment.AddressAssignment)
 	for _, result := range assignments {
-		if result.EndpointName == endpointName {
-			return result, nil
-		}
+		addrs[result.EndpointName] = result
+	}
+	return addrs, nil
+}
+
+// getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
+func (this *ControlPlaneDao) getEndpointAddressAssignments(serviceID string, endpointName string) (*addressassignment.AddressAssignment, error) {
+	assignments, err := this.getAddressAssignments(serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if addr, found := assignments[endpointName]; found {
+		return addr, nil
 	}
 	return nil, nil
 }
