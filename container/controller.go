@@ -429,6 +429,11 @@ func (c *Controller) Run() (err error) {
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	if len(c.prereqs) == 0 {
+		glog.Infof("No prereqs to pass.")
+		prereqsPassed <- true
+		return nil		
+	}
 	for _ = range time.Tick(1 * time.Second) {
 		failedAny := false
 		for _, script := range c.prereqs {
