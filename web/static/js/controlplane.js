@@ -1068,11 +1068,13 @@ function ResourcesService($http, $location) {
                 });
         },
 
-        get_backup_status: function(callback){
+        get_backup_status: function(success, fail){
+            fail = fail || angular.noop;
+
             $http.get('/backup/status').
                 success(function(data, status) {
                     console.log('Retrieved status of backup.');
-                    callback(data);
+                    success(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
@@ -1080,14 +1082,17 @@ function ResourcesService($http, $location) {
                     if (status === 401) {
                         unauthorized($location);
                     }
+                    fail(data, status);
                 });
         },
 
-        get_restore_status: function(callback){
+        get_restore_status: function(success, fail){
+            fail = fail || angular.noop;
+            
             $http.get('/backup/restore/status').
                 success(function(data, status) {
                     console.log('Retrieved status of restore.');
-                    callback(data);
+                    success(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
@@ -1095,6 +1100,7 @@ function ResourcesService($http, $location) {
                     if (status === 401) {
                         unauthorized($location);
                     }
+                    fail(data, status);
                 });
         }
     };
@@ -1679,8 +1685,10 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     // localization messages
     var BACKUP_RUNNING = $translate("backup_running"),
         BACKUP_COMPLETE = $translate("backup_complete"),
+        CANNOT_BEGIN_BACKUP = $translate("cannot_begin_backup"),
         RESTORE_RUNNING = $translate("restore_running"),
         RESTORE_COMPLETE = $translate("restore_complete"),
+        CANNOT_BEGIN_RESTORE = $translate("cannot_begin_restore"),
         ERROR = $translate("error");
 
     // track if backup or restore are running and only
@@ -1691,10 +1699,10 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     $scope.createBackup = function(){
 
         if(backupRunning){
-            new SimpleModal("Cannot begin backup", "A backup is already in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_BACKUP, "A backup is in progress.").show();
             return;
         }else if(restoreRunning){
-            new SimpleModal("Cannot begin backup", "A restore is in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_BACKUP, "A restore is in progress.").show();
             return;
         }
 
@@ -1704,20 +1712,20 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         backupRunning = true;
 
-        // resourcesService.create_backup(function(data){
-        //     setTimeout(function(){
-        //         getBackupStatus(notification);
-        //     }, 1);
-        // });
+        resourcesService.create_backup(function(data){
+            setTimeout(function(){
+                getBackupStatus(notification);
+            }, 1);
+        });
     };
 
     $scope.restoreBackup = function(filename){
 
         if(restoreRunning){
-            new SimpleModal("Cannot begin restore", "A restore is already in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_RESTORE, "A restore is in progress.").show();
             return;
         }else if(backupRunning){
-            new SimpleModal("Cannot begin restore", "A backup is in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_RESTORE, "A backup is in progress.").show();
             return;
         }
         
@@ -1727,58 +1735,63 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         restoreRunning = true;
 
-        // resourcesService.restore_backup(filename, function(data){
-        //     setTimeout(function(){
-        //         getRestoreStatus(notification);
-        //     }, 1);
-        // });
+        resourcesService.restore_backup(filename, function(data){
+            setTimeout(function(){
+                getRestoreStatus(notification);
+            }, 1);
+        });
     };
 
     function getBackupStatus(notification){
         resourcesService.get_backup_status(function(data){
 
-            if(data.Detail !== ""){
-                if(data.Detail !== "timeout"){
-                    notification.updateStatus(data.Detail);
-                }
-                setTimeout(function(){
-                    getBackupStatus(notification);
-                }, 1);
-
-            // TODO - safer way to check for error
-            }else if(~data.Detail.indexOf("ERROR")){
-                notification.failify(ERROR, data.Detail);
-                backupRunning = false;
-
-            }else{
+            // all done!
+            if(data.Detail === ""){
                 resourcesService.get_backup_files(function(data){
                     $scope.backupFiles = data;
                 });
                 notification.successify(BACKUP_COMPLETE);
                 backupRunning = false;
+                return;
+
+            // something neato has happened. lets show it.
+            } else if (data.Detail !== "timeout"){
+                notification.updateStatus(data.Detail);
             }
+
+            // poll again
+            setTimeout(function(){
+                getBackupStatus(notification);
+            }, 1);
+
+        }, function(data, status){
+                notification.failify(ERROR +" "+ status, data.Detail);
+                backupRunning = false;
         });
     }
 
     function getRestoreStatus(notification){
         resourcesService.get_restore_status(function(data){
-            if(data.Detail !== ""){
-                if(data.Detail !== "timeout"){
-                    notification.updateStatus( data.Detail);
-                }
-                setTimeout(function(){
-                    getRestoreStatus(notification);
-                }, 1);
 
-            // TODO - safer way to check for error
-            }else if(~data.Detail.indexOf("ERROR")){
-                notification.failify(ERROR, data.Detail);
-                restoreRunning = false;
-
-            }else{
+            // all done!
+            if(data.Detail === ""){
                 notification.successify(RESTORE_COMPLETE);
                 restoreRunning = false;
+                return;
+
+            // something neato has happened. lets show it.
+            } else if(data.Detail !== "timeout"){
+                notification.updateStatus(data.Detail);
             }
+
+            // poll again
+            setTimeout(function(){
+                getRestoreStatus(notification);
+            }, 1);
+
+        }, function(data, status){
+            notification.failify(ERROR +" "+ status, data.Detail);
+            restoreRunning = false;
         });
 
     }

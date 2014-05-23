@@ -26,7 +26,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     var backupRunning = false,
         restoreRunning = false;
 
-
     $scope.createBackup = function(){
 
         if(backupRunning){
@@ -76,46 +75,25 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     function getBackupStatus(notification){
         resourcesService.get_backup_status(function(data){
 
-            // nothing has happened, so try again in a bit
-            if (data.Detail === "timeout"){
-                setTimeout(function(){
-                    getBackupStatus(notification);
-                }, 1);
-
             // all done!
-            } else if(data.Detail === ""){
+            if(data.Detail === ""){
                 resourcesService.get_backup_files(function(data){
                     $scope.backupFiles = data;
                 });
                 notification.successify(BACKUP_COMPLETE);
                 backupRunning = false;
+                return;
 
             // something neato has happened. lets show it.
-            } else {
+            } else if (data.Detail !== "timeout"){
                 notification.updateStatus(data.Detail);
             }
 
+            // poll again
+            setTimeout(function(){
+                getBackupStatus(notification);
+            }, 1);
 
-            // if(data.Detail !== ""){
-            //     if(data.Detail !== "timeout"){
-            //         notification.updateStatus(data.Detail);
-            //     }
-            //     setTimeout(function(){
-            //         getBackupStatus(notification);
-            //     }, 1);
-
-            // // TODO - safer way to check for error
-            // }else if(data.Detail.indexOf("ERROR") !== -1){
-            //     notification.failify(ERROR, data.Detail);
-            //     backupRunning = false;
-
-            // }else{
-            //     resourcesService.get_backup_files(function(data){
-            //         $scope.backupFiles = data;
-            //     });
-            //     notification.successify(BACKUP_COMPLETE);
-            //     backupRunning = false;
-            // }
         }, function(data, status){
                 notification.failify(ERROR +" "+ status, data.Detail);
                 backupRunning = false;
@@ -124,23 +102,26 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
     function getRestoreStatus(notification){
         resourcesService.get_restore_status(function(data){
-            if(data.Detail !== ""){
-                if(data.Detail !== "timeout"){
-                    notification.updateStatus( data.Detail);
-                }
-                setTimeout(function(){
-                    getRestoreStatus(notification);
-                }, 1);
 
-            // TODO - safer way to check for error
-            }else if(data.Detail.indexOf("ERROR") !== -1){
-                notification.failify(ERROR, data.Detail);
-                restoreRunning = false;
-
-            }else{
+            // all done!
+            if(data.Detail === ""){
                 notification.successify(RESTORE_COMPLETE);
                 restoreRunning = false;
+                return;
+
+            // something neato has happened. lets show it.
+            } else if(data.Detail !== "timeout"){
+                notification.updateStatus(data.Detail);
             }
+
+            // poll again
+            setTimeout(function(){
+                getRestoreStatus(notification);
+            }, 1);
+
+        }, function(data, status){
+            notification.failify(ERROR +" "+ status, data.Detail);
+            restoreRunning = false;
         });
 
     }
