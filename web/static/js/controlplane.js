@@ -1094,6 +1094,7 @@ function flattenTree(depth, current) {
     if (!current.children) {
         return retVal;
     }
+    current.children.sort(function(a, b) {return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1});
     for (var i=0; i < current.children.length; i++) {
         retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
     }

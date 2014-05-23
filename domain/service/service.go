@@ -57,6 +57,7 @@ type Service struct {
 	RAMCommitment   uint64
 	Actions         map[string]string
 	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
+	Prereqs         []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -135,6 +136,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
 	svc.HealthChecks = sd.HealthChecks
+	svc.Prereqs = sd.Prereqs
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
@@ -253,6 +255,18 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	}
 
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// GetTenantID calls its GetService function to get the tenantID
+func (s Service) GetTenantID(gs GetService) (string, error) {
+	var err error
+	for s.ParentServiceID != "" {
+		s, err = gs(s.ParentServiceID)
+		if err != nil {
+			return "", err
+		}
+	}
+	return s.Id, nil
 }
 
 //SetAssignment sets the AddressAssignment for the endpoint

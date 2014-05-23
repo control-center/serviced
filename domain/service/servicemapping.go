@@ -19,7 +19,7 @@ var (
 		"Startup":         {"type": "string", "index":"not_analyzed"},
 		"Context":         {"type": "string", "index":"not_analyzed"},
 		"Description":     {"type": "string", "index":"not_analyzed"},
-		"DeploymentID":     {"type": "string", "index":"not_analyzed"},
+		"DeploymentID":    {"type": "string", "index":"not_analyzed"},
 		"Tags":            {"type": "string", "index_name": "tag"},
 		"Instances":       {"type": "long",   "index":"not_analyzed"},
 		"InstancesLimits":       {

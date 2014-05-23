@@ -33,6 +33,12 @@ type HostServiceRequest struct {
 	ServiceStateID string
 }
 
+type AttachRequest struct {
+	Running *RunningService
+	Command string
+	Args    []string
+}
+
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
@@ -44,6 +50,9 @@ type ControlPlane interface {
 
 	// Add a new service
 	AddService(service service.Service, serviceId *string) error
+
+	// Deploy a new service
+	DeployService(service ServiceDeploymentRequest, serviceId *string) error
 
 	// Update an existing service
 	UpdateService(service service.Service, unused *int) error
@@ -105,6 +114,9 @@ type ControlPlane interface {
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
+	// Attach to a running container with a predefined action
+	Action(request AttachRequest, unused *int) error
+
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
 
@@ -126,15 +138,6 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	// Start an interative shell in a service container
-	StartShell(service service.Service, unused *int) error
-
-	// Execute a service container shell command
-	ExecuteShell(service service.Service, command *string) error
-
-	// Show available commands
-	ShowCommands(service service.Service, unused *int) error
-
 	// Rollback DFS and service image
 	Rollback(snapshotId string, unused *int) error
 
@@ -142,7 +145,7 @@ type ControlPlane interface {
 	Commit(containerId string, label *string) error
 
 	// Performs a local snapshot from the host
-	LocalSnapshot(serviceId string, label *string) error
+	TakeSnapshot(serviceId string, label *string) error
 
 	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
@@ -155,12 +158,6 @@ type ControlPlane interface {
 
 	// Delete snapshots for a given service
 	DeleteSnapshots(serviceId string, unused *int) error
-
-	// Download a file from a container
-	Get(service service.Service, file *string) error
-
-	// Upload file(s) to a container
-	Send(service service.Service, files *[]string) error
 
 	// Get the DFS volume
 	GetVolume(serviceId string, theVolume *volume.Volume) error

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
@@ -99,10 +100,29 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	}
 
 	volumes := make(map[string]string)
-	return this.deployServiceDefinitions(template.Services, request.TemplateID, request.PoolID, "", volumes, request.DeploymentID, tenantId)
+	return this.deployServiceDefinitions(template.Services, request.PoolID, "", volumes, request.DeploymentID, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceId *string) error {
+	parentId := strings.TrimSpace(request.ParentID)
+	parent, err := service.NewStore().Get(datastore.Get(), parentId)
+	if err != nil {
+		return fmt.Errorf("could not get parent '%': %s", parentId, err)
+	}
+
+	tenantId, err := getTenantId(parent)
+	if err != nil {
+		return fmt.Errorf("getting tenant id: %s", err)
+	}
+
+	volumes := make(map[string]string)
+	serviceDefinitions := []servicedefinition.ServiceDefinition{request.Service}
+
+	// TODO: need to fill in serviceID for return. 
+	return this.deployServiceDefinitions(serviceDefinitions, parent.PoolID, parentId, volumes, parent.DeploymentID, &tenantId)
+}
+
+func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// Always deploy in stopped state, starting is a separate step
 	ds := service.SVCStop
 
@@ -178,10 +198,10 @@ func (this *ControlPlaneDao) deployServiceDefinition(sd servicedefinition.Servic
 		return err
 	}
 
-	return this.deployServiceDefinitions(sd.Services, template, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
+	return this.deployServiceDefinitions(sd.Services, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
 }
 
-func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, template string, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
 	// ensure that all images in the templates exist
 	imageIds := make(map[string]struct{})
 	for _, svc := range sds {
@@ -204,7 +224,7 @@ func (this *ControlPlaneDao) deployServiceDefinitions(sds []servicedefinition.Se
 	}
 
 	for _, sd := range sds {
-		if err := this.deployServiceDefinition(sd, template, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
+		if err := this.deployServiceDefinition(sd, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}
@@ -268,4 +288,15 @@ func (s *ControlPlaneDao) reloadLogstashContainer() error {
 		return err
 	}
 	return nil
+}
+
+func getTenantId (svc *service.Service) (string, error) {
+	if svc.ParentServiceID == "" {
+		return svc.Id, nil
+	}
+	parent, err := service.NewStore().Get(datastore.Get(), svc.ParentServiceID)
+	if err != nil {
+		return "", err
+	}
+	return getTenantId(parent)
 }

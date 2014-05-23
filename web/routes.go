@@ -13,74 +13,75 @@ import (
 func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 	routes := []rest.Route{
-		rest.Route{"GET", "/", MainPage},
-		rest.Route{"GET", "/test", TestPage},
-		rest.Route{"GET", "/stats", sc.IsCollectingStats()},
-		rest.Route{"GET", "/version", sc.AuthorizedClient(RestGetServicedVersion)},
+		rest.Route{"GET", "/", mainPage},
+		rest.Route{"GET", "/test", testPage},
+		rest.Route{"GET", "/stats", sc.isCollectingStats()},
+		rest.Route{"GET", "/version", sc.authorizedClient(restGetServicedVersion)},
 
 		// Hosts
-		rest.Route{"GET", "/hosts", sc.CheckAuth(RestGetHosts)},
-		rest.Route{"GET", "/hosts/:hostId", sc.CheckAuth(RestGetHost)},
-		rest.Route{"POST", "/hosts/add", sc.CheckAuth(RestAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", sc.CheckAuth(RestRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", sc.CheckAuth(RestUpdateHost)},
-		rest.Route{"GET", "/hosts/:hostId/running", sc.AuthorizedClient(RestGetRunningForHost)},
-		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.AuthorizedClient(RestKillRunning)},
+		rest.Route{"GET", "/hosts", sc.checkAuth(restGetHosts)},
+		rest.Route{"GET", "/hosts/:hostId", sc.checkAuth(restGetHost)},
+		rest.Route{"POST", "/hosts/add", sc.checkAuth(restAddHost)},
+		rest.Route{"DELETE", "/hosts/:hostId", sc.checkAuth(restRemoveHost)},
+		rest.Route{"PUT", "/hosts/:hostId", sc.checkAuth(restUpdateHost)},
+		rest.Route{"GET", "/hosts/:hostId/running", sc.authorizedClient(restGetRunningForHost)},
+		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.authorizedClient(restKillRunning)},
 
 		// Pools
-		rest.Route{"GET", "/pools/:poolId", sc.CheckAuth(RestGetPool)},
-		rest.Route{"DELETE", "/pools/:poolId", sc.CheckAuth(RestRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", sc.CheckAuth(RestUpdatePool)},
-		rest.Route{"POST", "/pools/add", sc.CheckAuth(RestAddPool)},
-		rest.Route{"GET", "/pools", sc.CheckAuth(RestGetPools)},
-		rest.Route{"GET", "/pools/:poolId/hosts", sc.CheckAuth(RestGetHostsForResourcePool)},
+		rest.Route{"GET", "/pools/:poolId", sc.checkAuth(restGetPool)},
+		rest.Route{"DELETE", "/pools/:poolId", sc.checkAuth(restRemovePool)},
+		rest.Route{"PUT", "/pools/:poolId", sc.checkAuth(restUpdatePool)},
+		rest.Route{"POST", "/pools/add", sc.checkAuth(restAddPool)},
+		rest.Route{"GET", "/pools", sc.checkAuth(restGetPools)},
+		rest.Route{"GET", "/pools/:poolId/hosts", sc.checkAuth(restGetHostsForResourcePool)},
 
 		// Pools (VirtualIP)
-		rest.Route{"PUT", "/pools/:poolId/virtualip", sc.AuthorizedClient(RestAddPoolVirtualIP)},
-		rest.Route{"DELETE", "/pools/:poolId/virtualip/*id", sc.AuthorizedClient(RestRemovePoolVirtualIP)},
+		rest.Route{"PUT", "/pools/:poolId/virtualip", sc.authorizedClient(restAddPoolVirtualIP)},
+		rest.Route{"DELETE", "/pools/:poolId/virtualip/*id", sc.authorizedClient(restRemovePoolVirtualIP)},
 
 		// Pools (IPs)
-		rest.Route{"GET", "/pools/:poolId/ips", sc.CheckAuth(RestGetPoolIps)},
+		rest.Route{"GET", "/pools/:poolId/ips", sc.checkAuth(restGetPoolIps)},
 
 		// Services (Apps)
-		rest.Route{"GET", "/services", sc.AuthorizedClient(RestGetAllServices)},
-		rest.Route{"GET", "/servicehealth", sc.AuthorizedClient(health.RestGetHealthStatus)},
-		rest.Route{"GET", "/services/:serviceId", sc.AuthorizedClient(RestGetService)},
-		rest.Route{"GET", "/services/:serviceId/running", sc.AuthorizedClient(RestGetRunningForService)},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.AuthorizedClient(RestGetRunningService)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", sc.AuthorizedClient(RestGetServiceStateLogs)},
-		rest.Route{"POST", "/services/add", sc.AuthorizedClient(RestAddService)},
-		rest.Route{"DELETE", "/services/:serviceId", sc.AuthorizedClient(RestRemoveService)},
-		rest.Route{"GET", "/services/:serviceId/logs", sc.AuthorizedClient(RestGetServiceLogs)},
-		rest.Route{"PUT", "/services/:serviceId", sc.AuthorizedClient(RestUpdateService)},
-		rest.Route{"GET", "/services/:serviceId/snapshot", sc.AuthorizedClient(RestSnapshotService)},
-		rest.Route{"PUT", "/services/:serviceId/startService", sc.AuthorizedClient(RestStartService)},
-		rest.Route{"PUT", "/services/:serviceId/stopService", sc.AuthorizedClient(RestStopService)},
+		rest.Route{"GET", "/services", sc.authorizedClient(restGetAllServices)},
+		rest.Route{"GET", "/servicehealth", sc.authorizedClient(health.RestGetHealthStatus)},
+		rest.Route{"GET", "/services/:serviceId", sc.authorizedClient(restGetService)},
+		rest.Route{"GET", "/services/:serviceId/running", sc.authorizedClient(restGetRunningForService)},
+		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.authorizedClient(restGetRunningService)},
+		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", sc.authorizedClient(restGetServiceStateLogs)},
+		rest.Route{"POST", "/services/add", sc.authorizedClient(restAddService)},
+		rest.Route{"POST", "/services/deploy", sc.authorizedClient(restDeployService)},
+		rest.Route{"DELETE", "/services/:serviceId", sc.authorizedClient(restRemoveService)},
+		rest.Route{"GET", "/services/:serviceId/logs", sc.authorizedClient(restGetServiceLogs)},
+		rest.Route{"PUT", "/services/:serviceId", sc.authorizedClient(restUpdateService)},
+		rest.Route{"GET", "/services/:serviceId/snapshot", sc.authorizedClient(restSnapshotService)},
+		rest.Route{"PUT", "/services/:serviceId/startService", sc.authorizedClient(restStartService)},
+		rest.Route{"PUT", "/services/:serviceId/stopService", sc.authorizedClient(restStopService)},
 
 		// Services (Virtual Host)
-		rest.Route{"GET", "/services/vhosts", sc.AuthorizedClient(RestGetVirtualHosts)},
-		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestAddVirtualHost)},
-		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.AuthorizedClient(RestRemoveVirtualHost)},
+		rest.Route{"GET", "/services/vhosts", sc.authorizedClient(restGetVirtualHosts)},
+		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.authorizedClient(restAddVirtualHost)},
+		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.authorizedClient(restRemoveVirtualHost)},
 
 		// Services (IP)
-		rest.Route{"PUT", "/services/:serviceId/ip", sc.AuthorizedClient(RestServiceAutomaticAssignIP)},
-		rest.Route{"PUT", "/services/:serviceId/ip/*ip", sc.AuthorizedClient(RestServiceManualAssignIP)},
+		rest.Route{"PUT", "/services/:serviceId/ip", sc.authorizedClient(restServiceAutomaticAssignIP)},
+		rest.Route{"PUT", "/services/:serviceId/ip/*ip", sc.authorizedClient(restServiceManualAssignIP)},
 
 		// Service templates (App templates)
-		rest.Route{"GET", "/templates", sc.AuthorizedClient(RestGetAppTemplates)},
-		rest.Route{"POST", "/templates/deploy", sc.AuthorizedClient(RestDeployAppTemplate)},
+		rest.Route{"GET", "/templates", sc.authorizedClient(restGetAppTemplates)},
+		rest.Route{"POST", "/templates/deploy", sc.authorizedClient(restDeployAppTemplate)},
 
 		// Login
-		rest.Route{"POST", "/login", sc.UnAuthorizedClient(RestLogin)},
-		rest.Route{"DELETE", "/login", RestLogout},
+		rest.Route{"POST", "/login", sc.unAuthorizedClient(restLogin)},
+		rest.Route{"DELETE", "/login", restLogout},
 
 		// "Misc" stuff
-		rest.Route{"GET", "/top/services", sc.AuthorizedClient(RestGetTopServices)},
-		rest.Route{"GET", "/running", sc.AuthorizedClient(RestGetAllRunning)},
+		rest.Route{"GET", "/top/services", sc.authorizedClient(restGetTopServices)},
+		rest.Route{"GET", "/running", sc.authorizedClient(restGetAllRunning)},
 
 		// Generic static data
-		rest.Route{"GET", "/favicon.ico", FavIcon},
-		rest.Route{"GET", "/static*resource", StaticData},
+		rest.Route{"GET", "/favicon.ico", favIcon},
+		rest.Route{"GET", "/static*resource", staticData},
 	}
 
 	// Hardcoding these target URLs for now.

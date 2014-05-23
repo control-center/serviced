@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 
 	"encoding/json"
@@ -18,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -40,25 +40,7 @@ var (
 
 // runServiceCommand attaches to a service state container and executes an arbitrary bash command
 var runServiceCommand = func(state *servicestate.ServiceState, command string) ([]byte, error) {
-	nsinitPath, err := exec.LookPath("nsinit")
-	if err != nil {
-		return []byte{}, err
-	}
-
-	NSINIT_ROOT := "/var/lib/docker/execdriver/native" // has container.json
-
-	hostCommand := []string{"/bin/bash", "-c",
-		fmt.Sprintf("cd %s/%s && %s exec bash -c '%s'", NSINIT_ROOT, state.DockerID, nsinitPath, command)}
-	glog.Infof("ServiceID: %s, Command: %s", state.ServiceID, strings.Join(hostCommand, " "))
-	cmd := exec.Command(hostCommand[0], hostCommand[1:]...)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		glog.Errorf("Error running command: `%s` for serviceId: %s out: %s err: %s", command, state.ServiceID, output, err)
-		return output, err
-	}
-	glog.Infof("Successfully ran command: `%s` for serviceId: %s out: %s", command, state.ServiceID, output)
-	return output, nil
+	return utils.RunNSInitWithRetry(state.DockerID, []string{command})
 }
 
 type DistributedFileSystem struct {

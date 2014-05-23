@@ -91,6 +91,10 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		return nil, ErrInvalidNetwork
 	}
 
+	if err := start(); err != nil {
+		return nil, err
+	}
+
 	return &Server{
 		basePath:      basePath,
 		exportedName:  exportedName,
@@ -194,6 +198,7 @@ func (c *Server) hostsAllow() error {
 	for _, h := range hosts {
 		s = s + " " + h
 	}
+	s = s + "\n"
 
 	return atomicfile.WriteFile(etcHostsAllow, []byte(s), 0664)
 }
@@ -226,7 +231,7 @@ var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
-	runMountCommand:= func (options ...string) error {
+	runMountCommand := func(options ...string) error {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
 		return mount.Run()
@@ -268,7 +273,7 @@ func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []stri
 		args = append(args, "sudo")
 	}
 	args = append(args, "mount")
-	for _, option := range options{
+	for _, option := range options {
 		args = append(args, "-o")
 		args = append(args, option)
 	}
