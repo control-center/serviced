@@ -37,6 +37,7 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"errors"
 	"fmt"
@@ -177,6 +178,11 @@ func (d *daemon) startMaster() error {
 	}
 
 	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
+	}
+
 	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
 		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
 		return err
@@ -234,6 +240,8 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 
+	d.startAgentListeners()
+
 	go func() {
 		signalChan := make(chan os.Signal, 10)
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -257,6 +265,23 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	}()
 
 	return hostAgent, nil
+}
+
+func (d *daemon) startAgentListeners() {
+	// start agent listeners
+	var err error
+	if d.zclient == nil {
+		d.zclient, err = d.initZK()
+		if err != nil {
+			glog.Fatal("could not initialize zk client: ", err)
+		}
+	}
+	zconn, err := d.zclient.GetConnection()
+	if err != nil {
+		glog.Fatalf("could not connect to zk: ", err)
+	}
+
+	go zkdocker.ListenAction(zconn, d.hostID)
 }
 
 func (d *daemon) registerMasterRPC() error {

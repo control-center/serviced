@@ -257,6 +257,18 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
+// GetTenantID calls its GetService function to get the tenantID
+func (s Service) GetTenantID(gs GetService) (string, error) {
+	var err error
+	for s.ParentServiceID != "" {
+		s, err = gs(s.ParentServiceID)
+		if err != nil {
+			return "", err
+		}
+	}
+	return s.Id, nil
+}
+
 //SetAssignment sets the AddressAssignment for the endpoint
 func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {

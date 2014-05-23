@@ -159,18 +159,6 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
-func (s *ControlClient) StartShell(service service.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.StartShell", service, unused)
-}
-
-func (s *ControlClient) ExecuteShell(service service.Service, command *string) error {
-	return s.rpcClient.Call("ControlPlane.ExecuteShell", service, command)
-}
-
-func (s *ControlClient) ShowCommands(service service.Service, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.ShowCommands", service, unused)
-}
-
 // Commits a container to an image and updates the DFS
 func (s *ControlClient) Commit(containerId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
@@ -182,8 +170,8 @@ func (s *ControlClient) Rollback(serviceId string, unused *int) error {
 }
 
 // Performs a DFS snapshot locally (via the host)
-func (s *ControlClient) LocalSnapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.LocalSnapshot", serviceId, label)
+func (s *ControlClient) TakeSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.TakeSnapshot", serviceId, label)
 }
 
 // Performs a DFS snapshot via the scheduler
@@ -201,14 +189,6 @@ func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
 
 func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
-}
-
-func (s *ControlClient) Get(service service.Service, file *string) error {
-	return s.rpcClient.Call("ControlPlane.Get", service, file)
-}
-
-func (s *ControlClient) Send(service service.Service, files *[]string) error {
-	return s.rpcClient.Call("ControlPlane.Send", service, files)
 }
 
 func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error {
@@ -243,6 +223,10 @@ func (s *ControlClient) BackupStatus(notUsed string, backupStatus *string) error
 
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
+
+func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Action", req, unused)
 }
 
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
