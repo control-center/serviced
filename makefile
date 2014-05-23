@@ -47,6 +47,16 @@ dockerbuild_binary: docker_ok
 	zenoss/serviced-build /bin/bash \
 	-c '/usr/local/bin/wrapdocker && make build_binary'
 
+dockerbuildx: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build make build_binary pkgs
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
