@@ -41,12 +41,11 @@ func (b ByIP) Less(i, j int) bool { return b[i].IP < b[j].IP } // sort by IP add
 
 func (a *ResourcePool) VirtualIPsEqual(b *ResourcePool) bool {
 	// DeepEqual requires the order to be identical, therefore, sort!
-	sort.Sort(ByIP(a.VirtualIPs))
-	sort.Sort(ByIP(b.VirtualIPs))
-	if reflect.DeepEqual(a.VirtualIPs, b.VirtualIPs) {
-		return true
-	}
-	return false
+	aVIPs := a.VirtualIPs
+	bVIPs := b.VirtualIPs
+	sort.Sort(ByIP(aVIPs))
+	sort.Sort(ByIP(bVIPs))
+	return reflect.DeepEqual(aVIPs, bVIPs)
 }
 
 // Equal returns true if two resource pools are equal
