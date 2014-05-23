@@ -117,6 +117,8 @@ func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest,
 
 	volumes := make(map[string]string)
 	serviceDefinitions := []servicedefinition.ServiceDefinition{request.Service}
+
+	// TODO: need to fill in serviceID for return. 
 	return this.deployServiceDefinitions(serviceDefinitions, parent.PoolID, parentId, volumes, parent.DeploymentID, &tenantId)
 }
 
