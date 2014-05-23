@@ -1023,7 +1023,6 @@ function ResourcesService($http, $location) {
         create_backup: function(callback){
             $http.get('/backup/create').
                 success(function(data, status) {
-                    console.log('Backup complete! %s', data.Detail);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -1041,7 +1040,6 @@ function ResourcesService($http, $location) {
         restore_backup: function(filename, callback){
             $http.get('/backup/restore?filename=' + filename).
                 success(function(data, status) {
-                    console.log('Restore complete! %s', data.Detail);
                     callback(data);
                 }).
                 error(function(data, status) {
