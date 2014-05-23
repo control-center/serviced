@@ -1068,11 +1068,13 @@ function ResourcesService($http, $location) {
                 });
         },
 
-        get_backup_status: function(callback){
+        get_backup_status: function(success, fail){
+            fail = fail || angular.noop;
+
             $http.get('/backup/status').
                 success(function(data, status) {
                     console.log('Retrieved status of backup.');
-                    callback(data);
+                    success(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
@@ -1080,14 +1082,17 @@ function ResourcesService($http, $location) {
                     if (status === 401) {
                         unauthorized($location);
                     }
+                    fail(data, status);
                 });
         },
 
-        get_restore_status: function(callback){
+        get_restore_status: function(success, fail){
+            fail = fail || angular.noop;
+            
             $http.get('/backup/restore/status').
                 success(function(data, status) {
                     console.log('Retrieved status of restore.');
-                    callback(data);
+                    success(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
@@ -1095,6 +1100,7 @@ function ResourcesService($http, $location) {
                     if (status === 401) {
                         unauthorized($location);
                     }
+                    fail(data, status);
                 });
         }
     };

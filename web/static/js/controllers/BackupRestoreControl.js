@@ -15,8 +15,10 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     // localization messages
     var BACKUP_RUNNING = $translate("backup_running"),
         BACKUP_COMPLETE = $translate("backup_complete"),
+        CANNOT_BEGIN_BACKUP = $translate("cannot_begin_backup"),
         RESTORE_RUNNING = $translate("restore_running"),
         RESTORE_COMPLETE = $translate("restore_complete"),
+        CANNOT_BEGIN_RESTORE = $translate("cannot_begin_restore"),
         ERROR = $translate("error");
 
     // track if backup or restore are running and only
@@ -24,13 +26,14 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
     var backupRunning = false,
         restoreRunning = false;
 
+
     $scope.createBackup = function(){
 
         if(backupRunning){
-            new SimpleModal("Cannot begin backup", "A backup is already in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_BACKUP, "A backup is in progress.").show();
             return;
         }else if(restoreRunning){
-            new SimpleModal("Cannot begin backup", "A restore is in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_BACKUP, "A restore is in progress.").show();
             return;
         }
 
@@ -40,20 +43,20 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         backupRunning = true;
 
-        // resourcesService.create_backup(function(data){
-        //     setTimeout(function(){
-        //         getBackupStatus(notification);
-        //     }, 1);
-        // });
+        resourcesService.create_backup(function(data){
+            setTimeout(function(){
+                getBackupStatus(notification);
+            }, 1);
+        });
     };
 
     $scope.restoreBackup = function(filename){
 
         if(restoreRunning){
-            new SimpleModal("Cannot begin restore", "A restore is already in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_RESTORE, "A restore is in progress.").show();
             return;
         }else if(backupRunning){
-            new SimpleModal("Cannot begin restore", "A backup is in progress.").show();
+            new SimpleModal(CANNOT_BEGIN_RESTORE, "A backup is in progress.").show();
             return;
         }
         
@@ -63,36 +66,59 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         restoreRunning = true;
 
-        // resourcesService.restore_backup(filename, function(data){
-        //     setTimeout(function(){
-        //         getRestoreStatus(notification);
-        //     }, 1);
-        // });
+        resourcesService.restore_backup(filename, function(data){
+            setTimeout(function(){
+                getRestoreStatus(notification);
+            }, 1);
+        });
     };
 
     function getBackupStatus(notification){
         resourcesService.get_backup_status(function(data){
 
-            if(data.Detail !== ""){
-                if(data.Detail !== "timeout"){
-                    notification.updateStatus(data.Detail);
-                }
+            // nothing has happened, so try again in a bit
+            if (data.Detail === "timeout"){
                 setTimeout(function(){
                     getBackupStatus(notification);
                 }, 1);
 
-            // TODO - safer way to check for error
-            }else if(~data.Detail.indexOf("ERROR")){
-                notification.failify(ERROR, data.Detail);
-                backupRunning = false;
-
-            }else{
+            // all done!
+            } else if(data.Detail === ""){
                 resourcesService.get_backup_files(function(data){
                     $scope.backupFiles = data;
                 });
                 notification.successify(BACKUP_COMPLETE);
                 backupRunning = false;
+
+            // something neato has happened. lets show it.
+            } else {
+                notification.updateStatus(data.Detail);
             }
+
+
+            // if(data.Detail !== ""){
+            //     if(data.Detail !== "timeout"){
+            //         notification.updateStatus(data.Detail);
+            //     }
+            //     setTimeout(function(){
+            //         getBackupStatus(notification);
+            //     }, 1);
+
+            // // TODO - safer way to check for error
+            // }else if(data.Detail.indexOf("ERROR") !== -1){
+            //     notification.failify(ERROR, data.Detail);
+            //     backupRunning = false;
+
+            // }else{
+            //     resourcesService.get_backup_files(function(data){
+            //         $scope.backupFiles = data;
+            //     });
+            //     notification.successify(BACKUP_COMPLETE);
+            //     backupRunning = false;
+            // }
+        }, function(data, status){
+                notification.failify(ERROR +" "+ status, data.Detail);
+                backupRunning = false;
         });
     }
 
@@ -107,7 +133,7 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
                 }, 1);
 
             // TODO - safer way to check for error
-            }else if(~data.Detail.indexOf("ERROR")){
+            }else if(data.Detail.indexOf("ERROR") !== -1){
                 notification.failify(ERROR, data.Detail);
                 restoreRunning = false;
 
