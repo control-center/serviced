@@ -237,7 +237,7 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 	return xlateError(err)
 }
 
-// Set serializes the give node and places it at the given path.
+// Set serializes the given node and places it at the given path.
 func (c *Connection) Set(path string, node client.Node) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed

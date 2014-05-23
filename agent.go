@@ -91,7 +91,7 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux, dockerRegistry string, facade *facade.Facade, context datastore.Context) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.dockerRegistry = dockerRegistry
@@ -102,8 +102,6 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
-	agent.facade = facade
-	agent.context = context
 	if agent.mux.Enabled {
 		go agent.mux.ListenAndMux()
 	}

@@ -254,7 +254,7 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 		return
 	}
 
-	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3], InterfaceIndex: ""}
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3]}
 	if err := c.driver.AddVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -272,7 +272,7 @@ func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
 		return
 	}
 
-	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: "", BindInterface: "", InterfaceIndex: ""}
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: "", BindInterface: ""}
 	if err := c.driver.RemoveVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

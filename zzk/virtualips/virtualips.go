@@ -40,47 +40,46 @@ func New(facade *facade.Facade, conn client.Connection, context datastore.Contex
 
 // return the name of the interface for the virtual IP
 // BINDADDRESS:zvipINDEX (zvip is defined by constant 'virtualInterfacePrefix')
-func generateInterfaceName(virtualIP pool.VirtualIP) (string, error) {
+func generateInterfaceName(virtualIP pool.VirtualIP, interfaceIndex string) (string, error) {
+	glog.Infof("start generateInterfaceName")
+	defer glog.Infof("start generateInterfaceName")
 	if virtualIP.BindInterface == "" {
 		msg := fmt.Sprintf("generateInterfaceName failed as virtual IP: %v has no Bind Interface.", virtualIP.IP)
 		return "", errors.New(msg)
 	}
-	if virtualIP.InterfaceIndex == "" {
-		msg := fmt.Sprintf("generateInterfaceName failed as Virtual IP: %v has no Index.", virtualIP.IP)
+	if interfaceIndex == "" {
+		msg := fmt.Sprintf("generateInterfaceName failed, interfaceIndex is not populated")
 		return "", errors.New(msg)
 	}
-	return virtualIP.BindInterface + virtualInterfacePrefix + virtualIP.InterfaceIndex, nil
+	return virtualIP.BindInterface + virtualInterfacePrefix + interfaceIndex, nil
 }
 
 // return the first available index for an interface name
 // BINDADDRESS:zvipINDEX (zvip is defined by constant 'virtualInterfacePrefix')
-func determineVirtualInterfaceIndex(virtualIPToAdd pool.VirtualIP, interfaceMap []pool.VirtualIP) (string, error) {
+func determineVirtualInterfaceName(virtualIPToAdd pool.VirtualIP, interfaceMap map[string]pool.VirtualIP) (string, error) {
+	glog.Infof("start determineVirtualInterfaceName")
+	defer glog.Infof("start determineVirtualInterfaceName")
 	maxIndex := 100
-	interfaceIndex := 0
 
-	for interfaceIndex = 0; interfaceIndex < maxIndex; interfaceIndex++ {
-		virtualIPToAdd.InterfaceIndex = strconv.Itoa(interfaceIndex)
-		proposedInterfaceName, err := generateInterfaceName(virtualIPToAdd)
+	for interfaceIndex := 0; interfaceIndex < maxIndex; interfaceIndex++ {
+		proposedInterfaceIndex := strconv.Itoa(interfaceIndex)
+		proposedInterfaceName, err := generateInterfaceName(virtualIPToAdd, proposedInterfaceIndex)
 		if err != nil {
 			return "", err
 		}
 
 		proposedInterfaceNameIsAcceptable := true
-		for _, currentVirtualInterface := range interfaceMap {
-			currentInterfaceName, err := generateInterfaceName(currentVirtualInterface)
-			if err != nil {
-				return "", err
-			}
-			glog.V(5).Infof(" ##### Checking: %v vs %v", proposedInterfaceName, currentInterfaceName)
-			if proposedInterfaceName == currentInterfaceName {
+		for virtualInterface, _ := range interfaceMap {
+			glog.V(5).Infof(" ##### Checking: %v vs %v", proposedInterfaceName, virtualInterface)
+			if proposedInterfaceName == virtualInterface {
 				proposedInterfaceNameIsAcceptable = false
 				break
 			}
 		}
 		if proposedInterfaceNameIsAcceptable {
 			// found an open interface index!
-			glog.V(5).Infof(" ##### Virtual interface index: %v", strconv.Itoa(interfaceIndex))
-			return strconv.Itoa(interfaceIndex), nil
+			glog.V(5).Infof(" ##### New virtual interface selected: %v", proposedInterfaceName)
+			return proposedInterfaceName, nil
 		}
 	}
 
@@ -89,8 +88,8 @@ func determineVirtualInterfaceIndex(virtualIPToAdd pool.VirtualIP, interfaceMap 
 }
 
 // create an interface map of virtual interfaces configured on the agent
-func createVirtualInterfaceMap() (error, []pool.VirtualIP) {
-	interfaceMap := []pool.VirtualIP{}
+func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
+	interfaceMap := make(map[string]pool.VirtualIP)
 
 	//ifconfig | awk '/zvip/{print $1}'
 	virtualInterfaceNames, err := exec.Command("bash", "-c", "ifconfig | awk '/"+virtualInterfacePrefix+"/{print $1}'").CombinedOutput()
@@ -115,8 +114,7 @@ func createVirtualInterfaceMap() (error, []pool.VirtualIP) {
 			return err, interfaceMap
 		}
 		bindInterface := strings.TrimSpace(string(bindInterfaceAndIndex[0]))
-		interfaceIndex := strings.TrimSpace(string(bindInterfaceAndIndex[1]))
-		interfaceMap = append(interfaceMap, pool.VirtualIP{PoolID: "", IP: strings.TrimSpace(string(virtualIP)), Netmask: "", BindInterface: bindInterface, InterfaceIndex: interfaceIndex})
+		interfaceMap[virtualInterfaceName] = pool.VirtualIP{PoolID: "", IP: strings.TrimSpace(string(virtualIP)), Netmask: "", BindInterface: bindInterface}
 	}
 
 	return nil, interfaceMap
@@ -153,7 +151,7 @@ func (h *virtualIPHandler) getMyPool() (*pool.ResourcePool, error) {
 }
 
 // bind the virtual IP to the agent
-func bindVirtualIP(virtualIP pool.VirtualIP) error {
+func bindVirtualIP(virtualIP pool.VirtualIP, virtualInterfaceName string) error {
 	glog.Infof("Adding: %v", virtualIP)
 	// ensure that the Bind Address is reported by ifconfig ... ?
 	if err := exec.Command("ifconfig", virtualIP.BindInterface).Run(); err != nil {
@@ -161,10 +159,6 @@ func bindVirtualIP(virtualIP pool.VirtualIP) error {
 		return errors.New(msg)
 	}
 
-	virtualInterfaceName, err := generateInterfaceName(virtualIP)
-	if err != nil {
-		return err
-	}
 	// ADD THE VIRTUAL INTERFACE
 	// sudo ifconfig eth0:1 inet 192.168.1.136 netmask 255.255.255.0
 	if err := exec.Command("ifconfig", virtualInterfaceName, "inet", virtualIP.IP, "netmask", virtualIP.Netmask).Run(); err != nil {
@@ -177,70 +171,45 @@ func bindVirtualIP(virtualIP pool.VirtualIP) error {
 }
 
 // unbind the virtual IP from the agent
-func unbindVirtualIP(virtualIP pool.VirtualIP) error {
-	glog.Infof("Removing: %v", virtualIP)
-	virtualInterfaceName, err := generateInterfaceName(virtualIP)
-	if err != nil {
-		return err
-	}
+func unbindVirtualIP(virtualInterface string) error {
+	glog.Infof("Removing: %v", virtualInterface)
 	// ifconfig eth0:1 down
-	if err := exec.Command("ifconfig", virtualInterfaceName, "down").Run(); err != nil {
-		msg := fmt.Sprintf("Problem with removing virtual interface %v: %v", virtualInterfaceName, err)
+	if err := exec.Command("ifconfig", virtualInterface, "down").Run(); err != nil {
+		msg := fmt.Sprintf("Problem with removing virtual interface %v: %v", virtualInterface, err)
 		return errors.New(msg)
 	}
 
-	glog.Infof("Removed virtual interface/IP: %v (%v)", virtualInterfaceName, virtualIP)
+	glog.Infof("Removed virtual interface: %v", virtualInterface)
 	return nil
 }
 
 // add (bind) a virtual IP on the agent
-func (h *virtualIPHandler) addVirtualIP(vip string) error {
-	myPool, err := h.getMyPool()
-	if err != nil {
-		return err
-	}
-
-	// confirm that the virtual IP we are going to add is in this pool
-	poolConfirmed := false
-	myVirtualIP := pool.VirtualIP{}
-	myVirtualIPPosition := 0
-	for virtualIPPosition, virtualIP := range myPool.VirtualIPs {
-		if vip == virtualIP.IP {
-			myVirtualIP = virtualIP
-			myVirtualIPPosition = virtualIPPosition
-			poolConfirmed = true
-			break
-		}
-	}
-	if !poolConfirmed {
-		msg := fmt.Sprintf("Requested vip: %v does not exist in pool: %v", vip, myPool.ID)
-		return errors.New(msg)
-	}
-
+func (h *virtualIPHandler) addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
+	glog.Infof("start addVirtualIP")
+	defer glog.Infof("end addVirtualIP")
 	// confirm the virtual IP is not already on this host
-	vipPresent := false
+	virtualIPAlreadyHere := false
 	err, interfaceMap := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
 	}
-	for _, virtualInterface := range interfaceMap {
-		if vip == virtualInterface.IP {
-			vipPresent = true
+	for _, virtualIP := range interfaceMap {
+		if virtualIPToAdd.IP == virtualIP.IP {
+			virtualIPAlreadyHere = true
 		}
 	}
-	if vipPresent {
-		msg := fmt.Sprintf("Requested vip: %v is already on this host.", vip)
+	if virtualIPAlreadyHere {
+		msg := fmt.Sprintf("Requested virtual IP: %v is already on this host.", virtualIPToAdd.IP)
 		return errors.New(msg)
 	}
 
-	interfaceIndex, err := determineVirtualInterfaceIndex(myVirtualIP, interfaceMap)
+	virtualInterfaceName, err := determineVirtualInterfaceName(virtualIPToAdd, interfaceMap)
 	if err != nil {
 		return err
 	}
-	glog.V(5).Infof(" ### Determined interface index: %v", interfaceIndex)
-	myPool.VirtualIPs[myVirtualIPPosition].InterfaceIndex = interfaceIndex
-	if err := bindVirtualIP(myPool.VirtualIPs[myVirtualIPPosition]); err != nil {
+
+	if err := bindVirtualIP(virtualIPToAdd, virtualInterfaceName); err != nil {
 		return err
 	}
 
@@ -256,8 +225,8 @@ func (h *virtualIPHandler) RemoveAllVirtualIPs() error {
 		return err
 	}
 	glog.V(2).Infof("Removing all virtual IPs...")
-	for _, virtualIP := range interfaceMap {
-		if err := unbindVirtualIP(virtualIP); err != nil {
+	for virtualInterface, _ := range interfaceMap {
+		if err := unbindVirtualIP(virtualInterface); err != nil {
 			return err
 		}
 	}
@@ -267,28 +236,15 @@ func (h *virtualIPHandler) RemoveAllVirtualIPs() error {
 
 // remove (unbind) a virtual IP from the agent
 func (h *virtualIPHandler) removeVirtualIP(virtualIPAddress string) error {
-	myPool, err := h.getMyPool()
-	if err != nil {
-		return err
-	}
-
-	// confirm that the VIP we are going to remove is no longer in this pool
-	for _, virtualIP := range myPool.VirtualIPs {
-		if virtualIPAddress == virtualIP.IP {
-			msg := fmt.Sprintf("Requested virtual IP address: %v still exists in pool: %v", virtualIPAddress, myPool.ID)
-			return errors.New(msg)
-		}
-	}
-
 	// confirm the VIP is on this host and remove it
 	err, interfaceMap := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
 	}
-	for _, virtualIP := range interfaceMap {
+	for virtualInterface, virtualIP := range interfaceMap {
 		if virtualIPAddress == virtualIP.IP {
-			if err := unbindVirtualIP(virtualIP); err != nil {
+			if err := unbindVirtualIP(virtualInterface); err != nil {
 				return err
 			}
 			return nil
@@ -350,71 +306,76 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 		return
 	}
 
-	var oldVirtualIPAddresses []string
-	var currentVirtualIPAddresses []string
-	var zkEvent <-chan client.Event
+	var oldVirtualIPNodeIDs []string
+	var currentVirtualIPNodeIDs []string // these are actual virtual IP addresses
+	var virtualIPsNodeEvent <-chan client.Event
 	var err error
 
 	for {
 		glog.Infof("Agent watching for changes to node: %v", virtualIPsPath())
 
-		// deep copy currentVirtualIPAddresses into oldVirtualIPAddresses
-		oldVirtualIPAddresses = nil
-		for _, virtualIPAddress := range currentVirtualIPAddresses {
-			oldVirtualIPAddresses = append(oldVirtualIPAddresses, virtualIPAddress)
+		// deep copy currentVirtualIPNodeIDs into oldVirtualIPNodeIDs
+		oldVirtualIPNodeIDs = nil
+		for _, virtualIPAddress := range currentVirtualIPNodeIDs {
+			oldVirtualIPNodeIDs = append(oldVirtualIPNodeIDs, virtualIPAddress)
 		}
 
-		currentVirtualIPAddresses, zkEvent, err = h.conn.ChildrenW(virtualIPsPath())
+		currentVirtualIPNodeIDs, virtualIPsNodeEvent, err = h.conn.ChildrenW(virtualIPsPath())
 		if err != nil {
 			glog.Errorf("Agent unable to find any virtual IPs: %s", err)
 			return
 		}
 
-		removedVirtualIPAddresses := setSubtract(oldVirtualIPAddresses, currentVirtualIPAddresses)
-		if len(removedVirtualIPAddresses) > 0 {
-			for _, virtualIPAddress := range removedVirtualIPAddresses {
-				if processing[virtualIPAddress] != nil {
-					glog.Infof("A goroutine for %v is still running...", virtualIPAddress)
-					exists, err := h.conn.Exists(virtualIPsPath(virtualIPAddress))
-					if err != nil {
-						glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
-						return
-					}
-					if !exists {
-						glog.Infof("node %v no longer exists, stopping corresponding goroutine...", virtualIPAddress)
-						// this VIP node has been deleted from zookeeper
-						// Remove the VIP from the host
-						if err := h.removeVirtualIP(virtualIPAddress); err != nil {
-							glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
-						}
-						// therefore, stop the go routine responsible for watching this particular VIP
-						processing[virtualIPAddress] <- 1
-					} else {
-						glog.Warningf("node %v does not exists, although its goroutine does not", virtualIPAddress)
-					}
-				} else {
-					glog.Warningf("Newly removed virtual IP address: %v does not have a goroutine running to monitor it?", virtualIPAddress)
+		removedVirtualIPAddresses := setSubtract(oldVirtualIPNodeIDs, currentVirtualIPNodeIDs)
+		for _, virtualIPAddress := range removedVirtualIPAddresses {
+			if processing[virtualIPAddress] != nil {
+				glog.Infof("A goroutine for %v is still running...", virtualIPAddress)
+				exists, err := h.conn.Exists(virtualIPsPath(virtualIPAddress))
+				if err != nil {
+					glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
+					return
 				}
+				if !exists {
+					glog.Infof("node %v no longer exists, stopping corresponding goroutine...", virtualIPAddress)
+					// this VIP node has been deleted from zookeeper
+					// Remove the VIP from the host
+					if err := h.removeVirtualIP(virtualIPAddress); err != nil {
+						glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
+					}
+					// therefore, stop the go routine responsible for watching this particular VIP
+					processing[virtualIPAddress] <- 1
+				} else {
+					glog.Warningf("node %v does not exists, although its goroutine does not", virtualIPAddress)
+				}
+			} else {
+				glog.Warningf("Newly removed virtual IP address: %v does not have a goroutine running to monitor it?", virtualIPAddress)
 			}
 		}
 
-		addedVirtualIPAddresses := setSubtract(currentVirtualIPAddresses, oldVirtualIPAddresses)
-		if len(addedVirtualIPAddresses) > 0 {
-			for _, virtualIPAddress := range addedVirtualIPAddresses {
-				if processing[virtualIPAddress] == nil {
-					glog.V(2).Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
-					virtualIPChannel := make(chan int)
-					processing[virtualIPAddress] = virtualIPChannel
-					go h.watchVirtualIP(virtualIPChannel, sDone, virtualIPAddress)
+		addedVirtualIPAddresses := setSubtract(currentVirtualIPNodeIDs, oldVirtualIPNodeIDs)
+		for _, virtualIPAddress := range addedVirtualIPAddresses {
+			if processing[virtualIPAddress] == nil {
+				glog.V(2).Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
+				virtualIPChannel := make(chan int)
+				processing[virtualIPAddress] = virtualIPChannel
+				myVirtualIP := pool.VirtualIP{PoolID: "", IP: "", Netmask: "", BindInterface: ""}
+				vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
+				if err := h.conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
+					glog.Warningf("Was unable to get node: %v", virtualIPsPath(virtualIPAddress))
 				} else {
-					glog.Warningf("Newly added virtual IP address: %v already has a goroutine running to monitor it?", virtualIPAddress)
+					go h.watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP)
 				}
+			} else {
+				glog.Warningf("Newly added virtual IP address: %v already has a goroutine running to monitor it?", virtualIPAddress)
 			}
 		}
 
 		select {
-		case evt := <-zkEvent:
+		// something has changed on the head virtual IP node
+		case evt := <-virtualIPsNodeEvent:
 			glog.Infof("%v event: %v", virtualIPsPath(), evt)
+
+		// a child goroutine has been terminated
 		case virtualIPAddress := <-sDone:
 			glog.Info("Cleaning up for virtual IP: ", virtualIPAddress)
 			delete(processing, virtualIPAddress)
@@ -424,28 +385,29 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 
 type virtualIPNode struct {
 	HostID    string
-	VirtualIP string
+	VirtualIP pool.VirtualIP
 	version   interface{}
 }
 
 func (v *virtualIPNode) Version() interface{}           { return v.version }
 func (v *virtualIPNode) SetVersion(version interface{}) { v.version = version }
 
-func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- string, virtualIPAddress string) {
-	glog.V(2).Infof(" ### Started watchVirtualIP: %v", virtualIPAddress)
+func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP) {
+	glog.V(2).Infof(" ### Started watchingVirtualIP: %v", watchingVirtualIP.IP)
 
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not get host ID: %v", err)
 		return
 	}
-	vipOwnerNode := &virtualIPNode{HostID: hostID, VirtualIP: virtualIPAddress}
-	vipOwner := h.conn.NewLeader(virtualIPsPath(virtualIPAddress), vipOwnerNode)
+
+	vipOwnerNode := &virtualIPNode{HostID: hostID, VirtualIP: watchingVirtualIP}
+	vipOwner := h.conn.NewLeader(virtualIPsPath(watchingVirtualIP.IP, "Locked"), vipOwnerNode)
 	vipOwnerResponse := make(chan error)
 
 	defer func() {
-		glog.V(2).Infof(" ### Exiting watchVirtualIP: %v", virtualIPAddress)
-		done <- virtualIPAddress
+		glog.V(2).Infof(" ### Exiting watchingVirtualIP: %v", watchingVirtualIP.IP)
+		done <- watchingVirtualIP.IP
 	}()
 
 	go func() {
@@ -455,20 +417,23 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 
 	for {
 		select {
-		// the lock has been released?
 		case err = <-vipOwnerResponse:
 			if err != nil {
-				glog.Errorf("Error in attempting to secure a lock on %v: %v", virtualIPsPath(virtualIPAddress), err)
+				glog.Errorf("Error in attempting to secure a lock on %v: %v", virtualIPsPath(watchingVirtualIP.IP), err)
 			} else {
-				glog.Infof("Locked virtual IP address: %v on %v", virtualIPsPath(virtualIPAddress), vipOwnerNode.HostID)
-				if err := h.addVirtualIP(virtualIPAddress); err != nil {
-					glog.Errorf("Failed to add virtual IP %v: %v", virtualIPAddress, err)
+				// the lock has been secured
+				glog.Infof("Locked virtual IP address: %v on %v", virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode.HostID)
+				if err := h.addVirtualIP(watchingVirtualIP); err != nil {
+					glog.Errorf("Failed to add virtual IP %v: %v", watchingVirtualIP.IP, err)
+				}
+				if err := h.conn.Set(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode); err != nil {
+					glog.Errorf("Failed to set the HostID: %v to node: %v", vipOwnerNode.HostID, virtualIPsPath(watchingVirtualIP.IP))
 				}
 			}
 
 		// agent stopping
 		case <-shutdown:
-			glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(virtualIPAddress))
+			glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(watchingVirtualIP.IP))
 			return
 		}
 	}
@@ -492,15 +457,18 @@ func (h *virtualIPHandler) SyncVirtualIPs() error {
 	}
 
 	for _, virtualIP := range myPool.VirtualIPs {
-		currentVirtualIPDir := virtualIPsPath(virtualIP.IP)
-		exists, err := h.conn.Exists(currentVirtualIPDir)
+		currentVirtualIPNodePath := virtualIPsPath(virtualIP.IP)
+		exists, err := h.conn.Exists(currentVirtualIPNodePath)
 		if err != nil {
-			glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, currentVirtualIPDir)
+			glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, currentVirtualIPNodePath)
 			return err
 		}
 		if !exists {
-			h.conn.CreateDir(currentVirtualIPDir)
-			glog.Infof("Syncing virtual IPs... Created %v dir in zookeeper", currentVirtualIPDir)
+			// creating node in zookeeper for this virtual IP
+			// the HostID is not yet known as the virtual IP is not on a host yet
+			vipNode := virtualIPNode{HostID: "", VirtualIP: virtualIP}
+			h.conn.Create(currentVirtualIPNodePath, &vipNode)
+			glog.Infof("Syncing virtual IPs... Created %v in zookeeper", currentVirtualIPNodePath)
 		}
 	}
 
@@ -517,12 +485,12 @@ func (h *virtualIPHandler) SyncVirtualIPs() error {
 			}
 		}
 		if removedVirtualIP {
-			nodeToDelete := virtualIPsPath(child)
-			if err := h.conn.Delete(nodeToDelete); err != nil {
-				glog.Errorf("conn.Delete failed:%v (attempting to delete %v))", err, nodeToDelete)
+			nodeToDeletePath := virtualIPsPath(child)
+			if err := h.conn.Delete(nodeToDeletePath); err != nil {
+				glog.Errorf("conn.Delete failed:%v (attempting to delete %v))", err, nodeToDeletePath)
 				return err
 			}
-			glog.Infof("Syncing virtual IPs... Removed %v dir from zookeeper", nodeToDelete)
+			glog.Infof("Syncing virtual IPs... Removed %v from zookeeper", nodeToDeletePath)
 		}
 	}
 	return nil
