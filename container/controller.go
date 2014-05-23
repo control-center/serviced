@@ -510,10 +510,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
-				glog.Infof("Health check %s succeeded.", name)
+				glog.V(4).Infof("Health check %s succeeded.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
-				glog.Infof("Health check %s failed.", name)
+				glog.Warningf("Health check %s failed.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
