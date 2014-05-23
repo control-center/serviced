@@ -23,8 +23,6 @@ COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 
-default:
-
 all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 
 $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
