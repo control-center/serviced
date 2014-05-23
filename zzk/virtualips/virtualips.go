@@ -41,8 +41,6 @@ func New(facade *facade.Facade, conn client.Connection, context datastore.Contex
 // return the name of the interface for the virtual IP
 // BINDADDRESS:zvipINDEX (zvip is defined by constant 'virtualInterfacePrefix')
 func generateInterfaceName(virtualIP pool.VirtualIP, interfaceIndex string) (string, error) {
-	glog.Infof("start generateInterfaceName")
-	defer glog.Infof("start generateInterfaceName")
 	if virtualIP.BindInterface == "" {
 		msg := fmt.Sprintf("generateInterfaceName failed as virtual IP: %v has no Bind Interface.", virtualIP.IP)
 		return "", errors.New(msg)
@@ -57,8 +55,6 @@ func generateInterfaceName(virtualIP pool.VirtualIP, interfaceIndex string) (str
 // return the first available index for an interface name
 // BINDADDRESS:zvipINDEX (zvip is defined by constant 'virtualInterfacePrefix')
 func determineVirtualInterfaceName(virtualIPToAdd pool.VirtualIP, interfaceMap map[string]pool.VirtualIP) (string, error) {
-	glog.Infof("start determineVirtualInterfaceName")
-	defer glog.Infof("start determineVirtualInterfaceName")
 	maxIndex := 100
 
 	for interfaceIndex := 0; interfaceIndex < maxIndex; interfaceIndex++ {
@@ -185,8 +181,6 @@ func unbindVirtualIP(virtualInterface string) error {
 
 // add (bind) a virtual IP on the agent
 func addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
-	glog.Infof("start addVirtualIP")
-	defer glog.Infof("end addVirtualIP")
 	// confirm the virtual IP is not already on this host
 	virtualIPAlreadyHere := false
 	err, interfaceMap := createVirtualInterfaceMap()
@@ -275,7 +269,7 @@ func setSubtract(a []string, b []string) []string {
 
 // Monitors the virtual IP nodes in zookeeper, the "leader" agent (the agent that has a lock on the virtual IP),
 //   binds the virtual IP to the bind address specified by the virtual IP on itself
-func (h *virtualIPHandler) WatchVirtualIPs() {
+func WatchVirtualIPs(conn client.Connection) {
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
 
@@ -290,11 +284,11 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 	}()
 
 	// Make the path if it doesn't exist
-	if exists, err := h.conn.Exists(virtualIPsPath()); err != nil && err != client.ErrNoNode {
+	if exists, err := conn.Exists(virtualIPsPath()); err != nil && err != client.ErrNoNode {
 		glog.Errorf("Error checking path %s: %s", virtualIPsPath(), err)
 		return
 	} else if !exists {
-		if err := h.conn.CreateDir(virtualIPsPath()); err != nil {
+		if err := conn.CreateDir(virtualIPsPath()); err != nil {
 			glog.Errorf("Could not create path %s: %s", virtualIPsPath(), err)
 			return
 		}
@@ -320,7 +314,7 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 			oldVirtualIPNodeIDs = append(oldVirtualIPNodeIDs, virtualIPAddress)
 		}
 
-		currentVirtualIPNodeIDs, virtualIPsNodeEvent, err = h.conn.ChildrenW(virtualIPsPath())
+		currentVirtualIPNodeIDs, virtualIPsNodeEvent, err = conn.ChildrenW(virtualIPsPath())
 		if err != nil {
 			glog.Errorf("Agent unable to find any virtual IPs: %s", err)
 			return
@@ -330,7 +324,7 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 		for _, virtualIPAddress := range removedVirtualIPAddresses {
 			if processing[virtualIPAddress] != nil {
 				glog.Infof("A goroutine for %v is still running...", virtualIPAddress)
-				exists, err := h.conn.Exists(virtualIPsPath(virtualIPAddress))
+				exists, err := conn.Exists(virtualIPsPath(virtualIPAddress))
 				if err != nil {
 					glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
 					return
@@ -360,10 +354,10 @@ func (h *virtualIPHandler) WatchVirtualIPs() {
 				processing[virtualIPAddress] = virtualIPChannel
 				myVirtualIP := pool.VirtualIP{PoolID: "", IP: "", Netmask: "", BindInterface: ""}
 				vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
-				if err := h.conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
+				if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
 					glog.Warningf("Was unable to get node: %v", virtualIPsPath(virtualIPAddress))
 				} else {
-					go h.watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP)
+					go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn)
 				}
 			} else {
 				glog.Warningf("Newly added virtual IP address: %v already has a goroutine running to monitor it?", virtualIPAddress)
@@ -392,7 +386,7 @@ type virtualIPNode struct {
 func (v *virtualIPNode) Version() interface{}           { return v.version }
 func (v *virtualIPNode) SetVersion(version interface{}) { v.version = version }
 
-func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP) {
+func watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP, conn client.Connection) {
 	glog.V(2).Infof(" ### Started watchingVirtualIP: %v", watchingVirtualIP.IP)
 
 	hostID, err := utils.HostID()
@@ -403,7 +397,7 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 
 	// try to lock
 	vipOwnerNode := &virtualIPNode{HostID: hostID, VirtualIP: watchingVirtualIP}
-	vipOwner := h.conn.NewLeader(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode)
+	vipOwner := conn.NewLeader(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode)
 	vipOwnerResponse := make(chan error)
 
 	defer func() {
@@ -427,7 +421,8 @@ func (h *virtualIPHandler) watchVirtualIP(shutdown <-chan int, done chan<- strin
 				if err := addVirtualIP(watchingVirtualIP); err != nil {
 					glog.Errorf("Failed to add virtual IP %v: %v", watchingVirtualIP.IP, err)
 				}
-				if err := h.conn.Set(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode); err != nil {
+				// set the HostID to the zookeeper node
+				if err := conn.Set(virtualIPsPath(watchingVirtualIP.IP), vipOwnerNode); err != nil {
 					glog.Errorf("Failed to set the HostID: %v to node: %v", vipOwnerNode.HostID, virtualIPsPath(watchingVirtualIP.IP))
 				}
 			}
