@@ -50,7 +50,7 @@ pkgroot:
 # Build serviced binary
 build:
 	mkdir -p build/tmp
-	cd ../ && make build_binary
+	cd ../ && make build_binary export
 
 # Stage serviced files
 stage: build pkgroot

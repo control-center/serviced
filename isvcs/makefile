@@ -21,7 +21,9 @@ COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 
-all: buildgo $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
+all: buildgo isvcs_repo
+
+export: $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 
 $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: isvcs_repo
 	mkdir -p $(REPO_DIR)/$(REPO)
@@ -41,7 +43,7 @@ build_repo:
 $(REPO_DIR):
 	mkdir -p $(@)
 
-isvcs_repo: $(REPO_DIR) build_repo
+isvcs_repo: $(REPO_DIR)
 	if [ -z "$$(docker images $(REPO) 2>/dev/null | awk {'print $$2'} | grep $(TAG))" ]; then \
 		docker pull $(REPO):$(TAG); \
 	fi; \
@@ -50,7 +52,7 @@ isvcs_repo: $(REPO_DIR) build_repo
 		docker build -t $(REPO):$(TAG) $(BUILD_DIR); \
 	fi
 
-$(BUILD_DIR)/%.tar.gz:
+$(BUILD_DIR)/%.tar.gz: build_repo
 	docker run --rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
 		bash -c "make TARGET=/tmp/out; chown -R $(UID):$(UID) /tmp/out/$(notdir $(@))"
 
