@@ -339,6 +339,9 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
+		if strings.HasPrefix(value, "HOME=") {
+			continue
+		}
 		w.WriteString("export ")
 		w.WriteString(value)
 		w.WriteString("\n")
@@ -432,7 +435,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 	if len(c.prereqs) == 0 {
 		glog.Infof("No prereqs to pass.")
 		prereqsPassed <- true
-		return nil		
+		return nil
 	}
 	for _ = range time.Tick(1 * time.Second) {
 		failedAny := false
