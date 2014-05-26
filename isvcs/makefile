@@ -14,7 +14,7 @@ UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := zenoss/isvcs_build
 REPO               := zctrl/isvcs
-TAG                := v7
+TAG                := v8
 REPO_DIR           := images
 REPO_EXISTS        := .repo_tag_exists_$(TAG)
 BUILD_REPO_EXISTS  := .build_repo_exists
@@ -22,6 +22,8 @@ EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname).tar.gz)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
+
+default:
 
 all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 

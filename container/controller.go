@@ -339,6 +339,9 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
+		if strings.HasPrefix(value, "HOME=") {
+			continue
+		}
 		w.WriteString("export ")
 		w.WriteString(value)
 		w.WriteString("\n")
@@ -429,6 +432,11 @@ func (c *Controller) Run() (err error) {
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	if len(c.prereqs) == 0 {
+		glog.Infof("No prereqs to pass.")
+		prereqsPassed <- true
+		return nil
+	}
 	for _ = range time.Tick(1 * time.Second) {
 		failedAny := false
 		for _, script := range c.prereqs {
@@ -505,10 +513,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
-				glog.Infof("Health check %s succeeded.", name)
+				glog.V(4).Infof("Health check %s succeeded.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
-				glog.Infof("Health check %s failed.", name)
+				glog.Warningf("Health check %s failed.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
