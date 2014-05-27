@@ -15,7 +15,7 @@ var etcExports = "/etc/exports"
 var exportsDir = "/exports"
 var lookPath = exec.LookPath
 
-const mountNfs4 = "mount.nfs4"
+const mountNfs4 = "/sbin/mount.nfs4"
 
 // ErrMalformedNFSMountpoint is returned when the nfs mountpoint string is malformed
 var ErrMalformedNFSMountpoint = errors.New("malformed nfs mountpoint")
