@@ -21,7 +21,7 @@ const mountNfs4 = "/sbin/mount.nfs4"
 var ErrMalformedNFSMountpoint = errors.New("malformed nfs mountpoint")
 
 // ErrNfsMountingUnsupported is returned when the mount.nfs4 binary is not found
-var ErrNfsMountingUnsupported = errors.New("nfs mountint not supported; install nfs-common")
+var ErrNfsMountingUnsupported = errors.New("nfs mounting not supported; install nfs-common")
 
 // exec.Command interface (for mocking)
 type commandFactoryT func(string, ...string) command
