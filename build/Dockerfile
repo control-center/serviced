@@ -34,10 +34,4 @@ RUN	apt-get install -y -q rpm
 RUN	apt-get install -y -q mercurial bzr
 RUN apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
-# install docker
-RUN	wget -q -O /usr/local/bin/docker https://get.docker.io/builds/Linux/x86_64/docker-latest
-RUN	wget -q -O /usr/local/bin/wrapdocker https://raw2.github.com/jpetazzo/dind/master/wrapdocker
-RUN chmod +x /usr/local/bin/docker /usr/local/bin/wrapdocker
-
 WORKDIR	/go/src/github.com/zenoss/serviced
-CMD	wrapdocker
