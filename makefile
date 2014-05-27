@@ -46,7 +46,6 @@ dockerbuild_binaryx: docker_ok
 	-v `pwd`/pkg/build/tmp:/tmp \
 	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
 	zenoss/serviced-build make IN_DOCKER=1 build_binary
-	serviced/godep restore
 	cd isvcs && make isvcs_repo
 
 dockerbuild_binary: docker_ok
