@@ -11,8 +11,6 @@ import (
 type Container struct {
 	dockerclient.Container
 	dockerclient.HostConfig
-
-	started bool
 }
 
 type ContainerDefinition struct {
@@ -66,9 +64,32 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	default:
 		switch err, ok := <-ec; {
 		case !ok:
-			return &Container{<-rc, cd.HostConfig, start}, nil
+			return &Container{<-rc, cd.HostConfig}, nil
 		default:
 			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// Containers retrieves a list of all the Docker containers.
+func Containers() ([]*Container, error) {
+	ec := make(chan error)
+	rc := make(chan []*Container)
+
+	cmds.List <- listreq{
+		request{ec},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return []*Container{}, ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return <-rc, nil
+		default:
+			return []*Container{}, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
 }
@@ -105,10 +126,6 @@ func (c *Container) Delete(volumes bool) error {
 // Kill sends a SIGKILL signal to the container. If the container is not started
 // no action is taken.
 func (c *Container) Kill() error {
-	if !c.started {
-		return nil
-	}
-
 	ec := make(chan error)
 
 	cmds.Kill <- killreq{
@@ -124,7 +141,6 @@ func (c *Container) Kill() error {
 	default:
 		switch err, ok := <-ec; {
 		case !ok:
-			c.started = false
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
@@ -192,7 +208,6 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 	default:
 		switch err, ok := <-ec; {
 		case !ok:
-			c.started = true
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
@@ -202,7 +217,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 
 // StopContainer stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
-func (c *Container) Stop(timeout time.Duration, wait bool) error {
+func (c *Container) Stop(timeout time.Duration) error {
 	ec := make(chan error)
 
 	cmds.Stop <- stopreq{
@@ -221,33 +236,9 @@ func (c *Container) Stop(timeout time.Duration, wait bool) error {
 	default:
 		switch err, ok := <-ec; {
 		case !ok:
-			c.started = false
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
-}
-
-// ListContainers returns a list (slice) of known Docker container ids.
-func ListContainers() ([]string, error) {
-	ec := make(chan error)
-	rc := make(chan []string)
-
-	cmds.List <- listreq{
-		request{ec},
-		rc,
-	}
-
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
-		case !ok:
-			return <-rc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
 }

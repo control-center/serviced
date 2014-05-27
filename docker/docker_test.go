@@ -40,7 +40,7 @@ func TestOnContainerStart(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
-	ctr.Stop(30)
+	ctr.Kill()
 }
 
 func TestOnContainerCreated(t *testing.T) {
@@ -71,7 +71,7 @@ func TestOnContainerCreated(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
-	ctr.Stop(30)
+	ctr.Kill()
 }
 
 func TestOnContainerStop(t *testing.T) {
@@ -100,7 +100,7 @@ func TestOnContainerStop(t *testing.T) {
 
 	select {
 	case <-ec:
-	case <-time.After(1 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for event")
 	}
 }
@@ -142,13 +142,7 @@ func TestCancelOnEvent(t *testing.T) {
 		// success
 	}
 
-	ctr.Stop(30)
-
-	select {
-	case <-ec:
-	case <-time.After(30 * time.Second):
-		t.Fatal("Time out waiting for Stop event")
-	}
+	ctr.Kill()
 }
 
 func TestRestartContainer(t *testing.T) {
@@ -183,7 +177,7 @@ func TestRestartContainer(t *testing.T) {
 	select {
 	case <-diech:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for Stop event")
+		t.Fatal("Timed out waiting for container to stop/die")
 	}
 
 	select {
@@ -192,5 +186,59 @@ func TestRestartContainer(t *testing.T) {
 		t.Fatal("Timed out waiting for Start event")
 	}
 
-	ctr.Stop(5)
+	ctr.Kill()
+}
+
+func TestListContainers(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctrs := []*Container{}
+
+	for i := 0; i < 4; i++ {
+		ctr, err := NewContainer(cd, true, 300*time.Second, nil, nil)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+
+		ctrs = append(ctrs, ctr)
+	}
+
+	cl, err := Containers()
+	if err != nil {
+		t.Fatal("can't get a list of containers: ", err)
+	}
+
+	if len(cl) != len(ctrs) {
+		t.Fatalf("expecting %d containers, found %d", len(ctrs), len(cl))
+	}
+
+	for _, c := range cl {
+		var found bool
+		for _, ctr := range ctrs {
+			if ctr.ID == c.ID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Fatal("missing container: ", c.ID)
+		}
+	}
+
+	for _, ctr := range ctrs {
+		ctr.Kill()
+	}
+
+	for _, ctr := range ctrs {
+		ctr.Delete(true)
+	}
 }
