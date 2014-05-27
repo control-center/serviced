@@ -55,9 +55,91 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 	return err
 }
 
+func (f *Facade) virtualIPExists(ctx datastore.Context, proposedVirtualIP pool.VirtualIP) (bool, error) {
+	poolIPs, err := f.GetPoolIPs(ctx, proposedVirtualIP.PoolID)
+	if err != nil {
+		glog.Errorf("GetPoolIps failed: %v", err)
+		return false, err
+	}
+
+	for _, virtualIP := range poolIPs.VirtualIPs {
+		// the IP address is unique
+		// TODO: Is an IP address unique to just a pool? Suppose virtual IP X. Can pools X and Y both contain X?
+		// if so, we need to check PoolID as well
+		if proposedVirtualIP.IP == virtualIP.IP {
+			return true, nil
+		}
+	}
+
+	for _, staticIP := range poolIPs.HostIPs {
+		if proposedVirtualIP.IP == staticIP.IPAddress {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func validIP(aString string) error {
+	violations := validation.NewValidationError()
+	violations.Add(validation.IsIP(aString))
+	if len(violations.Errors) > 0 {
+		return violations
+	}
+	return nil
+}
+
+func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.ResourcePool) error {
+	currentPool, err := f.GetResourcePool(ctx, proposedPool.ID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %v", proposedPool.ID)
+		return err
+	} else if currentPool == nil {
+		msg := fmt.Sprintf("Pool ID: %v could not be found", proposedPool.ID)
+		return errors.New(msg)
+	}
+
+	// are the virtual IPs the same?
+	if !currentPool.VirtualIPsEqual(proposedPool) {
+		currentVirtualIPs := make(map[string]pool.VirtualIP)
+		for _, virtualIP := range currentPool.VirtualIPs {
+			currentVirtualIPs[virtualIP.IP] = virtualIP
+		}
+		proposedVirtualIPs := make(map[string]pool.VirtualIP)
+		for _, virtualIP := range proposedPool.VirtualIPs {
+			proposedVirtualIPs[virtualIP.IP] = virtualIP
+		}
+
+		for key, proposedVirtualIP := range proposedVirtualIPs {
+			// check to see if the proposedVirtualIP is a NEW one
+			if _, keyExists := currentVirtualIPs[key]; !keyExists {
+				// virtual IPs will be added, need to validate this virtual IP
+				if err := validIP(proposedVirtualIP.IP); err != nil {
+					return err
+				}
+				if err := validIP(proposedVirtualIP.Netmask); err != nil {
+					return err
+				}
+
+				ipAddressAlreadyExists, err := f.virtualIPExists(ctx, proposedVirtualIP)
+				if err != nil {
+					return err
+				} else if ipAddressAlreadyExists {
+					errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", proposedVirtualIP.IP, proposedVirtualIP.PoolID)
+					return errors.New(errMsg)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // UpdateResourcePool updates a ResourcePool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	glog.V(2).Infof("Facade.UpdateResourcePool: %+v", entity)
+	if err := f.validateVirtualIPs(ctx, entity); err != nil {
+		return err
+	}
 	ec := newEventCtx()
 	err := f.beforeEvent(beforePoolUpdate, ec, entity)
 	if err == nil {
@@ -198,34 +280,6 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 	return &PoolIPs{PoolID: poolID, HostIPs: hostIPs, VirtualIPs: virtualIPs}, nil
 }
 
-func virtualIPExists(proposedVirtualIP pool.VirtualIP, poolIPs *PoolIPs) bool {
-	for _, virtualIP := range poolIPs.VirtualIPs {
-		// the IP address is unique
-		// TODO: Is an IP address unique to just a pool? Suppose virtual IP X. Can pools X and Y both contain X?
-		// if so, we need to check PoolID as well
-		if proposedVirtualIP.IP == virtualIP.IP {
-			return true
-		}
-	}
-
-	for _, staticIP := range poolIPs.HostIPs {
-		if proposedVirtualIP.IP == staticIP.IPAddress {
-			return true
-		}
-	}
-
-	return false
-}
-
-func validIP(aString string) error {
-	violations := validation.NewValidationError()
-	violations.Add(validation.IsIP(aString))
-	if len(violations.Errors) > 0 {
-		return violations
-	}
-	return nil
-}
-
 func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
 	myPool, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
 	if err != nil {
@@ -236,22 +290,11 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 		return errors.New(msg)
 	}
 
-	if err := validIP(requestedVirtualIP.IP); err != nil {
-		return err
-	}
-	if err := validIP(requestedVirtualIP.Netmask); err != nil {
-		return err
-	}
-
-	poolIPs, err := f.GetPoolIPs(ctx, requestedVirtualIP.PoolID)
+	ipAddressAlreadyExists, err := f.virtualIPExists(ctx, requestedVirtualIP)
 	if err != nil {
-		glog.Errorf("GetPoolIps failed: %v", err)
 		return err
-	}
-
-	ipAddressAlreadyExists := virtualIPExists(requestedVirtualIP, poolIPs)
-	if ipAddressAlreadyExists {
-		errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP, requestedVirtualIP.PoolID)
+	} else if ipAddressAlreadyExists {
+		errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP.IP, requestedVirtualIP.PoolID)
 		return errors.New(errMsg)
 	}
 

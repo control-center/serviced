@@ -34,36 +34,52 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
-	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
-	for {
-		if shutdownmode {
-			glog.V(1).Info("Shutdown mode encountered.")
-			break
+
+	pools, err := facade.GetResourcePools(datastore.Get())
+	if err != nil {
+		glog.Error(err)
+		return
+	} else if pools == nil || len(pools) == 0 {
+		glog.Error("no resource pools found")
+		return
+	}
+
+	for _, pool := range pools {
+		if pool.ID != "default" {
+			glog.Warningf("Non default pool: %v (not currently supported)", pool.ID)
+			continue
 		}
-		time.Sleep(time.Second)
-		func() error {
-			select {
-			case evt := <-zkEvent:
-				// shut this thing down
-				shutdownmode = true
-				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-				return nil
-			default:
-				glog.V(0).Info("Processing leader duties")
-				// passthru
+		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
+		for {
+			if shutdownmode {
+				glog.V(1).Info("Shutdown mode encountered.")
+				break
 			}
+			time.Sleep(time.Second)
+			func() error {
+				select {
+				case evt := <-zkEvent:
+					// shut this thing down
+					shutdownmode = true
+					glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
+					return nil
+				default:
+					glog.V(0).Info("Processing leader duties")
+					// passthru
+				}
 
-			// creates a listener for snapshots with a function call to take snapshots
-			// and return the label and error message
-			go snapshot.Listen(conn, func(serviceID string) (string, error) {
-				var label string
-				err := dao.TakeSnapshot(serviceID, &label)
-				return label, err
-			})
+				// creates a listener for snapshots with a function call to take snapshots
+				// and return the label and error message
+				go snapshot.Listen(conn, func(serviceID string) (string, error) {
+					var label string
+					err := dao.TakeSnapshot(serviceID, &label)
+					return label, err
+				})
 
-			leader.watchServices()
-			return nil
-		}()
+				leader.watchServices()
+				return nil
+			}()
+		}
 	}
 }
 
