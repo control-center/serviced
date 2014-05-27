@@ -557,7 +557,7 @@ func (c *Controller) handleRemotePorts() {
 		sort.Strings(addresses)
 
 		var (
-			proxy *serviced.Proxy
+			proxy *Proxy
 			ok    bool
 		)
 
@@ -570,7 +570,7 @@ func (c *Controller) handleRemotePorts() {
 				glog.Errorf("Could not bind to port: %s", err)
 				continue
 			}
-			proxy, err = serviced.NewProxy(
+			proxy, err = NewProxy(
 				fmt.Sprintf("%v", endpointList[0]),
 				uint16(c.options.Mux.Port),
 				c.options.Mux.TLS,
@@ -597,13 +597,13 @@ func (c *Controller) handleRemotePorts() {
 }
 
 var (
-	proxies map[string]*serviced.Proxy
+	proxies map[string]*Proxy
 	vifs    *VIFRegistry
 	nextip  int
 )
 
 func init() {
-	proxies = make(map[string]*serviced.Proxy)
+	proxies = make(map[string]*Proxy)
 	vifs = NewVIFRegistry()
 	nextip = 1
 }

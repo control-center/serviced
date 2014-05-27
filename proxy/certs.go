@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	proxyCertPEM = `-----BEGIN CERTIFICATE-----
+	InsecureCertPEM = `-----BEGIN CERTIFICATE-----
 MIICaDCCAdGgAwIBAgIJAMsgJclpgZqTMA0GCSqGSIb3DQEBBQUAME0xCzAJBgNV
 BAYTAlVTMQ4wDAYDVQQIDAVUZXhhczEPMA0GA1UEBwwGQXVzdGluMQ8wDQYDVQQK
 DAZaZW5vc3MxDDAKBgNVBAsMA0RldjAeFw0xMzA4MzAyMTE0MTBaFw0yMzA4Mjgy
@@ -22,7 +22,7 @@ NiSsD6AUC/PVunaTs6ivwEFXcz7HFd94jsLfnEbfQ+tsTzct72vLknORxsuwAxpL
 hXBOYfF12lYGYNlRN1HKFLSXysyHwCcWtGz886EUwzUWeCKOm7YGHYHUBaY=
 -----END CERTIFICATE-----`
 
-	proxyKeyPEM = `-----BEGIN PRIVATE KEY-----
+	InsecureKeyPEM = `-----BEGIN PRIVATE KEY-----
 MIICeAIBADANBgkqhkiG9w0BAQEFAASCAmIwggJeAgEAAoGBAMmPDNXl4FPkCWMo
 P198yjn2X9jSjgtTxBcwifRFM9LTJAKxygpt8one2NiXItgTBpTykoG6d8ExnN9j
 jbUmMQTse5rrJqoJg9SyAA06C1Bmlz4qJZjKb/hrLWjBaqZFmHzQrZZ83E6rjDft
@@ -48,7 +48,7 @@ func TempCertFile() (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	fmt.Fprint(f, proxyCertPEM)
+	fmt.Fprint(f, InsecureCertPEM)
 	return f.Name(), nil
 }
 
@@ -60,6 +60,6 @@ func TempKeyFile() (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	fmt.Fprint(f, proxyKeyPEM)
+	fmt.Fprint(f, InsecureKeyPEM)
 	return f.Name(), nil
 }

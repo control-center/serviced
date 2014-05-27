@@ -1,4 +1,4 @@
-package serviced
+package container
 
 import (
 	"github.com/zenoss/glog"

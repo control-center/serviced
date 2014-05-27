@@ -36,7 +36,7 @@ The netcat (nc) command is particularly useful for this:
 
     nc 127.0.0.1 4321
 */
-package serviced
+package container
 
 import (
 	"crypto/tls"
@@ -44,7 +44,6 @@ import (
 	"github.com/zenoss/glog"
 	"io"
 	"net"
-	"strconv"
 	"strings"
 )
 
@@ -155,16 +154,12 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 	//       in play that port will be replaced with the TCPMux port, so
 	//       we grab it here in order to be able to create a proper Zen-Service
 	//       header later.
-	remotePort, err := strconv.Atoi(strings.Split(remoteAddr, ":")[1])
-	if err != nil {
-		glog.Error("Error (strconv.Atoi): ", err)
-	}
-
 	if p.tcpMuxPort > 0 {
 		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.tcpMuxPort)
 	}
 
 	var remote net.Conn
+	var err error
 
 	glog.V(2).Infof("Dialing hostAgent:%v to proxy %v<->%v<->%v",
 		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
@@ -180,7 +175,7 @@ func (p *Proxy) proxy(local net.Conn, address string) {
 	}
 
 	if p.tcpMuxPort > 0 {
-		io.WriteString(remote, fmt.Sprintf("Zen-Service: %s/%d\n\n", p.name, remotePort))
+		io.WriteString(remote, fmt.Sprintf("%s\n", address))
 	}
 
 	glog.V(2).Infof("Using   hostAgent:%v to proxy %v<->%v<->%v<->%v",
