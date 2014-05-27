@@ -3,15 +3,12 @@ package web
 import (
 	"fmt"
 	"mime"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
-	"time"
 
-	vhost "github.com/daniel-garcia/go-vhost"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -174,56 +171,22 @@ func (sc *ServiceConfig) Serve() {
 	}
 }
 
-const muxTimeout = time.Second * 5
-
-type defaultListenerT struct {
-	httpMuxer *vhost.HTTPMuxer
-}
-
-func (m *defaultListenerT) Accept() (net.Conn, error) {
-	conn, err := m.httpMuxer.NextError()
-	switch err.(type) {
-	case vhost.NotFound:
-		return conn, nil
-	}
-	return conn, err
-}
-
-func (m *defaultListenerT) Close() error {
-	return m.Close()
-}
-
-func (m *defaultListenerT) Addr() net.Addr {
-	return &net.TCPAddr{}
-}
-
 // ServeUI is a blocking call that runs the UI hander on port :7878
 func (sc *ServiceConfig) ServeUI() {
-
-	l, err := net.Listen("tcp", ":7878")
-	if err != nil {
-		glog.Fatalf("could not listen on :7878, %s", err)
-	}
-
-	mux, err := vhost.NewHTTPMuxer(l, muxTimeout)
-	if err != nil {
-		glog.Fatalf("could not mux: %s", err)
-	}
-	defaultListener := &defaultListenerT{mux}
-
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	defaultHandler := rest.ResourceHandler{
+	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
 
 	routes := sc.getRoutes()
-	defaultHandler.SetRoutes(routes...)
-	server := http.Server{
-		Handler: &defaultHandler,
+	handler.SetRoutes(routes...)
+
+	// FIXME: bubble up these errors to the caller
+	if err := http.ListenAndServe(":7878", &handler); err != nil {
+		glog.Fatalf("could not setup internal web server: %s", err)
 	}
-	server.Serve(defaultListener)
 }
 
 var methods = []string{"GET", "POST", "PUT", "DELETE"}
