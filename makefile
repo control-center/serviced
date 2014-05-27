@@ -71,7 +71,7 @@ dockerbuildx: docker_ok
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
 	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build make build_binary pkgs
+	zenoss/serviced-build make IN_DOCKER=1 build_binary pkgs
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build
