@@ -42,10 +42,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -201,7 +201,6 @@ func (d *daemon) startMaster() error {
 	return nil
 }
 
-
 func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
 
 	if len(certPEMFile) > 0 {
@@ -225,22 +224,22 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 
 func createMuxListener() (net.Listener, error) {
 	if options.TLS {
-               glog.V(1).Info("using TLS on mux")
+		glog.V(1).Info("using TLS on mux")
 
 		proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 		if err != nil {
 			return nil, err
 		}
 
-               cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
-               if err != nil {
-                       glog.Error("ListenAndMux Error (tls.X509KeyPair): ", err)
-                     	return nil, err
-               }
+		cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
+		if err != nil {
+			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", err)
+			return nil, err
+		}
 
-               tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
-               glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
-               return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
+		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
+		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
+		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
 
 	} else {
 		return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
@@ -392,7 +391,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Port, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 
