@@ -29,6 +29,7 @@ build_binary:
 	else \
 		cd isvcs && make buildgo; \
 	fi
+	cd web && make build-js
 
 go:
 	cd serviced && go build
