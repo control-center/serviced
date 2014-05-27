@@ -30,15 +30,19 @@ var mountTestCases = []mountTestCaseT{
 func TestMount(t *testing.T) {
 
 	// save current command factory to stack for later restoration
-	defer func(c func(string, ...string) command) {
+	defer func(c func(string, ...string) command, look func(string) (string, error)) {
 		commandFactory = c
-	}(commandFactory)
+		lookPath = look
+	}(commandFactory, lookPath)
 
 	commandFactory = func(name string, args ...string) command {
 		return &mockCommand{
 			name: name,
 			args: args,
 		}
+	}
+	lookPath = func(name string) (string, error) {
+		return "/sbin/mount.nfs4", nil
 	}
 
 	for _, testcase := range mountTestCases {
