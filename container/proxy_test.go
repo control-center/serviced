@@ -39,21 +39,21 @@ func TestNoMux(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not bind to a port for test")
 	}
-	proxy, err := NewProxy("foo", 0, false, local)
+	prxy, err := newProxy("foo", 0, false, local)
 	if err != nil {
-		t.Fatalf("Could not create a proxy: %s", err)
+		t.Fatalf("Could not create a prxy: %s", err)
 	}
 	addresses := []string{remote.Addr().String()}
-	proxy.SetNewAddresses(addresses)
+	prxy.SetNewAddresses(addresses)
 	stringChan := stringAcceptor(remote)
 	conn, err := net.Dial("tcp4", local.Addr().String())
 	if err != nil {
-		t.Fatalf("Could not create a connection to the proxyport: %s", err)
+		t.Fatalf("Could not create a connection to the prxyport: %s", err)
 	}
 	msg := "foo"
 	n, err := conn.Write([]byte(msg))
 	if err != nil {
-		t.Fatalf("Failed to write msg to proxy: %s", err)
+		t.Fatalf("Failed to write msg to prxy: %s", err)
 	}
 	if n != len(msg) {
 		t.Fatalf("Expected %d bytes to be written, only %d were written", len(msg), n)

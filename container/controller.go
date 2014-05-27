@@ -506,7 +506,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
-	var unused int = 0
+	var unused int
 	for {
 		select {
 		case <-time.After(interval):
@@ -557,11 +557,11 @@ func (c *Controller) handleRemotePorts() {
 		sort.Strings(addresses)
 
 		var (
-			proxy *Proxy
+			prxy *proxy
 			ok    bool
 		)
 
-		if proxy, ok = proxies[key]; !ok {
+		if prxy, ok = proxies[key]; !ok {
 			glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
 
 			// setup a new proxy
@@ -570,7 +570,7 @@ func (c *Controller) handleRemotePorts() {
 				glog.Errorf("Could not bind to port: %s", err)
 				continue
 			}
-			proxy, err = NewProxy(
+			prxy, err = newProxy(
 				fmt.Sprintf("%v", endpointList[0]),
 				uint16(c.options.Mux.Port),
 				c.options.Mux.TLS,
@@ -580,8 +580,8 @@ func (c *Controller) handleRemotePorts() {
 				continue
 			}
 
-			glog.Infof("Success binding port: %s -> %+v", key, proxy)
-			proxies[key] = proxy
+			glog.Infof("Success binding port: %s -> %+v", key, prxy)
+			proxies[key] = prxy
 
 			if ep := endpointList[0]; ep.VirtualAddress != "" {
 				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
@@ -591,19 +591,19 @@ func (c *Controller) handleRemotePorts() {
 				}
 			}
 		}
-		proxy.SetNewAddresses(addresses)
+		prxy.SetNewAddresses(addresses)
 	}
 
 }
 
 var (
-	proxies map[string]*Proxy
+	proxies map[string]*proxy
 	vifs    *VIFRegistry
 	nextip  int
 )
 
 func init() {
-	proxies = make(map[string]*Proxy)
+	proxies = make(map[string]*proxy)
 	vifs = NewVIFRegistry()
 	nextip = 1
 }
