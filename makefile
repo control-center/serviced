@@ -26,13 +26,15 @@ build_binary:
 	cd serviced && make
 	if [ "$(IN_DOCKER)" = "0" ]; then \
 		cd isvcs && make; \
+	else; \
+		cd isvcs && make buildgo; \
 	fi
 
 go:
 	cd serviced && go build
 
 pkgs:
-	cd pkg && make rpm && make deb
+	cd pkg && make IN_DOCKER=$(IN_DOCKER) rpm && make IN_DOCKER=$(IN_DOCKER) deb
 
 dockerbuild_binaryx: docker_ok
 	docker build -t zenoss/serviced-build build
@@ -44,7 +46,8 @@ dockerbuild_binaryx: docker_ok
 	-v `pwd`/pkg/build/tmp:/tmp \
 	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
 	zenoss/serviced-build make IN_DOCKER=1 build_binary
-	cd isvcs && make
+	serviced/godep restore
+	cd isvcs && make isvcs_repo
 
 dockerbuild_binary: docker_ok
 	docker build -t zenoss/serviced-build build
