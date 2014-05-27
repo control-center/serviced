@@ -26,7 +26,7 @@ build_binary:
 	cd serviced && make
 	if [ "$(IN_DOCKER)" = "0" ]; then \
 		cd isvcs && make; \
-	else; \
+	else \
 		cd isvcs && make buildgo; \
 	fi
 
