@@ -67,6 +67,7 @@ dockerbuild_binary: docker_ok
 
 dockerbuildx: docker_ok
 	docker build -t zenoss/serviced-build build
+	cd isvcs && make export
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
