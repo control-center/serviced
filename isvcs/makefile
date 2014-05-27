@@ -12,20 +12,20 @@ COMPONENT_NAMES    := es zk opentsdb logstash query consumer celery
 HERE               := $(shell pwd)
 UID                := $(shell id -u)
 BUILD_DIR          := build
-BUILD_REPO         := zenoss/isvcs_build
-REPO               := zctrl/isvcs
+BUILD_REPO         := quay.io/zenossinc/isvcs_build
+REPO               := quay.io/zenossinc/isvcs
 TAG                := v8
 REPO_DIR           := images
-REPO_EXISTS        := .repo_tag_exists_$(TAG)
-BUILD_REPO_EXISTS  := .build_repo_exists
 EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname).tar.gz)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 
-all: buildgo $(BUILD_REPO_EXISTS) $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
+all: buildgo isvcs_repo
 
-$(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
+export: $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
+
+$(REPO_DIR)/$(REPO)/$(TAG).tar.gz: isvcs_repo
 	mkdir -p $(REPO_DIR)/$(REPO)
 	rm -f $(EXPORT_CONTAINER_ID)
 	docker run --cidfile=$(EXPORT_CONTAINER_ID) -d $(REPO):$(TAG) echo ""
@@ -35,24 +35,30 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: $(REPO_EXISTS)
 buildgo:
 	go build
 
-$(BUILD_REPO_EXISTS):
-	docker build -t $(BUILD_REPO) build_img
-	@touch $(@)
+build_repo:
+	[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \
+		|| docker pull $(BUILD_REPO) \
+		|| docker build -t $(BUILD_REPO) build_img
 
 $(REPO_DIR):
 	mkdir -p $(@)
 
-$(REPO_EXISTS): $(REPO_DIR) $(COMPONENT_ARCHIVES)
-	docker build -t $(REPO):$(TAG) $(BUILD_DIR)
-	docker images $(REPO) | grep $(TAG) 2>&1 > /dev/null && touch $(REPO_EXISTS)
+isvcs_repo: $(REPO_DIR)
+	if [ -z "$$(docker images $(REPO) 2>/dev/null | awk {'print $$2'} | grep $(TAG))" ]; then \
+		docker pull $(REPO):$(TAG); \
+	fi; \
+	if [ -z "$$(docker images $(REPO) 2>/dev/null | awk {'print $$2'} | grep $(TAG))" ]; then \
+		$(MAKE) $(COMPONENT_ARCHIVES); \
+		docker build -t $(REPO):$(TAG) $(BUILD_DIR); \
+	fi
 
-$(BUILD_DIR)/%.tar.gz:
+$(BUILD_DIR)/%.tar.gz: build_repo
 	docker run --rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
 		bash -c "make TARGET=/tmp/out; chown -R $(UID):$(UID) /tmp/out/$(notdir $(@))"
 
 clean:
 	rm -rf $(BUILD_DIR)/*.tar.gz
-	rm -f $(BUILD_REPO_EXISTS) $(REPO_EXISTS) *.gz *.tar
+	rm -f *.gz *.tar
 	docker rmi $(REPO):$(TAG) >/dev/null 2>&1 || exit 0 
 
 mrclean: clean
