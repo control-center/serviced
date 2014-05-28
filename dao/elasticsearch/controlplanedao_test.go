@@ -474,65 +474,6 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	}
 }
 
-//func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
-//	testService := service.Service{
-//		Id: "TestDaoValidServiceForStart_ServiceID",
-//		Endpoints: []service.ServiceEndpoint{
-//			service.ServiceEndpoint{
-//				EndpointDefinition: servicedefinition.EndpointDefinition{
-//					Name:        "TestDaoValidServiceForStart_EndpointName",
-//					Protocol:    "tcp",
-//					PortNumber:  8081,
-//					Application: "websvc",
-//					Purpose:     "import",
-//				},
-//			},
-//		},
-//	}
-//	err := dt.Dao.validateServicesForStarting(&testService, nil)
-//	if err != nil {
-//		t.Error("Services failed validation for starting: ", err)
-//	}
-//}
-//
-//func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
-//	testService := service.Service{
-//		Id: "TestDaoInvalidServiceForStart_ServiceID",
-//		Endpoints: []service.ServiceEndpoint{
-//			service.ServiceEndpoint{
-//				EndpointDefinition: servicedefinition.EndpointDefinition{
-//					Name:        "TestDaoInvalidServiceForStart_EndpointName",
-//					Protocol:    "tcp",
-//					PortNumber:  8081,
-//					Application: "websvc",
-//					Purpose:     "import",
-//					AddressConfig: servicedefinition.AddressResourceConfig{
-//						Port:     8081,
-//						Protocol: commons.TCP,
-//					},
-//				},
-//			},
-//		},
-//	}
-//	err := dt.Dao.validateServicesForStarting(&testService, nil)
-//	if err == nil {
-//		t.Error("Services should have failed validation for starting...")
-//	}
-//}
-
-//func (dt *DaoTest) TestRenameImageID(t *C) {
-//	imageId, err := dt.Dao.renameImageID("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
-//	if err != nil {
-//		t.Errorf("unexpected failure renamingImageID: %s", err)
-//		t.FailNow()
-//	}
-//	expected := "localhost:5000/X/daily-zenoss5-core"
-//	if imageId != expected {
-//		t.Errorf("expected image '%s' got '%s'", expected, imageId)
-//		t.FailNow()
-//	}
-//}
-
 func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.ID)
