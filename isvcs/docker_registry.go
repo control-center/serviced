@@ -23,7 +23,7 @@ func init() {
 			Name:        "docker-registry",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     `cd /docker-registry && ./setup-configs.sh && export DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml && exec docker-registry`,
+			Command:     `cd /docker-registry && ./setup-configs.sh && export SQLALCHEMY_INDEX_DATABASE=sqlite:////tmp/registry/docker-registry.db && export SEARCH_BACKEND=sqlalchemy && export DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml && exec docker-registry`,
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,
