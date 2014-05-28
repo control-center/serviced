@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -95,100 +94,51 @@ func (m *PortMap) String() string {
 	return strings.Join(mapping, " ")
 }
 
-// ServiceMap maps services to their parent
-type ServiceMap map[string][]*service.Service
+// ServiceMap maps services by its service id
+type ServiceMap map[string]*service.Service
 
 // NewServiceMap creates a new service map from a slice of services
 func NewServiceMap(services []*service.Service) ServiceMap {
-	var m = make(ServiceMap)
-	for i := range services {
-		m.Add(services[i])
+	var smap = make(ServiceMap)
+	for _, s := range services {
+		smap.Add(s)
 	}
-	return m
+	return smap
 }
+
+// Get gets a service from the service map identified by its service id
+func (m ServiceMap) Get(serviceID string) *service.Service { return m[serviceID] }
 
 // Add appends a service to the service map
-func (m *ServiceMap) Add(service *service.Service) {
-	list := (*m)[service.ParentServiceID]
-	(*m)[service.ParentServiceID] = append(list, service)
-}
-
-// Get procures services by parent id
-func (m *ServiceMap) Get(parentID string) []*service.Service {
-	ss := NewServiceSlice(m.getDepths())
-	ss.services = (*m)[parentID]
-
-	if !sort.IsSorted(ss) {
-		sort.Sort(ss)
+func (m ServiceMap) Add(service *service.Service) error {
+	if _, ok := m[service.Id]; ok {
+		return fmt.Errorf("service already exists")
 	}
-
-	return ss.services
+	m[service.Id] = service
+	return nil
 }
 
-func (m *ServiceMap) getDepths() map[string]int {
-	var depths = make(map[string]int)
-	var setdepth func(string) int
-	setdepth = func(id string) int {
-		if d, ok := depths[id]; ok {
-			return d
-		}
+// Update updates an existing service within the ServiceMap.  If the service
+// not exist, it gets created.
+func (m ServiceMap) Update(service *service.Service) {
+	m[service.Id] = service
+}
 
-		depths[id] = -1
-		for _, s := range (*m)[id] {
-			d := setdepth(s.Id)
-			if d > depths[id] {
-				depths[id] = d
-			}
-		}
-		depths[id]++
-		return depths[id]
+// Remove removes a service from the service map
+func (m ServiceMap) Remove(serviceID string) error {
+	if _, ok := m[serviceID]; !ok {
+		return fmt.Errorf("service not found")
 	}
+	delete(m, serviceID)
+	return nil
+}
 
-	for id := range *m {
-		setdepth(id)
+// Tree returns a map of parent services and its list of children
+func (m ServiceMap) Tree() map[string][]string {
+	tree := make(map[string][]string)
+	for id, svc := range m {
+		children := tree[svc.ParentServiceID]
+		tree[svc.ParentServiceID] = append(children, id)
 	}
-
-	return depths
-}
-
-// ServiceSlice organizes a list of service pointers by depth and alphabetically
-type ServiceSlice struct {
-	depths   map[string]int
-	services []*service.Service
-}
-
-// NewServiceSlice initializes a new service slice object
-func NewServiceSlice(depths map[string]int) *ServiceSlice {
-	return &ServiceSlice{depths: depths}
-}
-
-// Add appends a new service to the object
-func (s *ServiceSlice) Add(service *service.Service) {
-	s.services = append(s.services, service)
-}
-
-// Get procures a service by index
-func (s *ServiceSlice) Get(i int) *service.Service {
-	return s.services[i]
-}
-
-func (s *ServiceSlice) Len() int {
-	return len(s.services)
-}
-
-func (s *ServiceSlice) Less(i, j int) bool {
-	serviceI := s.Get(i)
-	serviceJ := s.Get(j)
-
-	if s.depths[serviceI.Id] == s.depths[serviceJ.Id] {
-		return serviceI.Name < serviceJ.Name
-	}
-
-	return s.depths[serviceI.Id] < s.depths[serviceJ.Id]
-}
-
-func (s *ServiceSlice) Swap(i, j int) {
-	temp := s.Get(i)
-	s.services[i] = s.Get(j)
-	s.services[j] = temp
+	return tree
 }

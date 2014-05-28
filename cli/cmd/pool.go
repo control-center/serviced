@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -127,12 +127,12 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 			fmt.Println(string(jsonPool))
 		}
 	} else {
-		tablePool := newTable(0, 8, 2)
-		tablePool.PrintRow("ID", "PARENT", "CORE", "MEM", "PRI")
+		tablePool := newtable(0, 8, 2)
+		tablePool.printrow("ID", "PARENT", "CORE", "MEM", "PRI")
 		for _, p := range pools {
-			tablePool.PrintRow(p.ID, p.ParentID, p.CoreLimit, p.MemoryLimit, p.Priority)
+			tablePool.printrow(p.ID, p.ParentID, p.CoreLimit, p.MemoryLimit, p.Priority)
 		}
-		tablePool.Flush()
+		tablePool.flush()
 	}
 }
 
@@ -220,11 +220,11 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newTable(0, 8, 2)
-		tableIPs.PrintRow("Interface Name", "IP Address")
+		tableIPs := newtable(0, 8, 2)
+		tableIPs.printrow("Interface Name", "IP Address")
 		for _, ip := range ips.HostIPs {
-			tableIPs.PrintRow(ip.InterfaceName, ip.IPAddress)
+			tableIPs.printrow(ip.InterfaceName, ip.IPAddress)
 		}
-		tableIPs.Flush()
+		tableIPs.flush()
 	}
 }
