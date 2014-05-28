@@ -18,9 +18,10 @@ trap "rm -f ${OUTPUT} ${BASH_SOURCE[0]}" EXIT
 {{{{CHDIR}}}} || exit 2
 for i in {1..10}; do
 	rm -f ${OUTPUT}
-	script -q -e -c "{{{{COMMAND}}}}" ${OUTPUT}
+	script -q -e -c "{{{{COMMAND}}}}" ${OUTPUT} &>/dev/null
 	RESULT=$?
 	sleep 0.1  # allow time for OUTPUT to be flushed
+	awk '/^setns/{next} {print}' ${OUTPUT}
 	grep setns ${OUTPUT} >/dev/null || exit ${RESULT}
 done
 {{{{COMMAND}}}}
