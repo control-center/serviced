@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/servicedversion"
