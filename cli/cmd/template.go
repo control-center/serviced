@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -151,12 +151,11 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 			fmt.Println(string(jsonTemplate))
 		}
 	} else {
-		tableTemplate := newTable(0, 8, 2)
-		tableTemplate.PrintRow("TEMPLATEID", "NAME", "DESCRIPTION")
+		tableTemplate := newtable(os.Stdout, "TEMPLATEID", "NAME", "DESCRIPTION")
 		for _, t := range templates {
-			tableTemplate.PrintRow(t.ID, t.Name, t.Description)
+			tableTemplate.addrow(t.ID, t.Name, t.Description)
 		}
-		tableTemplate.Flush()
+		tableTemplate.flush()
 	}
 }
 

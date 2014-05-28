@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/serviced/cli/api"
 )
 
@@ -134,12 +134,11 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			fmt.Println(string(jsonHost))
 		}
 	} else {
-		tableHost := newTable(0, 8, 2)
-		tableHost.PrintRow("ID", "POOL", "NAME", "ADDR", "CORES", "MEM", "NETWORK")
+		tableHost := newtable(os.Stdout, "ID", "POOL", "NAME", "ADDR", "CORES", "MEM", "NETWORK")
 		for _, h := range hosts {
-			tableHost.PrintRow(h.ID, h.PoolID, h.Name, h.IPAddr, h.Cores, h.Memory, h.PrivateNetwork)
+			tableHost.addrow(h.ID, h.PoolID, h.Name, h.IPAddr, h.Cores, h.Memory, h.PrivateNetwork)
 		}
-		tableHost.Flush()
+		tableHost.flush()
 	}
 }
 

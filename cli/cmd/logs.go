@@ -6,7 +6,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"os"
 )
 
