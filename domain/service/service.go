@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,11 @@ const (
 	SVCRun     = 1
 	SVCStop    = 0
 	SVCRestart = -1
+)
+
+var (
+	tenantIDs    = make(map[string]string)
+	tenanIDMutex = sync.RWMutex{}
 )
 
 // Service A Service that can run in serviced.
@@ -257,25 +263,51 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
+func lookUpTenant(svcID string) (string, bool) {
+	tenanIDMutex.RLock()
+	defer tenanIDMutex.RUnlock()
+	tID, found := tenantIDs[svcID]
+	return tID, found
+}
+
+func updateTenants(tenantID string, svcIDs ...string) {
+	tenanIDMutex.Lock()
+	defer tenanIDMutex.Unlock()
+	for _, id := range svcIDs {
+		tenantIDs[id] = tenantID
+	}
+}
+
 // GetTenantID calls its GetService function to get the tenantID
 func (s Service) GetTenantID(gs GetService) (string, error) {
+	if tID, found := lookUpTenant(s.Id); found {
+		return tID, nil
+	}
+
+	visitedIDs := make([]string, 0)
+	visitedIDs = append(visitedIDs, s.Id)
 	var err error
 	svc := s
 	for svc.ParentServiceID != "" {
+		if tID, found := lookUpTenant(s.ParentServiceID); found {
+			return tID, nil
+		}
 		svc, err = gs(svc.ParentServiceID)
 		if err != nil {
 			return "", err
 		}
+		visitedIDs = append(visitedIDs, svc.Id)
 	}
+
+	updateTenants(svc.Id, visitedIDs...)
 	return svc.Id, nil
 }
-
 
 // GetPath uses the GetService function to determine the / delimited name path i.e. /test/app/sevicename
 func (s Service) GetPath(gs GetService) (string, error) {
 	var err error
 	svc := s
-	path :=fmt.Sprintf("/%s", s.Name)
+	path := fmt.Sprintf("/%s", s.Name)
 	for svc.ParentServiceID != "" {
 		svc, err = gs(svc.ParentServiceID)
 		if err != nil {
