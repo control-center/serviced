@@ -558,7 +558,7 @@ func (c *Controller) handleRemotePorts() {
 
 		var (
 			prxy *proxy
-			ok    bool
+			ok   bool
 		)
 
 		if prxy, ok = proxies[key]; !ok {
