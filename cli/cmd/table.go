@@ -29,36 +29,45 @@ func init() {
 	treeCharset = treeUTF8 // default charset for tree
 }
 
+// treemap is a list of node ids mapped to its respective parent
 type treemap map[string][]string
 
+// sort organizes a treemap by the number of child nodes
 func (t treemap) sort() {
 	for branch := range t {
 		sort.Sort(&leaf{t, branch})
 	}
 }
 
+// leaf is a child node of a tree map, identified by its parent node
 type leaf struct {
 	tmap   treemap
 	branch string
 }
 
+// Len implements sort.Sort
 func (l *leaf) Len() int { return len(l.tmap[l.branch]) }
 
+// Less implements sort.Sort
 func (l *leaf) Less(i, j int) bool { return len(l.tmap[l.branch][i]) < len(l.tmap[l.branch][j]) }
 
+// Swap implements sort.Sort
 func (l *leaf) Swap(i, j int) {
 	l.tmap[l.branch][i], l.tmap[l.branch][j] = l.tmap[l.branch][j], l.tmap[l.branch][i]
 }
 
+// columnmap takes a row/column mapping and transforms it to a column/row mapping
 type columnmap struct {
 	columns [][]string
 	widths  []int
 }
 
+// newcolumnmap instantiates a new column map
 func newcolumnmap(columns [][]string) *columnmap {
 	return new(columnmap).init(columns)
 }
 
+// init is an initializer for a column map
 func (c *columnmap) init(columns [][]string) *columnmap {
 	c.columns = columns
 	c.widths = make([]int, len(columns))
@@ -68,7 +77,9 @@ func (c *columnmap) init(columns [][]string) *columnmap {
 	return c
 }
 
+// width calculates the max row width for a given column
 func (c *columnmap) width(index int) int {
+	// if the width is not defined, calculate and store the value
 	if c.widths[index] < 0 {
 		var w int
 		for _, row := range c.columns[index] {
@@ -81,11 +92,14 @@ func (c *columnmap) width(index int) int {
 	return c.widths[index]
 }
 
+// cell splits a cell into the "cell's rows" for printing
 func (c *columnmap) cell(x, y, maxwidth int) (int, []string) {
+	// figure out the max width of the cell
 	if w := c.width(y); w < maxwidth {
 		maxwidth = w
 	}
 
+	// getHunks is a recursive call that returns the "cell's rows"
 	var getHunks func(cell string, width int) []string
 	getHunks = func(cell string, width int) []string {
 		if strings.TrimSpace(cell) == "" {
@@ -102,6 +116,7 @@ func (c *columnmap) cell(x, y, maxwidth int) (int, []string) {
 	return maxwidth, getHunks(c.columns[y][x], maxwidth)
 }
 
+// table is the ascii table formatter
 type table struct {
 	writer   io.Writer
 	colwidth int
@@ -112,7 +127,9 @@ type table struct {
 	islast    bool
 }
 
+// newtable instantiates a new table formatter
 func newtable(writer io.Writer, header ...interface{}) *table {
+	// parse the headers into strings
 	headerstr := make([]string, len(header))
 	for i, h := range header {
 		headerstr[i] = fmt.Sprintf("%v", h)
@@ -124,6 +141,7 @@ func newtable(writer io.Writer, header ...interface{}) *table {
 	}
 }
 
+// numcols returns the max number of columns for the table
 func (tbl *table) numcols() int {
 	maxcols := len(tbl.header)
 	for _, row := range tbl.rows {
@@ -134,6 +152,7 @@ func (tbl *table) numcols() int {
 	return maxcols
 }
 
+// mapcols creates a new columnmap
 func (tbl *table) mapcols() *columnmap {
 	cols := tbl.numcols()
 	cmap := make([][]string, cols)
@@ -156,6 +175,7 @@ func (tbl *table) mapcols() *columnmap {
 	return newcolumnmap(cmap)
 }
 
+// printrow prints the row to the writer
 func (tbl *table) printrow(cmap *columnmap, index int) {
 	isHeader := (index == 0)
 
@@ -204,6 +224,7 @@ func (tbl *table) printrow(cmap *columnmap, index int) {
 	}
 }
 
+// flush flushes the output
 func (tbl *table) flush() {
 	cmap := tbl.mapcols()
 	// print the header
@@ -215,6 +236,7 @@ func (tbl *table) flush() {
 	}
 }
 
+// addrow adds a new row to the table
 func (tbl *table) addrow(row ...interface{}) {
 	rowstr := make([]string, len(row))
 	for i, r := range row {
@@ -223,6 +245,7 @@ func (tbl *table) addrow(row ...interface{}) {
 	tbl.rows = append(tbl.rows, rowstr)
 }
 
+// add treerow adds a new treerow to the table
 func (tbl *table) addtreerow(row ...interface{}) {
 	var idchar string
 	if tbl.islast {
@@ -234,6 +257,7 @@ func (tbl *table) addtreerow(row ...interface{}) {
 	tbl.addrow(row...)
 }
 
+// indent adds an indentation for a tree row
 func (tbl *table) indent() {
 	if tbl.islast {
 		tbl.paragraph = append(tbl.paragraph, "  ")
@@ -242,8 +266,10 @@ func (tbl *table) indent() {
 	}
 }
 
+// dedent removes an indentation for a tree row
 func (tbl *table) dedent() { tbl.paragraph = tbl.paragraph[:len(tbl.paragraph)-1] }
 
+// format tree formats the tree for printing
 func (tbl *table) formattree(tmap treemap, root string, getrow func(string) []interface{}) {
 	tmap.sort()
 
