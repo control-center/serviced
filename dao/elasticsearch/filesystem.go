@@ -6,7 +6,6 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/volume"
 	zkSnapshot "github.com/zenoss/serviced/zzk/snapshot"
@@ -43,13 +42,10 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 
 // Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error {
-	ctx := datastore.Get()
-	service, err := this.facade.GetService(ctx, serviceID)
-	if err != nil {
-		return err
-	}
-	tenantID, err := service.GetTenantID(serviceGetter(ctx, this.facade))
-	if err != nil {
+	var tenantID string
+	var err error
+	if err = this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
 		return err
 	}
 	*label, err = this.dfs.Snapshot(tenantID)

@@ -68,13 +68,12 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, servic
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
-	getService := serviceGetter(datastore.Get(), this.facade)
-	svc, err := getService(serviceID)
-	if err != nil {
+	if tid, err := this.facade.GetTenantID(datastore.Get(), serviceID); err == nil{
+		*tenantId = tid
+        return nil
+	}else{
 		return err
 	}
-	*tenantId, err = svc.GetTenantID(getService)
-	return err
 }
 
 // Get a service endpoint.

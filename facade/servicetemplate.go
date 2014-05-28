@@ -111,7 +111,7 @@ func (f *Facade) DeployService(ctx datastore.Context, parentID string, sd servic
 		return "", fmt.Errorf("could not get parent '%': %s", parentID, err)
 	}
 
-	tenantId, err := f.getTenantID(ctx, *parent)
+	tenantId, err := f.GetTenantID(ctx, parentID)
 	if err != nil {
 		return "", fmt.Errorf("getting tenant id: %s", err)
 	}

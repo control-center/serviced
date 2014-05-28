@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -146,21 +147,12 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (f *Facade) GetTenantId(ctx datastore.Context, serviceID string) (string, error) {
+func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	glog.V(2).Infof("Facade.GetTenantId: %s", serviceID)
-	svc, err := f.getService(ctx, serviceID)
-	if err != nil {
-		return "", err
-	}
-	return f.getTenantID(ctx, svc)
-}
-
-// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (f *Facade) getTenantID(ctx datastore.Context, svc service.Service) (string, error) {
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
-	return svc.GetTenantID(gs)
+	return getTenantID(serviceID, gs)
 }
 
 // Get a service endpoint.
@@ -430,12 +422,12 @@ func (f *Facade) getServices(ctx datastore.Context, request dao.EntityRequest) (
 }
 
 //
-func (f *Facade) getTenantIdAndPath(ctx datastore.Context, svc service.Service) (string, string, error) {
+func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) (string, string, error) {
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
 
-	tenantID, err := svc.GetTenantID(gs)
+	tenantID, err := f.GetTenantID(ctx, svc.Id)
 	if err != nil {
 		return "", "", err
 	}
@@ -581,7 +573,7 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []*service.Service)
 
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
 	glog.V(3).Infof("fillServiceConfigs for %s", svc.Id)
-	tenantID, servicePath, err := f.getTenantIdAndPath(ctx, *svc)
+	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
 	if err != nil {
 		return err
 	}
@@ -652,7 +644,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 			return err
 		}
 
-		tenantID, servicePath, err := f.getTenantIdAndPath(ctx, *svc)
+		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
 		if err != nil {
 			return err
 		}
@@ -726,3 +718,50 @@ func (z *zkf) removeService(id string) error {
 func (z *zkf) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	return z.zkDao.GetServiceStates(serviceStates, serviceIds...)
 }
+
+func lookUpTenant(svcID string) (string, bool) {
+	tenanIDMutex.RLock()
+	defer tenanIDMutex.RUnlock()
+	tID, found := tenantIDs[svcID]
+	return tID, found
+}
+
+func updateTenants(tenantID string, svcIDs ...string) {
+	tenanIDMutex.Lock()
+	defer tenanIDMutex.Unlock()
+	for _, id := range svcIDs {
+		tenantIDs[id] = tenantID
+	}
+}
+
+// GetTenantID calls its GetService function to get the tenantID
+func getTenantID(svcID string, gs service.GetService) (string, error) {
+	if tID, found := lookUpTenant(svcID); found {
+		return tID, nil
+	}
+
+	svc, err := gs(svcID)
+	if err != nil {
+		return "", err
+	}
+	visitedIDs := make([]string, 0)
+	visitedIDs = append(visitedIDs, svc.Id)
+	for svc.ParentServiceID != "" {
+		if tID, found := lookUpTenant(svc.ParentServiceID); found {
+			return tID, nil
+		}
+		svc, err = gs(svc.ParentServiceID)
+		if err != nil {
+			return "", err
+		}
+		visitedIDs = append(visitedIDs, svc.Id)
+	}
+
+	updateTenants(svc.Id, visitedIDs...)
+	return svc.Id, nil
+}
+
+var (
+	tenantIDs    = make(map[string]string)
+	tenanIDMutex = sync.RWMutex{}
+)
