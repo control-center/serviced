@@ -10,9 +10,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 )
 
@@ -25,17 +23,6 @@ func virtualIPsPath(nodes ...string) string {
 	p := []string{zkVirtualIPs}
 	p = append(p, nodes...)
 	return path.Join(p...)
-}
-
-type virtualIPHandler struct {
-	facade  *facade.Facade
-	conn    client.Connection
-	context datastore.Context
-}
-
-// create a virtual IP handler
-func New(facade *facade.Facade, conn client.Connection, context datastore.Context) *virtualIPHandler {
-	return &virtualIPHandler{facade: facade, conn: conn, context: context}
 }
 
 // return the name of the interface for the virtual IP
@@ -114,36 +101,6 @@ func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
 	}
 
 	return nil, interfaceMap
-}
-
-// retrieve the pool the agent is in
-func (h *virtualIPHandler) getMyPool() (*pool.ResourcePool, error) {
-	hostID, err := utils.HostID()
-	if err != nil {
-		glog.Errorf("Could not get host ID: %v", err)
-		return nil, err
-	}
-
-	myHost, err := h.facade.GetHost(h.context, hostID)
-	if err != nil {
-		glog.Errorf("Cannot retrieve host information for pool host %v", hostID)
-		return nil, err
-	}
-	if myHost == nil {
-		msg := fmt.Sprintf("Host: %v does not exist.", hostID)
-		return nil, errors.New(msg)
-	}
-
-	myPool, err := h.facade.GetResourcePool(h.context, myHost.PoolID)
-	if err != nil {
-		glog.Errorf("Unable to load resource pool %v", myHost.PoolID)
-		return nil, err
-	} else if myPool == nil {
-		msg := fmt.Sprintf("Pool ID: %v could not be found", myHost.PoolID)
-		return nil, errors.New(msg)
-	}
-
-	return myPool, nil
 }
 
 // bind the virtual IP to the agent
@@ -438,26 +395,24 @@ func watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP p
 // responsible for monitoring the virtual IPs in the model
 // if a new virtual IP is added, create a zookeeper node corresponding to the new virtual IP
 // if a virtual IP is removed, remove the zookeeper node corresponding to that virtual IP
-func (h *virtualIPHandler) SyncVirtualIPs() error {
-	myPool, err := h.getMyPool()
-	if err != nil {
-		return err
-	}
-
+func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
+	glog.V(10).Infof("    start SyncVirtualIPs: VirtualIPs: %v", virtualIPs)
+	defer glog.V(10).Info("    end SyncVirtualIPs")
 	// create root VirtualIPs node if it does not exists
-	exists, err := h.conn.Exists(virtualIPsPath())
+	exists, err := conn.Exists(virtualIPsPath())
 	if err != nil {
 		glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
 		return err
 	}
 	if !exists {
-		h.conn.CreateDir(virtualIPsPath())
+		conn.CreateDir(virtualIPsPath())
 		glog.Infof("Syncing virtual IPs... Created %v dir in zookeeper", virtualIPsPath())
 	}
 
-	for _, virtualIP := range myPool.VirtualIPs {
+	// add nodes into zookeeper if the corresponding virtual IP is new to the model
+	for _, virtualIP := range virtualIPs {
 		currentVirtualIPNodePath := virtualIPsPath(virtualIP.IP)
-		exists, err := h.conn.Exists(currentVirtualIPNodePath)
+		exists, err := conn.Exists(currentVirtualIPNodePath)
 		if err != nil {
 			glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, currentVirtualIPNodePath)
 			return err
@@ -466,18 +421,19 @@ func (h *virtualIPHandler) SyncVirtualIPs() error {
 			// creating node in zookeeper for this virtual IP
 			// the HostID is not yet known as the virtual IP is not on a host yet
 			vipNode := virtualIPNode{HostID: "", VirtualIP: virtualIP}
-			h.conn.Create(currentVirtualIPNodePath, &vipNode)
+			conn.Create(currentVirtualIPNodePath, &vipNode)
 			glog.Infof("Syncing virtual IPs... Created %v in zookeeper", currentVirtualIPNodePath)
 		}
 	}
 
-	children, err := h.conn.Children(virtualIPsPath())
+	// remove nodes from zookeeper if the corresponding virtual IP has been removed from the model
+	children, err := conn.Children(virtualIPsPath())
 	if err != nil {
 		return err
 	}
 	for _, child := range children {
 		removedVirtualIP := true
-		for _, virtualIP := range myPool.VirtualIPs {
+		for _, virtualIP := range virtualIPs {
 			if child == virtualIP.IP {
 				removedVirtualIP = false
 				break
@@ -486,7 +442,7 @@ func (h *virtualIPHandler) SyncVirtualIPs() error {
 		if removedVirtualIP {
 			// remove virtual IP from zookeeper
 			nodeToDeletePath := virtualIPsPath(child)
-			if err := h.conn.Delete(nodeToDeletePath); err != nil {
+			if err := conn.Delete(nodeToDeletePath); err != nil {
 				glog.Errorf("conn.Delete failed:%v (attempting to delete %v))", err, nodeToDeletePath)
 				return err
 			}

@@ -24,6 +24,7 @@ type leader struct {
 	dao     dao.ControlPlane
 	conn    coordclient.Connection
 	context datastore.Context
+	poolID  string
 }
 
 // Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
@@ -35,21 +36,22 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 
-	pools, err := facade.GetResourcePools(datastore.Get())
+	allPools, err := facade.GetResourcePools(datastore.Get())
 	if err != nil {
 		glog.Error(err)
 		return
-	} else if pools == nil || len(pools) == 0 {
+	} else if allPools == nil || len(allPools) == 0 {
 		glog.Error("no resource pools found")
 		return
 	}
 
-	for _, pool := range pools {
-		if pool.ID != "default" {
-			glog.Warningf("Non default pool: %v (not currently supported)", pool.ID)
+	for _, aPool := range allPools {
+		if aPool.ID != "default" {
+			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
 			continue
 		}
-		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
+
+		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: aPool.ID}
 		for {
 			if shutdownmode {
 				glog.V(1).Info("Shutdown mode encountered.")
@@ -107,7 +109,6 @@ func (l *leader) watchServices() {
 
 	conn.CreateDir(zzk.SERVICE_PATH)
 
-	virtualIPsHandler := virtualips.New(l.facade, l.conn, l.context)
 	// remove all virtual IPs that may be present before starting the loop
 	if err := virtualips.RemoveAllVirtualIPs(); err != nil {
 		glog.Errorf("RemoveAllVirtualIPs failed: %v", err)
@@ -141,9 +142,15 @@ func (l *leader) watchServices() {
 				break
 			case <-time.After(10 * time.Second):
 				// every 10 seconds, sync the virtual IPs in the model to zookeeper nodes
-				err := virtualIPsHandler.SyncVirtualIPs()
+				myPool, err := l.facade.GetResourcePool(l.context, l.poolID)
 				if err != nil {
-					glog.Warningf("virtualIPsHandler.SyncVirtualIPs: %v", err)
+					glog.Errorf("Unable to load resource pool: %v", l.poolID)
+				} else if myPool == nil {
+					glog.Errorf("Pool ID: %v could not be found", l.poolID)
+				}
+
+				if err := virtualips.SyncVirtualIPs(l.conn, myPool.VirtualIPs); err != nil {
+					glog.Warningf("SyncVirtualIPs: %v", err)
 				}
 			}
 		}
