@@ -82,6 +82,7 @@ start_service() {
 }
 
 test_vhost() {
+    sleep 5
     wget --no-check-certificate -qO- https://websvc.${HOSTNAME} &>/dev/null || return 1
     return 0
 }
