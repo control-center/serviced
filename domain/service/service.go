@@ -257,16 +257,19 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
-// GetTenantID calls its GetService function to get the tenantID
-func (s Service) GetTenantID(gs GetService) (string, error) {
+// GetPath uses the GetService function to determine the / delimited name path i.e. /test/app/sevicename
+func (s Service) GetPath(gs GetService) (string, error) {
 	var err error
-	for s.ParentServiceID != "" {
-		s, err = gs(s.ParentServiceID)
+	svc := s
+	path := fmt.Sprintf("/%s", s.Name)
+	for svc.ParentServiceID != "" {
+		svc, err = gs(svc.ParentServiceID)
 		if err != nil {
 			return "", err
 		}
+		path = fmt.Sprintf("/%s%s", svc.Name, path)
 	}
-	return s.Id, nil
+	return path, nil
 }
 
 //SetAssignment sets the AddressAssignment for the endpoint

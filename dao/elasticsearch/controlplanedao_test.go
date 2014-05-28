@@ -81,7 +81,8 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync", "localhost:5000")
+	zkDAO := zzk.NewZkDao(zclient)
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync", "localhost:5000", zkDAO)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -470,65 +471,6 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	if err != nil || tenantId != "0" {
 		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
 		t.Fail()
-	}
-}
-
-func (dt *DaoTest) TestDaoValidServiceForStart(t *C) {
-	testService := service.Service{
-		Id: "TestDaoValidServiceForStart_ServiceID",
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
-					Name:        "TestDaoValidServiceForStart_EndpointName",
-					Protocol:    "tcp",
-					PortNumber:  8081,
-					Application: "websvc",
-					Purpose:     "import",
-				},
-			},
-		},
-	}
-	err := dt.Dao.validateServicesForStarting(&testService, nil)
-	if err != nil {
-		t.Error("Services failed validation for starting: ", err)
-	}
-}
-
-func (dt *DaoTest) TestDaoInvalidServiceForStart(t *C) {
-	testService := service.Service{
-		Id: "TestDaoInvalidServiceForStart_ServiceID",
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
-					Name:        "TestDaoInvalidServiceForStart_EndpointName",
-					Protocol:    "tcp",
-					PortNumber:  8081,
-					Application: "websvc",
-					Purpose:     "import",
-					AddressConfig: servicedefinition.AddressResourceConfig{
-						Port:     8081,
-						Protocol: commons.TCP,
-					},
-				},
-			},
-		},
-	}
-	err := dt.Dao.validateServicesForStarting(&testService, nil)
-	if err == nil {
-		t.Error("Services should have failed validation for starting...")
-	}
-}
-
-func (dt *DaoTest) TestRenameImageID(t *C) {
-	imageId, err := dt.Dao.renameImageID("quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
-	if err != nil {
-		t.Errorf("unexpected failure renamingImageID: %s", err)
-		t.FailNow()
-	}
-	expected := "localhost:5000/X/daily-zenoss5-core"
-	if imageId != expected {
-		t.Errorf("expected image '%s' got '%s'", expected, imageId)
-		t.FailNow()
 	}
 }
 
