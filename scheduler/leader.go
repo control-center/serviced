@@ -131,15 +131,16 @@ func (l *leader) watchServices() {
 			}
 		}
 
+	VirtualIPWatching:
 		for {
 			select {
 			case evt := <-zkEvent:
 				glog.V(1).Info("Leader event: ", evt)
-				break
+				break VirtualIPWatching
 			case serviceID := <-sDone:
 				glog.V(1).Info("Leading cleaning up for service ", serviceID)
 				delete(processing, serviceID)
-				break
+				break VirtualIPWatching
 			case <-time.After(10 * time.Second):
 				// every 10 seconds, sync the virtual IPs in the model to zookeeper nodes
 				myPool, err := l.facade.GetResourcePool(l.context, l.poolID)
