@@ -22,6 +22,6 @@ clean:
 	go clean
 
 build-js:
-	sed -e "s/%UID%/$$(id -u)/g" -e "s/%GID%/$$(id -g)/g" Dockerfile.in | docker build -t zenoss/grunt -
-	docker run --rm -v $$PWD:/mnt/build -w /mnt/build zenoss/grunt 
-
+	cat static/js/main.js static/js/controllers/*.js > static/js/controlplane.js
+	# This is a scurrilous lie. We are not minifying anything.
+	cp static/js/controlplane.js static/js/controlplane.min.js

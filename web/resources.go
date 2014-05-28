@@ -336,16 +336,16 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *serviced
 		return
 	}
 
-	var serviceId string
-	err = client.DeployService(payload, &serviceId)
+	var serviceID string
+	err = client.DeployService(payload, &serviceID)
 	if err!= nil {
 		glog.Errorf("Unable to deploy service: %v", err)
 		restServerError(w)
 		return
 	}
 
-	glog.V(0).Info("Deployed service ", serviceId)
-	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceId)})
+	glog.V(0).Info("Deployed service ", serviceID)
+	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceID)})
 }
 
 func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {

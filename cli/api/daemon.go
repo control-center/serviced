@@ -40,8 +40,10 @@ import (
 	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -202,14 +204,61 @@ func (d *daemon) startMaster() error {
 	return nil
 }
 
-func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
-	mux := proxy.TCPMux{}
+func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
 
-	mux.CertPEMFile = options.CertPEMFile
-	mux.KeyPEMFile = options.KeyPEMFile
-	mux.Enabled = true
-	mux.Port = options.MuxPort
-	mux.UseTLS = options.TLS
+	if len(certPEMFile) > 0 {
+		certPEM, err = ioutil.ReadFile(certPEMFile)
+		if err != nil {
+			return
+		}
+	} else {
+		certPEM = []byte(proxy.InsecureCertPEM)
+	}
+	if len(keyPEMFile) > 0 {
+		keyPEM, err = ioutil.ReadFile(keyPEMFile)
+		if err != nil {
+			return
+		}
+	} else {
+		keyPEM = []byte(proxy.InsecureKeyPEM)
+	}
+	return
+}
+
+func createMuxListener() (net.Listener, error) {
+	if options.TLS {
+		glog.V(1).Info("using TLS on mux")
+
+		proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
+		if err != nil {
+			return nil, err
+		}
+
+		cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
+		if err != nil {
+			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", err)
+			return nil, err
+		}
+
+		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
+		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
+		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
+
+	} else {
+		return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
+	}
+}
+
+func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
+
+	muxListener, err := createMuxListener()
+	if err != nil {
+		return nil, err
+	}
+	mux, err := proxy.NewTCPMux(muxListener)
+	if err != nil {
+		return nil, err
+	}
 
 	zkClient, err := d.initZK()
 	if err != nil {
@@ -349,7 +398,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Port, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 

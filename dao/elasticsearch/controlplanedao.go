@@ -25,10 +25,6 @@ import (
 	"strconv"
 )
 
-const (
-	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
-)
-
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 

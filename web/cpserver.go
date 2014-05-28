@@ -1,8 +1,11 @@
 package web
 
 import (
+	"crypto/tls"
 	"fmt"
+	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -27,11 +30,21 @@ type ServiceConfig struct {
 	zookeepers  []string
 	stats       bool
 	hostaliases []string
+	muxTLS      bool
+	muxPort     int
 }
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats, []string{}}
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+	cfg := ServiceConfig{
+		bindPort:    bindPort,
+		agentPort:   agentPort,
+		zookeepers:  zookeepers,
+		stats:       stats,
+		hostaliases: []string{},
+		muxTLS:      muxTLS,
+		muxPort:     muxPort,
+	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
@@ -121,11 +134,42 @@ func (sc *ServiceConfig) Serve() {
 		for _, svcep := range svcstates[0].Endpoints {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
-					rpurl := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIP, svcep.PortNumber)}
+					remoteAddr := fmt.Sprintf("%s:%d", svcstates[0].HostIP, svcep.PortNumber)
+					if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+						remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
+					}
+					rpurl := url.URL{Scheme: "http", Host: remoteAddr}
 
 					glog.V(1).Infof("vhosthandler reverse proxy to: %v", rpurl)
 
+					transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+					transport.Dial = func(network, addr string) (remote net.Conn, err error) {
+						if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+							config := tls.Config{InsecureSkipVerify: true}
+							glog.V(1).Infof("vhost about to dial %s", remoteAddr)
+							remote, err = tls.Dial("tcp4", remoteAddr, &config)
+						} else {
+							glog.V(1).Info("vhost about to dial %s", remoteAddr)
+							remote, err = net.Dial("tcp4", remoteAddr)
+						}
+						if err != nil {
+							return nil, err
+						}
+
+						if sc.muxPort > 0 {
+							if len(svcstates[0].PrivateIP) == 0 {
+								glog.Errorf("vhost %s connection received but no private ip exists", vh)
+								return nil, fmt.Errorf("missing endpoint")
+							}
+							muxAddr := fmt.Sprintf("%s:%d\n", svcstates[0].PrivateIP, svcep.PortNumber)
+							glog.V(1).Infof("vhost muxing to %s", muxAddr)
+							io.WriteString(remote, muxAddr)
+
+						}
+						return remote, nil
+					}
 					rp := httputil.NewSingleHostReverseProxy(&rpurl)
+					rp.Transport = transport
 					rp.ServeHTTP(w, r)
 					return
 				}
