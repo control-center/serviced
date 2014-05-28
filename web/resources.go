@@ -327,6 +327,27 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.Co
 	w.WriteJson(&simpleResponse{"Added service", serviceLinks(serviceID)})
 }
 
+func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	var payload dao.ServiceDeploymentRequest
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.V(1).Info("Could not decode service payload: ", err)
+		restBadRequest(w)
+		return
+	}
+
+	var serviceID string
+	err = client.DeployService(payload, &serviceID)
+	if err!= nil {
+		glog.Errorf("Unable to deploy service: %v", err)
+		restServerError(w)
+		return
+	}
+
+	glog.V(0).Info("Deployed service ", serviceID)
+	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceID)})
+}
+
 func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	glog.V(3).Infof("Received update request for %s", serviceID)

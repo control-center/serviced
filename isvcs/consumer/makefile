@@ -1,5 +1,5 @@
 TARGET := $(shell pwd)
-CONSUMER_VERSION := 0.0.5
+CONSUMER_VERSION := 0.0.7
 
 .PHONY: default tarball
 
@@ -13,4 +13,9 @@ tarball:
 	@sed -i 's/\(authEnabled:.*\)true/\1false/' /opt/zenoss/etc/metric-consumer-app/configuration.yaml
 	@echo "httpParameterTags:" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
 	@echo "  - controlplane" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "tagWhiteList:" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_service_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_tenant_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_host_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_instance_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
 	@tar czf $(TARGET)/consumer.tar.gz /opt

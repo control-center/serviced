@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"os"
+	"runtime/pprof"
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -41,6 +43,7 @@ type Options struct {
 	Verbosity        int
 	StaticIPs        []string
 	DockerRegistry   string
+	CPUProfile       string // write cpu profile to file
 }
 
 // LoadOptions overwrites the existing server options
@@ -72,6 +75,16 @@ func New() API {
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+
+	if len(options.CPUProfile) > 0 {
+		f, err := os.Create(options.CPUProfile)
+		if err != nil {
+			glog.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	d, err := newDaemon(options.StaticIPs)
 	if err != nil {
 		return err

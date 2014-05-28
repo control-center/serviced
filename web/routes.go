@@ -50,6 +50,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.authorizedClient(restGetRunningService)},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", sc.authorizedClient(restGetServiceStateLogs)},
 		rest.Route{"POST", "/services/add", sc.authorizedClient(restAddService)},
+		rest.Route{"POST", "/services/deploy", sc.authorizedClient(restDeployService)},
 		rest.Route{"DELETE", "/services/:serviceId", sc.authorizedClient(restRemoveService)},
 		rest.Route{"GET", "/services/:serviceId/logs", sc.authorizedClient(restGetServiceLogs)},
 		rest.Route{"PUT", "/services/:serviceId", sc.authorizedClient(restUpdateService)},

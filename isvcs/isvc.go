@@ -20,8 +20,8 @@ import (
 var Mgr *Manager
 
 const (
-	IMAGE_REPO = "zctrl/isvcs"
-	IMAGE_TAG  = "v7"
+	IMAGE_REPO = "quay.io/zenossinc/isvcs"
+	IMAGE_TAG  = "v8"
 )
 
 func Init() {
