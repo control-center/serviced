@@ -260,13 +260,30 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 // GetTenantID calls its GetService function to get the tenantID
 func (s Service) GetTenantID(gs GetService) (string, error) {
 	var err error
-	for s.ParentServiceID != "" {
-		s, err = gs(s.ParentServiceID)
+	svc := s
+	for svc.ParentServiceID != "" {
+		svc, err = gs(svc.ParentServiceID)
 		if err != nil {
 			return "", err
 		}
 	}
-	return s.Id, nil
+	return svc.Id, nil
+}
+
+
+// GetPath uses the GetService function to determine the / delimited name path i.e. /test/app/sevicename
+func (s Service) GetPath(gs GetService) (string, error) {
+	var err error
+	svc := s
+	path :=fmt.Sprintf("/%s", s.Name)
+	for svc.ParentServiceID != "" {
+		svc, err = gs(svc.ParentServiceID)
+		if err != nil {
+			return "", err
+		}
+		path = fmt.Sprintf("/%s%s", svc.Name, path)
+	}
+	return path, nil
 }
 
 //SetAssignment sets the AddressAssignment for the endpoint
