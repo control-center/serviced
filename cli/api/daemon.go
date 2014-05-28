@@ -372,7 +372,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(d.zkDAO)
+	f := facade.New(d.zkDAO, options.DockerRegistry)
 	return f
 }
 
