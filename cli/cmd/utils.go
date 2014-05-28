@@ -7,72 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
-	"text/tabwriter"
 
 	"code.google.com/p/go.crypto/ssh/terminal"
 )
-
-var treeCharset map[string]string
-var treeUtf8 map[string]string
-var treeASCII map[string]string
-
-func init() {
-	treeUTF8 := make(map[string]string)
-	treeUTF8["bar"] = "│ "
-	treeUTF8["middle"] = "├─"
-	treeUTF8["last"] = "└─"
-
-	treeASCII := make(map[string]string)
-	treeASCII["bar"] = "| "
-	treeASCII["middle"] = "|-"
-	treeASCII["last"] = "+-"
-
-	treeCharset = treeUTF8 // default charset for tree
-}
-
-type table struct {
-	writer  *tabwriter.Writer
-	indent  []string
-	lastrow bool
-}
-
-func newTable(minwidth, tabwidth, padding int) *table {
-	w := tabwriter.NewWriter(os.Stdout, minwidth, tabwidth, padding, '\t', 0)
-	return &table{writer: w}
-}
-
-func (t *table) PrintRow(columns ...interface{}) {
-	fmt.Fprintf(t.writer, strings.Repeat("%v\t", len(columns)), columns...)
-	fmt.Fprintln(t.writer)
-}
-
-func (t *table) PrintTreeRow(lastrow bool, columns ...interface{}) {
-	t.lastrow = lastrow
-	var charset = treeCharset["middle"]
-	if t.lastrow {
-		charset = treeCharset["last"]
-	}
-	columns[0] = fmt.Sprintf("%s%s%v", strings.Join(t.indent, ""), charset, columns[0])
-	t.PrintRow(columns...)
-}
-
-func (t *table) Indent() {
-	if t.lastrow {
-		t.indent = append(t.indent, "  ")
-	} else {
-		t.indent = append(t.indent, treeCharset["bar"])
-	}
-}
-
-func (t *table) Dedent() {
-	t.indent = t.indent[:len(t.indent)-1]
-}
-
-func (t *table) Flush() {
-	t.writer.Flush()
-}
 
 func remove(index int, list ...interface{}) []interface{} {
 	var (

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 )
 
 // Initializer for serviced backup and serviced restore
