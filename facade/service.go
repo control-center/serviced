@@ -167,7 +167,7 @@ func (f *Facade) getTenantID(ctx datastore.Context, svc service.Service) (string
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]*dao.ApplicationEndpoint, error) {
 	glog.V(2).Infof("Facade.GetServiceEndpoints serviceId=%s", serviceId)
 	result := make(map[string][]*dao.ApplicationEndpoint)
-	myService, err := f.GetService(ctx, serviceId)
+	myService, err := f.getService(ctx, serviceId)
 	if err != nil {
 		glog.V(2).Infof("Facade.GetServiceEndpoints service=%+v err=%s", myService, err)
 		return result, err
@@ -178,7 +178,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		glog.V(2).Infof("%+v service imports=%+v", myService, service_imports)
 
 		var request dao.EntityRequest
-		servicesList, err := f.GetServices(ctx, request)
+		servicesList, err := f.getServices(ctx, request)
 		if err != nil {
 			return result, err
 		}
@@ -195,6 +195,9 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		if err != nil {
 			return result, err
 		}
+
+		//delay getting addresses as long as possible
+		f.fillServiceAddr(ctx, &myService)
 
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
@@ -411,6 +414,19 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 		return service.Service{}, err
 	}
 	return *svc, err
+}
+
+//getServices is an internal method that returns  all Services without filling in all related service data like address assignments
+//and modified config files
+func (f *Facade) getServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+	glog.V(3).Infof("Facade.GetServices")
+	store := f.serviceStore
+	results, err := store.GetServices(ctx)
+	if err != nil {
+		glog.Error("Facade.GetServices: err=", err)
+		return results, err
+	}
+	return results, nil
 }
 
 //

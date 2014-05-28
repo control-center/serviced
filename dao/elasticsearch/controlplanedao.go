@@ -117,7 +117,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string, zkDAO *zzk.ZkDao) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -133,7 +133,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *co
 	s.vfs = vfs
 
 	s.zclient = zclient
-	s.zkDao = zzk.NewZkDao(zclient)
+	s.zkDao = zkDAO
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {

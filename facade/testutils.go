@@ -44,7 +44,8 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
 	ft.CTX = datastore.Get()
-	ft.Facade = New()
+	//empty zkdao will not work but tests shouldn't call this anyway.
+	ft.Facade = New(&zzk.ZkDao{})
 
 	//mock out ZK calls to no ops
 	zkAPI = func(zkdao *zzk.ZkDao) zkfuncs { return &zkMock{} }

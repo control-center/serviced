@@ -13,12 +13,13 @@ import (
 )
 
 // New creates an initialized Facade instance
-func New() *Facade {
+func New(zkDAO *zzk.ZkDao) *Facade {
 	return &Facade{
 		hostStore:     host.NewStore(),
 		poolStore:     pool.NewStore(),
 		serviceStore:  service.NewStore(),
 		templateStore: servicetemplate.NewStore(),
+		zkDao:         zkDAO,
 	}
 }
 
