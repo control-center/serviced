@@ -816,10 +816,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		}
 	}
 
+	// Get host IP
+	ip, err := utils.GetIPAddress()
+	if err != nil {
+		glog.Errorf("Error getting host IP address: %v", err)
+		return nil, nil, err
+	}
+
 	// add arguments for environment variables
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
+		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
+		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
