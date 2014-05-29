@@ -9,7 +9,7 @@ import (
 )
 
 type Container struct {
-	dockerclient.Container
+	*dockerclient.Container
 	dockerclient.HostConfig
 }
 
@@ -34,15 +34,16 @@ const (
 )
 
 var (
-	ErrRequestTimeout = errors.New("docker: request timed out")
-	ErrKernelShutdown = errors.New("docker: kernel shutdown")
+	ErrRequestTimeout  = errors.New("docker: request timed out")
+	ErrKernelShutdown  = errors.New("docker: kernel shutdown")
+	ErrNoSuchContainer = errors.New("docker: no such container")
 )
 
 // NewContainer creates a new container and returns its id. The supplied action function, if
 // any, will be executed on successful creation of the container.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
 	ec := make(chan error)
-	rc := make(chan dockerclient.Container)
+	rc := make(chan *dockerclient.Container)
 
 	cmds.Create <- createreq{
 		request{ec},
@@ -69,6 +70,22 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
+}
+
+// FindContainer looks up a container using its id.
+func FindContainer(id string) (*Container, error) {
+	cl, err := Containers()
+	if err != nil {
+		return nil, fmt.Errorf("docker: unable to find container %s: %v", id, err)
+	}
+
+	for _, c := range cl {
+		if c.ID == id {
+			return c, nil
+		}
+	}
+
+	return nil, ErrNoSuchContainer
 }
 
 // Containers retrieves a list of all the Docker containers.
@@ -149,8 +166,29 @@ func (c *Container) Kill() error {
 }
 
 // Inspect returns information about the container specified by id.
-func (c Container) Inspect() *dockerclient.Container {
-	return &c.Container
+func (c Container) Inspect() (*dockerclient.Container, error) {
+	ec := make(chan error)
+	rc := make(chan *dockerclient.Container)
+
+	cmds.Inspect <- inspectreq{
+		request{ec},
+		struct {
+			id string
+		}{c.ID},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return <-rc, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
 }
 
 // OnEvent adds an action for the specified event.

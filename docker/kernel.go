@@ -2,10 +2,11 @@ package docker
 
 import (
 	"fmt"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"os"
 	"syscall"
 	"time"
+
+	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 const (
@@ -43,7 +44,7 @@ type createreq struct {
 		createaction     ContainerActionFunc
 		startaction      ContainerActionFunc
 	}
-	respchan chan dockerclient.Container
+	respchan chan *dockerclient.Container
 }
 
 type deletereq struct {
@@ -256,7 +257,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				if err != nil {
 					continue
 				}
-				resp = append(resp, &Container{*ctr, dockerclient.HostConfig{}})
+				resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
 			}
 			close(req.errchan)
 			req.respchan <- resp
@@ -371,7 +372,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 			close(req.errchan)
 
-			req.respchan <- *ctr
+			req.respchan <- ctr
 		case req := <-src:
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {

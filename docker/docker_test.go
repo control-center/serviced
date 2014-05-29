@@ -277,9 +277,57 @@ func TestWaitForContainer(t *testing.T) {
 	}
 
 	select {
-	case rc := <-wc:
-		t.Log("wait exited with: ", rc)
+	case <-wc:
+		// success
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for wait to finish")
+	}
+}
+
+func TestInspectContainer(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	prestart, err := ctr.Inspect()
+	if err != nil {
+		t.Fatal("can't pre inspect container: ", err)
+	}
+
+	sc := make(chan struct{})
+
+	ctr.OnEvent(Start, func(id string) {
+		sc <- struct{}{}
+	})
+
+	if err := ctr.Start(1*time.Second, nil); err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	select {
+	case <-sc:
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for container to start")
+	}
+
+	poststart, err := ctr.Inspect()
+	if err != nil {
+		t.Fatal("can't post inspect container: ", err)
+	}
+
+	if poststart.State.Running == prestart.State.Running {
+		t.Fatal("inspected stated didn't change")
 	}
 }
