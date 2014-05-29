@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/cli/api"
@@ -42,7 +42,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
-				Description:  "serviced service list NAME POOLID IMAGEID COMMAND",
+				Description:  "serviced service add NAME POOLID IMAGEID COMMAND",
 				BashComplete: c.printServiceAdd,
 				Action:       c.cmdServiceAdd,
 				Flags: []cli.Flag{
@@ -294,32 +294,21 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		}
 	} else {
 		servicemap := api.NewServiceMap(services)
-		tableService := newTable(0, 8, 2)
-		tableService.PrintRow("NAME", "SERVICEID", "STARTUP", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-
-		var printTree func(string)
-		printTree = func(root string) {
-			services := servicemap.Get(root)
-			for i, s := range services {
-				tableService.PrintTreeRow(
-					!(i+1 < len(services)),
-					s.Name,
-					s.Id,
-					s.Startup,
-					s.Instances,
-					s.ImageID,
-					s.PoolID,
-					s.DesiredState,
-					s.Launch,
-					s.DeploymentID,
-				)
-				tableService.Indent()
-				printTree(s.Id)
-				tableService.Dedent()
+		tableService := newtable(0, 8, 2)
+		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
+		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
+			s := servicemap.Get(id)
+			// truncate the image ID
+			var imageID string
+			if strings.TrimSpace(s.ImageID) != "" {
+				id := strings.SplitN(s.ImageID, "/", 3)
+				id[0] = "..."
+				id[1] = id[1][:7] + "..."
+				imageID = strings.Join(id, "/")
 			}
-		}
-		printTree("")
-		tableService.Flush()
+			return append(row, s.Name, s.Id, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
+		})
+		tableService.flush()
 	}
 }
 
@@ -646,12 +635,12 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return states[0], nil
 	}
 
-	matches := newTable(0, 8, 2)
-	matches.PrintRow("NAME", "SERVICEID", "DOCKERID")
+	matches := newtable(0, 8, 2)
+	matches.printrow("NAME", "SERVICEID", "DOCKERID")
 	for _, row := range states {
-		matches.PrintRow(row.Name, row.ServiceID, row.DockerID)
+		matches.printrow(row.Name, row.ServiceID, row.DockerID)
 	}
-	matches.Flush()
+	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 

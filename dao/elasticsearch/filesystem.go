@@ -42,12 +42,10 @@ func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
 
 // Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error {
-	service, err := this.getService(serviceID)
-	if err != nil {
-		return err
-	}
-	tenantID, err := service.GetTenantID(this.getService)
-	if err != nil {
+	var tenantID string
+	var err error
+	if err = this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
 		return err
 	}
 	*label, err = this.dfs.Snapshot(tenantID)
