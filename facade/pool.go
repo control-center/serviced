@@ -103,6 +103,9 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 		}
 		proposedVirtualIPs := make(map[string]pool.VirtualIP)
 		for _, virtualIP := range proposedPool.VirtualIPs {
+			if _, keyAlreadyExists := proposedVirtualIPs[virtualIP.IP]; keyAlreadyExists {
+				return fmt.Errorf("duplicate virtual IP request: %v", virtualIP.IP)
+			}
 			proposedVirtualIPs[virtualIP.IP] = virtualIP
 		}
 
@@ -283,13 +286,6 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 	} else if myPool == nil {
 		msg := fmt.Sprintf("Pool ID: %v could not be found", requestedVirtualIP.PoolID)
 		return errors.New(msg)
-	}
-
-	ipAddressAlreadyExists, err := f.virtualIPExists(ctx, requestedVirtualIP)
-	if err != nil {
-		return err
-	} else if ipAddressAlreadyExists {
-		return fmt.Errorf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP.IP, requestedVirtualIP.PoolID)
 	}
 
 	myPool.VirtualIPs = append(myPool.VirtualIPs, requestedVirtualIP)
