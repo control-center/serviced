@@ -279,6 +279,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	nfsClient.Wait()
 
 	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
+
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}

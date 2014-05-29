@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/snapshot"
+	"github.com/zenoss/serviced/zzk/virtualips"
 )
 
 type leader struct {
@@ -23,45 +24,66 @@ type leader struct {
 	dao     dao.ControlPlane
 	conn    coordclient.Connection
 	context datastore.Context
+	poolID  string
 }
 
-// Lead is executed by the "leader" of the control plane cluster to handle its
-// service/snapshot management responsibilities.
+// Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
+//    services
+//    snapshots
+//    virtual IPs
 func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
-
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
-	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get()}
-	for {
-		if shutdownmode {
-			glog.V(1).Info("Shutdown mode encountered.")
-			break
+
+	allPools, err := facade.GetResourcePools(datastore.Get())
+	if err != nil {
+		glog.Error(err)
+		return
+	} else if allPools == nil || len(allPools) == 0 {
+		glog.Error("no resource pools found")
+		return
+	}
+
+	for _, aPool := range allPools {
+		// TODO: Support non default pools
+		// Currently, only the default pool gets a leader
+		if aPool.ID != "default" {
+			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
+			continue
 		}
-		time.Sleep(time.Second)
-		func() error {
-			select {
-			case evt := <-zkEvent:
-				// shut this thing down
-				shutdownmode = true
-				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-				return nil
-			default:
-				glog.V(0).Info("Processing leader duties")
-				// passthru
+
+		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: aPool.ID}
+		for {
+			if shutdownmode {
+				glog.V(1).Info("Shutdown mode encountered.")
+				break
 			}
+			time.Sleep(time.Second)
+			func() error {
+				select {
+				case evt := <-zkEvent:
+					// shut this thing down
+					shutdownmode = true
+					glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
+					return nil
+				default:
+					glog.V(0).Info("Processing leader duties")
+					// passthru
+				}
 
-			// creates a listener for snapshots with a function call to take snapshots
-			// and return the label and error message
-			go snapshot.Listen(conn, func(serviceID string) (string, error) {
-				var label string
-				err := dao.TakeSnapshot(serviceID, &label)
-				return label, err
-			})
+				// creates a listener for snapshots with a function call to take snapshots
+				// and return the label and error message
+				go snapshot.Listen(conn, func(serviceID string) (string, error) {
+					var label string
+					err := dao.TakeSnapshot(serviceID, &label)
+					return label, err
+				})
 
-			leader.watchServices()
-			return nil
-		}()
+				leader.watchServices()
+				return nil
+			}()
+		}
 	}
 }
 
@@ -88,6 +110,7 @@ func (l *leader) watchServices() {
 	}()
 
 	conn.CreateDir(zzk.SERVICE_PATH)
+
 	for {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)
 		serviceIds, zkEvent, err := conn.ChildrenW(zzk.SERVICE_PATH)
@@ -103,12 +126,30 @@ func (l *leader) watchServices() {
 				go l.watchService(serviceChannel, sDone, serviceID)
 			}
 		}
-		select {
-		case evt := <-zkEvent:
-			glog.V(1).Info("Leader event: ", evt)
-		case serviceID := <-sDone:
-			glog.V(1).Info("Leading cleaning up for service ", serviceID)
-			delete(processing, serviceID)
+
+	VirtualIPWatching:
+		for {
+			select {
+			case evt := <-zkEvent:
+				glog.V(1).Info("Leader event: ", evt)
+				break VirtualIPWatching
+			case serviceID := <-sDone:
+				glog.V(1).Info("Leading cleaning up for service ", serviceID)
+				delete(processing, serviceID)
+				break VirtualIPWatching
+			case <-time.After(10 * time.Second):
+				// every 10 seconds, sync the virtual IPs in the model to zookeeper nodes
+				myPool, err := l.facade.GetResourcePool(l.context, l.poolID)
+				if err != nil {
+					glog.Errorf("Unable to load resource pool: %v", l.poolID)
+				} else if myPool == nil {
+					glog.Errorf("Pool ID: %v could not be found", l.poolID)
+				}
+
+				if err := virtualips.SyncVirtualIPs(l.conn, myPool.VirtualIPs); err != nil {
+					glog.Warningf("SyncVirtualIPs: %v", err)
+				}
+			}
 		}
 	}
 }
@@ -174,10 +215,8 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		case <-shutdown:
 			glog.V(1).Info("Leader stopping watch on ", svc.Name)
 			return
-
 		}
 	}
-
 }
 
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
