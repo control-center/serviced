@@ -10,8 +10,8 @@ import (
 )
 
 // NewServer creates a new serviced master rpc server
-func NewServer() *Server {
-	return &Server{facade.New()}
+func NewServer(f *facade.Facade) *Server {
+	return &Server{f}
 }
 
 // Server is the RPC type for the master(s)

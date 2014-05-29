@@ -8,9 +8,11 @@ import (
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/facade"
 
 	"encoding/json"
 	"fmt"
@@ -464,7 +466,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 	)
 	defer func() {
 		if doReloadLogstashContainer {
-			go this.reloadLogstashContainer() // don't block the main thread
+			go facade.LogstashContainerReloader(datastore.Get(), this.facade) // don't block the main thread
 		}
 	}()
 	restorePath := func(relPath ...string) string {

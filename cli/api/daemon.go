@@ -37,6 +37,7 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
+	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"crypto/tls"
@@ -64,6 +65,7 @@ type daemon struct {
 	hostID         string
 	zclient        *coordclient.Client
 	storageHandler *storage.Server
+	zkDAO          *zzk.ZkDao
 }
 
 func newDaemon(staticIPs []string) (*daemon, error) {
@@ -152,11 +154,12 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	d.facade = d.initFacade()
-
 	if d.zclient, err = d.initZK(); err != nil {
 		return err
 	}
+
+	d.zkDAO = d.initZKDAO(d.zclient)
+	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
 		return err
@@ -337,7 +340,7 @@ func (d *daemon) startAgentListeners() {
 func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
-	if err := rpc.RegisterName("Master", master.NewServer()); err != nil {
+	if err := rpc.RegisterName("Master", master.NewServer(d.facade)); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
@@ -370,7 +373,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New()
+	f := facade.New(d.zkDAO, options.DockerRegistry)
 	return f
 }
 
@@ -385,8 +388,12 @@ func (d *daemon) initZK() (*coordclient.Client, error) {
 	return zclient, err
 }
 
+func (d *daemon) initZKDAO(zkClient *coordclient.Client) *zzk.ZkDao {
+	return zzk.NewZkDao(zkClient)
+}
+
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry, d.zkDAO)
 }
 
 func (d *daemon) initWeb() {

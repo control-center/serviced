@@ -20,7 +20,13 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"fmt"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/service"
 	"strconv"
+)
+
+const (
+	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
 )
 
 //assert interface
@@ -39,8 +45,19 @@ type ControlPlaneDao struct {
 	dockerRegistry string
 }
 
+func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
+	return func(svcID string) (service.Service, error) {
+		svc, err := f.GetService(ctx, svcID)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *svc, nil
+	}
+}
+
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
-	svc, err := this.getService(request.Running.ServiceID)
+	ctx := datastore.Get()
+	svc, err := this.facade.GetService(ctx, request.Running.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -50,7 +67,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		return fmt.Errorf("missing command")
 	}
 
-	if err := svc.EvaluateActionsTemplate(this.getService); err != nil {
+	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade)); err != nil {
 		return err
 	}
 
@@ -100,7 +117,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string, zkDAO *zzk.ZkDao) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -116,7 +133,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *co
 	s.vfs = vfs
 
 	s.zclient = zclient
-	s.zkDao = zzk.NewZkDao(zclient)
+	s.zkDao = zkDAO
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 )
 
 // initSnapshot is the initializer for serviced snapshot

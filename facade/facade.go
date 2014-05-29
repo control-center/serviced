@@ -9,22 +9,27 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/zzk"
 )
 
 // New creates an initialized Facade instance
-func New() *Facade {
+func New(zkDAO *zzk.ZkDao, dockerRegistry string) *Facade {
 	return &Facade{
-		hostStore:     host.NewStore(),
-		poolStore:     pool.NewStore(),
-		serviceStore:  service.NewStore(),
-		templateStore: servicetemplate.NewStore(),
+		hostStore:      host.NewStore(),
+		poolStore:      pool.NewStore(),
+		serviceStore:   service.NewStore(),
+		templateStore:  servicetemplate.NewStore(),
+		zkDao:          zkDAO,
+		dockerRegistry: dockerRegistry,
 	}
 }
 
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
-	hostStore     *host.HostStore
-	poolStore     *pool.Store
-	templateStore *servicetemplate.Store
-	serviceStore  *service.Store
+	hostStore      *host.HostStore
+	poolStore      *pool.Store
+	templateStore  *servicetemplate.Store
+	serviceStore   *service.Store
+	dockerRegistry string
+	zkDao          *zzk.ZkDao
 }

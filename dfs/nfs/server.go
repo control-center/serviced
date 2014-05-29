@@ -136,10 +136,13 @@ func (c *Server) Sync() error {
 	if err := c.hostsAllow(); err != nil {
 		return err
 	}
-	if err := reload(); err != nil {
+	if err := c.writeExports(); err != nil {
 		return err
 	}
-	if err := c.writeExports(); err != nil {
+	if err := start(); err != nil {
+		return err
+	}
+	if err := reload(); err != nil {
 		return err
 	}
 	return nil
