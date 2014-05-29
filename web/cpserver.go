@@ -1,7 +1,14 @@
 package web
 
 import (
+	"crypto/tls"
 	"fmt"
+	"io"
+	"mime"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 
@@ -14,23 +21,30 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
-
-	"mime"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
 )
 
+// ServiceConfig is the ui/rest handler for control center
 type ServiceConfig struct {
 	bindPort    string
 	agentPort   string
 	zookeepers  []string
 	stats       bool
 	hostaliases []string
+	muxTLS      bool
+	muxPort     int
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats, []string{}}
+// NewServiceConfig creates a new ServiceConfig
+func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+	cfg := ServiceConfig{
+		bindPort:    bindPort,
+		agentPort:   agentPort,
+		zookeepers:  zookeepers,
+		stats:       stats,
+		hostaliases: []string{},
+		muxTLS:      muxTLS,
+		muxPort:     muxPort,
+	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
@@ -52,14 +66,14 @@ func (sc *ServiceConfig) Serve() {
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
-		uiUrl, err := url.Parse("http://127.0.0.1:7878")
+		uiURL, err := url.Parse("http://127.0.0.1:7878")
 		if err != nil {
 			glog.Errorf("Can't parse UI URL: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		ui := httputil.NewSingleHostReverseProxy(uiUrl)
+		ui := httputil.NewSingleHostReverseProxy(uiURL)
 		if ui == nil {
 			glog.Errorf("Can't proxy UI request: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -120,11 +134,42 @@ func (sc *ServiceConfig) Serve() {
 		for _, svcep := range svcstates[0].Endpoints {
 			for _, vh := range svcep.VHosts {
 				if vh == muxvars["subdomain"] {
-					rpurl := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", svcstates[0].PrivateIP, svcep.PortNumber)}
+					remoteAddr := fmt.Sprintf("%s:%d", svcstates[0].HostIP, svcep.PortNumber)
+					if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+						remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
+					}
+					rpurl := url.URL{Scheme: "http", Host: remoteAddr}
 
 					glog.V(1).Infof("vhosthandler reverse proxy to: %v", rpurl)
 
+					transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+					transport.Dial = func(network, addr string) (remote net.Conn, err error) {
+						if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+							config := tls.Config{InsecureSkipVerify: true}
+							glog.V(1).Infof("vhost about to dial %s", remoteAddr)
+							remote, err = tls.Dial("tcp4", remoteAddr, &config)
+						} else {
+							glog.V(1).Info("vhost about to dial %s", remoteAddr)
+							remote, err = net.Dial("tcp4", remoteAddr)
+						}
+						if err != nil {
+							return nil, err
+						}
+
+						if sc.muxPort > 0 {
+							if len(svcstates[0].PrivateIP) == 0 {
+								glog.Errorf("vhost %s connection received but no private ip exists", vh)
+								return nil, fmt.Errorf("missing endpoint")
+							}
+							muxAddr := fmt.Sprintf("%s:%d\n", svcstates[0].PrivateIP, svcep.PortNumber)
+							glog.V(1).Infof("vhost muxing to %s", muxAddr)
+							io.WriteString(remote, muxAddr)
+
+						}
+						return remote, nil
+					}
 					rp := httputil.NewSingleHostReverseProxy(&rpurl)
+					rp.Transport = transport
 					rp.ServeHTTP(w, r)
 					return
 				}
@@ -170,7 +215,8 @@ func (sc *ServiceConfig) Serve() {
 	}
 }
 
-func (this *ServiceConfig) ServeUI() {
+// ServeUI is a blocking call that runs the UI hander on port :7878
+func (sc *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
@@ -178,7 +224,7 @@ func (this *ServiceConfig) ServeUI() {
 		EnableRelaxedContentType: true,
 	}
 
-	routes := this.getRoutes()
+	routes := sc.getRoutes()
 	handler.SetRoutes(routes...)
 
 	// FIXME: bubble up these errors to the caller
@@ -187,17 +233,17 @@ func (this *ServiceConfig) ServeUI() {
 	}
 }
 
-var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
+var methods = []string{"GET", "POST", "PUT", "DELETE"}
 
 func routeToInternalServiceProxy(path string, target string, routes []rest.Route) []rest.Route {
-	targetUrl, err := url.Parse(target)
+	targetURL, err := url.Parse(target)
 	if err != nil {
 		glog.Errorf("Unable to parse proxy target URL: %s", target)
 		return routes
 	}
-	// Wrap the normal http.Handler in a rest.HandlerFunc
+	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
-		proxy := serviced.NewReverseProxy(path, targetUrl)
+		proxy := serviced.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
 	// Add on a glob to match subpaths
@@ -209,12 +255,12 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	return routes
 }
 
-func (this *ServiceConfig) UnAuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
+func (sc *ServiceConfig) unAuthorizedClient(realfunc handlerClientFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
-		client, err := this.getClient()
+		client, err := sc.getClient()
 		if err != nil {
 			glog.Errorf("Unable to acquire client: %v", err)
-			RestServerError(w)
+			restServerError(w)
 			return
 		}
 		defer client.Close()
@@ -222,16 +268,16 @@ func (this *ServiceConfig) UnAuthorizedClient(realfunc HandlerClientFunc) Handle
 	}
 }
 
-func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
+func (sc *ServiceConfig) authorizedClient(realfunc handlerClientFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
-		if !LoginOk(r) {
-			RestUnauthorized(w)
+		if !loginOK(r) {
+			restUnauthorized(w)
 			return
 		}
-		client, err := this.getClient()
+		client, err := sc.getClient()
 		if err != nil {
 			glog.Errorf("Unable to acquire client: %v", err)
-			RestServerError(w)
+			restServerError(w)
 			return
 		}
 		defer client.Close()
@@ -239,28 +285,27 @@ func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerF
 	}
 }
 
-func (this *ServiceConfig) IsCollectingStats() HandlerFunc {
-	if this.stats {
+func (sc *ServiceConfig) isCollectingStats() handlerFunc {
+	if sc.stats {
 		return func(w *rest.ResponseWriter, r *rest.Request) {
 			w.WriteHeader(http.StatusOK)
 		}
-	} else {
-		return func(w *rest.ResponseWriter, r *rest.Request) {
-			w.WriteHeader(http.StatusNotImplemented)
-		}
+	}
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
 	}
 }
 
-func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
+func (sc *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
 	// setup the client
-	c, err = serviced.NewControlClient(this.agentPort)
+	c, err = serviced.NewControlClient(sc.agentPort)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client: %v", err)
 	}
 	return c, err
 }
 
-func (sc *ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerFunc) HandlerFunc {
+func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !check(w, r) {
 			return
@@ -271,10 +316,10 @@ func (sc *ServiceConfig) newRequestHandler(check CheckFunc, realfunc CtxHandlerF
 	}
 }
 
-func (sc *ServiceConfig) CheckAuth(realfunc CtxHandlerFunc) HandlerFunc {
+func (sc *ServiceConfig) checkAuth(realfunc ctxhandlerFunc) handlerFunc {
 	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
-		if !LoginOk(r) {
-			RestUnauthorized(w)
+		if !loginOK(r) {
+			restUnauthorized(w)
 			return false
 		}
 		return true
@@ -282,15 +327,11 @@ func (sc *ServiceConfig) CheckAuth(realfunc CtxHandlerFunc) HandlerFunc {
 	return sc.newRequestHandler(check, realfunc)
 }
 
-func (sc *ServiceConfig) NoAuth(realfunc CtxHandlerFunc) HandlerFunc {
+func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
 	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
 		return true
 	}
 	return sc.newRequestHandler(check, realfunc)
-}
-
-type Close interface {
-	Close() error
 }
 
 type requestContext struct {
@@ -304,12 +345,12 @@ func newRequestContext(sc *ServiceConfig) *requestContext {
 
 func (ctx *requestContext) getMasterClient() (*master.Client, error) {
 	if ctx.master == nil {
-		if c, err := master.NewClient(ctx.sc.agentPort); err != nil {
+		c, err := master.NewClient(ctx.sc.agentPort)
+		if err != nil {
 			glog.Errorf("Could not create a control plane client to %v: %v", ctx.sc.agentPort, err)
 			return nil, err
-		} else {
-			ctx.master = c
 		}
+		ctx.master = c
 	}
 	return ctx.master, nil
 }
@@ -321,7 +362,7 @@ func (ctx *requestContext) end() error {
 	return nil
 }
 
-type CtxHandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext)
-type CheckFunc func(w *rest.ResponseWriter, r *rest.Request) bool
+type ctxhandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext)
+type checkFunc func(w *rest.ResponseWriter, r *rest.Request) bool
 
 type getRoutes func(sc *ServiceConfig) []rest.Route

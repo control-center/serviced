@@ -1,5 +1,5 @@
 function LoginControl($scope, $http, $location, authService) {
-    $scope.brand_label = "CONTROL PLANE";
+    $scope.brand_label = "CONTROL CENTER";
     $scope.login_button_text = "Log In";
     $scope.login_alert = $('#login_alert')
     $scope.login_alert.hide();

@@ -18,11 +18,11 @@ var mkdirAll = os.MkdirAll
 
 // Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
-	host    *host.Host
-	zclient *client.Client
+	host      *host.Host
+	zclient   *client.Client
 	localPath string
-	closing chan struct{}
-	mounted chan string
+	closing   chan struct{}
+	mounted   chan string
 }
 
 // NewClient returns a Client that manages remote mounts
@@ -32,11 +32,11 @@ func NewClient(host *host.Host, zclient *client.Client, localPath string) (*Clie
 		return nil, err
 	}
 	c := &Client{
-		host:    host,
-		zclient: zclient,
+		host:      host,
+		zclient:   zclient,
 		localPath: localPath,
-		mounted: make(chan string, 1),
-		closing: make(chan struct{}),
+		mounted:   make(chan string, 1),
+		closing:   make(chan struct{}),
 	}
 	go c.loop()
 	return c, nil
@@ -119,8 +119,11 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			err = nfsMount(leaderNode.ExportPath,  c.localPath)
+			err = nfsMount(leaderNode.ExportPath, c.localPath)
 			if err != nil {
+				if err == nfs.ErrNfsMountingUnsupported {
+					glog.Errorf("install the nfs-common package: %s", err)
+				}
 				glog.Errorf("problem mouting %s: %s", leaderNode.ExportPath, err)
 				continue
 			}

@@ -65,7 +65,7 @@ type HostAgent struct {
 	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
 	vfs             string               // driver for container volumes
 	currentServices map[string]*exec.Cmd // the current running services
-	mux             proxy.TCPMux
+	mux             *proxy.TCPMux
 	closing         chan chan error
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
@@ -86,7 +86,7 @@ func getZkDSN(zookeepers []string) string {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
+func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux *proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.dockerRegistry = dockerRegistry
@@ -97,9 +97,6 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
-	if agent.mux.Enabled {
-		go agent.mux.ListenAndMux()
-	}
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""
@@ -819,10 +816,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		}
 	}
 
+	// Get host IP
+	ip, err := utils.GetIPAddress()
+	if err != nil {
+		glog.Errorf("Error getting host IP address: %v", err)
+		return nil, nil, err
+	}
+
 	// add arguments for environment variables
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password))
+		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
+		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {

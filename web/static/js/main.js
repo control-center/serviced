@@ -1175,13 +1175,16 @@ function StatsService($http, $location) {
  * building a flattened array where each node has a depth
  * tracking field 'zendepth'.
  */
-function flattenTree(depth, current) {
+function flattenTree(depth, current, sortFunction) {
     // Exclude the root node
     var retVal = (depth === 0)? [] : [current];
     current.zendepth = depth;
 
     if (!current.children) {
         return retVal;
+    }
+    if (sortFunction !== undefined) {
+        current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
         retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
@@ -1322,7 +1325,9 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
 
             // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
-                $scope.services.subservices = flattenTree(0, $scope.services.current);
+                $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
+                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1
+                });
             }
 
             // aggregate virtual ip and virtual host data

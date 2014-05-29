@@ -339,6 +339,9 @@ func writeEnvFile(env []string) (err error) {
 	}()
 	w := bufio.NewWriter(fo)
 	for _, value := range env {
+		if strings.HasPrefix(value, "HOME=") {
+			continue
+		}
 		w.WriteString("export ")
 		w.WriteString(value)
 		w.WriteString("\n")
@@ -429,6 +432,11 @@ func (c *Controller) Run() (err error) {
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+	if len(c.prereqs) == 0 {
+		glog.Infof("No prereqs to pass.")
+		prereqsPassed <- true
+		return nil
+	}
 	for _ = range time.Tick(1 * time.Second) {
 		failedAny := false
 		for _, script := range c.prereqs {
@@ -498,17 +506,17 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
 		return
 	}
-	var unused int = 0
+	var unused int
 	for {
 		select {
 		case <-time.After(interval):
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
-				glog.Infof("Health check %s succeeded.", name)
+				glog.V(4).Infof("Health check %s succeeded.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
 			} else {
-				glog.Infof("Health check %s failed.", name)
+				glog.Warningf("Health check %s failed.", name)
 				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
@@ -549,11 +557,11 @@ func (c *Controller) handleRemotePorts() {
 		sort.Strings(addresses)
 
 		var (
-			proxy *serviced.Proxy
-			ok    bool
+			prxy *proxy
+			ok   bool
 		)
 
-		if proxy, ok = proxies[key]; !ok {
+		if prxy, ok = proxies[key]; !ok {
 			glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
 
 			// setup a new proxy
@@ -562,7 +570,7 @@ func (c *Controller) handleRemotePorts() {
 				glog.Errorf("Could not bind to port: %s", err)
 				continue
 			}
-			proxy, err = serviced.NewProxy(
+			prxy, err = newProxy(
 				fmt.Sprintf("%v", endpointList[0]),
 				uint16(c.options.Mux.Port),
 				c.options.Mux.TLS,
@@ -572,8 +580,8 @@ func (c *Controller) handleRemotePorts() {
 				continue
 			}
 
-			glog.Infof("Success binding port: %s -> %+v", key, proxy)
-			proxies[key] = proxy
+			glog.Infof("Success binding port: %s -> %+v", key, prxy)
+			proxies[key] = prxy
 
 			if ep := endpointList[0]; ep.VirtualAddress != "" {
 				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
@@ -583,19 +591,19 @@ func (c *Controller) handleRemotePorts() {
 				}
 			}
 		}
-		proxy.SetNewAddresses(addresses)
+		prxy.SetNewAddresses(addresses)
 	}
 
 }
 
 var (
-	proxies map[string]*serviced.Proxy
+	proxies map[string]*proxy
 	vifs    *VIFRegistry
 	nextip  int
 )
 
 func init() {
-	proxies = make(map[string]*serviced.Proxy)
+	proxies = make(map[string]*proxy)
 	vifs = NewVIFRegistry()
 	nextip = 1
 }

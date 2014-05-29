@@ -9,10 +9,13 @@
 
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
+IN_DOCKER := 0
 
 default: build_binary
 
 install: build_binary bash-complete
+	cd web && make build-js
+	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install github.com/zenoss/serviced/serviced
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
 
@@ -21,14 +24,30 @@ bash-complete:
 
 build_binary:
 	cd serviced && make
-	cd isvcs && make
+	if [ "$(IN_DOCKER)" = "0" ]; then \
+		cd isvcs && make; \
+	else \
+		cd isvcs && make buildgo; \
+	fi
+	cd web && make build-js
 
 go:
 	cd serviced && go build
 
-
 pkgs:
-	cd pkg && make rpm && make deb
+	cd pkg && make IN_DOCKER=$(IN_DOCKER) rpm && make IN_DOCKER=$(IN_DOCKER) deb
+
+dockerbuild_binaryx: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build make IN_DOCKER=1 build_binary
+	cd isvcs && make isvcs_repo
 
 dockerbuild_binary: docker_ok
 	docker build -t zenoss/serviced-build build
@@ -46,6 +65,17 @@ dockerbuild_binary: docker_ok
 	zenoss/serviced-build /bin/bash \
 	-c '/usr/local/bin/wrapdocker && make build_binary'
 
+dockerbuildx: docker_ok
+	docker build -t zenoss/serviced-build build
+	cd isvcs && make export
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build make IN_DOCKER=1 build_binary pkgs
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build

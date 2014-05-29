@@ -104,9 +104,9 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	}, nil
 }
 
-// ExportName returns the external export name; foo for nfs export /exports/foo
+// ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
-	return path.Join(exportsPath, c.exportedName)
+	return "/" + c.exportedName
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -136,10 +136,13 @@ func (c *Server) Sync() error {
 	if err := c.hostsAllow(); err != nil {
 		return err
 	}
-	if err := reload(); err != nil {
+	if err := c.writeExports(); err != nil {
 		return err
 	}
-	if err := c.writeExports(); err != nil {
+	if err := start(); err != nil {
+		return err
+	}
+	if err := reload(); err != nil {
 		return err
 	}
 	return nil

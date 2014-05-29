@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/cli"
+	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/servicedversion"
@@ -95,6 +95,7 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"stats-period", 60, "Period (seconds) for container statistics reporting"},
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
+		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -150,6 +151,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MCUsername:       ctx.GlobalString("mc-username"),
 		MCPasswd:         ctx.GlobalString("mc-password"),
 		Verbosity:        ctx.GlobalInt("v"),
+		CPUProfile:       ctx.GlobalString("cpuprofile"),
 	}
 
 	api.LoadOptions(options)

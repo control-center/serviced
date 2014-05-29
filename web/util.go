@@ -27,32 +27,26 @@ func init() {
  *
  ******************************************************************************/
 
-type SimpleResponse struct {
+type simpleResponse struct {
 	Detail string
-	Links  []Link
+	links  []link
 }
 
-type Link struct {
+type link struct {
 	Name   string
 	Method string
-	Url    string
+	URL    string
 }
 
-type Login struct {
+type login struct {
 	Username string
 	Password string
 }
 
-type UserData struct {
-	Username string
-	Name     string
-	Email    string
-}
-
-const CreateLink = "Create"
-const UpdateLink = "Update"
-const RetrieveLink = "Retrieve"
-const DeleteLink = "Delete"
+const createlink = "Create"
+const updatelink = "Update"
+const retrievelink = "Retrieve"
+const deletelink = "Delete"
 
 /*******************************************************************************
  *
@@ -63,39 +57,37 @@ const DeleteLink = "Delete"
 /*
  * Inform the user that a login is required
  */
-func RestUnauthorized(w *rest.ResponseWriter) {
-	WriteJson(w, &SimpleResponse{"Not authorized", loginLink()}, http.StatusUnauthorized)
+func restUnauthorized(w *rest.ResponseWriter) {
+	writeJSON(w, &simpleResponse{"Not authorized", loginLink()}, http.StatusUnauthorized)
 	return
 }
 
 /*
  * Provide a generic response for an oopsie.
  */
-func RestServerError(w *rest.ResponseWriter) {
-	WriteJson(w, &SimpleResponse{"Internal Server Error", homeLink()}, http.StatusInternalServerError)
+func restServerError(w *rest.ResponseWriter) {
+	writeJSON(w, &simpleResponse{"Internal Server Error", homeLink()}, http.StatusInternalServerError)
 	return
 }
 
 /*
  * The user sent us junk, or we were incapabale of decoding what they sent.
  */
-func RestBadRequest(w *rest.ResponseWriter) {
-	WriteJson(w, &SimpleResponse{"Bad Request", homeLink()}, http.StatusBadRequest)
+func restBadRequest(w *rest.ResponseWriter) {
+	writeJSON(w, &simpleResponse{"Bad Request", homeLink()}, http.StatusBadRequest)
 	return
 }
 
 /*
  * Write 200 success
  */
-func RestSuccess(w *rest.ResponseWriter) {
+func restSuccess(w *rest.ResponseWriter) {
 	w.WriteHeader(200)
 	return
 }
 
-/*
- * Writes struct as JSON with specified HTTP status code
- */
-func WriteJson(w *rest.ResponseWriter, v interface{}, code int) {
+// WriteJSON struct as JSON with specified HTTP status code
+func writeJSON(w *rest.ResponseWriter, v interface{}, code int) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
 	err := w.WriteJson(v)
@@ -107,7 +99,7 @@ func WriteJson(w *rest.ResponseWriter, v interface{}, code int) {
 /*
  * Provides content for root /
  */
-func MainPage(w *rest.ResponseWriter, r *rest.Request) {
+func mainPage(w *rest.ResponseWriter, r *rest.Request) {
 	noCache(w)
 	http.ServeFile(
 		w.ResponseWriter,
@@ -118,7 +110,7 @@ func MainPage(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Provides content for /test
  */
-func TestPage(w *rest.ResponseWriter, r *rest.Request) {
+func testPage(w *rest.ResponseWriter, r *rest.Request) {
 	noCache(w)
 	http.ServeFile(
 		w.ResponseWriter,
@@ -129,7 +121,7 @@ func TestPage(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Provides content for /favicon.ico
  */
-func FavIcon(w *rest.ResponseWriter, r *rest.Request) {
+func favIcon(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
@@ -139,12 +131,12 @@ func FavIcon(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Serves content from static/
  */
-func StaticData(w *rest.ResponseWriter, r *rest.Request) {
-	file_to_serve := path.Join(staticRoot(), r.PathParam("resource"))
+func staticData(w *rest.ResponseWriter, r *rest.Request) {
+	fileToServe := path.Join(staticRoot(), r.PathParam("resource"))
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		file_to_serve)
+		fileToServe)
 }
 
 /*******************************************************************************
@@ -156,96 +148,96 @@ func StaticData(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Provide a list of login related API calls
  */
-func loginLink() []Link {
-	return []Link{
-		Link{CreateLink, "POST", "/login"},
-		Link{DeleteLink, "DELETE", "/login"},
+func loginLink() []link {
+	return []link{
+		link{createlink, "POST", "/login"},
+		link{deletelink, "DELETE", "/login"},
 	}
 }
 
 /*
  * Provide a basic link to the index
  */
-func homeLink() []Link {
-	return []Link{Link{RetrieveLink, "GET", "/"}}
+func homeLink() []link {
+	return []link{link{retrievelink, "GET", "/"}}
 }
 
 /*
  * Provide a list of host related API calls
  */
-func hostsLinks() []Link {
-	return []Link{
-		Link{RetrieveLink, "GET", "/hosts"},
-		Link{CreateLink, "POST", "/hosts/add"},
+func hostsLinks() []link {
+	return []link{
+		link{retrievelink, "GET", "/hosts"},
+		link{createlink, "POST", "/hosts/add"},
 	}
 }
 
-func hostLinks(hostId string) []Link {
-	hostUri := fmt.Sprintf("/hosts/%s", hostId)
-	return []Link{
-		Link{RetrieveLink, "GET", hostUri},
-		Link{UpdateLink, "PUT", hostUri},
-		Link{DeleteLink, "DELETE", hostUri},
+func hostLinks(hostID string) []link {
+	hostURI := fmt.Sprintf("/hosts/%s", hostID)
+	return []link{
+		link{retrievelink, "GET", hostURI},
+		link{updatelink, "PUT", hostURI},
+		link{deletelink, "DELETE", hostURI},
 	}
 }
 
 /*
  * Provide a list of pool related API calls
  */
-func poolsLinks() []Link {
-	return []Link{
-		Link{RetrieveLink, "GET", "/pools"},
-		Link{CreateLink, "POST", "/pools/add"},
+func poolsLinks() []link {
+	return []link{
+		link{retrievelink, "GET", "/pools"},
+		link{createlink, "POST", "/pools/add"},
 	}
 }
 
-func poolLinks(poolId string) []Link {
-	poolUri := fmt.Sprintf("/pools/%s", poolId)
-	return []Link{
-		Link{RetrieveLink, "GET", poolUri},
-		Link{"RetrieveHosts", "GET", poolUri + "/hosts"},
-		Link{UpdateLink, "PUT", poolUri},
-		Link{DeleteLink, "DELETE", poolUri},
+func poolLinks(poolID string) []link {
+	poolURI := fmt.Sprintf("/pools/%s", poolID)
+	return []link{
+		link{retrievelink, "GET", poolURI},
+		link{"RetrieveHosts", "GET", poolURI + "/hosts"},
+		link{updatelink, "PUT", poolURI},
+		link{deletelink, "DELETE", poolURI},
 	}
 }
 
-func servicesLinks() []Link {
-	return []Link{
-		Link{RetrieveLink, "GET", SERVICES_URI},
-		Link{CreateLink, "POST", SERVICES_URI + "/add"},
+func servicesLinks() []link {
+	return []link{
+		link{retrievelink, "GET", servicesURI},
+		link{createlink, "POST", servicesURI + "/add"},
 	}
 }
 
 /*
  * Provide a list of service related API calls
  */
-func serviceLinks(serviceId string) []Link {
-	serviceUri := fmt.Sprintf("/services/%s", serviceId)
-	return []Link{
-		Link{RetrieveLink, "GET", serviceUri},
-		Link{"ServiceLogs", "GET", serviceUri + "/logs"},
-		Link{UpdateLink, "PUT", serviceUri},
-		Link{DeleteLink, "DELETE", serviceUri},
+func serviceLinks(serviceID string) []link {
+	serviceURI := fmt.Sprintf("/services/%s", serviceID)
+	return []link{
+		link{retrievelink, "GET", serviceURI},
+		link{"ServiceLogs", "GET", serviceURI + "/logs"},
+		link{updatelink, "PUT", serviceURI},
+		link{deletelink, "DELETE", serviceURI},
 	}
 }
 
 /*
  * Provide a list of template related API calls.
  */
-func templatesLink() []Link {
-	return []Link{
-		Link{RetrieveLink, "GET", "/templates"},
-		Link{CreateLink, "POST", "/templates/add"},
-		Link{"Deploy", "POST", "/templates/deploy"},
+func templatesLink() []link {
+	return []link{
+		link{retrievelink, "GET", "/templates"},
+		link{createlink, "POST", "/templates/add"},
+		link{"Deploy", "POST", "/templates/deploy"},
 	}
 }
 
-func templateLinks(templateId string) []Link {
-	templateUri := fmt.Sprintf("/templates/%s", templateId)
-	return []Link{
-		Link{RetrieveLink, "GET", templateUri},
-		Link{UpdateLink, "PUT", templateUri},
-		Link{DeleteLink, "DELETE", templateUri},
+func templateLinks(templateID string) []link {
+	templateURI := fmt.Sprintf("/templates/%s", templateID)
+	return []link{
+		link{retrievelink, "GET", templateURI},
+		link{updatelink, "PUT", templateURI},
+		link{deletelink, "DELETE", templateURI},
 	}
 }
 
@@ -270,7 +262,7 @@ func staticRoot() string {
 	return webroot
 }
 
-const SERVICES_URI = "/services"
-const HOSTS_URI = "/hosts"
-const TEMPLATES_URI = "/templates"
-const POOLS_URI = "/pools"
+const servicesURI = "/services"
+const hostsURI = "/hosts"
+const templatesURI = "/templates"
+const poolsURI = "/pools"

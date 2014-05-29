@@ -3,6 +3,8 @@ package nfs
 import (
 	"fmt"
 	"os/exec"
+
+	"github.com/zenoss/glog"
 )
 
 var nfsServiceName = "nfs-kernel-server"
@@ -29,5 +31,6 @@ func startImpl() error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(output))
 	}
+	glog.Infof("started nfs server: %s", string(output))
 	return nil
 }
