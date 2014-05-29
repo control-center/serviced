@@ -378,7 +378,7 @@ func ExampleServicedCLI_CmdServiceAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service list NAME POOLID IMAGEID COMMAND
+	//    serviced service add NAME POOLID IMAGEID COMMAND
 	//
 	// OPTIONS:
 	//    -p 	`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
