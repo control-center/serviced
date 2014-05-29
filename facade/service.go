@@ -387,9 +387,13 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
 				var unusedStr string
-				err = f.AssignAddress(ctx, assignment, &unusedStr)
-				if err != nil {
+				if err := f.AssignAddress(ctx, assignment, &unusedStr); err != nil {
 					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
+					return err
+				}
+
+				if err := f.updateService(ctx, myService); err != nil {
+					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
 					return err
 				}
 
@@ -555,7 +559,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 		// validate the service is ready to start
 		err := f.validateServicesForStarting(ctx, service)
 		if err != nil {
-			glog.Errorf("Services failed validation for starting")
+			glog.Errorf("services failed validation for starting")
 			return err
 		}
 		return nil
