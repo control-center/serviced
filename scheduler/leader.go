@@ -46,6 +46,8 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	}
 
 	for _, aPool := range allPools {
+		// TODO: Support non default pools
+		// Currently, only the default pool gets a leader
 		if aPool.ID != "default" {
 			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
 			continue
@@ -108,12 +110,6 @@ func (l *leader) watchServices() {
 	}()
 
 	conn.CreateDir(zzk.SERVICE_PATH)
-
-	// remove all virtual IPs that may be present before starting the loop
-	if err := virtualips.RemoveAllVirtualIPs(); err != nil {
-		glog.Errorf("RemoveAllVirtualIPs failed: %v", err)
-		return
-	}
 
 	for {
 		glog.V(1).Info("Leader watching for changes to ", zzk.SERVICE_PATH)

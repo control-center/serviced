@@ -80,15 +80,11 @@ func (f *Facade) virtualIPExists(ctx datastore.Context, proposedVirtualIP pool.V
 	return false, nil
 }
 
-func validIP(aString string) error {
-	violations := validation.NewValidationError()
-	violations.Add(validation.IsIP(aString))
-	if len(violations.Errors) > 0 {
-		return violations
-	}
-	return nil
-}
-
+/*
+Ensure that any new virtual IPs are valid.
+Valid means that the strings representing the IP address and netmask are valid.
+Valid means that the IP is NOT already in the pool (neither as a static IP nor a virtual IP)
+*/
 func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.ResourcePool) error {
 	currentPool, err := f.GetResourcePool(ctx, proposedPool.ID)
 	if err != nil {
@@ -114,10 +110,10 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 			// check to see if the proposedVirtualIP is a NEW one
 			if _, keyExists := currentVirtualIPs[key]; !keyExists {
 				// virtual IPs will be added, need to validate this virtual IP
-				if err := validIP(proposedVirtualIP.IP); err != nil {
+				if err := validation.IsIP(proposedVirtualIP.IP); err != nil {
 					return err
 				}
-				if err := validIP(proposedVirtualIP.Netmask); err != nil {
+				if err := validation.IsIP(proposedVirtualIP.Netmask); err != nil {
 					return err
 				}
 
@@ -125,8 +121,7 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 				if err != nil {
 					return err
 				} else if ipAddressAlreadyExists {
-					errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", proposedVirtualIP.IP, proposedVirtualIP.PoolID)
-					return errors.New(errMsg)
+					return fmt.Errorf("cannot add requested virtual IP address: %v as it already exists in pool: %v", proposedVirtualIP.IP, proposedVirtualIP.PoolID)
 				}
 			}
 		}
@@ -294,8 +289,7 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 	if err != nil {
 		return err
 	} else if ipAddressAlreadyExists {
-		errMsg := fmt.Sprintf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP.IP, requestedVirtualIP.PoolID)
-		return errors.New(errMsg)
+		return fmt.Errorf("Cannot add requested virtual IP address: %v as it already exists in pool: %v", requestedVirtualIP.IP, requestedVirtualIP.PoolID)
 	}
 
 	myPool.VirtualIPs = append(myPool.VirtualIPs, requestedVirtualIP)

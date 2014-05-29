@@ -148,7 +148,7 @@ func (f *Facade) validVirtualIp(poolID string, ipAddr string) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("requested static IP is not available: %v", ipAddr)
+		return fmt.Errorf("requested virtual IP is not available: %v", ipAddr)
 	}
 	return nil
 }

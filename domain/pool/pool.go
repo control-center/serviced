@@ -40,9 +40,12 @@ func (b ByIP) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b ByIP) Less(i, j int) bool { return b[i].IP < b[j].IP } // sort by IP address
 
 func (a *ResourcePool) VirtualIPsEqual(b *ResourcePool) bool {
+	// create a deep copy in order to avoid side effects (leaving the VirtualIPs slice sorted)
+	aVIPs := make([]VirtualIP, len(a.VirtualIPs))
+	bVIPs := make([]VirtualIP, len(b.VirtualIPs))
+	copy(aVIPs, a.VirtualIPs)
+	copy(bVIPs, b.VirtualIPs)
 	// DeepEqual requires the order to be identical, therefore, sort!
-	aVIPs := a.VirtualIPs
-	bVIPs := b.VirtualIPs
 	sort.Sort(ByIP(aVIPs))
 	sort.Sort(ByIP(bVIPs))
 	return reflect.DeepEqual(aVIPs, bVIPs)
