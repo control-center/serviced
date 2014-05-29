@@ -365,5 +365,5 @@ func ExampleServicedCLI_CmdPoolListIPs_err() {
 	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-1")
 
 	// Output:
-	// no resource pool ips found
+	// no resource pool IPs found
 }

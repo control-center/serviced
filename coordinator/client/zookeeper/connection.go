@@ -47,7 +47,7 @@ func (c *Connection) SetID(id int) {
 	c.id = id
 }
 
-// NewLeader returns a managed leader onbject at the give path bound to the current
+// NewLeader returns a managed leader object at the given path bound to the current
 // connection.
 func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 	return &Leader{
@@ -202,7 +202,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 	return toClientEvent(zkEvent), xlateError(err)
 }
 
-// Children returns the children of the node at the give path.
+// Children returns the children of the node at the given path.
 func (c *Connection) Children(path string) (children []string, err error) {
 	if c.conn == nil {
 		return children, client.ErrConnectionClosed
@@ -237,7 +237,7 @@ func (c *Connection) get(path string, node client.Node) (err error) {
 	return xlateError(err)
 }
 
-// Set serializes the give node and places it at the given path.
+// Set serializes the given node and places it at the given path.
 func (c *Connection) Set(path string, node client.Node) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
