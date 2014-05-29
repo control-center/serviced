@@ -17,7 +17,7 @@ var options Options
 
 // Options are the server options
 type Options struct {
-	Port             string
+	Endpoint         string // the endpoint address to make RPC requests to
 	UIPort           string
 	Listen           string
 	Master           bool
@@ -96,7 +96,7 @@ func (a *api) StartServer() error {
 func (a *api) connectMaster() (*master.Client, error) {
 	if a.master == nil {
 		var err error
-		a.master, err = master.NewClient(options.Port)
+		a.master, err = master.NewClient(options.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the master: %s", err)
 		}
@@ -132,7 +132,7 @@ func (a *api) connectDocker() (*docker.Client, error) {
 func (a *api) connectDAO() (dao.ControlPlane, error) {
 	if a.dao == nil {
 		var err error
-		a.dao, err = serviced.NewControlClient(options.Port)
+		a.dao, err = serviced.NewControlClient(options.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

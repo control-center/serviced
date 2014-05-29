@@ -278,8 +278,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	}
 	nfsClient.Wait()
 
-	hostAgent, err = serviced.NewHostAgent(options.Port, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
-
+	hostAgent, err = serviced.NewHostAgent(options.Endpoint, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -313,7 +312,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Port)
+		sio := shell.NewProcessExecutorServer(options.Endpoint)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -398,8 +397,8 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
-	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Port, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Port, options.Zookeepers, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
+	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.Zookeepers, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 
