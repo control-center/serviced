@@ -158,39 +158,38 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageID != "" {
-		name, err := f.renameImageID(svc.ImageID, *tenantId)
+		name, err := renameImageID(f.dockerRegistry, svc.ImageID, *tenantId)
 		if err != nil {
+			glog.Errorf("malformed imageId: %s", svc.ImageID)
 			return err
 		}
-
 		dockerclient, err := getDockerClient()
 		if err != nil {
 			glog.Errorf("unable to start docker client")
 			return err
 		}
-		image, err := dockerclient.InspectImage(svc.ImageID)
+		_, err = dockerclient.InspectImage(name)
 		if err != nil {
-			msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
-			glog.Error(err.Error())
-			return msg
-		}
-
-		repo, err := f.renameImageID(svc.ImageID, *tenantId)
-		if err != nil {
-			glog.Errorf("malformed imageId: %s", svc.ImageID)
-			return err
-		}
-
-		options := docker.TagImageOptions{
-			Repo:  repo,
-			Force: true,
-		}
-		if err := dockerclient.TagImage(image.ID, options); err != nil {
-			glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
-			return err
+			if err != docker.ErrNoSuchImage {
+				glog.Error(err)
+				return err
+			}
+			image, err := dockerclient.InspectImage(svc.ImageID)
+			if err != nil {
+				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
+				glog.Error(err.Error())
+				return msg
+			}
+			options := docker.TagImageOptions{
+				Repo:  name,
+				Force: true,
+			}
+			if err := dockerclient.TagImage(image.ID, options); err != nil {
+				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+				return err
+			}
 		}
 		svc.ImageID = name
-
 	}
 
 	err = f.AddService(ctx, *svc)
@@ -242,7 +241,7 @@ func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.Servic
 	}
 }
 
-func (f *Facade) renameImageID(imageId, tenantId string) (string, error) {
+func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 
 	repo, _ := dutils.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
@@ -252,7 +251,7 @@ func (f *Facade) renameImageID(imageId, tenantId string) (string, error) {
 	}
 	name := matches[1]
 
-	return fmt.Sprintf("%s/%s/%s", f.dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", dockerRegistry, tenantId, name), nil
 }
 
 // writeLogstashConfiguration takes all the available
