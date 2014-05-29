@@ -215,7 +215,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 	}
 }
 
-// StopContainer stops the container specified by the id. If the container can't be stopped before the timeout
+// Stop stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
 func (c *Container) Stop(timeout time.Duration) error {
 	ec := make(chan error)
@@ -243,6 +243,34 @@ func (c *Container) Stop(timeout time.Duration) error {
 	}
 }
 
+// Wait blocks until the container stops or the timeout expires and then returns its exit code.
+func (c *Container) Wait(timeout time.Duration) (int, error) {
+	ec := make(chan error)
+	rc := make(chan int)
+
+	cmds.Wait <- waitreq{
+		request{ec},
+		struct {
+			id string
+		}{c.ID},
+		rc,
+	}
+
+	select {
+	case <-time.After(timeout):
+		return -127, ErrRequestTimeout
+	case <-done:
+		return -127, ErrKernelShutdown
+	default:
+		switch err, ok := <-ec; {
+		case !ok:
+			return <-rc, nil
+		default:
+			return -127, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 // OnContainerCreated associates a containter action with the specified container. The action will be triggered when
 // that container is created; since we can't know before it's created what a containers id will be the only really
 // useful id is docker.Wildcard which will cause the action to be triggered for every container docker creates.
@@ -250,109 +278,10 @@ func OnContainerCreated(id string, action ContainerActionFunc) error {
 	return onContainerEvent(dockerclient.Create, id, action)
 }
 
-// OnContainerDeleted associates a container action with the specified container. The action will be triggered when
-// that container is deleted.
-func OnContainerDeleted(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Delete, id, action)
-}
-
-// OnContainerDestroy associates a container action with the specified container. The action will be triggered when
-// that container is destroyed.
-func OnContainerDestroy(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Destroy, id, action)
-}
-
-// OnContainerDeath associates a container action with the specified container. The action will be triggered when
-// that container dies.
-func OnContainerDeath(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Die, id, action)
-}
-
-// OnContainerExport associates a container action with the specified container. The action will be triggered when
-// that container is exported.
-func OnContainerExport(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Export, id, action)
-}
-
-// OnContainerKill associates a container action with the specified container. The action will be triggered when
-// that container is killed.
-func OnContainerKill(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Kill, id, action)
-}
-
-// OnContainerRestart associates a container action with the specified container. The action will be triggered when
-// that container is restarted.
-func OnContainerRestart(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Restart, id, action)
-}
-
-// OnContainerStart associates a container action with the specified container. The action will be triggered when
-// that container is started.
-func OnContainerStart(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Start, id, action)
-}
-
-// OnContainerStop associates a container action with the specified container. The action will be triggered when
-// that container is stopped.
-func OnContainerStop(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Stop, id, action)
-}
-
-// OnContainerUntagged associates a container action with the specified container. The action will be triggered when
-// that container is untagged.
-func OnContainerUntagged(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Untag, id, action)
-}
-
 // CancelOnContainerCreated cancels any OnContainerCreated action associated with the specified id - docker.Wildcard is
 // the only id that really makes sense.
 func CancelOnContainerCreated(id string) error {
 	return cancelOnContainerEvent(dockerclient.Create, id)
-}
-
-// CancelOnContainerDeleted cancels any OnContainerDeleted action asssociated with the specified id.
-func CancelOnContainerDeleted(id string) error {
-	return cancelOnContainerEvent(dockerclient.Delete, id)
-}
-
-// CancelOnContainerDestroy cancels any OnContainerDestroy action asssociated with the specified id.
-func CancelOnContainerDestroy(id string) error {
-	return cancelOnContainerEvent(dockerclient.Destroy, id)
-}
-
-// CancelOnContainerDeath cancels any OnContainerDeath action associated with the specified id.
-func CancelOnContainerDeath(id string) error {
-	return cancelOnContainerEvent(dockerclient.Die, id)
-}
-
-// CancelOnContainerExport cancels any OnContainerExport action associated with the specified id.
-func CancelOnContainerExport(id string) error {
-	return cancelOnContainerEvent(dockerclient.Export, id)
-}
-
-// CancelOnContainerKill cancels any OnContainerKill action associated with the specified id.
-func CancelOnContainerKill(id string) error {
-	return cancelOnContainerEvent(dockerclient.Kill, id)
-}
-
-// CancelOnContainerRestart cancels any OnContainerRestart action associated with the specified id.
-func CancelOnContainerRestart(id string) error {
-	return cancelOnContainerEvent(dockerclient.Restart, id)
-}
-
-// CancelOnContainerStart cancels any OnContainerStart action associated with the specified id.
-func CancelOnContainerStart(id string) error {
-	return cancelOnContainerEvent(dockerclient.Start, id)
-}
-
-// CancelOnContainerStop cancels any OnContainerStop action associated with the specified id.
-func CancelOnContainerStop(id string) error {
-	return cancelOnContainerEvent(dockerclient.Stop, id)
-}
-
-// CancelOnContainerUntagged cancels any OnContainerUntagged action associated with the specified id.
-func CancelOnContainerUntagged(id string) error {
-	return cancelOnContainerEvent(dockerclient.Untag, id)
 }
 
 func onContainerEvent(event, id string, action ContainerActionFunc) error {

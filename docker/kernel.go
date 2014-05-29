@@ -2,16 +2,14 @@ package docker
 
 import (
 	"fmt"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	"os"
 	"syscall"
 	"time"
-
-	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 const (
-	dockerep = "unix:///var/run/docker.sock"
+	dockerep = "http://127.0.0.1:3006"
 	Wildcard = "*"
 )
 
@@ -116,6 +114,14 @@ type stopreq struct {
 	}
 }
 
+type waitreq struct {
+	request
+	args struct {
+		id string
+	}
+	respchan chan int
+}
+
 var (
 	cmds = struct {
 		AddAction       chan addactionreq
@@ -130,6 +136,7 @@ var (
 		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
+		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
@@ -143,6 +150,7 @@ var (
 		make(chan restartreq),
 		make(chan startreq),
 		make(chan stopreq),
+		make(chan waitreq),
 	}
 	dockerevents = []string{
 		dockerclient.Create,
@@ -172,7 +180,6 @@ func init() {
 
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc *dockerclient.Client, done chan struct{}) error {
-	glog.Info("start the Container kernel")
 	routeEventsToKernel(dc)
 
 	eventactions := mkEventActionTable()
@@ -254,8 +261,6 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
-			glog.Infof("Docker event: %v\n", req)
-
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
 				go wcaction(req.args.id)
 			}
@@ -280,6 +285,15 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
+		case req := <-cmds.Wait:
+			go func(req waitreq) {
+				rc, err := dc.WaitContainer(req.args.id)
+				if err != nil {
+					req.errchan <- err
+				}
+				close(req.errchan)
+				req.respchan <- rc
+			}(req)
 		case <-done:
 			close(si)
 			close(ci)
@@ -291,7 +305,6 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 // scheduler handles creating and starting up containers. Container creation can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create and start queues.
 func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done chan struct{}) {
-	glog.Info("start Container scheduler")
 	em, err := dc.MonitorEvents()
 	if err != nil {
 		panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -300,7 +313,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 	for {
 		select {
 		case req := <-crc:
-			glog.Infof("scheduler: handling request: %#v", req)
 			ctr, err := dc.CreateContainer(*req.args.containerOptions)
 			switch {
 			case err == dockerclient.ErrNoSuchImage:
@@ -322,16 +334,11 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				continue
 			}
 
-			glog.Infof("scheduler: created container: %s", ctr.ID)
-
 			if req.args.createaction != nil {
-				glog.Infof("scheduler: invoking create action for: %s", ctr.ID)
 				req.args.createaction(ctr.ID)
 			}
 
 			if req.args.start {
-				glog.Infof("scheduler: starting: %s", ctr.ID)
-
 				ss, err := em.Subscribe(ctr.ID)
 				if err != nil {
 					req.errchan <- err
@@ -341,9 +348,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				sc := make(chan struct{})
 
 				ss.Handle(Start, func(e dockerclient.Event) error {
-					glog.Infof("scheduler: start handler: received %#v", e)
 					if req.args.startaction != nil {
-						glog.Infof("scheduler: start handler: invoking start action for container: %s", ctr.ID)
 						req.args.startaction(ctr.ID)
 					}
 					sc <- struct{}{}
@@ -352,15 +357,12 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 				err = dc.StartContainer(ctr.ID, req.args.hostConfig)
 				if err != nil {
-					glog.Errorf("scheduler: container start failed: %v", err)
 					req.errchan <- err
 					continue
 				}
 
-				glog.Infof("scheduler: waiting for start event for container: %s", ctr.ID)
 				select {
 				case <-sc:
-					glog.Infof("scheduler: container %s started", ctr.ID)
 				case <-time.After(60 * time.Second):
 					req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
 					continue
@@ -397,31 +399,26 @@ func startq(in <-chan startreq, next chan<- startreq) {
 restart:
 	for {
 		if len(pending) == 0 {
-			glog.Info("startq: waiting for request, none pending")
 			v, ok := <-in
 			if !ok {
 				break
 			}
 
-			glog.Info("startq: queue request, none pending")
 			pending = append(pending, v)
 		}
 
 		select {
 		case v, ok := <-in:
-			glog.Infof("startq: queue request, %d pending", len(pending))
 			if !ok {
 				break restart
 			}
 
 			pending = append(pending, v)
 		case next <- pending[0]:
-			glog.Infof("startq: deque request, %d remaining", len(pending)-1)
 			pending = pending[1:]
 		}
 	}
 
-	glog.Infof("startq: input closed, send %d pending requests", len(pending))
 	for _, v := range pending {
 		next <- v
 	}
@@ -437,31 +434,26 @@ func createq(in <-chan createreq, next chan<- createreq) {
 restart:
 	for {
 		if len(pending) == 0 {
-			glog.Info("createq: waiting for request, none pending")
 			v, ok := <-in
 			if !ok {
 				break
 			}
 
-			glog.Info("createq: queue request, none pending")
 			pending = append(pending, v)
 		}
 
 		select {
 		case v, ok := <-in:
-			glog.Infof("createq: queue request, %d pending", len(pending))
 			if !ok {
 				break restart
 			}
 
 			pending = append(pending, v)
 		case next <- pending[0]:
-			glog.Infof("createq: deque request, %d remaining", len(pending)-1)
 			pending = pending[1:]
 		}
 	}
 
-	glog.Infof("createq: input closed, send %d pending requests", len(pending))
 	for _, v := range pending {
 		next <- v
 	}
@@ -489,7 +481,6 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 	}
 
 	for _, de := range dockerevents {
-		glog.Infof("set up a route for %s events", de)
 		s.Handle(de, eventToKernel)
 	}
 }
@@ -497,7 +488,6 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 func eventToKernel(e dockerclient.Event) error {
 	ec := make(chan error)
 
-	glog.Infof("send event %#v to kernel", e)
 	cmds.OnEvent <- oneventreq{
 		request{ec},
 		struct {
@@ -508,7 +498,6 @@ func eventToKernel(e dockerclient.Event) error {
 
 	select {
 	case <-time.After(1 * time.Second):
-		glog.Errorf("oneventreq for %#v timed out", e)
 		return ErrRequestTimeout
 	case <-done:
 		return ErrKernelShutdown

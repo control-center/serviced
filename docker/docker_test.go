@@ -216,13 +216,13 @@ func TestListContainers(t *testing.T) {
 		t.Fatal("can't get a list of containers: ", err)
 	}
 
-	if len(cl) != len(ctrs) {
-		t.Fatalf("expecting %d containers, found %d", len(ctrs), len(cl))
+	if (len(cl) - len(ctrs)) < 0 {
+		t.Fatalf("expecting at least %d containers, found %d", len(ctrs), len(cl))
 	}
 
-	for _, c := range cl {
+	for _, ctr := range ctrs {
 		var found bool
-		for _, ctr := range ctrs {
+		for _, c := range cl {
 			if ctr.ID == c.ID {
 				found = true
 				break
@@ -230,7 +230,7 @@ func TestListContainers(t *testing.T) {
 		}
 
 		if !found {
-			t.Fatal("missing container: ", c.ID)
+			t.Fatal("missing container: ", ctr.ID)
 		}
 	}
 
@@ -240,5 +240,46 @@ func TestListContainers(t *testing.T) {
 
 	for _, ctr := range ctrs {
 		ctr.Delete(true)
+	}
+}
+
+func TestWaitForContainer(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, true, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	wc := make(chan int)
+
+	go func(c *Container) {
+		rc, err := c.Wait(600 * time.Second)
+		if err != nil {
+			t.Log("container wait failed: ", err)
+		}
+
+		wc <- rc
+	}(ctr)
+
+	time.Sleep(10 * time.Second)
+
+	if err := ctr.Kill(); err != nil {
+		t.Fatal("can't kill container: ", err)
+	}
+
+	select {
+	case rc := <-wc:
+		t.Log("wait exited with: ", rc)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for wait to finish")
 	}
 }
