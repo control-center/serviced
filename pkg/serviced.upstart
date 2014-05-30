@@ -23,3 +23,11 @@ script
     cd $SERVICED_HOME && ./bin/serviced -agent -master
 end script
 
+post-stop script
+    echo "$(date): waiting for serviced to stop"
+    while pgrep -fl 'bin/serviced -agent -master'; do
+        sleep 5
+    done
+    echo "$(date): serviced is now stopped - done with post-stop"
+end script
+
