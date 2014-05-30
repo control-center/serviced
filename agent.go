@@ -16,14 +16,17 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/virtualips"
 
 	docker "github.com/zenoss/go-dockerclient"
 
@@ -70,6 +73,8 @@ type HostAgent struct {
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
 	dockerRegistry  string // the docker registry to use
+	facade          *facade.Facade
+	context         datastore.Context
 }
 
 // assert that this implemenents the Agent interface
@@ -366,13 +371,13 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	if err != nil {
 		return
-		//TODO: should	"cmd" be cleaned up before returning?
+		//TODO: should "cmd" be cleaned up before returning?
 	}
 
 	var sState *servicestate.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 		ss.DockerID = ctr.ID
-		ss.Started = time.Now()
+		ss.Started = ctr.Created
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIP = ctr.NetworkSettings.IPAddress
 		ss.PortMapping = make(map[string][]domain.HostIPAndPort)
@@ -451,7 +456,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				}
 				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 					ss.DockerID = containerState.ID
-					ss.Started = time.Now()
+					ss.Started = containerState.Created
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIP = containerState.NetworkSettings.IPAddress
 					ss.PortMapping = make(map[string][]domain.HostIPAndPort)
@@ -859,17 +864,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
-	glog.V(1).Info("Starting HostAgent")
+	glog.Info("Starting HostAgent")
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
-
 			connc := make(chan coordclient.Connection)
 			var conn coordclient.Connection
 			done := make(chan struct{}, 1)
+
 			defer func() {
 				done <- struct{}{}
 			}()
+
 			go func() {
 				for {
 					c, err := a.zkClient.GetConnection()
@@ -877,6 +883,7 @@ func (a *HostAgent) start() {
 						connc <- c
 						return
 					}
+
 					// exit when our parent exits
 					select {
 					case <-done:
@@ -886,17 +893,23 @@ func (a *HostAgent) start() {
 				}
 				close(connc)
 			}()
+
 			select {
 			case errc := <-a.closing:
-				glog.V(0).Info("Received shutdown notice")
+				glog.Info("Received shutdown notice")
 				a.zkClient.Close()
 				errc <- errors.New("unable to connect to zookeeper")
 				return false
 
 			case conn = <-connc:
-				glog.V(1).Info("Got a connected client")
+				glog.Info("Got a connected client")
 			}
+
 			defer conn.Close()
+
+			// watch virtual IP zookeeper nodes
+			go virtualips.WatchVirtualIPs(conn)
+
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {
