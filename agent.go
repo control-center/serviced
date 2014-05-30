@@ -377,7 +377,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 	var sState *servicestate.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 		ss.DockerID = ctr.ID
-		ss.Started = time.Now()
+		ss.Started = ctr.Created
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIP = ctr.NetworkSettings.IPAddress
 		ss.PortMapping = make(map[string][]domain.HostIPAndPort)
@@ -456,7 +456,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				}
 				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 					ss.DockerID = containerState.ID
-					ss.Started = time.Now()
+					ss.Started = containerState.Created
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIP = containerState.NetworkSettings.IPAddress
 					ss.PortMapping = make(map[string][]domain.HostIPAndPort)
