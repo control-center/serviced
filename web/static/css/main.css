@@ -780,6 +780,10 @@ rect {
     background-color: #6b6b6b;
 }
 
+.navbar-nav > li:last-child > button{
+    padding-right: 15px;
+}
+
 /* speed up bootstrap modals */
 .fade {
    opacity: 0;
