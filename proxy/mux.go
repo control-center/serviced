@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"time"
 )
 
 // TCPMux is an implementation of tcp muxing RFC 1078.
@@ -45,6 +46,17 @@ func (mux *TCPMux) acceptor(listener net.Listener, closing chan chan struct{}) {
 	for {
 		conn, err := mux.listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "too many open files") {
+				glog.Warningf("error accepting connections, retrying in 50 ms: %s", err)
+				select {
+				case <-closing:
+					glog.V(5).Info("shutting down acceptor")
+					return
+				case <-time.After(time.Millisecond * 50):
+					continue
+				}
+			}
+			glog.Errorf("shutting down acceptor: %s", err)
 			return
 		}
 		glog.V(5).Infof("accepted connection: %s", conn)
@@ -72,6 +84,10 @@ func (mux *TCPMux) loop() {
 			errc <- nil
 			return
 		case conn := <-mux.connections:
+			if conn == nil {
+				glog.Error("connection was nil")
+				continue
+			}
 			glog.V(5).Info("handing mux connection")
 			go mux.muxConnection(conn)
 		}
@@ -84,6 +100,8 @@ func (mux *TCPMux) loop() {
 // to the service is sucessful, all traffic continues to be proxied between
 // two connections.
 func (mux *TCPMux) muxConnection(conn net.Conn) {
+	// make sure that we don't block indefinitely
+	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 	reader := bufio.NewReader(conn)
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -91,6 +109,8 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 		conn.Close()
 		return
 	}
+	// restore deadline
+	conn.SetReadDeadline(time.Time{})
 	line = strings.TrimSpace(line)
 
 	svc, err := net.Dial("tcp4", line)
@@ -125,4 +145,3 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 		svc.Close()
 	}()
 }
-
