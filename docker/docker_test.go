@@ -331,3 +331,102 @@ func TestInspectContainer(t *testing.T) {
 		t.Fatal("inspected stated didn't change")
 	}
 }
+
+func TestRepeatedStart(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	sc := make(chan struct{})
+
+	ctr.OnEvent(Start, func(id string) {
+		sc <- struct{}{}
+	})
+
+	if err := ctr.Start(1*time.Second, nil); err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	select {
+	case <-sc:
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for container to start")
+	}
+
+	if err := ctr.Start(1*time.Second, nil); err == nil {
+		t.Fatal("expecting ErrAlreadyStarted")
+	}
+}
+
+func TestNewContainerTimeout(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	_, err := NewContainer(cd, false, 10*time.Millisecond, nil, nil)
+	if err == nil {
+		t.Fatal("expecting timeout")
+	}
+}
+
+func TestNewContainerOnCreated(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	cc := make(chan struct{})
+	sc := make(chan struct{})
+
+	ca := func(id string) {
+		cc <- struct{}{}
+	}
+
+	sa := func(id string) {
+		sc <- struct{}{}
+	}
+
+	go func() {
+		_, err := NewContainer(cd, true, 300*time.Second, ca, sa)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+	}()
+
+	select {
+	case <-cc:
+		break
+	case <-time.After(360 * time.Second):
+		t.Fatal("timed out waiting for create action execution")
+	}
+
+	select {
+	case <-sc:
+		break
+	case <-time.After(1 * time.Second):
+		t.Fatal("timed out waiting for start action execution")
+	}
+}

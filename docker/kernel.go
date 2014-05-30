@@ -278,6 +278,19 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			}
 			close(req.errchan)
 		case req := <-cmds.Start:
+			// check to see if the container is already running
+			ctr, err := dc.InspectContainer(req.args.id)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			if ctr.State.Running {
+				req.errchan <- ErrAlreadyStarted
+				continue
+			}
+
+			// schedule the start only if the container is not running
 			si <- req
 		case req := <-cmds.Stop:
 			err := dc.StopContainer(req.args.id, req.args.timeout)
@@ -372,7 +385,13 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 			close(req.errchan)
 
-			req.respchan <- ctr
+			// don't hang around forever waiting for the caller to get the result
+			select {
+			case req.respchan <- ctr:
+				break
+			case <-time.After(10 * time.Millisecond):
+				break
+			}
 		case req := <-src:
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {
@@ -415,6 +434,14 @@ restart:
 			}
 
 			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > 8 {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []startreq{}
+			}
 		case next <- pending[0]:
 			pending = pending[1:]
 		}
@@ -450,6 +477,14 @@ restart:
 			}
 
 			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > 8 {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []createreq{}
+			}
 		case next <- pending[0]:
 			pending = pending[1:]
 		}

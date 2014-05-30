@@ -8,18 +8,22 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
+// Container represents a Docker container.
 type Container struct {
 	*dockerclient.Container
 	dockerclient.HostConfig
 }
 
+// ContainerDefinition records all the information necessary to create a Docker container.
 type ContainerDefinition struct {
 	dockerclient.CreateContainerOptions
 	dockerclient.HostConfig
 }
 
+// ContainerActionFunc instances are used to handle container action notifications.
 type ContainerActionFunc func(id string)
 
+// Strings identifying the Docker lifecycle events.
 const (
 	Create  = dockerclient.Create
 	Delete  = dockerclient.Delete
@@ -33,14 +37,18 @@ const (
 	Untag   = dockerclient.Untag
 )
 
+// Container subsystem error types
 var (
+	ErrAlreadyStarted  = errors.New("docker: container already started")
 	ErrRequestTimeout  = errors.New("docker: request timed out")
 	ErrKernelShutdown  = errors.New("docker: kernel shutdown")
 	ErrNoSuchContainer = errors.New("docker: no such container")
 )
 
-// NewContainer creates a new container and returns its id. The supplied action function, if
-// any, will be executed on successful creation of the container.
+// NewContainer creates a new container and returns its id. The supplied create action, if
+// any, will be executed on successful creation of the container. If a start action is specified
+// it will be executed after the container has been started. Note, if the start parameter is
+// false the container won't be started and the start action will not be executed.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
 	ec := make(chan error)
 	rc := make(chan *dockerclient.Container)
@@ -62,8 +70,8 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		return nil, ErrRequestTimeout
 	case <-done:
 		return nil, ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return &Container{<-rc, cd.HostConfig}, nil
 		default:
@@ -101,8 +109,8 @@ func Containers() ([]*Container, error) {
 	select {
 	case <-done:
 		return []*Container{}, ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return <-rc, nil
 		default:
@@ -124,14 +132,14 @@ func (c *Container) Delete(volumes bool) error {
 		request{ec},
 		struct {
 			removeOptions dockerclient.RemoveContainerOptions
-		}{dockerclient.RemoveContainerOptions{c.ID, volumes}},
+		}{dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes}},
 	}
 
 	select {
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -155,8 +163,8 @@ func (c *Container) Kill() error {
 	select {
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -181,14 +189,24 @@ func (c Container) Inspect() (*dockerclient.Container, error) {
 	select {
 	case <-done:
 		return nil, ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return <-rc, nil
 		default:
 			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
+}
+
+// IsRunning inspects the container and returns true if it is running
+func (c *Container) IsRunning() bool {
+	cc, err := c.Inspect()
+	if err != nil {
+		return false
+	}
+
+	return cc.State.Running
 }
 
 // OnEvent adds an action for the specified event.
@@ -213,8 +231,8 @@ func (c *Container) Restart(timeout time.Duration) error {
 		return nil
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -227,6 +245,10 @@ func (c *Container) Restart(timeout time.Duration) error {
 // container. If a container can't be started before the timeout expires an error is returned. After the container
 // is successfully started the onstart action function is executed.
 func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) error {
+	if c.State.Running != false {
+		return nil
+	}
+
 	ec := make(chan error)
 
 	cmds.Start <- startreq{
@@ -243,8 +265,8 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 		return ErrRequestTimeout
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -271,8 +293,8 @@ func (c *Container) Stop(timeout time.Duration) error {
 		return ErrRequestTimeout
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -299,8 +321,8 @@ func (c *Container) Wait(timeout time.Duration) (int, error) {
 		return -127, ErrRequestTimeout
 	case <-done:
 		return -127, ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return <-rc, nil
 		default:
@@ -337,8 +359,8 @@ func onContainerEvent(event, id string, action ContainerActionFunc) error {
 	select {
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
@@ -361,8 +383,8 @@ func cancelOnContainerEvent(event, id string) error {
 	select {
 	case <-done:
 		return ErrKernelShutdown
-	default:
-		switch err, ok := <-ec; {
+	case err, ok := <-ec:
+		switch {
 		case !ok:
 			return nil
 		default:
