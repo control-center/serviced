@@ -83,10 +83,8 @@ func (mux *TCPMux) loop() {
 			closeAcceptor <- closeAcceptorAck
 			errc <- nil
 			return
-		case conn := <-mux.connections:
-			if conn == nil {
-				// we will get nil values when the channel is close
-				// so stop listening
+		case conn, ok := <-mux.connections:
+			if !ok {
 				mux.connections = nil
 				glog.V(6).Info("got nil conn, channel is closed")
 				continue
