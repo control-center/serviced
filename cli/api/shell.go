@@ -33,7 +33,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.Port)
+	cmd, err := shell.StartDocker(&cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -80,7 +80,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.Port)
+	cmd, err := shell.StartDocker(&cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}

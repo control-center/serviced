@@ -73,8 +73,10 @@ func (f *Facade) AssignAddress(ctx datastore.Context, assignment addressassignme
 		}
 	case "virtual":
 		{
-			// TODO: need to check if virtual IP exists
-			return fmt.Errorf("Not yet supported type %v", assignment.AssignmentType)
+			//verify the IP provided is contained in the pool
+			if err := f.validVirtualIp(assignment.PoolID, assignment.IPAddr); err != nil {
+				return err
+			}
 		}
 	default:
 		//Validate above should handle f but left here for completenes
@@ -108,7 +110,6 @@ func (f *Facade) AssignAddress(ctx datastore.Context, assignment addressassignme
 }
 
 func (f *Facade) validStaticIp(ctx datastore.Context, hostId string, ipAddr string) error {
-
 	host, err := f.GetHost(ctx, hostId)
 	if err != nil {
 		return err
@@ -124,7 +125,30 @@ func (f *Facade) validStaticIp(ctx datastore.Context, hostId string, ipAddr stri
 		}
 	}
 	if !found {
-		return fmt.Errorf("Requested static IP is not available: %v", ipAddr)
+		return fmt.Errorf("requested static IP is not available: %v", ipAddr)
+	}
+	return nil
+}
+
+func (f *Facade) validVirtualIp(poolID string, ipAddr string) error {
+	myPool, err := f.GetResourcePool(datastore.Get(), poolID)
+	if err != nil {
+		glog.Errorf("Unable to load resource pool: %s", poolID)
+		return err
+	}
+	if myPool == nil {
+		return fmt.Errorf("poolid %s not found", poolID)
+	}
+
+	found := false
+	for _, virtualIP := range myPool.VirtualIPs {
+		if virtualIP.IP == ipAddr {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("requested virtual IP is not available: %v", ipAddr)
 	}
 	return nil
 }
@@ -152,8 +176,7 @@ func (f *Facade) validEndpoint(ctx datastore.Context, serviceId string, endpoint
 // getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
 func (f *Facade) getAddressAssignments(ctx datastore.Context, serviceID string) (map[string]*addressassignment.AddressAssignment, error) {
 	assignments := []*addressassignment.AddressAssignment{}
-	err := f.GetServiceAddressAssignments(ctx, serviceID, &assignments)
-	if err != nil {
+	if err := f.GetServiceAddressAssignments(ctx, serviceID, &assignments); err != nil {
 		return nil, err
 	}
 

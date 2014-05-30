@@ -73,7 +73,7 @@ func New(driver api.API) *ServicedCli {
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
-		cli.StringFlag{"port", agentIP, "port for remote serviced (example.com:8080)"},
+		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentIP), "endpoint for remote serviced (example.com:8080)"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
 		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
@@ -128,7 +128,7 @@ func (c *ServicedCli) Run(args []string) {
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
 		DockerRegistry:   ctx.GlobalString("docker-registry"),
-		Port:             ctx.GlobalString("port"),
+		Endpoint:         ctx.GlobalString("endpoint"),
 		StaticIPs:        ctx.GlobalStringSlice("static-ip"),
 		UIPort:           ctx.GlobalString("uiport"),
 		Listen:           ctx.GlobalString("listen"),
