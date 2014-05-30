@@ -85,7 +85,10 @@ func (mux *TCPMux) loop() {
 			return
 		case conn := <-mux.connections:
 			if conn == nil {
-				glog.Error("connection was nil")
+				// we will get nil values when the channel is close
+				// so stop listening
+				mux.connections = nil
+				glog.V(6).Info("got nil conn, channel is closed")
 				continue
 			}
 			glog.V(5).Info("handing mux connection")
