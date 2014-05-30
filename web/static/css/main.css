@@ -675,6 +675,11 @@ input.startup {
     writing-mode: lr-tb;
 }
 
+.medChart{
+    position: relative;
+    height: 200px;
+}
+
 /* d3 related below */
 
 .node {
