@@ -43,11 +43,8 @@ start_serviced() {
     echo "Starting serviced..."
     sudo GOPATH=${GOPATH} PATH=${PATH} ${PWD}/serviced/serviced -master -agent &
     echo "Waiting 60 seconds for serviced to become the leader..."
-    for i in {1..60}; do
-        wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null && return 0
-        sleep 1
-    done
-    return 1
+    retry 60 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
+    return $?
 }
 
 # Add a host
@@ -82,13 +79,11 @@ start_service() {
 }
 
 test_vhost() {
-    sleep 5
     wget --no-check-certificate -qO- https://websvc.${HOSTNAME} &>/dev/null || return 1
     return 0
 }
 
 test_assigned_ip() {
-    sleep 5 # Sometimes this takes a little while to start up, but no reason to fail
     wget ${IP}:1000 -qO- &>/dev/null || return 1
     return 0
 }
@@ -111,6 +106,19 @@ test_port_mapped() {
     return 1
 }
 
+retry() {
+    TIMEOUT=$1
+    shift
+    COMMAND="$@"
+    DURATION=0
+    until [ ${DURATION} -ge ${TIMEOUT} ]; do
+        ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
+        DURATION=$[$DURATION+1]
+        sleep 1
+    done
+    return ${RESULT}
+}
+
 # Force a clean environment
 cleanup
 
@@ -118,15 +126,15 @@ cleanup
 add_to_etc_hosts
 
 # Run all the tests
-start_serviced    && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 60 seconds."
-add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
-add_template      && succeed "Added template successfully"              || fail "Unable to add template"
-deploy_service    && succeed "Deployed service successfully"            || fail "Unable to deploy service"
-start_service     && succeed "Started service"                          || fail "Unable to start service"
-test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
-test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
-test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
-test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
-test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Either unable to attach to container or endpoint was not imported"
+start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 60 seconds."
+add_host                   && succeed "Added host successfully"                  || fail "Unable to add host"
+add_template               && succeed "Added template successfully"              || fail "Unable to add template"
+deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
+start_service              && succeed "Started service"                          || fail "Unable to start service"
+retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
+retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
+retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
+retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
+retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Either unable to attach to container or endpoint was not imported"
 
 # "trap cleanup EXIT", above, will handle cleanup
