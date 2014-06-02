@@ -319,12 +319,10 @@ func setSubtract(a []string, b []string) []string {
 // BINDADDRESS:zvipINDEX (zvip is defined by constant 'virtualInterfacePrefix')
 func generateInterfaceName(virtualIP pool.VirtualIP, interfaceIndex string) (string, error) {
 	if virtualIP.BindInterface == "" {
-		msg := fmt.Sprintf("generateInterfaceName failed as virtual IP: %v has no Bind Interface.", virtualIP.IP)
-		return "", errors.New(msg)
+		return "", fmt.Errorf("generateInterfaceName failed as virtual IP: %v has no Bind Interface.", virtualIP.IP)
 	}
 	if interfaceIndex == "" {
-		msg := fmt.Sprintf("generateInterfaceName failed, interfaceIndex is not populated")
-		return "", errors.New(msg)
+		return "", fmt.Errorf("generateInterfaceName failed, interfaceIndex is not populated")
 	}
 	return virtualIP.BindInterface + virtualInterfacePrefix + interfaceIndex, nil
 }
@@ -356,8 +354,7 @@ func determineVirtualInterfaceName(virtualIPToAdd pool.VirtualIP, interfaceMap m
 		}
 	}
 
-	msg := fmt.Sprintf("There are over %v virtual IP interfaces. Could not generate index.", maxIndex)
-	return "", errors.New(msg)
+	return "", fmt.Errorf("There are over %v virtual IP interfaces. Could not generate index.", maxIndex)
 }
 
 // create an interface map of virtual interfaces configured on the agent
