@@ -329,11 +329,23 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
 func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host) (*host.Host, error) {
+	var assignmentType string
+	var ipAddr string
 	var hostid string
 	for _, ep := range s.Endpoints {
 		if ep.AddressAssignment != (addressassignment.AddressAssignment{}) {
+			myAddressAssignment = ep
+
+			assignmentType = ep.AddressAssignment.AssignmentType
+			ipAddr = ep.AddressAssignment.IPAddr
 			hostid = ep.AddressAssignment.HostID
 			break
+		}
+	}
+
+	if assignmentType == "virtual" {
+		if err := virtualips.GetVirtualIPHostID(l.conn, ipAddr, &hostid); err != nil {
+			return nil, err
 		}
 	}
 

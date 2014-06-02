@@ -229,6 +229,22 @@ func (v *virtualIPNode) Version() interface{}           { return v.version }
 func (v *virtualIPNode) SetVersion(version interface{}) { v.version = version }
 
 /*
+GetVirtualIPHostID is used to figure out which host a virtual IP is configureds
+*/
+func GetVirtualIPHostID(conn client.Connection, virtualIPAddress string, hostID *string) error {
+	myVirtualIP := pool.VirtualIP{PoolID: "", IP: "", Netmask: "", BindInterface: ""}
+	vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
+	if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
+		glog.Warningf("Unable to retrieve node: %v (perhaps no agent has had time to acquire the virtual IP lock and realize the virtual interface)", virtualIPsPath(virtualIPAddress))
+		return err
+	}
+
+	*hostID = vipNode.HostID
+
+	return nil
+}
+
+/*
 watchVirtualIP is invoked per virtual IP. It attempts to acquire a lock on the virtual IP.
 If the lock is acquired, then virtual IP is realized on the agent.
 */
