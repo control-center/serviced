@@ -190,7 +190,6 @@ func (c *Server) hostsAllow() error {
 		s = s[:index-1]
 	}
 
-	s = s + hostAllowDefaults
 	hosts := make([]string, len(c.clients))
 	i := 0
 	for key := range c.clients {
@@ -198,10 +197,7 @@ func (c *Server) hostsAllow() error {
 		i++
 	}
 	sort.Strings(hosts)
-	for _, h := range hosts {
-		s = s + " " + h
-	}
-	s = s + "\n"
+	s = s + hostAllowDefaults + " " + strings.Join(hosts, " ") + "\n"
 
 	return atomicfile.WriteFile(etcHostsAllow, []byte(s), 0664)
 }
@@ -212,8 +208,8 @@ func (c *Server) writeExports() error {
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	s := fmt.Sprintf("%s\t%s(rw,fsid=0,insecure,no_subtree_check,async)\n"+
-		"%s/%s\t%s(rw,nohide,insecure,no_subtree_check,async)\n",
+	s := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
+		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n\n",
 		exportsPath, network, exportsPath, c.exportedName, network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
