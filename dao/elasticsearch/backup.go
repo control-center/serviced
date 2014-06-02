@@ -320,7 +320,7 @@ func (this *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *str
 		glog.Errorf("An error occured when starting backup: %v", e)
 		return e
 	}
-	backupOutput = make(chan string)
+	backupOutput = make(chan string, 100)
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup
@@ -535,7 +535,7 @@ func (this *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err er
 		glog.Errorf("An error occured when starting restore: %v", e)
 		return e
 	}
-	restoreOutput = make(chan string)
+	restoreOutput = make(chan string, 100)
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup
