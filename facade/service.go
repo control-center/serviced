@@ -327,8 +327,9 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
 		randomIPIndex := rand.Intn(len(assignIPsInfo))
-		for _, assignIPsInfoElement := range assignIPsInfo {
+		for assignIPAddress, assignIPsInfoElement := range assignIPsInfo {
 			if randomIPIndex == assignIPsInfoElement.RandomIndex {
+				assignmentRequest.IPAddress = assignIPAddress
 				assignmentType = assignIPsInfoElement.IPType
 				assignmentHostID = assignIPsInfoElement.HostID
 				break
