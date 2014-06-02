@@ -73,7 +73,7 @@ func ExampleServicedCLI_CmdBackup_usage() {
 	//    command backup [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service backup DIRPATH
+	//    serviced backup DIRPATH
 	//
 	// OPTIONS:
 }
@@ -92,13 +92,13 @@ func ExampleServicedCLI_CmdRestore_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    restore - Restore services from a tgz file
+	//    restore - Restore templates and services from a tgz file
 	//
 	// USAGE:
 	//    command restore [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service restore FILEPATH
+	//    serviced restore FILEPATH
 	//
 	// OPTIONS:
 }

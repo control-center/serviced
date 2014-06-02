@@ -25,8 +25,8 @@ var (
 
 // GetAgentIP returns the agent ip address
 func GetAgentIP() string {
-	if options.Port != "" {
-		return options.Port
+	if options.Endpoint != "" {
+		return options.Endpoint
 	}
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {

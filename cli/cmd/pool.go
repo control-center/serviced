@@ -9,6 +9,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/domain/pool"
 )
 
 // Initializer for serviced pool subcommands
@@ -49,6 +50,18 @@ func (c *ServicedCli) initPool() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 				},
+			}, {
+				Name:         "add-virtual-ip",
+				Usage:        "Add a virtual IP address to a pool",
+				Description:  "serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdAddVirtualIP,
+			}, {
+				Name:         "remove-virtual-ip",
+				Usage:        "Remove a virtual IP address from a pool",
+				Description:  "serviced pool remove-virtual-ip POOLID IPADDRESS",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdRemoveVirtualIP,
 			},
 		},
 	})
@@ -207,24 +220,63 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 		return
 	}
 
-	if ips, err := c.driver.GetPoolIPs(args[0]); err != nil {
+	if poolIps, err := c.driver.GetPoolIPs(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
-	} else if ips.HostIPs == nil || len(ips.HostIPs) == 0 {
-		fmt.Fprintln(os.Stderr, "no resource pool ips found")
+	} else if poolIps.HostIPs == nil || (len(poolIps.HostIPs) == 0 && len(poolIps.VirtualIPs) == 0) {
+		fmt.Fprintln(os.Stderr, "no resource pool IPs found")
 		return
 	} else if ctx.Bool("verbose") {
-		if jsonPoolIP, err := json.MarshalIndent(ips.HostIPs, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal resource pool ips: %s", err)
+		if jsonPoolIP, err := json.MarshalIndent(poolIps.HostIPs, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal resource pool IPs: %s", err)
 		} else {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newtable(0, 8, 2)
-		tableIPs.printrow("Interface Name", "IP Address")
-		for _, ip := range ips.HostIPs {
-			tableIPs.printrow(ip.InterfaceName, ip.IPAddress)
+		tableIPs := newtable(0, 10, 2)
+		tableIPs.printrow("Interface Name", "IP Address", "Type")
+		for _, ip := range poolIps.HostIPs {
+			tableIPs.printrow(ip.InterfaceName, ip.IPAddress, "static")
+		}
+		for _, ip := range poolIps.VirtualIPs {
+			tableIPs.printrow("", ip.IP, "virtual")
 		}
 		tableIPs.flush()
+	}
+}
+
+// serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE
+func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 || len(args) > 4 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add-virtual-ip")
+		return
+	}
+
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3]}
+	if err := c.driver.AddVirtualIP(requestVirtualIP); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	fmt.Println("Added virtual IP:", args[1])
+}
+
+// serviced pool remove-virtual-ip POOLID IPADDRESS
+func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 || len(args) > 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove-virtual-ip")
+		return
+	}
+
+	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: "", BindInterface: ""}
+	if err := c.driver.RemoveVirtualIP(requestVirtualIP); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else {
+		fmt.Printf("Removed virtual IP: %v from pool %v\n", args[1], args[0])
 	}
 }

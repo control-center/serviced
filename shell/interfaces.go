@@ -52,5 +52,6 @@ type Forwarder struct {
 }
 
 type Executor struct {
-	port string
+	port           string
+	dockerRegistry string
 }

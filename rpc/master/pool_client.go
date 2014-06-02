@@ -9,15 +9,6 @@ import (
 	"github.com/zenoss/serviced/facade"
 )
 
-//GetPoolIPs returns a all IPs in a ResourcePool.
-func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
-	var poolIPs facade.PoolIPs
-	if err := c.call("GetPoolIPs", poolID, &poolIPs); err != nil {
-		return nil, err
-	}
-	return &poolIPs, nil
-}
-
 //GetResourcePool gets the host for the give hostID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
@@ -49,4 +40,23 @@ func (c *Client) UpdateResourcePool(pool pool.ResourcePool) error {
 //RemoveResourcePool removes a ResourcePool
 func (c *Client) RemoveResourcePool(poolID string) error {
 	return c.call("RemoveResourcePool", poolID, nil)
+}
+
+//GetPoolIPs returns a all IPs in a ResourcePool.
+func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
+	var poolIPs facade.PoolIPs
+	if err := c.call("GetPoolIPs", poolID, &poolIPs); err != nil {
+		return nil, err
+	}
+	return &poolIPs, nil
+}
+
+//AddVirtualIP adds a VirtualIP to a specificpool
+func (c *Client) AddVirtualIP(requestVirtualIP pool.VirtualIP) error {
+	return c.call("AddVirtualIP", requestVirtualIP, nil)
+}
+
+//RemoveVirtualIP removes a VirtualIP from a specific pool
+func (c *Client) RemoveVirtualIP(requestVirtualIP pool.VirtualIP) error {
+	return c.call("RemoveVirtualIP", requestVirtualIP, nil)
 }

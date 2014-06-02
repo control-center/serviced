@@ -94,7 +94,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 }
 
 func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
-	return dao.ControlPlaneError{"unimplemented"}
+	return dao.ControlPlaneError{Msg: "unimplemented"}
 }
 
 // Create a elastic search control plane data access object
@@ -108,7 +108,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 		port:           port,
 		dockerRegistry: dockerRegistry,
 	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
+	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, dockerRegistry); err != nil {
 		return nil, err
 	} else {
 		dao.dfs = dfs

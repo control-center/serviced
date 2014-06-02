@@ -13,8 +13,10 @@ import (
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
+	docker "github.com/zenoss/go-dockerclient"
 
 	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
 )
@@ -22,8 +24,9 @@ import (
 var empty interface{}
 
 const (
-	PROCESSKEY string = "process"
-	MAXBUFFER  int    = 8192
+	PROCESSKEY      string = "process"
+	MAXBUFFER       int    = 8192
+	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
 )
 
 var webroot string
@@ -55,10 +58,10 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	return server
 }
 
-func NewProcessExecutorServer(port string) *ProcessServer {
+func NewProcessExecutorServer(port, dockerRegistry string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port},
+		actor: &Executor{port: port, dockerRegistry: dockerRegistry},
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
@@ -271,7 +274,17 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	cmd, err := StartDocker(cfg, e.port)
+	registry, err := commons.NewDockerRegistry(e.dockerRegistry)
+	if err != nil {
+		p.Result <- Result{0, err.Error(), ABNORMAL}
+		return
+	}
+	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	if err != nil {
+		p.Result <- Result{0, err.Error(), ABNORMAL}
+		return
+	}
+	cmd, err := StartDocker(registry, dockerClient, cfg, e.port)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -306,7 +319,7 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(registry commons.DockerRegistry, dockerClient *docker.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control plane client to look up the service
@@ -319,6 +332,12 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 
 	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
 		glog.Errorf("unable to find service %s", cfg.ServiceID)
+		return nil, err
+	}
+
+	// make sure docker image is present
+	if _, err = commons.InspectImage(registry, dockerClient, svc.ImageID); err != nil {
+		glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
 		return nil, err
 	}
 
