@@ -334,8 +334,6 @@ func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host
 	var hostid string
 	for _, ep := range s.Endpoints {
 		if ep.AddressAssignment != (addressassignment.AddressAssignment{}) {
-			myAddressAssignment = ep
-
 			assignmentType = ep.AddressAssignment.AssignmentType
 			ipAddr = ep.AddressAssignment.IPAddr
 			hostid = ep.AddressAssignment.HostID

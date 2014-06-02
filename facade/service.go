@@ -281,10 +281,10 @@ func (f *Facade) StopService(ctx datastore.Context, id string) error {
 type assignIPInfo struct {
 	IPType      string
 	HostID      string
-	RandomIndex string
+	RandomIndex int
 }
 
-func generateIPMap(ctx datastore.Context, poolID string) (map[string]assignIPInfo, error) {
+func (f *Facade) generateIPMap(ctx datastore.Context, poolID string) (map[string]assignIPInfo, error) {
 	assignIPsInfo := make(map[string]assignIPInfo)
 
 	poolIPs, err := f.GetPoolIPs(ctx, poolID)
@@ -293,12 +293,15 @@ func generateIPMap(ctx datastore.Context, poolID string) (map[string]assignIPInf
 		return assignIPsInfo, err
 	}
 
+	randomIndex := 0
 	for _, hostIPResource := range poolIPs.HostIPs {
-		assignIPsInfo[hostIPResource.IPAddress] = assignIPInfo{IPType: "static", HostID: hostIPResource.HostID}
+		assignIPsInfo[hostIPResource.IPAddress] = assignIPInfo{IPType: "static", HostID: hostIPResource.HostID, RandomIndex: randomIndex}
+		randomIndex = randomIndex + 1
 	}
 
 	for _, virtualIP := range poolIPs.VirtualIPs {
-		assignIPsInfo[hostIPResource.IP] = assignIPInfo{IPType: "virtual", HostID: ""}
+		assignIPsInfo[virtualIP.IP] = assignIPInfo{IPType: "virtual", HostID: "", RandomIndex: randomIndex}
+		randomIndex = randomIndex + 1
 	}
 
 	return assignIPsInfo, nil
@@ -311,7 +314,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 		return err
 	}
 
-	assignIPsInfo, err := generateIPMap(ctx, myService.PoolID)
+	assignIPsInfo, err := f.generateIPMap(ctx, myService.PoolID)
 	if err != nil {
 		return err
 	}
@@ -323,13 +326,17 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		randomIPIndex := rand.Intn(assignIPsInfo)
+		randomIPIndex := rand.Intn(len(assignIPsInfo))
 		for _, assignIPsInfoElement := range assignIPsInfo {
-			if randomIPIndex == IPAddress.RandomIndex {
+			if randomIPIndex == assignIPsInfoElement.RandomIndex {
 				assignmentType = assignIPsInfoElement.IPType
-				selectedHostID = assignIPsInfoElement.HostID
+				assignmentHostID = assignIPsInfoElement.HostID
 				break
 			}
+		}
+
+		if assignmentType == "" {
+			return Error.fmt("Assignment type could not be determined (virtual IP was likely not in the pool)")
 		}
 	} else {
 		// manual IP provided
@@ -338,13 +345,13 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 
 		if _, IPExistsInPool := assignIPsInfo[assignmentRequest.IPAddress]; IPExistsInPool {
 			assignmentType = assignIPsInfo[assignmentRequest.IPAddress].IPType
-			selectedHostID = assignIPsInfo[assignmentRequest.IPAddress].HostID
+			assignmentHostID = assignIPsInfo[assignmentRequest.IPAddress].HostID
 		} else {
 			// IP was NOT contained in the pool
-			msg := fmt.Sprintf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
-			return errors.New(msg)
+			return fmt.Errorf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 		}
 	}
+
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
@@ -533,8 +540,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		}
 
 		if needsAnAddressAssignment {
-			msg := fmt.Sprintf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
-			return errors.New(msg)
+			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}

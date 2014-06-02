@@ -408,8 +408,7 @@ func addVirtualIP(virtualIPToAdd pool.VirtualIP) error {
 		}
 	}
 	if virtualIPAlreadyHere {
-		msg := fmt.Sprintf("Requested virtual IP: %v is already on this host.", virtualIPToAdd.IP)
-		return errors.New(msg)
+		return fmt.Errorf("Requested virtual IP: %v is already on this host.", virtualIPToAdd.IP)
 	}
 
 	virtualInterfaceName, err := determineVirtualInterfaceName(virtualIPToAdd, interfaceMap)
@@ -450,15 +449,13 @@ func bindVirtualIP(virtualIP pool.VirtualIP, virtualInterfaceName string) error 
 	glog.Infof("Adding: %v", virtualIP)
 	// ensure that the Bind Address is reported by ifconfig ... ?
 	if err := exec.Command("ifconfig", virtualIP.BindInterface).Run(); err != nil {
-		msg := fmt.Sprintf("Problem with BindInterface %s", virtualIP.BindInterface)
-		return errors.New(msg)
+		return fmt.Errorf("Problem with BindInterface %s", virtualIP.BindInterface)
 	}
 
 	// ADD THE VIRTUAL INTERFACE
 	// sudo ifconfig eth0:1 inet 192.168.1.136 netmask 255.255.255.0
 	if err := exec.Command("ifconfig", virtualInterfaceName, "inet", virtualIP.IP, "netmask", virtualIP.Netmask).Run(); err != nil {
-		msg := fmt.Sprintf("Problem with creating virtual interface %s", virtualInterfaceName)
-		return errors.New(msg)
+		return fmt.Errorf("Problem with creating virtual interface %s", virtualInterfaceName)
 	}
 
 	glog.Infof("Added virtual interface/IP: %v (%v)", virtualInterfaceName, virtualIP)
@@ -470,8 +467,7 @@ func unbindVirtualIP(virtualInterface string) error {
 	glog.Infof("Removing: %v", virtualInterface)
 	// ifconfig eth0:1 down
 	if err := exec.Command("ifconfig", virtualInterface, "down").Run(); err != nil {
-		msg := fmt.Sprintf("Problem with removing virtual interface %v: %v", virtualInterface, err)
-		return errors.New(msg)
+		return fmt.Errorf("Problem with removing virtual interface %v: %v", virtualInterface, err)
 	}
 
 	glog.Infof("Removed virtual interface: %v", virtualInterface)
