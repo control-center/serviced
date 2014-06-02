@@ -119,7 +119,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		Endpoints:      endpoints,
 		Startup:        config.Command,
 		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		InstanceLimits: domain.MinMax{Min: 1, Max: 1},
 	}
 
 	var id string
@@ -141,7 +141,7 @@ func (a *api) RemoveService(config RemoveServiceConfig) error {
 
 	if config.RemoveSnapshots {
 		if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-			return fmt.Errorf("could not clean up service history", err)
+			return fmt.Errorf("could not clean up service history: %s", err)
 		}
 	}
 

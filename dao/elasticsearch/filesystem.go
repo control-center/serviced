@@ -56,6 +56,7 @@ func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error
 func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 	conn, err := this.zclient.GetConnection()
 	if err != nil {
+		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
 	defer conn.Close()
@@ -65,11 +66,13 @@ func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 	}
 
 	if err := zkSnapshot.Send(conn, &req); err != nil {
+		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
 
 	res, err := zkSnapshot.Recv(conn, serviceID)
 	if err != nil {
+		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
 
