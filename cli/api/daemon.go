@@ -244,9 +244,8 @@ func createMuxListener() (net.Listener, error) {
 		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
 		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
 
-	} else {
-		return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 	}
+	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
 func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
@@ -312,7 +311,7 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -330,7 +329,7 @@ func (d *daemon) startAgentListeners() {
 	}
 	zconn, err := d.zclient.GetConnection()
 	if err != nil {
-		glog.Fatalf("could not connect to zk: ", err)
+		glog.Fatal("could not connect to zk: ", err)
 	}
 
 	go zkdocker.ListenAction(zconn, d.hostID)
