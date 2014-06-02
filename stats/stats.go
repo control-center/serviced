@@ -158,23 +158,23 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	payload := map[string][]containerStat{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		glog.V(0).Info("Couldn't marshal stats: ", err)
+		glog.V(3).Info("Couldn't marshal stats: ", err)
 		return err
 	}
 	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(data))
 	if err != nil {
-		glog.V(0).Info("Couldn't create stats request: ", err)
+		glog.V(3).Info("Couldn't create stats request: ", err)
 		return err
 	}
 	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
 	statsreq.Header["Content-Type"] = []string{"application/json"}
 	resp, reqerr := http.DefaultClient.Do(statsreq)
 	if reqerr != nil {
-		glog.V(0).Info("Couldn't post stats: ", reqerr)
+		glog.V(3).Info("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
 	if strings.Contains(resp.Status, "200 OK") == false {
-		glog.V(0).Info("Non-success: ", resp.Status)
+		glog.V(3).Info("Non-success: ", resp.Status)
 		glog.Errorf("couldn't post stats: ", resp.Status)
 		return nil
 	}
