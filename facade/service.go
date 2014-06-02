@@ -336,7 +336,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 		}
 
 		if assignmentType == "" {
-			return Error.fmt("Assignment type could not be determined (virtual IP was likely not in the pool)")
+			return fmt.Errorf("Assignment type could not be determined (virtual IP was likely not in the pool)")
 		}
 	} else {
 		// manual IP provided

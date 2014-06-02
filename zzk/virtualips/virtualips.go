@@ -1,7 +1,6 @@
 package virtualips
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"path"
