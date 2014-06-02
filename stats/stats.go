@@ -174,7 +174,6 @@ func (sr StatsReporter) post(stats []containerStat) error {
 		return reqerr
 	}
 	if strings.Contains(resp.Status, "200 OK") == false {
-		glog.V(3).Info("Non-success: ", resp.Status)
 		glog.Errorf("couldn't post stats: ", resp.Status)
 		return nil
 	}
