@@ -67,7 +67,6 @@ func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkD
 // Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
 // is indeed shutting down.
 func (sr StatsReporter) Close() {
-	glog.Warningf("######### Closing stats reporter")
 	sr.closeChannel <- true
 	_ = <-sr.closeChannel
 }
