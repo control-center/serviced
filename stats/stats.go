@@ -11,9 +11,9 @@ import (
 	"encoding/json"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/stats/cgroup"
 	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/zzk"
 	"net/http"
 	"strconv"
@@ -39,7 +39,7 @@ var registries map[string]metrics.Registry
 var hostID string
 var hostRegistry metrics.Registry
 
-// getOrCreateRegistry returns a registry for a given service id or creates it 
+// getOrCreateRegistry returns a registry for a given service id or creates it
 // if it doesn't exist.
 func getOrCreateRegistry(serviceid string) metrics.Registry {
 	if registry, ok := registries[serviceid]; ok {
@@ -95,7 +95,7 @@ func (sr StatsReporter) report(d time.Duration) {
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
-	// Stats for serviced.
+	// Stats for host.
 	if cpuacctStat, err := cgroup.ReadCpuacctStat(""); err != nil {
 		glog.V(3).Info("Couldn't read CpuacctStat:", err)
 	} else {
@@ -116,9 +116,9 @@ func (sr StatsReporter) updateStats() {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", hostRegistry).Update(openFileDescriptorCount)
 	}
 	// Stats for the containers.
-    var running []*dao.RunningService
+	var running []*dao.RunningService
 	sr.zkDAO.GetRunningServicesForHost(hostID, &running)
-	for _, rs := range(running) {
+	for _, rs := range running {
 		containerRegistry := getOrCreateRegistry(rs.ServiceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
 			glog.V(3).Info("Couldn't read CpuacctStat:", err)
@@ -143,7 +143,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 		reg.Each(func(name string, i interface{}) {
 			metric := i.(metrics.Gauge)
 			tagmap := make(map[string]string)
-			if (serviceID != hostID) {
+			if serviceID != hostID {
 				tagmap["controlplane_service_id"] = serviceID
 			}
 			tagmap["controlplane_host_id"] = hostID
