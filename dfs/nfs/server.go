@@ -47,7 +47,7 @@ var (
 const defaultDirectoryPerm = 0755
 
 const hostDenyMarker = "# serviced, do not remove past this line"
-const hostDenyDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : ALL\n"
+const hostDenyDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : ALL\n\n"
 
 const hostAllowMarker = "# serviced, do not remove past this line"
 const hostAllowDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : 127.0.0.1"
