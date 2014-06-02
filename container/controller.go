@@ -411,10 +411,11 @@ func (c *Controller) Run() (err error) {
 		case <-time.After(time.Second * 10):
 			c.handleRemotePorts()
 
-		case <-serviceExited:
+		case exitError := <-serviceExited:
 			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
-				return
+				exitStatus := getExitStatus(exitError)
+				os.Exit(exitStatus)
 			}
 			glog.Infof("Restarting service process in 10 seconds.")
 			startAfter = time.After(time.Second * 10)
@@ -429,6 +430,17 @@ func (c *Controller) Run() (err error) {
 		exitChannel <- true
 	}
 	return
+}
+
+func getExitStatus(err error) int {
+	if err != nil {
+		if e, ok := err.(*exec.ExitError); ok {
+			if status, ok := e.Sys().(syscall.WaitStatus); ok {
+				return status.ExitStatus()
+			}
+		}
+	}
+	return 0
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
