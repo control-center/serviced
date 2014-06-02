@@ -110,19 +110,19 @@ func TestNewServer(t *testing.T) {
 
 	// assert that the defaults get written out
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" \n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" \n\n"))
 
 	s.SetClients("192.168.1.21")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21\n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21\n\n"))
 
 	s.SetClients("192.168.1.21", "192.168.1.20")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n\n"))
 
 	assertFileContents(t, etcExports, []byte(fmt.Sprintf(expectedExports, exportsPath, exportsPath)))
 

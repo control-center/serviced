@@ -197,7 +197,7 @@ func (c *Server) hostsAllow() error {
 		i++
 	}
 	sort.Strings(hosts)
-	s = s + hostAllowDefaults + " " + strings.Join(hosts, " ") + "\n"
+	s = s + hostAllowDefaults + " " + strings.Join(hosts, " ") + "\n\n"
 
 	return atomicfile.WriteFile(etcHostsAllow, []byte(s), 0664)
 }
