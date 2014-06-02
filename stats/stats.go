@@ -174,7 +174,7 @@ func (sr StatsReporter) post(stats []containerStat) error {
 		return reqerr
 	}
 	if strings.Contains(resp.Status, "200 OK") == false {
-		glog.Errorf("couldn't post stats: ", resp.Status)
+		glog.Warningf("couldn't post stats: ", resp.Status)
 		return nil
 	}
 	resp.Body.Close()
