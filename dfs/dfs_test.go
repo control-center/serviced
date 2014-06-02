@@ -150,7 +150,7 @@ func TestSnapshot(t *testing.T) {
 	setUp()
 	defer tearDown()
 
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New())
+	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New(), "example.com:5000")
 	if err != nil {
 		t.Fatalf("failed to initialize dfs: %+v", err)
 	}
@@ -167,7 +167,7 @@ func TestSnapshotPauseResume(t *testing.T) {
 
 	var services []*service.Service
 
-	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New())
+	dfs, err := NewDistributedFileSystem(&MockControlPlane{}, facade.New(), "example.com:5000")
 	if err != nil {
 		t.Fatalf("failed to initialize dfs: %+v", err)
 	}

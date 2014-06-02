@@ -21,7 +21,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "quay.io/zenossinc/isvcs"
-	IMAGE_TAG  = "v8"
+	IMAGE_TAG  = "v9"
 )
 
 func Init() {
