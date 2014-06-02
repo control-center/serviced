@@ -96,6 +96,10 @@ func TestOnContainerStop(t *testing.T) {
 		ec <- struct{}{}
 	})
 
+	ctr.OnEvent(Die, func(cid string) {
+		ec <- struct{}{}
+	})
+
 	ctr.Stop(30)
 
 	select {
@@ -428,5 +432,45 @@ func TestNewContainerOnCreated(t *testing.T) {
 		break
 	case <-time.After(1 * time.Second):
 		t.Fatal("timed out waiting for start action execution")
+	}
+}
+
+func TestFindContainer(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	if _, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
+		t.Fatal("can't create second container: ", err)
+	}
+
+	cid := ctrone.ID
+
+	ctr, err := FindContainer(cid)
+	if err != nil {
+		t.Fatalf("can't find container %s: %v", cid, err)
+	}
+
+	if ctrone.ID != ctr.ID {
+		t.Fatalf("container names don't match; got %s, expecting %s", ctr.Name, ctrone.Name)
+	}
+
+	if err := ctrone.Delete(true); err != nil {
+		t.Fatal("can't delete container: ", err)
+	}
+
+	if _, err = FindContainer(cid); err == nil {
+		t.Fatal("should not have found container: ", cid)
 	}
 }
