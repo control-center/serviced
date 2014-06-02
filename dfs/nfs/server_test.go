@@ -49,7 +49,7 @@ func TestNewServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	//defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir)
 	t.Logf("created temp dir: %s", tempDir)
 
 	baseDir := path.Join(tempDir, "baseDir")
