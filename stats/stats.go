@@ -26,6 +26,9 @@ type StatsReporter struct {
 	destination  string
 	closeChannel chan bool
 	zkDAO        *zzk.ZkDao
+	registries   map[registryKey]metrics.Registry
+	hostID       string
+	hostRegistry metrics.Registry
 }
 
 type containerStat struct {
@@ -36,24 +39,10 @@ type containerStat struct {
 }
 
 type registryKey struct {
-	serviceID string
+	serviceID  string
 	instanceID int
 }
 
-var registries map[registryKey]metrics.Registry
-var hostID string
-var hostRegistry metrics.Registry
-
-// getOrCreateRegistry returns a registry for a given service id or creates it
-// if it doesn't exist.
-func getOrCreateRegistry(serviceID string, instanceID int) metrics.Registry {
-	key := registryKey{serviceID, instanceID}
-	if registry, ok := registries[key]; ok {
-		return registry
-	}
-	registries[key] = metrics.NewRegistry()
-	return registries[key]
-}
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
 func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
@@ -68,6 +57,17 @@ func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkD
 	sr := StatsReporter{destination, make(chan bool), zkDAO}
 	go sr.report(interval)
 	return &sr, nil
+}
+
+// getOrCreateRegistry returns a registry for a given service id or creates it
+// if it doesn't exist.
+func (sr StatsReporter) getOrCreateRegistry(serviceID string, instanceID int) metrics.Registry {
+	key := sr.registryKey{serviceID, instanceID}
+	if registry, ok := sr.registries[key]; ok {
+		return registry
+	}
+	sr.registries[key] = metrics.NewRegistry()
+	return sr.registries[key]
 }
 
 // Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
