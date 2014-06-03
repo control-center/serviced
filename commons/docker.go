@@ -182,7 +182,7 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 		Tag:      imageID.Tag,
 		Registry: registry.String(),
 	}
-	glog.V(2).Infof("pushing image: %s", opts)
+	glog.Infof("pushing image: %+v", opts)
 	return client.PushImage(opts, auth)
 }
 
