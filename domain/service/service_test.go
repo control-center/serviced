@@ -10,10 +10,11 @@
 package service
 
 import (
-	"fmt"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
+
+	"fmt"
 	"testing"
 )
 
@@ -81,11 +82,12 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 	sd := servicedefinition.ServiceDefinition{
 		Metrics: []servicedefinition.MetricGroup{
 			servicedefinition.MetricGroup{
-				ID:          "id",
-				Name:        "name",
-				Description: "description",
+				ID:          "jvm.memory",
+				Name:        "JVM Memory",
+				Description: "JVM heap vs. non-heap memory usage",
 				Metrics: []servicedefinition.Metric{
-					servicedefinition.Metric{ID: "m0", Name: "m0_name"},
+					servicedefinition.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+					servicedefinition.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
 				},
 			},
 		},
@@ -96,6 +98,9 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 		t.Errorf("BuildService Failed w/err=%s", err)
 	}
 
+	data_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
+	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
+	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", data_heap_request, data_non_heap_request)
 	expected := Service{
 		Id:        actual.Id,
 		CreatedAt: actual.CreatedAt,
@@ -104,19 +109,20 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 		MonitoringProfile: domain.MonitorProfile{
 			Metrics: []domain.MetricConfig{
 				domain.MetricConfig{
-					ID:          "id",
-					Name:        "name",
-					Description: "description",
+					ID:          "jvm.memory",
+					Name:        "JVM Memory",
+					Description: "JVM heap vs. non-heap memory usage",
 					Query: domain.QueryConfig{
-						URL:    "http://localhost:8888/api/performance/query",
-						Method: "POST",
+						RequestURI: "/metrics/api/performance/query",
+						Method:     "POST",
 						Headers: map[string][]string{
 							"Content-Type": []string{"application/json"},
 						},
-						Data: fmt.Sprintf("{\"metrics\":[{\"metric\":\"m0\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}],\"start\":\"1h-ago\"}", actual.Id),
+						Data: data,
 					},
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "m0", Name: "m0_name"},
+						domain.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+						domain.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
 					},
 				},
 			},

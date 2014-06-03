@@ -1,27 +1,24 @@
 package domain
 
-import "testing"
-import "net/http"
+import (
+	"net/http"
+	"testing"
+)
 
 func TestNewBuilder(t *testing.T) {
-	build, err := NewMetricConfigBuilder("http://localhost", "POST")
+	build, err := NewMetricConfigBuilder("/metrics", "POST")
 	if err != nil || build == nil {
 		t.Fatalf("Failed Creating metric builder: build=%+v, err=%+v", build, err)
 	}
 
-	build, err = NewMetricConfigBuilder(":localhost", "POST")
-	if err == nil || build != nil {
-		t.Fatalf("Expected Error Creating metric builder: build=%+v, err=%+v", build, err)
-	}
-
-	build, err = NewMetricConfigBuilder("http://localhost", "?")
+	build, err = NewMetricConfigBuilder("/metrics", "?")
 	if err == nil || build != nil {
 		t.Fatalf("Expected Error Creating metric builder: build=%+v, err=%+v", build, err)
 	}
 }
 
 func TestBuilder(t *testing.T) {
-	build, _ := NewMetricConfigBuilder("http://localhost", "POST")
+	build, _ := NewMetricConfigBuilder("metrics/api/performance/query", "POST")
 	build.Metric("metric_0", "metric_name_0").SetTag("tag", "value-0")
 	config, err := build.Config("metric_group", "metric_group_name", "metric_group_description", "1h-ago")
 	if err != nil {
@@ -35,10 +32,10 @@ func TestBuilder(t *testing.T) {
 		Name:        "metric_group_name",
 		Description: "metric_group_description",
 		Query: QueryConfig{
-			URL:     "http://localhost",
-			Method:  "POST",
-			Headers: headers,
-			Data:    "{\"metrics\":[{\"metric\":\"metric_0\",\"tags\":{\"tag\":[\"value-0\"]}}],\"start\":\"1h-ago\"}",
+			RequestURI: "/metrics/api/performance/query",
+			Method:     "POST",
+			Headers:    headers,
+			Data:       "{\"metrics\":[{\"metric\":\"metric_0\",\"tags\":{\"tag\":[\"value-0\"]}}],\"start\":\"1h-ago\"}",
 		},
 		Metrics: []Metric{Metric{
 			ID:   "metric_0",
@@ -48,6 +45,6 @@ func TestBuilder(t *testing.T) {
 	if !expected.Equals(config) {
 		t.Logf("Config does not match expected")
 		t.Logf("expected=%+v", expected)
-		t.Fatalf("config=%+v", config)
+		t.Fatalf("acutal=%+v", config)
 	}
 }

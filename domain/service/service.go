@@ -148,8 +148,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		Metrics: make([]domain.MetricConfig, len(sd.Metrics)),
 	}
 
-	// XXX client replaces localhost w/proper hostname
-	build, err := domain.NewMetricConfigBuilder("http://localhost:8888/api/performance/query", "POST")
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 	if err != nil {
 		return nil, err
 	}

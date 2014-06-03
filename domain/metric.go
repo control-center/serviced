@@ -6,43 +6,47 @@
 
 package domain
 
-import "encoding/json"
-import "github.com/zenoss/glog"
-import "github.com/zenoss/serviced/utils"
-import "net/url"
-import "net/http"
-import "strings"
-import "errors"
+import (
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/utils"
 
-// Metric defines the meta-data for a metric
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/url"
+	"strings"
+)
+
+// Metric defines the meta-data for a single metric
 type Metric struct {
 	ID   string //id is a unique idenitifier for the metric
 	Name string //name is a canonical name for the metric
 }
 
-// MetricRequest defines
-type MetricRequest struct {
-	Metric
-	Tags map[string][]string //tags required in MetricRequest
+// MetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
+type MetricBuilder struct {
+	ID   string              //unique idenitifier for a Metric also used to query a metric
+	Name string              //canonical name for a Metric
+	Tags map[string][]string //tags required for querying a metric
 }
 
 // SetTag puts a tag into the metric request object
-func (request *MetricRequest) SetTag(Name string, Values... string) *MetricRequest {
+func (request *MetricBuilder) SetTag(Name string, Values ...string) *MetricBuilder {
 	request.Tags[Name] = Values
 	return request
 }
 
 // QueryConfig defines the parameters to request a collection of metrics
 type QueryConfig struct {
-	URL     string      // the http URL to request the metrics
-	Method  string      // the http method to retrieve metrics
-	Headers http.Header // http headers required to make request
-	Data    string      // the http request body to request metrics
+	RequestURI string      // the http request uri for grabbing metrics
+	Method     string      // the http method to retrieve metrics
+	Headers    http.Header // http headers required to make request
+	Data       string      // the http request body to request metrics
 }
 
 // Equals compares two QueryConfig objects for equality
 func (config *QueryConfig) Equals(that *QueryConfig) bool {
-	if config.URL != that.URL {
+	if config.RequestURI != that.RequestURI {
 		return false
 	}
 
@@ -126,15 +130,15 @@ func (config *MetricConfig) Equals(that *MetricConfig) bool {
 
 // Builder aggregates a url, method, and metrics for building a MetricConfig
 type Builder struct {
-	url     *url.URL        //url to request metrics
+	url     *url.URL        //url to request a metrics
 	method  string          //method to retrieve metrics
-	metrics []MetricRequest //metrics available in url
+	metrics []MetricBuilder //metrics available in url
 }
 
 // Metric appends a metric configuration to the Builder
-func (builder *Builder) Metric(ID string, Name string) *MetricRequest {
-	request := MetricRequest{Metric{ID, Name}, make(map[string][]string)}
-	builder.metrics = append(builder.metrics, request)
+func (builder *Builder) Metric(ID string, Name string) *MetricBuilder {
+	metric := MetricBuilder{ID: ID, Name: Name, Tags: make(map[string][]string)}
+	builder.metrics = append(builder.metrics, metric)
 	return &builder.metrics[len(builder.metrics)-1]
 }
 
@@ -148,16 +152,16 @@ func (builder *Builder) Config(ID, Name, Description, Start string) (*MetricConf
 		Name:        Name,
 		Description: Description,
 		Query: QueryConfig{
-			URL:     builder.url.String(),
-			Method:  builder.method,
-			Headers: headers,
+			RequestURI: builder.url.RequestURI(),
+			Method:     builder.method,
+			Headers:    headers,
 		},
 		Metrics: make([]Metric, len(builder.metrics)),
 	}
 
 	//define a metric type to build json
 	type metric struct {
-		Metric string            `json:"metric"`
+		Metric string              `json:"metric"`
 		Tags   map[string][]string `json:"tags"`
 	}
 
@@ -191,16 +195,23 @@ func (builder *Builder) Config(ID, Name, Description, Start string) (*MetricConf
 		return nil, err
 	}
 
-	builder.metrics = make([]MetricRequest, 0)
+	builder.metrics = make([]MetricBuilder, 0)
 	config.Query.Data = string(bodyBytes)
 	return config, nil
 }
 
 // NewMetricConfigBuilder creates a factory to create MetricConfig instances.
-func NewMetricConfigBuilder(URL, Method string) (*Builder, error) {
-	url, err := url.Parse(URL)
+func NewMetricConfigBuilder(RequestURI, Method string) (*Builder, error) {
+	//strip leading '/' it's added back below
+	requestURI := RequestURI
+	if len(RequestURI) > 0 && RequestURI[0] == '/' {
+		requestURI = RequestURI[1:]
+	}
+
+	//use url.Parse to ensure proper RequestURI. 'http://localhost' is removed when Config is built
+	url, err := url.Parse("http://localhost/" + requestURI)
 	if err != nil {
-		glog.Errorf("Invalid url: URL=%s, method=%s, err=%+v", URL, Method, err)
+		glog.Errorf("Invalid Url: RequestURI=%s, method=%s, err=%+v", RequestURI, Method, err)
 		return nil, err
 	}
 
@@ -210,13 +221,13 @@ func NewMetricConfigBuilder(URL, Method string) (*Builder, error) {
 	case "PUT":
 	case "POST":
 	default:
-		glog.Errorf("Invalid method: URL=%s, method=%s", URL, Method)
+		glog.Errorf("Invalid http method: RequestURI=%s, method=%s", RequestURI, Method)
 		return nil, errors.New("invalid method")
 	}
 
 	return &Builder{
 		url:     url,
 		method:  Method,
-		metrics: make([]MetricRequest, 0),
+		metrics: make([]MetricBuilder, 0),
 	}, nil
 }
