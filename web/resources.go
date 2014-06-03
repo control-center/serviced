@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"net/http"
 )
 
 var empty interface{}
@@ -575,7 +576,8 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.
 	err := client.BackupStatus("", &backupStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup status: %v", err)
-		restServerError(w)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
 	}
 	w.WriteJson(&simpleResponse{backupStatus, servicesLinks()})
 }
@@ -585,7 +587,8 @@ func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced
 	err := client.RestoreStatus("", &restoreStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore status: %v", err)
-		restServerError(w)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
 	}
 	w.WriteJson(&simpleResponse{restoreStatus, servicesLinks()})
 }
