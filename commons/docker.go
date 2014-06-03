@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/zenoss/glog"
@@ -19,7 +20,19 @@ import (
 const (
 	doForce   = true
 	dontForce = false
+	snr       = "SERVICED_NOREGISTRY"
 )
+
+var noregistry bool
+
+// Check for the SERVICED_NOREGISTRY environment variable on initialization.
+// If it is set, to anything but the empty string, images won't be pushed or
+// pulled from a local registry.
+func init() {
+	if os.Getenv(snr) != "" {
+		noregistry = true
+	}
+}
 
 // ListImages wraps client.ListImages, checking the registry and pulling
 // any missing or out-dated images and/or tags first.
@@ -29,6 +42,7 @@ func ListImages(registry DockerRegistry, client *dockerclient.Client) (i []docke
 			glog.V(2).Infof("commons.ListImages error: %s", e)
 		}
 	}()
+
 	remoteImages, err := registry.ListRemoteImageTags()
 	madeChanges := false
 	if err != nil {
@@ -108,6 +122,12 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 			glog.V(2).Infof("commons.pullImageFromRegistry error: %s", e)
 		}
 	}()
+
+	// Dev short circuit for ZEN-11996
+	if noregistry {
+		return nil
+	}
+
 	repoName, tag, err := repoNameAndTag(name)
 	if err != nil {
 		return err
@@ -130,6 +150,12 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 			glog.V(2).Infof("done pushing docker image %s to %s", name, registry)
 		}
 	}()
+
+	// Dev short circuit for ZEN-11996
+	if noregistry {
+		return nil
+	}
+
 	glog.V(2).Infof("pushing docker image %s to %s...", name, registry)
 	imageID, err := ParseImageID(name)
 	if err != nil {
@@ -200,6 +226,12 @@ func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 	if err != nil && err != dockerclient.ErrNoSuchImage {
 		return nil, err
 	}
+
+	// Dev short circuit for ZEN-11996
+	if noregistry {
+		return image, err
+	}
+
 	uuid, err := registry.GetRemoteRepoTag(name)
 	if err != nil {
 		if err != dockerclient.ErrNoSuchImage {
@@ -282,6 +314,12 @@ func TagImage(registry DockerRegistry, client *dockerclient.Client, name string,
 	if err = client.TagImage(name, opts); err != nil {
 		return err
 	}
+
+	// Dev short circuit for ZEN-11996
+	if noregistry {
+		return nil
+	}
+
 	if opts.Tag == "" {
 		return registry.TagRemoteImage(image.ID, opts.Repo)
 	}
@@ -392,6 +430,7 @@ func (r *dockerRegistry) ListRemoteRepos() (list []string, e error) {
 			glog.V(2).Infof("commons.*dockerRegistry.ListRemoteRepos error: %s", e)
 		}
 	}()
+
 	var response searchResponse
 	if err := r.get("/v1/search", &response); err != nil {
 		return []string{}, err
@@ -411,6 +450,7 @@ func (r *dockerRegistry) ListRemoteRepoTags(repo string) (t map[string]string, e
 			glog.V(2).Infof("commons.*dockerRegistry.ListRemoteRepoTags error: %s", e)
 		}
 	}()
+
 	repoName, _, err := repoNameAndTag(repo)
 	if err != nil {
 		return map[string]string{}, err
@@ -425,11 +465,13 @@ func (r *dockerRegistry) ListRemoteRepoTags(repo string) (t map[string]string, e
 
 // GetRemoteRepoTag returns the UUID of the given image.
 func (r *dockerRegistry) GetRemoteRepoTag(repoTag string) (t string, e error) {
+	// FIXME: this method is never used out side of this file and so shouldn't be exported.
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.*dockerRegistry.GetRemoteRepoTag error: %s", e)
 		}
 	}()
+
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
 		return "", err
@@ -453,7 +495,9 @@ func (r *dockerRegistry) ListRemoteImageTags() (t map[string][]string, e error) 
 			glog.V(2).Infof("commons.*dockerRegistry.ListRemoteImageTags error: %s", e)
 		}
 	}()
+
 	result := make(map[string][]string)
+
 	repos, err := r.ListRemoteRepos()
 	if err != nil {
 		return result, err
@@ -483,6 +527,7 @@ func (r *dockerRegistry) TagRemoteImage(imageID, repoTag string) (e error) {
 			glog.V(2).Infof("commons.*dockerRegistry.TagRemoteImage error: %s", e)
 		}
 	}()
+
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
 		return err
@@ -502,6 +547,7 @@ func (r *dockerRegistry) RemoveRemoteImageTag(repoTag string) (e error) {
 			glog.V(2).Infof("commons.*dockerRegistry.RemoveRemoteImageTag error: %s", e)
 		}
 	}()
+
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
 		return err
