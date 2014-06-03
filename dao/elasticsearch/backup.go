@@ -294,6 +294,7 @@ func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) 
 
 // Backup saves the service templates, services, and related docker images and shared filesystems to a tgz file.
 func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
+	cp.backupLock.Lock()
 	backupError = make(chan string, 100)
 
 	//open a channel for asynchronous Backup calls
@@ -301,10 +302,11 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 		e := errors.New("Another backup is currently in progress")
 		glog.Errorf("An error occured when starting backup: %v", e)
 		backupError <- e.Error()
+		cp.backupLock.Unlock()
 		return e
 	}
 	backupOutput = make(chan string, 100)
-
+	cp.backupLock.Unlock()
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup
@@ -533,15 +535,18 @@ func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string
 // Restore replaces or restores the service templates, services, and related
 // docker images and shared file systmes, as extracted from a tgz backup file.
 func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
+	cp.restoreLock.Lock()
 	restoreError = make(chan string, 100)
 
 	if restoreOutput != nil {
 		e := errors.New("Another restore is currently in progress")
 		glog.Errorf("An error occured when starting restore: %v", e)
 		restoreError <- e.Error()
+		cp.restoreLock.Unlock()
 		return e
 	}
 	restoreOutput = make(chan string, 100)
+	cp.restoreLock.Unlock()
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup

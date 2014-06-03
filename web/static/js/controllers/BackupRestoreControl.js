@@ -21,26 +21,11 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
         CANNOT_BEGIN_RESTORE = $translate("cannot_begin_restore"),
         ERROR = $translate("error");
 
-    // track if backup or restore are running and only
-    // allow one at a time
-    var backupRunning = false,
-        restoreRunning = false;
-
     $scope.createBackup = function(){
-
-        if(backupRunning){
-            new SimpleModal(CANNOT_BEGIN_BACKUP, "A backup is in progress.").show();
-            return;
-        }else if(restoreRunning){
-            new SimpleModal(CANNOT_BEGIN_BACKUP, "A restore is in progress.").show();
-            return;
-        }
 
         var notification = new Notification(BACKUP_RUNNING);
         $("#backup_data").before(notification.$el);
         notification.show();
-
-        backupRunning = true;
 
         resourcesService.create_backup(function(data){
             setTimeout(function(){
@@ -51,19 +36,9 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
     $scope.restoreBackup = function(filename){
 
-        if(restoreRunning){
-            new SimpleModal(CANNOT_BEGIN_RESTORE, "A restore is in progress.").show();
-            return;
-        }else if(backupRunning){
-            new SimpleModal(CANNOT_BEGIN_RESTORE, "A backup is in progress.").show();
-            return;
-        }
-        
         var notification = new Notification(RESTORE_RUNNING);
         $("#backup_data").before(notification.$el);
         notification.show();
-
-        restoreRunning = true;
 
         resourcesService.restore_backup(filename, function(data){
             setTimeout(function(){
@@ -81,7 +56,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
                     $scope.backupFiles = data;
                 });
                 notification.successify(BACKUP_COMPLETE);
-                backupRunning = false;
                 return;
 
             // something neato has happened. lets show it.
@@ -96,7 +70,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         }, function(data, status){
                 notification.failify(ERROR +" "+ status, data.Detail);
-                backupRunning = false;
         });
     }
 
@@ -106,7 +79,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
             // all done!
             if(data.Detail === ""){
                 notification.successify(RESTORE_COMPLETE);
-                restoreRunning = false;
                 return;
 
             // something neato has happened. lets show it.
@@ -121,7 +93,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         }, function(data, status){
             notification.failify(ERROR +" "+ status, data.Detail);
-            restoreRunning = false;
         });
 
     }
@@ -192,37 +163,6 @@ function BackupRestoreControl($scope, $routeParams, resourcesService, authServic
 
         show: function(){
             this.$el.slideDown("fast");
-        }
-    };
-
-    /**
-     * SimpleModal
-     * Super simple modal with just an ok button to close it
-     * Uses bootstrap's modal. Impress your friends!
-     */
-    function SimpleModal(title, message){
-        //genericModal.html
-        this.$el = $($templateCache.get("simpleModal.html"));
-        this.$el.find(".modal-title").text(title);
-        this.$el.find(".modal-body").text(message);
-
-        this.$el.find(".closeButt").on("click", this.remove.bind(this));
-    }
-    SimpleModal.prototype = {
-        constructor: SimpleModal,
-
-        // attaches to dom and shows
-        show: function(){
-            $("body").append(this.$el);
-            this.$el.modal("show");
-        },
-
-        // removes from dom and destroys
-        remove: function(){
-            this.$el.modal("hide").on("hidden.bs.modal", function(){
-                this.$el.remove();
-            }.bind(this));
-
         }
     };
 }
