@@ -35,30 +35,36 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
-var registries map[string]metrics.Registry
+type registryKey struct {
+	serviceID string
+	instanceID int
+}
+
+var registries map[registryKey]metrics.Registry
 var hostID string
 var hostRegistry metrics.Registry
 
 // getOrCreateRegistry returns a registry for a given service id or creates it
 // if it doesn't exist.
-func getOrCreateRegistry(serviceid string) metrics.Registry {
-	if registry, ok := registries[serviceid]; ok {
+func getOrCreateRegistry(serviceID string, instanceID int) metrics.Registry {
+	key := registryKey{serviceID, instanceID}
+	if registry, ok := registries[key]; ok {
 		return registry
 	}
-	registries[serviceid] = metrics.NewRegistry()
-	return registries[serviceid]
+	registries[key] = metrics.NewRegistry()
+	return registries[key]
 }
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
 func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
-	registries = make(map[string]metrics.Registry)
+	registries = make(map[registryKey]metrics.Registry)
 	var err error
 	hostID, err = utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
 		return nil, err
 	}
-	hostRegistry = getOrCreateRegistry(hostID)
+	hostRegistry = getOrCreateRegistry("", 0)
 	sr := StatsReporter{destination, make(chan bool), zkDAO}
 	go sr.report(interval)
 	return &sr, nil
@@ -119,7 +125,7 @@ func (sr StatsReporter) updateStats() {
 	var running []*dao.RunningService
 	sr.zkDAO.GetRunningServicesForHost(hostID, &running)
 	for _, rs := range running {
-		containerRegistry := getOrCreateRegistry(rs.ServiceID)
+		containerRegistry := getOrCreateRegistry(rs.ServiceID, rs.InstanceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
 			glog.V(3).Info("Couldn't read CpuacctStat:", err)
 		} else {
@@ -138,13 +144,14 @@ func (sr StatsReporter) updateStats() {
 // Fills out the metric consumer format.
 func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 	stats := []containerStat{}
-	for serviceID, registry := range registries {
+	for key, registry := range registries {
 		reg, _ := registry.(*metrics.StandardRegistry)
 		reg.Each(func(name string, i interface{}) {
 			metric := i.(metrics.Gauge)
 			tagmap := make(map[string]string)
-			if serviceID != hostID {
-				tagmap["controlplane_service_id"] = serviceID
+			if key.serviceID != "" {
+				tagmap["controlplane_service_id"] = key.serviceID
+				tagmap["controlplane_instance_id"] = string(key.instanceID)
 			}
 			tagmap["controlplane_host_id"] = hostID
 			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
