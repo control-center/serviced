@@ -203,6 +203,16 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	{
+		"quay.io/zenossinc/daily-zenoss5-resmgr:5.0.0_421",
+		&ImageID{
+			Host: "quay.io",
+			User: "zenossinc",
+			Repo: "daily-zenoss5-resmgr",
+			Tag:  "5.0.0_421",
+		},
+		"",
+	},
 }
 
 func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
