@@ -10,8 +10,11 @@
 package service
 
 import (
+	"fmt"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
+	"testing"
 )
 
 func (s *S) TestAddVirtualHost(t *C) {
@@ -70,5 +73,59 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 
 	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
 		t.Errorf("Expected error removing vhost")
+	}
+}
+
+func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
+
+	sd := servicedefinition.ServiceDefinition{
+		Metrics: []servicedefinition.MetricGroup{
+			servicedefinition.MetricGroup{
+				ID:          "id",
+				Name:        "name",
+				Description: "description",
+				Metrics: []servicedefinition.Metric{
+					servicedefinition.Metric{ID: "m0", Name: "m0_name"},
+				},
+			},
+		},
+	}
+
+	actual, err := BuildService(sd, "", "", 0, "")
+	if err != nil {
+		t.Errorf("BuildService Failed w/err=%s", err)
+	}
+
+	expected := Service{
+		Id:        actual.Id,
+		CreatedAt: actual.CreatedAt,
+		UpdatedAt: actual.UpdatedAt,
+		Context:   actual.Context,
+		MonitoringProfile: domain.MonitorProfile{
+			Metrics: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "id",
+					Name:        "name",
+					Description: "description",
+					Query: domain.QueryConfig{
+						URL:    "http://localhost:8888/api/performance/query",
+						Method: "POST",
+						Headers: map[string][]string{
+							"Content-Type": []string{"application/json"},
+						},
+						Data: fmt.Sprintf("{\"metrics\":[{\"metric\":\"m0\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}],\"start\":\"1h-ago\"}", actual.Id),
+					},
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "m0", Name: "m0_name"},
+					},
+				},
+			},
+		},
+	}
+
+	if !expected.Equals(actual) {
+		t.Logf("expected: %+v", expected)
+		t.Logf("actual: %+v", *actual)
+		t.Error("expected != actual")
 	}
 }
