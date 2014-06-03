@@ -280,15 +280,9 @@ func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath
 }
 
 func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) (err error){
-	timeout := make(chan bool)
-	go func() {
-		time.Sleep(10 * time.Second)
-		timeout <- true
-	}()
-
 	select {
 	case *backupStatus = <-backupOutput:
-	case <- timeout:
+	case <-time.After(10 * time.Second ):
 		*backupStatus = "timeout"
 	case *backupStatus = <-backupError:
 		err = errors.New(*backupStatus)
@@ -524,16 +518,13 @@ func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (e
 }
 
 func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string) (err error){
-	timeout := make(chan bool)
-	go func() {
-		time.Sleep(10 * time.Second)
-		timeout <- true
-	}()
-
 	select {
 	case *restoreStatus = <-restoreOutput:
-	case <- timeout:
+	case <-time.After(10 * time.Second ):
 		*restoreStatus = "timeout"
+	case *restoreStatus = <-restoreError:
+		err = errors.New(*restoreStatus)
+		return err
 	}
 
 	return nil
