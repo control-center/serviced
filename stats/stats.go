@@ -46,15 +46,13 @@ type registryKey struct {
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
 func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
-	registries = make(map[registryKey]metrics.Registry)
-	var err error
-	hostID, err = utils.HostID()
+	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
 		return nil, err
 	}
-	hostRegistry = getOrCreateRegistry("", 0)
-	sr := StatsReporter{destination, make(chan bool), zkDAO}
+	sr := StatsReporter{destination, make(chan bool), zkDAO, make(map[registryKey]metrics.Registry), hostID, nil}
+	sr.hostRegistry = sr.getOrCreateRegistry("", 0)
 	go sr.report(interval)
 	return &sr, nil
 }
@@ -62,7 +60,7 @@ func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkD
 // getOrCreateRegistry returns a registry for a given service id or creates it
 // if it doesn't exist.
 func (sr StatsReporter) getOrCreateRegistry(serviceID string, instanceID int) metrics.Registry {
-	key := sr.registryKey{serviceID, instanceID}
+	key := registryKey{serviceID, instanceID}
 	if registry, ok := sr.registries[key]; ok {
 		return registry
 	}
@@ -105,27 +103,27 @@ func (sr StatsReporter) updateStats() {
 	if cpuacctStat, err := cgroup.ReadCpuacctStat(""); err != nil {
 		glog.V(3).Info("Couldn't read CpuacctStat:", err)
 	} else {
-		metrics.GetOrRegisterGauge("CpuacctStat.system", hostRegistry).Update(cpuacctStat.System)
-		metrics.GetOrRegisterGauge("CpuacctStat.user", hostRegistry).Update(cpuacctStat.User)
+		metrics.GetOrRegisterGauge("CpuacctStat.system", sr.hostRegistry).Update(cpuacctStat.System)
+		metrics.GetOrRegisterGauge("CpuacctStat.user", sr.hostRegistry).Update(cpuacctStat.User)
 	}
 
 	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
 	} else {
-		metrics.GetOrRegisterGauge("MemoryStat.pgfault", hostRegistry).Update(memoryStat.Pgfault)
-		metrics.GetOrRegisterGauge("MemoryStat.rss", hostRegistry).Update(memoryStat.Rss)
+		metrics.GetOrRegisterGauge("MemoryStat.pgfault", sr.hostRegistry).Update(memoryStat.Pgfault)
+		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.Rss)
 	}
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
 	} else {
-		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", hostRegistry).Update(openFileDescriptorCount)
+		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
 	// Stats for the containers.
 	var running []*dao.RunningService
-	sr.zkDAO.GetRunningServicesForHost(hostID, &running)
+	sr.zkDAO.GetRunningServicesForHost(sr.hostID, &running)
 	for _, rs := range running {
-		containerRegistry := getOrCreateRegistry(rs.ServiceID, rs.InstanceID)
+		containerRegistry := sr.getOrCreateRegistry(rs.ServiceID, rs.InstanceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
 			glog.V(3).Info("Couldn't read CpuacctStat:", err)
 		} else {
@@ -144,7 +142,7 @@ func (sr StatsReporter) updateStats() {
 // Fills out the metric consumer format.
 func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 	stats := []containerStat{}
-	for key, registry := range registries {
+	for key, registry := range sr.registries {
 		reg, _ := registry.(*metrics.StandardRegistry)
 		reg.Each(func(name string, i interface{}) {
 			metric := i.(metrics.Gauge)
@@ -153,7 +151,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 				tagmap["controlplane_service_id"] = key.serviceID
 				tagmap["controlplane_instance_id"] = string(key.instanceID)
 			}
-			tagmap["controlplane_host_id"] = hostID
+			tagmap["controlplane_host_id"] = sr.hostID
 			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 		})
 	}
