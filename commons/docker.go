@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 
 // ListImages wraps client.ListImages, checking the registry and pulling
 // any missing or out-dated images and/or tags first.
-func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APIImages, e error) {
+func ListImages(registry DockerRegistry, client *dockerclient.Client) (i []dockerclient.APIImages, e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.ListImages error: %s", e)
@@ -31,7 +32,7 @@ func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APII
 	remoteImages, err := registry.ListRemoteImageTags()
 	madeChanges := false
 	if err != nil {
-		return []docker.APIImages{}, err
+		return []dockerclient.APIImages{}, err
 	}
 	images, err := client.ListImages(true)
 	if err != nil {
@@ -48,7 +49,7 @@ func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APII
 			}
 			repoName, tag, err := repoNameAndTag(repoTag)
 			if err != nil {
-				return []docker.APIImages{}, err
+				return []dockerclient.APIImages{}, err
 			}
 			if tag == "" {
 				tag = "latest"
@@ -58,13 +59,13 @@ func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APII
 		}
 		for _, repoTag := range remoteImageTags {
 			repoName, tag, err := repoNameAndTag(repoTag)
-			opts := docker.TagImageOptions{
+			opts := dockerclient.TagImageOptions{
 				Repo:  fmt.Sprintf("%s/%s", registry, repoName),
 				Force: true,
 				Tag:   tag,
 			}
 			if err = client.TagImage(image.ID, opts); err != nil {
-				return []docker.APIImages{}, err
+				return []dockerclient.APIImages{}, err
 			}
 			madeChanges = true
 		}
@@ -75,23 +76,23 @@ func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APII
 			continue
 		}
 		repoTag, remoteImageTags := remoteImageTags[0], remoteImageTags[1:]
-		opts := docker.PullImageOptions{
+		opts := dockerclient.PullImageOptions{
 			Repository: repoTag,
 			Registry:   registry.String(),
 		}
 		if err = client.PullImage(opts, auth); err != nil {
-			return []docker.APIImages{}, err
+			return []dockerclient.APIImages{}, err
 		}
 		madeChanges = true
 		for _, repoTag := range remoteImageTags {
 			repoName, tag, err := repoNameAndTag(repoTag)
-			opts := docker.TagImageOptions{
+			opts := dockerclient.TagImageOptions{
 				Repo:  fmt.Sprintf("%s/%s", registry, repoName),
 				Force: true,
 				Tag:   tag,
 			}
 			if err = client.TagImage(imageID, opts); err != nil {
-				return []docker.APIImages{}, err
+				return []dockerclient.APIImages{}, err
 			}
 		}
 	}
@@ -101,7 +102,7 @@ func ListImages(registry DockerRegistry, client *docker.Client) (i []docker.APII
 	return images, nil
 }
 
-func pullImageFromRegistry(registry DockerRegistry, client *docker.Client, name string) (e error) {
+func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) (e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.pullImageFromRegistry error: %s", e)
@@ -114,14 +115,14 @@ func pullImageFromRegistry(registry DockerRegistry, client *docker.Client, name 
 	if tag == "" {
 		tag = "latest"
 	}
-	opts := docker.PullImageOptions{
+	opts := dockerclient.PullImageOptions{
 		Repository: fmt.Sprintf("%s:%s", repoName, tag),
 		Registry:   registry.String(),
 	}
 	return client.PullImage(opts, auth)
 }
 
-func pushImageToRegistry(registry DockerRegistry, client *docker.Client, name string, force bool) (e error) {
+func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, name string, force bool) (e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.pushImageToRegistry name: %s, force: %t, error: %s", name, force, e)
@@ -157,7 +158,7 @@ func pushImageToRegistry(registry DockerRegistry, client *docker.Client, name st
 			// check to make sure that either the full (adjusted) name doesn't exist
 			// locally, or if it does exist, that it points to the exact same image.
 			foundImage, err := client.InspectImage(fullName)
-			if err != nil && err != docker.ErrNoSuchImage {
+			if err != nil && err != dockerclient.ErrNoSuchImage {
 				return err
 			}
 			if err == nil && foundImage.ID != image.ID {
@@ -166,7 +167,7 @@ func pushImageToRegistry(registry DockerRegistry, client *docker.Client, name st
 			}
 		}
 		// tag the image locally
-		tagOpts := docker.TagImageOptions{
+		tagOpts := dockerclient.TagImageOptions{
 			Repo:  repoName,
 			Force: true,
 			Tag:   imageID.Tag,
@@ -176,12 +177,12 @@ func pushImageToRegistry(registry DockerRegistry, client *docker.Client, name st
 			return err
 		}
 	}
-	opts := docker.PushImageOptions{
+	opts := dockerclient.PushImageOptions{
 		Name:     repoName,
 		Tag:      imageID.Tag,
 		Registry: registry.String(),
 	}
-	glog.V(2).Infof("pushing image: %s", opts)
+	glog.Infof("pushing image: %+v", opts)
 	return client.PushImage(opts, auth)
 }
 
@@ -189,19 +190,19 @@ func pushImageToRegistry(registry DockerRegistry, client *docker.Client, name st
 // If the image (name) is not already in the registry, pushes it in. (Error if
 // the image is missing locally too) Otherwise, if the local image is missing,
 // or its UUID differs from the registry, pulls from the registry.
-func syncImageFromRegistry(registry DockerRegistry, client *docker.Client, name string) (i *docker.Image, e error) {
+func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) (i *dockerclient.Image, e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.syncImageFromRegistry error: %s", e)
 		}
 	}()
 	image, err := client.InspectImage(name)
-	if err != nil && err != docker.ErrNoSuchImage {
+	if err != nil && err != dockerclient.ErrNoSuchImage {
 		return nil, err
 	}
 	uuid, err := registry.GetRemoteRepoTag(name)
 	if err != nil {
-		if err != docker.ErrNoSuchImage {
+		if err != dockerclient.ErrNoSuchImage {
 			return nil, err
 		}
 		// Well, let's push then...
@@ -234,7 +235,7 @@ func syncImageFromRegistry(registry DockerRegistry, client *docker.Client, name 
 // the image is missing locally too) Otherwise, if the local image is missing,
 // or its UUID differs from the registry, pulls from the registry.
 // Finally, calls client.CreateContainer.
-func CreateContainer(registry DockerRegistry, client *docker.Client, opts docker.CreateContainerOptions) (c *docker.Container, e error) {
+func CreateContainer(registry DockerRegistry, client *dockerclient.Client, opts dockerclient.CreateContainerOptions) (c *dockerclient.Container, e error) {
 	//TODO: Change this to just use Ward's docker stuff.
 	defer func() {
 		if e != nil {
@@ -242,7 +243,7 @@ func CreateContainer(registry DockerRegistry, client *docker.Client, opts docker
 		}
 	}()
 	if _, err := syncImageFromRegistry(registry, client, opts.Config.Image); err != nil {
-		if err != docker.ErrNoSuchImage {
+		if err != dockerclient.ErrNoSuchImage {
 			return nil, err
 		}
 	}
@@ -254,7 +255,7 @@ func CreateContainer(registry DockerRegistry, client *docker.Client, opts docker
 // the image is missing locally too) Otherwise, if the local image is missing,
 // or its UUID differs from the registry, pulls from the registry.
 // Finally, calls client.InspectImage.
-func InspectImage(registry DockerRegistry, client *docker.Client, name string) (i *docker.Image, e error) {
+func InspectImage(registry DockerRegistry, client *dockerclient.Client, name string) (i *dockerclient.Image, e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.InspectImage error: %s", e)
@@ -268,7 +269,7 @@ func InspectImage(registry DockerRegistry, client *docker.Client, name string) (
 // the image is missing locally too) Otherwise, if the local image is missing,
 // or its UUID differs from the registry, pulls from the registry.
 // Tags the image locally, and in the registry.
-func TagImage(registry DockerRegistry, client *docker.Client, name string, opts docker.TagImageOptions) (e error) {
+func TagImage(registry DockerRegistry, client *dockerclient.Client, name string, opts dockerclient.TagImageOptions) (e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.TagImage error: %s", e)
@@ -289,18 +290,18 @@ func TagImage(registry DockerRegistry, client *docker.Client, name string, opts 
 
 // RemoveImage wraps client.RemoveImage, removing the tag from the registry
 // too, if necessary. TODO: perhaps also purge images that have no more tags?
-func RemoveImage(registry DockerRegistry, client *docker.Client, name string) (e error) {
+func RemoveImage(registry DockerRegistry, client *dockerclient.Client, name string) (e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.RemoveImage error: %s", e)
 		}
 	}()
 	localRemoval := client.RemoveImage(name)
-	if localRemoval != nil && localRemoval != docker.ErrNoSuchImage {
+	if localRemoval != nil && localRemoval != dockerclient.ErrNoSuchImage {
 		return localRemoval
 	}
 	remoteRemoval := registry.RemoveRemoteImageTag(name)
-	if remoteRemoval != nil && remoteRemoval != docker.ErrNoSuchImage {
+	if remoteRemoval != nil && remoteRemoval != dockerclient.ErrNoSuchImage {
 		return remoteRemoval
 	}
 	return localRemoval
@@ -308,7 +309,7 @@ func RemoveImage(registry DockerRegistry, client *docker.Client, name string) (e
 
 // CommitContainer wraps client.CommitContainer, pushing the image and tag to
 // the registry afterwards.
-func CommitContainer(registry DockerRegistry, client *docker.Client, opts docker.CommitContainerOptions) (i *docker.Image, e error) {
+func CommitContainer(registry DockerRegistry, client *dockerclient.Client, opts dockerclient.CommitContainerOptions) (i *dockerclient.Image, e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.CommitContainer error: %s", e)
@@ -333,7 +334,7 @@ func CommitContainer(registry DockerRegistry, client *docker.Client, opts docker
 
 // ImportImage wraps client.ImportImage, pushing the image and tag to the
 // registry afterwards.
-func ImportImage(registry DockerRegistry, client *docker.Client, opts docker.ImportImageOptions) (e error) {
+func ImportImage(registry DockerRegistry, client *dockerclient.Client, opts dockerclient.ImportImageOptions) (e error) {
 	defer func() {
 		if e != nil {
 			glog.V(2).Infof("commons.ImportImage error: %s", e)
@@ -510,13 +511,13 @@ func (r *dockerRegistry) RemoveRemoteImageTag(repoTag string) (e error) {
 	}
 	path := "/v1/repositories/" + repoName + "/tags/" + tag
 	err = r.delete(path)
-	if err == docker.ErrNoSuchImage {
+	if err == dockerclient.ErrNoSuchImage {
 		return nil
 	}
 	return err
 }
 
-var auth = docker.AuthConfiguration{}
+var auth = dockerclient.AuthConfiguration{}
 
 func (r *dockerRegistry) url(path string) string {
 	result := r.hostAndPort
@@ -554,7 +555,7 @@ func (r *dockerRegistry) get(path string, v interface{}) (e error) {
 	bytes, err := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode == 404 {
-		return docker.ErrNoSuchImage
+		return dockerclient.ErrNoSuchImage
 	}
 	if resp.StatusCode > 304 {
 		return fmt.Errorf("got error response. req=%s, code=%d, body=%s", req, resp.StatusCode, bytes)
@@ -588,7 +589,7 @@ func (r *dockerRegistry) put(path string, data interface{}) (e error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 404 {
-		return docker.ErrNoSuchImage
+		return dockerclient.ErrNoSuchImage
 	}
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if res.StatusCode > 304 {
@@ -615,7 +616,7 @@ func (r *dockerRegistry) delete(path string) (e error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 404 {
-		return docker.ErrNoSuchImage
+		return dockerclient.ErrNoSuchImage
 	}
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if res.StatusCode > 304 {

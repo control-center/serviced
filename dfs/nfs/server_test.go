@@ -42,14 +42,14 @@ func dirExists(path string) (bool, error) {
 	return s.IsDir(), err
 }
 
-var expectedExports = "%s\t192.168.1.0/24(rw,fsid=0,insecure,no_subtree_check,async)\n%s/foo\t192.168.1.0/24(rw,nohide,insecure,no_subtree_check,async)\n"
+var expectedExports = "%s\t192.168.1.0/24(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n%s/foo\t192.168.1.0/24(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n\n"
 
 func TestNewServer(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	//defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir)
 	t.Logf("created temp dir: %s", tempDir)
 
 	baseDir := path.Join(tempDir, "baseDir")
@@ -110,19 +110,19 @@ func TestNewServer(t *testing.T) {
 
 	// assert that the defaults get written out
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+"\n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" \n\n"))
 
 	s.SetClients("192.168.1.21")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21\n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.21\n\n"))
 
 	s.SetClients("192.168.1.21", "192.168.1.20")
 	sync()
 
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
-	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n"))
+	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n\n"))
 
 	assertFileContents(t, etcExports, []byte(fmt.Sprintf(expectedExports, exportsPath, exportsPath)))
 

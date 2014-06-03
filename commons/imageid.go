@@ -57,7 +57,7 @@ func init() {
 // reponame = [user'/']repo
 // user     = {alpha|digit|'-'|'_'}+
 // repo     = {alpha|digit|'-'|'_'}+
-// tag      = {alpha|digit|'-'}+
+// tag      = {alpha|digit|'-'|'_'|'.'}+
 // The grammar is ambiguous so the parser is a little messy in places.
 func ParseImageID(iid string) (*ImageID, error) {
 	scanner := bufio.NewScanner(strings.NewReader(iid))
@@ -170,10 +170,10 @@ func ParseImageID(iid string) (*ImageID, error) {
 			}
 		case scanningTag:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash:
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore, rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 			default:
-				return nil, fmt.Errorf("invalid ImageID %s: bad tag", iid)
+				return nil, fmt.Errorf("invalid ImageID %s: bad tag (rune:'%c')", iid, rune)
 			}
 		case scanningPortOrTag:
 			switch {

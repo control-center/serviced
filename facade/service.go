@@ -317,6 +317,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	assignIPsInfo, err := f.generateIPMap(ctx, myService.PoolID)
 	if err != nil {
 		return err
+	} else if len(assignIPsInfo) < 1 {
+		return fmt.Errorf("no IPs available")
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
