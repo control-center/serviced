@@ -11,8 +11,11 @@ import (
 
 const (
 	dockerep = "http://127.0.0.1:3006"
+	snr      = "SERVICED_NOREGISTRY"
 	Wildcard = "*"
 )
+
+var noregistry bool
 
 type request struct {
 	errchan chan error
@@ -171,6 +174,10 @@ var (
 // init starts up the kernel loop that is responsible for handling all the API calls
 // in a goroutine.
 func init() {
+	if os.Getenv(snr) != "" {
+		noregistry = true
+	}
+
 	client, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
