@@ -294,25 +294,37 @@ func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) 
 
 // Backup saves the service templates, services, and related docker images and shared filesystems to a tgz file.
 func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
-	cp.backupLock.Lock()
-	backupError = make(chan string, 100)
+	// Lock the error and output channels to ensure that only one backup runs at any given time.
+	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
+	err = func () error{
+		cp.backupLock.Lock()
 
-	//open a channel for asynchronous Backup calls
-	if backupOutput != nil {
-		e := errors.New("Another backup is currently in progress")
-		glog.Errorf("An error occured when starting backup: %v", e)
-		backupError <- e.Error()
-		cp.backupLock.Unlock()
-		return e
-	}
-	backupOutput = make(chan string, 100)
-	cp.backupLock.Unlock()
+		//ensure that the backupLock is unlocked after this function exits
+		defer cp.backupLock.Unlock()
+
+		backupError = make(chan string, 100)
+
+		//open a channel for asynchronous Backup calls
+		if backupOutput != nil {
+			e := errors.New("Another backup is currently in progress")
+			glog.Errorf("An error occured when starting backup: %v", e)
+			backupError <- e.Error()
+			return e
+		}
+		backupOutput = make(chan string, 100)
+		return nil
+	}()
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup
 		close(backupOutput)
 		backupOutput = nil
 	}()
+
+	// check the error status of the channel creation if there was an error, return it now.
+	if err != nil {
+		return err
+	}
 
 	backupOutput <- "Starting backup"
 
@@ -535,24 +547,35 @@ func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string
 // Restore replaces or restores the service templates, services, and related
 // docker images and shared file systmes, as extracted from a tgz backup file.
 func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
-	cp.restoreLock.Lock()
-	restoreError = make(chan string, 100)
+	// Lock the error and output channels to ensure that only one restore runs at any given time.
+	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
+	err = func() error {
+		cp.restoreLock.Lock()
 
-	if restoreOutput != nil {
-		e := errors.New("Another restore is currently in progress")
-		glog.Errorf("An error occured when starting restore: %v", e)
-		restoreError <- e.Error()
-		cp.restoreLock.Unlock()
-		return e
-	}
-	restoreOutput = make(chan string, 100)
-	cp.restoreLock.Unlock()
+		//ensure that restoreLock is unlocked when this function exits
+		defer cp.restoreLock.Unlock()
+		restoreError = make(chan string, 100)
+
+		if restoreOutput != nil {
+			e := errors.New("Another restore is currently in progress")
+			glog.Errorf("An error occured when starting restore: %v", e)
+			restoreError <- e.Error()
+			return e
+		}
+		restoreOutput = make(chan string, 100)
+		return nil
+	}()
 
 	defer func() {
 		//close the channel for asynchronous calls to Backup
 		close(restoreOutput)
 		restoreOutput = nil
 	}()
+
+	//check the error status from channel creation here and return the error if it exists
+	if err != nil {
+		return err
+	}
 
 	restoreOutput <- "Starting restore"
 	
