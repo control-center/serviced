@@ -88,7 +88,12 @@ func (a *api) RunShell(config ShellConfig) error {
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
-	command = strings.Join(append([]string{command}, config.Args...), " ")
+
+	quotedArgs := []string{}
+	for _, arg := range config.Args {
+		quotedArgs = append(quotedArgs, fmt.Sprintf("\\\"%s\\\"", arg))
+	}
+	command = strings.Join(append([]string{command}, quotedArgs...), " ")
 
 	cfg := shell.ProcessConfig{
 		ServiceID: config.ServiceID,
