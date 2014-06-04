@@ -293,13 +293,13 @@ func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]
 			var ep dao.ApplicationEndpoint
 			ep.ServiceID = state.ServiceID
 			ep.Protocol = defep.Protocol
-			ep.ContainerIP = state.PrivateIP
-			// ep.containerPort =
+			// ep.ContainerIP = ???
+			ep.ContainerPort = defep.PortNumber
 			ep.HostIP = state.HostIP
-			ep.HostPort = defep.PortNumber
+			// ep.HostPort = ???
 			ep.VirtualAddress = defep.VirtualAddress
 
-			key := fmt.Sprintf("%s:%d", ep.Protocol, ep.HostPort)
+			key := fmt.Sprintf("%s:%d", ep.Protocol, ep.ContainerPort)
 			if _, exists := result[key]; !exists {
 				result[key] = make([]*dao.ApplicationEndpoint, 0)
 			}
