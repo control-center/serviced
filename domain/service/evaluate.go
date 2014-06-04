@@ -6,6 +6,7 @@ package service
 
 import (
 	"github.com/zenoss/glog"
+	"math"
 	"bytes"
 	"encoding/json"
 	"text/template"
@@ -133,12 +134,17 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
 	return
 }
 
+func percentScale(x uint64, percentage float64) uint64 {
+	return uint64(math.Floor(float64(x) * percentage))
+}
+
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(),
+		"percentScale": percentScale,
 	}
 
 	for i, ep := range service.Endpoints {
