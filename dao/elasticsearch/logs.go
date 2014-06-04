@@ -24,6 +24,7 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 	}
 
 	serviceState := serviceStates[0]
+	// FIXME: don't assume port is 4979
 	endpoint := serviceState.HostIP + ":4979"
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
@@ -50,6 +51,7 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
+	// FIXME: don't assume port is 4979
 	endpoint := serviceState.HostIP + ":4979"
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
