@@ -6,7 +6,7 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -129,7 +129,7 @@ var readJSONFromFile = func(v interface{}, filename string) error {
 	return nil
 }
 
-var getDockerImageNameIds = func(registry commons.DockerRegistry, client *docker.Client) (map[string]string, error) {
+var getDockerImageNameIds = func(registry commons.DockerRegistry, client *dockerclient.Client) (map[string]string, error) {
 	images, e := commons.ListImages(registry, client)
 	if e != nil {
 		return nil, e
@@ -149,7 +149,7 @@ var getDockerImageNameIds = func(registry commons.DockerRegistry, client *docker
 	return result, nil
 }
 
-var exportDockerImageToFile = func(registry commons.DockerRegistry, client *docker.Client, imageID, filename string) (err error) {
+var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
 	file, e := osCreate(filename)
 	if e != nil {
 		glog.Errorf("Could not create file %s: %v", filename, e)
@@ -171,8 +171,8 @@ var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dock
 		}
 	}()
 
-	createOpts := docker.CreateContainerOptions{
-		Config: &docker.Config{
+	createOpts := dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
 			Cmd:   []string{"echo ''"},
 			Image: imageID,
 		},
@@ -188,7 +188,7 @@ var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dock
 
 	// Remove container on the way out
 	defer func() {
-		removeOpts := docker.RemoveContainerOptions{ID: container.ID}
+		removeOpts := dockerclient.RemoveContainerOptions{ID: container.ID}
 		if e := client.RemoveContainer(removeOpts); e != nil {
 			glog.Errorf("Could not remove container %s: %v", container.ID, e)
 			if err == nil {
@@ -199,7 +199,7 @@ var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dock
 		}
 	}()
 
-	exportOpts := docker.ExportContainerOptions{
+	exportOpts := dockerclient.ExportContainerOptions{
 		ID:           container.ID,
 		OutputStream: file,
 	}
@@ -225,14 +225,14 @@ var repoAndTag = func(imageID string) (string, string) {
 	return imageID[:i], tag
 }
 
-var importDockerImageFromFile = func(registry commons.DockerRegistry, client *docker.Client, imageID, filename string) (err error) {
+var importDockerImageFromFile = func(registry commons.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
 	file, e := os.Open(filename)
 	if e != nil {
 		return e
 	}
 	defer file.Close()
 	repo, tag := repoAndTag(imageID)
-	importOpts := docker.ImportImageOptions{
+	importOpts := dockerclient.ImportImageOptions{
 		Repository:  repo,
 		Source:      "-",
 		InputStream: file,
@@ -387,7 +387,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Export each of the referenced docker images
-	client, e := docker.NewClient(DOCKER_ENDPOINT)
+	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
 	if e != nil {
 		glog.Errorf("Could not connect to docker: %v", e)
 		backupError <- e.Error()
@@ -434,7 +434,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
 		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageID)
 		if e := exportDockerImageToFile(registry, client, imageID, filename); e != nil {
-			if e == docker.ErrNoSuchImage {
+			if e == dockerclient.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageID)
 			} else {
 				glog.Errorf("Error while exporting docker image %s: %v", imageID, e)
@@ -646,7 +646,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	}
 
 	// Restore the docker images ...
-	client, e := docker.NewClient(DOCKER_ENDPOINT)
+	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
 	// Note: client does not need to be .Close()'d
 	if e != nil {
 		glog.Errorf("Could not connect to docker: %v", e)
@@ -666,7 +666,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
 		image, e := commons.InspectImage(registry, client, imageID)
 		if e != nil {
-			if e != docker.ErrNoSuchImage {
+			if e != dockerclient.ErrNoSuchImage {
 				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageID, e)
 				restoreError <- e.Error()
 				return e
@@ -684,7 +684,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 				return e
 			}
 		} else {
-			if e := client.TagImage(imageID, docker.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
+			if e := client.TagImage(imageID, dockerclient.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
 				glog.Errorf("Found image %s already exists, but could not tag it: %s", imageID, e)
 				restoreError <- e.Error()
 				return e
@@ -693,7 +693,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 		for _, imageTag := range imageTags {
 			repo, tag := repoAndTag(imageTag)
-			options := docker.TagImageOptions{
+			options := dockerclient.TagImageOptions{
 				Repo:  repo,
 				Tag:   tag,
 				Force: true,
