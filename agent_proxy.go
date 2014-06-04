@@ -175,3 +175,11 @@ func (a *HostAgent) GetHostID(string, hostID *string) error {
 	*hostID = a.hostID
 	return nil
 }
+
+// GetZkDSN returns the agent's zookeeper connection string
+func (a *HostAgent) GetZkDSN(string, dsn *string) error {
+	localDSN := a.zkClient.ConnectionString()
+	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
+	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
+	return nil
+}

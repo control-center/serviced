@@ -4,10 +4,13 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 
 	"bufio"
 	"errors"
@@ -38,6 +41,10 @@ var (
 	ErrInvalidService = errors.New("container: invalid serviced")
 	// ErrInvalidHostID is returned if the host is empty or malformed
 	ErrInvalidHostID = errors.New("container: invalid host id")
+	// ErrInvalidZkDSN is returned if the zkDSN is empty or malformed
+	ErrInvalidZkDSN = errors.New("container: invalid zookeeper dsn")
+	// ErrInvalidExportedEndpoints is returned if the ExportedEndpoints is empty or malformed
+	ErrInvalidExportedEndpoints = errors.New("container: invalid exported endpoints")
 )
 
 // containerEnvironmentFile writes out all the environment variables passed to the container so
@@ -82,6 +89,8 @@ type Controller struct {
 	logforwarderExited chan error
 	closing            chan chan error
 	prereqs            []domain.Prereq
+	zkDSN              string
+	exportedEndpoints  map[string][]*dao.ApplicationEndpoint
 }
 
 // Close shuts down the controller
@@ -150,6 +159,26 @@ func getAgentHostID(lbClientPort string) (string, error) {
 
 	glog.V(1).Infof("getAgentHostID: %s", hostID)
 	return hostID, nil
+}
+
+// getAgentZkDSN retrieves the agent's zookeeper dsn
+func getAgentZkDSN(lbClientPort string) (string, error) {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return "", err
+	}
+	defer client.Close()
+
+	var dsn string
+	err = client.GetZkDSN(&dsn)
+	if err != nil {
+		glog.Errorf("Error getting zookeeper dsn, error: %s", err)
+		return "", err
+	}
+
+	glog.V(1).Infof("getAgentZkDSN: %s", dsn)
+	return dsn, nil
 }
 
 // chownConfFile sets the owner and permissions for a file
@@ -223,6 +252,65 @@ func setupLogstashFiles(service *service.Service, resourcePath string) error {
 		}
 	}
 	return nil
+}
+
+//
+func getServiceState(conn coordclient.Connection, serviceID string) (*servicestate.ServiceState, error) {
+	var serviceStates []*servicestate.ServiceState
+	err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
+	if err != nil {
+		glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
+		return nil, nil
+	}
+
+	return serviceStates[0], nil
+}
+
+// buildExportedEndpoints
+func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]*dao.ApplicationEndpoint, error) {
+	result := make(map[string][]*dao.ApplicationEndpoint)
+
+	cclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	if err != nil {
+		glog.Errorf("could not connect to zookeeper: %s", dsn)
+		return result, err
+	}
+
+	conn, err := cclient.GetConnection()
+	if err != nil {
+		return result, err
+	}
+
+	state, err := getServiceState(conn, service.Id)
+	if err != nil {
+		return result, err
+	}
+
+	glog.Infof("buildExportedEndpoints state: %+v", state)
+
+	for _, defep := range state.Endpoints {
+		if defep.Purpose == "export" {
+			var ep dao.ApplicationEndpoint
+			ep.ServiceID = state.ServiceID
+			ep.Protocol = defep.Protocol
+			ep.ContainerIP = state.PrivateIP
+			// ep.containerPort =
+			ep.HostIP = state.HostIP
+			ep.HostPort = defep.PortNumber
+			ep.VirtualAddress = defep.VirtualAddress
+
+			key := fmt.Sprintf("%s:%d", ep.Protocol, ep.HostPort)
+			if _, exists := result[key]; !exists {
+				result[key] = make([]*dao.ApplicationEndpoint, 0)
+			}
+			result[key] = append(result[key], &ep)
+		}
+	}
+
+	containerID := os.Getenv("HOSTNAME")
+	glog.Infof("containerID: %s\n", containerID)
+
+	return result, nil
 }
 
 // NewController creates a new Controller for the given options
@@ -315,6 +403,28 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// Keep a copy of the service prerequisites in the Controller object.
 	c.prereqs = service.Prereqs
 
+	// get zookeeper connection string
+	c.zkDSN, err = getAgentZkDSN(options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Invalid zk dsn")
+		return c, ErrInvalidZkDSN
+	}
+
+	// TODO: Keep a copy of the service EndPoint imports and exports
+	c.exportedEndpoints, err = buildExportedEndpoints(c.zkDSN, service)
+	if err != nil {
+		glog.Errorf("Invalid ExportedEndpoints")
+		return c, ErrInvalidExportedEndpoints
+	}
+
+	// TODO: register exports
+	for key, endpointList := range c.exportedEndpoints {
+		for _, endpoint := range endpointList {
+			glog.Infof("TODO: register exported endpoint[%s]: %+v", key, *endpoint)
+		}
+	}
+
+	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
 		glog.Errorf("Invalid commandif ")
@@ -538,6 +648,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleRemotePorts() {
+	// get service endpoints
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
@@ -563,8 +674,8 @@ func (c *Controller) handleRemotePorts() {
 
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
-			glog.V(2).Infof("endpoints: %s, %v", key, *endpoint)
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+			glog.Infof("addresses[%d]: %s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
 		}
 		sort.Strings(addresses)
 
