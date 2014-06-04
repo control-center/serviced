@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/endpointregistry"
 
 	"bufio"
 	"errors"
@@ -90,6 +91,7 @@ type Controller struct {
 	closing            chan chan error
 	prereqs            []domain.Prereq
 	zkDSN              string
+	cclient            *coordclient.Client
 	exportedEndpoints  map[string][]*dao.ApplicationEndpoint
 }
 
@@ -278,19 +280,8 @@ func getServiceState(conn coordclient.Connection, serviceID string) (*servicesta
 }
 
 // buildExportedEndpoints
-func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]*dao.ApplicationEndpoint, error) {
+func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string][]*dao.ApplicationEndpoint, error) {
 	result := make(map[string][]*dao.ApplicationEndpoint)
-
-	cclient, err := coordclient.New("zookeeper", dsn, "", nil)
-	if err != nil {
-		glog.Errorf("could not connect to zookeeper: %s", dsn)
-		return result, err
-	}
-
-	conn, err := cclient.GetConnection()
-	if err != nil {
-		return result, err
-	}
 
 	state, err := getServiceState(conn, service.Id)
 	if err != nil {
@@ -316,7 +307,7 @@ func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]
 			ep.HostPort = uint16(port)
 			ep.VirtualAddress = defep.VirtualAddress
 
-			key := fmt.Sprintf("%s:%d", ep.Protocol, ep.ContainerPort)
+			key := fmt.Sprintf("%s_%s", tenantID, defep.Application)
 			if _, exists := result[key]; !exists {
 				result[key] = make([]*dao.ApplicationEndpoint, 0)
 			}
@@ -324,10 +315,26 @@ func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]
 		}
 	}
 
-	containerID := os.Getenv("HOSTNAME")
-	glog.Infof("containerID: %s\n", containerID)
-
 	return result, nil
+}
+
+// getZkConnection returns the zookeeper connection
+func (c *Controller) getZkConnection() (coordclient.Connection, error) {
+	if c.cclient == nil {
+		var err error
+		c.cclient, err = coordclient.New("zookeeper", c.zkDSN, "", nil)
+		if err != nil {
+			glog.Errorf("could not connect to zookeeper: %s", c.zkDSN)
+			return nil, err
+		}
+	}
+
+	conn, err := c.cclient.GetConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // NewController creates a new Controller for the given options
@@ -424,21 +431,20 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	c.zkDSN, err = getAgentZkDSN(options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Invalid zk dsn")
-		return c, ErrInvalidZkDSN
+		return nil, ErrInvalidZkDSN
 	}
 
-	// TODO: Keep a copy of the service EndPoint imports and exports
-	c.exportedEndpoints, err = buildExportedEndpoints(c.zkDSN, service)
+	// get zookeeper connection
+	conn, err := c.getZkConnection()
+	if err != nil {
+		return c, err
+	}
+
+	// Keep a copy of the service EndPoint exports
+	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, service)
 	if err != nil {
 		glog.Errorf("Invalid ExportedEndpoints")
 		return c, ErrInvalidExportedEndpoints
-	}
-
-	// TODO: register exports
-	for key, endpointList := range c.exportedEndpoints {
-		for _, endpoint := range endpointList {
-			glog.Infof("TODO: register exported endpoint[%s]: %+v", key, *endpoint)
-		}
 	}
 
 	// check command
@@ -513,6 +519,7 @@ func (c *Controller) Run() (err error) {
 	c.handleRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
+	doRegisterEndpoints := true
 	for {
 		select {
 		case sig := <-sigc:
@@ -550,6 +557,10 @@ func (c *Controller) Run() (err error) {
 		case <-startAfter:
 			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
+			if doRegisterEndpoints {
+				c.registerExportedEndpoints()
+				doRegisterEndpoints = false
+			}
 			startAfter = nil
 		}
 	}
@@ -734,6 +745,32 @@ func (c *Controller) handleRemotePorts() {
 		prxy.SetNewAddresses(addresses)
 	}
 
+}
+
+// registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
+func (c *Controller) registerExportedEndpoints() {
+	// get zookeeper connection
+	conn, err := c.getZkConnection()
+	if err != nil {
+		return
+	}
+
+	// get containerID
+	containerID := os.Getenv("HOSTNAME")
+	glog.Infof("containerID: %s\n", containerID)
+
+	// register exported endpoints
+	for key, endpointList := range c.exportedEndpoints {
+		for _, endpoint := range endpointList {
+			glog.Infof("registering exported endpoint[%s]: %+v", key, *endpoint)
+			endpointID := strings.Split(key, "_")[1]
+			endpointregistry.AddEndpoint(conn, c.tenantID, endpointID, containerID, endpoint)
+
+			var ep dao.ApplicationEndpoint
+			endpointregistry.LoadEndpoint(conn, c.tenantID, endpointID, containerID, &ep)
+			glog.Infof("loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep)
+		}
+	}
 }
 
 var (
