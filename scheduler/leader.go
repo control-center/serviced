@@ -289,7 +289,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 
 	// Start up an instance per id
 	for _, i := range freeids {
-		servicehost, err := hostPolicy.SelectHost(hosts)
+		servicehost, err := l.selectPoolHostForService(svc, hosts, hostPolicy)
 		if err != nil {
 			return err
 		}
@@ -328,7 +328,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 // selectPoolHostForService chooses a host from the pool for the specified service. If the service
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
-func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host) (*host.Host, error) {
+func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host, policy *ServiceHostPolicy) (*host.Host, error) {
 	var assignmentType string
 	var ipAddr string
 	var hostid string
@@ -345,15 +345,15 @@ func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host
 		if err := virtualips.GetVirtualIPHostID(l.conn, ipAddr, &hostid); err != nil {
 			return nil, err
 		}
-		glog.Infof(" ++++++++++ Service: %v has been assigned virtual IP: %v (which is on host: %v)", s.Name, ipAddr, hostid)
+		glog.Infof("Service: %v has been assigned virtual IP: %v (which is on host: %v)", s.Name, ipAddr, hostid)
 	}
-	glog.Infof(" ********** Service: %v will run on host: %v", s.Name, hostid)
+	glog.Infof("Service: %v will run on host: %v", s.Name, hostid)
 
 	if hostid != "" {
 		return poolHostFromAddressAssignments(hostid, hosts)
 	}
 
-	return NewServiceHostPolicy(s, l.dao).SelectHost(hosts)
+	return policy.SelectHost(hosts)
 }
 
 // poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
