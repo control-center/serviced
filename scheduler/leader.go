@@ -193,7 +193,9 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 		case svc.DesiredState == service.SVCStop:
 			shutdownServiceInstances(l.conn, serviceStates, len(serviceStates))
 		case svc.DesiredState == service.SVCRun:
-			l.updateServiceInstances(&svc, serviceStates)
+			if err := l.updateServiceInstances(&svc, serviceStates); err != nil {
+				glog.Errorf("%v", err)
+			}
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s", svc.DesiredState, svc.Name)
 		}
@@ -342,12 +344,12 @@ func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host
 	}
 
 	if assignmentType == "virtual" {
+		// populate hostid
 		if err := virtualips.GetVirtualIPHostID(l.conn, ipAddr, &hostid); err != nil {
 			return nil, err
 		}
-		glog.Infof("Service: %v has been assigned virtual IP: %v (which is on host: %v)", s.Name, ipAddr, hostid)
+		glog.Infof("Service: %v has been assigned virtual IP: %v which has been locked and configured on host %s", s.Name, ipAddr, hostid)
 	}
-	glog.Infof("Service: %v will run on host: %v", s.Name, hostid)
 
 	if hostid != "" {
 		return poolHostFromAddressAssignments(hostid, hosts)

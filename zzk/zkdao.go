@@ -180,7 +180,7 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 
 	sn := ServiceNode{}
 	if err := conn.Get(servicePath, &sn); err != nil {
-		glog.V(0).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error:%v", servicePath, err)
+		glog.V(3).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error:%v", servicePath, err)
 		err = AddService(conn, service)
 		return err
 	}

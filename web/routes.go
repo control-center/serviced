@@ -17,7 +17,11 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/test", testPage},
 		rest.Route{"GET", "/stats", sc.isCollectingStats()},
 		rest.Route{"GET", "/version", sc.authorizedClient(restGetServicedVersion)},
-
+		rest.Route{"GET", "/backup/create", sc.authorizedClient(RestBackupCreate)},
+		rest.Route{"GET", "/backup/restore", sc.authorizedClient(RestBackupRestore)},
+		rest.Route{"GET", "/backup/list", sc.checkAuth(RestBackupFileList)},
+		rest.Route{"GET", "/backup/status", sc.authorizedClient(RestBackupStatus)},
+		rest.Route{"GET", "/backup/restore/status", sc.authorizedClient(RestRestoreStatus)},
 		// Hosts
 		rest.Route{"GET", "/hosts", sc.checkAuth(restGetHosts)},
 		rest.Route{"GET", "/hosts/:hostId", sc.checkAuth(restGetHost)},

@@ -26,7 +26,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"errors"
 )
+
+var backupOutput chan string = nil
+var backupError chan string = nil
+var restoreOutput chan string = nil
+var restoreError chan string = nil
 
 var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	user, e := user.Current()
@@ -265,8 +271,63 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 	return imageSet
 }
 
+func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath *string) (err error){
+	go func() {
+		this.Backup(backupsDirectory, backupFilePath)
+	}()
+
+	return nil
+}
+
+func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) (err error){
+	select {
+	case *backupStatus = <-backupOutput:
+	case <-time.After(10 * time.Second ):
+		*backupStatus = "timeout"
+	case *backupStatus = <-backupError:
+		err = errors.New(*backupStatus)
+		return err
+	}
+
+	return nil
+}
+
 // Backup saves the service templates, services, and related docker images and shared filesystems to a tgz file.
 func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
+	// Lock the error and output channels to ensure that only one backup runs at any given time.
+	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
+	err = func () error{
+		cp.backupLock.Lock()
+
+		//ensure that the backupLock is unlocked after this function exits
+		defer cp.backupLock.Unlock()
+
+		backupError = make(chan string, 100)
+
+		//open a channel for asynchronous Backup calls
+		if backupOutput != nil {
+			e := errors.New("Another backup is currently in progress")
+			glog.Errorf("An error occured when starting backup: %v", e)
+			backupError <- e.Error()
+			return e
+		}
+		backupOutput = make(chan string, 100)
+		return nil
+	}()
+
+	defer func() {
+		//close the channel for asynchronous calls to Backup
+		close(backupOutput)
+		backupOutput = nil
+	}()
+
+	// check the error status of the channel creation if there was an error, return it now.
+	if err != nil {
+		return err
+	}
+
+	backupOutput <- "Starting backup"
+
 	var (
 		templates      map[string]*servicetemplate.ServiceTemplate
 		services       []*service.Service
@@ -288,6 +349,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 	if e := osMkdirAll(backupPath("images"), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
+		backupError <- e.Error()
 		return e
 	}
 	defer func() {
@@ -300,6 +362,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}()
 	if e := osMkdirAll(backupPath("snapshots"), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
+		backupError <- e.Error()
 		return e
 	}
 
@@ -307,16 +370,19 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	var request dao.EntityRequest
 	if e := cp.GetServices(request, &services); e != nil {
 		glog.Errorf("Could not get services: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 
 	// Dump all template definitions
 	if e := cp.GetServiceTemplates(0, &templates); e != nil {
 		glog.Errorf("Could not get templates: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 	if e := writeJSONToFile(templates, backupPath("templates.json")); e != nil {
 		glog.Errorf("Could not write templates.json: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 
@@ -324,6 +390,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	client, e := docker.NewClient(DOCKER_ENDPOINT)
 	if e != nil {
 		glog.Errorf("Could not connect to docker: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 	// Note: client does not need to be .Close()'d
@@ -331,12 +398,14 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	registry, e := commons.NewDockerRegistry(cp.dockerRegistry)
 	if e != nil {
 		glog.Errorf("Could not attain docker registry: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 
 	imageNameIds, e := getDockerImageNameIds(registry, client)
 	if e != nil {
 		glog.Errorf("Could not get image tags from docker: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 
@@ -363,11 +432,13 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	i := 0
 	for imageID, imageTags := range imageIDTags {
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
+		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageID)
 		if e := exportDockerImageToFile(registry, client, imageID, filename); e != nil {
 			if e == docker.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageID)
 			} else {
 				glog.Errorf("Error while exporting docker image %s: %v", imageID, e)
+				backupError <- e.Error()
 				return e
 			}
 		} else {
@@ -379,15 +450,18 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 
 	if e := writeJSONToFile(imagesNameTags, backupPath("images.json")); e != nil {
 		glog.Errorf("Could not write images.json: %v", e)
+		backupError <- e.Error()
 		return e
 	}
 
 	// Dump all snapshots
 	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
 		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
+		backupOutput <- fmt.Sprintf("Taking snapshot of service: %v", service.Name)
 		var snapshotID string
 		if e := cp.Snapshot(service.Id, &snapshotID); e != nil {
 			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
+			backupError <- e.Error()
 			return "", e
 		}
 
@@ -404,11 +478,13 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.Id, snapshotID)
 		if e != nil {
 			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
+			backupError <- e.Error()
 			return "", e
 		}
 		snapFile := backupPath("snapshots", fmt.Sprintf("%s.tgz", snapshotID))
 		if e := writeDirectoryToTgz(snapDir, snapFile); e != nil {
 			glog.Errorf("Could not write %s to %s: %v", snapDir, snapFile, e)
+			backupError <- e.Error()
 			return "", e
 		}
 
@@ -417,10 +493,12 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
+
 	for _, service := range services {
 		if service.ParentServiceID == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
 				glog.Errorf("Could not save snapshot of service %s: %v", service.Id, e)
+				backupError <- e.Error()
 				return e
 			}
 			// Note: the deferred RemoveAll (above) will cleanup the file.
@@ -429,6 +507,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 
 	if e := writeDirectoryToTgz(backupPath(), *backupFilePath); e != nil {
 		glog.Errorf("Could not write %s to %s: %v", backupPath(), *backupFilePath, e)
+		backupError <- e.Error()
 		return e
 	}
 
@@ -444,9 +523,62 @@ var getSnapshotPath = func(vfs, poolId, serviceID, snapshotID string) (string, e
 	return volume.SnapshotPath(snapshotID), nil
 }
 
+func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (err error){
+	go func() {
+		this.Restore(backupFilePath, unused)
+	}()
+
+	return nil
+}
+
+func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string) (err error){
+	select {
+	case *restoreStatus = <-restoreOutput:
+	case <-time.After(10 * time.Second ):
+		*restoreStatus = "timeout"
+	case *restoreStatus = <-restoreError:
+		err = errors.New(*restoreStatus)
+		return err
+	}
+
+	return nil
+}
+
 // Restore replaces or restores the service templates, services, and related
 // docker images and shared file systmes, as extracted from a tgz backup file.
 func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
+	// Lock the error and output channels to ensure that only one restore runs at any given time.
+	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
+	err = func() error {
+		cp.restoreLock.Lock()
+
+		//ensure that restoreLock is unlocked when this function exits
+		defer cp.restoreLock.Unlock()
+		restoreError = make(chan string, 100)
+
+		if restoreOutput != nil {
+			e := errors.New("Another restore is currently in progress")
+			glog.Errorf("An error occured when starting restore: %v", e)
+			restoreError <- e.Error()
+			return e
+		}
+		restoreOutput = make(chan string, 100)
+		return nil
+	}()
+
+	defer func() {
+		//close the channel for asynchronous calls to Backup
+		close(restoreOutput)
+		restoreOutput = nil
+	}()
+
+	//check the error status from channel creation here and return the error if it exists
+	if err != nil {
+		return err
+	}
+
+	restoreOutput <- "Starting restore"
+	
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
@@ -464,11 +596,13 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 	if e := osRemoveAll(restorePath()); e != nil {
 		glog.Errorf("Could not remove %s: %v", restorePath(), e)
+		restoreError <- e.Error()
 		return e
 	}
 
 	if e := osMkdirAll(restorePath(), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", restorePath(), e)
+		restoreError <- e.Error()
 		return e
 	}
 
@@ -483,24 +617,29 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 	if e := writeDirectoryFromTgz(restorePath(), backupFilePath); e != nil {
 		glog.Errorf("Could not expand %s to %s: %v", backupFilePath, restorePath(), e)
+		restoreError <- e.Error()
 		return e
 	}
 
 	if e := readJSONFromFile(&templates, restorePath("templates.json")); e != nil {
 		glog.Errorf("Could not read templates from %s: %v", restorePath("templates.json"), e)
+		restoreError <- e.Error()
 		return e
 	}
 
 	if e := readJSONFromFile(&imagesNameTags, restorePath("images.json")); e != nil {
 		glog.Errorf("Could not read images from %s: %v", restorePath("images.json"), e)
+		restoreError <- e.Error()
 		return e
 	}
 
 	// Restore the service templates ...
 	for templateID, template := range templates {
 		template.ID = templateID
+		restoreOutput <- fmt.Sprintf("Restoring service template: %v", template.ID)
 		if e := cp.UpdateServiceTemplate(*template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateID, e)
+			restoreError <- e.Error()
 			return e
 		}
 		doReloadLogstashContainer = true
@@ -511,36 +650,43 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	// Note: client does not need to be .Close()'d
 	if e != nil {
 		glog.Errorf("Could not connect to docker: %v", e)
+		restoreError <- e.Error()
 		return e
 	}
 	registry, e := commons.NewDockerRegistry(cp.dockerRegistry)
 	if e != nil {
 		glog.Errorf("Could not attain docker registry: %v", e)
+		restoreError <- e.Error()
 		return e
 	}
 	for i, imageNameWithTags := range imagesNameTags {
 		imageID := imageNameWithTags[0]
 		imageTags := imageNameWithTags[1:]
 		imageName := "imported:" + imageID
+		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
 		image, e := commons.InspectImage(registry, client, imageID)
 		if e != nil {
 			if e != docker.ErrNoSuchImage {
 				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageID, e)
+				restoreError <- e.Error()
 				return e
 			}
 			filename := restorePath("images", fmt.Sprintf("%d.tar", i))
 			if e := importDockerImageFromFile(registry, client, imageName, filename); e != nil {
 				glog.Errorf("Could not import docker image %s (%+v) from file %s: %v", imageID, imageTags, filename, e)
+				restoreError <- e.Error()
 				return e
 			}
 			image, e = commons.InspectImage(registry, client, imageName)
 			if e != nil {
 				glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
+				restoreError <- e.Error()
 				return e
 			}
 		} else {
 			if e := client.TagImage(imageID, docker.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
 				glog.Errorf("Found image %s already exists, but could not tag it: %s", imageID, e)
+				restoreError <- e.Error()
 				return e
 			}
 		}
@@ -554,6 +700,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 			}
 			if e := commons.TagImage(registry, client, imageName, options); e != nil {
 				glog.Errorf("Could not tag image %s (%s) options: %+v: %v", image.ID, imageName, options, e)
+				restoreError <- e.Error()
 				return e
 			}
 		}
@@ -563,10 +710,12 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	snapFiles, e := readDirFileNames(restorePath("snapshots"))
 	if e != nil {
 		glog.Errorf("Could not list contents of %s: %v", restorePath("snapshots"), e)
+		restoreError <- e.Error()
 		return e
 	}
 	for _, snapFile := range snapFiles {
 		snapshotID := strings.TrimSuffix(snapFile, ".tgz")
+        restoreOutput <- fmt.Sprintf("Restoring snapshot: %v", snapshotID)
 		if snapshotID == snapFile {
 			continue //the filename does not end with .tgz
 		}
@@ -581,27 +730,32 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		snapDirTemp := restorePath("snapshots", snapshotID)
 		if e := writeDirectoryFromTgz(snapDirTemp, snapFilePath); e != nil {
 			glog.Errorf("Could not write %s from %s: %v", snapDirTemp, snapFilePath, e)
+			restoreError <- e.Error()
 			return e
 		}
 		if e := cp.dfs.RollbackServices(snapDirTemp); e != nil {
 			glog.Errorf("Could not rollback services: %s", e)
+			restoreError <- e.Error()
 			return e
 		}
 
 		var service service.Service
 		if e := cp.GetService(serviceID, &service); e != nil {
 			glog.Errorf("Could not find service %s for snapshot %s: %s", serviceID, snapshotID, e)
+			restoreError <- e.Error()
 			return e
 		}
 
 		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.Id, snapshotID)
 		if e != nil {
 			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
+			restoreError <- e.Error()
 			return e
 		}
 
 		if e = os.Rename(snapDirTemp, snapDir); e != nil {
 			glog.Errorf("Could not move %s to %s: %s", snapDirTemp, snapDir, e)
+			restoreError <- e.Error()
 			return e
 		}
 
@@ -617,6 +771,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 		if e := cp.Rollback(snapshotID, unused); e != nil {
 			glog.Errorf("Could not rollback to snapshot %s: %v", snapshotID, e)
+			restoreError <- e.Error()
 			return e
 		}
 	}
