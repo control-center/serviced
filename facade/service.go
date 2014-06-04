@@ -299,7 +299,11 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		randomIPIndex := rand.Intn(len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs))
+		totalIPs := len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs)
+		if totalIPs <= 0 {
+			return fmt.Errorf("no ips available in pool")
+		}
+		randomIPIndex := rand.Intn(totalIPs)
 		if randomIPIndex < len(poolIPs.HostIPs) {
 			assignmentType = "static"
 			assignmentRequest.IPAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
