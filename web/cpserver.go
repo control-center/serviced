@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
@@ -77,6 +79,71 @@ func (sc *ServiceConfig) Serve() {
 		}
 
 		ui.ServeHTTP(w, r)
+	}
+
+	// Lookup the appropriate virtual host and forward the request to it.
+	// TODO: when zookeeper registration is integrated we can be more event
+	// driven and only refresh the vhost map when service states change.
+	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.V(1).Infof("vhosthandler handling: %v", r)
+
+		var empty interface{}
+		services := []*dao.RunningService{}
+		client.GetRunningServices(&empty, &services)
+
+		vhosts := make(map[string][]*servicestate.ServiceState, 0)
+
+		for _, s := range services {
+			var svc service.Service
+
+			if err := client.GetService(s.ServiceID, &svc); err != nil {
+				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
+			}
+
+			vheps := svc.GetServiceVHosts()
+
+			for _, vhep := range vheps {
+				for _, vh := range vhep.VHosts {
+					svcstates := []*servicestate.ServiceState{}
+					if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
+						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceID, err), http.StatusInternalServerError)
+						return
+					}
+
+					for _, ss := range svcstates {
+						vhosts[vh] = append(vhosts[vh], ss)
+					}
+				}
+			}
+
+		}
+
+		glog.V(1).Infof("vhosthandler VHost map: %v", vhosts)
+
+		muxvars := mux.Vars(r)
+		svcstates, ok := vhosts[muxvars["subdomain"]]
+		if !ok {
+			http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", muxvars["subdomain"]), http.StatusNotFound)
+			return
+		}
+
+		// TODO: implement a more intelligent strategy than "always pick the first one" when more
+		// than one service state is mapped to a given virtual host
+		for _, svcep := range svcstates[0].Endpoints {
+			for _, vh := range svcep.VHosts {
+				if vh == muxvars["subdomain"] {
+					remoteAddr := fmt.Sprintf("%s:%d", svcstates[0].HostIP, svcep.PortNumber)
+					if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+						remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
+					}
+					rp := getReverseProxy(remoteAddr, sc.muxPort, svcstates[0].PrivateIP, svcep.PortNumber, sc.muxTLS && (sc.muxPort > 0))
+					rp.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+
+		http.Error(w, fmt.Sprintf("unrecognized endpoint: %s", muxvars["subdomain"]), http.StatusNotImplemented)
 	}
 
 	r := mux.NewRouter()

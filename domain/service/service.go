@@ -26,38 +26,39 @@ const (
 
 // Service A Service that can run in serviced.
 type Service struct {
-	Id              string
-	Name            string
-	Context         string
-	Startup         string
-	Description     string
-	Tags            []string
-	OriginalConfigs map[string]servicedefinition.ConfigFile
-	ConfigFiles     map[string]servicedefinition.ConfigFile
-	Instances       int
-	InstanceLimits  domain.MinMax
-	ImageID         string
-	PoolID          string
-	DesiredState    int
-	HostPolicy      servicedefinition.HostPolicy
-	Hostname        string
-	Privileged      bool
-	Launch          string
-	Endpoints       []ServiceEndpoint
-	Tasks           []servicedefinition.Task
-	ParentServiceID string
-	Volumes         []servicedefinition.Volume
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeploymentID    string
-	DisableImage    bool
-	LogConfigs      []servicedefinition.LogConfig
-	Snapshot        servicedefinition.SnapshotCommands
-	Runs            map[string]string
-	RAMCommitment   uint64
-	Actions         map[string]string
-	HealthChecks    map[string]domain.HealthCheck // A health check for the service.
-	Prereqs         []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
+	Id                string
+	Name              string
+	Context           string
+	Startup           string
+	Description       string
+	Tags              []string
+	OriginalConfigs   map[string]servicedefinition.ConfigFile
+	ConfigFiles       map[string]servicedefinition.ConfigFile
+	Instances         int
+	InstanceLimits    domain.MinMax
+	ImageID           string
+	PoolID            string
+	DesiredState      int
+	HostPolicy        servicedefinition.HostPolicy
+	Hostname          string
+	Privileged        bool
+	Launch            string
+	Endpoints         []ServiceEndpoint
+	Tasks             []servicedefinition.Task
+	ParentServiceID   string
+	Volumes           []servicedefinition.Volume
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	DeploymentID      string
+	DisableImage      bool
+	LogConfigs        []servicedefinition.LogConfig
+	Snapshot          servicedefinition.SnapshotCommands
+	Runs              map[string]string
+	RAMCommitment     uint64
+	Actions           map[string]string
+	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
+	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
+	MonitoringProfile domain.MonitorProfile
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -141,6 +142,30 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
 		svc.Endpoints = append(svc.Endpoints, ServiceEndpoint{EndpointDefinition: ep})
+	}
+
+	svc.MonitoringProfile = domain.MonitorProfile{
+		Metrics: make([]domain.MetricConfig, len(sd.Metrics)),
+	}
+
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range sd.Metrics {
+		metricGroup := &sd.Metrics[i]
+		for j := range metricGroup.Metrics {
+			metric := metricGroup.Metrics[j]
+			build.Metric(metric.ID, metric.Name).SetTag("controlplane_service_id", svc.Id)
+		}
+
+		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
+		if err != nil {
+			return nil, err
+		}
+
+		svc.MonitoringProfile.Metrics[i] = *config
 	}
 
 	return &svc, nil
@@ -281,6 +306,7 @@ func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment
 	return nil
 }
 
+//RemoveAssignment resets a service endpoints to nothing
 func (se *ServiceEndpoint) RemoveAssignment() error {
 	se.AddressAssignment = addressassignment.AddressAssignment{}
 	return nil
@@ -344,6 +370,9 @@ func (s *Service) Equals(b *Service) bool {
 		return false
 	}
 	if s.UpdatedAt.Unix() != b.CreatedAt.Unix() {
+		return false
+	}
+	if !s.MonitoringProfile.Equals(&b.MonitoringProfile) {
 		return false
 	}
 	return true

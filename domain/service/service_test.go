@@ -10,8 +10,12 @@
 package service
 
 import (
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
+
+	"fmt"
+	"testing"
 )
 
 func (s *S) TestAddVirtualHost(t *C) {
@@ -70,5 +74,64 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 
 	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
 		t.Errorf("Expected error removing vhost")
+	}
+}
+
+func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
+
+	sd := servicedefinition.ServiceDefinition{
+		Metrics: []servicedefinition.MetricGroup{
+			servicedefinition.MetricGroup{
+				ID:          "jvm.memory",
+				Name:        "JVM Memory",
+				Description: "JVM heap vs. non-heap memory usage",
+				Metrics: []servicedefinition.Metric{
+					servicedefinition.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+					servicedefinition.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+				},
+			},
+		},
+	}
+
+	actual, err := BuildService(sd, "", "", 0, "")
+	if err != nil {
+		t.Errorf("BuildService Failed w/err=%s", err)
+	}
+
+	data_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
+	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
+	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", data_heap_request, data_non_heap_request)
+	expected := Service{
+		Id:        actual.Id,
+		CreatedAt: actual.CreatedAt,
+		UpdatedAt: actual.UpdatedAt,
+		Context:   actual.Context,
+		MonitoringProfile: domain.MonitorProfile{
+			Metrics: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "jvm.memory",
+					Name:        "JVM Memory",
+					Description: "JVM heap vs. non-heap memory usage",
+					Query: domain.QueryConfig{
+						RequestURI: "/metrics/api/performance/query",
+						Method:     "POST",
+						Headers: map[string][]string{
+							"Content-Type": []string{"application/json"},
+						},
+						Data: data,
+					},
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+						domain.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+					},
+				},
+			},
+		},
+	}
+
+	if !expected.Equals(actual) {
+		t.Logf("expected: %+v", expected)
+		t.Logf("actual: %+v", *actual)
+		t.Error("expected != actual")
 	}
 }
