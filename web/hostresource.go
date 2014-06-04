@@ -7,6 +7,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
@@ -32,6 +33,11 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
 	for _, host := range hosts {
 		response[host.ID] = host
+		err = buildHostMonitoringProfile(host)
+		if err != nil {
+			restServerError(w)
+			return
+		}
 	}
 
 	w.WriteJson(&response)
@@ -54,6 +60,12 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	host, err := client.GetHost(hostID)
 	if err != nil {
 		glog.Error("Could not get host: ", err)
+		restServerError(w)
+		return
+	}
+
+	err = buildHostMonitoringProfile(host)
+	if err != nil {
 		restServerError(w)
 		return
 	}
@@ -168,4 +180,59 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	}
 	glog.V(0).Info("Removed host ", hostID)
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
+}
+
+type metric struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+var (
+	metrics = []metric{
+		metric{
+			"CpuacctStat.system",
+			"CPU System",
+			"System CPU Usage",
+		},
+		metric{
+			"CpuacctStat.user",
+			"CPU User",
+			"User CPU Usage",
+		},
+		metric{
+			"MemoryStat.pgfault",
+			"Memory Page Fault",
+			"Page Fault Stats",
+		},
+		metric{
+			"MemoryStat.rss",
+			"Resident Memory",
+			"Resident Memory Usage",
+		},
+	}
+)
+
+func buildHostMonitoringProfile(host *host.Host) error {
+	host.MonitoringProfile = domain.MonitorProfile{
+		Metrics: make([]domain.MetricConfig, len(metrics)),
+	}
+
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		glog.Errorf("Failed to create metric builder: %s", err)
+		return err
+	}
+
+	for i := range metrics {
+		m := &metrics[i]
+		build.Metric(m.ID, m.Name).SetTag("controlplane_host_id", host.ID)
+		config, err := build.Config(m.ID, m.Name, m.Description, "1h-ago")
+		if err != nil {
+			glog.Errorf("Failed to build metric: %s", err)
+		}
+		host.MonitoringProfile.Metrics[i] = *config
+	}
+
+	return nil
 }
