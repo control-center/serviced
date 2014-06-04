@@ -149,7 +149,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 			tagmap := make(map[string]string)
 			if key.serviceID != "" {
 				tagmap["controlplane_service_id"] = key.serviceID
-				tagmap["controlplane_instance_id"] = string(key.instanceID)
+				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
 			}
 			tagmap["controlplane_host_id"] = sr.hostID
 			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
@@ -162,6 +162,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 func (sr StatsReporter) post(stats []containerStat) error {
 	payload := map[string][]containerStat{"metrics": stats}
 	data, err := json.Marshal(payload)
+	// glog.Warningf(string(data))
 	if err != nil {
 		glog.V(3).Info("Couldn't marshal stats: ", err)
 		return err
