@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"strconv"
+	"sync"
 )
 
 const (
@@ -43,6 +44,8 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
+	backupLock sync.RWMutex
+	restoreLock sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {

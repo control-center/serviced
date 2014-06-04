@@ -55,6 +55,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-devmode.html',
                 controller: DevControl
             }).
+            when('/backuprestore', {
+                templateUrl: '/static/partials/view-backuprestore.html',
+                controller: BackupRestoreControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -1011,6 +1015,91 @@ function ResourcesService($http, $location) {
                         unauthorized($location);
                     }
                 });
+        },
+
+        /**
+         * Creates a backup file of serviced
+         */
+        create_backup: function(callback){
+            $http.get('/backup/create').
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        /**
+         * Restores a backup file of serviced
+         */
+        restore_backup: function(filename, callback){
+            $http.get('/backup/restore?filename=' + filename).
+                success(function(data, status) {
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        get_backup_files: function(callback){
+            $http.get('/backup/list').
+                success(function(data, status) {
+                    console.log('Retrieved list of backup files.');
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving list of backup files.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
+        },
+
+        get_backup_status: function(success, fail){
+            fail = fail || angular.noop;
+
+            $http.get('/backup/status').
+                success(function(data, status) {
+                    console.log('Retrieved status of backup.');
+                    success(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving status of backup.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                    fail(data, status);
+                });
+        },
+
+        get_restore_status: function(success, fail){
+            fail = fail || angular.noop;
+            
+            $http.get('/backup/restore/status').
+                success(function(data, status) {
+                    console.log('Retrieved status of restore.');
+                    success(data);
+                }).
+                error(function(data, status) {
+                    // TODO error screen
+                    console.error('Failed retrieving status of restore.');
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                    fail(data, status);
+                });
         }
     };
 }
@@ -1054,7 +1143,7 @@ function AuthService($cookies, $cookieStore, $location) {
             } else {
                 unauthorized($location);
             }
-        },
+        }
     };
 }
 

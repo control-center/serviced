@@ -675,6 +675,11 @@ input.startup {
     writing-mode: lr-tb;
 }
 
+.medChart{
+    position: relative;
+    height: 200px;
+}
+
 /* d3 related below */
 
 .node {
@@ -773,3 +778,85 @@ rect {
 .nvtooltip p{
     font-weight: bold;
 }
+
+
+/* bootstrap override */
+.bg-primary{
+    background-color: #6b6b6b;
+}
+
+.navbar-nav > li:last-child > button{
+    padding-right: 15px;
+}
+
+/* speed up bootstrap modals */
+.fade {
+   opacity: 0;
+   -webkit-transition: opacity .15s ease-out;
+      -moz-transition: opacity .15s ease-out;
+       -ms-transition: opacity .15s ease-out;
+        -o-transition: opacity .15s ease-out;
+           transition: opacity .15s ease-out;
+ }
+ .modal.fade .modal-dialog {
+  -webkit-transition: -webkit-transform .15s ease-out;
+     -moz-transition:    -moz-transform .15s ease-out;
+       -o-transition:      -o-transform .15s ease-out;
+          transition:         transform .15s ease-out;
+}
+
+/* notifications */
+
+.notification {
+    margin-bottom: 15px;
+}
+.notification > *{
+    vertical-align: middle;
+}
+.notification .close {
+    margin-top: 4px;
+}
+
+/* notification icons */
+.notification .dialogIcon {
+    font-size: 1.2em;
+    top: -1px;
+}
+
+/* backup info notification */
+.notification.backupInfo {
+    clear: both;
+    padding: 15px;
+}
+.notification.backupInfo .backupRunning {
+    margin: 0 5px;
+    font-size: 1.4em;
+}
+.notification.bg-info .dialogIcon,
+.notification.bg-info .backupRunning {
+    color: #7890b6;
+}
+.notification.bg-success .dialogIcon,
+.notification.bg-success .backupRunning {
+    color: green;
+}
+.notification.bg-danger .dialogIcon,
+.notification.bg-danger .backupRunning {
+    color: #7A0000;
+}
+
+/* animate dialogIcon to show that it's working */
+.notification.bg-info .dialogIcon {
+    animation: throb 3s infinite;
+    -webkit-animation: throb 3s infinite;
+}
+@keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}@-webkit-keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}
+

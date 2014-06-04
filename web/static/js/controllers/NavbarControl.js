@@ -14,6 +14,9 @@ function NavbarControl($scope, $http, $cookies, $location, $route, $translate, a
         },
         { url: '#/logs', label: 'nav_logs',
             sublinks: [], target: "_self"
+        },
+        { url: '#/backuprestore', label: 'nav_backuprestore',
+            sublinks: [], target: "_self"
         }
     ];
 
