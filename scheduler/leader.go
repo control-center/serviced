@@ -345,7 +345,9 @@ func (l *leader) selectPoolHostForService(s *service.Service, hosts []*host.Host
 		if err := virtualips.GetVirtualIPHostID(l.conn, ipAddr, &hostid); err != nil {
 			return nil, err
 		}
+		glog.Infof(" ++++++++++ Service: %v has been assigned virtual IP: %v (which is on host: %v)", s.Name, ipAddr, hostid)
 	}
+	glog.Infof(" ********** Service: %v will run on host: %v", s.Name, hostid)
 
 	if hostid != "" {
 		return poolHostFromAddressAssignments(hostid, hosts)
