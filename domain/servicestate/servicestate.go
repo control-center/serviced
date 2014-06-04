@@ -28,9 +28,11 @@ type ServiceState struct {
 	Terminated  time.Time
 	Started     time.Time
 	PortMapping map[string][]domain.HostIPAndPort // protocol -> container port (internal) -> host port (external)
-	Endpoints   []service.ServiceEndpoint
-	HostIP      string
-	InstanceID  int
+	// remove list?  PortMapping:map[6379/tcp:[{HostIP:0.0.0.0 HostPort:49195}]]
+	//  i.e. redis:  PortMapping:map[6379/tcp: {HostIP:0.0.0.0 HostPort:49195} ]
+	Endpoints  []service.ServiceEndpoint
+	HostIP     string
+	InstanceID int
 }
 
 //A new service instance (ServiceState)

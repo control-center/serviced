@@ -254,16 +254,27 @@ func setupLogstashFiles(service *service.Service, resourcePath string) error {
 	return nil
 }
 
-//
+// getServiceState gets the service state for a serviceID
 func getServiceState(conn coordclient.Connection, serviceID string) (*servicestate.ServiceState, error) {
-	var serviceStates []*servicestate.ServiceState
-	err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
-	if err != nil {
-		glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
-		return nil, nil
+	for {
+		var serviceStates []*servicestate.ServiceState
+		err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
+		if err != nil {
+			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
+			return nil, nil
+		}
+
+		if len(serviceStates) > 0 {
+			if serviceStates[0].PrivateIP != "" {
+				return serviceStates[0], nil
+			}
+		}
+
+		glog.Info("Polling to retrieve service state with valid PrivateIP")
+		time.Sleep(1 * time.Second)
 	}
 
-	return serviceStates[0], nil
+	return nil, fmt.Errorf("unable to retrieve service state")
 }
 
 // buildExportedEndpoints
@@ -293,10 +304,16 @@ func buildExportedEndpoints(dsn string, service *service.Service) (map[string][]
 			var ep dao.ApplicationEndpoint
 			ep.ServiceID = state.ServiceID
 			ep.Protocol = defep.Protocol
-			// ep.ContainerIP = ???
+			ep.ContainerIP = state.PrivateIP
 			ep.ContainerPort = defep.PortNumber
 			ep.HostIP = state.HostIP
-			// ep.HostPort = ???
+			pm := state.PortMapping[fmt.Sprintf("%d/%s", ep.ContainerPort, ep.Protocol)]
+			port, err := strconv.Atoi(pm[0].HostPort)
+			if err != nil {
+				glog.Errorf("Unable to interpret HostPort.")
+				return result, err
+			}
+			ep.HostPort = uint16(port)
 			ep.VirtualAddress = defep.VirtualAddress
 
 			key := fmt.Sprintf("%s:%d", ep.Protocol, ep.ContainerPort)
