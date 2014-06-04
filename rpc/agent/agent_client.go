@@ -38,3 +38,9 @@ func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	}
 	return hostResponse, nil
 }
+
+func (c *Client) GetDockerLogs(dockerID string) (string, error) {
+	var logs string
+	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs)
+	return logs, err
+}

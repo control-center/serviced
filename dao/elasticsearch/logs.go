@@ -8,8 +8,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/servicestate"
-
-	"os/exec"
+	"github.com/zenoss/serviced/rpc/agent"
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
@@ -23,13 +22,21 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 		glog.V(1).Info("Unable to find any running services for ", id)
 		return nil
 	}
-	cmd := exec.Command("docker", "logs", serviceStates[0].DockerID)
-	output, err := cmd.CombinedOutput()
+
+	serviceState := serviceStates[0]
+	endpoint := serviceState.HostIP + ":4979"
+	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
-		glog.Errorf("Unable to return logs because: %v", err)
+		glog.Errorf("could not create client to %s", endpoint)
 		return err
 	}
-	*logs = string(output)
+	defer agentClient.Close()
+	if mylogs, err := agentClient.GetDockerLogs(serviceState.DockerID); err != nil {
+		glog.Errorf("could not get docker logs from agent client: %s", err)
+		return err
+	} else {
+		*logs = mylogs
+	}
 	return nil
 }
 
@@ -43,12 +50,18 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
-	cmd := exec.Command("docker", "logs", serviceState.DockerID)
-	output, err := cmd.CombinedOutput()
+	endpoint := serviceState.HostIP + ":4979"
+	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
-		glog.Errorf("Unable to return logs because: %v", err)
+		glog.Errorf("could not create client to %s", endpoint)
 		return err
 	}
-	*logs = string(output)
+	defer agentClient.Close()
+	if mylogs, err := agentClient.GetDockerLogs(serviceState.DockerID); err != nil {
+		glog.Errorf("could not get docker logs from agent client: %s", err)
+		return err
+	} else {
+		*logs = mylogs
+	}
 	return nil
 }
