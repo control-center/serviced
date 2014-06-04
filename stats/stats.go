@@ -7,12 +7,15 @@
 package stats
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/stats/cgroup"
+	"github.com/zenoss/serviced/utils"
+	"github.com/zenoss/serviced/zzk"
+
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,8 +24,12 @@ import (
 
 // StatsReporter collects and posts serviced stats to the TSDB.
 type StatsReporter struct {
-	destination  string
-	closeChannel chan bool
+	destination         string
+	closeChannel        chan bool
+	zkDAO               *zzk.ZkDao
+	containerRegistries map[registryKey]metrics.Registry
+	hostID              string
+	hostRegistry        metrics.Registry
 }
 
 type containerStat struct {
@@ -32,11 +39,33 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
+type registryKey struct {
+	serviceID  string
+	instanceID int
+}
+
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
-func NewStatsReporter(destination string, interval time.Duration) *StatsReporter {
-	sr := StatsReporter{destination, make(chan bool)}
+func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
+	hostID, err := utils.HostID()
+	if err != nil {
+		glog.Errorf("Could not determine host ID.")
+		return nil, err
+	}
+	sr := StatsReporter{destination, make(chan bool), zkDAO, make(map[registryKey]metrics.Registry), hostID, nil}
+	sr.hostRegistry = sr.getOrCreateContainerRegistry("", 0)
 	go sr.report(interval)
-	return &sr
+	return &sr, nil
+}
+
+// getOrCreateContainerRegistry returns a registry for a given service id or creates it
+// if it doesn't exist.
+func (sr StatsReporter) getOrCreateContainerRegistry(serviceID string, instanceID int) metrics.Registry {
+	key := registryKey{serviceID, instanceID}
+	if registry, ok := sr.containerRegistries[key]; ok {
+		return registry
+	}
+	sr.containerRegistries[key] = metrics.NewRegistry()
+	return sr.containerRegistries[key]
 }
 
 // Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
@@ -60,45 +89,79 @@ func (sr StatsReporter) report(d time.Duration) {
 			glog.V(3).Info("Reporting container stats at:", t)
 			sr.updateStats()
 			stats := sr.gatherStats(t)
-			sr.post(stats)
+			err := sr.post(stats)
+			if err != nil {
+				glog.Errorf("Error reporting container stats: %v", err)
+			}
 		}
 	}
 }
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
+	// Stats for host.
 	if cpuacctStat, err := cgroup.ReadCpuacctStat(""); err != nil {
 		glog.V(3).Info("Couldn't read CpuacctStat:", err)
 	} else {
-		metrics.GetOrRegisterGauge("CpuacctStat.system", metrics.DefaultRegistry).Update(cpuacctStat.System)
-		metrics.GetOrRegisterGauge("CpuacctStat.user", metrics.DefaultRegistry).Update(cpuacctStat.User)
+		metrics.GetOrRegisterGauge("CpuacctStat.system", sr.hostRegistry).Update(cpuacctStat.System)
+		metrics.GetOrRegisterGauge("CpuacctStat.user", sr.hostRegistry).Update(cpuacctStat.User)
 	}
 
 	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
 	} else {
-		metrics.GetOrRegisterGauge("MemoryStat.pgfault", metrics.DefaultRegistry).Update(memoryStat.Pgfault)
-		metrics.GetOrRegisterGauge("MemoryStat.rss", metrics.DefaultRegistry).Update(memoryStat.Rss)
+		metrics.GetOrRegisterGauge("MemoryStat.pgfault", sr.hostRegistry).Update(memoryStat.Pgfault)
+		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.Rss)
 	}
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
 	} else {
-		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", metrics.DefaultRegistry).Update(openFileDescriptorCount)
+		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
+	}
+	// Stats for the containers.
+	var running []*dao.RunningService
+	sr.zkDAO.GetRunningServicesForHost(sr.hostID, &running)
+	for _, rs := range running {
+		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
+		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
+			glog.V(3).Info("Couldn't read CpuacctStat:", err)
+		} else {
+			metrics.GetOrRegisterGauge("CpuacctStat.system", containerRegistry).Update(cpuacctStat.System)
+			metrics.GetOrRegisterGauge("CpuacctStat.user", containerRegistry).Update(cpuacctStat.User)
+		}
+		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
+			glog.V(3).Info("Couldn't read MemoryStat:", err)
+		} else {
+			metrics.GetOrRegisterGauge("MemoryStat.pgfault", containerRegistry).Update(memoryStat.Pgfault)
+			metrics.GetOrRegisterGauge("MemoryStat.rss", containerRegistry).Update(memoryStat.Rss)
+		}
 	}
 }
 
 // Fills out the metric consumer format.
 func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 	stats := []containerStat{}
-	reg, _ := metrics.DefaultRegistry.(*metrics.StandardRegistry)
-	reg.Each(func(n string, i interface{}) {
+	// Handle the host metrics.
+	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
+	reg.Each(func(name string, i interface{}) {
 		metric := i.(metrics.Gauge)
 		tagmap := make(map[string]string)
-		tagmap["datasource"] = n
-		tagmap["uuid"] = n
-		stats = append(stats, containerStat{n, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		tagmap["controlplane_host_id"] = sr.hostID
+		stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 	})
+	// Handle each container's metrics.
+	for key, registry := range sr.containerRegistries {
+		reg, _ := registry.(*metrics.StandardRegistry)
+		reg.Each(func(name string, i interface{}) {
+			metric := i.(metrics.Gauge)
+			tagmap := make(map[string]string)
+			tagmap["controlplane_service_id"] = key.serviceID
+			tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
+			tagmap["controlplane_host_id"] = sr.hostID
+			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		})
+	}
 	return stats
 }
 
@@ -117,17 +180,14 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	}
 	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
 	statsreq.Header["Content-Type"] = []string{"application/json"}
-	if glog.V(4) {
-		glog.Info(string(data))
-	}
 	resp, reqerr := http.DefaultClient.Do(statsreq)
 	if reqerr != nil {
 		glog.V(3).Info("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
-	if strings.Contains(resp.Status, "200") == false {
-		glog.V(3).Info("Non-success: ", resp.Status)
-		return fmt.Errorf("couldn't post stats: ", resp.Status)
+	if strings.Contains(resp.Status, "200 OK") == false {
+		glog.Warningf("couldn't post stats: ", resp.Status)
+		return nil
 	}
 	resp.Body.Close()
 	return nil
