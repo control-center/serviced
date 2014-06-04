@@ -60,10 +60,33 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 	}
 	defer controlClient.Close()
 
-	err = controlClient.GetService(serviceId, response)
+	var s service.Service
+	err = controlClient.GetService(serviceId, &s)
 	if err != nil {
 		return err
 	}
+
+	glog.Errorf("Got service: %+v", s)
+	//eval here
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+	glog.Errorf("1 s= %+v", s)
+	if err = s.EvaluateLogConfigTemplate(getSvc); err != nil {
+		return err
+	}
+	glog.Errorf("2 s= %+v", s)
+	if err = s.EvaluateConfigFilesTemplate(getSvc); err != nil {
+		return err
+	}
+	glog.Errorf("3 s= %+v", s)
+	if err = s.EvaluateStartupTemplate(getSvc); err != nil {
+		return err
+	}
+
+	*response = s
 
 	return nil
 }
