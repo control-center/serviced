@@ -201,7 +201,7 @@ func WatchVirtualIPs(conn client.Connection) {
 					glog.Warningf("Unable to retrieve node: %v", virtualIPsPath(virtualIPAddress))
 				} else {
 					// kick off a watcher for this virtual IP
-					go watchVirtualIP(virtualIPChannel, sDone, myVirtualIP, conn, virtualInterfaceIndex)
+					go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn, virtualInterfaceIndex)
 					virtualInterfaceIndex = virtualInterfaceIndex + 1
 				}
 			} else {
