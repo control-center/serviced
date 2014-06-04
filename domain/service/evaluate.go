@@ -164,3 +164,27 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	}
 	return
 }
+
+// Fill in all the templates in the ServiceDefinitions
+func (service *Service) Evaluate(getSvc GetService) error {
+	if err := service.EvaluateEndpointTemplates(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateLogConfigTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateConfigFilesTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateStartupTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateRunsTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateActionsTemplate(getSvc); err != nil {
+		return err
+	}
+
+	return nil
+}
