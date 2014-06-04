@@ -7,14 +7,15 @@
 package stats
 
 import (
-	"bytes"
-	"encoding/json"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/stats/cgroup"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
+
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,12 +24,12 @@ import (
 
 // StatsReporter collects and posts serviced stats to the TSDB.
 type StatsReporter struct {
-	destination  string
-	closeChannel chan bool
-	zkDAO        *zzk.ZkDao
-	containerRegistries   map[registryKey]metrics.Registry
-	hostID       string
-	hostRegistry metrics.Registry
+	destination         string
+	closeChannel        chan bool
+	zkDAO               *zzk.ZkDao
+	containerRegistries map[registryKey]metrics.Registry
+	hostID              string
+	hostRegistry        metrics.Registry
 }
 
 type containerStat struct {
@@ -42,7 +43,6 @@ type registryKey struct {
 	serviceID  string
 	instanceID int
 }
-
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
 func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
@@ -91,7 +91,7 @@ func (sr StatsReporter) report(d time.Duration) {
 			stats := sr.gatherStats(t)
 			err := sr.post(stats)
 			if err != nil {
-				glog.Errorf("Error reporting container stats.")
+				glog.Errorf("Error reporting container stats: %v", err)
 			}
 		}
 	}
@@ -169,7 +169,6 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 func (sr StatsReporter) post(stats []containerStat) error {
 	payload := map[string][]containerStat{"metrics": stats}
 	data, err := json.Marshal(payload)
-	// glog.Warningf(string(data))
 	if err != nil {
 		glog.V(3).Info("Couldn't marshal stats: ", err)
 		return err
