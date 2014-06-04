@@ -151,15 +151,7 @@ func injectContext(s *service.Service, cp dao.ControlPlane) error {
 		err := cp.GetService(svcID, &svc)
 		return svc, err
 	}
-	err := s.EvaluateLogConfigTemplate(getSvc)
-	if err != nil {
-		return err
-	}
-	err = s.EvaluateConfigFilesTemplate(getSvc)
-	if err != nil {
-		return err
-	}
-	return s.EvaluateStartupTemplate(getSvc)
+	return s.Evaluate(getSvc)
 }
 
 // Shutdown stops the agent
