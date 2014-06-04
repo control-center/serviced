@@ -6,7 +6,6 @@ package service
 
 import (
 	"github.com/zenoss/glog"
-
 	"bytes"
 	"encoding/json"
 	"text/template"
@@ -69,6 +68,8 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 		"parent":  parent(gs),
 		"context": context(),
 	}
+
+	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
 	// parse the template
 	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
 
@@ -88,7 +89,6 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 // configs. This happens for each LogConfig on the service.
 func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 	// evaluate the template for the LogConfig as well as the tags
-
 	for i, logConfig := range service.LogConfigs {
 		// Path
 		result := service.evaluateTemplate(gs, logConfig.Path)
@@ -108,6 +108,27 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 				service.LogConfigs[i].LogTags[j].Value = result
 			}
 		}
+	}
+	return
+}
+
+// EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
+// ConfigFile on the service.
+func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
+	glog.V(3).Infof("Evaluating Config Files for %s", service.Id)
+	for key, configFile := range service.ConfigFiles {
+		glog.V(3).Infof("Evaluating Config File: %v", key)
+		// Filename
+		result := service.evaluateTemplate(gs, configFile.Filename)
+		if result != "" {
+			configFile.Filename = result
+		}
+		// Content
+		result = service.evaluateTemplate(gs, configFile.Content)
+		if result != "" {
+			configFile.Content = result
+		}
+		service.ConfigFiles[key] = configFile
 	}
 	return
 }

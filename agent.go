@@ -155,6 +155,10 @@ func injectContext(s *service.Service, cp dao.ControlPlane) error {
 	if err != nil {
 		return err
 	}
+	err = s.EvaluateConfigFilesTemplate(getSvc)
+	if err != nil {
+		return err
+	}
 	return s.EvaluateStartupTemplate(getSvc)
 }
 
