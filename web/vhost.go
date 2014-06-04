@@ -65,6 +65,7 @@ func (sc *ServiceConfig) syncVhosts() {
 }
 
 func (sc *ServiceConfig) vhostFinder() error {
+	glog.V(4).Infof("vhost syncing...")
 	client, err := sc.getClient()
 	if err != nil {
 		glog.Warningf("error getting client could not lookup vhosts: %v", err)
@@ -109,7 +110,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	muxvars := mux.Vars(r)
 	subdomain := muxvars["subdomain"]
 
-	defer func() { glog.Infof("Time to process %s vhost request: %v", subdomain, time.Since(start)) }()
+	defer func() { glog.V(1)Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start)) }()
 
 	var svcstates []*servicestate.ServiceState
 	found := false
@@ -136,6 +137,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 					remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
 				}
 				rp := getReverseProxy(remoteAddr, sc.muxPort, svcstates[0].PrivateIP, svcep.PortNumber, sc.muxTLS && (sc.muxPort > 0))
+				glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 				rp.ServeHTTP(w, r)
 				return
 			}
