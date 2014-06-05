@@ -9,7 +9,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 )
 
-//GetResourcePool gets the host for the give hostID or nil
+//GetResourcePool gets the pool for the given poolID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
 	if err := c.call("GetResourcePool", poolID, response); err != nil {

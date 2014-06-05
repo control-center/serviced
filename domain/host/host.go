@@ -11,22 +11,24 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain"
 )
 
 //Host that runs the control plane agent.
 type Host struct {
-	ID             string // Unique identifier, default to hostid
-	Name           string // A label for the host, eg hostname, role
-	PoolID         string // Pool that the Host belongs to
-	IPAddr         string // The IP address the host can be reached at from a serviced master
-	Cores          int    // Number of cores available to serviced
-	Memory         uint64 // Amount of RAM (bytes) available to serviced
-	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	IPs            []HostIPResource // The static IP resources available on the host
-	KernelVersion  string
-	KernelRelease  string
+	ID                string // Unique identifier, default to hostid
+	Name              string // A label for the host, eg hostname, role
+	PoolID            string // Pool that the Host belongs to
+	IPAddr            string // The IP address the host can be reached at from a serviced master
+	Cores             int    // Number of cores available to serviced
+	Memory            uint64 // Amount of RAM (bytes) available to serviced
+	PrivateNetwork    string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	IPs               []HostIPResource // The static IP resources available on the host
+	KernelVersion     string
+	KernelRelease     string
+	MonitoringProfile domain.MonitorProfile
 }
 
 // Equals verifies whether two host objects are equal
@@ -65,6 +67,9 @@ func (a *Host) Equals(b *Host) bool {
 		return false
 	}
 	if a.UpdatedAt.Unix() != b.UpdatedAt.Unix() {
+		return false
+	}
+	if !a.MonitoringProfile.Equals(&b.MonitoringProfile) {
 		return false
 	}
 

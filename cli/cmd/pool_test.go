@@ -218,20 +218,18 @@ func ExampleServicedCLI_CmdPoolList_complete() {
 }
 
 func ExampleServicedCLI_CmdPoolAdd() {
-	// Bad CoreLimit
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
-	// Bad MemoryLimit
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
+	// // Bad CoreLimit
+	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
+	// // Bad MemoryLimit
+	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
 	// Bad Priority
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "abc")
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc")
 	// Bad Result
-	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "4", "1024", "3")
+	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "3")
 	// Success
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "1024", "3")
+	InitPoolAPITest("serviced", "pool", "add", "test-pool", "3")
 
 	// Output:
-	// CORE_LIMIT must be a number
-	// MEMORY_LIMIT must be a number
 	// PRIORITY must be a number
 	// test-pool
 }
@@ -249,7 +247,7 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY
+	//    serviced pool add POOLID PRIORITY
 	//
 	// OPTIONS:
 }
