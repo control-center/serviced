@@ -93,7 +93,13 @@ type Controller struct {
 	prereqs            []domain.Prereq
 	zkDSN              string
 	cclient            *coordclient.Client
-	exportedEndpoints  map[string][]*dao.ApplicationEndpoint
+	exportedEndpoints  map[string][]export
+}
+
+type export struct {
+	endPoint     *dao.ApplicationEndpoint
+	vhosts       []string
+	endpointName string
 }
 
 // Close shuts down the controller
@@ -281,8 +287,8 @@ func getServiceState(conn coordclient.Connection, serviceID string) (*servicesta
 }
 
 // buildExportedEndpoints
-func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string][]*dao.ApplicationEndpoint, error) {
-	result := make(map[string][]*dao.ApplicationEndpoint)
+func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string][]export, error) {
+	result := make(map[string][]export)
 
 	state, err := getServiceState(conn, service.Id)
 	if err != nil {
@@ -293,7 +299,13 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "export" {
+
+			exp := export{}
+			exp.vhosts = defep.VHosts
+			exp.endpointName = defep.Name
+
 			var ep dao.ApplicationEndpoint
+			exp.endPoint = &ep
 			ep.ServiceID = state.ServiceID
 			ep.Protocol = defep.Protocol
 			ep.ContainerIP = state.PrivateIP
@@ -310,9 +322,9 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 
 			key := fmt.Sprintf("%s_%s", tenantID, defep.Application)
 			if _, exists := result[key]; !exists {
-				result[key] = make([]*dao.ApplicationEndpoint, 0)
+				result[key] = make([]export, 0)
 			}
-			result[key] = append(result[key], &ep)
+			result[key] = append(result[key], exp)
 		}
 	}
 
@@ -761,13 +773,20 @@ func (c *Controller) registerExportedEndpoints() {
 		return
 	}
 
+	var vhostRegistry *registry.VhostRegistry
+	vhostRegistry, err = registry.VHostRegistry(conn)
+	if err != nil {
+		glog.Errorf("Could not get vhost registy. Endpoints not registered: %v", err)
+		return
+	}
 	// get containerID
 	containerID := os.Getenv("HOSTNAME")
 	glog.Infof("containerID: %s\n", containerID)
 
 	// register exported endpoints
-	for key, endpointList := range c.exportedEndpoints {
-		for _, endpoint := range endpointList {
+	for key, exportList := range c.exportedEndpoints {
+		for _, export := range exportList {
+			endpoint := export.endPoint
 			glog.Infof("registering exported endpoint[%s]: %+v", key, *endpoint)
 			endpointID := strings.Split(key, "_")[1]
 			endpointregistry.AddEndpoint(conn, c.tenantID, endpointID, containerID, endpoint)
@@ -789,6 +808,12 @@ func (c *Controller) registerExportedEndpoints() {
 				continue
 			}
 			glog.Infof("Loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep2)
+
+			for _, vhost := range export.vhosts {
+				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(export.endpointName, *endpoint)); err != nil {
+					glog.Errorf("could not register vhost %s: %v", vhost, err)
+				}
+			}
 		}
 	}
 }
