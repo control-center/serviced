@@ -59,7 +59,6 @@ func NewEndpointNode(endpoint *dao.ApplicationEndpoint, tenantID, endpointID, co
 		EndpointID:          endpointID,
 		ContainerID:         containerID,
 	}
-	glog.Infof("NewEndpointNode: %+v", en)
 	return &en
 }
 
