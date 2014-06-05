@@ -58,3 +58,19 @@ func watch(conn client.Connection, path string, processChildren func(conn client
 	}
 	return nil
 }
+
+func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, processNode func(conn client.Connection,
+	node client.Node), errorHandler WatchError) error {
+	for {
+		event, err := conn.GetW(path, nodeType)
+		if err != nil {
+			glog.Errorf("Could not watch %s: %s", path, err)
+			defer errorHandler(path, err)
+			return err
+		}
+		processNode(conn, nodeType)
+		//This blocks until a change happens under the key
+		<-event
+	}
+	return nil
+}

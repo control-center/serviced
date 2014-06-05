@@ -74,32 +74,17 @@ func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEnd
 	return &vep, nil
 }
 
-//GetItem gets  VhostEndpoint at the given path.
-func (vr *VhostRegistry) WatchVhostEnpoint(conn client.Connection, path string, processVhostEnpoint func(conn client.Connection,
+//WatchVhostEndpoint watch a specific VhostEnpoint
+func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string, processVhostEdnpoint func(conn client.Connection,
 	node *VhostEndpoint), errorHandler WatchError) error {
 
 	processNode := func(conn client.Connection, node client.Node) {
 		vhostEndpoint := node.(*VhostEndpoint)
-		processVhostEnpoint(conn, vhostEndpoint)
+		processVhostEdnpoint(conn, vhostEndpoint)
 	}
 
 	var vep VhostEndpoint
 	return vr.watchItem(conn, path, &vep, processNode, errorHandler)
 }
 
-func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, processNode func(conn client.Connection,
-	node client.Node), errorHandler WatchError) error {
-	for {
-		event, err := conn.GetW(path, nodeType)
-		if err != nil {
-			glog.Errorf("Could not watch %s: %s", path, err)
-			defer errorHandler(path, err)
-			return err
-		}
-		processNode(conn, nodeType)
-		//This blocks until a change happens under the key
-		<-event
-	}
-	return nil
 
-}
