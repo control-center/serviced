@@ -50,7 +50,7 @@ pkgroot:
 # Build serviced binary
 build:
 	mkdir -p build/tmp
-	cd ../ && make build_binary export
+	cd ../ && make build_binary
 
 # Stage serviced files
 stage: build pkgroot
@@ -117,6 +117,7 @@ deb: stage_deb
 		--description "$$DESCRIPTION" \
 		--deb-user root \
 		--deb-group root \
+		--deb-recommends 'docker-smuggle >= 2.24' \
 		.
 #		-d "supervisor" \
 
