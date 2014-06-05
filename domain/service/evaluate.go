@@ -68,6 +68,7 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(),
+		"percentScale": percentScale,
 	}
 
 	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
