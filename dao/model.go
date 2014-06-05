@@ -5,6 +5,7 @@ import (
 
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain"
 )
 
 type User struct {
@@ -67,6 +68,7 @@ type RunningService struct {
 	DesiredState    int
 	ParentServiceID string
 	InstanceID      int
+	MonitoringProfile domain.MonitorProfile
 }
 
 // An instantiation of a Snapshot request

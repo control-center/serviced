@@ -3,6 +3,7 @@ package domain
 //MonitorProfile describes metrics, thresholds and graphs to monitor an entity's performance
 type MonitorProfile struct {
 	Metrics []MetricConfig
+	InstanceID int
 	//TODO Thresholds
 	//TODO Graphs
 }
