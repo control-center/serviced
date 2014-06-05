@@ -40,7 +40,7 @@ func (a *api) Attach(config AttachConfig) error {
 			command = append([]string{}, "/bin/bash")
 		}
 
-		return utils.ExecNSEnter(config.Running.DockerID, command)
+		return utils.AttachAndExec(config.Running.DockerID, command)
 	}
 
 	return fmt.Errorf("container does not reside locally on host")

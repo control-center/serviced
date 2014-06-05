@@ -90,3 +90,23 @@ func generateNSEnterCommand(containerID string, bashcmd []string) ([]string, err
 	glog.V(1).Infof("attach command for container:%v command: %v\n", containerID, attachCmd)
 	return attachCmd, nil
 }
+
+// AttachAndRun attaches to a container and runs the command
+func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
+	_, err := exec.LookPath("nsenter")
+	if err != nil {
+		return RunNSInitWithRetry(containerID, bashcmd)
+	}
+
+	return RunNSEnter(containerID, bashcmd)
+}
+
+// AttachAndExec attaches to a container and execs the command
+func AttachAndExec(containerID string, bashcmd []string) error {
+	_, err := exec.LookPath("nsenter")
+	if err != nil {
+		return ExecNSInitWithRetry(containerID, bashcmd)
+	}
+
+	return ExecNSEnter(containerID, bashcmd)
+}
