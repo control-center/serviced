@@ -8,10 +8,13 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/servicedversion"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
+	"net/http"
 )
 
 var empty interface{}
@@ -338,7 +341,7 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *serviced
 
 	var serviceID string
 	err = client.DeployService(payload, &serviceID)
-	if err!= nil {
+	if err != nil {
 		glog.Errorf("Unable to deploy service: %v", err)
 		restServerError(w)
 		return
@@ -498,4 +501,94 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *se
 
 func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
 	w.WriteJson(&simpleResponse{servicedversion.Version, servicesLinks()})
+}
+
+func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
+	dir := home + "/backup"
+	filepath := ""
+	err := client.AsyncBackup(dir, &filepath)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup: %v", err)
+		restServerError(w)
+	}
+	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
+}
+
+func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
+	err := r.ParseForm()
+	filepath := r.FormValue("filename")
+
+	if err != nil || filepath == "" {
+		restBadRequest(w)
+		return
+	}
+
+	unused := 0
+
+	err = client.AsyncRestore(home+"/backup/"+filepath, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore: %v", err)
+		restServerError(w)
+	}
+	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
+}
+
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	type JsonizableFileInfo struct {
+		Name    string      `json:"name"`
+		Size    int64       `json:"size"`
+		Mode    os.FileMode `json:"mode"`
+		ModTime time.Time   `json:"mod_time"`
+	}
+
+	fileData := []JsonizableFileInfo{}
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+	backupFiles, _ := ioutil.ReadDir(home + "/backup")
+
+	for _, backupFileInfo := range backupFiles {
+		if !backupFileInfo.IsDir() {
+			fileInfo := JsonizableFileInfo{backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fileData = append(fileData, fileInfo)
+		}
+	}
+
+	w.WriteJson(&fileData)
+}
+
+func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	backupStatus := ""
+	err := client.BackupStatus("", &backupStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&simpleResponse{backupStatus, servicesLinks()})
+}
+
+func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+	restoreStatus := ""
+	err := client.RestoreStatus("", &restoreStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&simpleResponse{restoreStatus, servicesLinks()})
 }

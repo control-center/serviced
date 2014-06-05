@@ -38,3 +38,10 @@ func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	}
 	return hostResponse, nil
 }
+
+// GetDockerLogs returns the last 10k worth of logs from the docker container
+func (c *Client) GetDockerLogs(dockerID string) (string, error) {
+	var logs string
+	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs)
+	return logs, err
+}

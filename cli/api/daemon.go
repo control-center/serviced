@@ -123,8 +123,12 @@ func (d *daemon) run() error {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 		statsduration := time.Duration(options.StatsPeriod) * time.Second
 		glog.V(1).Infoln("Staring container statistics reporter")
-		statsReporter := stats.NewStatsReporter(statsdest, statsduration)
-		defer statsReporter.Close()
+		statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, d.zkDAO)
+		if err != nil {
+			glog.Errorf("Error kicking off stats reporter %v", err)
+		} else {
+			defer statsReporter.Close()
+		}
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
