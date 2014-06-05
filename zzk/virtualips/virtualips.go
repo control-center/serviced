@@ -52,15 +52,9 @@ SyncVirtualIPs is responsible for monitoring the virtual IPs in the model
 func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
 	glog.V(10).Infof("    start SyncVirtualIPs: VirtualIPs: %v", virtualIPs)
 	defer glog.V(10).Info("    end SyncVirtualIPs")
-	// create root VirtualIPs node if it does not exists
-	exists, err := conn.Exists(virtualIPsPath())
-	if err != nil {
-		glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
+
+	if err := createNode(conn, virtualIPsPath()); err != nil {
 		return err
-	}
-	if !exists {
-		conn.CreateDir(virtualIPsPath())
-		glog.Infof("Syncing virtual IPs... Created %v dir in zookeeper", virtualIPsPath())
 	}
 
 	// add nodes into zookeeper if the corresponding virtual IP is new to the model
@@ -124,15 +118,9 @@ func WatchVirtualIPs(conn client.Connection) {
 		}
 	}()
 
-	// Make the path if it doesn't exist
-	if exists, err := conn.Exists(virtualIPsPath()); err != nil && err != client.ErrNoNode {
-		glog.Errorf("Error checking path %s: %s", virtualIPsPath(), err)
+	if err := createNode(conn, virtualIPsPath()); err != nil {
+		glog.Errorf("%v", err)
 		return
-	} else if !exists {
-		if err := conn.CreateDir(virtualIPsPath()); err != nil {
-			glog.Errorf("Could not create path %s: %s", virtualIPsPath(), err)
-			return
-		}
 	}
 
 	// remove all virtual IPs that may be present before starting the loop
@@ -163,49 +151,32 @@ func WatchVirtualIPs(conn client.Connection) {
 			return
 		}
 
+		// remove the virtual IPs from the agent that have been removed from the model (VIP node removed from zookeeper)
+		// stop the go routine responsible for watching that virtual IP
 		removedVirtualIPAddresses := setSubtract(oldVirtualIPNodeIDs, currentVirtualIPNodeIDs)
 		for _, virtualIPAddress := range removedVirtualIPAddresses {
-			if processing[virtualIPAddress] != nil {
-				glog.Infof("A goroutine for %v is still running...", virtualIPAddress)
-				exists, err := conn.Exists(virtualIPsPath(virtualIPAddress))
-				if err != nil {
-					glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, virtualIPsPath())
-					return
-				}
-				if !exists {
-					glog.Infof("node %v no longer exists, stopping corresponding goroutine...", virtualIPAddress)
-					// this VIP node has been deleted from zookeeper
-					// Remove the VIP from the host
-					if err := removeVirtualIP(virtualIPAddress); err != nil {
-						glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
-					}
-					// therefore, stop the go routine responsible for watching this particular VIP
-					processing[virtualIPAddress] <- 1
-				} else {
-					glog.Warningf("node %v does not exists, although its goroutine does not", virtualIPAddress)
-				}
-			} else {
-				glog.Warningf("Newly removed virtual IP address: %v does not have a goroutine running to monitor it?", virtualIPAddress)
+			glog.Infof("node %v no longer exists, stopping corresponding goroutine...", virtualIPAddress)
+			if err := removeVirtualIP(virtualIPAddress); err != nil {
+				glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
 			}
+			// stop the go routine responsible for watching this particular VIP
+			processing[virtualIPAddress] <- 1
 		}
 
+		// add a VIP watchers which will configure the virtual IPs on the agent that have been added to the model (new VIP node in zookeeper)
 		addedVirtualIPAddresses := setSubtract(currentVirtualIPNodeIDs, oldVirtualIPNodeIDs)
 		for _, virtualIPAddress := range addedVirtualIPAddresses {
-			if processing[virtualIPAddress] == nil {
-				glog.V(2).Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
-				virtualIPChannel := make(chan int)
-				processing[virtualIPAddress] = virtualIPChannel
-				myVirtualIP := pool.VirtualIP{PoolID: "", IP: virtualIPAddress, Netmask: "", BindInterface: ""}
-				vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
-				if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
-					glog.Warningf("Unable to retrieve node: %v", virtualIPsPath(virtualIPAddress))
-				} else {
-					// kick off a watcher for this virtual IP
-					go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn, virtualInterfaceIndex)
-					virtualInterfaceIndex = virtualInterfaceIndex + 1
-				}
+			glog.V(2).Infof("Agent starting goroutine to watch VIP: %v", virtualIPAddress)
+			virtualIPChannel := make(chan int)
+			processing[virtualIPAddress] = virtualIPChannel
+			myVirtualIP := pool.VirtualIP{PoolID: "", IP: virtualIPAddress, Netmask: "", BindInterface: ""}
+			vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
+			if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
+				glog.Warningf("Unable to retrieve node: %v", virtualIPsPath(virtualIPAddress))
 			} else {
-				glog.Warningf("Newly added virtual IP address: %v already has a goroutine running to monitor it?", virtualIPAddress)
+				// kick off a watcher for this virtual IP
+				go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn, virtualInterfaceIndex)
+				virtualInterfaceIndex = virtualInterfaceIndex + 1
 			}
 		}
 
@@ -326,6 +297,18 @@ func setSubtract(a []string, b []string) []string {
 		}
 	}
 	return difference
+}
+
+func createNode(conn client.Connection, path string) error {
+	// Make the path if it doesn't exist
+	if exists, err := conn.Exists(path); err != nil && err != client.ErrNoNode {
+		return fmt.Errorf("Error checking path %s: %s", path, err)
+	} else if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return fmt.Errorf("Could not create path %s: %s", path, err)
+		}
+	}
+	return nil
 }
 
 // return the name of the interface for the virtual IP
