@@ -26,7 +26,7 @@ import (
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/virtualips"
 
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
 	"errors"
@@ -185,7 +185,7 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 
 	}
 
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return false, err
@@ -249,13 +249,13 @@ func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished 
 func (a *HostAgent) dockerRemove(dockerID string) error {
 	glog.V(1).Infof("Ensuring that container %s does not exist", dockerID)
 
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return err
 	}
 
-	if err = dc.RemoveContainer(docker.RemoveContainerOptions{ID: dockerID, RemoveVolumes: true}); err != nil {
+	if err = dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: dockerID, RemoveVolumes: true}); err != nil {
 		glog.Errorf("unable to remove container %s: %v", dockerID, err)
 		return err
 	}
@@ -267,7 +267,7 @@ func (a *HostAgent) dockerRemove(dockerID string) error {
 func (a *HostAgent) dockerTerminate(dockerID string) error {
 	glog.V(1).Infof("Killing container %s", dockerID)
 
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return err
@@ -283,10 +283,10 @@ func (a *HostAgent) dockerTerminate(dockerID string) error {
 }
 
 // Get the state of the docker container given the dockerId
-func getDockerState(dockerID string) (*docker.Container, error) {
+func getDockerState(dockerID string) (*dockerclient.Container, error) {
 	glog.V(1).Infof("Inspecting container: %s", dockerID)
 
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return nil, err
@@ -312,7 +312,7 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Connection, containerID string, procFinished chan<- int, serviceState *servicestate.ServiceState) {
+func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclient.Connection, containerID string, procFinished chan<- int, serviceState *servicestate.ServiceState) {
 	defer func() {
 		procFinished <- 1
 	}()
@@ -344,7 +344,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 		}
 		glog.Infof("docker wait %s exited", containerID)
 		// get rid of the container
-		if rmErr := dc.RemoveContainer(docker.RemoveContainerOptions{ID: containerID, RemoveVolumes: true}); rmErr != nil {
+		if rmErr := dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: containerID, RemoveVolumes: true}); rmErr != nil {
 			glog.Errorf("Could not remove container: %s: %s", containerID, rmErr)
 		}
 		exited <- err
@@ -356,7 +356,7 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	time.Sleep(1 * time.Second) // Sleep to give docker a chance to start
 
-	var ctr *docker.Container
+	var ctr *dockerclient.Container
 	var err error
 	for i := 0; i < 30; i++ {
 		if ctr, err = getDockerState(dockerID); err != nil {
@@ -554,7 +554,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	a.dockerTerminate(serviceState.Id)
 	a.dockerRemove(serviceState.Id)
 
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create Docker client: %v ", err)
 		return false, err
@@ -586,7 +586,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		glog.Errorf("can't use docker registry %s: %s", a.dockerRegistry, err)
 		return false, err
 	}
-	ctr, err := commons.CreateContainer(registry, dc, docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
+	ctr, err := commons.CreateContainer(registry, dc, dockerclient.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	if err != nil {
 		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
@@ -603,7 +603,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 
 	emc := make(chan struct{})
 
-	s.Handle(docker.Start, func(e docker.Event) error {
+	s.Handle(dockerclient.Start, func(e dockerclient.Event) error {
 		glog.V(2).Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
 		emc <- struct{}{}
 		return nil
@@ -624,7 +624,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 		glog.V(0).Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
 	case <-tout:
 		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
-		// FIXME: WORKAROUND for issue where docker.Start event doesn't always notify
+		// FIXME: WORKAROUND for issue where dockerclient.Start event doesn't always notify
 		if container, err := dc.InspectContainer(ctr.ID); err != nil {
 			glog.Warning("container %s could not be inspected error:%v\n\n", ctr.ID, err)
 		} else {
@@ -646,9 +646,9 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState) (*docker.Config, *docker.HostConfig, error) {
-	cfg := &docker.Config{}
-	hcfg := &docker.HostConfig{}
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+	cfg := &dockerclient.Config{}
+	hcfg := &dockerclient.HostConfig{}
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
@@ -669,8 +669,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Image = service.ImageID
 
 	// get the endpoints
-	cfg.ExposedPorts = make(map[docker.Port]struct{})
-	hcfg.PortBindings = make(map[docker.Port][]docker.PortBinding)
+	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
+	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
 	if service.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
@@ -683,8 +683,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 				default:
 					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
 				}
-				cfg.ExposedPorts[docker.Port(p)] = struct{}{}
-				hcfg.PortBindings[docker.Port(p)] = append(hcfg.PortBindings[docker.Port(p)], docker.PortBinding{})
+				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
+				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
 			}
 		}
 	}
@@ -700,7 +700,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		glog.Errorf("Error using docker registry %s: %s", a.dockerRegistry, err)
 		return nil, nil, err
 	}
-	dc, err := docker.NewClient(dockerEndpoint)
+	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return nil, nil, err
