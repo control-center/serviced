@@ -22,9 +22,9 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     //
 
     // Pool view action - delete
-    $scope.clickRemoveVirtualIp = function(pool, ip) {
-        console.log( "Removing pool's virtual ip address: ", pool, ip);
-        resourcesService.remove_pool_virtual_ip(pool.ID, ip.ID, function() {
+    $scope.clickRemoveVirtualIp = function(ip) {
+        console.log( "Removing pool's virtual ip address: ", ip);
+        resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
             refreshPools($scope, resourcesService, false);
         });
     };
@@ -34,6 +34,7 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         var ip = $scope.pools.add_virtual_ip;
         resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, function() {
             $scope.pools.add_virtual_ip = {};
+            refreshPools($scope, resourcesService, false);
         });
         $('#poolAddVirtualIp').modal('hide');
     };

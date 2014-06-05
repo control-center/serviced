@@ -619,13 +619,13 @@ function ResourcesService($http, $location) {
         /*
          * Delete resource pool virtual ip
          *
-         * @param {string} pool id to remove virtual ip
-         * @param {string} id virtual ip id to remove
+         * @param {string} pool id of pool which contains the virtual ip
+         * @param {string} ip virtual ip to remove
          * @param {function} callback Add result passed to callback on success.
          */
-        remove_pool_virtual_ip: function(pool, id, callback) {
-            console.log('Removing pool virtual ip: poolID:%s id:%s', pool, id);
-            $http.delete('/pools/' + pool + '/virtualip/' + id).
+        remove_pool_virtual_ip: function(pool, ip, callback) {
+            console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
+            $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
                     console.log('Removed pool virtual ip');
                     callback(data);
