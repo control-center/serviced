@@ -31,7 +31,6 @@ type ServiceState struct {
 	Endpoints   []service.ServiceEndpoint
 	HostIP      string
 	InstanceID  int
-	MonitoringProfile domain.MonitorProfile
 }
 
 //A new service instance (ServiceState)
@@ -43,7 +42,6 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
-		serviceState.MonitoringProfile = service.MonitoringProfile
 	}
 	return serviceState, err
 }
