@@ -33,8 +33,7 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
 	for _, host := range hosts {
 		response[host.ID] = host
-		err = buildHostMonitoringProfile(host)
-		if err != nil {
+		if err := buildHostMonitoringProfile(host); err != nil {
 			restServerError(w)
 			return
 		}
@@ -64,8 +63,7 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	err = buildHostMonitoringProfile(host)
-	if err != nil {
+	if err := buildHostMonitoringProfile(host); err != nil {
 		restServerError(w)
 		return
 	}
@@ -225,11 +223,12 @@ func buildHostMonitoringProfile(host *host.Host) error {
 	}
 
 	for i := range metrics {
-		m := &metrics[i]
-		build.Metric(m.ID, m.Name).SetTag("controlplane_host_id", host.ID)
-		config, err := build.Config(m.ID, m.Name, m.Description, "1h-ago")
+		build.Metric(metrics[i].ID, metrics[i].Name).SetTag("controlplane_host_id", host.ID)
+		config, err := build.Config(metrics[i].ID, metrics[i].Name, metrics[i].Description, "1h-ago")
 		if err != nil {
 			glog.Errorf("Failed to build metric: %s", err)
+			host.MonitoringProfile = domain.MonitorProfile{}
+			return err
 		}
 		host.MonitoringProfile.Metrics[i] = *config
 	}
