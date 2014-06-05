@@ -9,21 +9,22 @@
 package serviced
 
 import (
-	"regexp"
-
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/virtualips"
 
 	docker "github.com/zenoss/go-dockerclient"
 
@@ -70,6 +71,8 @@ type HostAgent struct {
 	proxyRegistry   proxy.ProxyRegistry
 	zkClient        *coordclient.Client
 	dockerRegistry  string // the docker registry to use
+	facade          *facade.Facade
+	context         datastore.Context
 }
 
 // assert that this implemenents the Agent interface
@@ -252,7 +255,7 @@ func (a *HostAgent) dockerRemove(dockerID string) error {
 		return err
 	}
 
-	if err = dc.RemoveContainer(docker.RemoveContainerOptions{dockerID, true}); err != nil {
+	if err = dc.RemoveContainer(docker.RemoveContainerOptions{ID: dockerID, RemoveVolumes: true}); err != nil {
 		glog.Errorf("unable to remove container %s: %v", dockerID, err)
 		return err
 	}
@@ -366,20 +369,20 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 
 	if err != nil {
 		return
-		//TODO: should	"cmd" be cleaned up before returning?
+		//TODO: should "cmd" be cleaned up before returning?
 	}
 
 	var sState *servicestate.ServiceState
 	if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 		ss.DockerID = ctr.ID
-		ss.Started = time.Now()
+		ss.Started = ctr.Created
 		ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 		ss.PrivateIP = ctr.NetworkSettings.IPAddress
 		ss.PortMapping = make(map[string][]domain.HostIPAndPort)
 		for k, v := range ctr.NetworkSettings.Ports {
 			pm := []domain.HostIPAndPort{}
 			for _, pb := range v {
-				pm = append(pm, domain.HostIPAndPort{pb.HostIp, pb.HostPort})
+				pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
 			}
 			ss.PortMapping[string(k)] = pm
 		}
@@ -451,14 +454,14 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				}
 				if err = zzk.LoadAndUpdateServiceState(conn, serviceState.ServiceID, serviceState.Id, func(ss *servicestate.ServiceState) {
 					ss.DockerID = containerState.ID
-					ss.Started = time.Now()
+					ss.Started = containerState.Created
 					ss.Terminated = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 					ss.PrivateIP = containerState.NetworkSettings.IPAddress
 					ss.PortMapping = make(map[string][]domain.HostIPAndPort)
 					for k, v := range ctr.NetworkSettings.Ports {
 						pm := []domain.HostIPAndPort{}
 						for _, pb := range v {
-							pm = append(pm, domain.HostIPAndPort{pb.HostIp, pb.HostPort})
+							pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
 						}
 						ss.PortMapping[string(k)] = pm
 					}
@@ -577,38 +580,14 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(2).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
-	// attempt to create the container, if it fails try to pull the image and then attempt to create it again
-	ctr, err := dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
-	switch {
-	case err == docker.ErrNoSuchImage:
-
-		// get rid of the snapshot UUID from the ImageID before trying to pull it
-		re := regexp.MustCompile("(?P<head>[[:alpha:]\\.]+\\/[[:alpha:]]+\\/)[[:alpha:][:digit:]-]+_(?P<tail>[[:alnum:]-]+)")
-		if ok := re.MatchString(service.ImageID); !ok {
-			glog.Errorf("can't determine repo from image id %s: %v", service.ImageID, err)
-			return false, err
-		}
-		repo := fmt.Sprintf(re.ReplaceAllString(service.ImageID, fmt.Sprintf("${%s}${%s}", re.SubexpNames()[1], re.SubexpNames()[2])))
-
-		glog.Infof("container pulling image %s Name:%s for service ID:%s Name:%s Cmd:%+v", repo, serviceState.Id, service.Id, service.Name, config.Cmd)
-
-		pullopts := docker.PullImageOptions{
-			Repository:   repo,
-			OutputStream: os.NewFile(uintptr(syscall.Stdout), "/dev/stdout"),
-		}
-		pullerr := dc.PullImage(pullopts, docker.AuthConfiguration{})
-		if pullerr != nil {
-			glog.Errorf("can't pull container image %s: %v", service.ImageID, err)
-			return false, err
-		}
-
-		ctr, err = dc.CreateContainer(docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
-		if err != nil {
-			glog.Errorf("can't create container after pulling %v: %v", config, err)
-			return false, err
-		}
-	case err != nil:
-		// something that can't be fixed by pulling happened, we're done.
+	// pull the image from the registry first if necessary, then attempt to create the container.
+	registry, err := commons.NewDockerRegistry(a.dockerRegistry)
+	if err != nil {
+		glog.Errorf("can't use docker registry %s: %s", a.dockerRegistry, err)
+		return false, err
+	}
+	ctr, err := commons.CreateContainer(registry, dc, docker.CreateContainerOptions{Name: serviceState.Id, Config: config})
+	if err != nil {
 		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
 	}
@@ -713,6 +692,22 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	if len(tenantID) == 0 && len(service.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
 		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, service.Id)
+	}
+
+	// Make sure the image exists locally.
+	registry, err := commons.NewDockerRegistry(a.dockerRegistry)
+	if err != nil {
+		glog.Errorf("Error using docker registry %s: %s", a.dockerRegistry, err)
+		return nil, nil, err
+	}
+	dc, err := docker.NewClient(dockerEndpoint)
+	if err != nil {
+		glog.Errorf("can't create docker client: %v", err)
+		return nil, nil, err
+	}
+	if _, err = commons.InspectImage(registry, dc, service.ImageID); err != nil {
+		glog.Errorf("can't inspect docker image %s: %s", service.ImageID, err)
+		return nil, nil, err
 	}
 
 	cfg.Volumes = make(map[string]struct{})
@@ -859,17 +854,18 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 // main loop of the HostAgent
 func (a *HostAgent) start() {
-	glog.V(1).Info("Starting HostAgent")
+	glog.Info("Starting HostAgent")
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
-
 			connc := make(chan coordclient.Connection)
 			var conn coordclient.Connection
 			done := make(chan struct{}, 1)
+
 			defer func() {
 				done <- struct{}{}
 			}()
+
 			go func() {
 				for {
 					c, err := a.zkClient.GetConnection()
@@ -877,6 +873,7 @@ func (a *HostAgent) start() {
 						connc <- c
 						return
 					}
+
 					// exit when our parent exits
 					select {
 					case <-done:
@@ -886,17 +883,23 @@ func (a *HostAgent) start() {
 				}
 				close(connc)
 			}()
+
 			select {
 			case errc := <-a.closing:
-				glog.V(0).Info("Received shutdown notice")
+				glog.Info("Received shutdown notice")
 				a.zkClient.Close()
 				errc <- errors.New("unable to connect to zookeeper")
 				return false
 
 			case conn = <-connc:
-				glog.V(1).Info("Got a connected client")
+				glog.Info("Got a connected client")
 			}
+
 			defer conn.Close()
+
+			// watch virtual IP zookeeper nodes
+			go virtualips.WatchVirtualIPs(conn)
+
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {

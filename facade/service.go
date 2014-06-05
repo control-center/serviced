@@ -285,55 +285,78 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 		return err
 	}
 
-	// populate poolsIpInfo
 	poolIPs, err := f.GetPoolIPs(ctx, myService.PoolID)
 	if err != nil {
-		glog.Errorf("GetPoolsIPInfo failed: %v", err)
+		glog.Errorf("GetPoolIPs failed: %v", err)
 		return err
 	}
-	poolsIpInfo := poolIPs.HostIPs
-	if len(poolsIpInfo) < 1 {
-		msg := fmt.Sprintf("No IP addresses are available in pool %s.", myService.PoolID)
-		return errors.New(msg)
-	}
-	glog.Infof("Pool %v contains %v available IP(s)", myService.PoolID, len(poolsIpInfo))
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	ipIndex := 0
 	userProvidedIPAssignment := false
+	selectedHostID := ""
+	assignmentType := ""
 
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		ipIndex = rand.Intn(len(poolsIpInfo))
+		totalIPs := len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs)
+		if totalIPs <= 0 {
+			return fmt.Errorf("no ips available in pool")
+		}
+		randomIPIndex := rand.Intn(totalIPs)
+		if randomIPIndex < len(poolIPs.HostIPs) {
+			assignmentType = "static"
+			assignmentRequest.IPAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
+			selectedHostID = poolIPs.HostIPs[randomIPIndex].HostID
+		} else {
+			assignmentType = "virtual"
+			randomIPIndex = randomIPIndex - len(poolIPs.HostIPs)
+			assignmentRequest.IPAddress = poolIPs.VirtualIPs[randomIPIndex].IP
+			// TODO: Should we somehow know what host has a virtual IP???
+			//selectedHostID = poolIPs.VirtualIPs[randomIPIndex].HostID
+		}
 	} else {
 		// manual IP provided
 		// verify that the user provided IP address is available in the pool
 		glog.Infof("Manual IP Address Assignment")
-		validIp := false
+		validIP := false
 		userProvidedIPAssignment = true
 
-		for index, hostIPResource := range poolsIpInfo {
+		// check to see if the IP is a static IP in the pool
+		for _, hostIPResource := range poolIPs.HostIPs {
 			if assignmentRequest.IPAddress == hostIPResource.IPAddress {
-				// WHAT HAPPENS IF THERE EXISTS THE SAME IP ON MORE THAN ONE HOST???
-				validIp = true
-				ipIndex = index
+				assignmentType = "static"
+				validIP = true
+				assignmentRequest.IPAddress = hostIPResource.IPAddress
+				selectedHostID = hostIPResource.HostID
 				break
 			}
 		}
 
-		if !validIp {
-			msg := fmt.Sprintf("The requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
+		// IP was not static, perhaps it is a virtual IP in the pool?
+		if !validIP {
+			for _, virtualIP := range poolIPs.VirtualIPs {
+				if assignmentRequest.IPAddress == virtualIP.IP {
+					assignmentType = "virtual"
+					validIP = true
+					assignmentRequest.IPAddress = virtualIP.IP
+					// TODO: Should we somehow know what host has a virtual IP???
+					//selectedHostID = virtualIP.HostID
+					break
+				}
+			}
+		}
+
+		// IP was NOT contained in the pool
+		if !validIP {
+			msg := fmt.Sprintf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 			return errors.New(msg)
 		}
 	}
-	assignmentRequest.IPAddress = poolsIpInfo[ipIndex].IPAddress
-	selectedHostID := poolsIpInfo[ipIndex].HostID
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
-	err = f.GetServiceAddressAssignments(ctx, assignmentRequest.ServiceID, &assignments)
-	if err != nil {
+	if err := f.GetServiceAddressAssignments(ctx, assignmentRequest.ServiceID, &assignments); err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
 	}
@@ -358,7 +381,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 					}
 				}
 				assignment := addressassignment.AddressAssignment{}
-				assignment.AssignmentType = "static"
+				assignment.AssignmentType = assignmentType
 				assignment.HostID = selectedHostID
 				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
@@ -368,14 +391,12 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
 				var unusedStr string
-				err = f.AssignAddress(ctx, assignment, &unusedStr)
-				if err != nil {
+				if err := f.AssignAddress(ctx, assignment, &unusedStr); err != nil {
 					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
 					return err
 				}
 
-				err = f.updateService(ctx, myService)
-				if err != nil {
+				if err := f.updateService(ctx, myService); err != nil {
 					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
 					return err
 				}
@@ -520,7 +541,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		}
 
 		if needsAnAddressAssignment {
-			msg := fmt.Sprintf("Service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
+			msg := fmt.Sprintf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
 			return errors.New(msg)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
@@ -542,7 +563,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 		// validate the service is ready to start
 		err := f.validateServicesForStarting(ctx, service)
 		if err != nil {
-			glog.Errorf("Services failed validation for starting")
+			glog.Errorf("services failed validation for starting")
 			return err
 		}
 		return nil

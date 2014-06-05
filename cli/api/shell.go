@@ -3,7 +3,9 @@ package api
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
@@ -22,6 +24,14 @@ type ShellConfig struct {
 
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
+	dockerClient, err := a.connectDocker()
+	if err != nil {
+		return err
+	}
+	dockerRegistry, err := a.connectDockerRegistry()
+	if err != nil {
+		return err
+	}
 	command := []string{config.Command}
 	command = append(command, config.Args...)
 
@@ -33,7 +43,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.Port)
+	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -49,6 +59,14 @@ func (a *api) StartShell(config ShellConfig) error {
 // RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig) error {
 	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+	dockerClient, err := a.connectDocker()
+	if err != nil {
+		return err
+	}
+	dockerRegistry, err := a.connectDockerRegistry()
 	if err != nil {
 		return err
 	}
@@ -80,7 +98,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.Port)
+	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -90,7 +108,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
-	if err != nil {
+	if isAbnormalTermination(err) {
 		glog.Fatalf("abnormal termination from shell command: %s", err)
 	}
 
@@ -118,6 +136,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		}
 	default:
 		// Delete the container
+		glog.V(0).Infof("Command failed (exit code %d)", exitcode)
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
 		} else if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
@@ -126,4 +145,20 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	return nil
+}
+
+// isAbnormalTermination checks for unexpected errors in running a command.  An
+// unexpected error is any error other than a non-zero status code.
+func isAbnormalTermination(err error) bool {
+	if err == nil {
+		return false
+	}
+	if exitError, ok := err.(*exec.ExitError); ok {
+		if exitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
+			if exitStatus.ExitStatus() != 0 {
+				return false
+			}
+		}
+	}
+	return true
 }

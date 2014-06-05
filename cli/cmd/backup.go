@@ -14,19 +14,19 @@ func (c *ServicedCli) initBackup() {
 		cli.Command{
 			Name:        "backup",
 			Usage:       "Dump all templates and services to a tgz file",
-			Description: "serviced service backup DIRPATH",
+			Description: "serviced backup DIRPATH",
 			Action:      c.cmdBackup,
 		},
 		cli.Command{
 			Name:        "restore",
-			Usage:       "Restore services from a tgz file",
-			Description: "serviced service restore FILEPATH",
+			Usage:       "Restore templates and services from a tgz file",
+			Description: "serviced restore FILEPATH",
 			Action:      c.cmdRestore,
 		},
 	)
 }
 
-// serviced service backup DIRPATH
+// serviced backup DIRPATH
 func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -44,7 +44,7 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	}
 }
 
-// serviced service restore FILEPATH
+// serviced restore FILEPATH
 func (c *ServicedCli) cmdRestore(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {

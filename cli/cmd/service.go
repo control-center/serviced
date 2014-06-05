@@ -42,7 +42,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
-				Description:  "serviced service list NAME POOLID IMAGEID COMMAND",
+				Description:  "serviced service add NAME POOLID IMAGEID COMMAND",
 				BashComplete: c.printServiceAdd,
 				Action:       c.cmdServiceAdd,
 				Flags: []cli.Flag{

@@ -221,6 +221,8 @@ func NewReverseProxy(path string, targeturl *url.URL) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{Director: director}
 }
 
+// Assumes that the local docker image (imageSpec) exists and has been sync'd
+// with the registry.
 var dockerRun = func(imageSpec string, args ...string) (output string, err error) {
 	targs := []string{"run", imageSpec}
 	for _, s := range args {
@@ -250,6 +252,8 @@ func init() {
 	userSpecCache.lookup = make(map[string]uidgid)
 }
 
+// Assumes that the local docker image (imageSpec) exists and has been sync'd
+// with the registry.
 func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 
 	userSpecCache.Lock()
@@ -297,7 +301,9 @@ var createVolumeDirMutex sync.Mutex
 // createVolumeDir() creates a directory on the running host using the user ids
 // found within the specified image. For example, it can create a directory owned
 // by the mysql user (as seen by the container) despite there being no mysql user
-// on the host system
+// on the host system.
+// Assumes that the local docker image (imageSpec) exists and has been sync'd
+// with the registry.
 func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
 	createVolumeDirMutex.Lock()
