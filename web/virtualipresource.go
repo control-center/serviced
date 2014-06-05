@@ -3,23 +3,15 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/domain/pool"
 
 	"net/url"
 )
 
-// FIXME json object for putting or deleting virtual ips (to be replaced with actual dao.VirtualIpRequest)
-type virtualIPRequest struct {
-	PoolID        string
-	IP            string
-	Netmask       string
-	BindInterface string
-}
-
 // restAddPoolVirtualIP takes a poolID, IP, netmask, and bindinterface and adds it
-func restAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	//TODO replace virtualiprequest with model object
-	var request virtualIPRequest
+	var request pool.VirtualIP
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w)
@@ -27,20 +19,51 @@ func restAddPoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *servi
 	}
 
 	glog.V(0).Infof("Add virtual ip: %+v", request)
-	//TODO make call to dao service
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		restServerError(w)
+		return
+	}
+
+	if err := client.AddVirtualIP(request); err != nil {
+		glog.Errorf("Failed to add virtual IP(%+v): %v", request, err)
+		restServerError(w)
+		return
+	}
+
 	restSuccess(w)
 }
 
 // restRemovePoolVirtualIP deletes virtualip
-func restRemovePoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	id, err := url.QueryUnescape(r.PathParam("id"))
+func restRemovePoolVirtualIP(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	ip, err := url.QueryUnescape(r.PathParam("ip"))
 	if err != nil {
-		glog.Errorf("Could not get virtual ip - id: %v", err)
+		glog.Errorf("Could not get virtual ip (%v): %v", ip, err)
 		restBadRequest(w)
 		return
 	}
 
-	glog.V(0).Infof("Remove virtual ip - id=%s", id)
-	//TODO make call to dao service
+	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		glog.Errorf("Could not get virtual ip poolId (%v): %v", poolId, err)
+		restBadRequest(w)
+		return
+	}
+
+	glog.V(0).Infof("Remove virtual ip=%v (in pool %v)", ip, poolId)
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		restServerError(w)
+		return
+	}
+
+	request := pool.VirtualIP{PoolID: poolId, IP: ip}
+	if err := client.RemoveVirtualIP(request); err != nil {
+		glog.Errorf("Failed to remove virtual IP(%+v): %v", request, err)
+		restServerError(w)
+		return
+	}
 	restSuccess(w)
 }
