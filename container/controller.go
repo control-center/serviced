@@ -11,7 +11,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/endpointregistry"
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
@@ -93,6 +92,7 @@ type Controller struct {
 	prereqs            []domain.Prereq
 	zkDSN              string
 	cclient            *coordclient.Client
+	zkConn             coordclient.Connection
 	exportedEndpoints  map[string][]export
 }
 
@@ -340,14 +340,14 @@ func (c *Controller) getZkConnection() (coordclient.Connection, error) {
 			glog.Errorf("could not connect to zookeeper: %s", c.zkDSN)
 			return nil, err
 		}
+
+		c.zkConn, err = c.cclient.GetConnection()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	conn, err := c.cclient.GetConnection()
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return c.zkConn, nil
 }
 
 // NewController creates a new Controller for the given options
@@ -787,15 +787,8 @@ func (c *Controller) registerExportedEndpoints() {
 	for key, exportList := range c.exportedEndpoints {
 		for _, export := range exportList {
 			endpoint := export.endPoint
-			glog.Infof("registering exported endpoint[%s]: %+v", key, *endpoint)
-			endpointID := strings.Split(key, "_")[1]
-			endpointregistry.AddEndpoint(conn, c.tenantID, endpointID, containerID, endpoint)
-
-			var ep dao.ApplicationEndpoint
-			endpointregistry.LoadEndpoint(conn, c.tenantID, endpointID, containerID, &ep)
-			glog.Infof("loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep)
-
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
+			endpointID := strings.Split(key, "_")[1]
 			path, err := ereg.AddItem(conn, c.tenantID, endpointID, containerID, registry.NewEndpointNode(endpoint, c.tenantID, endpointID, containerID))
 			if err != nil {
 				glog.Errorf("unable to add item: %v", err)

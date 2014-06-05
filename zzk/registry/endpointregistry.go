@@ -37,6 +37,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/validation"
 	"path"
 )
 
@@ -50,13 +51,23 @@ func zkEndpointsPath(nodes ...string) string {
 	return path.Join(p...)
 }
 
-// EndpointNode is a node for the exported endpoint endpoint
+// NewEndpointNode returns a new EndpointNode given ApplicationEndpoint, tenantID, endpointID, containerID
+func NewEndpointNode(endpoint *dao.ApplicationEndpoint, tenantID, endpointID, containerID string) *EndpointNode {
+	en := EndpointNode{
+		ApplicationEndpoint: *endpoint,
+		TenantID:            tenantID,
+		EndpointID:          endpointID,
+		ContainerID:         containerID,
+	}
+	return &en
+}
 
+// EndpointNode is a node for the exported endpoint endpoint
 type EndpointNode struct {
 	dao.ApplicationEndpoint
-	tenantID    string
-	endpointID  string
-	containerID string
+	TenantID    string
+	EndpointID  string
+	ContainerID string
 	version     interface{}
 }
 
@@ -66,19 +77,6 @@ func (v *EndpointNode) Version() interface{} { return v.version }
 // SetVersion is an implementation of client.Node
 func (v *EndpointNode) SetVersion(version interface{}) { v.version = version }
 
-// NewEndpointNode returns a new EndpointNode given ApplicationEndpoint, tenantID, endpointID, containerID
-func NewEndpointNode(endpoint *dao.ApplicationEndpoint, tenantID, endpointID, containerID string) *EndpointNode {
-	en := EndpointNode{
-		*endpoint,
-		tenantID,
-		endpointID,
-		containerID,
-		"1.0",
-	}
-	glog.Info("NewEndpointNode: %+v", en)
-	return &en
-}
-
 // EndpointRegistry holds exported ApplicationEndpoint in EndpointNode nodes
 type EndpointRegistry struct {
 	registryType
@@ -87,11 +85,13 @@ type EndpointRegistry struct {
 // CreateEndpointRegistry creates the endpoint registry
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if err := conn.CreateDir(path); err != nil && err != client.ErrNodeExists {
-		glog.Errorf("Could not create EndpointRegistry at %s: %s", path, err)
+	if exists, err := conn.Exists(path); err != nil {
 		return nil, err
+	} else if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return nil, err
+		}
 	}
-
 	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
 }
 
@@ -102,6 +102,16 @@ func appKey(tenantID, endpointID string) string {
 
 // AddItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
 func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, containerID string, node *EndpointNode) (string, error) {
+	verr := validation.NewValidationError()
+
+	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
+	verr.Add(validation.NotEmpty("TenantID", node.TenantID))
+	verr.Add(validation.NotEmpty("EndpointID", node.EndpointID))
+	verr.Add(validation.NotEmpty("ContainerID", node.ContainerID))
+	if verr.HasError() {
+		return "", verr
+	}
+
 	return ar.addItem(conn, appKey(tenantID, endpointID), containerID, node)
 }
 
