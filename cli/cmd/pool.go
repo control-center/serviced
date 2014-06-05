@@ -29,9 +29,10 @@ func (c *ServicedCli) initPool() {
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 				},
 			}, {
-				Name:         "add",
-				Usage:        "Adds a new resource pool",
-				Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
+				Name:  "add",
+				Usage: "Adds a new resource pool",
+				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
+				Description:  "serviced pool add POOLID PRIORITY",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
 			}, {
@@ -141,18 +142,18 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		}
 	} else {
 		tablePool := newtable(0, 8, 2)
-		tablePool.printrow("ID", "PARENT", "CORE", "MEM", "PRI")
+		tablePool.printrow("ID", "PARENT" /*"CORE", "MEM",*/, "PRI")
 		for _, p := range pools {
-			tablePool.printrow(p.ID, p.ParentID, p.CoreLimit, p.MemoryLimit, p.Priority)
+			tablePool.printrow(p.ID, p.ParentID /*p.CoreLimit, p.MemoryLimit,*/, p.Priority)
 		}
 		tablePool.flush()
 	}
 }
 
-// serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY
+// serviced pool add POOLID PRIORITY
 func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 4 {
+	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add")
 		return
@@ -163,6 +164,7 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	cfg := api.PoolConfig{}
 	cfg.PoolID = args[0]
 
+	/* Disabled until enforced. See ZEN-11450
 	cfg.CoreLimit, err = strconv.Atoi(args[1])
 	if err != nil {
 		fmt.Println("CORE_LIMIT must be a number")
@@ -174,8 +176,9 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 		fmt.Println("MEMORY_LIMIT must be a number")
 		return
 	}
+	*/
 
-	cfg.Priority, err = strconv.Atoi(args[3])
+	cfg.Priority, err = strconv.Atoi(args[1])
 	if err != nil {
 		fmt.Println("PRIORITY must be a number")
 		return
