@@ -183,6 +183,7 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 		}
 
 		if muxPort > 0 {
+			//TODO: move this check to happen sooner
 			if len(privateIP) == 0 {
 				return nil, fmt.Errorf("missing endpoint")
 			}
