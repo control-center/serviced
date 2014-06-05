@@ -35,13 +35,34 @@ func (r *registryType) WatchRegistry(conn client.Connection, processChildren fun
 }
 
 //Add VhostEndpoint to the key in registry.  Returns the path of the node in the registry
-func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node *VhostEndpoint) (string, error) {
+func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
 	path := r.getPath(key, nodeID)
+
+	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+		return "", err
+	}
+
+	if err := r.ensureDir(conn, r.getPath(nodeID)); err != nil {
+		return "", err
+	}
+
 	//TODO: make ephemeral
+	glog.Infof("Adding to %s: %#v", path, node)
 	if err := conn.Create(path, node); err != nil {
 		return "", err
 	}
 	return path, nil
+}
+
+func (r *registryType) ensureDir(conn client.Connection, path string) error {
+	if exists, err := conn.Exists(path); err != nil {
+		return err
+	} else if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func watch(conn client.Connection, path string, processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
