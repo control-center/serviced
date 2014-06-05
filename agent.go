@@ -822,7 +822,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
-		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip))
+		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
+		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
