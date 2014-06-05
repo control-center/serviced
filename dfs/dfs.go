@@ -2,7 +2,7 @@ package dfs
 
 import (
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
@@ -46,14 +46,14 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 type DistributedFileSystem struct {
 	sync.Mutex
 	client         dao.ControlPlane
-	dockerClient   *docker.Client
+	dockerClient   *dockerclient.Client
 	dockerRegistry *commons.DockerRegistry
 	facade         *facade.Facade
 }
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
 func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, dockerRegistry string) (*DistributedFileSystem, error) {
-	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
 		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
 		return nil, err
@@ -300,7 +300,7 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	tenantId := imageId.User
 
 	// Verify the image exists and has the latest tag
-	var image *docker.APIImages
+	var image *dockerclient.APIImages
 	images, err := d.findImages(tenantId, DOCKER_LATEST)
 	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), tenantId)
 	if err != nil {
@@ -321,7 +321,7 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	}
 
 	// Commit the container to the image and tag
-	options := docker.CommitContainerOptions{
+	options := dockerclient.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: image.Repository,
 	}
@@ -496,7 +496,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	return nil
 }
 
-func (d *DistributedFileSystem) findImages(id, tag string) (images []docker.APIImages, err error) {
+func (d *DistributedFileSystem) findImages(id, tag string) (images []dockerclient.APIImages, err error) {
 	if all, err := commons.ListImages(*d.dockerRegistry, d.dockerClient); err != nil {
 		return images, err
 	} else {
@@ -527,7 +527,7 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 	}
 
 	for i, image := range images {
-		options := docker.TagImageOptions{
+		options := dockerclient.TagImageOptions{
 			Repo: image.Repository,
 			Tag:  newtag,
 		}

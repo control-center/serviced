@@ -41,7 +41,7 @@ trap cleanup EXIT
 
 start_serviced() {
     echo "Starting serviced..."
-    sudo GOPATH=${GOPATH} PATH=${PATH} ${PWD}/serviced/serviced -master -agent &
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${PWD}/serviced/serviced -master -agent &
     echo "Waiting 120 seconds for serviced to become the leader..."
     retry 120 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
     return $?
@@ -126,7 +126,7 @@ cleanup
 add_to_etc_hosts
 
 # Run all the tests
-start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 60 seconds."
+start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
 add_host                   && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"

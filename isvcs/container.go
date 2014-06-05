@@ -11,7 +11,7 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons/circular"
 	"github.com/zenoss/serviced/utils"
 
@@ -63,12 +63,12 @@ type ContainerDescription struct {
 
 type Container struct {
 	ContainerDescription
-	client *docker.Client
+	client *dockerclient.Client
 	ops    chan containerOpRequest // channel for communicating to the container's loop
 }
 
 func NewContainer(cd ContainerDescription) (*Container, error) {
-	client, err := docker.NewClient("unix:///var/run/docker.sock")
+	client, err := dockerclient.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
 		glog.Errorf("Could not create docker client: %s", err)
 		return nil, err
@@ -154,7 +154,7 @@ func (c *Container) loop() {
 
 // getMatchingContainersIds
 func (c *Container) getMatchingContainersIds() (*[]string, error) {
-	containers, err := c.client.ListContainers(docker.ListContainersOptions{All: true})
+	containers, err := c.client.ListContainers(dockerclient.ListContainersOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (c *Container) rm() error {
 		return err
 	} else {
 		for _, id := range *ids {
-			c.client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+			c.client.RemoveContainer(dockerclient.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil
