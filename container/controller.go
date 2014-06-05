@@ -12,6 +12,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/endpointregistry"
+	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
 	"errors"
@@ -755,6 +756,11 @@ func (c *Controller) registerExportedEndpoints() {
 		return
 	}
 
+	ereg, err := registry.CreateEndpointRegistry(conn)
+	if err != nil {
+		return
+	}
+
 	// get containerID
 	containerID := os.Getenv("HOSTNAME")
 	glog.Infof("containerID: %s\n", containerID)
@@ -769,6 +775,20 @@ func (c *Controller) registerExportedEndpoints() {
 			var ep dao.ApplicationEndpoint
 			endpointregistry.LoadEndpoint(conn, c.tenantID, endpointID, containerID, &ep)
 			glog.Infof("loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep)
+
+			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
+			path, err := ereg.AddItem(conn, c.tenantID, endpointID, containerID, registry.NewEndpointNode(endpoint, c.tenantID, endpointID, containerID))
+			if err != nil {
+				glog.Errorf("unable to add item: %v", err)
+				continue
+			}
+
+			ep2, err := ereg.GetItem(conn, path)
+			if err != nil {
+				glog.Errorf("unable to get item: %v", err)
+				continue
+			}
+			glog.Infof("Loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep2)
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	zkEndpointsRoot = "/endpoints"
+	zkEndpointsRoot = "/endpointsobsolete"
 )
 
 // EndpointsPath returns the path to container endpoint

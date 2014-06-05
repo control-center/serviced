@@ -51,6 +51,7 @@ func zkEndpointsPath(nodes ...string) string {
 }
 
 // EndpointNode is a node for the exported endpoint endpoint
+
 type EndpointNode struct {
 	dao.ApplicationEndpoint
 	tenantID    string
@@ -66,12 +67,13 @@ func (v *EndpointNode) Version() interface{} { return v.version }
 func (v *EndpointNode) SetVersion(version interface{}) { v.version = version }
 
 // NewEndpointNode returns a new EndpointNode given ApplicationEndpoint, tenantID, endpointID, containerID
-func NewEndpointNode(endpoint dao.ApplicationEndpoint, tenantID, endpointID, containerID string) *EndpointNode {
+func NewEndpointNode(endpoint *dao.ApplicationEndpoint, tenantID, endpointID, containerID string) *EndpointNode {
 	en := EndpointNode{
-		dao.ApplicationEndpoint: endpoint,
-		tenantID:                tenantID,
-		endpointID:              endpointID,
-		containerID:             containerID,
+		*endpoint,
+		tenantID,
+		endpointID,
+		containerID,
+		"1.0",
 	}
 	glog.Info("NewEndpointNode: %+v", en)
 	return &en
@@ -85,10 +87,11 @@ type EndpointRegistry struct {
 // CreateEndpointRegistry creates the endpoint registry
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if err := conn.CreateDir(path); err != nil {
+	if err := conn.CreateDir(path); err != nil && err != client.ErrNodeExists {
 		glog.Errorf("Could not create EndpointRegistry at %s: %s", path, err)
 		return nil, err
 	}
+
 	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
 }
 
