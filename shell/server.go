@@ -13,7 +13,7 @@ import (
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons"
@@ -279,7 +279,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
 	}
-	dockerClient, err := docker.NewClient(DOCKER_ENDPOINT)
+	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -319,7 +319,7 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(registry commons.DockerRegistry, dockerClient *docker.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control plane client to look up the service

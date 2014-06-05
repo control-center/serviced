@@ -6,8 +6,9 @@ package facade
 
 import (
 	dutils "github.com/dotcloud/docker/utils"
+	dockerclient "github.com/zenoss/go-dockerclient"
+
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -26,7 +27,7 @@ type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
 
 var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
-var getDockerClient = func() (*docker.Client, error) { return docker.NewClient("unix:///var/run/docker.sock") }
+var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient.NewClient("unix:///var/run/docker.sock") }
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
@@ -164,7 +165,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
 			return err
 		}
-		dockerclient, err := getDockerClient()
+		dc, err := getDockerClient()
 		if err != nil {
 			glog.Errorf("unable to start docker client")
 			return err
@@ -174,23 +175,23 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			glog.Errorf("unable to use docker registry: %s", err)
 			return err
 		}
-		_, err = commons.InspectImage(registry, dockerclient, name)
+		_, err = commons.InspectImage(registry, dc, name)
 		if err != nil {
-			if err != docker.ErrNoSuchImage {
+			if err != dockerclient.ErrNoSuchImage {
 				glog.Error(err)
 				return err
 			}
-			image, err := commons.InspectImage(registry, dockerclient, svc.ImageID)
+			image, err := commons.InspectImage(registry, dc, svc.ImageID)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
 				return msg
 			}
-			options := docker.TagImageOptions{
+			options := dockerclient.TagImageOptions{
 				Repo:  name,
 				Force: true,
 			}
-			if err := commons.TagImage(registry, dockerclient, image.ID, options); err != nil {
+			if err := commons.TagImage(registry, dc, image.ID, options); err != nil {
 				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
 				return err
 			}
@@ -213,7 +214,7 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 		getSubServiceImageIDs(imageIds, svc)
 	}
 
-	dockerclient, err := docker.NewClient("unix:///var/run/docker.sock")
+	dockerclient, err := dockerclient.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
 		glog.Errorf("unable to start docker client")
 		return err

@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/zenoss/glog"
-	docker "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/shell"
 )
@@ -144,7 +144,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		glog.V(0).Infof("Command failed (exit code %d)", exitcode)
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
-		} else if err := dockercli.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
 			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
 	}
