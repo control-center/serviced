@@ -40,7 +40,7 @@ var (
 
 // runServiceCommand attaches to a service state container and executes an arbitrary bash command
 var runServiceCommand = func(state *servicestate.ServiceState, command string) ([]byte, error) {
-	return utils.RunNSInitWithRetry(state.DockerID, []string{command})
+	return utils.AttachAndRun(state.DockerID, []string{command})
 }
 
 type DistributedFileSystem struct {
