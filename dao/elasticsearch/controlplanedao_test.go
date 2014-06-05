@@ -555,7 +555,6 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	if len(assignments) != 1 {
 		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
 	}
-
 }
 
 func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {

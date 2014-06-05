@@ -278,6 +278,34 @@ func (f *Facade) StopService(ctx datastore.Context, id string) error {
 	return f.walkServices(ctx, id, visitor)
 }
 
+type assignIPInfo struct {
+	IP     string
+	IPType string
+	HostID string
+}
+
+func (f *Facade) retrievePoolIPs(ctx datastore.Context, poolID string) ([]assignIPInfo, error) {
+	assignIPInfoSlice := []assignIPInfo{}
+
+	poolIPs, err := f.GetPoolIPs(ctx, poolID)
+	if err != nil {
+		glog.Errorf("GetPoolIPs failed: %v", err)
+		return assignIPInfoSlice, err
+	}
+
+	for _, hostIPResource := range poolIPs.HostIPs {
+		anAssignIPInfo := assignIPInfo{IP: hostIPResource.IPAddress, IPType: "static", HostID: hostIPResource.HostID}
+		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
+	}
+
+	for _, virtualIP := range poolIPs.VirtualIPs {
+		anAssignIPInfo := assignIPInfo{IP: virtualIP.IP, IPType: "virtual", HostID: ""}
+		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
+	}
+
+	return assignIPInfoSlice, nil
+}
+
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.AssignmentRequest) error {
 	myService, err := f.GetService(ctx, assignmentRequest.ServiceID)
@@ -285,74 +313,46 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 		return err
 	}
 
-	poolIPs, err := f.GetPoolIPs(ctx, myService.PoolID)
+	assignIPInfoSlice, err := f.retrievePoolIPs(ctx, myService.PoolID)
 	if err != nil {
-		glog.Errorf("GetPoolIPs failed: %v", err)
 		return err
+	} else if len(assignIPInfoSlice) < 1 {
+		return fmt.Errorf("no IPs available")
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	userProvidedIPAssignment := false
-	selectedHostID := ""
+	assignmentHostID := ""
 	assignmentType := ""
 
 	if assignmentRequest.AutoAssignment {
 		// automatic IP requested
 		glog.Infof("Automatic IP Address Assignment")
-		totalIPs := len(poolIPs.HostIPs) + len(poolIPs.VirtualIPs)
-		if totalIPs <= 0 {
-			return fmt.Errorf("no ips available in pool")
-		}
-		randomIPIndex := rand.Intn(totalIPs)
-		if randomIPIndex < len(poolIPs.HostIPs) {
-			assignmentType = "static"
-			assignmentRequest.IPAddress = poolIPs.HostIPs[randomIPIndex].IPAddress
-			selectedHostID = poolIPs.HostIPs[randomIPIndex].HostID
-		} else {
-			assignmentType = "virtual"
-			randomIPIndex = randomIPIndex - len(poolIPs.HostIPs)
-			assignmentRequest.IPAddress = poolIPs.VirtualIPs[randomIPIndex].IP
-			// TODO: Should we somehow know what host has a virtual IP???
-			//selectedHostID = poolIPs.VirtualIPs[randomIPIndex].HostID
+		randomIPIndex := rand.Intn(len(assignIPInfoSlice))
+
+		assignmentRequest.IPAddress = assignIPInfoSlice[randomIPIndex].IP
+		assignmentType = assignIPInfoSlice[randomIPIndex].IPType
+		assignmentHostID = assignIPInfoSlice[randomIPIndex].HostID
+
+		if assignmentType == "" {
+			return fmt.Errorf("Assignment type could not be determined (virtual IP was likely not in the pool)")
 		}
 	} else {
 		// manual IP provided
 		// verify that the user provided IP address is available in the pool
 		glog.Infof("Manual IP Address Assignment")
-		validIP := false
-		userProvidedIPAssignment = true
 
-		// check to see if the IP is a static IP in the pool
-		for _, hostIPResource := range poolIPs.HostIPs {
-			if assignmentRequest.IPAddress == hostIPResource.IPAddress {
-				assignmentType = "static"
-				validIP = true
-				assignmentRequest.IPAddress = hostIPResource.IPAddress
-				selectedHostID = hostIPResource.HostID
-				break
+		for _, anAssignIPInfo := range assignIPInfoSlice {
+			if assignmentRequest.IPAddress == anAssignIPInfo.IP {
+				assignmentType = anAssignIPInfo.IPType
+				assignmentHostID = anAssignIPInfo.HostID
 			}
 		}
-
-		// IP was not static, perhaps it is a virtual IP in the pool?
-		if !validIP {
-			for _, virtualIP := range poolIPs.VirtualIPs {
-				if assignmentRequest.IPAddress == virtualIP.IP {
-					assignmentType = "virtual"
-					validIP = true
-					assignmentRequest.IPAddress = virtualIP.IP
-					// TODO: Should we somehow know what host has a virtual IP???
-					//selectedHostID = virtualIP.HostID
-					break
-				}
-			}
-		}
-
-		// IP was NOT contained in the pool
-		if !validIP {
-			msg := fmt.Sprintf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
-			return errors.New(msg)
+		if assignmentType == "" {
+			// IP was NOT contained in the pool
+			return fmt.Errorf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
 		}
 	}
+
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
 	assignments := []*addressassignment.AddressAssignment{}
@@ -371,7 +371,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 
 			// if an address assignment is needed (does not yet exist) OR
 			// if a specific IP address is provided by the user AND an address assignment already exists
-			if needsAnAddressAssignment || (userProvidedIPAssignment && addressAssignmentId != "") {
+			if needsAnAddressAssignment || (!assignmentRequest.AutoAssignment && addressAssignmentId != "") {
 				if addressAssignmentId != "" {
 					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
 					err = f.RemoveAddressAssignment(ctx, addressAssignmentId)
@@ -382,7 +382,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				}
 				assignment := addressassignment.AddressAssignment{}
 				assignment.AssignmentType = assignmentType
-				assignment.HostID = selectedHostID
+				assignment.HostID = assignmentHostID
 				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
@@ -541,8 +541,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		}
 
 		if needsAnAddressAssignment {
-			msg := fmt.Sprintf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
-			return errors.New(msg)
+			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}

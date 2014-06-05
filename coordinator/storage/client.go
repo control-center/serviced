@@ -128,7 +128,7 @@ func (c *Client) loop() {
 				continue
 			}
 		} else {
-			glog.Info("skiping nfs mounting, server is localhost")
+			glog.Info("skipping nfs mounting, server is localhost")
 		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
