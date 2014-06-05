@@ -247,11 +247,11 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
 		return err
 	}
-	temp, err := sssToRs(&s, &ss)
+	rs, err := sssToRs(&s, &ss)
 	if err != nil {
 		return err
 	}
-	*running = *temp
+	*running = *rs
 	return nil
 }
 
