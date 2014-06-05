@@ -60,7 +60,8 @@ var _ = Suite(&DaoTest{})
 //DaoTest gocheck test type for setting up isvcs and other resources needed by tests
 type DaoTest struct {
 	facade.FacadeTest
-	Dao *ControlPlaneDao
+	Dao    *ControlPlaneDao
+	zkConn coordclient.Connection
 }
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
@@ -110,6 +111,11 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	// create the account credentials
 	if err := createSystemUser(dt.Dao); err != nil {
 		c.Fatalf("could not create systemuser:", err)
+	}
+
+	dt.zkConn, err = dt.Dao.zclient.GetConnection()
+	if err != nil {
+		c.Fatalf("could not get zk connection %v", err)
 	}
 }
 

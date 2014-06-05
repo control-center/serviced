@@ -15,9 +15,10 @@ package registry
 import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/utils"
 
+	"fmt"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/validation"
 	"path"
 )
 
@@ -31,10 +32,15 @@ func vhostPath(nodes ...string) string {
 	return path.Join(p...)
 }
 
+func NewVhostEndpoint(endpointName string, appEndpoint dao.ApplicationEndpoint) VhostEndpoint {
+	return VhostEndpoint{ApplicationEndpoint: appEndpoint, EndpointName: endpointName}
+}
+
 // Action is the request node for initialized a serviced action on a host
 type VhostEndpoint struct {
 	dao.ApplicationEndpoint
-	version interface{}
+	EndpointName string
+	version      interface{}
 }
 
 // Version is an implementation of client.Node
@@ -47,28 +53,37 @@ type VhostRegistry struct {
 	registryType
 }
 
-func CreateVHostRegistry(conn client.Connection) (*VhostRegistry, error) {
+func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-	if err := conn.CreateDir(path); err != nil {
+	if exists, err := conn.Exists(path); err != nil {
 		return nil, err
+	} else if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return nil, err
+		}
 	}
 	return &VhostRegistry{registryType{vhostPath}}, nil
 }
 
 //AddItem adds VhostEndpoint to the key in registry.  Returns the path of the node in the registry
-func (vr *VhostRegistry) AddItem(conn client.Connection, key string, node *VhostEndpoint) (string, error) {
-	uuid, err := utils.NewUUID()
-	if err != nil {
-		return "", err
+func (vr *VhostRegistry) AddItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
+	verr := validation.NewValidationError()
+
+	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
+	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
+	if verr.HasError() {
+		return "", verr
 	}
-	return vr.addItem(conn, key, uuid, node)
+
+	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
+	return vr.addItem(conn, key, nodeID, &node)
 }
 
 //GetItem gets  VhostEndpoint at the given path.
 func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEndpoint, error) {
 	var vep VhostEndpoint
 	if err := conn.Get(path, &vep); err != nil {
-		glog.V(1).Infof("Could not get vhost endpoint at %s: %s", path, err)
+		glog.Infof("Could not get vhost endpoint at %s: %s", path, err)
 		return nil, err
 	}
 	return &vep, nil
@@ -86,5 +101,3 @@ func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string,
 	var vep VhostEndpoint
 	return vr.watchItem(conn, path, &vep, processNode, errorHandler)
 }
-
-
