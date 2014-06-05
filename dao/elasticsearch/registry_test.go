@@ -47,3 +47,13 @@ func (dt *DaoTest) TestDao_VhostRegistryAdd(t *C) {
 	path, err = vr.AddItem(dt.zkConn, "testKey", vep)
 	t.Assert(err, NotNil)
 }
+
+func (dt *DaoTest) TestDao_EndpointRegistryCreate(t *C) {
+
+	_, err := registry.CreateEndpointRegistry(dt.zkConn)
+	t.Assert(err, IsNil)
+
+	//test idempotence
+	_, err = registry.CreateEndpointRegistry(dt.zkConn)
+	t.Assert(err, IsNil)
+}
