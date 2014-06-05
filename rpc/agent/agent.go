@@ -46,6 +46,7 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	return nil
 }
 
+// GetDockerLogs returns the last 10k worth of logs from the docker container
 func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
 	cmd := exec.Command("docker", "logs", dockerID)
 	output, err := cmd.CombinedOutput()
