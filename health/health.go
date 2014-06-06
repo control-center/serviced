@@ -16,13 +16,19 @@ type healthStatus struct {
 	Interval  float64
 }
 
+type messagePacket struct {
+	Timestamp int64
+	Statuses map[string]map[string]*healthStatus
+}
+
 var healthStatuses map[string]map[string]*healthStatus = make(map[string]map[string]*healthStatus)
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	w.WriteJson(&healthStatuses)
+	packet := messagePacket{time.Now().UTC().Unix(), healthStatuses}
+	w.WriteJson(&packet)
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
