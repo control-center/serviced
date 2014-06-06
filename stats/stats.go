@@ -16,6 +16,7 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,10 @@ func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkD
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
 		return nil, err
+	}
+	if zkDAO == nil {
+		glog.Errorf("zkDAO can not be nil")
+		return nil, fmt.Errorf("zkdao can not be nil")
 	}
 	sr := StatsReporter{destination, make(chan bool), zkDAO, make(map[registryKey]metrics.Registry), hostID, nil}
 	sr.hostRegistry = sr.getOrCreateContainerRegistry("", 0)

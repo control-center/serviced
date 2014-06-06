@@ -14,7 +14,7 @@ package serviced
 import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-
+	"github.com/zenoss/serviced/domain/service"
 	"time"
 )
 
@@ -96,4 +96,7 @@ type LoadBalancer interface {
 	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	// GetService retrieves a service object with templates evaluated.
+	GetService(serviceId string, response *service.Service) error
 }

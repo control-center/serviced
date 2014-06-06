@@ -6,7 +6,7 @@ package service
 
 import (
 	"github.com/zenoss/glog"
-
+	"math"
 	"bytes"
 	"encoding/json"
 	"text/template"
@@ -68,7 +68,10 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(),
+		"percentScale": percentScale,
 	}
+
+	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
 	// parse the template
 	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
 
@@ -88,7 +91,6 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 // configs. This happens for each LogConfig on the service.
 func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 	// evaluate the template for the LogConfig as well as the tags
-
 	for i, logConfig := range service.LogConfigs {
 		// Path
 		result := service.evaluateTemplate(gs, logConfig.Path)
@@ -112,12 +114,38 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 	return
 }
 
+// EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
+// ConfigFile on the service.
+func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
+	glog.V(3).Infof("Evaluating Config Files for %s", service.Id)
+	for key, configFile := range service.ConfigFiles {
+		glog.V(3).Infof("Evaluating Config File: %v", key)
+		// Filename
+		result := service.evaluateTemplate(gs, configFile.Filename)
+		if result != "" {
+			configFile.Filename = result
+		}
+		// Content
+		result = service.evaluateTemplate(gs, configFile.Content)
+		if result != "" {
+			configFile.Content = result
+		}
+		service.ConfigFiles[key] = configFile
+	}
+	return
+}
+
+func percentScale(x uint64, percentage float64) uint64 {
+	return uint64(math.Floor(float64(x) * percentage))
+}
+
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	functions := template.FuncMap{
 		"parent":  parent(gs),
 		"context": context(),
+		"percentScale": percentScale,
 	}
 
 	for i, ep := range service.Endpoints {
@@ -136,4 +164,28 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 		}
 	}
 	return
+}
+
+// Fill in all the templates in the ServiceDefinitions
+func (service *Service) Evaluate(getSvc GetService) error {
+	if err := service.EvaluateEndpointTemplates(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateLogConfigTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateConfigFilesTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateStartupTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateRunsTemplate(getSvc); err != nil {
+		return err
+	}
+	if err := service.EvaluateActionsTemplate(getSvc); err != nil {
+		return err
+	}
+
+	return nil
 }
