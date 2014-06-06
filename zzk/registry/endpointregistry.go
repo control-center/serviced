@@ -96,8 +96,8 @@ func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
 }
 
-// tenantEndpointKey generates the key for the application endpoint
-func tenantEndpointKey(tenantID, endpointID string) string {
+// TenantEndpointKey generates the key for the application endpoint
+func TenantEndpointKey(tenantID, endpointID string) string {
 	return tenantID + "_" + endpointID
 }
 
@@ -127,7 +127,7 @@ func (ar *EndpointRegistry) SetItem(conn client.Connection, tenantID, endpointID
 	if err := validateEndpointNode(node); err != nil {
 		return "", err
 	}
-	return ar.setItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
+	return ar.setItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
 }
 
 // GetItem gets EndpointNode at the given path.
@@ -144,7 +144,7 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
 	processChildren processChildrenFunc, errorHandler WatchError) error {
 
-	key := tenantEndpointKey(tenantID, endpointID)
+	key := TenantEndpointKey(tenantID, endpointID)
 	return ar.WatchKey(conn, key, processChildren, errorHandler)
 }
 
@@ -158,6 +158,6 @@ func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, ten
 	}
 
 	var ep EndpointNode
-	path := zkEndpointsPath(tenantEndpointKey(tenantID, endpointID))
+	path := zkEndpointsPath(TenantEndpointKey(tenantID, endpointID))
 	return ar.watchItem(conn, path, &ep, processNode, errorHandler)
 }
