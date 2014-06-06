@@ -29,13 +29,13 @@ func init() {
 
 type simpleResponse struct {
 	Detail string
-	links  []link
+	Links  []link
 }
 
 type link struct {
 	Name   string
 	Method string
-	URL    string
+	Url    string
 }
 
 type login struct {
