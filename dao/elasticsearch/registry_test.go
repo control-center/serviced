@@ -76,9 +76,10 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 		ApplicationEndpoint: aep,
 		TenantID:            "epn_tenant",
 		EndpointID:          "epn_endpoint",
+		HostID:              "epn_host1",
 		ContainerID:         "epn_container",
 	}
-	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, &epn1)
+	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
 	t.Assert(err, IsNil)
 	t.Assert(path, Not(Equals), 0)
 
@@ -92,6 +93,6 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	t.Assert(epn1, Equals, *epn2)
 
 	//test double add
-	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, &epn1)
+	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
 	t.Assert(err, NotNil)
 }

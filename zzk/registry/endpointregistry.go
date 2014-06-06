@@ -9,25 +9,25 @@
 //     /endpoints
 //
 //         /<endpoint key>                      "tenantID_zope"
-//             /<containerID:zope_Instance1>
+//             /<hostID_containerID:zope_Inst1>
 //                 |--<ApplicationEndpoint>         {tcp/9080, ...}
-//             /<containerID:zope_Instance2>
+//             /<hostID_containerID:zope_Inst2>
 //                 |--<ApplicationEndpoint>         {tcp/9080, ...}
 //
 //         /<endpoint key>                      "tenantID_localhost_zenhubPB"
-//             /<containerID:zenhub>
+//             /<hostID_containerID:zenhub>
 //                 |--<ApplicationEndpoint>         {tcp/8789}
 //
 //         /<endpoint key>                      "tenantID_localhost_zenhubXMLRpc"
-//             /<containerID:zenhub>
+//             /<hostID_containerID:zenhub>
 //                 |--<ApplicationEndpoint>         {tcp/8781}
 //
 //         /<endpoint key>                      "tenantID_zodb_mysql"
-//             /<containerID:mysql>
+//             /<hostID_containerID:mysql>
 //                 |--<ApplicationEndpoint>         {tcp/3306}
 //
 //         /<endpoint key>                      "tenantID_zodb_impact"
-//             /<containerID:impact>
+//             /<hostID_containerID:impact>
 //                 |--<ApplicationEndpoint>         {tcp/8083}
 
 package registry
@@ -51,22 +51,23 @@ func zkEndpointsPath(nodes ...string) string {
 	return path.Join(p...)
 }
 
-// NewEndpointNode returns a new EndpointNode given ApplicationEndpoint, tenantID, endpointID, containerID
-func NewEndpointNode(endpoint *dao.ApplicationEndpoint, tenantID, endpointID, containerID string) *EndpointNode {
-	en := EndpointNode{
-		ApplicationEndpoint: *endpoint,
+// NewEndpointNode returns a new EndpointNode given tenantID, endpointID, hostID, containerID, ApplicationEndpoint
+func NewEndpointNode(tenantID, endpointID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
+	return EndpointNode{
+		ApplicationEndpoint: endpoint,
 		TenantID:            tenantID,
 		EndpointID:          endpointID,
+		HostID:              hostID,
 		ContainerID:         containerID,
 	}
-	return &en
 }
 
-// EndpointNode is a node for the exported endpoint endpoint
+// EndpointNode is a node for the exported ApplicationEndpoint
 type EndpointNode struct {
 	dao.ApplicationEndpoint
 	TenantID    string
 	EndpointID  string
+	HostID      string
 	ContainerID string
 	version     interface{}
 }
@@ -95,24 +96,30 @@ func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
 }
 
-// appKey generates the key for the application endpoint
-func appKey(tenantID, endpointID string) string {
+// tenantEndpointKey generates the key for the application endpoint
+func tenantEndpointKey(tenantID, endpointID string) string {
 	return tenantID + "_" + endpointID
 }
 
+// hostContainerKey generates the key for the container
+func hostContainerKey(hostID, containerID string) string {
+	return hostID + "_" + containerID
+}
+
 // AddItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
-func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, containerID string, node *EndpointNode) (string, error) {
+func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
 	verr := validation.NewValidationError()
 
 	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
 	verr.Add(validation.NotEmpty("TenantID", node.TenantID))
 	verr.Add(validation.NotEmpty("EndpointID", node.EndpointID))
 	verr.Add(validation.NotEmpty("ContainerID", node.ContainerID))
+	verr.Add(validation.NotEmpty("HostID", node.HostID))
 	if verr.HasError() {
 		return "", verr
 	}
 
-	return ar.addItem(conn, appKey(tenantID, endpointID), containerID, node)
+	return ar.addItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
 }
 
 // GetItem gets EndpointNode at the given path.

@@ -98,6 +98,7 @@ type Controller struct {
 
 type export struct {
 	endPoint     *dao.ApplicationEndpoint
+	endpointID   string
 	vhosts       []string
 	endpointName string
 }
@@ -320,7 +321,8 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			ep.HostPort = uint16(port)
 			ep.VirtualAddress = defep.VirtualAddress
 
-			key := fmt.Sprintf("%s_%s", tenantID, defep.Application)
+			exp.endpointID = defep.Application
+			key := fmt.Sprintf("%s_%s", tenantID, exp.endpointID)
 			if _, exists := result[key]; !exists {
 				result[key] = make([]export, 0)
 			}
@@ -768,8 +770,9 @@ func (c *Controller) registerExportedEndpoints() {
 		return
 	}
 
-	ereg, err := registry.CreateEndpointRegistry(conn)
+	endpointRegistry, err := registry.CreateEndpointRegistry(conn)
 	if err != nil {
+		glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
 		return
 	}
 
@@ -788,19 +791,11 @@ func (c *Controller) registerExportedEndpoints() {
 		for _, export := range exportList {
 			endpoint := export.endPoint
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			endpointID := strings.Split(key, "_")[1]
-			path, err := ereg.AddItem(conn, c.tenantID, endpointID, containerID, registry.NewEndpointNode(endpoint, c.tenantID, endpointID, containerID))
+			_, err := endpointRegistry.AddItem(conn, c.tenantID, export.endpointID, c.hostID, containerID, registry.NewEndpointNode(c.tenantID, export.endpointID, c.hostID, containerID, *endpoint))
 			if err != nil {
 				glog.Errorf("unable to add item: %v", err)
 				continue
 			}
-
-			ep2, err := ereg.GetItem(conn, path)
-			if err != nil {
-				glog.Errorf("unable to get item: %v", err)
-				continue
-			}
-			glog.Infof("Loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep2)
 
 			for _, vhost := range export.vhosts {
 				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(export.endpointName, *endpoint)); err != nil {
