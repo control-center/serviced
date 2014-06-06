@@ -6,6 +6,7 @@
 package elasticsearch
 
 import (
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
 )
@@ -63,18 +64,21 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
-	epn1 := registry.EndpointNode{
+	aep := dao.ApplicationEndpoint{
 		ServiceID:     "epn_service",
-		ContainerIP:   "172.17.0.1",
-		ContainerPort: "54321",
-		HostIP:        "172.17.42.1",
-		HostPort:      "12345",
+		ContainerIP:   "192.168.0.1",
+		ContainerPort: 54321,
+		HostIP:        "192.168.0.2",
+		HostPort:      12345,
 		Protocol:      "epn_tcp",
-		TenantID:      "epn_tenant",
-		EndpointID:    "epn_endpoint",
-		ContainerID:   "epn_container",
 	}
-	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, epn1)
+	epn1 := registry.EndpointNode{
+		ApplicationEndpoint: aep,
+		TenantID:            "epn_tenant",
+		EndpointID:          "epn_endpoint",
+		ContainerID:         "epn_container",
+	}
+	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, &epn1)
 	t.Assert(err, IsNil)
 	t.Assert(path, Not(Equals), 0)
 
@@ -87,6 +91,6 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	t.Assert(epn1, Equals, *epn2)
 
 	//test double add
-	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, epn1)
+	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, &epn1)
 	t.Assert(err, NotNil)
 }
