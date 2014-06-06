@@ -34,7 +34,6 @@ import (
 	_ "github.com/zenoss/serviced/volume/btrfs"
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/endpointregistry"
 	. "gopkg.in/check.v1"
 )
 
@@ -845,52 +844,6 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
 
 	time.Sleep(10 * time.Second)
-}
-
-func (dt *DaoTest) TestDao_EndpointRegistry(t *C) {
-	glog.V(0).Infof("TestDao_EndpointRegistry started")
-	defer glog.V(0).Infof("TestDao_EndpointRegistry finished")
-
-	dsn := coordzk.DSN{
-		Servers: []string{"127.0.0.1:2181"},
-		Timeout: time.Second * 10,
-	}
-	cclient, _ := coordclient.New("zookeeper", dsn.String(), "", nil)
-	registry := endpointregistry.NewEndpointRegistry(cclient)
-
-	expected := dao.ApplicationEndpoint{
-		ServiceID:     "my-service-id",
-		ContainerPort: 54321,
-		HostPort:      12345,
-		HostIP:        "10.1.1.1",
-		ContainerIP:   "10.2.2.2",
-		Protocol:      "tcp",
-	}
-	tenantID := "FAKE_TENANT_ID"
-	endpointID := "FAKE_ENDPOINT_ID"
-	containerID := "FAKE_CONTAINER_ID"
-	if err := registry.AddEndpoint(tenantID, endpointID, containerID, &expected); err != nil {
-		t.Fatalf("Failure adding endpoint %+v with error: %s", expected, err)
-	}
-	glog.Infof("adding duplicate endpoint - expecting failure on next line like: node already exists")
-	if err := registry.AddEndpoint(tenantID, endpointID, containerID, &expected); err == nil {
-		t.Fatalf("Should have seen failure adding duplicate endpoint %+v", expected)
-	}
-
-	result := dao.ApplicationEndpoint{}
-	if err := registry.LoadEndpoint(tenantID, endpointID, containerID, &result); err != nil {
-		t.Fatalf("Failure loading endpoint %+v with error: %s", result, err)
-	}
-	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Failure comparing endpoint expected:%+v result:%+v", expected, result)
-	}
-
-	if err := registry.RemoveEndpoint(tenantID, endpointID, containerID); err != nil {
-		t.Fatalf("Failure removing endpoint %+v with error: %s", expected, err)
-	}
-	if err := registry.RemoveEndpoint(tenantID, endpointID, containerID); err == nil {
-		t.Fatalf("Failure removing non-existant endpoint expected %+v", expected)
-	}
 }
 
 func (dt *DaoTest) TestUser_UserOperations(t *C) {
