@@ -136,7 +136,8 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 		tag = "latest"
 	}
 	opts := dockerclient.PullImageOptions{
-		Repository: fmt.Sprintf("%s:%s", repoName, tag),
+		Repository: repoName,
+		Tag:        tag,
 		Registry:   registry.String(),
 	}
 	return client.PullImage(opts, auth)
