@@ -115,7 +115,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "returnset": "EXACT",
         "tags": {},
         "type": "line",
-        "downsample": "1m-avg"
+        "downsample": "1m-avg",
+        "timezone": jstz.determine().name()
     };
 
     $scope.ofdconfig = {
@@ -146,7 +147,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "returnset": "EXACT",
         "tags": {},
         "type": "line",
-        "downsample": "1m-avg"
+        "downsample": "1m-avg",
+        "timezone": jstz.determine().name()
     };
 
     $scope.memconfig = {
@@ -178,7 +180,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "returnset": "EXACT",
         "tags": {},
         "type": "line",
-        "downsample": "1m-avg"
+        "downsample": "1m-avg",
+        "timezone": jstz.determine().name()
     };
 
     $scope.rssconfig = {
@@ -211,7 +214,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         width: 300,
         "tags": {},
         "type": "line",
-        "downsample": "1m-avg"
+        "downsample": "1m-avg",
+        "timezone": jstz.determine().name()
     };
 
     $scope.drawn = {};
