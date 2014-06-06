@@ -64,7 +64,7 @@ func (dt *DaoTest) TestDao_EndpointRegistryCreate(t *C) {
 	t.Assert(err, IsNil)
 }
 
-func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
+func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
@@ -84,22 +84,21 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 		HostID:              "epn_host1",
 		ContainerID:         "epn_container",
 	}
-	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
-	t.Assert(err, IsNil)
-	t.Assert(path, Not(Equals), 0)
 
-	var epn2 *registry.EndpointNode
-	epn2, err = epr.GetItem(dt.zkConn, path)
-	t.Assert(err, IsNil)
-	t.Assert(epn2, NotNil)
-	//remove version for equals
-	epn1.SetVersion(nil)
-	epn2.SetVersion(nil)
-	t.Assert(epn1, Equals, *epn2)
+	for ii := 0; ii < 3; ii++ {
+		path, err := epr.SetItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
+		t.Assert(err, IsNil)
+		t.Assert(path, Not(Equals), 0)
 
-	//test double add
-	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
-	t.Assert(err, NotNil)
+		var epn2 *registry.EndpointNode
+		epn2, err = epr.GetItem(dt.zkConn, path)
+		t.Assert(err, IsNil)
+		t.Assert(epn2, NotNil)
+		//remove version for equals
+		epn1.SetVersion(nil)
+		epn2.SetVersion(nil)
+		t.Assert(epn1, Equals, *epn2)
+	}
 
 	//test watch tenant endpoint
 	numEndpoints := 0
@@ -126,7 +125,7 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	epn3 := epn1
 	for i := 0; i < numEndpointsExpected; i++ {
 		epn3.ContainerID = fmt.Sprintf("epn_container_%d", i)
-		_, err = epr.AddItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
+		_, err = epr.SetItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
 		t.Assert(err, IsNil)
 		time.Sleep(1 * time.Second)
 	}

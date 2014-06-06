@@ -106,8 +106,8 @@ func hostContainerKey(hostID, containerID string) string {
 	return hostID + "_" + containerID
 }
 
-// AddItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
-func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
+// validateEndpointNode validates EndpointNode
+func validateEndpointNode(node EndpointNode) error {
 	verr := validation.NewValidationError()
 
 	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
@@ -116,10 +116,26 @@ func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID
 	verr.Add(validation.NotEmpty("ContainerID", node.ContainerID))
 	verr.Add(validation.NotEmpty("HostID", node.HostID))
 	if verr.HasError() {
-		return "", verr
+		return verr
 	}
 
+	return nil
+}
+
+// AddItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
+func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
+	if err := validateEndpointNode(node); err != nil {
+		return "", err
+	}
 	return ar.addItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
+}
+
+// SetItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
+func (ar *EndpointRegistry) SetItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
+	if err := validateEndpointNode(node); err != nil {
+		return "", err
+	}
+	return ar.setItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
 }
 
 // GetItem gets EndpointNode at the given path.

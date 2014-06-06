@@ -36,18 +36,53 @@ func (r *registryType) WatchRegistry(conn client.Connection, processChildren pro
 	return watch(conn, path, processChildren, errorHandler)
 }
 
-//Add VhostEndpoint to the key in registry.  Returns the path of the node in the registry
+//Add node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
 	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
-		glog.Errorf(" error key path:%s", r.getPath(key))
 		return "", err
 	}
 
 	//TODO: make ephemeral
 	path := r.getPath(key, nodeID)
-	glog.Infof("Adding to %s: %#v", path, node)
+	glog.V(3).Infof("Adding to %s: %#v", path, node)
 	if err := conn.Create(path, node); err != nil {
 		return "", err
+	}
+	return path, nil
+}
+
+//Set node to the key in registry.  Returns the path of the node in the registry
+func (r *registryType) setItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
+	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+		return "", err
+	}
+
+	//TODO: make ephemeral
+	path := r.getPath(key, nodeID)
+
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err != client.ErrNoNode {
+			return "", err
+		}
+		exists = false
+	}
+
+	if exists {
+		glog.V(3).Infof("Set to %s: %#v", path, node)
+		epn := EndpointNode{}
+		if err := conn.Get(path, &epn); err != nil {
+			return "", err
+		}
+		node.SetVersion(epn.Version())
+		if err := conn.Set(path, node); err != nil {
+			return "", err
+		}
+	} else {
+		glog.V(3).Infof("Add to %s: %#v", path, node)
+		if err := conn.Create(path, node); err != nil {
+			return "", err
+		}
 	}
 	return path, nil
 }
