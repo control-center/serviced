@@ -57,3 +57,36 @@ func (dt *DaoTest) TestDao_EndpointRegistryCreate(t *C) {
 	_, err = registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 }
+
+func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
+
+	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
+	t.Assert(err, IsNil)
+
+	epn1 := registry.EndpointNode{
+		ServiceID:     "epn_service",
+		ContainerIP:   "172.17.0.1",
+		ContainerPort: "54321",
+		HostIP:        "172.17.42.1",
+		HostPort:      "12345",
+		Protocol:      "epn_tcp",
+		TenantID:      "epn_tenant",
+		EndpointID:    "epn_endpoint",
+		ContainerID:   "epn_container",
+	}
+	path, err := epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, epn1)
+	t.Assert(err, IsNil)
+	t.Assert(path, Not(Equals), 0)
+
+	var epn2 *registry.EndpointNode
+	epn2, err = epr.GetItem(dt.zkConn, path)
+	t.Assert(err, IsNil)
+	t.Assert(epn2, NotNil)
+	//remove version for equals
+	epn2.SetVersion(nil)
+	t.Assert(epn1, Equals, *epn2)
+
+	//test double add
+	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.ContainerID, epn1)
+	t.Assert(err, NotNil)
+}
