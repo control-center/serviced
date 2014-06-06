@@ -570,6 +570,7 @@ func (c *Controller) Run() (err error) {
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
+	//go c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
@@ -800,104 +801,144 @@ func (c *Controller) handleRemotePorts() {
 
 }
 
+//
 func (c *Controller) watchRemotePorts() {
-	createNewProxy := func(key string, endpoint registry.EndpointNode) (*proxy, error) {
-		glog.Infof("Attempting port map for: %s -> %+v", key, endpoint)
+	glog.Info("watchRemotePorts starting")
 
-		// setup a new proxy
-		listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
-		if err != nil {
-			glog.Errorf("Could not bind to port %d: %s", endpoint.ContainerPort, err)
-			return nil, err
-		}
-		prxy, err := newProxy(
-			fmt.Sprintf("%v", endpoint),
-			uint16(c.options.Mux.Port),
-			c.options.Mux.TLS,
-			listener)
-		if err != nil {
-			glog.Errorf("Could not build proxy: %s", err)
-			return nil, err
-		}
+	cMuxPort = uint16(c.options.Mux.Port)
+	cMuxTLS = c.options.Mux.TLS
 
-		glog.Infof("Success binding port: %s -> %+v", key, prxy)
-		return prxy, nil
+	conn, err := c.cclient.GetConnection()
+	if err != nil {
+		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
+		return
 	}
 
-	handleEndpointUpdate := func(conn coordclient.Connection, parentPath string, nodeIDs ...string) {
-		glog.Infof("handleEndpointUpdate: nodeIDs %v", nodeIDs)
+	endpointRegistry, err := registry.CreateEndpointRegistry(conn)
+	if err != nil {
+		glog.Errorf("watchRemotePorts - error getting vhost registry: %v", err)
+		return
+	}
 
-		parts := strings.Split(parentPath, "/")
-		key := parts[len(parts)-1]
-		if len(nodeIDs) <= 0 {
-			if proxy, ok := proxies[key]; ok {
-				emptyAddressList := []string{}
-				proxy.SetNewAddresses(emptyAddressList)
+	processEndpoints := func(conn coordclient.Connection, parentPath string, childIDs ...string) {
+		glog.Info("processEndpoints STARTING for path: %s", parentPath)
+
+		for _, id := range childIDs {
+			glog.Infof("processing endpoints watch: %s/%s", parentPath, id)
+			if err := endpointRegistry.WatchKey(conn, id, processEndpoint, endpointWatchError); err != nil {
+				glog.Errorf("error watching key %s: %v", id, err)
 			}
+		}
+
+		return
+
+		for key, endpoint := range c.importedEndpoints {
+			go func(key string, endpoint importedEndpoint) {
+				for {
+					glog.Info("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
+					endpointRegistry, err := registry.CreateEndpointRegistry(c.zkConn)
+					if err != nil {
+						glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
+						return
+					}
+					if err := endpointRegistry.WatchTenantEndpoint(c.zkConn, c.tenantID, endpoint.endpointID,
+						processEndpoint, endpointWatchError); err != nil {
+						glog.Errorf("error watching endpoint %s: %v", endpoint.endpointID, err)
+					}
+				}
+			}(key, endpoint)
+		}
+
+	}
+
+	glog.Info("watching endpointRegistry")
+	endpointRegistry.WatchRegistry(conn, processEndpoints, endpointWatchError)
+}
+
+//
+func endpointWatchError(path string, err error) {
+	glog.Infof("processing endpointWatchError on %s: %v", path, err)
+}
+
+//
+func processEndpoint(conn coordclient.Connection, parentPath string, nodeIDs ...string) {
+	glog.Infof("handleEndpointUpdate: nodeIDs %v", nodeIDs)
+	return
+
+	parts := strings.Split(parentPath, "/")
+	key := parts[len(parts)-1]
+	if len(nodeIDs) <= 0 {
+		if proxy, ok := proxies[key]; ok {
+			emptyAddressList := []string{}
+			proxy.SetNewAddresses(emptyAddressList)
+		}
+		return
+	}
+
+	endpointRegistry, err := registry.CreateEndpointRegistry(conn)
+	if err != nil {
+		glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
+		return
+	}
+
+	endpointNodes := make([]registry.EndpointNode, len(nodeIDs))
+	for ii, nodeID := range nodeIDs {
+		path := fmt.Sprintf("%s/%s", parentPath, nodeID)
+		endpointNode, err := endpointRegistry.GetItem(conn, path)
+		if err != nil {
+			glog.Errorf("error getting endpoint node at %s: %v", path, err)
+		}
+		endpointNodes[ii] = *endpointNode
+	}
+
+	addresses := make([]string, len(endpointNodes))
+	for ii, endpoint := range endpointNodes {
+		addresses[ii] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+		glog.Infof("addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
+	}
+	sort.Strings(addresses)
+
+	prxy, ok := proxies[key]
+	if !ok {
+		var err error
+		proxies[key], err = createNewProxy(key, endpointNodes[0])
+		if err != nil {
 			return
 		}
 
-		endpointRegistry, err := registry.CreateEndpointRegistry(conn)
-		if err != nil {
-			glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
-			return
-		}
-
-		endpointNodes := make([]registry.EndpointNode, len(nodeIDs))
-		for ii, nodeID := range nodeIDs {
-			path := fmt.Sprintf("%s/%s", parentPath, nodeID)
-			endpointNode, err := endpointRegistry.GetItem(c.zkConn, path)
+		if ep := endpointNodes[0]; ep.VirtualAddress != "" {
+			p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+			err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
 			if err != nil {
-				glog.Errorf("error getting endpoint node at %s: %v", path, err)
-			}
-			endpointNodes[ii] = *endpointNode
-		}
-
-		addresses := make([]string, len(endpointNodes))
-		for ii, endpoint := range endpointNodes {
-			addresses[ii] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-			glog.Infof("addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
-		}
-		sort.Strings(addresses)
-
-		prxy, ok := proxies[key]
-		if !ok {
-			var err error
-			proxies[key], err = createNewProxy(key, endpointNodes[0])
-			if err != nil {
-				return
-			}
-
-			if ep := endpointNodes[0]; ep.VirtualAddress != "" {
-				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
-				err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
-				if err != nil {
-					glog.Errorf("Error creating virtual address: %+v", err)
-				}
+				glog.Errorf("Error creating virtual address: %+v", err)
 			}
 		}
-		prxy.SetNewAddresses(addresses)
 	}
-	errorWatcher := func(path string, err error) {}
+	prxy.SetNewAddresses(addresses)
+}
 
-	for key, endpoint := range c.importedEndpoints {
-		go func(key string, endpoint importedEndpoint) {
-			for {
-				glog.Info("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
-				endpointRegistry, err := registry.CreateEndpointRegistry(c.zkConn)
-				if err != nil {
-					glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
-					return
-				}
-				if err := endpointRegistry.WatchTenantEndpoint(c.zkConn, c.tenantID, endpoint.endpointID,
-					handleEndpointUpdate, errorWatcher); err != nil {
-					glog.Errorf("error watching endpoint %s: %v", endpoint.endpointID, err)
-				}
-			}
-		}(key, endpoint)
+//
+func createNewProxy(key string, endpoint registry.EndpointNode) (*proxy, error) {
+	glog.Infof("Attempting port map for: %s -> %+v", key, endpoint)
+
+	// setup a new proxy
+	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
+	if err != nil {
+		glog.Errorf("Could not bind to port %d: %s", endpoint.ContainerPort, err)
+		return nil, err
+	}
+	prxy, err := newProxy(
+		fmt.Sprintf("%v", endpoint),
+		cMuxPort,
+		cMuxTLS,
+		listener)
+	if err != nil {
+		glog.Errorf("Could not build proxy: %s", err)
+		return nil, err
 	}
 
-	glog.Infof("=============================== finished ")
+	glog.Infof("Success binding port: %s -> %+v", key, prxy)
+	return prxy, nil
 }
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
@@ -947,9 +988,11 @@ func (c *Controller) registerExportedEndpoints() {
 }
 
 var (
-	proxies map[string]*proxy
-	vifs    *VIFRegistry
-	nextip  int
+	proxies  map[string]*proxy
+	vifs     *VIFRegistry
+	nextip   int
+	cMuxPort uint16 // the TCP port to use
+	cMuxTLS  bool
 )
 
 func init() {
