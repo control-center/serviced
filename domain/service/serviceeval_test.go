@@ -18,6 +18,7 @@ import (
 
 	"fmt"
 	"time"
+	"strings"
 )
 
 var startup_testcases = []struct {
@@ -50,6 +51,14 @@ var startup_testcases = []struct {
 						Value: "{{.Name}}",
 					},
 				},
+			},
+		},
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"Zenosstest.conf": servicedefinition.ConfigFile{
+				Filename: "{{.Name}}test.conf",
+				Owner: "",
+				Permissions: "0700",
+				Content: "\n# SAMPLE config file for {{.Name}}\n\n",
 			},
 		},
 		Snapshot: servicedefinition.SnapshotCommands{
@@ -206,6 +215,26 @@ func (s *S) TestEvaluateLogConfigTemplate(t *C) {
 	result = testcase.service.LogConfigs[0].Path
 	if result != testcase.service.Description {
 		t.Errorf("Was expecting the log path to be the service description instead it was %s", result)
+	}
+}
+
+func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
+	testcase := startup_testcases[0]
+	testcase.service.EvaluateConfigFilesTemplate(s.getSVC)
+
+	if len(testcase.service.ConfigFiles) != 1 {
+		t.Errorf("Was expecting 1 ConfigFile, found %d", len(testcase.service.ConfigFiles))
+	}
+	for key, configFile := range testcase.service.ConfigFiles {
+		if configFile.Filename != key {
+			t.Errorf("Was expecting configFile.Filename to be %s instead it was %s", key, configFile.Filename)
+		}
+		if !strings.Contains(configFile.Content, testcase.service.Name) {
+			t.Errorf("Was expecting configFile.Content to include the service name instead it was %s", configFile.Content)
+		}
 	}
 }
 
