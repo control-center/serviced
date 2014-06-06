@@ -57,7 +57,8 @@ func Mount(nfsPath, localPath string) error {
 		return ErrMalformedNFSMountpoint
 	}
 
-	cmd := commandFactory("mount.nfs4", nfsPath, localPath)
+	// try mounting via in interuptable mount
+	cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
 	ret := make(chan error)
 	go func() {
 		output, err := cmd.CombinedOutput()
