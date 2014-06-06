@@ -110,7 +110,9 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	muxvars := mux.Vars(r)
 	subdomain := muxvars["subdomain"]
 
-	defer func() { glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start)) }()
+	defer func() {
+		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
+	}()
 
 	var svcstates []*servicestate.ServiceState
 	found := false
