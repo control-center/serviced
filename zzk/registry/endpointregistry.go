@@ -122,15 +122,7 @@ func validateEndpointNode(node EndpointNode) error {
 	return nil
 }
 
-// AddItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
-func (ar *EndpointRegistry) AddItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
-	if err := validateEndpointNode(node); err != nil {
-		return "", err
-	}
-	return ar.addItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
-}
-
-// SetItem adds EndpointNode to the key in registry.  Returns the path of the node in the registry
+// SetItem sets EndpointNode to the key in registry.  Returns the path of the node in the registry
 func (ar *EndpointRegistry) SetItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
 	if err := validateEndpointNode(node); err != nil {
 		return "", err
