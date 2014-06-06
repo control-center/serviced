@@ -191,6 +191,14 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		//delay getting addresses as long as possible
 		f.fillServiceAddr(ctx, &myService)
 
+		/*
+			//get tenantID
+			tenantID, err := f.GetTenantID(ctx, serviceId)
+			if err != nil {
+				return result, err
+			}
+		*/
+
 		// for each proxied port, find list of potential remote endpoints
 		for _, endpoint := range service_imports {
 			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
@@ -221,6 +229,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 					ep.VirtualAddress = endpoint.VirtualAddress
 
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
+					// key := fmt.Sprintf("%s_%s", tenantID, endpoint.Application)
 					if _, exists := result[key]; !exists {
 						result[key] = make([]*dao.ApplicationEndpoint, 0)
 					}

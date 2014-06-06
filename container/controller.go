@@ -356,7 +356,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, servic
 		if sep.Purpose == "import" {
 			ie := importedEndpoint{}
 			ie.endpointID = sep.Application
-			key := fmt.Sprintf("%s_%s", tenantID, ie.endpointID)
+			key := registry.TenantEndpointKey(tenantID, ie.endpointID)
 			result[key] = ie
 		}
 	}
@@ -756,7 +756,7 @@ func (c *Controller) handleRemotePorts() {
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-			glog.Infof("addresses[%d]: %s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
+			glog.Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
 		}
 		sort.Strings(addresses)
 
@@ -798,9 +798,106 @@ func (c *Controller) handleRemotePorts() {
 		prxy.SetNewAddresses(addresses)
 	}
 
-	for key, _ := range c.importedEndpoints {
-		glog.Infof("TODO: watch import endpoint: %s", key)
+}
+
+func (c *Controller) watchRemotePorts() {
+	createNewProxy := func(key string, endpoint registry.EndpointNode) (*proxy, error) {
+		glog.Infof("Attempting port map for: %s -> %+v", key, endpoint)
+
+		// setup a new proxy
+		listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
+		if err != nil {
+			glog.Errorf("Could not bind to port %d: %s", endpoint.ContainerPort, err)
+			return nil, err
+		}
+		prxy, err := newProxy(
+			fmt.Sprintf("%v", endpoint),
+			uint16(c.options.Mux.Port),
+			c.options.Mux.TLS,
+			listener)
+		if err != nil {
+			glog.Errorf("Could not build proxy: %s", err)
+			return nil, err
+		}
+
+		glog.Infof("Success binding port: %s -> %+v", key, prxy)
+		return prxy, nil
 	}
+
+	handleEndpointUpdate := func(conn coordclient.Connection, parentPath string, nodeIDs ...string) {
+		glog.Infof("handleEndpointUpdate: nodeIDs %v", nodeIDs)
+
+		parts := strings.Split(parentPath, "/")
+		key := parts[len(parts)-1]
+		if len(nodeIDs) <= 0 {
+			if proxy, ok := proxies[key]; ok {
+				emptyAddressList := []string{}
+				proxy.SetNewAddresses(emptyAddressList)
+			}
+			return
+		}
+
+		endpointRegistry, err := registry.CreateEndpointRegistry(conn)
+		if err != nil {
+			glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
+			return
+		}
+
+		endpointNodes := make([]registry.EndpointNode, len(nodeIDs))
+		for ii, nodeID := range nodeIDs {
+			path := fmt.Sprintf("%s/%s", parentPath, nodeID)
+			endpointNode, err := endpointRegistry.GetItem(c.zkConn, path)
+			if err != nil {
+				glog.Errorf("error getting endpoint node at %s: %v", path, err)
+			}
+			endpointNodes[ii] = *endpointNode
+		}
+
+		addresses := make([]string, len(endpointNodes))
+		for ii, endpoint := range endpointNodes {
+			addresses[ii] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+			glog.Infof("addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
+		}
+		sort.Strings(addresses)
+
+		prxy, ok := proxies[key]
+		if !ok {
+			var err error
+			proxies[key], err = createNewProxy(key, endpointNodes[0])
+			if err != nil {
+				return
+			}
+
+			if ep := endpointNodes[0]; ep.VirtualAddress != "" {
+				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+				err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
+				if err != nil {
+					glog.Errorf("Error creating virtual address: %+v", err)
+				}
+			}
+		}
+		prxy.SetNewAddresses(addresses)
+	}
+	errorWatcher := func(path string, err error) {}
+
+	for key, endpoint := range c.importedEndpoints {
+		go func(key string, endpoint importedEndpoint) {
+			for {
+				glog.Info("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
+				endpointRegistry, err := registry.CreateEndpointRegistry(c.zkConn)
+				if err != nil {
+					glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
+					return
+				}
+				if err := endpointRegistry.WatchTenantEndpoint(c.zkConn, c.tenantID, endpoint.endpointID,
+					handleEndpointUpdate, errorWatcher); err != nil {
+					glog.Errorf("error watching endpoint %s: %v", endpoint.endpointID, err)
+				}
+			}
+		}(key, endpoint)
+	}
+
+	glog.Infof("=============================== finished ")
 }
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
