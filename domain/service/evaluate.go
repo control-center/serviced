@@ -5,10 +5,10 @@
 package service
 
 import (
-	"github.com/zenoss/glog"
-	"math"
 	"bytes"
 	"encoding/json"
+	"github.com/zenoss/glog"
+	"math"
 	"text/template"
 )
 
@@ -66,10 +66,10 @@ func (service *Service) EvaluateRunsTemplate(gs GetService) (err error) {
 // then an empty string is returned.
 func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) string {
 	functions := template.FuncMap{
-		"parent":  parent(gs),
-		"context": context(),
+		"parent":       parent(gs),
+		"context":      context(),
 		"percentScale": percentScale,
-		"bytesToMB": bytesToMB,
+		"bytesToMB":    bytesToMB,
 	}
 
 	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
@@ -144,15 +144,14 @@ func bytesToMB(x uint64) uint64 {
 	return x / (1024 * 1024)
 }
 
-
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	functions := template.FuncMap{
-		"parent":  parent(gs),
-		"context": context(),
+		"parent":       parent(gs),
+		"context":      context(),
 		"percentScale": percentScale,
-		"bytesToMB": bytesToMB,
+		"bytesToMB":    bytesToMB,
 	}
 
 	for i, ep := range service.Endpoints {
