@@ -87,6 +87,7 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(epn2, NotNil)
 	//remove version for equals
+	epn1.SetVersion(nil)
 	epn2.SetVersion(nil)
 	t.Assert(epn1, Equals, *epn2)
 
