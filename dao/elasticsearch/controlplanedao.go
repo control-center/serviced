@@ -20,14 +20,11 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"fmt"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"sync"
-)
 
-const (
-	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 //assert interface
@@ -44,8 +41,8 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
-	backupLock sync.RWMutex
-	restoreLock sync.RWMutex
+	backupLock     sync.RWMutex
+	restoreLock    sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {

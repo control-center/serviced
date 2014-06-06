@@ -9,9 +9,7 @@
 
 package serviced
 
-import (
-	"testing"
-)
+import "testing"
 
 // Test validOwnerSpec
 func TestValidOwnerSpec(t *testing.T) {

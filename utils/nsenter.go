@@ -8,6 +8,7 @@ import (
 
 	"github.com/zenoss/glog"
 	docker "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
 )
 
 // connection to the docker client
@@ -16,9 +17,8 @@ var dockerClient *docker.Client
 // Opens a connection to docker if not already connected
 func connectDocker() (*docker.Client, error) {
 	if dockerClient == nil {
-		const DockerEndpoint string = "unix:///var/run/docker.sock"
 		var err error
-		if dockerClient, err = docker.NewClient(DockerEndpoint); err != nil {
+		if dockerClient, err = docker.NewClient(commons.DockerEndpoint()); err != nil {
 			return nil, fmt.Errorf("could not create a client to docker: %s", err)
 		}
 	}

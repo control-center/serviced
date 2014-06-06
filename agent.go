@@ -52,9 +52,10 @@ import (
 */
 
 const (
-	dockerEndpoint     = "unix:///var/run/docker.sock"
 	circularBufferSize = 1000
 )
+
+var dockerEndpoint = commons.DockerEndpoint()
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
