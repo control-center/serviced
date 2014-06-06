@@ -46,6 +46,8 @@ var (
 	ErrInvalidZkDSN = errors.New("container: invalid zookeeper dsn")
 	// ErrInvalidExportedEndpoints is returned if the ExportedEndpoints is empty or malformed
 	ErrInvalidExportedEndpoints = errors.New("container: invalid exported endpoints")
+	// ErrInvalidImportedEndpoints is returned if the ImportedEndpoints is empty or malformed
+	ErrInvalidImportedEndpoints = errors.New("container: invalid imported endpoints")
 )
 
 // containerEnvironmentFile writes out all the environment variables passed to the container so
@@ -94,13 +96,18 @@ type Controller struct {
 	cclient            *coordclient.Client
 	zkConn             coordclient.Connection
 	exportedEndpoints  map[string][]export
+	importedEndpoints  map[string]importedEndpoint
 }
 
 type export struct {
-	endPoint     *dao.ApplicationEndpoint
+	endpoint     *dao.ApplicationEndpoint
 	endpointID   string
 	vhosts       []string
 	endpointName string
+}
+
+type importedEndpoint struct {
+	endpointID string
 }
 
 // Close shuts down the controller
@@ -306,7 +313,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			exp.endpointName = defep.Name
 
 			var ep dao.ApplicationEndpoint
-			exp.endPoint = &ep
+			exp.endpoint = &ep
 			ep.ServiceID = state.ServiceID
 			ep.Protocol = defep.Protocol
 			ep.ContainerIP = state.PrivateIP
@@ -327,6 +334,29 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 				result[key] = make([]export, 0)
 			}
 			result[key] = append(result[key], exp)
+		}
+	}
+
+	return result, nil
+}
+
+// buildImportedEndpoints
+func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string]importedEndpoint, error) {
+	result := make(map[string]importedEndpoint)
+
+	state, err := getServiceState(conn, service.Id)
+	if err != nil {
+		return result, err
+	}
+
+	glog.Infof("buildImportedEndpoints state: %+v", state)
+
+	for _, sep := range state.Endpoints {
+		if sep.Purpose == "import" {
+			ie := importedEndpoint{}
+			ie.endpointID = sep.Application
+			key := fmt.Sprintf("%s_%s", tenantID, ie.endpointID)
+			result[key] = ie
 		}
 	}
 
@@ -460,6 +490,13 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if err != nil {
 		glog.Errorf("Invalid ExportedEndpoints")
 		return c, ErrInvalidExportedEndpoints
+	}
+
+	// Keep a copy of the service EndPoint imports
+	c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service)
+	if err != nil {
+		glog.Errorf("Invalid ImportedEndpoints")
+		return c, ErrInvalidImportedEndpoints
 	}
 
 	// check command
@@ -760,6 +797,9 @@ func (c *Controller) handleRemotePorts() {
 		prxy.SetNewAddresses(addresses)
 	}
 
+	for key, _ := range c.importedEndpoints {
+		glog.Infof("TODO: watch import endpoint: %s", key)
+	}
 }
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
@@ -789,7 +829,7 @@ func (c *Controller) registerExportedEndpoints() {
 	// register exported endpoints
 	for key, exportList := range c.exportedEndpoints {
 		for _, export := range exportList {
-			endpoint := export.endPoint
+			endpoint := export.endpoint
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
 			_, err := endpointRegistry.AddItem(conn, c.tenantID, export.endpointID, c.hostID, containerID, registry.NewEndpointNode(c.tenantID, export.endpointID, c.hostID, containerID, *endpoint))
 			if err != nil {
