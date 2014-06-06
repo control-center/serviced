@@ -7,6 +7,8 @@ package registry
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
+
+	"fmt"
 )
 
 type registryType struct {
@@ -69,11 +71,15 @@ func watch(conn client.Connection, path string, processChildren func(conn client
 	for {
 		nodeIDs, event, err := conn.ChildrenW(path)
 		if err != nil {
-			glog.Errorf("Could not watch  %s: %s", path, err)
+			glog.Errorf("Could not watch %s: %s", path, err)
 			defer errorHandler(path, err)
 			return err
 		}
-		processChildren(conn, nodeIDs...)
+		paths := make([]string, len(nodeIDs))
+		for ii := range nodeIDs {
+			paths[ii] = fmt.Sprintf("%s/%s", path, nodeIDs[ii])
+		}
+		processChildren(conn, paths...)
 		//This blocks until a change happens under the key
 		<-event
 	}
