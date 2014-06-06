@@ -106,12 +106,12 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	var epn4 *registry.EndpointNode
 	go func() {
 		errorWatcher := func(path string, err error) {}
-		countEvents := func(conn client.Connection, childPaths ...string) {
+		countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
 			numEndpoints++
 			glog.Infof("seeing event %d", numEndpoints)
-			glog.Infof("  childPaths %v", childPaths)
+			glog.Infof("  nodeIDs %v", nodeIDs)
 
-			epn4, err = epr.GetItem(dt.zkConn, childPaths[0])
+			epn4, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
 			t.Assert(err, IsNil)
 			t.Assert(epn4, NotNil)
 		}

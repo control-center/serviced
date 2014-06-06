@@ -134,7 +134,7 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 
 // WatchTenantEndpoint watches a tenant endpoint directory
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
-	processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
+	processChildren processChildrenFunc, errorHandler WatchError) error {
 
 	key := tenantEndpointKey(tenantID, endpointID)
 	return ar.WatchKey(conn, key, processChildren, errorHandler)

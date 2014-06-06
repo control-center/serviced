@@ -8,11 +8,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
+	//	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk/registry"
 
 	"crypto/tls"
 	"fmt"
+	"github.com/zenoss/serviced/coordinator/client"
 	"io"
 	"net"
 	"net/http"
@@ -23,37 +25,79 @@ import (
 )
 
 var (
-	registry = vhostRegistry{lookup: make(map[string][]*servicestate.ServiceState, 0)}
+	vregistry  = vhostRegistry{lookup: make(map[string]*vhostInfo)}
+	vregistry2 = vhostRegistry{lookup: make(map[string]*vhostInfo)}
 )
+
+type vhostInfo struct {
+	endpoints []vhostEndPoint
+	counter   int
+}
+
+func newVhostInfo() *vhostInfo {
+	return &vhostInfo{endpoints: make([]vhostEndPoint, 0)}
+}
+
+func (vi *vhostInfo) GetNext() (vhostEndPoint, error) {
+	vep := vi.endpoints[vi.counter%len(vi.endpoints)]
+	return vep, nil
+}
+
+type vhostEndPoint struct {
+	hostIP    string
+	epPort    uint16
+	privateIP string
+}
+
+func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
+	infos := make(map[string]*vhostInfo)
+
+	for _, svcep := range state.Endpoints {
+		for _, vhost := range svcep.VHosts {
+			if _, found := infos[vhost]; !found {
+				infos[vhost] = newVhostInfo()
+			}
+			vi := vhostEndPoint{
+				hostIP:    state.HostIP,
+				epPort:    svcep.PortNumber,
+				privateIP: state.PrivateIP,
+			}
+			info := infos[vhost]
+			info.endpoints = append(infos[vhost].endpoints, vi)
+		}
+	}
+	return infos
+}
 
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup map[string][]*servicestate.ServiceState
+	lookup map[string]*vhostInfo
 }
 
-//get returns a list of ServiceState, bool is true or false if vhost is found
-func (vr *vhostRegistry) get(vhost string) ([]*servicestate.ServiceState, bool) {
+//get returns a vhostInfo, bool is true or false if vhost is found
+func (vr *vhostRegistry) get(vhost string) (*vhostInfo, bool) {
 	vr.RLock()
 	defer vr.RUnlock()
-	states, found := vr.lookup[vhost]
-	return states, found
+	vhInfo, found := vr.lookup[vhost]
+	return vhInfo, found
 }
 
 //get returns a list of ServiceState, bool is true or false if vhost is found
-func (vr *vhostRegistry) setAll(vhosts map[string][]*servicestate.ServiceState) {
+func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	vr.Lock()
 	defer vr.Unlock()
-	vr.lookup = make(map[string][]*servicestate.ServiceState, 0)
-	for key, states := range vhosts {
-		vr.lookup[key] = states
-		for _, state := range states {
-			glog.V(4).Infof("vhosthandler adding VHost %v with backend: %#v", key, *state)
+	vr.lookup = make(map[string]*vhostInfo)
+	for key, infos := range vhosts {
+		vr.lookup[key] = infos
+		for _, ep := range infos.endpoints {
+			glog.V(4).Infof("vhosthandler adding VHost %v with backend: %#v", key, ep)
 		}
 	}
 
 }
 
 func (sc *ServiceConfig) syncVhosts() {
+	go sc.watchVhosts()
 	sc.vhostFinder()
 	for {
 		select {
@@ -61,6 +105,56 @@ func (sc *ServiceConfig) syncVhosts() {
 			sc.vhostFinder()
 		}
 	}
+
+}
+
+func (sc *ServiceConfig) watchVhosts() error {
+	glog.Info("watchVhosts starting:")
+	conn, err := sc.zkClient.GetConnection()
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
+		return err
+	}
+
+	vhostRegistry, err := registry.VHostRegistry(conn)
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
+		return err
+	}
+
+	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.Info("processVhosts STARTING")
+
+		for _, id := range childIDs {
+			glog.Infof("processing vhost watch: %s/%s", parentPath, id)
+			vhostRegistry.WatchKey(conn, id, processVhost, vhostWatchError)
+		}
+	}
+
+	vhostRegistry.WatchRegistry(conn, processVhosts, vhostWatchError)
+
+	return nil
+}
+
+//processVhost is used to watch the children of particular vhost in the registry
+func processVhost(conn client.Connection, parentPath string, childIDs ...string) {
+	glog.Infof("processing vhost on %v", childIDs)
+	vr, err := registry.VHostRegistry(conn)
+	if err != nil {
+		glog.Errorf("processVhost - Error getting vhost registry: %v", err)
+		return
+	}
+	for _, child := range childIDs {
+		node, err := vr.GetItem(conn, parentPath+"/"+child)
+		if err != nil {
+			glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
+			continue
+		}
+		glog.Infof("Processing vhost %s/%s: %#v", parentPath, child, node)
+	}
+}
+func vhostWatchError(path string, err error) {
+	glog.Infof("processing vhostWatchError on %s: %v", path, err)
 
 }
 
@@ -75,29 +169,42 @@ func (sc *ServiceConfig) vhostFinder() error {
 	services := []*dao.RunningService{}
 	client.GetRunningServices(&empty, &services)
 
-	vhosts := make(map[string][]*servicestate.ServiceState, 0)
+	vhosts := make(map[string]*vhostInfo, 0)
 
 	for _, s := range services {
-		var svc service.Service
-
-		if err := client.GetService(s.ServiceID, &svc); err != nil {
-			glog.Errorf("Can't get service: %s (%v)", s.Id, err)
-		}
+		//		var svc service.Service
+		//
+		//		if err := client.GetService(s.ServiceID, &svc); err != nil {
+		//			glog.Errorf("Can't get service: %s (%v)", s.Id, err)
+		//		}
 
 		svcstates := []*servicestate.ServiceState{}
 		if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
 			glog.Warningf("can't retrieve service states for %s (%v)", s.ServiceID, err)
 		}
 
-		for _, vhep := range svc.GetServiceVHosts() {
-			for _, vh := range vhep.VHosts {
-				for _, ss := range svcstates {
-					vhosts[vh] = append(vhosts[vh], ss)
+		for _, state := range svcstates {
+			vhostMap := createVhostInfos(state)
+			for vhost, info := range vhostMap {
+				if _, found := vhosts[vhost]; !found {
+					vhosts[vhost] = newVhostInfo()
 				}
+				vhInfo := vhosts[vhost]
+				vhInfo.endpoints = append(vhInfo.endpoints, info.endpoints...)
+
 			}
 		}
 	}
-	registry.setAll(vhosts)
+	//
+	//		for _, vhep := range svc.GetServiceVHosts() {
+	//			for _, vh := range vhep.VHosts {
+	//				for _, ss := range svcstates {
+	//					vhosts[vh] = append(vhosts[vh], ss)
+	//				}
+	//			}
+	//		}
+	//	}
+	vregistry.setAll(vhosts)
 	return nil
 }
 
@@ -110,13 +217,15 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	muxvars := mux.Vars(r)
 	subdomain := muxvars["subdomain"]
 
-	defer func() { glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start)) }()
+	defer func() {
+		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
+	}()
 
-	var svcstates []*servicestate.ServiceState
+	var vhInfo *vhostInfo
 	found := false
 	tries := 2
 	for !found && tries > 0 {
-		svcstates, found = registry.get(subdomain)
+		vhInfo, found = vregistry.get(subdomain)
 		tries--
 		if !found && tries > 0 {
 			glog.Infof("vhost %s not found, syncing...", subdomain)
@@ -129,21 +238,20 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// TODO: implement a more intelligent strategy than "always pick the first one" when more
 	// than one service state is mapped to a given virtual host
-	for _, svcep := range svcstates[0].Endpoints {
-		for _, vh := range svcep.VHosts {
-			if vh == subdomain {
-				remoteAddr := fmt.Sprintf("%s:%d", svcstates[0].HostIP, svcep.PortNumber)
-				if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
-					remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
-				}
-				rp := getReverseProxy(remoteAddr, sc.muxPort, svcstates[0].PrivateIP, svcep.PortNumber, sc.muxTLS && (sc.muxPort > 0))
-				glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
-				rp.ServeHTTP(w, r)
-				return
-			}
-		}
+	vhEP, err := vhInfo.GetNext()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
+		return
 	}
-	http.Error(w, fmt.Sprintf("unrecognized endpoint: %s", subdomain), http.StatusNotImplemented)
+	remoteAddr := fmt.Sprintf("%s:%d", vhEP.hostIP, vhEP.epPort)
+	if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
+		remoteAddr = fmt.Sprintf("%s:%d", vhEP.hostIP, sc.muxPort)
+	}
+	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
+	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
+	rp.ServeHTTP(w, r)
+	return
+
 }
 
 var reverseProxies map[string]*httputil.ReverseProxy

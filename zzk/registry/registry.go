@@ -7,8 +7,6 @@ package registry
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
-
-	"fmt"
 )
 
 type registryType struct {
@@ -16,6 +14,8 @@ type registryType struct {
 }
 
 type WatchError func(path string, err error)
+
+type processChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
 //Add key to the registry.  Returns the path of the key in the registry
 func (r *registryType) AddKey(conn client.Connection, key string) (string, error) {
@@ -26,12 +26,12 @@ func (r *registryType) AddKey(conn client.Connection, key string) (string, error
 	return path, nil
 }
 
-func (r *registryType) WatchKey(conn client.Connection, key string, processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
+func (r *registryType) WatchKey(conn client.Connection, key string, processChildren processChildrenFunc, errorHandler WatchError) error {
 	keyPath := r.getPath(key)
 	return watch(conn, keyPath, processChildren, errorHandler)
 }
 
-func (r *registryType) WatchRegistry(conn client.Connection, processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
+func (r *registryType) WatchRegistry(conn client.Connection, processChildren processChildrenFunc, errorHandler WatchError) error {
 	path := r.getPath()
 	return watch(conn, path, processChildren, errorHandler)
 }
@@ -44,7 +44,7 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 		return "", err
 	}
 
-	if err := r.ensureDir(conn, r.getPath(nodeID)); err != nil {
+	if err := r.ensureDir(conn, r.getPath(key, nodeID)); err != nil {
 		return "", err
 	}
 
@@ -67,7 +67,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	return nil
 }
 
-func watch(conn client.Connection, path string, processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
+func watch(conn client.Connection, path string, processChildren processChildrenFunc, errorHandler WatchError) error {
 	for {
 		nodeIDs, event, err := conn.ChildrenW(path)
 		if err != nil {
@@ -75,11 +75,7 @@ func watch(conn client.Connection, path string, processChildren func(conn client
 			defer errorHandler(path, err)
 			return err
 		}
-		paths := make([]string, len(nodeIDs))
-		for ii := range nodeIDs {
-			paths[ii] = fmt.Sprintf("%s/%s", path, nodeIDs[ii])
-		}
-		processChildren(conn, paths...)
+		processChildren(conn, path, nodeIDs...)
 		//This blocks until a change happens under the key
 		<-event
 	}
