@@ -99,6 +99,7 @@ type Controller struct {
 type export struct {
 	endPoint     *dao.ApplicationEndpoint
 	vhosts       []string
+	instanceID   int
 	endpointName string
 }
 
@@ -303,7 +304,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			exp := export{}
 			exp.vhosts = defep.VHosts
 			exp.endpointName = defep.Name
-
+			exp.instanceID = state.InstanceID
 			var ep dao.ApplicationEndpoint
 			exp.endPoint = &ep
 			ep.ServiceID = state.ServiceID
@@ -787,6 +788,14 @@ func (c *Controller) registerExportedEndpoints() {
 	for key, exportList := range c.exportedEndpoints {
 		for _, export := range exportList {
 			endpoint := export.endPoint
+			for _, vhost := range export.vhosts {
+				//TODO: remove vhost item first???
+				epName := fmt.Sprintf("%s_%v", export.endpointName, export.instanceID)
+				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
+					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+				}
+			}
+
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
 			endpointID := strings.Split(key, "_")[1]
 			path, err := ereg.AddItem(conn, c.tenantID, endpointID, containerID, registry.NewEndpointNode(endpoint, c.tenantID, endpointID, containerID))
@@ -802,11 +811,6 @@ func (c *Controller) registerExportedEndpoints() {
 			}
 			glog.Infof("Loaded exported endpoint[%s,%s,%s]: %+v", c.tenantID, endpointID, containerID, ep2)
 
-			for _, vhost := range export.vhosts {
-				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(export.endpointName, *endpoint)); err != nil {
-					glog.Errorf("could not register vhost %s: %v", vhost, err)
-				}
-			}
 		}
 	}
 }

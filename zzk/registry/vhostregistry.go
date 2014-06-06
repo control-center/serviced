@@ -13,12 +13,12 @@
 package registry
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/validation"
 
 	"fmt"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/validation"
 	"path"
 )
 
