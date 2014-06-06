@@ -69,6 +69,7 @@ func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) 
 		"parent":  parent(gs),
 		"context": context(),
 		"percentScale": percentScale,
+		"bytesToMB": bytesToMB,
 	}
 
 	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
@@ -139,6 +140,11 @@ func percentScale(x uint64, percentage float64) uint64 {
 	return uint64(math.Floor(float64(x) * percentage))
 }
 
+func bytesToMB(x uint64) uint64 {
+	return x / (1024 * 1024)
+}
+
+
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
@@ -146,6 +152,7 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 		"parent":  parent(gs),
 		"context": context(),
 		"percentScale": percentScale,
+		"bytesToMB": bytesToMB,
 	}
 
 	for i, ep := range service.Endpoints {
