@@ -5,9 +5,10 @@
 package service
 
 import (
+	"github.com/zenoss/glog"
+
 	"bytes"
 	"encoding/json"
-	"github.com/zenoss/glog"
 	"math"
 	"text/template"
 )
