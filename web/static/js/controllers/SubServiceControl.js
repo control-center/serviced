@@ -113,8 +113,8 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         resourcesService.assign_ip( serviceID, IP) 
     };
 
-    $scope.vhost_url = function( vhost) {
-        return get_vhost_url( $location, vhost);
+    $scope.vhost_url = function(vhost) {
+        return location.protocol + "//" + vhost + "." + $scope.hosts.all[0].Name + ":" + location.port;
     }
 
     $scope.indent = indentClass;
