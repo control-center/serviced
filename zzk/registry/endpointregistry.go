@@ -132,8 +132,16 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
-// WatchApplicationEndpoint watches a specific EndpointNode
-func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, path string,
+// WatchTenantEndpoint watches a tenant endpoint directory
+func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
+	processChildren func(conn client.Connection, childPaths ...string), errorHandler WatchError) error {
+
+	key := tenantEndpointKey(tenantID, endpointID)
+	return ar.WatchKey(conn, key, processChildren, errorHandler)
+}
+
+// WatchApplicationEndpoint watches a specific application endpoint node
+func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, tenantID, endpointID string,
 	processEndpoint func(conn client.Connection, node *EndpointNode), errorHandler WatchError) error {
 
 	processNode := func(conn client.Connection, node client.Node) {
@@ -142,5 +150,6 @@ func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, pat
 	}
 
 	var ep EndpointNode
+	path := zkEndpointsPath(tenantEndpointKey(tenantID, endpointID))
 	return ar.watchItem(conn, path, &ep, processNode, errorHandler)
 }

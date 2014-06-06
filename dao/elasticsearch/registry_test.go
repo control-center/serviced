@@ -6,9 +6,14 @@
 package elasticsearch
 
 import (
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
+
+	"fmt"
+	"time"
 )
 
 func (dt *DaoTest) TestDao_VhostRegistryCreate(t *C) {
@@ -95,4 +100,40 @@ func (dt *DaoTest) TestDao_EndpointRegistryAdd(t *C) {
 	//test double add
 	path, err = epr.AddItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
 	t.Assert(err, NotNil)
+
+	//test watch tenant endpoint
+	numEndpoints := 0
+	var epn4 *registry.EndpointNode
+	go func() {
+		errorWatcher := func(path string, err error) {}
+		countEvents := func(conn client.Connection, childPaths ...string) {
+			numEndpoints++
+			glog.Infof("seeing event %d", numEndpoints)
+			glog.Infof("  childPaths %v", childPaths)
+
+			epn4, err = epr.GetItem(dt.zkConn, childPaths[0])
+			t.Assert(err, IsNil)
+			t.Assert(epn4, NotNil)
+		}
+		for {
+			glog.Info("watch tenant endpoint")
+			err = epr.WatchTenantEndpoint(dt.zkConn, epn1.TenantID, epn1.EndpointID, countEvents, errorWatcher)
+			t.Assert(err, IsNil)
+		}
+	}()
+
+	const numEndpointsExpected int = 3
+	epn3 := epn1
+	for i := 0; i < numEndpointsExpected; i++ {
+		epn3.ContainerID = fmt.Sprintf("epn_container_%d", i)
+		_, err = epr.AddItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
+		t.Assert(err, IsNil)
+		time.Sleep(1 * time.Second)
+	}
+
+	time.Sleep(2 * time.Second)
+	//remove version for equals
+	epn3.SetVersion(nil)
+	epn4.SetVersion(nil)
+	t.Assert(epn3, Equals, *epn4)
 }
