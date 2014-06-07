@@ -69,6 +69,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
+	//test get and set
 	verifySetGet := func(expected registry.EndpointNode) {
 		glog.V(1).Infof("verifying set/get for expected %+v", expected)
 		for ii := 0; ii < 3; ii++ {
@@ -112,6 +113,14 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epn2.ContainerID = "epn_container2"
 	verifySetGet(epn2)
 
+	// test remove
+	verifyRemove := func(expected registry.EndpointNode) {
+		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+		t.Assert(err, IsNil)
+	}
+	verifyRemove(epn1)
+	verifyRemove(epn2)
+
 	//test watch tenant endpoint
 	verifyWatch := func(expected registry.EndpointNode) {
 		numEndpoints := 0
@@ -120,11 +129,13 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			errorWatcher := func(path string, err error) {}
 			countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
 				numEndpoints++
-				glog.Infof("seeing event %d nodeIDs %v", numEndpoints, nodeIDs)
+				glog.Infof("seeing event %d parentPath:%s nodeIDs:%v", numEndpoints, parentPath, nodeIDs)
 
-				obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
-				t.Assert(err, IsNil)
-				t.Assert(obtained, NotNil)
+				if len(nodeIDs) > 0 {
+					obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+					t.Assert(err, IsNil)
+					t.Assert(obtained, NotNil)
+				}
 			}
 
 			glog.Infof("watching tenant endpoint %s", registry.TenantEndpointKey(expected.TenantID, expected.EndpointID))
@@ -148,6 +159,16 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		expected.SetVersion(nil)
 		obtained.SetVersion(nil)
 		t.Assert(expected, Equals, *obtained)
+
+		// remove items
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("RemoveItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
+		}
+
 	}
 
 	epn3 := epn1

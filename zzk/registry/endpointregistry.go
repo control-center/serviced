@@ -140,6 +140,16 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
+// RemoveKey removes a key from the registry
+func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tenantID, endpointID string) error {
+	return ar.removeKey(conn, TenantEndpointKey(tenantID, endpointID))
+}
+
+// RemoveItem removes an item from the registry
+func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) error {
+	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID))
+}
+
 // WatchTenantEndpoint watches a tenant endpoint directory
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
 	processChildren processChildrenFunc, errorHandler WatchError) error {

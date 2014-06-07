@@ -100,6 +100,37 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 	return path, nil
 }
 
+func (r *registryType) removeKey(conn client.Connection, key string) error {
+	path := r.getPath(key)
+	return removeNode(conn, path)
+}
+
+func (r *registryType) removeItem(conn client.Connection, key string, nodeID string) error {
+	path := r.getPath(key, nodeID)
+	return removeNode(conn, path)
+}
+
+func removeNode(conn client.Connection, path string) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err == client.ErrNoNode {
+			return nil
+		}
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	if err := conn.Delete(path); err != nil {
+		glog.Errorf("Unable to delete path:%s error:%v", path, err)
+		return err
+	}
+
+	return nil
+}
+
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	if exists, err := conn.Exists(path); err != nil {
 		return err
