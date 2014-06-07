@@ -143,7 +143,15 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 }
 
 func watch(conn client.Connection, path string, processChildren processChildrenFunc, errorHandler WatchError) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return client.ErrNoNode
+	}
 	for {
+		glog.V(2).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
 		if err != nil {
 			glog.Errorf("Could not watch %s: %s", path, err)
@@ -152,13 +160,22 @@ func watch(conn client.Connection, path string, processChildren processChildrenF
 		}
 		processChildren(conn, path, nodeIDs...)
 		//This blocks until a change happens under the key
-		<-event
+		ev := <-event
+		glog.V(2).Infof("watch event %+v at path: %s", ev, path)
 	}
+	glog.V(2).Infof("no longer watching children at path: %s", path)
 	return nil
 }
 
 func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return client.ErrNoNode
+	}
 	for {
 		event, err := conn.GetW(path, nodeType)
 		if err != nil {

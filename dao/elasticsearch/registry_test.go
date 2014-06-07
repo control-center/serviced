@@ -172,6 +172,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		err = epr.RemoveTenantEndpointKey(dt.zkConn, expected.TenantID, expected.EndpointID)
 		t.Assert(err, IsNil)
 
+		glog.Warning("TODO - deficiency of epr.WatchTenantEndpoint - notice how countEvents is not called after RemoveTenantEndpointKey")
 		for i := 0; i < numEndpointsExpected; i++ {
 			glog.Infof("SetItem %+v", expected)
 			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
@@ -184,17 +185,31 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epn3 := epn1
 	verifyWatch(epn3)
 
-	glog.Warning("TODO - the following test case is failing - need to implement a way to remove a watch")
-	glog.Warning("       for example, epr.WatchTenantEndpoint() currently does not leave its for loop")
-	/*
-		epn4 := registry.EndpointNode{
-			ApplicationEndpoint: aep,
-			TenantID:            "epn_tenant4",
-			EndpointID:          "epn_endpoint4",
-			HostID:              "epn_host4",
-			ContainerID:         "epn_container4",
+	// make sure that watching non-existent path does not result in panic
+	epn4 := registry.EndpointNode{
+		ApplicationEndpoint: aep,
+		TenantID:            "epn_tenant4",
+		EndpointID:          "epn_endpoint4",
+		HostID:              "epn_host4",
+		ContainerID:         "epn_container4",
+	}
+	verifyWatchNonExistentKey := func(expected registry.EndpointNode) {
+		var obtained *registry.EndpointNode
+		errorWatcher := func(path string, err error) {}
+		showEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
+			glog.Infof("seeing event parentPath:%s nodeIDs:%v", parentPath, nodeIDs)
+
+			if len(nodeIDs) > 0 {
+				obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+				t.Assert(err, IsNil)
+				t.Assert(obtained, NotNil)
+			}
 		}
-		verifySetGet(epn4) // WARNING: SetGet needed - panic ensues when watching non-existent paths
-		verifyWatch(epn4)
-	*/
+
+		glog.Infof("watching tenant endpoint %s", registry.TenantEndpointKey(expected.TenantID, expected.EndpointID))
+		err = epr.WatchTenantEndpoint(dt.zkConn, expected.TenantID, expected.EndpointID, showEvents, errorWatcher)
+		t.Assert(err, NotNil)
+		t.Assert(err, Equals, client.ErrNoNode)
+	}
+	verifyWatchNonExistentKey(epn4)
 }
