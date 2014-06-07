@@ -145,11 +145,6 @@ func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID
 	processChildren processChildrenFunc, errorHandler WatchError) error {
 
 	key := TenantEndpointKey(tenantID, endpointID)
-
-	if _, err := ar.EnsureKey(conn, key); err != nil {
-		return err
-	}
-
 	return ar.WatchKey(conn, key, processChildren, errorHandler)
 }
 
