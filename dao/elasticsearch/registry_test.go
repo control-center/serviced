@@ -169,6 +169,16 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			time.Sleep(1 * time.Second)
 		}
 
+		err = epr.RemoveTenantEndpointKey(dt.zkConn, expected.TenantID, expected.EndpointID)
+		t.Assert(err, IsNil)
+
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("SetItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	epn3 := epn1
