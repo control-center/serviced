@@ -69,15 +69,17 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
-	verifyGet := func(expected registry.EndpointNode) {
-		glog.Infof("verifying set/get for expected %+v", expected)
+	verifySetGet := func(expected registry.EndpointNode) {
+		glog.V(1).Infof("verifying set/get for expected %+v", expected)
 		for ii := 0; ii < 3; ii++ {
 			path, err := epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			glog.V(1).Infof("expected item[%s]: %+v", path, expected)
 			t.Assert(err, IsNil)
 			t.Assert(path, Not(Equals), 0)
 
 			var obtained *registry.EndpointNode
 			obtained, err = epr.GetItem(dt.zkConn, path)
+			glog.V(1).Infof("obtained item[%s]: %+v", path, expected)
 			t.Assert(err, IsNil)
 			t.Assert(obtained, NotNil)
 			//remove version for equals
@@ -103,46 +105,65 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		ContainerID:         "epn_container",
 	}
 
-	verifyGet(epn1)
+	verifySetGet(epn1)
+
 	epn2 := epn1
 	epn2.EndpointID = "epn_.*"
-	verifyGet(epn2)
+	epn2.ContainerID = "epn_container2"
+	verifySetGet(epn2)
 
 	//test watch tenant endpoint
-	numEndpoints := 0
-	var epn4 *registry.EndpointNode
-	go func() {
-		errorWatcher := func(path string, err error) {}
-		countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
-			numEndpoints++
-			glog.Infof("seeing event %d", numEndpoints)
-			glog.Infof("  nodeIDs %v", nodeIDs)
+	verifyWatch := func(expected registry.EndpointNode) {
+		numEndpoints := 0
+		var obtained *registry.EndpointNode
+		go func() {
+			errorWatcher := func(path string, err error) {}
+			countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
+				numEndpoints++
+				glog.Infof("seeing event %d nodeIDs %v", numEndpoints, nodeIDs)
 
-			epn4, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+				obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+				t.Assert(err, IsNil)
+				t.Assert(obtained, NotNil)
+			}
+
+			glog.Infof("watching tenant endpoint %s", registry.TenantEndpointKey(expected.TenantID, expected.EndpointID))
+			err = epr.WatchTenantEndpoint(dt.zkConn, expected.TenantID, expected.EndpointID, countEvents, errorWatcher)
 			t.Assert(err, IsNil)
-			t.Assert(epn4, NotNil)
+		}()
+
+		time.Sleep(2 * time.Second)
+
+		const numEndpointsExpected int = 3
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("SetItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
 		}
 
-		glog.Infof("watching tenant endpoint")
-		err = epr.WatchTenantEndpoint(dt.zkConn, epn1.TenantID, epn1.EndpointID, countEvents, errorWatcher)
-		t.Assert(err, IsNil)
-	}()
-
-	time.Sleep(2 * time.Second)
-
-	const numEndpointsExpected int = 3
-	epn3 := epn1
-	for i := 0; i < numEndpointsExpected; i++ {
-		glog.Infof("SetItem %+v", epn3)
-		epn3.ContainerID = fmt.Sprintf("epn_container_%d", i)
-		_, err = epr.SetItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
-		t.Assert(err, IsNil)
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
+		//remove version for equals
+		expected.SetVersion(nil)
+		obtained.SetVersion(nil)
+		t.Assert(expected, Equals, *obtained)
 	}
 
-	time.Sleep(2 * time.Second)
-	//remove version for equals
-	epn3.SetVersion(nil)
-	epn4.SetVersion(nil)
-	t.Assert(epn3, Equals, *epn4)
+	epn3 := epn1
+	verifyWatch(epn3)
+
+	glog.Warning("TODO - the following test case is failing - need to implement a way to remove a watch")
+	glog.Warning("       for example, epr.WatchTenantEndpoint() currently does not leave its for loop")
+	/*
+		epn4 := registry.EndpointNode{
+			ApplicationEndpoint: aep,
+			TenantID:            "epn_tenant4",
+			EndpointID:          "epn_endpoint4",
+			HostID:              "epn_host4",
+			ContainerID:         "epn_container4",
+		}
+		verifySetGet(epn4) // WARNING: SetGet needed - panic ensues when watching non-existent paths
+		verifyWatch(epn4)
+	*/
 }
