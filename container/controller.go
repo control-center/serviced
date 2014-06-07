@@ -803,7 +803,7 @@ func (c *Controller) handleRemotePorts() {
 
 //
 func (c *Controller) watchRemotePorts() {
-	glog.Info("watchRemotePorts starting")
+	glog.Infof("watchRemotePorts starting")
 
 	cMuxPort = uint16(c.options.Mux.Port)
 	cMuxTLS = c.options.Mux.TLS
@@ -821,7 +821,7 @@ func (c *Controller) watchRemotePorts() {
 	}
 
 	processEndpoints := func(conn coordclient.Connection, parentPath string, childIDs ...string) {
-		glog.Info("processEndpoints STARTING for path: %s", parentPath)
+		glog.Infof("processEndpoints STARTING for path: %s", parentPath)
 
 		for _, id := range childIDs {
 			glog.Infof("processing endpoints watch: %s/%s", parentPath, id)
@@ -835,7 +835,7 @@ func (c *Controller) watchRemotePorts() {
 		for key, endpoint := range c.importedEndpoints {
 			go func(key string, endpoint importedEndpoint) {
 				for {
-					glog.Info("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
+					glog.Infof("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
 					endpointRegistry, err := registry.CreateEndpointRegistry(c.zkConn)
 					if err != nil {
 						glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
@@ -851,7 +851,7 @@ func (c *Controller) watchRemotePorts() {
 
 	}
 
-	glog.Info("watching endpointRegistry")
+	glog.Infof("watching endpointRegistry")
 	endpointRegistry.WatchRegistry(conn, processEndpoints, endpointWatchError)
 }
 
@@ -862,7 +862,7 @@ func endpointWatchError(path string, err error) {
 
 //
 func processEndpoint(conn coordclient.Connection, parentPath string, nodeIDs ...string) {
-	glog.Infof("handleEndpointUpdate: nodeIDs %v", nodeIDs)
+	glog.Infof("handleEndpointUpdate: parentPath:%s nodeIDs: %v", parentPath, nodeIDs)
 	return
 
 	parts := strings.Split(parentPath, "/")

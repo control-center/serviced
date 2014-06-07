@@ -17,12 +17,25 @@ type WatchError func(path string, err error)
 
 type processChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
-//Add key to the registry.  Returns the path of the key in the registry
-func (r *registryType) AddKey(conn client.Connection, key string) (string, error) {
+//EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
+func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
+
 	path := r.getPath(key)
-	if err := conn.CreateDir(path); err != nil {
-		return "", err
+	glog.Infof("EnsureKey key:%s path:%s", key, path)
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err != client.ErrNoNode {
+			return "", err
+		}
+		exists = false
 	}
+
+	if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return "", err
+		}
+	}
+	glog.Infof("EnsureKey returning path:%s", path)
 	return path, nil
 }
 

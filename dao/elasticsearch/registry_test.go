@@ -69,6 +69,24 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
+	verifyGet := func(expected registry.EndpointNode) {
+		glog.Infof("verifying set/get for expected %+v", expected)
+		for ii := 0; ii < 3; ii++ {
+			path, err := epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			t.Assert(err, IsNil)
+			t.Assert(path, Not(Equals), 0)
+
+			var obtained *registry.EndpointNode
+			obtained, err = epr.GetItem(dt.zkConn, path)
+			t.Assert(err, IsNil)
+			t.Assert(obtained, NotNil)
+			//remove version for equals
+			expected.SetVersion(nil)
+			obtained.SetVersion(nil)
+			t.Assert(expected, Equals, *obtained)
+		}
+	}
+
 	aep := dao.ApplicationEndpoint{
 		ServiceID:     "epn_service",
 		ContainerIP:   "192.168.0.1",
@@ -85,20 +103,10 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		ContainerID:         "epn_container",
 	}
 
-	for ii := 0; ii < 3; ii++ {
-		path, err := epr.SetItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
-		t.Assert(err, IsNil)
-		t.Assert(path, Not(Equals), 0)
-
-		var epn2 *registry.EndpointNode
-		epn2, err = epr.GetItem(dt.zkConn, path)
-		t.Assert(err, IsNil)
-		t.Assert(epn2, NotNil)
-		//remove version for equals
-		epn1.SetVersion(nil)
-		epn2.SetVersion(nil)
-		t.Assert(epn1, Equals, *epn2)
-	}
+	verifyGet(epn1)
+	epn2 := epn1
+	epn2.EndpointID = "epn_.*"
+	verifyGet(epn2)
 
 	//test watch tenant endpoint
 	numEndpoints := 0
@@ -114,16 +122,18 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			t.Assert(err, IsNil)
 			t.Assert(epn4, NotNil)
 		}
-		for {
-			glog.Info("watch tenant endpoint")
-			err = epr.WatchTenantEndpoint(dt.zkConn, epn1.TenantID, epn1.EndpointID, countEvents, errorWatcher)
-			t.Assert(err, IsNil)
-		}
+
+		glog.Infof("watching tenant endpoint")
+		err = epr.WatchTenantEndpoint(dt.zkConn, epn1.TenantID, epn1.EndpointID, countEvents, errorWatcher)
+		t.Assert(err, IsNil)
 	}()
+
+	time.Sleep(2 * time.Second)
 
 	const numEndpointsExpected int = 3
 	epn3 := epn1
 	for i := 0; i < numEndpointsExpected; i++ {
+		glog.Infof("SetItem %+v", epn3)
 		epn3.ContainerID = fmt.Sprintf("epn_container_%d", i)
 		_, err = epr.SetItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
 		t.Assert(err, IsNil)

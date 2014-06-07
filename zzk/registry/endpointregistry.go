@@ -83,7 +83,7 @@ type EndpointRegistry struct {
 	registryType
 }
 
-// CreateEndpointRegistry creates the endpoint registry
+// CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
 	if exists, err := conn.Exists(path); err != nil {
@@ -145,6 +145,11 @@ func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID
 	processChildren processChildrenFunc, errorHandler WatchError) error {
 
 	key := TenantEndpointKey(tenantID, endpointID)
+
+	if _, err := ar.EnsureKey(conn, key); err != nil {
+		return err
+	}
+
 	return ar.WatchKey(conn, key, processChildren, errorHandler)
 }
 
