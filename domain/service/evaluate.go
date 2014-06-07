@@ -9,7 +9,6 @@ import (
 
 	"bytes"
 	"encoding/json"
-	"math"
 	"text/template"
 )
 
@@ -138,11 +137,21 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
 }
 
 func percentScale(x uint64, percentage float64) uint64 {
-	return uint64(math.Floor(float64(x) * percentage))
+	return uint64(round(float64(x) * percentage))
 }
 
 func bytesToMB(x uint64) uint64 {
-	return x / (1024 * 1024)
+	return uint64(round(float64(x) / (1048576.0))) // 1024.0 * 1024
+}
+
+// round value - convert to int64
+func round(value float64) int64 {
+	if value < 0.0 {
+		value -= 0.5
+	} else {
+		value += 0.5
+	}
+	return int64(value)
 }
 
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
