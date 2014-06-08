@@ -101,14 +101,13 @@ type Controller struct {
 
 type export struct {
 	endpoint     *dao.ApplicationEndpoint
-	endpointID   string
 	vhosts       []string
 	instanceID   int
 	endpointName string
 }
 
 type importedEndpoint struct {
-	endpointID string
+	endpoint *dao.ApplicationEndpoint
 }
 
 // Close shuts down the controller
@@ -316,6 +315,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			var ep dao.ApplicationEndpoint
 			exp.endpoint = &ep
 			ep.ServiceID = state.ServiceID
+			ep.Application = defep.Application
 			ep.Protocol = defep.Protocol
 			ep.ContainerIP = state.PrivateIP
 			ep.ContainerPort = defep.PortNumber
@@ -329,35 +329,11 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			ep.HostPort = uint16(port)
 			ep.VirtualAddress = defep.VirtualAddress
 
-			exp.endpointID = defep.Application
-			key := fmt.Sprintf("%s_%s", tenantID, exp.endpointID)
+			key := fmt.Sprintf("%s_%s", tenantID, defep.Application)
 			if _, exists := result[key]; !exists {
 				result[key] = make([]export, 0)
 			}
 			result[key] = append(result[key], exp)
-		}
-	}
-
-	return result, nil
-}
-
-// buildImportedEndpoints
-func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string]importedEndpoint, error) {
-	result := make(map[string]importedEndpoint)
-
-	state, err := getServiceState(conn, service.Id)
-	if err != nil {
-		return result, err
-	}
-
-	glog.Infof("buildImportedEndpoints state: %+v", state)
-
-	for _, sep := range state.Endpoints {
-		if sep.Purpose == "import" {
-			ie := importedEndpoint{}
-			ie.endpointID = sep.Application
-			key := registry.TenantEndpointKey(tenantID, ie.endpointID)
-			result[key] = ie
 		}
 	}
 
@@ -493,12 +469,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidExportedEndpoints
 	}
 
-	// Keep a copy of the service EndPoint imports
-	c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service)
-	if err != nil {
-		glog.Errorf("Invalid ImportedEndpoints")
-		return c, ErrInvalidImportedEndpoints
-	}
+	// initialize importedEndpoints
+	c.importedEndpoints = make(map[string]importedEndpoint)
 
 	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
@@ -570,7 +542,7 @@ func (c *Controller) Run() (err error) {
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
-	//go c.watchRemotePorts()
+	// TODO: go c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
@@ -596,6 +568,7 @@ func (c *Controller) Run() (err error) {
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
 
+		// TODO: remove this when enabling c.watchRemotePorts()
 		case <-time.After(time.Second * 10):
 			c.handleRemotePorts()
 
@@ -745,6 +718,13 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
+	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
+		ie := importedEndpoint{}
+		ie.endpoint = endpoint
+		key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
+		c.importedEndpoints[key] = ie
+	}
+
 	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
@@ -797,62 +777,75 @@ func (c *Controller) handleRemotePorts() {
 			}
 		}
 		prxy.SetNewAddresses(addresses)
-	}
 
+		addImportedEndpoint(endpointList[0])
+	}
 }
 
 //
 func (c *Controller) watchRemotePorts() {
+	/*
+		watch each tenant endpoint
+		    - when endpoints are added, add the endpoint proxy if not already added
+			- when endpoints are added, add watch on that endpoint for updates
+			TODO: when endpoints are deleted, tell that endpoint proxy to stop proxying
+			- when endpoints are deleted, may not need to deal with removing watch on that endpoint since that watch will block forever
+		- may not need to initially deal with removal of tenant endpoint
+	*/
 	glog.Infof("watchRemotePorts starting")
 
 	cMuxPort = uint16(c.options.Mux.Port)
 	cMuxTLS = c.options.Mux.TLS
 
-	conn, err := c.cclient.GetConnection()
+	for key, endpoint := range c.importedEndpoints {
+		glog.Infof("importedEndpoints[%s]: %+v", key, *endpoint.endpoint)
+	}
+
+	zkConn, err := c.cclient.GetConnection()
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
 	}
 
-	endpointRegistry, err := registry.CreateEndpointRegistry(conn)
+	endpointRegistry, err := registry.CreateEndpointRegistry(zkConn)
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting vhost registry: %v", err)
 		return
 	}
 
 	processEndpoints := func(conn coordclient.Connection, parentPath string, childIDs ...string) {
-		glog.Infof("processEndpoints STARTING for path: %s", parentPath)
+		glog.Infof("processEndpoints for path: %s  childIDs: %s", parentPath, childIDs)
 
-		for _, id := range childIDs {
-			glog.Infof("processing endpoints watch: %s/%s", parentPath, id)
-			if err := endpointRegistry.WatchKey(conn, id, processEndpoint, endpointWatchError); err != nil {
-				glog.Errorf("error watching key %s: %v", id, err)
+		watchTenantEndpoints := func(key string, endpoint *dao.ApplicationEndpoint) {
+			glog.Infof("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.Application)
+			if err := endpointRegistry.WatchTenantEndpoint(zkConn, c.tenantID, endpoint.Application,
+				processEndpoint, endpointWatchError); err != nil {
+				glog.Errorf("error watching endpoint %s: %v", endpoint.Application, err)
 			}
 		}
 
-		return
+		for _, id := range childIDs {
+			glog.Infof("processing endpoints watch: %s/%s", parentPath, id)
 
-		for key, endpoint := range c.importedEndpoints {
-			go func(key string, endpoint importedEndpoint) {
-				for {
-					glog.Infof("watching import:%-9s tenant:%s endpoint:%s", key, c.tenantID, endpoint.endpointID)
-					endpointRegistry, err := registry.CreateEndpointRegistry(c.zkConn)
-					if err != nil {
-						glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
-						return
-					}
-					if err := endpointRegistry.WatchTenantEndpoint(c.zkConn, c.tenantID, endpoint.endpointID,
-						processEndpoint, endpointWatchError); err != nil {
-						glog.Errorf("error watching endpoint %s: %v", endpoint.endpointID, err)
-					}
+			// add watchersTenantEndpoint if they don't exist for a tenantid_application
+			// and if tenant-endpoint is an import
+			if _, ok := watchersTenantEndpoint[id]; !ok {
+				if _, ok := c.importedEndpoints[id]; ok {
+					go watchTenantEndpoints(id, c.importedEndpoints[id].endpoint)
+					watchersTenantEndpoint[id] = true
 				}
-			}(key, endpoint)
+			}
+
+			// BEWARE: only need to deal with add, currently no need to deal with deletes
+			// since tenant endpoints are currently not deleted.  only the hostid_containerid
+			// entries within tenantid_application are added/deleted
 		}
 
 	}
 
 	glog.Infof("watching endpointRegistry")
-	endpointRegistry.WatchRegistry(conn, processEndpoints, endpointWatchError)
+	endpointRegistry.WatchRegistry(zkConn, processEndpoints, endpointWatchError)
+	glog.Errorf("finished watching endpointRegistry - should never stop watching registry")
 }
 
 //
@@ -862,7 +855,7 @@ func endpointWatchError(path string, err error) {
 
 //
 func processEndpoint(conn coordclient.Connection, parentPath string, nodeIDs ...string) {
-	glog.Infof("handleEndpointUpdate: parentPath:%s nodeIDs: %v", parentPath, nodeIDs)
+	glog.Infof("TODO: processEndpoint: parentPath:%s nodeIDs: %v", parentPath, nodeIDs)
 	return
 
 	parts := strings.Split(parentPath, "/")
@@ -978,25 +971,29 @@ func (c *Controller) registerExportedEndpoints() {
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			_, err := endpointRegistry.SetItem(conn, c.tenantID, export.endpointID, c.hostID, containerID, registry.NewEndpointNode(c.tenantID, export.endpointID, c.hostID, containerID, *endpoint))
+			path, err := endpointRegistry.SetItem(conn, c.tenantID, export.endpoint.Application, c.hostID, containerID, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, containerID, *endpoint))
 			if err != nil {
 				glog.Errorf("unable to add item: %v", err)
 				continue
 			}
+
+			glog.Infof("  endpoint successfully added to path: %s", path)
 		}
 	}
 }
 
 var (
-	proxies  map[string]*proxy
-	vifs     *VIFRegistry
-	nextip   int
-	cMuxPort uint16 // the TCP port to use
-	cMuxTLS  bool
+	proxies                map[string]*proxy
+	vifs                   *VIFRegistry
+	nextip                 int
+	watchersTenantEndpoint map[string]bool
+	cMuxPort               uint16 // the TCP port to use
+	cMuxTLS                bool
 )
 
 func init() {
 	proxies = make(map[string]*proxy)
 	vifs = NewVIFRegistry()
 	nextip = 1
+	watchersTenantEndpoint = make(map[string]bool)
 }
