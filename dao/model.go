@@ -3,8 +3,8 @@ package dao
 import (
 	"time"
 
-	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/utils"
 )
 
 type User struct {
@@ -29,6 +29,7 @@ type AssignmentRequest struct {
 // An exposed service endpoint
 type ApplicationEndpoint struct {
 	ServiceID      string
+	Application    string
 	ContainerPort  uint16
 	HostPort       uint16
 	HostIP         string
@@ -47,8 +48,8 @@ type ServiceTemplateDeploymentRequest struct {
 // A request to deploy a service from a service definition
 //  Pool and deployment ids are derived from the parent
 type ServiceDeploymentRequest struct {
-	ParentID     string	// ID of parent service
-	Service      servicedefinition.ServiceDefinition;
+	ParentID string // ID of parent service
+	Service  servicedefinition.ServiceDefinition
 }
 
 // This is created by selecting from service_state and joining to service

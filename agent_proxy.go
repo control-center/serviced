@@ -128,6 +128,7 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
+	endpoint.Application = "controlplane"
 	endpoint.ContainerIP = "127.0.0.1"
 	port, err := strconv.Atoi(a.uiport[1:])
 	if err != nil {
@@ -146,6 +147,7 @@ func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.A
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
+	endpoint.Application = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
