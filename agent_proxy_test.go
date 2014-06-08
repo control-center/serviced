@@ -27,7 +27,7 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 
 	consumer_endpoint := dao.ApplicationEndpoint{}
 	consumer_endpoint.ServiceID = "controlplane_consumer"
-	consumer_endpoint.Application = "controlplane_consumer_app"
+	consumer_endpoint.Application = "controlplane_consumer"
 	consumer_endpoint.ContainerIP = "127.0.0.1"
 	consumer_endpoint.ContainerPort = 8444
 	consumer_endpoint.HostPort = 8443
@@ -36,7 +36,7 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 
 	controlplane_endpoint := dao.ApplicationEndpoint{}
 	controlplane_endpoint.ServiceID = "controlplane"
-	controlplane_endpoint.Application = "controlplane_app"
+	controlplane_endpoint.Application = "controlplane"
 	controlplane_endpoint.ContainerIP = "127.0.0.1"
 	controlplane_endpoint.ContainerPort = 443
 	controlplane_endpoint.HostPort = 443
