@@ -138,7 +138,7 @@ func (sc *ServiceConfig) watchVhosts() error {
 
 //processVhost is used to watch the children of particular vhost in the registry
 func processVhost(conn client.Connection, parentPath string, childIDs ...string) {
-	glog.Infof("processing vhost on %v", childIDs)
+	glog.Infof("processing vhost parent %v; children %v", parentPath, childIDs)
 	vr, err := registry.VHostRegistry(conn)
 	if err != nil {
 		glog.Errorf("processVhost - Error getting vhost registry: %v", err)

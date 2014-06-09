@@ -62,7 +62,21 @@ func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 			return nil, err
 		}
 	}
-	return &VhostRegistry{registryType{vhostPath}}, nil
+	return &VhostRegistry{registryType{getPath: vhostPath, ephemeral: true}}, nil
+}
+
+//SetItem adds or replaces the  VhostEndpoint to the key in registry.  Returns the path of the node in the registry
+func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
+	verr := validation.NewValidationError()
+
+	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
+	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
+	if verr.HasError() {
+		return "", verr
+	}
+
+	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
+	return vr.setItem(conn, key, nodeID, &node)
 }
 
 //AddItem adds VhostEndpoint to the key in registry.  Returns the path of the node in the registry

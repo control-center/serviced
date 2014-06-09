@@ -10,7 +10,8 @@ import (
 )
 
 type registryType struct {
-	getPath func(nodes ...string) string
+	getPath   func(nodes ...string) string
+	ephemeral bool
 }
 
 type WatchError func(path string, err error)
@@ -45,8 +46,15 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 	//TODO: make ephemeral
 	path := r.getPath(key, nodeID)
 	glog.V(3).Infof("Adding to %s: %#v", path, node)
-	if err := conn.Create(path, node); err != nil {
-		return "", err
+	if r.ephemeral {
+		var err error
+		if path, err = conn.CreateEphemeral(path, node); err != nil {
+			return "", err
+		}
+	} else {
+		if err := conn.Create(path, node); err != nil {
+			return "", err
+		}
 	}
 	return path, nil
 }
@@ -80,7 +88,7 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 		}
 	} else {
 		glog.V(3).Infof("Add to %s: %#v", path, node)
-		if err := conn.Create(path, node); err != nil {
+		if _, err := r.addItem(conn, key, nodeID, node); err != nil {
 			return "", err
 		}
 	}

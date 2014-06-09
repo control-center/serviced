@@ -93,7 +93,7 @@ func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 			return nil, err
 		}
 	}
-	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
+	return &EndpointRegistry{registryType{getPath: zkEndpointsPath}}, nil
 }
 
 // tenantEndpointKey generates the key for the application endpoint

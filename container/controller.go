@@ -832,11 +832,12 @@ func (c *Controller) registerExportedEndpoints() {
 		for _, export := range exportList {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
-				//TODO: remove vhost item first???
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.instanceID)
-				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
+				var path string
+				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
 					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
 				}
+				glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)

@@ -75,6 +75,42 @@ func (c *Connection) SetOnClose(f func(int)) {
 	c.onClose = &f
 }
 
+func (c *Connection) CreateEphemeral(path string, node client.Node) (string, error) {
+	if c.conn == nil {
+		return "", client.ErrConnectionClosed
+	}
+
+	p := join(c.basePath, path)
+
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		return "", client.ErrSerialization
+	}
+	//	func (c *Conn) Create                            (path string, data []byte, flags int32, acl []ACL) (string, error) {
+	//	func (c *Conn) CreateProtectedEphemeralSequential(path string, data []byte, acl []ACL) (string, error) {
+
+	path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
+	if err == zklib.ErrNoNode {
+		// Create parent node.
+		parts := strings.Split(p, "/")
+		pth := ""
+		if len(parts) > 1 {
+			for _, p := range parts[1 : len(parts)-1] {
+				pth += "/" + p
+				_, err = c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+				if err != nil && err != zklib.ErrNodeExists {
+					return "", xlateError(err)
+				}
+			}
+			path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
+		}
+	}
+	if err == nil {
+		node.SetVersion(&zklib.Stat{})
+	}
+	return path, xlateError(err)
+}
+
 // Create places data at the node at the given path.
 func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
