@@ -6,7 +6,7 @@
 package elasticsearch
 
 import (
-	"github.com/fatih/set"
+	//"github.com/fatih/set"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -14,8 +14,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"fmt"
-	"sort"
-	"strings"
+	//"sort"
+	//"strings"
 	"time"
 )
 
@@ -219,6 +219,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	verifyWatchNonExistentKey(epn4)
 }
 
+/*
 func (dt *DaoTest) TestDao_FatihSet(t *C) {
 	// test sets
 	verifySetDifference := func() {
@@ -245,3 +246,4 @@ func (dt *DaoTest) TestDao_FatihSet(t *C) {
 	}
 	verifySetDifference()
 }
+*/
