@@ -138,8 +138,9 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 				}
 			}
 
-			glog.Infof("watching tenant endpoint %s", registry.TenantEndpointKey(expected.TenantID, expected.EndpointID))
-			err = epr.WatchTenantEndpoint(dt.zkConn, expected.TenantID, expected.EndpointID, countEvents, errorWatcher)
+			tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
+			glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
+			err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, countEvents, errorWatcher)
 			t.Assert(err, IsNil)
 		}()
 
@@ -206,8 +207,9 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			}
 		}
 
-		glog.Infof("watching tenant endpoint %s", registry.TenantEndpointKey(expected.TenantID, expected.EndpointID))
-		err = epr.WatchTenantEndpoint(dt.zkConn, expected.TenantID, expected.EndpointID, showEvents, errorWatcher)
+		tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
+		glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
+		err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, showEvents, errorWatcher)
 		t.Assert(err, NotNil)
 		t.Assert(err, Equals, client.ErrNoNode)
 	}

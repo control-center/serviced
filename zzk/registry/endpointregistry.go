@@ -151,23 +151,8 @@ func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpoin
 }
 
 // WatchTenantEndpoint watches a tenant endpoint directory
-func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
+func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantEndpointKey string,
 	processChildren processChildrenFunc, errorHandler WatchError) error {
 
-	key := TenantEndpointKey(tenantID, endpointID)
-	return ar.WatchKey(conn, key, processChildren, errorHandler)
-}
-
-// WatchApplicationEndpoint watches a specific application endpoint node
-func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, tenantID, endpointID string,
-	processEndpoint func(conn client.Connection, node *EndpointNode), errorHandler WatchError) error {
-
-	processNode := func(conn client.Connection, node client.Node) {
-		endpoint := node.(*EndpointNode)
-		processEndpoint(conn, endpoint)
-	}
-
-	var ep EndpointNode
-	path := zkEndpointsPath(TenantEndpointKey(tenantID, endpointID))
-	return ar.watchItem(conn, path, &ep, processNode, errorHandler)
+	return ar.WatchKey(conn, tenantEndpointKey, processChildren, errorHandler)
 }
