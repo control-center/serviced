@@ -212,6 +212,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 						protocol = endpoint.Protocol
 					}
 					var ep dao.ApplicationEndpoint
+					ep.Application = endpoint.Application
 					ep.ServiceID = ss.ServiceID
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort

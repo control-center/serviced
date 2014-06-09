@@ -83,7 +83,7 @@ type EndpointRegistry struct {
 	registryType
 }
 
-// CreateEndpointRegistry creates the endpoint registry
+// CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
 	if exists, err := conn.Exists(path); err != nil {
@@ -96,8 +96,8 @@ func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	return &EndpointRegistry{registryType{getPath: zkEndpointsPath}}, nil
 }
 
-// tenantEndpointKey generates the key for the application endpoint
-func tenantEndpointKey(tenantID, endpointID string) string {
+// TenantEndpointKey generates the key for the application endpoint
+func TenantEndpointKey(tenantID, endpointID string) string {
 	return tenantID + "_" + endpointID
 }
 
@@ -127,7 +127,7 @@ func (ar *EndpointRegistry) SetItem(conn client.Connection, tenantID, endpointID
 	if err := validateEndpointNode(node); err != nil {
 		return "", err
 	}
-	return ar.setItem(conn, tenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
+	return ar.setItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
 }
 
 // GetItem gets EndpointNode at the given path.
@@ -140,24 +140,19 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
-// WatchTenantEndpoint watches a tenant endpoint directory
-func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantID, endpointID string,
-	processChildren processChildrenFunc, errorHandler WatchError) error {
-
-	key := tenantEndpointKey(tenantID, endpointID)
-	return ar.WatchKey(conn, key, processChildren, errorHandler)
+// RemoveKey removes a key from the registry
+func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tenantID, endpointID string) error {
+	return ar.removeKey(conn, TenantEndpointKey(tenantID, endpointID))
 }
 
-// WatchApplicationEndpoint watches a specific application endpoint node
-func (ar *EndpointRegistry) WatchApplicationEndpoint(conn client.Connection, tenantID, endpointID string,
-	processEndpoint func(conn client.Connection, node *EndpointNode), errorHandler WatchError) error {
+// RemoveItem removes an item from the registry
+func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) error {
+	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID))
+}
 
-	processNode := func(conn client.Connection, node client.Node) {
-		endpoint := node.(*EndpointNode)
-		processEndpoint(conn, endpoint)
-	}
+// WatchTenantEndpoint watches a tenant endpoint directory
+func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantEndpointKey string,
+	processChildren processChildrenFunc, errorHandler WatchError) error {
 
-	var ep EndpointNode
-	path := zkEndpointsPath(tenantEndpointKey(tenantID, endpointID))
-	return ar.watchItem(conn, path, &ep, processNode, errorHandler)
+	return ar.WatchKey(conn, tenantEndpointKey, processChildren, errorHandler)
 }

@@ -18,12 +18,25 @@ type WatchError func(path string, err error)
 
 type processChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
-//Add key to the registry.  Returns the path of the key in the registry
-func (r *registryType) AddKey(conn client.Connection, key string) (string, error) {
+//EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
+func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
+
 	path := r.getPath(key)
-	if err := conn.CreateDir(path); err != nil {
-		return "", err
+	glog.Infof("EnsureKey key:%s path:%s", key, path)
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err != client.ErrNoNode {
+			return "", err
+		}
+		exists = false
 	}
+
+	if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			return "", err
+		}
+	}
+	glog.Infof("EnsureKey returning path:%s", path)
 	return path, nil
 }
 
@@ -95,6 +108,37 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 	return path, nil
 }
 
+func (r *registryType) removeKey(conn client.Connection, key string) error {
+	path := r.getPath(key)
+	return removeNode(conn, path)
+}
+
+func (r *registryType) removeItem(conn client.Connection, key string, nodeID string) error {
+	path := r.getPath(key, nodeID)
+	return removeNode(conn, path)
+}
+
+func removeNode(conn client.Connection, path string) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err == client.ErrNoNode {
+			return nil
+		}
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	if err := conn.Delete(path); err != nil {
+		glog.Errorf("Unable to delete path:%s error:%v", path, err)
+		return err
+	}
+
+	return nil
+}
+
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	if exists, err := conn.Exists(path); err != nil {
 		return err
@@ -107,7 +151,15 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 }
 
 func watch(conn client.Connection, path string, processChildren processChildrenFunc, errorHandler WatchError) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return client.ErrNoNode
+	}
 	for {
+		glog.V(2).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
 		if err != nil {
 			glog.Errorf("Could not watch %s: %s", path, err)
@@ -116,13 +168,22 @@ func watch(conn client.Connection, path string, processChildren processChildrenF
 		}
 		processChildren(conn, path, nodeIDs...)
 		//This blocks until a change happens under the key
-		<-event
+		ev := <-event
+		glog.V(2).Infof("watch event %+v at path: %s", ev, path)
 	}
+	glog.V(2).Infof("no longer watching children at path: %s", path)
 	return nil
 }
 
 func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return client.ErrNoNode
+	}
 	for {
 		event, err := conn.GetW(path, nodeType)
 		if err != nil {

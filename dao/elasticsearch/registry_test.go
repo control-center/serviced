@@ -6,6 +6,7 @@
 package elasticsearch
 
 import (
+	"github.com/fatih/set"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -13,6 +14,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -69,6 +72,27 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
+	//test get and set
+	verifySetGet := func(expected registry.EndpointNode) {
+		glog.V(1).Infof("verifying set/get for expected %+v", expected)
+		for ii := 0; ii < 3; ii++ {
+			path, err := epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			glog.V(1).Infof("expected item[%s]: %+v", path, expected)
+			t.Assert(err, IsNil)
+			t.Assert(path, Not(Equals), 0)
+
+			var obtained *registry.EndpointNode
+			obtained, err = epr.GetItem(dt.zkConn, path)
+			glog.V(1).Infof("obtained item[%s]: %+v", path, expected)
+			t.Assert(err, IsNil)
+			t.Assert(obtained, NotNil)
+			//remove version for equals
+			expected.SetVersion(nil)
+			obtained.SetVersion(nil)
+			t.Assert(expected, Equals, *obtained)
+		}
+	}
+
 	aep := dao.ApplicationEndpoint{
 		ServiceID:     "epn_service",
 		ContainerIP:   "192.168.0.1",
@@ -85,54 +109,139 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		ContainerID:         "epn_container",
 	}
 
-	for ii := 0; ii < 3; ii++ {
-		path, err := epr.SetItem(dt.zkConn, epn1.TenantID, epn1.EndpointID, epn1.HostID, epn1.ContainerID, epn1)
-		t.Assert(err, IsNil)
-		t.Assert(path, Not(Equals), 0)
+	verifySetGet(epn1)
 
-		var epn2 *registry.EndpointNode
-		epn2, err = epr.GetItem(dt.zkConn, path)
+	epn2 := epn1
+	epn2.EndpointID = "epn_.*"
+	epn2.ContainerID = "epn_container2"
+	verifySetGet(epn2)
+
+	// test remove
+	verifyRemove := func(expected registry.EndpointNode) {
+		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
 		t.Assert(err, IsNil)
-		t.Assert(epn2, NotNil)
-		//remove version for equals
-		epn1.SetVersion(nil)
-		epn2.SetVersion(nil)
-		t.Assert(epn1, Equals, *epn2)
 	}
+	verifyRemove(epn1)
+	verifyRemove(epn2)
 
 	//test watch tenant endpoint
-	numEndpoints := 0
-	var epn4 *registry.EndpointNode
-	go func() {
-		errorWatcher := func(path string, err error) {}
-		countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
-			numEndpoints++
-			glog.Infof("seeing event %d", numEndpoints)
-			glog.Infof("  nodeIDs %v", nodeIDs)
+	verifyWatch := func(expected registry.EndpointNode) {
+		numEndpoints := 0
+		var obtained *registry.EndpointNode
+		go func() {
+			errorWatcher := func(path string, err error) {}
+			countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
+				numEndpoints++
+				glog.Infof("seeing event %d parentPath:%s nodeIDs:%v", numEndpoints, parentPath, nodeIDs)
 
-			epn4, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
-			t.Assert(err, IsNil)
-			t.Assert(epn4, NotNil)
-		}
-		for {
-			glog.Info("watch tenant endpoint")
-			err = epr.WatchTenantEndpoint(dt.zkConn, epn1.TenantID, epn1.EndpointID, countEvents, errorWatcher)
-			t.Assert(err, IsNil)
-		}
-	}()
+				if len(nodeIDs) > 0 {
+					obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+					t.Assert(err, IsNil)
+					t.Assert(obtained, NotNil)
+				}
+			}
 
-	const numEndpointsExpected int = 3
-	epn3 := epn1
-	for i := 0; i < numEndpointsExpected; i++ {
-		epn3.ContainerID = fmt.Sprintf("epn_container_%d", i)
-		_, err = epr.SetItem(dt.zkConn, epn3.TenantID, epn3.EndpointID, epn3.HostID, epn3.ContainerID, epn3)
+			tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
+			glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
+			err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, countEvents, errorWatcher)
+			t.Assert(err, IsNil)
+		}()
+
+		time.Sleep(2 * time.Second)
+
+		const numEndpointsExpected int = 3
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("SetItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
+		}
+
+		time.Sleep(2 * time.Second)
+		//remove version for equals
+		expected.SetVersion(nil)
+		obtained.SetVersion(nil)
+		t.Assert(expected, Equals, *obtained)
+
+		// remove items
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("RemoveItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
+		}
+
+		err = epr.RemoveTenantEndpointKey(dt.zkConn, expected.TenantID, expected.EndpointID)
 		t.Assert(err, IsNil)
-		time.Sleep(1 * time.Second)
+
+		glog.Warning("TODO - deficiency of epr.WatchTenantEndpoint - notice how countEvents is not called after RemoveTenantEndpointKey")
+		for i := 0; i < numEndpointsExpected; i++ {
+			glog.Infof("SetItem %+v", expected)
+			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
+			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			t.Assert(err, IsNil)
+			time.Sleep(1 * time.Second)
+		}
 	}
 
-	time.Sleep(2 * time.Second)
-	//remove version for equals
-	epn3.SetVersion(nil)
-	epn4.SetVersion(nil)
-	t.Assert(epn3, Equals, *epn4)
+	epn3 := epn1
+	verifyWatch(epn3)
+
+	// make sure that watching non-existent path does not result in panic
+	epn4 := registry.EndpointNode{
+		ApplicationEndpoint: aep,
+		TenantID:            "epn_tenant4",
+		EndpointID:          "epn_endpoint4",
+		HostID:              "epn_host4",
+		ContainerID:         "epn_container4",
+	}
+	verifyWatchNonExistentKey := func(expected registry.EndpointNode) {
+		var obtained *registry.EndpointNode
+		errorWatcher := func(path string, err error) {}
+		showEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
+			glog.Infof("seeing event parentPath:%s nodeIDs:%v", parentPath, nodeIDs)
+
+			if len(nodeIDs) > 0 {
+				obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
+				t.Assert(err, IsNil)
+				t.Assert(obtained, NotNil)
+			}
+		}
+
+		tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
+		glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
+		err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, showEvents, errorWatcher)
+		t.Assert(err, NotNil)
+		t.Assert(err, Equals, client.ErrNoNode)
+	}
+	verifyWatchNonExistentKey(epn4)
+}
+
+func (dt *DaoTest) TestDao_FatihSet(t *C) {
+	// test sets
+	verifySetDifference := func() {
+		setOld := set.New(set.ThreadSafe) // thread safe version
+		setOld.Add("item3", "item4", "item2", "item1")
+
+		setNew := set.New(set.ThreadSafe) // thread safe version
+		setNew.Add("item3", "item4", "item6", "item5")
+
+		separator := "/"
+
+		deletions := set.Difference(setOld, setNew)
+		deletionsObtained := set.StringSlice(deletions)
+		sort.Strings(deletionsObtained)
+		deletionsExpected := []string{"item1", "item2"}
+		t.Assert(strings.Join(deletionsObtained, separator), Equals, strings.Join(deletionsExpected, separator))
+
+		additions := set.Difference(setNew, setOld)
+		additionsObtained := set.StringSlice(additions)
+		sort.Strings(additionsObtained)
+		additionsExpected := []string{"item5", "item6"}
+		t.Assert(strings.Join(additionsObtained, separator), Equals, strings.Join(additionsExpected, separator))
+
+	}
+	verifySetDifference()
 }

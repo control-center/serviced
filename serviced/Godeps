@@ -88,6 +88,10 @@
 		{
 			"ImportPath": "gopkg.in/check.v1",
 			"Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
+		},
+		{
+			"ImportPath": "github.com/fatih/set",
+			"Rev": "7a01974738cb41fb31468def81c359cd1bbc628d"
 		}
 	]
 }
