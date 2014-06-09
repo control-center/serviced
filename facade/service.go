@@ -371,7 +371,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 
 			// if an address assignment is needed (does not yet exist) OR
 			// if a specific IP address is provided by the user AND an address assignment already exists
-			if needsAnAddressAssignment || (!assignmentRequest.AutoAssignment && addressAssignmentId != "") {
+			if needsAnAddressAssignment || addressAssignmentId != "" {
 				if addressAssignmentId != "" {
 					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
 					err = f.RemoveAddressAssignment(ctx, addressAssignmentId)

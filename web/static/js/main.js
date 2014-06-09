@@ -1233,8 +1233,8 @@ function aggregateAddressAssigments( service, api) {
           'HostName': 'unknown',
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
-          'Port': endpoint.AddressAssignment.Port,
-          'ServiceID': endpoint.AddressAssignment.ServiceID,
+          'Port': endpoint.AddressConfig.Port,
+          'ServiceID': service.Id,
           'ServiceName': service.Name
         }
         api.get_host( assignment.HostID, function(data) {

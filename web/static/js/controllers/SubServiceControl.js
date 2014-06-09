@@ -81,9 +81,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     // modalAssignIP opens a modal view to assign an ip address to a service
-    $scope.modalAssignIP = function(ip) {
+    $scope.modalAssignIP = function(ip, poolID) {
       $scope.ips.assign = {'ip':ip, 'value':null}
-      resourcesService.get_pool_ips( ip.PoolID, function( data) {
+      resourcesService.get_pool_ips(poolID, function(data) {
         var options= [{'Value':'Automatic', 'IPAddr':null}]
 
         //host ips
@@ -91,11 +91,20 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
           var IPAddr = data.HostIPs[i].IPAddress
           var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
           options.push({'Value': value, 'IPAddr':IPAddr})
+          // set the default value to the currently assigned value
           if ($scope.ips.assign.ip.IPAddr == IPAddr) {
             $scope.ips.assign.value = options[ options.length-1]
           }
         }
-        //TODO virtual ips
+        for(var i = 0; i < data.VirtualIPs.length; ++i) {
+          var IPAddr = data.VirtualIPs[i].IP
+          var value =  "Virtual IP: " + IPAddr
+          options.push({'Value': value, 'IPAddr':IPAddr})
+          // set the default value to the currently assigned value
+          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+            $scope.ips.assign.value = options[ options.length-1]
+          }
+        }
 
         //default to automatic
         if(!$scope.ips.assign.value) {
@@ -110,7 +119,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.AssignIP = function() {
         var serviceID = $scope.ips.assign.ip.ServiceID;
         var IP = $scope.ips.assign.value.IPAddr;
-        resourcesService.assign_ip( serviceID, IP) 
+        resourcesService.assign_ip(serviceID, IP, function(data) {
+            refreshServices($scope, resourcesService, false);
+        });
     };
 
     $scope.vhost_url = function( vhost) {
