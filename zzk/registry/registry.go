@@ -50,6 +50,7 @@ func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool,
 //Add node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
 	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+		glog.Errorf("error with addItem.ensureDir(%s) %+v", r.getPath(key), err)
 		return "", err
 	}
 

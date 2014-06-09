@@ -81,20 +81,6 @@ func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostE
 	return vr.setItem(conn, key, nodeID, &node)
 }
 
-//AddItem adds VhostEndpoint to the key in registry.  Returns the path of the node in the registry
-func (vr *VhostRegistry) AddItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
-	verr := validation.NewValidationError()
-
-	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
-	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
-	if verr.HasError() {
-		return "", verr
-	}
-
-	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
-	return vr.addItem(conn, key, nodeID, &node)
-}
-
 //GetItem gets  VhostEndpoint at the given path.
 func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEndpoint, error) {
 	var vep VhostEndpoint
