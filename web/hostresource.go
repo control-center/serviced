@@ -73,6 +73,11 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&host)
 }
 
+//restGetMaster retrieves information related to the master.
+func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	w.WriteJson(&map[string]string{"hostalias":defaultHostAlias})
+}
+
 //restAddHost adds a Host. Request input is host.Host
 func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload host.Host
