@@ -30,6 +30,9 @@ import (
 	"time"
 )
 
+// TODO: remove useImportedEndpointServiceDiscovery or set it to true
+const useImportedEndpointServiceDiscovery = false
+
 var (
 	// ErrInvalidCommand is returned if a command is empty or malformed
 	ErrInvalidCommand = errors.New("container: invalid command")
@@ -589,8 +592,9 @@ func (c *Controller) Run() (err error) {
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
-	// TODO: uncomment c.watchRemotePorts() when wanting to use event driven service discovery
-	// go c.watchRemotePorts()
+	if useImportedEndpointServiceDiscovery {
+		go c.watchRemotePorts()
+	}
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
@@ -617,8 +621,9 @@ func (c *Controller) Run() (err error) {
 			startAfter = time.After(time.Millisecond * 1)
 
 		case <-time.After(time.Second * 10):
-			// TODO: remove this c.handleRemotePorts() when enabling c.watchRemotePorts()
-			c.handleRemotePorts()
+			if !useImportedEndpointServiceDiscovery {
+				c.handleRemotePorts()
+			}
 
 		case exitError := <-serviceExited:
 			glog.Infof("Service process exited.")
@@ -766,15 +771,13 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
-	/*
-		addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
-			// replace or add entries in importedEndpoints
-			ie := importedEndpoint{}
-			ie.endpoint = endpoint
-			key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
-			c.importedEndpoints[key] = ie
-		}
-	*/
+	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
+		// replace or add entries in importedEndpoints
+		ie := importedEndpoint{}
+		ie.endpoint = endpoint
+		key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
+		c.importedEndpoints[key] = ie
+	}
 
 	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
@@ -829,8 +832,9 @@ func (c *Controller) handleRemotePorts() {
 		}
 		prxy.SetNewAddresses(addresses)
 
-		// TODO: uncomment addImportedEndpoint() if watchRemotePorts() is called
-		// addImportedEndpoint(endpointList[0])
+		if useImportedEndpointServiceDiscovery {
+			addImportedEndpoint(endpointList[0])
+		}
 	}
 }
 
@@ -842,6 +846,7 @@ func (c *Controller) watchRemotePorts() {
 			- when endpoints are added, add watch on that endpoint for updates
 			TODO: when endpoints are deleted, tell that endpoint proxy to stop proxying
 			- when endpoints are deleted, may not need to deal with removing watch on that endpoint since that watch will block forever
+			TODO: deal with import regexes, i.e mysql_.*
 		- may not need to initially deal with removal of tenant endpoint
 	*/
 	glog.Infof("watchRemotePorts starting")
