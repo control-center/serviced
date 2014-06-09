@@ -6,6 +6,7 @@
 package elasticsearch
 
 import (
+	"github.com/fatih/set"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -13,6 +14,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -214,4 +217,31 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		t.Assert(err, Equals, client.ErrNoNode)
 	}
 	verifyWatchNonExistentKey(epn4)
+}
+
+func (dt *DaoTest) TestDao_FatihSet(t *C) {
+	// test sets
+	verifySetDifference := func() {
+		setOld := set.New(set.ThreadSafe) // thread safe version
+		setOld.Add("item3", "item4", "item2", "item1")
+
+		setNew := set.New(set.ThreadSafe) // thread safe version
+		setNew.Add("item3", "item4", "item6", "item5")
+
+		separator := "/"
+
+		deletions := set.Difference(setOld, setNew)
+		deletionsObtained := set.StringSlice(deletions)
+		sort.Strings(deletionsObtained)
+		deletionsExpected := []string{"item1", "item2"}
+		t.Assert(strings.Join(deletionsObtained, separator), Equals, strings.Join(deletionsExpected, separator))
+
+		additions := set.Difference(setNew, setOld)
+		additionsObtained := set.StringSlice(additions)
+		sort.Strings(additionsObtained)
+		additionsExpected := []string{"item5", "item6"}
+		t.Assert(strings.Join(additionsObtained, separator), Equals, strings.Join(additionsExpected, separator))
+
+	}
+	verifySetDifference()
 }
