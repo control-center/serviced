@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
+	"net"
 	"net/url"
 	"strings"
 )
@@ -84,7 +85,13 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	// Save the pool ID and IP address for later. GetInfo wipes these
 	ipAddr := payload.IPAddr
 	parts := strings.Split(ipAddr, ":")
-	hostIP := parts[0]
+	hostIPAddr, err := net.ResolveIPAddr("ip", parts[0])
+	if err != nil {
+		glog.Errorf("%s could not be resolved", parts[0])
+		restBadRequest(w)
+		return
+	}
+	hostIP := hostIPAddr.IP.String()
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
@@ -179,37 +186,6 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	glog.V(0).Info("Removed host ", hostID)
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
 }
-
-type metric struct {
-	ID          string
-	Name        string
-	Description string
-}
-
-var (
-	metrics = []metric{
-		metric{
-			"CpuacctStat.system",
-			"CPU System",
-			"System CPU Usage",
-		},
-		metric{
-			"CpuacctStat.user",
-			"CPU User",
-			"User CPU Usage",
-		},
-		metric{
-			"MemoryStat.pgfault",
-			"Memory Page Fault",
-			"Page Fault Stats",
-		},
-		metric{
-			"MemoryStat.rss",
-			"Resident Memory",
-			"Resident Memory Usage",
-		},
-	}
-)
 
 func buildHostMonitoringProfile(host *host.Host) error {
 	host.MonitoringProfile = domain.MonitorProfile{

@@ -162,7 +162,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     function updateHealth(ServiceID) {
-        $.getJSON("/servicehealth", function(healths) {
+        $.getJSON("/servicehealth", function(packet) {
+            var healths = packet["Statuses"];
+            var timestamp = packet["Timestamp"];
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
                 element = document.getElementById("health-tooltip-" + ServiceId);
@@ -172,9 +174,8 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                     failingAny = false;
                     lateAny = false;
                     unknownAny = false;
-                    utc = Math.floor(Date.now()/1000);
                     for (var name in data) {
-                        if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                        if (timestamp - data[name].Timestamp >= data[name].Interval * 2) {
                             data[name].Status = "unknown";
                         }
                         if (data[name].Status == "passed") {

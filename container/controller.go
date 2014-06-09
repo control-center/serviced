@@ -370,14 +370,14 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
-	// create config files
+	// get service
 	service, err := getService(options.ServicedEndpoint, options.Service.ID)
 	if err != nil {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
 
-	// get service
+	// create config files
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)

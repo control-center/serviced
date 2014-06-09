@@ -17,6 +17,7 @@ pkg/pkgroot/
 pkg/serviced*.rpm
 pkg/serviced*.deb
 isvcs/images/
+isvcs/.isvcs_export_container_id
 pkg/templates/
 coordinator/storage/zookeeper-3.3.3
 coordinator/client/zookeeper/zookeeper-3.3.3
@@ -51,3 +52,4 @@ isvcs/build/*.tar.gz
 web/node_modules/
 web/static/js/controlplane.js
 web/static/js/controlplane.min.js
+
