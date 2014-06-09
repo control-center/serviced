@@ -86,10 +86,11 @@ type EndpointRegistry struct {
 // CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if exists, err := conn.Exists(path); err != nil {
+	if exists, err := pathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {
+			glog.Errorf("error with CreateDir(%s) %+v", path, err)
 			return nil, err
 		}
 	}

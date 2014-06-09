@@ -23,12 +23,9 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 
 	path := r.getPath(key)
 	glog.Infof("EnsureKey key:%s path:%s", key, path)
-	exists, err := conn.Exists(path)
+	exists, err := pathExists(conn, path)
 	if err != nil {
-		if err != client.ErrNoNode {
-			return "", err
-		}
-		exists = false
+		return "", err
 	}
 
 	if !exists {
@@ -53,6 +50,7 @@ func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool,
 //Add node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
 	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+		glog.Errorf("error with addItem.ensureDir(%s) %+v", r.getPath(key), err)
 		return "", err
 	}
 
@@ -62,10 +60,12 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 	if r.ephemeral {
 		var err error
 		if path, err = conn.CreateEphemeral(path, node); err != nil {
+			glog.Errorf("error with addItem.CreateEphemeral(%s) %+v", path, err)
 			return "", err
 		}
 	} else {
 		if err := conn.Create(path, node); err != nil {
+			glog.Errorf("error with addItem.Create(%s) %+v", path, err)
 			return "", err
 		}
 	}
@@ -81,12 +81,9 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 	//TODO: make ephemeral
 	path := r.getPath(key, nodeID)
 
-	exists, err := conn.Exists(path)
+	exists, err := pathExists(conn, path)
 	if err != nil {
-		if err != client.ErrNoNode {
-			return "", err
-		}
-		exists = false
+		return "", err
 	}
 
 	if exists {
@@ -119,11 +116,8 @@ func (r *registryType) removeItem(conn client.Connection, key string, nodeID str
 }
 
 func removeNode(conn client.Connection, path string) error {
-	exists, err := conn.Exists(path)
+	exists, err := pathExists(conn, path)
 	if err != nil {
-		if err == client.ErrNoNode {
-			return nil
-		}
 		return err
 	}
 
@@ -140,11 +134,12 @@ func removeNode(conn client.Connection, path string) error {
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
-	if exists, err := conn.Exists(path); err != nil {
+	if exists, err := pathExists(conn, path); err != nil {
 		return err
 	} else if !exists {
 		glog.V(0).Infof("creating zk dir %s", path)
 		if err := conn.CreateDir(path); err != nil {
+			glog.Errorf("error with ensureDir.CreateDir(%s) %+v", path, err)
 			return err
 		}
 	}
@@ -152,7 +147,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 }
 
 func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	exists, err := conn.Exists(path)
+	exists, err := pathExists(conn, path)
 	if err != nil {
 		return err
 	}
@@ -184,7 +179,7 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 
 func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan bool, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
-	exists, err := conn.Exists(path)
+	exists, err := pathExists(conn, path)
 	if err != nil {
 		return err
 	}
@@ -209,4 +204,17 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 
 	}
 	return nil
+}
+
+func pathExists(conn client.Connection, path string) (bool, error) {
+	exists, err := conn.Exists(path)
+	if err != nil {
+		if err != client.ErrNoNode {
+			glog.Errorf("error with pathExists.Exists(%s) %+v", path, err)
+			return false, err
+		}
+		exists = false
+	}
+
+	return exists, nil
 }

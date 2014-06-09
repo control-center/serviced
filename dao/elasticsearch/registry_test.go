@@ -29,18 +29,16 @@ func (dt *DaoTest) TestDao_VhostRegistryCreate(t *C) {
 	t.Assert(err, IsNil)
 }
 
-func (dt *DaoTest) TestDao_VhostRegistryAdd(t *C) {
+func (dt *DaoTest) TestDao_VhostRegistrySet(t *C) {
 
 	vr, err := registry.VHostRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
-
-	//	func (vr *VhostRegistry) AddItem(conn client.Connection, key string, node *VhostEndpoint) (string, error) {
 
 	vep := registry.VhostEndpoint{}
 	vep.EndpointName = "epn_test"
 	vep.ServiceID = "svc_id"
 	vep.HostIP = "testip"
-	path, err := vr.AddItem(dt.zkConn, "testKey", vep)
+	path, err := vr.SetItem(dt.zkConn, "testKey", vep)
 	t.Assert(err, IsNil)
 	t.Assert(path, Not(Equals), 0)
 
@@ -53,8 +51,8 @@ func (dt *DaoTest) TestDao_VhostRegistryAdd(t *C) {
 	t.Assert(vep, Equals, *newVep)
 
 	//test double add
-	path, err = vr.AddItem(dt.zkConn, "testKey", vep)
-	t.Assert(err, NotNil)
+	path, err = vr.SetItem(dt.zkConn, "testKey", vep)
+	t.Assert(err, IsNil)
 }
 
 func (dt *DaoTest) TestDao_EndpointRegistryCreate(t *C) {

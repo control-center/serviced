@@ -53,12 +53,14 @@ type VhostRegistry struct {
 	registryType
 }
 
+// VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-	if exists, err := conn.Exists(path); err != nil {
+	if exists, err := pathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {
+			glog.Errorf("error with CreateDir(%s) %+v", path, err)
 			return nil, err
 		}
 	}
@@ -77,20 +79,6 @@ func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostE
 
 	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
 	return vr.setItem(conn, key, nodeID, &node)
-}
-
-//AddItem adds VhostEndpoint to the key in registry.  Returns the path of the node in the registry
-func (vr *VhostRegistry) AddItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
-	verr := validation.NewValidationError()
-
-	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
-	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
-	if verr.HasError() {
-		return "", verr
-	}
-
-	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
-	return vr.addItem(conn, key, nodeID, &node)
 }
 
 //GetItem gets  VhostEndpoint at the given path.
