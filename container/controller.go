@@ -409,14 +409,14 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
-	// create config files
+	// get service
 	service, err := getService(options.ServicedEndpoint, options.Service.ID)
 	if err != nil {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
 
-	// get service
+	// create config files
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
@@ -898,7 +898,8 @@ func (c *Controller) watchRemotePorts() {
 	}
 
 	glog.Infof("watching endpointRegistry")
-	endpointRegistry.WatchRegistry(zkConn, processTenantEndpoints, endpointWatchError)
+	//TODO: deal with channel if we care
+	endpointRegistry.WatchRegistry(zkConn, make(chan bool), processTenantEndpoints, endpointWatchError)
 	glog.Errorf("finished watching endpointRegistry - should never stop watching registry")
 }
 
@@ -1045,11 +1046,12 @@ func (c *Controller) registerExportedEndpoints() {
 		for _, export := range exportList {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
-				//TODO: remove vhost item first???
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.instanceID)
-				if _, err = vhostRegistry.AddItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
+				var path string
+				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
 					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
 				}
+				glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)

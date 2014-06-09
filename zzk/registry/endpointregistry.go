@@ -93,7 +93,7 @@ func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 			return nil, err
 		}
 	}
-	return &EndpointRegistry{registryType{zkEndpointsPath}}, nil
+	return &EndpointRegistry{registryType{getPath: zkEndpointsPath}}, nil
 }
 
 // TenantEndpointKey generates the key for the application endpoint
@@ -152,7 +152,8 @@ func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpoin
 
 // WatchTenantEndpoint watches a tenant endpoint directory
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantEndpointKey string,
-	processChildren processChildrenFunc, errorHandler WatchError) error {
+	processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 
-	return ar.WatchKey(conn, tenantEndpointKey, processChildren, errorHandler)
+	//TODO: Deal with cancel channel if this cares
+	return ar.WatchKey(conn, tenantEndpointKey, make(<-chan bool), processChildren, errorHandler)
 }

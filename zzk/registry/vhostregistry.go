@@ -62,7 +62,21 @@ func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 			return nil, err
 		}
 	}
-	return &VhostRegistry{registryType{vhostPath}}, nil
+	return &VhostRegistry{registryType{getPath: vhostPath, ephemeral: true}}, nil
+}
+
+//SetItem adds or replaces the  VhostEndpoint to the key in registry.  Returns the path of the node in the registry
+func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
+	verr := validation.NewValidationError()
+
+	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
+	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
+	if verr.HasError() {
+		return "", verr
+	}
+
+	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
+	return vr.setItem(conn, key, nodeID, &node)
 }
 
 //AddItem adds VhostEndpoint to the key in registry.  Returns the path of the node in the registry
@@ -90,7 +104,7 @@ func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEnd
 }
 
 //WatchVhostEndpoint watch a specific VhostEnpoint
-func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string, processVhostEdnpoint func(conn client.Connection,
+func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string, cancel <-chan bool, processVhostEdnpoint func(conn client.Connection,
 	node *VhostEndpoint), errorHandler WatchError) error {
 
 	processNode := func(conn client.Connection, node client.Node) {
@@ -99,5 +113,5 @@ func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string,
 	}
 
 	var vep VhostEndpoint
-	return vr.watchItem(conn, path, &vep, processNode, errorHandler)
+	return vr.watchItem(conn, path, &vep, cancel, processNode, errorHandler)
 }

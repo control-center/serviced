@@ -55,6 +55,7 @@ type Service struct {
 	Snapshot          servicedefinition.SnapshotCommands
 	Runs              map[string]string
 	RAMCommitment     uint64
+	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.

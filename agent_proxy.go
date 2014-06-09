@@ -65,7 +65,13 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		return err
 	}
 
-	return nil
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc)
 }
 
 // Call the master's to retrieve its tenant id

@@ -6,6 +6,9 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/zenoss/glog"
 )
 
 var etcHostsAllow = "/etc/hosts.allow"
@@ -54,12 +57,32 @@ func Mount(nfsPath, localPath string) error {
 		return ErrMalformedNFSMountpoint
 	}
 
-	cmd := commandFactory("mount.nfs4", nfsPath, localPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	// try mounting via in interuptable mount
+	cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
+	ret := make(chan error)
+	go func() {
+		output, err := cmd.CombinedOutput()
 		s := string(output)
-		if !strings.Contains(s, "already mounted") {
-			return fmt.Errorf(strings.TrimSpace(s))
+		switch {
+		case err != nil && !strings.Contains(err.Error(), "status 32"):
+			ret <- fmt.Errorf(strings.TrimSpace(s))
+		case strings.Contains(s, "already mounted") || len(strings.TrimSpace(s)) == 0:
+			ret <- nil
+		default:
+			ret <- nil
+		}
+		close(ret)
+	}()
+	select {
+	case <-time.After(time.Second * 30):
+		if execCmd, ok := cmd.(*exec.Cmd); ok {
+			execCmd.Process.Kill()
+		}
+		glog.Errorf("timed out waiting for nfs mount")
+		return fmt.Errorf("timeout waiting for nfs mount")
+	case err, ok := <-ret:
+		if ok {
+			return err
 		}
 	}
 	return nil
