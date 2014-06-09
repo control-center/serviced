@@ -35,8 +35,8 @@ func RemoveAllVirtualIPs() error {
 		return err
 	}
 	glog.V(2).Infof("Removing all virtual IPs...")
-	for virtualInterface, _ := range interfaceMap {
-		if err := unbindVirtualIP(virtualInterface); err != nil {
+	for _, virtualIP := range interfaceMap {
+		if err := unbindVirtualIP(virtualIP); err != nil {
 			return err
 		}
 	}
@@ -391,9 +391,9 @@ func removeVirtualIP(virtualIPAddress string) error {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
 	}
-	for virtualInterface, virtualIP := range interfaceMap {
+	for _, virtualIP := range interfaceMap {
 		if virtualIPAddress == virtualIP.IP {
-			if err := unbindVirtualIP(virtualInterface); err != nil {
+			if err := unbindVirtualIP(virtualIP); err != nil {
 				return err
 			}
 			return nil
@@ -412,9 +412,13 @@ func bindVirtualIP(virtualIP pool.VirtualIP, virtualInterfaceName string) error 
 		return fmt.Errorf("Problem with BindInterface %s", virtualIP.BindInterface)
 	}
 
+	binaryNetmask := net.IPMask(net.ParseIP(virtualIP.Netmask).To4())
+	cidr, _ := binaryNetmask.Size()
+
 	// ADD THE VIRTUAL INTERFACE
 	// sudo ifconfig eth0:1 inet 192.168.1.136 netmask 255.255.255.0
-	if err := exec.Command("ifconfig", virtualInterfaceName, "inet", virtualIP.IP, "netmask", virtualIP.Netmask).Run(); err != nil {
+	// ip addr add IPADDRESS/CIDR dev eth1 label BINDINTERFACE:zvip#
+	if err := exec.Command("ip", "addr", "add", virtualIP.IP+"/"+strconv.Itoa(cidr), "dev", virtualIP.BindInterface, "label", virtualInterfaceName).Run(); err != nil {
 		return fmt.Errorf("Problem with creating virtual interface %s", virtualInterfaceName)
 	}
 
@@ -423,10 +427,10 @@ func bindVirtualIP(virtualIP pool.VirtualIP, virtualInterfaceName string) error 
 }
 
 // unbind the virtual IP from the agent
-func unbindVirtualIP(virtualInterface string) error {
-	glog.Infof("Removing: %v", virtualInterface)
+func unbindVirtualIP(virtualIP pool.VirtualIP) error {
+	glog.Infof("Removing: %v", virtualIP.IP)
 	// ifconfig eth0:1 down
-	if err := exec.Command("ifconfig", virtualInterface, "down").Run(); err != nil {
+	if err := exec.Command("ip", "addr", "del", virtualIP.IP, "dev", virtualIP.BindInterface).Run(); err != nil {
 		return fmt.Errorf("Problem with removing virtual interface %v: %v", virtualInterface, err)
 	}
 
