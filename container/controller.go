@@ -977,10 +977,12 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
 
 	if len(endpointNodes) <= 0 {
-		if proxy, ok := proxies[tenantEndpointID]; ok {
+		if prxy, ok := proxies[tenantEndpointID]; ok {
 			glog.Errorf("Setting proxy %s to empty address list", tenantEndpointID)
 			emptyAddressList := []string{}
-			proxy.SetNewAddresses(emptyAddressList)
+			prxy.SetNewAddresses(emptyAddressList)
+		} else {
+			glog.Errorf("No proxy for %s - no need to set empty address list", tenantEndpointID)
 		}
 		return
 	}
@@ -999,10 +1001,12 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 	prxy, ok := proxies[tenantEndpointID]
 	if !ok {
 		var err error
-		proxies[tenantEndpointID], err = createNewProxy(tenantEndpointID, endpointNodes[0])
+		prxy, err = createNewProxy(tenantEndpointID, endpointNodes[0])
 		if err != nil {
+			glog.Errorf("error with createNewProxy(%s, %+v) %v", tenantEndpointID, endpointNodes[0], err)
 			return
 		}
+		proxies[tenantEndpointID] = prxy
 
 		if ep := endpointNodes[0]; ep.VirtualAddress != "" {
 			p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
@@ -1012,14 +1016,13 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 			}
 		}
 	}
-	glog.Infof("Starting setting proxy %s to addresses %v", tenantEndpointID, addresses)
+	glog.Infof("Setting proxy %s to addresses %v", tenantEndpointID, addresses)
 	prxy.SetNewAddresses(addresses)
-	glog.Infof("Finished setting proxy %s to addresses %v", tenantEndpointID, addresses)
 }
 
 //
-func createNewProxy(key string, endpoint registry.EndpointNode) (*proxy, error) {
-	glog.Infof("Attempting port map for: %s -> %+v", key, endpoint)
+func createNewProxy(tenantEndpointID string, endpoint registry.EndpointNode) (*proxy, error) {
+	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
 	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
@@ -1037,7 +1040,7 @@ func createNewProxy(key string, endpoint registry.EndpointNode) (*proxy, error) 
 		return nil, err
 	}
 
-	glog.Infof("Success binding port: %s -> %+v", key, prxy)
+	glog.Infof("Success binding port: %s -> %+v", tenantEndpointID, prxy)
 	return prxy, nil
 }
 
