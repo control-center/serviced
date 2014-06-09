@@ -761,6 +761,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleRemotePorts() {
+	// TODO: remove handleRemotePorts() for useImportedEndpointServiceDiscovery
+	//		 this function is currently needed to handle special control plane
+	//		 imports
+
 	// get service endpoints
 	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -774,6 +778,23 @@ func (c *Controller) handleRemotePorts() {
 	if err != nil {
 		glog.Errorf("Error getting application endpoints for service %s: %s", c.options.Service.ID, err)
 		return
+	}
+	if useImportedEndpointServiceDiscovery {
+		tmp := make(map[string][]*dao.ApplicationEndpoint)
+		for key, endpointList := range endpoints {
+			if len(endpointList) <= 0 {
+				glog.Warningf("ignoring key: %s with empty endpointList", key)
+				continue
+			}
+
+			tenantEndpointID := registry.TenantEndpointKey(c.tenantID, endpointList[0].Application)
+			glog.Infof("changing key from %s to %s: %+v", key, tenantEndpointID, endpointList[0])
+			tmp[tenantEndpointID] = endpoints[key]
+		}
+		endpoints = tmp
+		for key, endpointList := range endpoints {
+			glog.Infof("imported %s: %+v", key, endpointList[0])
+		}
 	}
 
 	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
@@ -841,7 +862,7 @@ func (c *Controller) handleRemotePorts() {
 			addImportedEndpoint(endpointList[0])
 
 			// TODO: agent needs to register controlplane and controlplane_consumer
-			//       but don't do that here in the container code
+			//       but don't do that here in the container code, try ephemeral znodes
 		}
 	}
 }
