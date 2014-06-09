@@ -26,8 +26,8 @@ import (
 )
 
 var (
+	vhostWatch = true //set to true to watch ZK for vhost info, false to poll periodically poll for vhost information
 	vregistry  = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
-	vregistry2 = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
 )
 
 type vhostInfo struct {
@@ -87,13 +87,11 @@ func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
 	return infos
 }
 
+//vhostRegistry keeps track of all current known vhosts and vhost endpoints.
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup map[string]*vhostInfo //vhost name to all avaialbe endpoints
-
+	lookup     map[string]*vhostInfo  //vhost name to all avaialbe endpoints
 	vhostWatch map[string]chan<- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
-	//	vhostEndpoints     map[string]chan<- bool //watches to an actual vhost under a dir. i.e. a node under a vhost dir in zk. Channel is to cancel watch
-	//	vhostEndpointPaths map[string]struct{}    //watches to an actual vhost under a dir. i.e. a node under a vhost dir in zk. Channel is to cancel watch
 }
 
 //get returns a vhostInfo, bool is true or false if vhost is found
@@ -126,15 +124,17 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 }
 
 func (sc *ServiceConfig) syncVhosts() {
-	go sc.watchVhosts()
-	sc.vhostFinder()
-	for {
-		select {
-		case <-time.After(30 * time.Second):
-			sc.vhostFinder()
+	if vhostWatch {
+		go sc.watchVhosts()
+	} else {
+		sc.vhostFinder()
+		for {
+			select {
+			case <-time.After(10 * time.Second):
+				sc.vhostFinder()
+			}
 		}
 	}
-
 }
 
 func (sc *ServiceConfig) watchVhosts() error {
@@ -159,10 +159,10 @@ func (sc *ServiceConfig) watchVhosts() error {
 		for _, vhostID := range childIDs {
 			vhostPath := fmt.Sprintf("%s/%s", parentPath, vhostID)
 			currentVhosts[vhostPath] = struct{}{}
-			if _, found := vregistry2.vhostWatch[vhostPath]; !found {
+			if _, found := vregistry.vhostWatch[vhostPath]; !found {
 				glog.Infof("processing vhost watch: %s", vhostPath)
 				cancelChan := make(chan bool)
-				vregistry2.vhostWatch[vhostPath] = cancelChan
+				vregistry.vhostWatch[vhostPath] = cancelChan
 				vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
 			} else {
 				glog.Infof("vhost %s already being watched", vhostPath)
@@ -170,10 +170,10 @@ func (sc *ServiceConfig) watchVhosts() error {
 		}
 
 		//cancel watching any vhosts nodes that are no longer
-		for previousVhost, cancel := range vregistry2.vhostWatch {
+		for previousVhost, cancel := range vregistry.vhostWatch {
 			if _, found := currentVhosts[previousVhost]; !found {
 				glog.Infof("Cancelling vhost watch for %s}", previousVhost)
-				delete(vregistry2.vhostWatch, previousVhost)
+				delete(vregistry.vhostWatch, previousVhost)
 				cancel <- true
 				close(cancel)
 			}
@@ -208,7 +208,7 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 			vepInfo := createvhostEndpointInfo(vhEndpoint)
 			vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
 		}
-		vregistry2.setVhostInfo(vhostID, vhostEndpoints)
+		vregistry.setVhostInfo(vhostID, vhostEndpoints)
 	}
 }
 
@@ -218,7 +218,7 @@ func vhostWatchError(path string, err error) {
 }
 
 func (sc *ServiceConfig) vhostFinder() error {
-	glog.V(0).Infof("vhost syncing...")
+	glog.V(4).Infof("vhost syncing...")
 	if true {
 		return nil
 	}
@@ -234,11 +234,6 @@ func (sc *ServiceConfig) vhostFinder() error {
 	vhosts := make(map[string]*vhostInfo, 0)
 
 	for _, s := range services {
-		//		var svc service.Service
-		//
-		//		if err := client.GetService(s.ServiceID, &svc); err != nil {
-		//			glog.Errorf("Can't get service: %s (%v)", s.Id, err)
-		//		}
 
 		svcstates := []*servicestate.ServiceState{}
 		if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
@@ -257,15 +252,7 @@ func (sc *ServiceConfig) vhostFinder() error {
 			}
 		}
 	}
-	//
-	//		for _, vhep := range svc.GetServiceVHosts() {
-	//			for _, vh := range vhep.VHosts {
-	//				for _, ss := range svcstates {
-	//					vhosts[vh] = append(vhosts[vh], ss)
-	//				}
-	//			}
-	//		}
-	//	}
+
 	vregistry.setAll(vhosts)
 	return nil
 }
@@ -287,7 +274,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	found := false
 	tries := 2
 	for !found && tries > 0 {
-		vhInfo, found = vregistry2.get(subdomain)
+		vhInfo, found = vregistry.get(subdomain)
 		tries--
 		if !found && tries > 0 {
 			glog.Infof("vhost %s not found, syncing...", subdomain)
