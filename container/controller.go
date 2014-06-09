@@ -345,16 +345,16 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, servic
 	glog.Infof("buildImportedEndpoints state: %+v", state)
 
 	for _, defep := range state.Endpoints {
-		glog.Infof("buildImportedEndpoints adding state: %+v", state)
-		ie := importedEndpoint{}
-		ie.endpoint, err = buildApplicationEndpoint(state, &defep)
-		if err != nil {
-			return result, err
-		}
+		if defep.Purpose == "import" {
+			ie := importedEndpoint{}
+			ie.endpoint, err = buildApplicationEndpoint(state, &defep)
+			if err != nil {
+				return result, err
+			}
 
-		tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpoint.Application)
-		glog.Infof("buildImportedEndpoints adding ie[%s]: %+v", tenantEndpointKey, ie)
-		result[tenantEndpointKey] = ie
+			tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpoint.Application)
+			result[tenantEndpointKey] = ie
+		}
 	}
 
 	return result, nil
@@ -370,13 +370,18 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.ContainerIP = state.PrivateIP
 	ae.ContainerPort = endpoint.PortNumber
 	ae.HostIP = state.HostIP
-	pm := state.PortMapping[fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)]
-	port, err := strconv.Atoi(pm[0].HostPort)
-	if err != nil {
-		glog.Errorf("Unable to interpret HostPort: %s", pm[0].HostPort)
-		return nil, err
+	if len(state.PortMapping) > 0 {
+		pmKey := fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)
+		pm := state.PortMapping[pmKey]
+		if len(pm) > 0 {
+			port, err := strconv.Atoi(pm[0].HostPort)
+			if err != nil {
+				glog.Errorf("Unable to interpret HostPort: %s", pm[0].HostPort)
+				return nil, err
+			}
+			ae.HostPort = uint16(port)
+		}
 	}
-	ae.HostPort = uint16(port)
 	ae.VirtualAddress = endpoint.VirtualAddress
 
 	return &ae, nil
@@ -512,15 +517,15 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	// initialize importedEndpoints
-	/*
-		TODO: fix the panic when this code is enabled
+	if useImportedEndpointServiceDiscovery {
 		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return c, ErrInvalidImportedEndpoints
 		}
-	*/
-	c.importedEndpoints = make(map[string]importedEndpoint)
+	} else {
+		c.importedEndpoints = make(map[string]importedEndpoint)
+	}
 
 	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
@@ -593,7 +598,7 @@ func (c *Controller) Run() (err error) {
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
 	if useImportedEndpointServiceDiscovery {
-		go c.watchRemotePorts()
+		c.watchRemotePorts()
 	}
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
@@ -834,6 +839,9 @@ func (c *Controller) handleRemotePorts() {
 
 		if useImportedEndpointServiceDiscovery {
 			addImportedEndpoint(endpointList[0])
+
+			// TODO: agent needs to register controlplane and controlplane_consumer
+			//       but don't do that here in the container code
 		}
 	}
 }
@@ -892,7 +900,12 @@ func (c *Controller) watchRemotePorts() {
 					// aSet := set.New(set.ThreadSafe) // thread safe version
 					// watchers[id] = aSet.(*set.Set)
 					go watchTenantEndpoints(id)
+				} else {
+					glog.Infof("  no need to add - not imported: %s %s", parentPath, id)
+					glog.Infof("    importedEndpoints: %+v", c.importedEndpoints)
 				}
+			} else {
+				glog.Infof("  no need to add - existing watch tenantEndpoint: %s %s", parentPath, id)
 			}
 
 			// BEWARE: only need to deal with add, currently no need to deal with deletes
@@ -904,8 +917,7 @@ func (c *Controller) watchRemotePorts() {
 
 	glog.Infof("watching endpointRegistry")
 	//TODO: deal with channel if we care
-	endpointRegistry.WatchRegistry(zkConn, make(chan bool), processTenantEndpoints, endpointWatchError)
-	glog.Errorf("finished watching endpointRegistry - should never stop watching registry")
+	go endpointRegistry.WatchRegistry(zkConn, make(chan bool), processTenantEndpoints, endpointWatchError)
 }
 
 //
@@ -962,6 +974,8 @@ func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostC
 }
 
 func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.EndpointNode) {
+	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
+
 	if len(endpointNodes) <= 0 {
 		if proxy, ok := proxies[tenantEndpointID]; ok {
 			glog.Errorf("Setting proxy %s to empty address list", tenantEndpointID)
@@ -977,6 +991,10 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 		glog.Infof("addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
 	}
 	sort.Strings(addresses)
+
+	for ii, pp := range proxies {
+		glog.Infof("  proxies[%s]: %+v", ii, *pp)
+	}
 
 	prxy, ok := proxies[tenantEndpointID]
 	if !ok {
@@ -994,8 +1012,9 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 			}
 		}
 	}
-	glog.Errorf("Setting proxy %s to addresses %v", tenantEndpointID, addresses)
+	glog.Infof("Starting setting proxy %s to addresses %v", tenantEndpointID, addresses)
 	prxy.SetNewAddresses(addresses)
+	glog.Infof("Finished setting proxy %s to addresses %v", tenantEndpointID, addresses)
 }
 
 //
