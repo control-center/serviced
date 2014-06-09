@@ -766,13 +766,15 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
-	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
-		// replace or add entries in importedEndpoints
-		ie := importedEndpoint{}
-		ie.endpoint = endpoint
-		key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
-		c.importedEndpoints[key] = ie
-	}
+	/*
+		addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
+			// replace or add entries in importedEndpoints
+			ie := importedEndpoint{}
+			ie.endpoint = endpoint
+			key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
+			c.importedEndpoints[key] = ie
+		}
+	*/
 
 	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
@@ -786,7 +788,7 @@ func (c *Controller) handleRemotePorts() {
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-			glog.Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
+			glog.V(2).Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
 		}
 		sort.Strings(addresses)
 
@@ -827,7 +829,8 @@ func (c *Controller) handleRemotePorts() {
 		}
 		prxy.SetNewAddresses(addresses)
 
-		addImportedEndpoint(endpointList[0])
+		// TODO: uncomment addImportedEndpoint() if watchRemotePorts() is called
+		// addImportedEndpoint(endpointList[0])
 	}
 }
 
