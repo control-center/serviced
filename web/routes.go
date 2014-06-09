@@ -24,6 +24,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/backup/restore/status", sc.authorizedClient(RestRestoreStatus)},
 		// Hosts
 		rest.Route{"GET", "/hosts", sc.checkAuth(restGetHosts)},
+		rest.Route{"GET", "/hosts/master", sc.checkAuth(restGetMaster)},
 		rest.Route{"GET", "/hosts/:hostId", sc.checkAuth(restGetHost)},
 		rest.Route{"POST", "/hosts/add", sc.checkAuth(restAddHost)},
 		rest.Route{"DELETE", "/hosts/:hostId", sc.checkAuth(restRemoveHost)},
