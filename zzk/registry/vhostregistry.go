@@ -53,12 +53,14 @@ type VhostRegistry struct {
 	registryType
 }
 
+// VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-	if exists, err := conn.Exists(path); err != nil {
+	if exists, err := pathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {
+			glog.Errorf("error with CreateDir(%s) %+v", path, err)
 			return nil, err
 		}
 	}
