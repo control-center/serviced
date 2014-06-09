@@ -13,6 +13,7 @@ import (
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/zenoss/serviced/coordinator/client"
 	"io"
@@ -25,28 +26,44 @@ import (
 )
 
 var (
-	vregistry  = vhostRegistry{lookup: make(map[string]*vhostInfo)}
-	vregistry2 = vhostRegistry{lookup: make(map[string]*vhostInfo)}
+	vregistry  = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
+	vregistry2 = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
 )
 
 type vhostInfo struct {
-	endpoints []vhostEndPoint
+	sync.RWMutex
+	endpoints []vhostEndpointInfo
 	counter   int
 }
 
 func newVhostInfo() *vhostInfo {
-	return &vhostInfo{endpoints: make([]vhostEndPoint, 0)}
+	return &vhostInfo{endpoints: make([]vhostEndpointInfo, 0)}
 }
 
-func (vi *vhostInfo) GetNext() (vhostEndPoint, error) {
+func (vi *vhostInfo) GetNext() (vhostEndpointInfo, error) {
+	vi.Lock()
+	defer vi.Unlock()
+	if len(vi.endpoints) == 0 {
+		return vhostEndpointInfo{}, errors.New("no vhost endpoints available")
+	}
 	vep := vi.endpoints[vi.counter%len(vi.endpoints)]
+	vi.counter++
 	return vep, nil
 }
 
-type vhostEndPoint struct {
+type vhostEndpointInfo struct {
 	hostIP    string
 	epPort    uint16
 	privateIP string
+}
+
+func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
+	return vhostEndpointInfo{
+		hostIP:    vep.HostIP,
+		epPort:    vep.ContainerPort,
+		privateIP: vep.ContainerIP,
+	}
+
 }
 
 func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
@@ -57,7 +74,7 @@ func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
 			if _, found := infos[vhost]; !found {
 				infos[vhost] = newVhostInfo()
 			}
-			vi := vhostEndPoint{
+			vi := vhostEndpointInfo{
 				hostIP:    state.HostIP,
 				epPort:    svcep.PortNumber,
 				privateIP: state.PrivateIP,
@@ -66,12 +83,17 @@ func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
 			info.endpoints = append(infos[vhost].endpoints, vi)
 		}
 	}
+	glog.Infof("created vhost infos %#v", infos)
 	return infos
 }
 
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup map[string]*vhostInfo
+	lookup map[string]*vhostInfo //vhost name to all avaialbe endpoints
+
+	vhostWatch map[string]chan<- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
+	//	vhostEndpoints     map[string]chan<- bool //watches to an actual vhost under a dir. i.e. a node under a vhost dir in zk. Channel is to cancel watch
+	//	vhostEndpointPaths map[string]struct{}    //watches to an actual vhost under a dir. i.e. a node under a vhost dir in zk. Channel is to cancel watch
 }
 
 //get returns a vhostInfo, bool is true or false if vhost is found
@@ -82,7 +104,15 @@ func (vr *vhostRegistry) get(vhost string) (*vhostInfo, bool) {
 	return vhInfo, found
 }
 
-//get returns a list of ServiceState, bool is true or false if vhost is found
+//setEndpoints sets/replaces all the endpoints available for a vhost
+func (vr *vhostRegistry) setVhostInfo(vhost string, vhInfo *vhostInfo) {
+	vr.Lock()
+	defer vr.Unlock()
+	vr.lookup[vhost] = vhInfo
+	glog.Infof("setVhostInfo adding VHost %v with backend: %#v", vhost, vhInfo)
+}
+
+//replaces all the vhost lookup information
 func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	vr.Lock()
 	defer vr.Unlock()
@@ -90,10 +120,9 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	for key, infos := range vhosts {
 		vr.lookup[key] = infos
 		for _, ep := range infos.endpoints {
-			glog.V(4).Infof("vhosthandler adding VHost %v with backend: %#v", key, ep)
+			glog.Infof("vhosthandler adding VHost %v with backend: %#v", key, ep)
 		}
 	}
-
 }
 
 func (sc *ServiceConfig) syncVhosts() {
@@ -125,41 +154,74 @@ func (sc *ServiceConfig) watchVhosts() error {
 	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.Info("processVhosts STARTING")
 
-		for _, id := range childIDs {
-			glog.Infof("processing vhost watch: %s/%s", parentPath, id)
-			vhostRegistry.WatchKey(conn, id, processVhost, vhostWatchError)
+		currentVhosts := make(map[string]struct{})
+		//watch any new vhost nodes
+		for _, vhostID := range childIDs {
+			vhostPath := fmt.Sprintf("%s/%s", parentPath, vhostID)
+			currentVhosts[vhostPath] = struct{}{}
+			if _, found := vregistry2.vhostWatch[vhostPath]; !found {
+				glog.Infof("processing vhost watch: %s", vhostPath)
+				cancelChan := make(chan bool)
+				vregistry2.vhostWatch[vhostPath] = cancelChan
+				vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
+			} else {
+				glog.Infof("vhost %s already being watched", vhostPath)
+			}
+		}
+
+		//cancel watching any vhosts nodes that are no longer
+		for previousVhost, cancel := range vregistry2.vhostWatch {
+			if _, found := currentVhosts[previousVhost]; !found {
+				glog.Infof("Cancelling vhost watch for %s}", previousVhost)
+				delete(vregistry2.vhostWatch, previousVhost)
+				cancel <- true
+				close(cancel)
+			}
 		}
 	}
 
-	vhostRegistry.WatchRegistry(conn, processVhosts, vhostWatchError)
+	cancelChan := make(chan bool)
+	vhostRegistry.WatchRegistry(conn, cancelChan, processVhosts, vhostWatchError)
 
 	return nil
 }
 
 //processVhost is used to watch the children of particular vhost in the registry
-func processVhost(conn client.Connection, parentPath string, childIDs ...string) {
-	glog.Infof("processing vhost parent %v; children %v", parentPath, childIDs)
-	vr, err := registry.VHostRegistry(conn)
-	if err != nil {
-		glog.Errorf("processVhost - Error getting vhost registry: %v", err)
-		return
-	}
-	for _, child := range childIDs {
-		node, err := vr.GetItem(conn, parentPath+"/"+child)
+func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFunc {
+
+	return func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.Infof("processing vhost parent %v; children %v", parentPath, childIDs)
+		vr, err := registry.VHostRegistry(conn)
 		if err != nil {
-			glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
-			continue
+			glog.Errorf("processVhost - Error getting vhost registry: %v", err)
+			return
 		}
-		glog.Infof("Processing vhost %s/%s: %#v", parentPath, child, node)
+
+		vhostEndpoints := newVhostInfo()
+		for _, child := range childIDs {
+			vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
+			if err != nil {
+				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
+				continue
+			}
+			glog.Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
+			vepInfo := createvhostEndpointInfo(vhEndpoint)
+			vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
+		}
+		vregistry2.setVhostInfo(vhostID, vhostEndpoints)
 	}
 }
+
 func vhostWatchError(path string, err error) {
 	glog.Infof("processing vhostWatchError on %s: %v", path, err)
 
 }
 
 func (sc *ServiceConfig) vhostFinder() error {
-	glog.V(4).Infof("vhost syncing...")
+	glog.V(0).Infof("vhost syncing...")
+	if true {
+		return nil
+	}
 	client, err := sc.getClient()
 	if err != nil {
 		glog.Warningf("error getting client could not lookup vhosts: %v", err)
@@ -225,7 +287,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	found := false
 	tries := 2
 	for !found && tries > 0 {
-		vhInfo, found = vregistry.get(subdomain)
+		vhInfo, found = vregistry2.get(subdomain)
 		tries--
 		if !found && tries > 0 {
 			glog.Infof("vhost %s not found, syncing...", subdomain)
@@ -240,6 +302,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	// than one service state is mapped to a given virtual host
 	vhEP, err := vhInfo.GetNext()
 	if err != nil {
+		glog.V(4).Infof("no endpoing found for vhost %s: %v", subdomain, err)
 		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
 		return
 	}

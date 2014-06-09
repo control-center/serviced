@@ -104,7 +104,7 @@ func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEnd
 }
 
 //WatchVhostEndpoint watch a specific VhostEnpoint
-func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string, processVhostEdnpoint func(conn client.Connection,
+func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string, cancel <-chan bool, processVhostEdnpoint func(conn client.Connection,
 	node *VhostEndpoint), errorHandler WatchError) error {
 
 	processNode := func(conn client.Connection, node client.Node) {
@@ -113,5 +113,5 @@ func (vr *VhostRegistry) WatchVhostEndpoint(conn client.Connection, path string,
 	}
 
 	var vep VhostEndpoint
-	return vr.watchItem(conn, path, &vep, processNode, errorHandler)
+	return vr.watchItem(conn, path, &vep, cancel, processNode, errorHandler)
 }

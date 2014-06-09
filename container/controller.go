@@ -845,7 +845,8 @@ func (c *Controller) watchRemotePorts() {
 	}
 
 	glog.Infof("watching endpointRegistry")
-	endpointRegistry.WatchRegistry(zkConn, processTenantEndpoints, endpointWatchError)
+	//TODO: deal with channel if we care
+	endpointRegistry.WatchRegistry(zkConn, make(chan bool), processTenantEndpoints, endpointWatchError)
 	glog.Errorf("finished watching endpointRegistry - should never stop watching registry")
 }
 

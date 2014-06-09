@@ -16,7 +16,7 @@ type registryType struct {
 
 type WatchError func(path string, err error)
 
-type processChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
+type ProcessChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
 //EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
 func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
@@ -40,14 +40,14 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 	return path, nil
 }
 
-func (r *registryType) WatchKey(conn client.Connection, key string, processChildren processChildrenFunc, errorHandler WatchError) error {
+func (r *registryType) WatchKey(conn client.Connection, key string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	keyPath := r.getPath(key)
-	return watch(conn, keyPath, processChildren, errorHandler)
+	return watch(conn, keyPath, cancel, processChildren, errorHandler)
 }
 
-func (r *registryType) WatchRegistry(conn client.Connection, processChildren processChildrenFunc, errorHandler WatchError) error {
+func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	path := r.getPath()
-	return watch(conn, path, processChildren, errorHandler)
+	return watch(conn, path, cancel, processChildren, errorHandler)
 }
 
 //Add node to the key in registry.  Returns the path of the node in the registry
@@ -143,6 +143,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	if exists, err := conn.Exists(path); err != nil {
 		return err
 	} else if !exists {
+		glog.V(0).Infof("creating zk dir %s", path)
 		if err := conn.CreateDir(path); err != nil {
 			return err
 		}
@@ -150,7 +151,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	return nil
 }
 
-func watch(conn client.Connection, path string, processChildren processChildrenFunc, errorHandler WatchError) error {
+func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	exists, err := conn.Exists(path)
 	if err != nil {
 		return err
@@ -159,8 +160,9 @@ func watch(conn client.Connection, path string, processChildren processChildrenF
 		return client.ErrNoNode
 	}
 	for {
-		glog.V(2).Infof("watching children at path: %s", path)
+		glog.V(0).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
+		glog.V(0).Infof("child watch for path %s returned: %#v", path, nodeIDs)
 		if err != nil {
 			glog.Errorf("Could not watch %s: %s", path, err)
 			defer errorHandler(path, err)
@@ -168,14 +170,19 @@ func watch(conn client.Connection, path string, processChildren processChildrenF
 		}
 		processChildren(conn, path, nodeIDs...)
 		//This blocks until a change happens under the key
-		ev := <-event
-		glog.V(2).Infof("watch event %+v at path: %s", ev, path)
+		select {
+		case ev := <-event:
+			glog.V(0).Infof("watch event %+v at path: %s", ev, path)
+		case <-cancel:
+			glog.V(0).Infof("watch cancel at path: %s", path)
+			return nil
+		}
 	}
-	glog.V(2).Infof("no longer watching children at path: %s", path)
+	glog.V(0).Infof("no longer watching children at path: %s", path)
 	return nil
 }
 
-func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, processNode func(conn client.Connection,
+func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan bool, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
 	exists, err := conn.Exists(path)
 	if err != nil {
@@ -193,7 +200,13 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 		}
 		processNode(conn, nodeType)
 		//This blocks until a change happens under the key
-		<-event
+		select {
+		case ev := <-event:
+			glog.V(2).Infof("watch event %+v at path: %s", ev, path)
+		case <-cancel:
+			return nil
+		}
+
 	}
 	return nil
 }
