@@ -13,13 +13,8 @@ import (
 
 	"net"
 	"net/url"
-	"os"
 	"strings"
 )
-
-type Master struct {
-	Hostname string
-}
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
 func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
@@ -79,14 +74,8 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 }
 
 //restGetMaster retrieves information related to the master.
-func restGetMaster(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		restBadRequest(w)
-		return
-	}
-	master := Master{hostname}
-	w.WriteJson(&master)
+func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	w.WriteJson(&map[string]string{"hostalias":defaultHostAlias})
 }
 
 //restAddHost adds a Host. Request input is host.Host

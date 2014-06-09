@@ -8,6 +8,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
+    $scope.defaultHostAlias = location.hostname;
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    if (re.test(location.hostname) || location.hostname == "localhost") {
+        $.getJSON("/hosts/defaultHostAlias", "", function(data) {
+            $scope.defaultHostAlias = data.hostalias;
+        });
+    }
+
     $scope.breadcrumbs = [
         { label: 'breadcrumb_deployed', url: '#/apps' }
     ];
@@ -113,10 +121,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         resourcesService.assign_ip( serviceID, IP) 
     };
 
-    window.foo = $scope;
-
     $scope.vhost_url = function(vhost) {
-        return location.protocol + "//" + vhost + "." + $scope.hosts.all[0].Name + ":" + location.port;
+        var port = location.port == "" ? "" : ":"+location.port;
+        return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     }
 
     $scope.indent = indentClass;
