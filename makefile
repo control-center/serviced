@@ -17,7 +17,7 @@ install: build_binary bash-complete
 	cd web && make build-js
 	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install github.com/zenoss/serviced/serviced
-	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
+	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
 
 bash-complete:
 	sudo cp ./serviced/serviced-bash-completion.sh /etc/bash_completion.d/serviced
