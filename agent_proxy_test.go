@@ -41,8 +41,8 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	controlplane_endpoint.HostIP = "127.0.0.1"
 	controlplane_endpoint.Protocol = "tcp"
 
-	agent.addContolPlaneEndpoint(endpoints)
-	agent.addContolPlaneConsumerEndpoint(endpoints)
+	agent.addControlPlaneEndpoint(endpoints)
+	agent.addControlPlaneConsumerEndpoint(endpoints)
 
 	if _, ok := endpoints["tcp:8444"]; !ok {
 		t.Fatalf(" mapping failed missing key[\"tcp:8444\"]")
