@@ -447,9 +447,9 @@ func unbindVirtualIP(virtualIP pool.VirtualIP) error {
 	cidr, _ := binaryNetmask.Size()
 
 	//sudo ip link set eth0 down
-	if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "down").Run(); err != nil {
-		return fmt.Errorf("Could not set link down on %v: %v", virtualIP.BindInterface, err)
-	}
+	//if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "down").Run(); err != nil {
+	//	return fmt.Errorf("Could not set link down on %v: %v", virtualIP.BindInterface, err)
+	//}
 
 	//sudo ip addr del 192.168.0.10/24 dev eth0
 	if err := exec.Command("ip", "addr", "del", virtualIP.IP+"/"+strconv.Itoa(cidr), "dev", virtualIP.BindInterface).Run(); err != nil {
@@ -457,9 +457,9 @@ func unbindVirtualIP(virtualIP pool.VirtualIP) error {
 	}
 
 	//sudo ip link set eth0 up
-	if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "up").Run(); err != nil {
-		return fmt.Errorf("Could not set link up on %v: %v", virtualIP.BindInterface, err)
-	}
+	//if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "up").Run(); err != nil {
+	//	return fmt.Errorf("Could not set link up on %v: %v", virtualIP.BindInterface, err)
+	//}
 
 	glog.Infof("Removed virtual interface: %+v", virtualIP)
 	return nil
