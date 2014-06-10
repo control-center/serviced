@@ -153,7 +153,15 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.wizard_finish = function() {
+
+        closeModal = function(){
+            $('#addApp').modal('hide');
+            $("#deploy-save-button").removeAttr("disabled");
+            resetStepPage();
+        }
+
         $("#deploy-save-button").toggleClass('active');
+        $("#deploy-save-button").attr("disabled", "disabled");
 
         nextClicked = true;
         if ($scope.steps[step].validate) {
@@ -192,12 +200,8 @@ function DeployWizard($scope, resourcesService) {
                     }
                 });
 
-                $('#addApp').modal('hide');
-                resetStepPage();
-            }, function(result){
-                $('#addApp').modal('hide');
-                resetStepPage();
-            }
+                closeModal();
+            }, closeModal
             );
         }
 
