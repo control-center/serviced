@@ -11,7 +11,6 @@ import (
 
 	"fmt"
 	"time"
-	"runtime/debug"
 )
 
 const (
@@ -92,8 +91,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 
 	var value host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
-	glog.V(0).Infof("Facade.GetHost: get error %v", err)
-	debug.PrintStack()
+	glog.V(4).Infof("Facade.GetHost: get error %v", err)
 	if datastore.IsErrNoSuchEntity(err) {
 		return nil, nil
 	}
