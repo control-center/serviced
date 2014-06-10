@@ -176,7 +176,6 @@ function DeployWizard($scope, resourcesService) {
             }
             dName += selected[i].Name;
 
-
             resourcesService.deploy_app_template({
                 poolID: $scope.install.selected.pool,
                 TemplateID: selected[i].Id,
