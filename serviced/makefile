@@ -17,6 +17,7 @@ install:
 	go install
 
 build:
+	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
 	./godep restore
 	go build
 	cd $(NSINITDIR) && go build && go install
