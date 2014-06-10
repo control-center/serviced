@@ -130,6 +130,8 @@ func TestServicedCLI_CmdTemplateList_one(t *testing.T) {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
 
+	actual = Split(output, "\n")[1]
+
 	// Did you remember to update ServiceTemplate.Equals?
 	if !actual.Equals(expected) {
 		t.Fatalf("got:\n%+v\nwant:\n%+v", actual, expected)
