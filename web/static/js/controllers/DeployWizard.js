@@ -153,6 +153,8 @@ function DeployWizard($scope, resourcesService) {
     };
 
     $scope.wizard_finish = function() {
+        $("#deploy-save-button").toggleClass('active');
+
         nextClicked = true;
         if ($scope.steps[step].validate) {
             if (!$scope.steps[step].validate()) {
@@ -174,6 +176,7 @@ function DeployWizard($scope, resourcesService) {
             }
             dName += selected[i].Name;
 
+
             resourcesService.deploy_app_template({
                 poolID: $scope.install.selected.pool,
                 TemplateID: selected[i].Id,
@@ -189,7 +192,14 @@ function DeployWizard($scope, resourcesService) {
                         }
                     }
                 });
-            });
+
+                $('#addApp').modal('hide');
+                resetStepPage();
+            }, function(result){
+                $('#addApp').modal('hide');
+                resetStepPage();
+            }
+            );
         }
 
         $scope.services.deployed = {
@@ -200,8 +210,6 @@ function DeployWizard($scope, resourcesService) {
             deployment: "ready"
         };
 
-        $('#addApp').modal('hide');
-        resetStepPage();
         nextClicked = false;
     };
 
