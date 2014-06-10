@@ -202,7 +202,7 @@ func (f *Facade) getEndpointAddressAssignments(ctx datastore.Context, serviceID 
 
 func (f *Facade) initializedAddressConfig(endpoint service.ServiceEndpoint) bool {
 	// has nothing defined in the service definition
-	if endpoint.EndpointDefinition.PortNumber == 0 && endpoint.EndpointDefinition.Protocol == "" {
+	if endpoint.AddressConfig.Port == 0 && endpoint.AddressConfig.Protocol == "" {
 		return false
 	}
 	return true

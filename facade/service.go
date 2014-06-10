@@ -385,7 +385,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				assignment.HostID = assignmentHostID
 				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
-				assignment.Port = endpoint.EndpointDefinition.PortNumber
+				assignment.Port = endpoint.AddressConfig.Port
 				assignment.ServiceID = myService.Id
 				assignment.EndpointName = endpoint.Name
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
