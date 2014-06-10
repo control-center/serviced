@@ -146,7 +146,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	}
 
 	svc.MonitoringProfile = domain.MonitorProfile{
-		Metrics: make([]domain.MetricConfig, len(sd.Metrics)),
+		MetricConfigs: make([]domain.MetricConfig, len(sd.Metrics)),
 	}
 
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -166,7 +166,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 			return nil, err
 		}
 
-		svc.MonitoringProfile.Metrics[i] = *config
+		svc.MonitoringProfile.MetricConfigs[i] = *config
 	}
 
 	return &svc, nil
