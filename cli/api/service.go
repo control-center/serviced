@@ -8,7 +8,6 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 )
