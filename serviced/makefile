@@ -9,7 +9,7 @@
 
 # nsinit is a utility to enter containers. Godep restore should place the source
 # at the directory given below.
-NSINITDIR=../../../dotcloud/docker/pkg/libcontainer/nsinit/nsinit
+NSINITDIR=../../../dotcloud/docker/pkg/libcontainer/nsinit
 
 default: build
 
