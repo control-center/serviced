@@ -1,7 +1,7 @@
 package container
 
 import (
-	// "github.com/fatih/set"
+	// "github.com/fatih/set"    // TODO: fill out form to use this package when needed
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -862,7 +863,7 @@ func (c *Controller) handleRemotePorts() {
 			addImportedEndpoint(endpointList[0])
 
 			// TODO: agent needs to register controlplane and controlplane_consumer
-			//       but don't do that here in the container code, try ephemeral znodes
+			//       but don't do that here in the container code
 		}
 	}
 }
@@ -873,9 +874,9 @@ func (c *Controller) watchRemotePorts() {
 		watch each tenant endpoint
 		    - when endpoints are added, add the endpoint proxy if not already added
 			- when endpoints are added, add watch on that endpoint for updates
-			TODO: when endpoints are deleted, tell that endpoint proxy to stop proxying
+			TODO: when endpoints are deleted, tell that endpoint proxy to stop proxying - try ephemeral znodes
 			- when endpoints are deleted, may not need to deal with removing watch on that endpoint since that watch will block forever
-			TODO: deal with import regexes, i.e mysql_.*
+			- deal with import regexes, i.e mysql_.*
 		- may not need to initially deal with removal of tenant endpoint
 	*/
 	glog.Infof("watchRemotePorts starting")
@@ -918,12 +919,30 @@ func (c *Controller) watchRemotePorts() {
 			if _, ok := watchers[id]; !ok {
 				if _, ok := c.importedEndpoints[id]; ok {
 					watchers[id] = true
-					// aSet := set.New(set.ThreadSafe) // thread safe version
-					// watchers[id] = aSet.(*set.Set)
 					go watchTenantEndpoints(id)
 				} else {
-					glog.Infof("  no need to add - not imported: %s %s", parentPath, id)
-					glog.Infof("    importedEndpoints: %+v", c.importedEndpoints)
+					// look for imports with regexes that match each tenantEndpointID
+					matched := false
+					for _, ie := range c.importedEndpoints {
+						endpointPattern := fmt.Sprintf("^%s$", registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application))
+						glog.Infof("  checking tenantEndpointID %s against pattern %s", id, endpointPattern)
+						endpointRegex, err := regexp.Compile(endpointPattern)
+						if err != nil {
+							glog.Warningf("  unable to check tenantEndpointID %s against imported endpoint %s", id, ie.endpoint.Application)
+							continue //Don't spam error message; it was reported at validation time
+						}
+
+						if endpointRegex.MatchString(id) {
+							glog.Infof("  tenantEndpointID:%s matched imported endpoint pattern:%s for %+v", id, endpointPattern, ie.endpoint)
+							matched = true
+							watchers[id] = true
+							go watchTenantEndpoints(id)
+						}
+					}
+
+					if !matched {
+						glog.Infof("  no need to add - not imported: %s %s for importedEndpoints: %+v", parentPath, id, c.importedEndpoints)
+					}
 				}
 			} else {
 				glog.Infof("  no need to add - existing watch tenantEndpoint: %s %s", parentPath, id)
@@ -981,8 +1000,9 @@ func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostC
 		setAdditions := set.Difference(setNew, setOld)
 		additions := set.StringSlice(setAdditions)
 		if len(additions) > 0 {
-			// TODO: set watch on each hostid_containerid item that was added
-			//       update proxy with host_containers from tenant_endpoint when item is changed
+			// no need to set watch on each hostid_containerid item that is added
+			// since each hostid_containerid is never updated - they are only set
+			// once at container startup registration
 		}
 
 		// deal with deletions
