@@ -34,6 +34,9 @@ func (dt *DaoTest) TestDao_VhostRegistrySet(t *C) {
 	vr, err := registry.VHostRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
+	// TODO: add tests for ephemeral nodes and remove vr.SetEphemeral(false)
+	vr.SetEphemeral(false)
+
 	vep := registry.VhostEndpoint{}
 	vep.EndpointName = "epn_test"
 	vep.ServiceID = "svc_id"

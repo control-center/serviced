@@ -18,6 +18,11 @@ type WatchError func(path string, err error)
 
 type ProcessChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
+//SetEphemeral sets the ephemeral flag
+func (r *registryType) SetEphemeral(useEphemeral bool) {
+	r.ephemeral = useEphemeral
+}
+
 //EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
 func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
 
