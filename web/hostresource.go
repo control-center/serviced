@@ -194,7 +194,7 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 func buildHostMonitoringProfile(host *host.Host) error {
 	host.MonitoringProfile = domain.MonitorProfile{
-		Metrics: make([]domain.MetricConfig, len(metrics)),
+		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
 	}
 
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -211,7 +211,7 @@ func buildHostMonitoringProfile(host *host.Host) error {
 			host.MonitoringProfile = domain.MonitorProfile{}
 			return err
 		}
-		host.MonitoringProfile.Metrics[i] = *config
+		host.MonitoringProfile.MetricConfigs[i] = *config
 	}
 
 	return nil
