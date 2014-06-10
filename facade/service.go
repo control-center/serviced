@@ -240,8 +240,10 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 
 // start the provided service
 func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
+	glog.V(0).Infof("Facade.StartService %s", serviceId)
 	// f will traverse all the services
 	err := f.validateService(ctx, serviceId)
+	glog.V(0).Infof("Facade.StartService validate service result %v", err)
 	if err != nil {
 		return err
 	}
@@ -250,6 +252,7 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 		//start f service
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
+		glog.V(0).Infof("Facade.StartService updat service %v, %v: %v", svc.Name, svc.Id, err)
 		if err != nil {
 			return err
 		}
