@@ -75,7 +75,8 @@ func writeLogstashAgentConfig(confPath string, service *service.Service, resourc
 				]
 			}`
 	logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf,
-		"172.17.42.1:5043",
+//		"172.17.42.1:5043",
+		"127.0.0.1:5043",
 		resourcePath+"/logstash-forwarder.crt",
 		resourcePath+"/logstash-forwarder.key",
 		resourcePath+"/logstash-forwarder.crt",
