@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"testing"
-
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain/service"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
@@ -126,11 +125,10 @@ func TestServicedCLI_CmdTemplateList_one(t *testing.T) {
 
 	var actual template.ServiceTemplate
 	output := pipe(InitTemplateAPITest, "serviced", "template", "list", templateID)
+
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
-
-	actual = Split(output, "\n")[1]
 
 	// Did you remember to update ServiceTemplate.Equals?
 	if !actual.Equals(expected) {
@@ -240,6 +238,7 @@ func ExampleServicedCLI_CmdTemplateDeploy() {
 	InitTemplateAPITest("serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
 
 	// Output:
+	// Deploying template - please wait...
 	// test-template-1-service
 }
 
@@ -268,6 +267,7 @@ func ExampleServicedCLI_CmdTemplateDeploy_fail() {
 	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
 
 	// Output:
+	// Deploying template - please wait...
 	// invalid template
 }
 
@@ -275,6 +275,7 @@ func ExampleServicedCLI_CmdTemplateDeploy_err() {
 	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", NilTemplate, "test-pool", "deployment-id")
 
 	// Output:
+	// Deploying template - please wait...
 	// received nil service definition
 }
 
