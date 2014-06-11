@@ -188,7 +188,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         "datapoints": [
             {
                 "aggregator": "avg",
-                "expression": "rpn:1024,/,1024,/",
+                "expression": "rpn:1024,/,1024,/,1024,/",
                 "fill": false,
                 "format": "%6.2f",
                 "id": "rssmemory",
@@ -208,7 +208,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             "end": "0s-ago",
             "start": "1h-ago"
         },
-        "yAxisLabel": "MB",
+        "yAxisLabel": "GB",
         "returnset": "EXACT",
         height: 300,
         width: 300,
