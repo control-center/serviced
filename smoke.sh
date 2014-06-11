@@ -24,6 +24,24 @@ fail() {
     exit 1
 }
 
+# until ubuntu delivers util-linux-2.24, install required nsenter
+install_prereqs() {
+    if [ -z "$(which nsenter)" ]; then
+        echo "nsenter is not installed - installing nsenter"
+        # TODO: replace apt-* with yum commands for fedora
+        sudo apt-add-repository "deb [ arch=amd64 ] http://apt.zendev.org/apt/ubuntu trusty multiverse"
+        sudo apt-get update
+        (
+            cd /tmp
+            wget -q http://apt.zendev.org/key/zendev_signing_key.pub -O- | sudo apt-key add -
+        )
+        sudo apt-get install docker-smuggle
+        if [ -z "$(which nsenter)" ]; then
+            fail "ERROR: nsenter is not installed - serviced attach tests will fail"
+        fi
+    fi
+}
+
 # Add the vhost to /etc/hosts so we can resolve it for the test
 add_to_etc_hosts() {
     if [ -z "$(grep -e "^${IP} websvc.${HOSTNAME}" /etc/hosts)" ]; then
@@ -124,6 +142,7 @@ retry() {
 cleanup
 
 # Setup
+install_prereqs
 add_to_etc_hosts
 
 # Run all the tests
