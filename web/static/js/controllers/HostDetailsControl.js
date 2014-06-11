@@ -72,7 +72,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             $scope.collectingStats = false;
         }
     });
-    console.log($scope.hosts.current);
+
     $scope.cpuconfig = {
         "datapoints": [
             {
