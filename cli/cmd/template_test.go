@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"testing"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain/service"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
+	"io"
+	"testing"
 )
 
 const (
@@ -238,7 +238,6 @@ func ExampleServicedCLI_CmdTemplateDeploy() {
 	InitTemplateAPITest("serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
 
 	// Output:
-	// Deploying template - please wait...
 	// test-template-1-service
 }
 
