@@ -43,7 +43,7 @@ start_serviced() {
     echo "Starting serviced..."
     sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${PWD}/serviced/serviced -master -agent &
     echo "Waiting 120 seconds for serviced to become the leader..."
-    retry 120 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
+    retry 180 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
     return $?
 }
 
@@ -66,6 +66,7 @@ deploy_service() {
     echo "Deploying template id ${TEMPLATE_ID}"
     echo ${SERVICED} service deploy ${TEMPLATE_ID} default testsvc
     SERVICE_ID=$(${SERVICED} template deploy ${TEMPLATE_ID} default testsvc)
+    echo " deployed template id ${TEMPLATE_ID} - SERVICE_ID='${SERVICE_ID}'"
     sleep 2
     [ -z "$(${SERVICED} service list ${SERVICE_ID})" ] && return 1
     return 0
