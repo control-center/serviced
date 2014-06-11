@@ -37,6 +37,14 @@ install_prereqs() {
             fail "ERROR: nsenter is not installed - serviced attach tests will fail"
         fi
     fi
+
+    local wget_image="zenoss/ubuntu:wget"
+    if ! docker inspect "${wget_image}" >/dev/null; then
+        docker pull "${wget_image}"
+       if ! docker inspect "${wget_image}" >/dev/null; then
+            fail "ERROR: docker image "${wget_image}" is not available - wget tests will fail"
+       fi
+    fi
 }
 
 # Add the vhost to /etc/hosts so we can resolve it for the test
