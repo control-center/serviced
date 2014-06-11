@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain/service"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
+
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"testing"
 )
