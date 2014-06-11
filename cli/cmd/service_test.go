@@ -10,7 +10,6 @@ import (
 
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 )
@@ -170,18 +169,14 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 	return &s, nil
 }
 
-func (t ServiceAPITest) StartService(id string) (*host.Host, error) {
+func (t ServiceAPITest) StartService(id string) error {
 	if s, err := t.GetService(id); err != nil {
-		return nil, err
+		return err
 	} else if s == nil {
-		return nil, nil
+		return ErrNoServiceFound
 	}
 
-	h := host.Host{
-		ID: fmt.Sprintf("%s-host", id),
-	}
-
-	return &h, nil
+	return nil
 }
 
 func (t ServiceAPITest) StopService(id string) error {
@@ -551,7 +546,7 @@ func ExampleServicedCLI_CmdServiceStart() {
 	InitServiceAPITest("serviced", "service", "start", "test-service-1")
 
 	// Output:
-	// Service scheduled to start on host: test-service-1-host
+	// Service scheduled to start.
 }
 
 func ExampleServicedCLI_CmdServiceStart_usage() {
@@ -585,7 +580,7 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-0")
 
 	// Output:
-	// received nil host
+	// no service found
 }
 
 func ExampleServicedCLI_CmdServiceStop() {

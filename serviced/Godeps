@@ -33,8 +33,8 @@
 		},
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
-			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit",
-			"Rev": "81041b3ba696250b9da719875d6c41312c4cc046"
+			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gocapability/capability",

@@ -7,7 +7,6 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 )
@@ -174,18 +173,18 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 }
 
 // StartService starts a service
-func (a *api) StartService(id string) (*host.Host, error) {
+func (a *api) StartService(id string) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var hostID string
-	if err := client.StartService(id, &hostID); err != nil {
-		return nil, err
+	var unused string
+	if err := client.StartService(id, &unused); err != nil {
+		return err
 	}
 
-	return a.GetHost(hostID)
+	return nil
 }
 
 // StopService stops a service
