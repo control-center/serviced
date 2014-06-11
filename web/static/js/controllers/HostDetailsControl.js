@@ -73,7 +73,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         }
     });
 
-    $scope.cpuconfig = function( hostId) {
+    $scope.cpuconfig = function( host) {
       return {
           "datapoints": [
               {
@@ -115,7 +115,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
           },
           "returnset": "EXACT",
           "tags": {
-            "controlplane_host_id": [hostId]
+            "controlplane_host_id": [host.ID]
           },
           "type": "line",
           "downsample": "1m-avg",
@@ -123,7 +123,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
       };
     }
 
-    $scope.ofdconfig = function (hostId) {
+    $scope.ofdconfig = function (host) {
       return {
           "datapoints": [
               {
@@ -151,7 +151,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
           },
           "returnset": "EXACT",
           "tags": {
-            "controlplane_host_id": [hostId]
+            "controlplane_host_id": [host.ID]
           },
           "type": "line",
           "downsample": "1m-avg",
@@ -159,7 +159,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
       };
     }
 
-    $scope.memconfig = function( hostId) {
+    $scope.memconfig = function( host) {
       return {
           "datapoints": [
               {
@@ -188,7 +188,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
           },
           "returnset": "EXACT",
           "tags": {
-            "controlplane_host_id": [hostId]
+            "controlplane_host_id": [host.ID]
           },
           "type": "line",
           "downsample": "1m-avg",
@@ -196,7 +196,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
       };
     }
 
-    $scope.rssconfig = function( hostId){
+    $scope.rssconfig = function( host){
       return {
           "datapoints": [
               {
@@ -226,7 +226,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
           height: 300,
           width: 300,
           "tags": {
-            "controlplane_host_id": [hostId]
+            "controlplane_host_id": [host.ID]
           },
           "type": "line",
           "downsample": "1m-avg",
@@ -250,7 +250,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         }
 
         //create unique configs and ids for the current host
-        var _config = config( $scope.hosts.current.ID)
+        var _config = config( $scope.hosts.current)
 
         // _id must align with a div for the graph
         var _id = id + '-' + $scope.hosts.current.ID
