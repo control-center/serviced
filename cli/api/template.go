@@ -148,7 +148,7 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Servi
 	}
 
 	if !config.ManualAssignIPs {
-		if _, err := a.AssignIP(IPConfig{id, ""}); err != nil {
+		if err := a.AssignIP(IPConfig{id, ""}); err != nil {
 			return s, err
 		}
 	}
