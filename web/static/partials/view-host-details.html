@@ -54,13 +54,13 @@
       </thead>
       <tbody>
         <tr>
-              <td width="50%">
-              <div id="cpuchart" class="medChart">{{viz('cpuchart', cpuconfig)}}</div>
-              <div id="ofdchart" class="medChart">{{viz('ofdchart', ofdconfig)}}</div>
+          <td width="50%">
+            <div id="{{'cpuchart-'+hosts.current.ID}}" class="medChart">{{viz('cpuchart', cpuconfig)}}</div>
+            <div id="{{'ofdchart-'+hosts.current.ID}}" class="medChart">{{viz('ofdchart', ofdconfig)}}</div>
           </td>
           <td>
-              <div id="memchart" class="medChart">{{viz('memchart', memconfig)}}</div>
-              <div id="rsschart" class="medChart">{{viz('rsschart', rssconfig)}}</div>
+            <div id="{{'memchart-'+hosts.current.ID}}" class="medChart">{{viz('memchart', memconfig)}}</div>
+            <div id="{{'rsschart-'+hosts.current.ID}}" class="medChart">{{viz('rsschart', rssconfig)}}</div>
           </td>
         </tr>        
       </tbody>

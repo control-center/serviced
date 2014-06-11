@@ -73,160 +73,194 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         }
     });
 
-    $scope.cpuconfig = {
-        "datapoints": [
-            {
-                "aggregator": "avg",
-                "color": "#aec7e8",
-                "expression": null,
-                "fill": false,
-                "format": "%6.2f",
-                "id": "system",
-                "legend": "CPU (System)",
-                "metric": "CpuacctStat.system",
-                "name": "CPU (System)",
-                "rate": true,
-                "rateOptions": {},
-                "type": "line"
-            },
-            {
-                "aggregator": "avg",
-                "color": "#98df8a",
-                "expression": null,
-                "fill": false,
-                "format": "%6.2f",
-                "id": "user",
-                "legend": "CPU (User)",
-                "metric": "CpuacctStat.user",
-                "name": "CPU (User)",
-                "rate": true,
-                "rateOptions": {},
-                "type": "line"
-            }
-        ],
-        "footer": false,
-        "format": "%6.2f",
-        "maxy": null,
-        "miny": 0,
-        "range": {
-            "end": "0s-ago",
-            "start": "1h-ago"
-        },
-        "returnset": "EXACT",
-        "tags": {},
-        "type": "line",
-        "downsample": "1m-avg",
-        "timezone": jstz.determine().name()
-    };
+    $scope.cpuconfig = function( hostId) {
+      return {
+          "datapoints": [
+              {
+                  "aggregator": "avg",
+                  "color": "#aec7e8",
+                  "expression": null,
+                  "fill": false,
+                  "format": "%6.2f",
+                  "id": "system",
+                  "legend": "CPU (System)",
+                  "metric": "CpuacctStat.system",
+                  "name": "CPU (System)",
+                  "rate": true,
+                  "rateOptions": {},
+                  "type": "line"
+              },
+              {
+                  "aggregator": "avg",
+                  "color": "#98df8a",
+                  "expression": null,
+                  "fill": false,
+                  "format": "%6.2f",
+                  "id": "user",
+                  "legend": "CPU (User)",
+                  "metric": "CpuacctStat.user",
+                  "name": "CPU (User)",
+                  "rate": true,
+                  "rateOptions": {},
+                  "type": "line"
+              }
+          ],
+          "footer": false,
+          "format": "%6.2f",
+          "maxy": null,
+          "miny": 0,
+          "range": {
+              "end": "0s-ago",
+              "start": "1h-ago"
+          },
+          "returnset": "EXACT",
+          "tags": {
+            "controlplane_host_id": [hostId]
+          },
+          "type": "line",
+          "downsample": "1m-avg",
+          "timezone": jstz.determine().name()
+      };
+    }
 
-    $scope.ofdconfig = {
-        "datapoints": [
-            {
-                "aggregator": "avg",
-                "color": "#aec7e8",
-                "expression": null,
-                "fill": false,
-                "format": "%6.2f",
-                "id": "ofd",
-                "legend": "Serviced Open File Descriptors",
-                "metric": "Serviced.OpenFileDescriptors",
-                "name": "Serviced Open File Descriptors",
-                "rate": false,
-                "rateOptions": {},
-                "type": "line"
-            },
-        ],
-        "footer": false,
-        "format": "%d",
-        "maxy": null,
-        "miny": 0,
-        "range": {
-            "end": "0s-ago",
-            "start": "1h-ago"
-        },
-        "returnset": "EXACT",
-        "tags": {},
-        "type": "line",
-        "downsample": "1m-avg",
-        "timezone": jstz.determine().name()
-    };
+    $scope.ofdconfig = function (hostId) {
+      return {
+          "datapoints": [
+              {
+                  "aggregator": "avg",
+                  "color": "#aec7e8",
+                  "expression": null,
+                  "fill": false,
+                  "format": "%6.2f",
+                  "id": "ofd",
+                  "legend": "Serviced Open File Descriptors",
+                  "metric": "Serviced.OpenFileDescriptors",
+                  "name": "Serviced Open File Descriptors",
+                  "rate": false,
+                  "rateOptions": {},
+                  "type": "line"
+              },
+          ],
+          "footer": false,
+          "format": "%d",
+          "maxy": null,
+          "miny": 0,
+          "range": {
+              "end": "0s-ago",
+              "start": "1h-ago"
+          },
+          "returnset": "EXACT",
+          "tags": {
+            "controlplane_host_id": [hostId]
+          },
+          "type": "line",
+          "downsample": "1m-avg",
+          "timezone": jstz.determine().name()
+      };
+    }
 
-    $scope.memconfig = {
-        "datapoints": [
-            {
-                "aggregator": "avg",
-                "color": "#aec7e8",
-                "expression": null,
-                "expression": null,
-                "fill": false,
-                "format": "%d",
-                "id": "pgfault",
-                "legend": "Page Faults",
-                "metric": "MemoryStat.pgfault",
-                "name": "Page Faults",
-                "rate": true,
-                "rateOptions": {},
-                "type": "line"
-            }
-        ],
-        "footer": false,
-        "format": "%6.2f",
-        "maxy": null,
-        "miny": 0,
-        "range": {
-            "end": "0s-ago",
-            "start": "1h-ago"
-        },
-        "returnset": "EXACT",
-        "tags": {},
-        "type": "line",
-        "downsample": "1m-avg",
-        "timezone": jstz.determine().name()
-    };
+    $scope.memconfig = function( hostId) {
+      return {
+          "datapoints": [
+              {
+                  "aggregator": "avg",
+                  "color": "#aec7e8",
+                  "expression": null,
+                  "expression": null,
+                  "fill": false,
+                  "format": "%d",
+                  "id": "pgfault",
+                  "legend": "Page Faults",
+                  "metric": "MemoryStat.pgfault",
+                  "name": "Page Faults",
+                  "rate": true,
+                  "rateOptions": {},
+                  "type": "line"
+              }
+          ],
+          "footer": false,
+          "format": "%6.2f",
+          "maxy": null,
+          "miny": 0,
+          "range": {
+              "end": "0s-ago",
+              "start": "1h-ago"
+          },
+          "returnset": "EXACT",
+          "tags": {
+            "controlplane_host_id": [hostId]
+          },
+          "type": "line",
+          "downsample": "1m-avg",
+          "timezone": jstz.determine().name()
+      };
+    }
 
-    $scope.rssconfig = {
-        "datapoints": [
-            {
-                "aggregator": "avg",
-                "expression": "rpn:1024,/,1024,/",
-                "fill": false,
-                "format": "%6.2f",
-                "id": "rssmemory",
-                "legend": "RSS Memory",
-                "metric": "MemoryStat.rss",
-                "name": "RSS Memory",
-                "rateOptions": {},
-                "type": "line",
-                "fill": true
-            }
-        ],
-        "footer": false,
-        "format": "%6.2f",
-        "maxy": null,
-        "miny": 0,
-        "range": {
-            "end": "0s-ago",
-            "start": "1h-ago"
-        },
-        "yAxisLabel": "MB",
-        "returnset": "EXACT",
-        height: 300,
-        width: 300,
-        "tags": {},
-        "type": "line",
-        "downsample": "1m-avg",
-        "timezone": jstz.determine().name()
-    };
+    $scope.rssconfig = function( hostId){
+      return {
+          "datapoints": [
+              {
+                  "aggregator": "avg",
+                  "expression": "rpn:1024,/,1024,/",
+                  "fill": false,
+                  "format": "%6.2f",
+                  "id": "rssmemory",
+                  "legend": "RSS Memory",
+                  "metric": "MemoryStat.rss",
+                  "name": "RSS Memory",
+                  "rateOptions": {},
+                  "type": "line",
+                  "fill": true
+              }
+          ],
+          "footer": false,
+          "format": "%6.2f",
+          "maxy": null,
+          "miny": 0,
+          "range": {
+              "end": "0s-ago",
+              "start": "1h-ago"
+          },
+          "yAxisLabel": "MB",
+          "returnset": "EXACT",
+          height: 300,
+          width: 300,
+          "tags": {
+            "controlplane_host_id": [hostId]
+          },
+          "type": "line",
+          "downsample": "1m-avg",
+          "timezone": jstz.determine().name()
+      };
+    }
 
+    // XXX prevent the graphs from being drawn multiple times
+    //     by angular's processing engine
     $scope.drawn = {};
 
+    //id: div id prefix for drawing graph
+    //config: generator for graph config using hostId
     $scope.viz = function(id, config) {
-        if (!$scope.drawn[id]) {
+
+        // XXX angular renders the host details page prior
+        //     to the call to refreshHosts.  angular will
+        //     also render after refreshHosts is called
+        if ($scope.hosts.current === undefined) {
+          return
+        }
+
+        //create unique configs and ids for the current host
+        var _config = config( $scope.hosts.current.ID)
+
+        // _id must align with a div for the graph
+        var _id = id + '-' + $scope.hosts.current.ID
+
+        if (!$scope.drawn[_id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                zenoss.visualization.chart.create(id, config);
-                $scope.drawn[id] = true;
+                zenoss.visualization.chart.create(_id, _config);
+                $scope.drawn[_id] = true;
             }
         }
     };
