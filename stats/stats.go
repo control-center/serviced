@@ -116,7 +116,7 @@ func (sr StatsReporter) updateStats() {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
 	} else {
 		metrics.GetOrRegisterGauge("MemoryStat.pgfault", sr.hostRegistry).Update(memoryStat.Pgfault)
-		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.Rss)
+		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.TotalRss + memoryStat.Cache)
 	}
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
