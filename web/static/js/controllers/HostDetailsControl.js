@@ -72,7 +72,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             $scope.collectingStats = false;
         }
     });
-
+    console.log($scope.hosts.current);
     $scope.cpuconfig = {
         "datapoints": [
             {
@@ -105,13 +105,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             }
         ],
         "footer": false,
-        "format": "%6.2f",
-        "maxy": null,
+        "format": "%6.0f",
+        "maxy": 100,
         "miny": 0,
         "range": {
             "end": "0s-ago",
             "start": "1h-ago"
         },
+        "yAxisLabel":"% Used",
         "returnset": "EXACT",
         "tags": {},
         "type": "line",
@@ -170,13 +171,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             }
         ],
         "footer": false,
-        "format": "%6.2f",
+        "format": "%d",
         "maxy": null,
         "miny": 0,
         "range": {
             "end": "0s-ago",
             "start": "1h-ago"
         },
+        "yAxisLabel": "Faults / Min",
         "returnset": "EXACT",
         "tags": {},
         "type": "line",
@@ -192,9 +194,9 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 "fill": false,
                 "format": "%6.2f",
                 "id": "rssmemory",
-                "legend": "RSS Memory",
+                "legend": "Memory Usage",
                 "metric": "MemoryStat.rss",
-                "name": "RSS Memory",
+                "name": "Memory Usage",
                 "rateOptions": {},
                 "type": "line",
                 "fill": true
@@ -221,6 +223,13 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.drawn = {};
 
     $scope.viz = function(id, config) {
+        // now that we know what host we're dealing with, set the expression on CPU Usage
+        if($scope.cpuconfig.datapoints[0].expression == null){
+            for(var i=0; i<$scope.cpuconfig.datapoints.length; ++i){
+                $scope.cpuconfig.datapoints[i].expression = "rpn:"+$scope.hosts.current.Cores+",/,100,*,60,/";
+            }
+        }
+
         if (!$scope.drawn[id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
