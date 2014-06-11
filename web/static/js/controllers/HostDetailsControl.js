@@ -113,6 +113,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               "end": "0s-ago",
               "start": "1h-ago"
           },
+        "yAxisLabel":"% Used",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]
@@ -186,6 +187,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               "end": "0s-ago",
               "start": "1h-ago"
           },
+        "yAxisLabel": "Faults / Min",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]
@@ -241,7 +243,21 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     //id: div id prefix for drawing graph
     //config: generator for graph config using hostId
     $scope.viz = function(id, config) {
-        if (!$scope.drawn[id]) {
+
+        // XXX angular renders the host details page prior
+        //     to the call to refreshHosts.  angular will
+        //     also render after refreshHosts is called
+        if ($scope.hosts.current === undefined) {
+            return
+        }
+
+        //create unique configs and ids for the current host
+        var _config = config( $scope.hosts.current)
+
+        // _id must align with a div for the graph
+        var _id = id + '-' + $scope.hosts.current.ID
+
+        if (!$scope.drawn[_id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
