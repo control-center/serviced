@@ -115,7 +115,7 @@ func (sr StatsReporter) updateStats() {
 	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
 	} else {
-		metrics.GetOrRegisterGauge("MemoryStat.pgfault", sr.hostRegistry).Update(memoryStat.Pgfault)
+		metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", sr.hostRegistry).Update(memoryStat.Pgmajfault)
 		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.TotalRss + memoryStat.Cache)
 	}
 
