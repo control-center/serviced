@@ -422,7 +422,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		IPAddress: ipAddress,
 	}
 
-	if _, err := c.driver.AssignIP(cfg); err != nil {
+	if err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }

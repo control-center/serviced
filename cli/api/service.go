@@ -7,7 +7,6 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
@@ -204,10 +203,10 @@ func (a *api) StopService(id string) error {
 }
 
 // AssignIP assigns an IP address to a service
-func (a *api) AssignIP(config IPConfig) (string, error) {
+func (a *api) AssignIP(config IPConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	req := dao.AssignmentRequest{
@@ -217,17 +216,8 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 	}
 
 	if err := client.AssignIPs(req, nil); err != nil {
-		return "", err
+		return err
 	}
 
-	var addresses []*addressassignment.AddressAssignment
-	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
-		return "", err
-	}
-
-	if addresses == nil || len(addresses) == 0 {
-		return "", nil
-	}
-
-	return addresses[0].IPAddr, nil
+	return nil
 }
