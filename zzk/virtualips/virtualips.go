@@ -168,31 +168,26 @@ func WatchVirtualIPs(conn client.Connection) {
 			}
 			// stop the go routine responsible for watching this particular VIP
 			close(processing[virtualIPAddress])
-		VirtualIPGoRoutineStopped:
-			for {
-				select {
-				// hang out until the goroutine coupled to virtualIPAddress finishes...
-				case virtualIPAddressGoRoutineStopped := <-sDone:
-					if virtualIPAddressGoRoutineStopped != virtualIPAddress {
-						glog.Errorf("Unexpected go routine stopped")
-						// break out of this select
-						break
-					}
 
-					glog.Infof("Going to refresh!")
+			select {
+			// hang out until the goroutine coupled to virtualIPAddress finishes...
+			case virtualIPAddressGoRoutineStopped := <-sDone:
+				if virtualIPAddressGoRoutineStopped != virtualIPAddress {
+					glog.Errorf("Unexpected go routine stopped")
+					break
+				}
 
-					delete(processing, virtualIPAddress)
+				glog.Infof("Going to refresh!")
 
-					refreshVirtualIPAddresses := determineVirtualIPAddressesOnMe(conn, currentVirtualIPNodeIDs, hostID)
-					for _, virtualIPAddress := range refreshVirtualIPAddresses {
-						glog.Infof("REFRESHING %v", virtualIPAddress)
-						processing[virtualIPAddress] <- 1
-					}
+				delete(processing, virtualIPAddress)
 
-					// break out of all of this
-					break VirtualIPGoRoutineStopped
+				refreshVirtualIPAddresses := determineVirtualIPAddressesOnMe(conn, currentVirtualIPNodeIDs, hostID)
+				for _, virtualIPAddress := range refreshVirtualIPAddresses {
+					glog.V(2).Infof("Refresh virtual IP: %v", virtualIPAddress)
+					processing[virtualIPAddress] <- 1
 				}
 			}
+
 		}
 
 		// add a VIP watchers which will configure the virtual IPs on the agent that have been added to the model (new VIP node in zookeeper)
@@ -295,17 +290,18 @@ func watchVirtualIP(request <-chan int, done chan<- string, watchingVirtualIP po
 			}
 
 		// agent stopping
-		case refresh := <-request:
-			if refresh == 1 {
-				// if the primary virtual IP is removed, all other virtual IPs on that subnet are removed
-				// this is in place to restore the virtual IPs that were removed soley by the removal of the primary virtual IP
-				if err := addVirtualIP(watchingVirtualIP, virtualInterfaceIndex); err != nil {
-					glog.Errorf("Failed to configure virtual IP %v: %v", watchingVirtualIP.IP, err)
-					break
-				}
-			} else {
+		case _, open := <-request:
+			if !open {
+				// closed
 				glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(watchingVirtualIP.IP))
 				return
+			}
+
+			// if the primary virtual IP is removed, all other virtual IPs on that subnet are removed
+			// this is in place to restore the virtual IPs that were removed soley by the removal of the primary virtual IP
+			if err := addVirtualIP(watchingVirtualIP, virtualInterfaceIndex); err != nil {
+				glog.Errorf("Failed to configure virtual IP %v: %v", watchingVirtualIP.IP, err)
+				break
 			}
 		}
 	}
