@@ -177,8 +177,6 @@ func WatchVirtualIPs(conn client.Connection) {
 					break
 				}
 
-				glog.Infof("Going to refresh!")
-
 				delete(processing, virtualIPAddress)
 
 				refreshVirtualIPAddresses := determineVirtualIPAddressesOnMe(conn, currentVirtualIPNodeIDs, hostID)
