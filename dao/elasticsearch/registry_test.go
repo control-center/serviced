@@ -82,15 +82,17 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			t.Assert(err, IsNil)
 			t.Assert(path, Not(Equals), 0)
 
-			var obtained *registry.EndpointNode
-			obtained, err = epr.GetItem(dt.zkConn, path)
-			glog.V(1).Infof("obtained item[%s]: %+v", path, expected)
-			t.Assert(err, IsNil)
-			t.Assert(obtained, NotNil)
-			//remove version for equals
-			expected.SetVersion(nil)
-			obtained.SetVersion(nil)
-			t.Assert(expected, Equals, *obtained)
+			if epr.IsEphemeral() {
+				var obtained *registry.EndpointNode
+				obtained, err = epr.GetItem(dt.zkConn, path)
+				glog.V(1).Infof("obtained item[%s]: %+v", path, expected)
+				t.Assert(err, IsNil)
+				t.Assert(obtained, NotNil)
+				//remove version for equals
+				expected.SetVersion(nil)
+				obtained.SetVersion(nil)
+				t.Assert(expected, Equals, *obtained)
+			}
 		}
 	}
 

@@ -23,6 +23,11 @@ func (r *registryType) SetEphemeral(useEphemeral bool) {
 	r.ephemeral = useEphemeral
 }
 
+//IsEphemeral gets the ephemeral flag
+func (r *registryType) IsEphemeral() bool {
+	return r.ephemeral
+}
+
 //EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
 func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
 
