@@ -204,20 +204,33 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               {
                   "aggregator": "avg",
                   "expression": "rpn:1024,/,1024,/,1024,/",
-                  "fill": false,
+                  "color": "#aec7e8",
+                  "fill": true,
                   "format": "%6.2f",
-                  "id": "rssmemory",
-                  "legend": "Memory Usage",
-                  "metric": "MemoryStat.rss",
-                  "name": "Memory Usage",
+                  "id": "rss",
+                  "legend": "RSS",
+                  "metric": "MemoryStat.totalrss",
+                  "name": "RSS",
                   "rateOptions": {},
-                  "type": "line",
-                  "fill": true
+                  "type": "area"
+              },
+              {
+                  "aggregator": "avg",
+                  "expression": "rpn:1024,/,1024,/,1024,/",
+                  "color": "#98df8a",
+                  "fill": true,
+                  "format": "%6.2f",
+                  "id": "cache",
+                  "legend": "Cache",
+                  "metric": "MemoryStat.cache",
+                  "name": "Cache",
+                  "rateOptions": {},
+                  "type": "area"
               }
           ],
           "footer": false,
           "format": "%6.2f",
-          "maxy": null,
+          "maxy": host.Memory/1024/1024/1024,
           "miny": 0,
           "range": {
               "end": "0s-ago",

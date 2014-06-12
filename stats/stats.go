@@ -116,7 +116,8 @@ func (sr StatsReporter) updateStats() {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
 	} else {
 		metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", sr.hostRegistry).Update(memoryStat.Pgmajfault)
-		metrics.GetOrRegisterGauge("MemoryStat.rss", sr.hostRegistry).Update(memoryStat.TotalRss + memoryStat.Cache)
+		metrics.GetOrRegisterGauge("MemoryStat.totalrss", sr.hostRegistry).Update(memoryStat.TotalRss)
+		metrics.GetOrRegisterGauge("MemoryStat.cache", sr.hostRegistry).Update(memoryStat.Cache)
 	}
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
@@ -139,7 +140,8 @@ func (sr StatsReporter) updateStats() {
 			glog.V(3).Info("Couldn't read MemoryStat:", err)
 		} else {
 			metrics.GetOrRegisterGauge("MemoryStat.pgfault", containerRegistry).Update(memoryStat.Pgfault)
-			metrics.GetOrRegisterGauge("MemoryStat.rss", containerRegistry).Update(memoryStat.Rss)
+			metrics.GetOrRegisterGauge("MemoryStat.totalrss", containerRegistry).Update(memoryStat.TotalRss)
+			metrics.GetOrRegisterGauge("MemoryStat.cache", containerRegistry).Update(memoryStat.Cache)
 		}
 	}
 }
