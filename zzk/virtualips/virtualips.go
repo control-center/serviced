@@ -38,7 +38,7 @@ func RemoveAllVirtualIPs() error {
 	glog.V(2).Infof("Removing all virtual IPs...")
 	for _, virtualIP := range interfaceMap {
 		if err := unbindVirtualIP(virtualIP); err != nil {
-			return err
+			return fmt.Errorf("unbindVirtualIP failed: %v", err)
 		}
 	}
 	glog.V(2).Infof("All virtual IPs have been removed.")
@@ -106,6 +106,7 @@ WatchVirtualIPs monitors the virtual IP nodes in zookeeper, the "leader" agent (
    binds the virtual IP to the bind address specified by the virtual IP on itself
 */
 func WatchVirtualIPs(conn client.Connection) {
+	glog.Info("Watching all virtual IPs (will kick off a go routine per virtual IP)")
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
 
@@ -113,9 +114,9 @@ func WatchVirtualIPs(conn client.Connection) {
 	// a signal to shutdown
 	defer func() {
 		glog.Info("Shutting down virtual IP child goroutines")
-		for key, shutdown := range processing {
-			glog.Info("Sending shutdown signal for ", key)
-			shutdown <- 1
+		for virtualIPAddress, virtualIPShutdown := range processing {
+			glog.Infof("Sending shutdown signal for: %v goroutine", virtualIPAddress)
+			close(virtualIPShutdown)
 		}
 	}()
 
@@ -127,7 +128,6 @@ func WatchVirtualIPs(conn client.Connection) {
 	// remove all virtual IPs that may be present before starting the loop
 	if err := RemoveAllVirtualIPs(); err != nil {
 		glog.Errorf("RemoveAllVirtualIPs failed: %v", err)
-		return
 	}
 
 	var oldVirtualIPNodeIDs []string
@@ -136,6 +136,12 @@ func WatchVirtualIPs(conn client.Connection) {
 	var err error
 
 	virtualInterfaceIndex := 0
+
+	hostID, err := utils.HostID()
+	if err != nil {
+		glog.Errorf("HostID failed (must have a host ID to put a virtual IP on): %v", err)
+		return
+	}
 
 	for {
 		glog.Infof("Agent watching for changes to node: %v", virtualIPsPath())
@@ -161,7 +167,32 @@ func WatchVirtualIPs(conn client.Connection) {
 				glog.Errorf("Failed to remove virtual IP %v: %v", virtualIPAddress, err)
 			}
 			// stop the go routine responsible for watching this particular VIP
-			processing[virtualIPAddress] <- 1
+			close(processing[virtualIPAddress])
+		VirtualIPGoRoutineStopped:
+			for {
+				select {
+				// hang out until the goroutine coupled to virtualIPAddress finishes...
+				case virtualIPAddressGoRoutineStopped := <-sDone:
+					if virtualIPAddressGoRoutineStopped != virtualIPAddress {
+						glog.Errorf("Unexpected go routine stopped")
+						// break out of this select
+						break
+					}
+
+					glog.Infof("Going to refresh!")
+
+					delete(processing, virtualIPAddress)
+
+					refreshVirtualIPAddresses := determineVirtualIPAddressesOnMe(conn, currentVirtualIPNodeIDs, hostID)
+					for _, virtualIPAddress := range refreshVirtualIPAddresses {
+						glog.Infof("REFRESHING %v", virtualIPAddress)
+						processing[virtualIPAddress] <- 1
+					}
+
+					// break out of all of this
+					break VirtualIPGoRoutineStopped
+				}
+			}
 		}
 
 		// add a VIP watchers which will configure the virtual IPs on the agent that have been added to the model (new VIP node in zookeeper)
@@ -176,7 +207,7 @@ func WatchVirtualIPs(conn client.Connection) {
 				glog.Warningf("Unable to retrieve node: %v", virtualIPsPath(virtualIPAddress))
 			} else {
 				// kick off a watcher for this virtual IP
-				go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn, virtualInterfaceIndex)
+				go watchVirtualIP(virtualIPChannel, sDone, vipNode.VirtualIP, conn, virtualInterfaceIndex, hostID)
 				virtualInterfaceIndex = virtualInterfaceIndex + 1
 			}
 		}
@@ -185,11 +216,6 @@ func WatchVirtualIPs(conn client.Connection) {
 		// something has changed on the head virtual IP node
 		case evt := <-virtualIPsNodeEvent:
 			glog.Infof("%v event: %v", virtualIPsPath(), evt)
-
-		// a child goroutine has stopped
-		case virtualIPAddress := <-sDone:
-			glog.Info("Cleaning up for virtual IP: ", virtualIPAddress)
-			delete(processing, virtualIPAddress)
 		}
 	}
 }
@@ -227,14 +253,8 @@ func GetVirtualIPHostID(conn client.Connection, virtualIPAddress string, hostID 
 watchVirtualIP is invoked per virtual IP. It attempts to acquire a lock on the virtual IP.
 If the lock is acquired, then virtual IP is realized on the agent.
 */
-func watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP, conn client.Connection, virtualInterfaceIndex int) {
+func watchVirtualIP(request <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP, conn client.Connection, virtualInterfaceIndex int, hostID string) {
 	glog.V(2).Infof(" ### Started watchingVirtualIP: %v", watchingVirtualIP.IP)
-
-	hostID, err := utils.HostID()
-	if err != nil {
-		glog.Errorf("Could not get host ID: %v", err)
-		return
-	}
 
 	// try to lock
 	vipOwnerNode := &virtualIPNode{HostID: "", VirtualIP: watchingVirtualIP}
@@ -253,7 +273,7 @@ func watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP p
 
 	for {
 		select {
-		case err = <-vipOwnerResponse:
+		case err := <-vipOwnerResponse:
 			if err != nil {
 				glog.Errorf("Error in attempting to secure a lock on %v: %v", virtualIPsPath(watchingVirtualIP.IP), err)
 			} else {
@@ -275,11 +295,39 @@ func watchVirtualIP(shutdown <-chan int, done chan<- string, watchingVirtualIP p
 			}
 
 		// agent stopping
-		case <-shutdown:
-			glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(watchingVirtualIP.IP))
-			return
+		case refresh := <-request:
+			if refresh == 1 {
+				// if the primary virtual IP is removed, all other virtual IPs on that subnet are removed
+				// this is in place to restore the virtual IPs that were removed soley by the removal of the primary virtual IP
+				if err := addVirtualIP(watchingVirtualIP, virtualInterfaceIndex); err != nil {
+					glog.Errorf("Failed to configure virtual IP %v: %v", watchingVirtualIP.IP, err)
+					break
+				}
+			} else {
+				glog.Infof("Agent stopped virtual IP: %v", virtualIPsPath(watchingVirtualIP.IP))
+				return
+			}
 		}
 	}
+}
+
+func determineVirtualIPAddressesOnMe(conn client.Connection, currentVirtualIPNodeIDs []string, hostID string) []string {
+	virtualIPsToRefresh := []string{}
+
+	for _, virtualIPAddress := range currentVirtualIPNodeIDs {
+		myVirtualIP := pool.VirtualIP{PoolID: "", IP: virtualIPAddress, Netmask: "", BindInterface: ""}
+		vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
+		if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
+			glog.Warningf("Unable to retrieve node: %v", virtualIPsPath(virtualIPAddress))
+		}
+
+		if vipNode.HostID == hostID {
+			// this virtual IP is on ME!
+			virtualIPsToRefresh = append(virtualIPsToRefresh, virtualIPAddress)
+		}
+	}
+
+	return virtualIPsToRefresh
 }
 
 // literally performs a set subtract
@@ -381,7 +429,8 @@ func addVirtualIP(virtualIPToAdd pool.VirtualIP, virtualInterfaceIndex int) erro
 		}
 	}
 	if virtualIPAlreadyHere {
-		return fmt.Errorf("Requested virtual IP: %v is already on this host.", virtualIPToAdd.IP)
+		glog.Infof("Requested virtual IP: %v is already on this host.", virtualIPToAdd.IP)
+		return nil
 	}
 
 	virtualInterfaceName, err := generateInterfaceName(virtualIPToAdd, virtualInterfaceIndex)
@@ -446,20 +495,10 @@ func unbindVirtualIP(virtualIP pool.VirtualIP) error {
 	binaryNetmask := net.IPMask(net.ParseIP(virtualIP.Netmask).To4())
 	cidr, _ := binaryNetmask.Size()
 
-	//sudo ip link set eth0 down
-	//if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "down").Run(); err != nil {
-	//	return fmt.Errorf("Could not set link down on %v: %v", virtualIP.BindInterface, err)
-	//}
-
 	//sudo ip addr del 192.168.0.10/24 dev eth0
 	if err := exec.Command("ip", "addr", "del", virtualIP.IP+"/"+strconv.Itoa(cidr), "dev", virtualIP.BindInterface).Run(); err != nil {
 		return fmt.Errorf("Problem with removing virtual interface %+v: %v", virtualIP, err)
 	}
-
-	//sudo ip link set eth0 up
-	//if err := exec.Command("ip", "link", "set", virtualIP.BindInterface, "up").Run(); err != nil {
-	//	return fmt.Errorf("Could not set link up on %v: %v", virtualIP.BindInterface, err)
-	//}
 
 	glog.Infof("Removed virtual interface: %+v", virtualIP)
 	return nil
