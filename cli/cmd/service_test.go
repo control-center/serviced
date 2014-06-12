@@ -189,16 +189,11 @@ func (t ServiceAPITest) StopService(id string) error {
 	return nil
 }
 
-func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
-	if s, err := t.GetService(config.ServiceID); err != nil {
-		return "", err
-	} else if s == nil {
-		return "", nil
-	} else if config.IPAddress == "" {
-		return "0.0.0.0", nil
-	}
-
-	return config.IPAddress, nil
+func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
+	if _, err := t.GetService(config.ServiceID); err != nil {
+		return err
+	} 
+	return nil
 }
 
 func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
@@ -510,8 +505,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs() {
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-2", "127.0.0.1")
 
 	// Output:
-	// 0.0.0.0
-	// 127.0.0.1
+	// 
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
@@ -545,7 +539,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-0", "100.99.88.1")
 
 	// Output:
-	// received nil host resource
+	// 
 }
 
 func ExampleServicedCLI_CmdServiceStart() {

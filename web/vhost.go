@@ -71,6 +71,7 @@ func (sc *ServiceConfig) vhostFinder() error {
 		glog.Warningf("error getting client could not lookup vhosts: %v", err)
 		return err
 	}
+	defer client.Close()
 
 	services := []*dao.RunningService{}
 	client.GetRunningServices(&empty, &services)
