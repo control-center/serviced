@@ -73,6 +73,11 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&host)
 }
 
+//restGetMaster retrieves information related to the master.
+func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	w.WriteJson(&map[string]string{"hostalias":defaultHostAlias})
+}
+
 //restAddHost adds a Host. Request input is host.Host
 func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload host.Host
@@ -189,7 +194,7 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 func buildHostMonitoringProfile(host *host.Host) error {
 	host.MonitoringProfile = domain.MonitorProfile{
-		Metrics: make([]domain.MetricConfig, len(metrics)),
+		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
 	}
 
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -206,7 +211,7 @@ func buildHostMonitoringProfile(host *host.Host) error {
 			host.MonitoringProfile = domain.MonitorProfile{}
 			return err
 		}
-		host.MonitoringProfile.Metrics[i] = *config
+		host.MonitoringProfile.MetricConfigs[i] = *config
 	}
 
 	return nil

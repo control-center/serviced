@@ -906,7 +906,7 @@ function ResourcesService($http, $location) {
          * @param {object} deployDef The template definition to deploy.
          * @param {function} callback Response passed to callback on success.
          */
-        deploy_app_template: function(deployDef, callback) {
+        deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
                     console.log('Deployed app template');
@@ -915,6 +915,7 @@ function ResourcesService($http, $location) {
                 error(function(data, status) {
                     // TODO error screen
                     console.error('Deploying app template failed: %s', JSON.stringify(data));
+                    failCallback(data);
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1233,8 +1234,8 @@ function aggregateAddressAssigments( service, api) {
           'HostName': 'unknown',
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
-          'Port': endpoint.AddressAssignment.Port,
-          'ServiceID': endpoint.AddressAssignment.ServiceID,
+          'Port': endpoint.AddressConfig.Port,
+          'ServiceID': service.Id,
           'ServiceName': service.Name
         }
         api.get_host( assignment.HostID, function(data) {

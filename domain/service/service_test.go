@@ -107,7 +107,7 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 		UpdatedAt: actual.UpdatedAt,
 		Context:   actual.Context,
 		MonitoringProfile: domain.MonitorProfile{
-			Metrics: []domain.MetricConfig{
+			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
 					ID:          "jvm.memory",
 					Name:        "JVM Memory",

@@ -33,6 +33,8 @@ type ServiceConfig struct {
 	muxPort     int
 }
 
+var defaultHostAlias string
+
 // NewServiceConfig creates a new ServiceConfig
 func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.Client, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
 	cfg := ServiceConfig{
@@ -87,6 +89,8 @@ func (sc *ServiceConfig) Serve() {
 	if hnm, err := cmd.CombinedOutput(); err == nil {
 		sc.hostaliases = append(sc.hostaliases, string(hnm[:len(hnm)-1]))
 	}
+
+	defaultHostAlias = sc.hostaliases[0]
 
 	for _, ha := range sc.hostaliases {
 		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))

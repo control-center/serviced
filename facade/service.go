@@ -241,8 +241,10 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 
 // start the provided service
 func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
+	glog.V(4).Infof("Facade.StartService %s", serviceId)
 	// f will traverse all the services
 	err := f.validateService(ctx, serviceId)
+	glog.V(4).Infof("Facade.StartService validate service result %v", err)
 	if err != nil {
 		return err
 	}
@@ -251,6 +253,7 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 		//start f service
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
+		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.Id, err)
 		if err != nil {
 			return err
 		}
@@ -372,7 +375,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 
 			// if an address assignment is needed (does not yet exist) OR
 			// if a specific IP address is provided by the user AND an address assignment already exists
-			if needsAnAddressAssignment || (!assignmentRequest.AutoAssignment && addressAssignmentId != "") {
+			if needsAnAddressAssignment || addressAssignmentId != "" {
 				if addressAssignmentId != "" {
 					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
 					err = f.RemoveAddressAssignment(ctx, addressAssignmentId)

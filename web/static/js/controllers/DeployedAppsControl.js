@@ -5,6 +5,14 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
+    $scope.defaultHostAlias = location.hostname;
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    if (re.test(location.hostname) || location.hostname == "localhost") {
+        $.getJSON("/hosts/defaultHostAlias", "", function(data) {
+            $scope.defaultHostAlias = data.hostalias;
+        });
+    }
+
     $scope.breadcrumbs = [
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
@@ -39,7 +47,8 @@ function DeployedAppsControl($scope, $routeParams, $location, resourcesService, 
 
     // given a vhost, return a url to it
     $scope.vhost_url = function( vhost) {
-        return get_vhost_url( $location, vhost);
+        var port = location.port == "" ? "" : ":"+location.port;
+        return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     }
 
     $scope.clickRemoveService = function(app) {
