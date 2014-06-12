@@ -268,7 +268,10 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 		return nil, err
 	}
 
-	d.zkDAO = d.initZKDAO(zkClient)
+	//when running only an agent d.zkDAO is nil
+	if d.zkDAO == nil {
+		d.zkDAO = d.initZKDAO(zkClient)
+	}
 
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {
