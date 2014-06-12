@@ -422,12 +422,8 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		IPAddress: ipAddress,
 	}
 
-	if ipAddress, err := c.driver.AssignIP(cfg); err != nil {
+	if err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if ipAddress == "" {
-		fmt.Fprintln(os.Stderr, "received nil host resource")
-	} else {
-		fmt.Println(ipAddress)
 	}
 }
 
