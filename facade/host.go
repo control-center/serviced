@@ -81,6 +81,9 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 	if err == nil {
 		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
+	if err == nil {
+		err = f.zkDao.RemoveHost(hostID)
+	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err
 }
