@@ -168,6 +168,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 	key := "tcp:5043"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_logstash"
+	endpoint.Application = "controlplane_logstash"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 5043
 	endpoint.HostPort = 5043
