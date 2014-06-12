@@ -79,7 +79,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               {
                   "aggregator": "avg",
                   "color": "#aec7e8",
-                  "expression": null,
+                  "expression": "rpn:"+host.Cores+",/,100,*,60,/",
                   "fill": false,
                   "format": "%6.2f",
                   "id": "system",
@@ -93,7 +93,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               {
                   "aggregator": "avg",
                   "color": "#98df8a",
-                  "expression": null,
+                  "expression": "rpn:"+host.Cores+",/,100,*,60,/",
                   "fill": false,
                   "format": "%6.2f",
                   "id": "user",
@@ -106,13 +106,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               }
           ],
           "footer": false,
-          "format": "%6.2f",
-          "maxy": null,
+          "format": "%d",
+          "maxy": 100,
           "miny": 0,
           "range": {
               "end": "0s-ago",
               "start": "1h-ago"
           },
+        "yAxisLabel":"% Used",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]
@@ -170,22 +171,23 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                   "fill": false,
                   "format": "%d",
                   "id": "pgfault",
-                  "legend": "Page Faults",
-                  "metric": "MemoryStat.pgfault",
-                  "name": "Page Faults",
+                  "legend": "Major Page Faults",
+                  "metric": "MemoryStat.pgmajfault",
+                  "name": "Major Page Faults",
                   "rate": true,
                   "rateOptions": {},
                   "type": "line"
               }
           ],
           "footer": false,
-          "format": "%6.2f",
+          "format": "%d",
           "maxy": null,
           "miny": 0,
           "range": {
               "end": "0s-ago",
               "start": "1h-ago"
           },
+        "yAxisLabel": "Faults / Min",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]
@@ -201,27 +203,40 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
           "datapoints": [
               {
                   "aggregator": "avg",
-                  "expression": "rpn:1024,/,1024,/",
-                  "fill": false,
+                  "expression": "rpn:1024,/,1024,/,1024,/",
+                  "color": "#aec7e8",
+                  "fill": true,
                   "format": "%6.2f",
-                  "id": "rssmemory",
-                  "legend": "RSS Memory",
-                  "metric": "MemoryStat.rss",
-                  "name": "RSS Memory",
+                  "id": "rss",
+                  "legend": "RSS",
+                  "metric": "MemoryStat.totalrss",
+                  "name": "RSS",
                   "rateOptions": {},
-                  "type": "line",
-                  "fill": true
+                  "type": "area"
+              },
+              {
+                  "aggregator": "avg",
+                  "expression": "rpn:1024,/,1024,/,1024,/",
+                  "color": "#98df8a",
+                  "fill": true,
+                  "format": "%6.2f",
+                  "id": "cache",
+                  "legend": "Cache",
+                  "metric": "MemoryStat.cache",
+                  "name": "Cache",
+                  "rateOptions": {},
+                  "type": "area"
               }
           ],
           "footer": false,
           "format": "%6.2f",
-          "maxy": null,
+          "maxy": host.Memory/1024/1024/1024,
           "miny": 0,
           "range": {
               "end": "0s-ago",
               "start": "1h-ago"
           },
-          "yAxisLabel": "MB",
+          "yAxisLabel": "GB",
           "returnset": "EXACT",
           height: 300,
           width: 300,
@@ -246,7 +261,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         //     to the call to refreshHosts.  angular will
         //     also render after refreshHosts is called
         if ($scope.hosts.current === undefined) {
-          return
+            return
         }
 
         //create unique configs and ids for the current host

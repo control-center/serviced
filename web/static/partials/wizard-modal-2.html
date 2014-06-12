@@ -15,7 +15,7 @@
                    ng-disabled="install.templateDisabled(template)"
                    ng-change="install.templateSelected(template)"></td>
             <td>{{template.Name}}</td>
-            <td>{{getTemplateRequiredResources(template).RAMCommitment}} GB</td>
+            <td>{{getTemplateRequiredResources(template).RAMCommitment | toGB}}</td>
             <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
         </tr>
     </table>
