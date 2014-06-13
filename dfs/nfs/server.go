@@ -232,7 +232,7 @@ var bindMount = bindMountImp
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
 
-	if mounted, err := isBindMounted(dst); err != nil || !mounted {
+	if mounted, err := isBindMounted(dst); err != nil || mounted {
 		return err
 	}
 	runMountCommand := func(options ...string) error {
