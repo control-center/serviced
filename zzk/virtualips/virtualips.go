@@ -30,7 +30,7 @@ RemoveAllVirtualIPs removes (unbinds) all virtual IPs on the agent
 */
 func RemoveAllVirtualIPs() error {
 	// confirm the virtual IP is on this host and remove it
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
@@ -364,14 +364,14 @@ func generateInterfaceName(virtualIP pool.VirtualIP, virtualInterfaceIndex int) 
 }
 
 // create an interface map of virtual interfaces configured on the agent
-func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
+func createVirtualInterfaceMap() (map[string]pool.VirtualIP, error) {
 	interfaceMap := make(map[string]pool.VirtualIP)
 
 	//ip addr show | awk '/zvip/{print $NF}'
 	virtualInterfaceNames, err := exec.Command("bash", "-c", "ip addr show | awk '/"+virtualInterfacePrefix+"/{print $NF}'").CombinedOutput()
 	if err != nil {
 		glog.Warningf("Determining virtual interfaces failed: %v", err)
-		return err, interfaceMap
+		return interfaceMap, err
 	}
 	glog.V(2).Infof("Control plane virtual interfaces: %v", string(virtualInterfaceNames))
 
@@ -379,7 +379,7 @@ func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
 		bindInterfaceAndIndex := strings.Split(virtualInterfaceName, virtualInterfacePrefix)
 		if len(bindInterfaceAndIndex) != 2 {
 			err := fmt.Errorf("Unexpected interface format: %v", bindInterfaceAndIndex)
-			return err, interfaceMap
+			return interfaceMap, err
 		}
 		bindInterface := strings.TrimSpace(string(bindInterfaceAndIndex[0]))
 
@@ -387,26 +387,26 @@ func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
 		virtualIPAddressAndCIDR, err := exec.Command("bash", "-c", "ip addr show | awk '/"+virtualInterfaceName+"/ {print $2}'").CombinedOutput()
 		if err != nil {
 			glog.Warningf("Determining IP address of interface %v failed: %v", virtualInterfaceName, err)
-			return err, interfaceMap
+			return interfaceMap, err
 		}
 
 		virtualIPAddress, network, err := net.ParseCIDR(strings.TrimSpace(string(virtualIPAddressAndCIDR)))
 		if err != nil {
-			return err, interfaceMap
+			return interfaceMap, err
 		}
 		netmask := net.IP(network.Mask)
 
 		interfaceMap[virtualInterfaceName] = pool.VirtualIP{PoolID: "", IP: virtualIPAddress.String(), Netmask: netmask.String(), BindInterface: bindInterface}
 	}
 
-	return nil, interfaceMap
+	return interfaceMap, nil
 }
 
 // add (bind) a virtual IP on the agent
 func addVirtualIP(virtualIPToAdd pool.VirtualIP, virtualInterfaceIndex int) error {
 	// confirm the virtual IP is not already on this host
 	virtualIPAlreadyHere := false
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
@@ -436,7 +436,7 @@ func addVirtualIP(virtualIPToAdd pool.VirtualIP, virtualInterfaceIndex int) erro
 // remove (unbind) a virtual IP from the agent
 func removeVirtualIP(virtualIPAddress string) error {
 	// confirm the VIP is on this host and remove it
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
