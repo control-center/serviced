@@ -57,6 +57,14 @@ func Mount(nfsPath, localPath string) error {
 		return ErrMalformedNFSMountpoint
 	}
 
+	if mountInstance, err := getMount(localPath); err == nil {
+		if mountInstance.Type == "nfs4" {
+			glog.Infof("%s is already mounted", localPath)
+			return nil
+		}
+		return fmt.Errorf("%s not mounted nfs4, %s instead", localPath, mountInstance.Type)
+	}
+
 	// try mounting via in interuptable mount
 	cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
 	ret := make(chan error)
@@ -87,3 +95,4 @@ func Mount(nfsPath, localPath string) error {
 	}
 	return nil
 }
+
