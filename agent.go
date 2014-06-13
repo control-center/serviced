@@ -73,6 +73,7 @@ type HostAgent struct {
 	dockerRegistry  string // the docker registry to use
 	facade          *facade.Facade
 	context         datastore.Context
+	periodicTasks   chan struct{} // signal for periodic tasks to stop
 }
 
 // assert that this implemenents the Agent interface
@@ -100,6 +101,7 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 	agent.mount = mount
 	agent.vfs = vfs
 	agent.mux = mux
+	agent.periodicTasks = make(chan struct{})
 
 	dsn := getZkDSN(zookeepers)
 	basePath := ""
@@ -119,6 +121,7 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
+	go agent.reapOldContainersLoop(time.Second * 10)
 	return agent, err
 
 	/* FIXME: this should work here
@@ -240,6 +243,48 @@ func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished 
 	<-procFinished
 	markTerminated(conn, zzk.SsToHss(ss))
 	return nil
+}
+
+func reapContainers(client *docker.Client) error {
+	containers, lastErr := client.ListContainers(docker.ListContainersOptions{All: true})
+	if lastErr != nil {
+		return lastErr
+	}
+	cutoff := time.Now().Add(time.Second * -12).Unix()
+	for _, container := range containers {
+		if !strings.HasPrefix(container.Status, "Exited") {
+			continue
+		}
+		if container.Created > cutoff {
+			continue
+		}
+		// attempt to delete the container
+		glog.Infof("About to remove container %s", container.ID)
+		if err := client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID}); err != nil {
+			lastErr = err
+			glog.Errorf("Could not remove container %s: %s", container.ID, err)
+		}
+	}
+	return lastErr
+}
+
+func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
+
+	for {
+		select {
+		case <-time.After(interval):
+			dc, err := docker.NewClient(dockerEndpoint)
+			if err != nil {
+				glog.Errorf("can't create docker client: %v", err)
+				continue
+			}
+			reapContainers(dc)
+		case _, ok := <-a.periodicTasks:
+			if !ok {
+				return // we are shutting down
+			}
+		}
+	}
 }
 
 func (a *HostAgent) dockerRemove(dockerID string) error {
