@@ -37,6 +37,7 @@ var (
 
 var (
 	exportsPath = "/exports"
+	procMounts  = "/proc/mounts"
 )
 
 var (
@@ -230,6 +231,10 @@ var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
+
+	if mounted, err := isBindMounted(dst); err != nil || !mounted {
+		return err
+	}
 	runMountCommand := func(options ...string) error {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
@@ -250,6 +255,35 @@ func bindMountImp(src, dst string) error {
 		}
 	}
 	return returnErr
+}
+
+func isBindMounted(dst string) (bool, error) {
+	if _, err := getMount(dst); err != nil {
+		if err.Error() == "not found" {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func getMount(dst string) (*mountInstance, error) {
+
+	f, err := os.Open(procMounts)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	mounts, err := parseMounts(f)
+	if err != nil {
+		return nil, err
+	}
+	for i := range mounts {
+		if mounts[i].Dst == dst {
+			return &mounts[i], nil
+		}
+	}
+	return nil, fmt.Errorf("not found")
 }
 
 func doesExists(path string) (bool, error) {
