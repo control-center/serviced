@@ -174,8 +174,9 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 
 	hostAndPort := imageID.Host
 	if imageID.Port != 0 {
-		hostAndPort += ":" + string(imageID.Port)
+		hostAndPort += ":" + fmt.Sprintf("%d", imageID.Port)
 	}
+
 	if hostAndPort != registry.String() {
 		image, err := client.InspectImage(name)
 		if err != nil {
