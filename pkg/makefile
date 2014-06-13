@@ -11,10 +11,28 @@
 # RPM and DEB builder for Zenoss Serviced.
 #
 
-NAME=serviced
-VERSION=0.3.70
-PKG_VERSION=`if [ -z "$(BUILD_NUMBER)" ]; then echo "$(VERSION)"; else echo $(VERSION)-$(BUILD_NUMBER); fi`
-MAINTAINER="Zenoss CM <cm@zenoss.com>"
+NAME          ?= serviced
+FROMVERSION   ?= 0.3.70
+VERSION       ?= 1.0.0
+RELEASE_PHASE ?=
+SUBPRODUCT    ?=
+MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
+
+PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
+ifneq ("$(BUILD_NUMBER)", "")
+PKG_VERSION = $(PKG_VERSION)-$(BUILD_NUMBER)
+endif
+
+DEB_PKG_VERSION=$(PKG_VERSION)
+ifneq ("$(FROMVERSION)", "")
+DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
+endif
+
+ifneq ("$(SUBPRODUCT)", "")
+FULL_NAME=$(NAME)-$(SUBPRODUCT)
+else
+FULL_NAME=$(NAME)
+endif
 
 define DESCRIPTION
 Zenoss Serviced is a PaaS runtime. It allows users to create, manage and scale
@@ -30,12 +48,12 @@ INSTALL_DIR=/opt/serviced
 all: desc
 
 desc:
-	echo "Usage: make deb or make rpm. Both options package $(NAME)-$(PKG_VERSION)."
+	echo "Usage: make deb or make rpm. Both options package $(FULL_NAME)-$(PKG_VERSION)."
 
 # Clean staged files and produced packages
 clean:
-	rm -f $(NAME)*.deb
-	rm -f $(NAME)*.rpm
+	rm -f $(FULL_NAME)*.deb
+	rm -f $(FULL_NAME)*.rpm
 	rm -rf pkgroot
 	rm -rf build
 	# we need to perform a clean here
@@ -103,13 +121,14 @@ stage_rpm: stage
 # net-tools provides ifconfig, needed for VIPs
 deb: stage_deb
 	fpm \
-		-n $(NAME) \
-		-v $(PKG_VERSION) \
+		-n $(FULL_NAME) \
+		-v $(DEB_PKG_VERSION)~$$(lsb_release -cs) \
 		-s dir \
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker >= 0.11.1' \
+		-d 'lxc-docker >= 1.0.0' \
+		-d 'docker-smuggle >= 2.24' \
 		-t deb \
 		-a x86_64 \
 		-C pkgroot \
@@ -117,14 +136,12 @@ deb: stage_deb
 		--description "$$DESCRIPTION" \
 		--deb-user root \
 		--deb-group root \
-		--deb-recommends 'docker-smuggle >= 2.24' \
 		.
-#		-d "supervisor" \
 
 # Make an RPM
 rpm: stage_rpm
 	fpm \
-		-n $(NAME) \
+		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
 		-t rpm \

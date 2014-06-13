@@ -61,6 +61,11 @@ func (z *zkMock) updateService(svc *service.Service) error {
 func (z *zkMock) removeService(id string) error {
 	return nil
 }
+
 func (z *zkMock) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+	return nil
+}
+
+func (z *zkMock) RemoveHost(hostID string) error {
 	return nil
 }
