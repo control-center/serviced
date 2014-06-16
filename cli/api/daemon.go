@@ -6,7 +6,6 @@ package api
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/node"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/coordinator/storage"
@@ -24,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
@@ -287,7 +287,7 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 	}
 	nfsClient.Wait()
 
-	agentOptions := serviced.AgentOptions{
+	agentOptions := node.AgentOptions{
 		Master:          options.Endpoint,
 		UIPort:          options.UIPort,
 		DockerDNS:       options.DockerDNS,
@@ -299,7 +299,7 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 		DockerRegistry:  options.DockerRegistry,
 		MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
 	}
-	hostAgent, err = serviced.NewHostAgent(agentOptions)
+	hostAgent, err = node.NewHostAgent(agentOptions)
 
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
