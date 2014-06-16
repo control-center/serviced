@@ -73,6 +73,8 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
+	epr.SetEphemeral(false)
+
 	//test get and set
 	verifySetGet := func(expected registry.EndpointNode) {
 		glog.V(1).Infof("verifying set/get for expected %+v", expected)
