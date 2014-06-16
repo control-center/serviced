@@ -216,6 +216,8 @@ func (a *HostAgent) GetZkDSN(string, dsn *string) error {
 
 // GetDockerID returns the docker id based on given ServiceInstanceInfo
 func (a *HostAgent) GetDockerID(info ServiceInstanceInfo, dockerID *string) error {
+	glog.V(4).Infof("GetDockerID(%+v)", info.ServiceID)
+
 	client, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -231,8 +233,10 @@ func (a *HostAgent) GetDockerID(info ServiceInstanceInfo, dockerID *string) erro
 	}
 
 	for _, svc := range services {
+		glog.V(4).Infof("looking at running service: %+v", svc)
 		if info.InstanceID == fmt.Sprintf("%d", svc.InstanceID) {
 			*dockerID = svc.DockerID
+			glog.V(4).Infof("GetDockerID(%+v): %s", info.ServiceID, *dockerID)
 			return nil
 		}
 	}

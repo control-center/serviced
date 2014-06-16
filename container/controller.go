@@ -202,7 +202,7 @@ func getDockerID(lbClientPort string, serviceID string, instanceID string) (stri
 		return "", err
 	}
 
-	glog.Infof("getDockerID: service id=%s instance=%s: %s", serviceID, instanceID, dockerID)
+	glog.Infof("getDockerID: service id=%s instance=%s: dockerID:'%s'", serviceID, instanceID, dockerID)
 	return dockerID, nil
 }
 
@@ -454,13 +454,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
 	}
 
-	// get dockerID
-	c.dockerID, err = getDockerID(options.ServicedEndpoint, options.Service.ID, options.Service.InstanceID)
-	if err != nil {
-		glog.Errorf("Invalid dockerID from serviceID:%s instanceID:%s", options.Service.ID, options.Service.InstanceID)
-		return c, ErrInvalidDockerID
-	}
-
 	// get service tenantID
 	c.tenantID, err = getServiceTenantID(options.ServicedEndpoint, options.Service.ID)
 	if err != nil {
@@ -545,6 +538,13 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if err != nil {
 		glog.Errorf("Invalid ExportedEndpoints")
 		return c, ErrInvalidExportedEndpoints
+	}
+
+	// get dockerID - dockerID is not correctly set until after getServiceState() - call getDockerID after buildExportedEndpoints
+	c.dockerID, err = getDockerID(options.ServicedEndpoint, options.Service.ID, options.Service.InstanceID)
+	if err != nil {
+		glog.Errorf("Invalid dockerID from serviceID:%s instanceID:%s", options.Service.ID, options.Service.InstanceID)
+		return c, ErrInvalidDockerID
 	}
 
 	// initialize importedEndpoints
@@ -933,6 +933,22 @@ func (c *Controller) watchRemotePorts() {
 	processTenantEndpoints := func(conn coordclient.Connection, parentPath string, tenantEndpointIDs ...string) {
 		glog.Infof("processTenantEndpoints for path: %s tenantEndpointIDs: %s", parentPath, tenantEndpointIDs)
 
+		// cancel watcher on top level /endpoints if all watchers on imported endpoints have been set up
+		{
+			missingWatchers := false
+			for id, _ := range c.importedEndpoints {
+				if _, ok := watchers[id]; !ok {
+					missingWatchers = true
+				}
+			}
+			if !missingWatchers {
+				glog.Infof("all imports are being watched - cancelling watcher on /endpoints")
+				endpointsWatchCanceller <- true
+				return
+			}
+		}
+
+		// setup watchers for each imported tenant endpoint
 		watchTenantEndpoints := func(tenantEndpointKey string) {
 			glog.Infof("  watching tenantEndpointKey: %s", tenantEndpointKey)
 			if err := endpointRegistry.WatchTenantEndpoint(zkConn, tenantEndpointKey,
@@ -986,8 +1002,7 @@ func (c *Controller) watchRemotePorts() {
 	}
 
 	glog.Infof("watching endpointRegistry")
-	//TODO: deal with channel if we care
-	go endpointRegistry.WatchRegistry(zkConn, make(chan bool), processTenantEndpoints, endpointWatchError)
+	go endpointRegistry.WatchRegistry(zkConn, endpointsWatchCanceller, processTenantEndpoints, endpointWatchError)
 }
 
 //
@@ -1162,10 +1177,11 @@ func (c *Controller) registerExportedEndpoints() {
 }
 
 var (
-	proxies  map[string]*proxy
-	vifs     *VIFRegistry
-	nextip   int
-	watchers map[string]bool
+	proxies                 map[string]*proxy
+	vifs                    *VIFRegistry
+	nextip                  int
+	watchers                map[string]bool
+	endpointsWatchCanceller chan bool
 	// watchers map[string]*set.Set
 	cMuxPort uint16 // the TCP port to use
 	cMuxTLS  bool
@@ -1176,5 +1192,6 @@ func init() {
 	vifs = NewVIFRegistry()
 	nextip = 1
 	watchers = make(map[string]bool)
+	endpointsWatchCanceller = make(chan bool)
 	// watchers = make(map[string]*set.Set)
 }
