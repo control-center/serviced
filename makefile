@@ -32,12 +32,14 @@ build_binary:
 	cd web && make build-js
 	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
 	./godep restore
+	rm serviced -Rf # temp workaround for moving main package
 	go build
 	cd $(NSINITDIR) && go build && go install
 	cp $(NSINITDIR)/nsinit .
 
 
 go:
+	rm serviced -Rf # temp workaround for moving main package
 	go build
 
 pkgs:
