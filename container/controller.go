@@ -300,7 +300,15 @@ func setupLogstashFiles(service *service.Service, resourcePath string) error {
 }
 
 // getServiceState gets the service state for a serviceID
-func getServiceState(conn coordclient.Connection, serviceID string) (*servicestate.ServiceState, error) {
+func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr string) (*servicestate.ServiceState, error) {
+
+	tmpID, err := strconv.Atoi(instanceIDStr)
+	if err != nil {
+		glog.Errorf("Unable to interpret InstanceID: %s", instanceIDStr)
+		return nil, err
+	}
+	instanceID := int(tmpID)
+
 	for {
 		var serviceStates []*servicestate.ServiceState
 		err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
@@ -309,13 +317,13 @@ func getServiceState(conn coordclient.Connection, serviceID string) (*servicesta
 			return nil, nil
 		}
 
-		if len(serviceStates) > 0 {
-			if serviceStates[0].PrivateIP != "" {
-				return serviceStates[0], nil
+		for ii, ss := range serviceStates {
+			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
+				return serviceStates[ii], nil
 			}
 		}
 
-		glog.Info("Polling to retrieve service state with valid PrivateIP")
+		glog.Infof("Polling to retrieve service state instanceID:%d with valid PrivateIP", instanceID)
 		time.Sleep(1 * time.Second)
 	}
 
@@ -323,10 +331,10 @@ func getServiceState(conn coordclient.Connection, serviceID string) (*servicesta
 }
 
 // buildExportedEndpoints
-func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string][]export, error) {
+func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string][]export, error) {
 	result := make(map[string][]export)
 
-	state, err := getServiceState(conn, service.Id)
+	state, err := getServiceState(conn, service.Id, instanceID)
 	if err != nil {
 		return result, err
 	}
@@ -358,10 +366,10 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 }
 
 // buildImportedEndpoints
-func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service) (map[string]importedEndpoint, error) {
+func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string]importedEndpoint, error) {
 	result := make(map[string]importedEndpoint)
 
-	state, err := getServiceState(conn, service.Id)
+	state, err := getServiceState(conn, service.Id, instanceID)
 	if err != nil {
 		return result, err
 	}
@@ -534,7 +542,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	// Keep a copy of the service EndPoint exports
-	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, service)
+	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, service, options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid ExportedEndpoints")
 		return c, ErrInvalidExportedEndpoints
@@ -549,7 +557,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 
 	// initialize importedEndpoints
 	if useImportedEndpointServiceDiscovery {
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service)
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service, options.Service.InstanceID)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return c, ErrInvalidImportedEndpoints
