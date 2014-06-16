@@ -175,6 +175,7 @@ func injectContext(s *service.Service, cp dao.ControlPlane) error {
 // Shutdown stops the agent
 func (a *HostAgent) Shutdown() error {
 	glog.V(2).Info("Issuing shutdown signal")
+	close(a.periodicTasks) // shut down period tasks
 	errc := make(chan error)
 	a.closing <- errc
 	glog.Info("exiting shutdown")
