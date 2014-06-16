@@ -10,7 +10,6 @@ import (
 
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 )
@@ -170,18 +169,14 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 	return &s, nil
 }
 
-func (t ServiceAPITest) StartService(id string) (*host.Host, error) {
+func (t ServiceAPITest) StartService(id string) error {
 	if s, err := t.GetService(id); err != nil {
-		return nil, err
+		return err
 	} else if s == nil {
-		return nil, nil
+		return ErrNoServiceFound
 	}
 
-	h := host.Host{
-		ID: fmt.Sprintf("%s-host", id),
-	}
-
-	return &h, nil
+	return nil
 }
 
 func (t ServiceAPITest) StopService(id string) error {
@@ -194,16 +189,11 @@ func (t ServiceAPITest) StopService(id string) error {
 	return nil
 }
 
-func (t ServiceAPITest) AssignIP(config api.IPConfig) (string, error) {
-	if s, err := t.GetService(config.ServiceID); err != nil {
-		return "", err
-	} else if s == nil {
-		return "", nil
-	} else if config.IPAddress == "" {
-		return "0.0.0.0", nil
-	}
-
-	return config.IPAddress, nil
+func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
+	if _, err := t.GetService(config.ServiceID); err != nil {
+		return err
+	} 
+	return nil
 }
 
 func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
@@ -515,8 +505,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs() {
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-2", "127.0.0.1")
 
 	// Output:
-	// 0.0.0.0
-	// 127.0.0.1
+	// 
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
@@ -550,14 +539,14 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-0", "100.99.88.1")
 
 	// Output:
-	// received nil host resource
+	// 
 }
 
 func ExampleServicedCLI_CmdServiceStart() {
 	InitServiceAPITest("serviced", "service", "start", "test-service-1")
 
 	// Output:
-	// Service scheduled to start on host: test-service-1-host
+	// Service scheduled to start.
 }
 
 func ExampleServicedCLI_CmdServiceStart_usage() {
@@ -591,7 +580,7 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-0")
 
 	// Output:
-	// received nil host
+	// no service found
 }
 
 func ExampleServicedCLI_CmdServiceStop() {

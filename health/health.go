@@ -16,35 +16,50 @@ type healthStatus struct {
 	Interval  float64
 }
 
-var healthStatuses map[string]map[string]*healthStatus = make(map[string]map[string]*healthStatus)
+type messagePacket struct {
+	Timestamp int64
+	Statuses  map[string]map[string]*healthStatus
+}
+
+var healthStatuses = make(map[string]map[string]*healthStatus)
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	w.WriteJson(&healthStatuses)
+	packet := messagePacket{time.Now().UTC().Unix(), healthStatuses}
+	w.WriteJson(&packet)
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceId string, name string, passed string, d dao.ControlPlane) {
+func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane) {
 	lock.Lock()
 	defer lock.Unlock()
-	_, ok := healthStatuses[serviceId]
+
+	// TODO: this does not handle updated service definitions properly
+	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
-		healthStatuses[serviceId] = make(map[string]*healthStatus)
+		// healthStatuses[serviceID]
+		serviceStatus = make(map[string]*healthStatus)
 		var service service.Service
-		err := d.GetService(serviceId, &service)
+		err := d.GetService(serviceID, &service)
 		if err != nil {
 			glog.Errorf("Unable to acquire services.")
 			return
 		}
 		for iname, icheck := range service.HealthChecks {
-			_, ok = healthStatuses[serviceId][iname]
+			_, ok = serviceStatus[iname]
 			if !ok {
-				healthStatuses[serviceId][name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}
+				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}
 			}
 		}
+		healthStatuses[serviceID] = serviceStatus
 	}
-	healthStatuses[serviceId][name].Status = passed
-	healthStatuses[serviceId][name].Timestamp = time.Now().UTC().Unix()
+	thisStatus, ok := serviceStatus[name]
+	if !ok {
+		glog.Warning("ignoring health status, not found in cached structure: %s %s %", serviceID, name, passed)
+		return
+	}
+	thisStatus.Status = passed
+	thisStatus.Timestamp = time.Now().UTC().Unix()
 }

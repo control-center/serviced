@@ -136,7 +136,8 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 		tag = "latest"
 	}
 	opts := dockerclient.PullImageOptions{
-		Repository: fmt.Sprintf("%s:%s", repoName, tag),
+		Repository: repoName,
+		Tag:        tag,
 		Registry:   registry.String(),
 	}
 	return client.PullImage(opts, auth)
@@ -173,8 +174,9 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 
 	hostAndPort := imageID.Host
 	if imageID.Port != 0 {
-		hostAndPort += ":" + string(imageID.Port)
+		hostAndPort += ":" + fmt.Sprintf("%d", imageID.Port)
 	}
+
 	if hostAndPort != registry.String() {
 		image, err := client.InspectImage(name)
 		if err != nil {

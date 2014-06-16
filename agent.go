@@ -151,11 +151,7 @@ func injectContext(s *service.Service, cp dao.ControlPlane) error {
 		err := cp.GetService(svcID, &svc)
 		return svc, err
 	}
-	err := s.EvaluateLogConfigTemplate(getSvc)
-	if err != nil {
-		return err
-	}
-	return s.EvaluateStartupTemplate(getSvc)
+	return s.Evaluate(getSvc)
 }
 
 // Shutdown stops the agent
@@ -822,7 +818,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
-		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip))
+		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
+		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {

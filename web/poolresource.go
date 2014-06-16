@@ -7,7 +7,9 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/pool"
+	"github.com/zenoss/serviced/rpc/master"
 
 	"github.com/zenoss/serviced/dao"
 	"net/url"
@@ -29,6 +31,17 @@ func restGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	}
 	poolsMap := make(map[string]*pool.ResourcePool)
 	for _, pool := range pools {
+		hostIDs, err := getPoolHostIds(pool.ID, client)
+		if err != nil {
+			restServerError(w)
+			return
+		}
+
+		if err := buildPoolMonitoringProfile(pool, hostIDs); err != nil {
+			restServerError(w)
+			return
+		}
+
 		poolsMap[pool.ID] = pool
 	}
 	glog.V(4).Infof("restGetPools: pools %#v", poolsMap)
@@ -52,6 +65,17 @@ func restGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	pool, err := client.GetResourcePool(poolID)
 	if err != nil {
 		glog.Error("Could not get resource pool: ", err)
+		restServerError(w)
+		return
+	}
+
+	hostIDs, err := getPoolHostIds(pool.ID, client)
+	if err != nil {
+		restServerError(w)
+		return
+	}
+
+	if err := buildPoolMonitoringProfile(pool, hostIDs); err != nil {
 		restServerError(w)
 		return
 	}
@@ -191,4 +215,43 @@ func restGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 	glog.V(4).Infof("restGetPoolIps: id %s, pool %#v", poolID, ips)
 	w.WriteJson(&ips)
+}
+
+func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
+	hosts, err := client.FindHostsInPool(poolID)
+	if err != nil {
+		glog.Errorf("Could not get hosts: %v", err)
+		return nil, err
+	}
+
+	hostIDs := make([]string, len(hosts))
+	for i := range hosts {
+		hostIDs[i] = hosts[i].ID
+	}
+	return hostIDs, nil
+}
+
+func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string) error {
+	pool.MonitoringProfile = domain.MonitorProfile{
+		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
+	}
+
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		glog.Errorf("Failed to create metric builder: %s", err)
+		return err
+	}
+
+	for i := range metrics {
+		build.Metric(metrics[i].ID, metrics[i].Name).SetTag("controlplane_host_id", hostIDs...)
+		config, err := build.Config(metrics[i].ID, metrics[i].Name, metrics[i].Description, "1h-ago")
+		if err != nil {
+			glog.Errorf("Failed to build metric: %s", err)
+			pool.MonitoringProfile = domain.MonitorProfile{}
+			return err
+		}
+		pool.MonitoringProfile.MetricConfigs[i] = *config
+	}
+
+	return nil
 }

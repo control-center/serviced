@@ -7,8 +7,6 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 )
@@ -175,18 +173,18 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 }
 
 // StartService starts a service
-func (a *api) StartService(id string) (*host.Host, error) {
+func (a *api) StartService(id string) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var hostID string
-	if err := client.StartService(id, &hostID); err != nil {
-		return nil, err
+	var unused string
+	if err := client.StartService(id, &unused); err != nil {
+		return err
 	}
 
-	return a.GetHost(hostID)
+	return nil
 }
 
 // StopService stops a service
@@ -204,10 +202,10 @@ func (a *api) StopService(id string) error {
 }
 
 // AssignIP assigns an IP address to a service
-func (a *api) AssignIP(config IPConfig) (string, error) {
+func (a *api) AssignIP(config IPConfig) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	req := dao.AssignmentRequest{
@@ -217,17 +215,8 @@ func (a *api) AssignIP(config IPConfig) (string, error) {
 	}
 
 	if err := client.AssignIPs(req, nil); err != nil {
-		return "", err
+		return err
 	}
 
-	var addresses []*addressassignment.AddressAssignment
-	if err := client.GetServiceAddressAssignments(config.ServiceID, &addresses); err != nil {
-		return "", err
-	}
-
-	if addresses == nil || len(addresses) == 0 {
-		return "", nil
-	}
-
-	return addresses[0].IPAddr, nil
+	return nil
 }

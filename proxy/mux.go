@@ -116,7 +116,7 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 
 	svc, err := net.Dial("tcp4", line)
 	if err != nil {
-		glog.Errorf("could not dial to '%s' : %s", line, err)
+		glog.Errorf("got %s => %s, could not dial to '%s' : %s", conn.LocalAddr(), conn.RemoteAddr(), line, err)
 		conn.Close()
 		return
 	}

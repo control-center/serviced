@@ -8,6 +8,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
+    $scope.defaultHostAlias = location.hostname;
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    if (re.test(location.hostname) || location.hostname == "localhost") {
+        $.getJSON("/hosts/defaultHostAlias", "", function(data) {
+            $scope.defaultHostAlias = data.hostalias;
+        });
+    }
+
     $scope.breadcrumbs = [
         { label: 'breadcrumb_deployed', url: '#/apps' }
     ];
@@ -81,9 +89,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     // modalAssignIP opens a modal view to assign an ip address to a service
-    $scope.modalAssignIP = function(ip) {
+    $scope.modalAssignIP = function(ip, poolID) {
       $scope.ips.assign = {'ip':ip, 'value':null}
-      resourcesService.get_pool_ips( ip.PoolID, function( data) {
+      resourcesService.get_pool_ips(poolID, function(data) {
         var options= [{'Value':'Automatic', 'IPAddr':null}]
 
         //host ips
@@ -91,11 +99,20 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
           var IPAddr = data.HostIPs[i].IPAddress
           var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
           options.push({'Value': value, 'IPAddr':IPAddr})
+          // set the default value to the currently assigned value
           if ($scope.ips.assign.ip.IPAddr == IPAddr) {
             $scope.ips.assign.value = options[ options.length-1]
           }
         }
-        //TODO virtual ips
+        for(var i = 0; i < data.VirtualIPs.length; ++i) {
+          var IPAddr = data.VirtualIPs[i].IP
+          var value =  "Virtual IP: " + IPAddr
+          options.push({'Value': value, 'IPAddr':IPAddr})
+          // set the default value to the currently assigned value
+          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+            $scope.ips.assign.value = options[ options.length-1]
+          }
+        }
 
         //default to automatic
         if(!$scope.ips.assign.value) {
@@ -110,11 +127,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.AssignIP = function() {
         var serviceID = $scope.ips.assign.ip.ServiceID;
         var IP = $scope.ips.assign.value.IPAddr;
-        resourcesService.assign_ip( serviceID, IP) 
+        resourcesService.assign_ip(serviceID, IP, function(data) {
+            refreshServices($scope, resourcesService, false);
+        });
     };
 
-    $scope.vhost_url = function( vhost) {
-        return get_vhost_url( $location, vhost);
+    $scope.vhost_url = function(vhost) {
+        var port = location.port == "" ? "" : ":"+location.port;
+        return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     }
 
     $scope.indent = indentClass;
@@ -162,7 +182,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     function updateHealth(ServiceID) {
-        $.getJSON("/servicehealth", function(healths) {
+        $.getJSON("/servicehealth", function(packet) {
+            var healths = packet["Statuses"];
+            var timestamp = packet["Timestamp"];
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
                 element = document.getElementById("health-tooltip-" + ServiceId);
@@ -172,9 +194,8 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                     failingAny = false;
                     lateAny = false;
                     unknownAny = false;
-                    utc = Math.floor(Date.now()/1000);
                     for (var name in data) {
-                        if (utc - data[name].Timestamp >= data[name].Interval * 2) {
+                        if (timestamp - data[name].Timestamp >= data[name].Interval * 2) {
                             data[name].Status = "unknown";
                         }
                         if (data[name].Status == "passed") {

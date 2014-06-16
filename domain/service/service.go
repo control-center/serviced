@@ -55,6 +55,7 @@ type Service struct {
 	Snapshot          servicedefinition.SnapshotCommands
 	Runs              map[string]string
 	RAMCommitment     uint64
+	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
@@ -145,7 +146,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	}
 
 	svc.MonitoringProfile = domain.MonitorProfile{
-		Metrics: make([]domain.MetricConfig, len(sd.Metrics)),
+		MetricConfigs: make([]domain.MetricConfig, len(sd.Metrics)),
 	}
 
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -165,7 +166,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 			return nil, err
 		}
 
-		svc.MonitoringProfile.Metrics[i] = *config
+		svc.MonitoringProfile.MetricConfigs[i] = *config
 	}
 
 	return &svc, nil

@@ -57,11 +57,11 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="address in pools.current.VirtualIPAddresses | orderBy:virtual_ip_addresses.sort">
+    <tr ng-repeat="address in pools.current.VirtualIPs | orderBy:virtual_ip_addresses.sort">
       <td>{{address.IP}}</td>
       <td>{{address.Netmask}}</td>
       <td>{{address.BindInterface}}</td>
-      <td> <button ng-click="clickRemoveVirtualIp(pools.current, address)" class="btn btn-link">{{'label_delete'|translate}}</button> </td>
+      <td> <button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link">{{'label_delete'|translate}}</button> </td>
     </tr>
   </tbody>
 </table>

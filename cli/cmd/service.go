@@ -422,12 +422,8 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		IPAddress: ipAddress,
 	}
 
-	if ipAddress, err := c.driver.AssignIP(cfg); err != nil {
+	if err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if ipAddress == "" {
-		fmt.Fprintln(os.Stderr, "received nil host resource")
-	} else {
-		fmt.Println(ipAddress)
 	}
 }
 
@@ -440,12 +436,10 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if host, err := c.driver.StartService(args[0]); err != nil {
+	if err := c.driver.StartService(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if host == nil {
-		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
-		fmt.Printf("Service scheduled to start on host: %s\n", host.ID)
+		fmt.Printf("Service scheduled to start.\n")
 	}
 }
 

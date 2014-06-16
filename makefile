@@ -17,7 +17,7 @@ install: build_binary bash-complete
 	cd web && make build-js
 	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install github.com/zenoss/serviced/serviced
-	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit/nsinit
+	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
 
 bash-complete:
 	sudo cp ./serviced/serviced-bash-completion.sh /etc/bash_completion.d/serviced
@@ -35,7 +35,7 @@ go:
 	cd serviced && go build
 
 pkgs:
-	cd pkg && make IN_DOCKER=$(IN_DOCKER) rpm && make IN_DOCKER=$(IN_DOCKER) deb
+	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
 
 dockerbuild_binaryx: docker_ok
 	docker build -t zenoss/serviced-build build
@@ -74,8 +74,12 @@ dockerbuildx: docker_ok
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
-	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build make IN_DOCKER=1 build_binary pkgs
+	-t zenoss/serviced-build make \
+		IN_DOCKER=1 \
+		BUILD_NUMBER=$(BUILD_NUMBER) \
+		RELEASE_PHASE=$(RELEASE_PHASE) \
+		SUBPRODUCT=$(SUBPRODUCT) \
+		build_binary pkgs
 
 dockerbuild: docker_ok
 	docker build -t zenoss/serviced-build build

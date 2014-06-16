@@ -1,26 +1,22 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
-	"crypto/tls"
 	"fmt"
-	"io"
 	"mime"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
-	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 )
@@ -35,6 +31,8 @@ type ServiceConfig struct {
 	muxTLS      bool
 	muxPort     int
 }
+
+var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
 func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
@@ -56,73 +54,13 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	return &cfg
 }
 
-var reverseProxies map[string]*httputil.ReverseProxy
-var reverseProxiesLock sync.Mutex
-
-func init() {
-	reverseProxies = make(map[string]*httputil.ReverseProxy)
-}
-
-func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
-
-	reverseProxiesLock.Lock()
-	defer reverseProxiesLock.Unlock()
-
-	key := fmt.Sprintf("%s,%d,%s,%s,%v", remoteAddr, muxPort, privateIP, privatePort, useTLS)
-	proxy, ok := reverseProxies[key]
-	if ok {
-		return proxy
-	}
-
-	rpurl := url.URL{Scheme: "http", Host: remoteAddr}
-
-	glog.V(1).Infof("vhosthandler reverse proxy to: %v", rpurl)
-
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
-	transport.Dial = func(network, addr string) (remote net.Conn, err error) {
-		if useTLS { // Only do TLS if connecting to a TCPMux
-			config := tls.Config{InsecureSkipVerify: true}
-			glog.V(1).Infof("vhost about to dial %s", remoteAddr)
-			remote, err = tls.Dial("tcp4", remoteAddr, &config)
-		} else {
-			glog.V(1).Info("vhost about to dial %s", remoteAddr)
-			remote, err = net.Dial("tcp4", remoteAddr)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if muxPort > 0 {
-			if len(privateIP) == 0 {
-				return nil, fmt.Errorf("missing endpoint")
-			}
-			muxAddr := fmt.Sprintf("%s:%d\n", privateIP, privatePort)
-			glog.V(1).Infof("vhost muxing to %s", muxAddr)
-			io.WriteString(remote, muxAddr)
-
-		}
-		return remote, nil
-	}
-	transport.DisableCompression = true
-	transport.DisableKeepAlives = true
-	rp := httputil.NewSingleHostReverseProxy(&rpurl)
-	rp.Transport = transport
-	rp.FlushInterval = time.Second
-
-	reverseProxies[key] = rp
-	return rp
-
-}
-
 // Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virutal host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve() {
-	client, err := sc.getClient()
-	if err != nil {
-		glog.Errorf("Unable to get control plane client: %v", err)
-		return
-	}
+
+	//start getting vhost endpoints
+	go sc.syncVhosts()
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
@@ -143,71 +81,6 @@ func (sc *ServiceConfig) Serve() {
 		ui.ServeHTTP(w, r)
 	}
 
-	// Lookup the appropriate virtual host and forward the request to it.
-	// TODO: when zookeeper registration is integrated we can be more event
-	// driven and only refresh the vhost map when service states change.
-	vhosthandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.V(1).Infof("vhosthandler handling: %v", r)
-
-		var empty interface{}
-		services := []*dao.RunningService{}
-		client.GetRunningServices(&empty, &services)
-
-		vhosts := make(map[string][]*servicestate.ServiceState, 0)
-
-		for _, s := range services {
-			var svc service.Service
-
-			if err := client.GetService(s.ServiceID, &svc); err != nil {
-				glog.Errorf("Can't get service: %s (%v)", s.Id, err)
-			}
-
-			vheps := svc.GetServiceVHosts()
-
-			for _, vhep := range vheps {
-				for _, vh := range vhep.VHosts {
-					svcstates := []*servicestate.ServiceState{}
-					if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
-						http.Error(w, fmt.Sprintf("can't retrieve service states for %s (%v)", s.ServiceID, err), http.StatusInternalServerError)
-						return
-					}
-
-					for _, ss := range svcstates {
-						vhosts[vh] = append(vhosts[vh], ss)
-					}
-				}
-			}
-
-		}
-
-		glog.V(1).Infof("vhosthandler VHost map: %v", vhosts)
-
-		muxvars := mux.Vars(r)
-		svcstates, ok := vhosts[muxvars["subdomain"]]
-		if !ok {
-			http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", muxvars["subdomain"]), http.StatusNotFound)
-			return
-		}
-
-		// TODO: implement a more intelligent strategy than "always pick the first one" when more
-		// than one service state is mapped to a given virtual host
-		for _, svcep := range svcstates[0].Endpoints {
-			for _, vh := range svcep.VHosts {
-				if vh == muxvars["subdomain"] {
-					remoteAddr := fmt.Sprintf("%s:%d", svcstates[0].HostIP, svcep.PortNumber)
-					if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
-						remoteAddr = fmt.Sprintf("%s:%d", svcstates[0].HostIP, sc.muxPort)
-					}
-					rp := getReverseProxy(remoteAddr, sc.muxPort, svcstates[0].PrivateIP, svcep.PortNumber, sc.muxTLS && (sc.muxPort > 0))
-					rp.ServeHTTP(w, r)
-					return
-				}
-			}
-		}
-
-		http.Error(w, fmt.Sprintf("unrecognized endpoint: %s", muxvars["subdomain"]), http.StatusNotImplemented)
-	}
-
 	r := mux.NewRouter()
 
 	if hnm, err := os.Hostname(); err == nil {
@@ -219,10 +92,12 @@ func (sc *ServiceConfig) Serve() {
 		sc.hostaliases = append(sc.hostaliases, string(hnm[:len(hnm)-1]))
 	}
 
+	defaultHostAlias = sc.hostaliases[0]
+
 	for _, ha := range sc.hostaliases {
 		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/{path:.*}", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/", vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/{path:.*}", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
 	}
 
 	r.HandleFunc("/{path:.*}", uihandler)

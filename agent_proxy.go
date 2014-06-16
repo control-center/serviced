@@ -47,8 +47,9 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 		return err
 	}
 
-	a.addContolPlaneEndpoint(*response)
-	a.addContolPlaneConsumerEndpoint(*response)
+	a.addControlPlaneEndpoint(*response)
+	a.addControlPlaneConsumerEndpoint(*response)
+	a.addLogstashEndpoint(*response)
 	return nil
 }
 
@@ -65,7 +66,13 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		return err
 	}
 
-	return nil
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc)
 }
 
 // Call the master's to retrieve its tenant id
@@ -123,8 +130,8 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 	return err
 }
 
-// addContolPlaneEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+// addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
+func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
@@ -141,14 +148,27 @@ func (a *HostAgent) addContolPlaneEndpoint(endpoints map[string][]*dao.Applicati
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
-// addContolPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addContolPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
+func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
+	endpoint.HostIP = strings.Split(a.master, ":")[0]
+	endpoint.Protocol = "tcp"
+	a.addEndpoint(key, endpoint, endpoints)
+}
+
+// addLogstashEndpoint adds an application endpoint mapping for the master control plane api
+func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+	key := "tcp:5043"
+	endpoint := dao.ApplicationEndpoint{}
+	endpoint.ServiceID = "controlplane_logstash"
+	endpoint.ContainerIP = "127.0.0.1"
+	endpoint.ContainerPort = 5043
+	endpoint.HostPort = 5043
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)

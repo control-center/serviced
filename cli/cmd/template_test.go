@@ -1,15 +1,15 @@
 package cmd
 
 import (
+	"github.com/zenoss/serviced/cli/api"
+	"github.com/zenoss/serviced/domain/service"
+	template "github.com/zenoss/serviced/domain/servicetemplate"
+
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"testing"
-
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain/service"
-	template "github.com/zenoss/serviced/domain/servicetemplate"
 )
 
 const (
@@ -126,6 +126,7 @@ func TestServicedCLI_CmdTemplateList_one(t *testing.T) {
 
 	var actual template.ServiceTemplate
 	output := pipe(InitTemplateAPITest, "serviced", "template", "list", templateID)
+
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -266,6 +267,7 @@ func ExampleServicedCLI_CmdTemplateDeploy_fail() {
 	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
 
 	// Output:
+	// Deploying template - please wait...
 	// invalid template
 }
 
@@ -273,6 +275,7 @@ func ExampleServicedCLI_CmdTemplateDeploy_err() {
 	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", NilTemplate, "test-pool", "deployment-id")
 
 	// Output:
+	// Deploying template - please wait...
 	// received nil service definition
 }
 

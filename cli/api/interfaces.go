@@ -40,9 +40,9 @@ type API interface {
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(RemoveServiceConfig) error
 	UpdateService(io.Reader) (*service.Service, error)
-	StartService(string) (*host.Host, error)
+	StartService(string)  error
 	StopService(string) error
-	AssignIP(IPConfig) (string, error)
+	AssignIP(IPConfig) error
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]*dao.RunningService, error)

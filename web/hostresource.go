@@ -7,9 +7,11 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
+	"net"
 	"net/url"
 	"strings"
 )
@@ -32,6 +34,10 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
 	for _, host := range hosts {
 		response[host.ID] = host
+		if err := buildHostMonitoringProfile(host); err != nil {
+			restServerError(w)
+			return
+		}
 	}
 
 	w.WriteJson(&response)
@@ -58,8 +64,18 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
+	if err := buildHostMonitoringProfile(host); err != nil {
+		restServerError(w)
+		return
+	}
+
 	glog.V(4).Infof("restGetHost: id %s, host %#v", hostID, host)
 	w.WriteJson(&host)
+}
+
+//restGetMaster retrieves information related to the master.
+func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	w.WriteJson(&map[string]string{"hostalias":defaultHostAlias})
 }
 
 //restAddHost adds a Host. Request input is host.Host
@@ -74,7 +90,13 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	// Save the pool ID and IP address for later. GetInfo wipes these
 	ipAddr := payload.IPAddr
 	parts := strings.Split(ipAddr, ":")
-	hostIP := parts[0]
+	hostIPAddr, err := net.ResolveIPAddr("ip", parts[0])
+	if err != nil {
+		glog.Errorf("%s could not be resolved", parts[0])
+		restBadRequest(w)
+		return
+	}
+	hostIP := hostIPAddr.IP.String()
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
@@ -168,4 +190,29 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	}
 	glog.V(0).Info("Removed host ", hostID)
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
+}
+
+func buildHostMonitoringProfile(host *host.Host) error {
+	host.MonitoringProfile = domain.MonitorProfile{
+		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
+	}
+
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		glog.Errorf("Failed to create metric builder: %s", err)
+		return err
+	}
+
+	for i := range metrics {
+		build.Metric(metrics[i].ID, metrics[i].Name).SetTag("controlplane_host_id", host.ID)
+		config, err := build.Config(metrics[i].ID, metrics[i].Name, metrics[i].Description, "1h-ago")
+		if err != nil {
+			glog.Errorf("Failed to build metric: %s", err)
+			host.MonitoringProfile = domain.MonitorProfile{}
+			return err
+		}
+		host.MonitoringProfile.MetricConfigs[i] = *config
+	}
+
+	return nil
 }

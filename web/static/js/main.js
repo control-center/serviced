@@ -619,13 +619,13 @@ function ResourcesService($http, $location) {
         /*
          * Delete resource pool virtual ip
          *
-         * @param {string} pool id to remove virtual ip
-         * @param {string} id virtual ip id to remove
+         * @param {string} pool id of pool which contains the virtual ip
+         * @param {string} ip virtual ip to remove
          * @param {function} callback Add result passed to callback on success.
          */
-        remove_pool_virtual_ip: function(pool, id, callback) {
-            console.log('Removing pool virtual ip: poolID:%s id:%s', pool, id);
-            $http.delete('/pools/' + pool + '/virtualip/' + id).
+        remove_pool_virtual_ip: function(pool, ip, callback) {
+            console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
+            $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
                     console.log('Removed pool virtual ip');
                     callback(data);
@@ -906,7 +906,7 @@ function ResourcesService($http, $location) {
          * @param {object} deployDef The template definition to deploy.
          * @param {function} callback Response passed to callback on success.
          */
-        deploy_app_template: function(deployDef, callback) {
+        deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
                     console.log('Deployed app template');
@@ -915,6 +915,7 @@ function ResourcesService($http, $location) {
                 error(function(data, status) {
                     // TODO error screen
                     console.error('Deploying app template failed: %s', JSON.stringify(data));
+                    failCallback(data);
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1233,8 +1234,8 @@ function aggregateAddressAssigments( service, api) {
           'HostName': 'unknown',
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
-          'Port': endpoint.AddressAssignment.Port,
-          'ServiceID': endpoint.AddressAssignment.ServiceID,
+          'Port': endpoint.AddressConfig.Port,
+          'ServiceID': service.Id,
           'ServiceName': service.Name
         }
         api.get_host( assignment.HostID, function(data) {

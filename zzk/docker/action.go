@@ -74,7 +74,7 @@ func ListenAction(conn client.Connection, hostID string) {
 
 			go func() {
 				defer conn.Delete(path)
-				result, err := utils.RunNSInitWithRetry(action.DockerID, action.Command)
+				result, err := utils.AttachAndRun(action.DockerID, action.Command)
 				if result != nil && len(result) > 0 {
 					glog.Info(string(result))
 				}

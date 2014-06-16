@@ -18,7 +18,7 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 		return
 	}
 
-	request := dao.AssignmentRequest{serviceID, "", true}
+	request := dao.AssignmentRequest{ServiceID: serviceID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w)
@@ -44,7 +44,7 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 		return
 	}
 
-	request := dao.AssignmentRequest{serviceID, ip, false}
+	request := dao.AssignmentRequest{ServiceID: serviceID, IPAddress: ip, AutoAssignment: false}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Error("Failed to manually assign IP: %+v -> %v", request, err)
 		restServerError(w)

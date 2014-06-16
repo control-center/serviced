@@ -34,6 +34,7 @@ type ServiceDefinition struct {
 	LogConfigs    []LogConfig
 	Snapshot      SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment uint64                        // expected RAM commitment to use for scheduling
+	CPUCommitment uint64                        // expected CPU commitment (#cores) to use for scheduling
 	Runs          map[string]string             // Map of commands that can be executed with 'serviced run ...'
 	Actions       map[string]string             // Map of commands that can be executed with 'serviced action ...'
 	HealthChecks  map[string]domain.HealthCheck // HealthChecks for a service.

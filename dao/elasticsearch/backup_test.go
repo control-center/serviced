@@ -6,14 +6,6 @@ package elasticsearch
 
 import (
 	"fmt"
-	docker "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	. "gopkg.in/check.v1"
 	"io"
 	"io/ioutil"
 	"os"
@@ -22,6 +14,15 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	. "gopkg.in/check.v1"
 )
 
 type log interface {
@@ -210,7 +211,7 @@ func all_docker_images(t log) (map[string]bool, error) {
 }
 
 func get_docker_image_tags(t log, imageId string) (map[string]bool, error) {
-	client, e := docker.NewClient(DOCKER_ENDPOINT)
+	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
 	if e != nil {
 		t.Log("Failure getting docker client")
 		return nil, e
