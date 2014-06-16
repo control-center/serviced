@@ -120,9 +120,8 @@ func (a *api) connectAgent(address string) (*agent.Client, error) {
 // Opens a connection to docker if not already connected
 func (a *api) connectDocker() (*dockerclient.Client, error) {
 	if a.docker == nil {
-		const DockerEndpoint string = "unix:///var/run/docker.sock"
 		var err error
-		if a.docker, err = dockerclient.NewClient(DockerEndpoint); err != nil {
+		if a.docker, err = dockerclient.NewClient(commons.DockerEndpoint()); err != nil {
 			return nil, fmt.Errorf("could not create a client to docker: %s", err)
 		}
 	}

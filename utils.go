@@ -28,7 +28,9 @@ import (
 	"time"
 )
 
-const TIMEFMT = "20060102-150405"
+const (
+	TIMEFMT = "20060102-150405"
+)
 
 func GetLabel(name string) string {
 	localtime := time.Now()

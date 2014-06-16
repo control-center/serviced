@@ -32,7 +32,7 @@ func Init() {
 		volumesDir = "/tmp/serviced/var/isvcs"
 	}
 
-	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
+	Mgr = NewManager(dockerep, imagesDir(), volumesDir)
 
 	if err := Mgr.Register(elasticsearch); err != nil {
 		glog.Fatalf("%s", err)

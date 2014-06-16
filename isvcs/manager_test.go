@@ -17,7 +17,7 @@ import (
 )
 
 func TestManager(t *testing.T) {
-	testManager := NewManager("unix:///var/run/docker.sock", utils.LocalDir("images"), "/tmp")
+	testManager := NewManager(DockerEndpoint(), utils.LocalDir("images"), "/tmp")
 
 	if err := testManager.Stop(); err != ErrManagerNotRunning {
 		t.Logf("expected an error got %s", err)

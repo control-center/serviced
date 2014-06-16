@@ -24,10 +24,11 @@ import (
 var empty interface{}
 
 const (
-	PROCESSKEY      string = "process"
-	MAXBUFFER       int    = 8192
-	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
+	PROCESSKEY string = "process"
+	MAXBUFFER  int    = 8192
 )
+
+var dockerep = commons.DockerEndpoint()
 
 var webroot string
 
@@ -279,7 +280,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
 	}
-	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
+	dockerClient, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return

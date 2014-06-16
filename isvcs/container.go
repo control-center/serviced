@@ -12,6 +12,7 @@ package isvcs
 import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/circular"
 	"github.com/zenoss/serviced/utils"
 
@@ -42,6 +43,8 @@ var ErrNotRunning error
 var ErrRunning error
 var ErrBadContainerSpec error
 
+var dockerep = commons.DockerEndpoint()
+
 func init() {
 	ErrNotRunning = errors.New("container: not running")
 	ErrRunning = errors.New("container: already running")
@@ -68,7 +71,7 @@ type Container struct {
 }
 
 func NewContainer(cd ContainerDescription) (*Container, error) {
-	client, err := dockerclient.NewClient("unix:///var/run/docker.sock")
+	client, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		glog.Errorf("Could not create docker client: %s", err)
 		return nil, err

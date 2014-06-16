@@ -27,7 +27,6 @@ import (
 
 const (
 	USER_ROOT        string = "root"
-	DOCKER_ENDPOINT  string = "unix:///var/run/docker.sock"
 	DOCKER_LATEST    string = "latest"
 	DOCKER_IMAGEJSON string = "images.json"
 )
@@ -36,6 +35,7 @@ var (
 	unused interface{}
 	// stubs
 	getCurrentUser = user.Current
+	dockerep       = commons.DockerEndpoint()
 )
 
 // runServiceCommand attaches to a service state container and executes an arbitrary bash command
@@ -53,7 +53,7 @@ type DistributedFileSystem struct {
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
 func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, dockerRegistry string) (*DistributedFileSystem, error) {
-	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
+	dockerClient, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
 		return nil, err

@@ -26,9 +26,11 @@ import (
 
 type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
 
-var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
-
-var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient.NewClient("unix:///var/run/docker.sock") }
+var (
+	LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
+	dockerep                                          = commons.DockerEndpoint()
+	getDockerClient                                   = func() (*dockerclient.Client, error) { return dockerclient.NewClient(dockerep) }
+)
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
@@ -215,7 +217,7 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 		getSubServiceImageIDs(imageIds, svc)
 	}
 
-	dockerclient, err := dockerclient.NewClient("unix:///var/run/docker.sock")
+	dockerclient, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		glog.Errorf("unable to start docker client")
 		return err
