@@ -10,29 +10,35 @@
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
 IN_DOCKER := 0
+NSINITDIR=../../dotcloud/docker/pkg/libcontainer/nsinit
 
 default: build_binary
 
 install: build_binary bash-complete
 	cd web && make build-js
 	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
-	go install github.com/zenoss/serviced/serviced
+	go install
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
 
 bash-complete:
 	sudo cp ./serviced/serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
 build_binary:
-	cd serviced && make
 	if [ "$(IN_DOCKER)" = "0" ]; then \
 		cd isvcs && make; \
 	else \
 		cd isvcs && make buildgo; \
 	fi
 	cd web && make build-js
+	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
+	./godep restore
+	go build
+	cd $(NSINITDIR) && go build && go install
+	cp $(NSINITDIR)/nsinit .
+
 
 go:
-	cd serviced && go build
+	go build
 
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
@@ -102,7 +108,6 @@ test: build_binary docker_ok
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
 	cd web && go test $(GOTEST_FLAGS)
-	cd serviced && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
 	cd datastore && make test $(GOTEST_FLAGS)
 	cd domain && make test $(GOTEST_FLAGS)
@@ -129,10 +134,14 @@ docker_ok:
 
 clean:
 	cd dao && make clean
-	cd serviced && ./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
+	go clean
+	if [ -d "$(NSINITDIR)" ]; then cd $(NSINITDIR) && go clean; fi
+	rm -Rf nsinit
+
 
 clean_fs:
 	cd pkg && make clean
