@@ -454,7 +454,7 @@ func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningSer
 				return err
 			}
 			_ss[i], err = sssToRs(&s, &ss)
-			if err != nil { 
+			if err != nil {
 				return err
 			}
 
@@ -630,7 +630,7 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningSer
 	if err != nil {
 		return nil, err
 	}
-	for i, metricGroup := range rs.MonitoringProfile.Metrics {
+	for i, metricGroup := range rs.MonitoringProfile.MetricConfigs {
 		for _, metric := range metricGroup.Metrics {
 			metricBuilder := build.Metric(metric.ID, metric.Name)
 			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))
@@ -640,7 +640,7 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningSer
 		if err != nil {
 			return nil, err
 		}
-		rs.MonitoringProfile.Metrics[i] = *config
+		rs.MonitoringProfile.MetricConfigs[i] = *config
 	}
 	return rs, nil
 }
