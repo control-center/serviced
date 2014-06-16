@@ -45,6 +45,7 @@ type Options struct {
 	StaticIPs        []string
 	DockerRegistry   string
 	CPUProfile       string // write cpu profile to file
+	MaxContainerAge  int    // max container age in seconds
 }
 
 // LoadOptions overwrites the existing server options
