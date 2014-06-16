@@ -133,6 +133,7 @@ docker_ok:
 	fi
 
 clean:
+	rm serviced -Rf # needed for branch build to work to merge this commit, remove me later
 	cd dao && make clean
 	./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	docker run --rm \
