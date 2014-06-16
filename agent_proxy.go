@@ -233,7 +233,6 @@ func (a *HostAgent) GetDockerID(info ServiceInstanceInfo, dockerID *string) erro
 	for _, svc := range services {
 		if info.InstanceID == fmt.Sprintf("%d", svc.InstanceID) {
 			*dockerID = svc.DockerID
-			glog.Infof("found dockerID:%s from serviceID:%s instanceID:%s", *dockerID, info.ServiceID, info.InstanceID)
 			return nil
 		}
 	}
