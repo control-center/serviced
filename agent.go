@@ -74,6 +74,7 @@ type HostAgent struct {
 	facade          *facade.Facade
 	context         datastore.Context
 	periodicTasks   chan struct{} // signal for periodic tasks to stop
+	maxContainerAge time.Duration // maximum age for a stopped container before it is removed
 }
 
 // assert that this implemenents the Agent interface
@@ -89,21 +90,35 @@ func getZkDSN(zookeepers []string) string {
 	return dsn.String()
 }
 
+type AgentOptions struct {
+	Master          string
+	UIPort          string
+	DockerDNS       []string
+	VarPath         string
+	Mount           []string
+	VFS             string
+	Zookeepers      []string
+	Mux             *proxy.TCPMux
+	DockerRegistry  string
+	MaxContainerAge time.Duration // Maximum container age for a stopped container before being removed
+}
+
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(master string, uiport string, dockerDNS []string, varPath string, mount []string, vfs string, zookeepers []string, mux *proxy.TCPMux, dockerRegistry string) (*HostAgent, error) {
+func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
-	agent.dockerRegistry = dockerRegistry
-	agent.master = master
-	agent.uiport = uiport
-	agent.dockerDNS = dockerDNS
-	agent.varPath = varPath
-	agent.mount = mount
-	agent.vfs = vfs
-	agent.mux = mux
+	agent.dockerRegistry = options.DockerRegistry
+	agent.master = options.Master
+	agent.uiport = options.UIPort
+	agent.dockerDNS = options.DockerDNS
+	agent.varPath = options.VarPath
+	agent.mount = options.Mount
+	agent.vfs = options.VFS
+	agent.mux = options.Mux
 	agent.periodicTasks = make(chan struct{})
+	agent.maxContainerAge = options.MaxContainerAge
 
-	dsn := getZkDSN(zookeepers)
+	dsn := getZkDSN(options.Zookeepers)
 	basePath := ""
 	zkClient, err := coordclient.New("zookeeper", dsn, basePath, nil)
 	if err != nil {
@@ -121,7 +136,7 @@ func NewHostAgent(master string, uiport string, dockerDNS []string, varPath stri
 
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	go agent.start()
-	go agent.reapOldContainersLoop(time.Second * 10)
+	go agent.reapOldContainersLoop(time.Minute)
 	return agent, err
 
 	/* FIXME: this should work here
@@ -245,12 +260,12 @@ func (a *HostAgent) terminateAttached(conn coordclient.Connection, procFinished 
 	return nil
 }
 
-func reapContainers(client *docker.Client) error {
+func reapContainers(client *docker.Client, maxAge time.Duration) error {
 	containers, lastErr := client.ListContainers(docker.ListContainersOptions{All: true})
 	if lastErr != nil {
 		return lastErr
 	}
-	cutoff := time.Now().Add(time.Second * -12).Unix()
+	cutoff := time.Now().Add(-maxAge).Unix()
 	for _, container := range containers {
 		if !strings.HasPrefix(container.Status, "Exited") {
 			continue
@@ -278,7 +293,7 @@ func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
 				glog.Errorf("can't create docker client: %v", err)
 				continue
 			}
-			reapContainers(dc)
+			reapContainers(dc, a.maxContainerAge)
 		case _, ok := <-a.periodicTasks:
 			if !ok {
 				return // we are shutting down
