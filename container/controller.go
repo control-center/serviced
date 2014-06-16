@@ -32,13 +32,15 @@ import (
 )
 
 // TODO: remove useImportedEndpointServiceDiscovery or set it to true
-const useImportedEndpointServiceDiscovery = false
+const useImportedEndpointServiceDiscovery = true
 
 var (
 	// ErrInvalidCommand is returned if a command is empty or malformed
 	ErrInvalidCommand = errors.New("container: invalid command")
 	// ErrInvalidEndpoint is returned if an endpoint is empty or malformed
 	ErrInvalidEndpoint = errors.New("container: invalid endpoint")
+	// ErrInvalidDockerID is returned if a DockerID is empty or malformed
+	ErrInvalidDockerID = errors.New("container: invalid docker id")
 	// ErrInvalidTenantID is returned if a TenantID is empty or malformed
 	ErrInvalidTenantID = errors.New("container: invalid tenant id")
 	// ErrInvalidServiceID is returned if a ServiceID is empty or malformed
@@ -92,6 +94,7 @@ type Controller struct {
 	options            ControllerOptions
 	hostID             string
 	tenantID           string
+	dockerID           string
 	metricForwarder    *MetricForwarder
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
@@ -143,7 +146,7 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 	return &service, nil
 }
 
-// getServiceTenaneID retrieves a service's tenantID
+// getServiceTenantID retrieves a service's tenantID
 func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
 	client, err := serviced.NewLBClient(lbClientPort)
 	if err != nil {
@@ -181,6 +184,26 @@ func getAgentHostID(lbClientPort string) (string, error) {
 
 	glog.V(1).Infof("getAgentHostID: %s", hostID)
 	return hostID, nil
+}
+
+// getDockerID retrieves a running service's dockerID
+func getDockerID(lbClientPort string, serviceID string, instanceID string) (string, error) {
+	client, err := serviced.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return "", err
+	}
+	defer client.Close()
+
+	var dockerID string
+	err = client.GetDockerID(serviceID, instanceID, &dockerID)
+	if err != nil {
+		glog.Errorf("Error getting dockerID from service %s's instance %s, error: %s", serviceID, instanceID, err)
+		return "", err
+	}
+
+	glog.Infof("getDockerID: service id=%s instance=%s: %s", serviceID, instanceID, dockerID)
+	return dockerID, nil
 }
 
 // getAgentZkDSN retrieves the agent's zookeeper dsn
@@ -429,6 +452,13 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
+	}
+
+	// get dockerID
+	c.dockerID, err = getDockerID(options.ServicedEndpoint, options.Service.ID, options.Service.InstanceID)
+	if err != nil {
+		glog.Errorf("Invalid dockerID from serviceID:%s instanceID:%s", options.Service.ID, options.Service.InstanceID)
+		return c, ErrInvalidDockerID
 	}
 
 	// get service tenantID
@@ -1105,9 +1135,6 @@ func (c *Controller) registerExportedEndpoints() {
 		glog.Errorf("Could not get vhost registy. Endpoints not registered: %v", err)
 		return
 	}
-	// get containerID
-	containerID := os.Getenv("HOSTNAME")
-	glog.Infof("containerID: %s\n", containerID)
 
 	// register exported endpoints
 	for key, exportList := range c.exportedEndpoints {
@@ -1123,7 +1150,7 @@ func (c *Controller) registerExportedEndpoints() {
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			path, err := endpointRegistry.SetItem(conn, c.tenantID, export.endpoint.Application, c.hostID, containerID, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, containerID, *endpoint))
+			path, err := endpointRegistry.SetItem(conn, c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, *endpoint))
 			if err != nil {
 				glog.Errorf("  unable to add endpoint: %+v %v", *endpoint, err)
 				continue
