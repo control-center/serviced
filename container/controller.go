@@ -32,7 +32,7 @@ import (
 )
 
 // TODO: remove useImportedEndpointServiceDiscovery or set it to true
-const useImportedEndpointServiceDiscovery = true
+const useImportedEndpointServiceDiscovery = false
 
 var (
 	// ErrInvalidCommand is returned if a command is empty or malformed
@@ -904,7 +904,7 @@ func (c *Controller) watchRemotePorts() {
 		watch each tenant endpoint
 		    - when endpoints are added, add the endpoint proxy if not already added
 			- when endpoints are added, add watch on that endpoint for updates
-			TODO: when endpoints are deleted, tell that endpoint proxy to stop proxying - try ephemeral znodes
+			- when endpoints are deleted, tell that endpoint proxy to stop proxying - done with ephemeral znodes
 			- when endpoints are deleted, may not need to deal with removing watch on that endpoint since that watch will block forever
 			- deal with import regexes, i.e mysql_.*
 		- may not need to initially deal with removal of tenant endpoint
