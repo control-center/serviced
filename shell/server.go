@@ -15,7 +15,7 @@ import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
@@ -323,7 +323,7 @@ func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Cli
 	var svc service.Service
 
 	// Create a control plane client to look up the service
-	cp, err := serviced.NewControlClient(port)
+	cp, err := node.NewControlClient(port)
 	if err != nil {
 		glog.Errorf("could not create a control plane client %v", err)
 		return nil, err
@@ -342,7 +342,7 @@ func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Cli
 	}
 
 	// bind mount on /serviced
-	dir, bin, err := serviced.ExecPath()
+	dir, bin, err := node.ExecPath()
 	if err != nil {
 		glog.Errorf("serviced not found: %s", err)
 		return nil, err
