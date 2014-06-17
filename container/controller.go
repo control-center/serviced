@@ -945,8 +945,14 @@ func (c *Controller) watchRemotePorts() {
 
 		// cancel watcher on top level /endpoints if all watchers on imported endpoints have been set up
 		{
+			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
 			missingWatchers := false
 			for id, _ := range c.importedEndpoints {
+				if strings.HasPrefix(id, ignorePrefix) {
+					// ignore controlplane special imports for now - handleRemotePorts starts proxies for those right now
+					// TODO: register controlplane special imports in isvcs and watch for them
+					continue
+				}
 				if _, ok := watchers[id]; !ok {
 					missingWatchers = true
 				}
