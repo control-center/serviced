@@ -9,7 +9,7 @@
 
 // Serviced is a PaaS runtime based on docker. The serviced package exposes the
 // interfaces for the key parts of this runtime.
-package serviced
+package node
 
 import (
 	"github.com/zenoss/serviced/dao"

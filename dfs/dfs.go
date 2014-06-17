@@ -3,7 +3,7 @@ package dfs
 import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -155,7 +155,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	label := serviced.GetLabel(tenantId)
+	label := node.GetLabel(tenantId)
 	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", myService.Id, label, theVolume)
 
 	parts := strings.SplitN(label, "_", 2)

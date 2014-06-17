@@ -7,7 +7,7 @@
 #######################################################
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED=${DIR}/serviced/serviced
+SERVICED=${DIR}/serviced
 IP=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 HOSTNAME=$(hostname)
 
@@ -64,7 +64,7 @@ trap cleanup EXIT
 
 start_serviced() {
     echo "Starting serviced..."
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${PWD}/serviced/serviced -master -agent &
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${SERVICED} -master -agent &
     echo "Waiting 120 seconds for serviced to become the leader..."
     retry 180 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
     return $?

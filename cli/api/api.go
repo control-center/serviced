@@ -7,7 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -138,7 +138,7 @@ func (a *api) connectDockerRegistry() (commons.DockerRegistry, error) {
 func (a *api) connectDAO() (dao.ControlPlane, error) {
 	if a.dao == nil {
 		var err error
-		a.dao, err = serviced.NewControlClient(options.Endpoint)
+		a.dao, err = node.NewControlClient(options.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

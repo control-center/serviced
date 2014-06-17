@@ -2,7 +2,7 @@ package container
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
@@ -94,7 +94,7 @@ func (c *Controller) Close() error {
 // getService retrieves a service
 
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return nil, err
@@ -114,7 +114,7 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 
 // getServiceTenaneID retrieves a service's tenantID
 func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return "", err
@@ -134,7 +134,7 @@ func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
 
 // getAgentHostID retrieves the agent's host id
 func getAgentHostID(lbClientPort string) (string, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return "", err
@@ -473,7 +473,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	exitChannels := make(map[string]chan bool)
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return nil
@@ -494,7 +494,7 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 }
 
 func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
@@ -538,7 +538,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleRemotePorts() {
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
