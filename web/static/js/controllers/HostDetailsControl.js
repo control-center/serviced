@@ -172,7 +172,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                   "format": "%d",
                   "id": "pgfault",
                   "legend": "Major Page Faults",
-                  "metric": "MemoryStat.pgmajfault",
+                  "metric": "vmstat.pgmajfault",
                   "name": "Major Page Faults",
                   "rate": true,
                   "rateOptions": {},

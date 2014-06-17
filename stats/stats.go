@@ -134,20 +134,20 @@ func (sr StatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("memory.used", sr.hostRegistry).Update(int64(int64(meminfo.MemTotal) - (int64(meminfo.MemFree) - int64(meminfo.Buffers) + int64(meminfo.Cached))))
 	metrics.GetOrRegisterGauge("swap.total", sr.hostRegistry).Update(int64(meminfo.SwapTotal))
 	metrics.GetOrRegisterGauge("swap.free", sr.hostRegistry).Update(int64(meminfo.SwapFree))
+
+	vmstat, err := linux.ReadVmstat()
+	if err != nil {
+		glog.Errorf("could not read vmstat: %s", err)
+		return
+	}
+	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
+	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
 }
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
-
-	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
-		glog.V(3).Info("Couldn't read MemoryStat:", err)
-	} else {
-		metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", sr.hostRegistry).Update(memoryStat.Pgmajfault)
-		metrics.GetOrRegisterGauge("MemoryStat.totalrss", sr.hostRegistry).Update(memoryStat.TotalRss)
-		metrics.GetOrRegisterGauge("MemoryStat.cache", sr.hostRegistry).Update(memoryStat.Cache)
-	}
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
