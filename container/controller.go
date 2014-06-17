@@ -1,7 +1,6 @@
 package container
 
 import (
-	// "github.com/fatih/set"    // TODO: fill out form to use this package when needed
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons/subprocess"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
@@ -126,7 +125,6 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
@@ -330,7 +328,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 	return nil, fmt.Errorf("unable to retrieve service state")
 }
 
-// buildExportedEndpoints
+// buildExportedEndpoints builds the map to exported endpoints
 func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string][]export, error) {
 	result := make(map[string][]export)
 
@@ -365,7 +363,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 	return result, nil
 }
 
-// buildImportedEndpoints
+// buildImportedEndpoints builds the map to imported endpoints
 func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string]importedEndpoint, error) {
 	result := make(map[string]importedEndpoint)
 
@@ -394,7 +392,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, servic
 	return result, nil
 }
 
-//
+// buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
 func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (*dao.ApplicationEndpoint, error) {
 	var ae dao.ApplicationEndpoint
 
@@ -908,7 +906,7 @@ func (c *Controller) handleRemotePorts() {
 	}
 }
 
-//
+// watchRemotePorts watches imported endpoints and updates proxies
 func (c *Controller) watchRemotePorts() {
 	/*
 		watch each tenant endpoint
@@ -1021,12 +1019,12 @@ func (c *Controller) watchRemotePorts() {
 	go endpointRegistry.WatchRegistry(zkConn, endpointsWatchCanceller, processTenantEndpoints, endpointWatchError)
 }
 
-//
+// endpointWatchError shows errors with watches
 func endpointWatchError(path string, err error) {
 	glog.Infof("processing endpointWatchError on %s: %v", path, err)
 }
 
-//
+// processTenantEndpoint updates the addresses for an imported endpoint
 func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostContainerIDs ...string) {
 	glog.Infof("processTenantEndpoint: parentPath:%s hostContainerIDs: %v", parentPath, hostContainerIDs)
 
@@ -1051,30 +1049,9 @@ func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostC
 	}
 
 	setProxyAddresses(tenantEndpointID, endpointNodes)
-
-	/*
-		// determine additions and deletions
-		setOld := watchers[tenantEndpointID]
-		setNew := set.New(set.ThreadSafe) // thread safe version
-
-		// deal with additions
-		setAdditions := set.Difference(setNew, setOld)
-		additions := set.StringSlice(setAdditions)
-		if len(additions) > 0 {
-			// no need to set watch on each hostid_containerid item that is added
-			// since each hostid_containerid is never updated - they are only set
-			// once at container startup registration
-		}
-
-		// deal with deletions
-		setDeletions := set.Difference(setOld, setNew)
-		deletions := set.StringSlice(setDeletions)
-		if len(deletions) > 0 {
-			// no need to remove watch for deleted items - deleted watches block forever
-		}
-	*/
 }
 
+// setProxyAddresses tells the proxies to update with addresses
 func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.EndpointNode) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
 
@@ -1122,7 +1099,7 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 	prxy.SetNewAddresses(addresses)
 }
 
-//
+// createNewProxy creates a new proxy
 func createNewProxy(tenantEndpointID string, endpoint registry.EndpointNode) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
