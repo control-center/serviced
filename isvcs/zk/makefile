@@ -8,6 +8,7 @@ default: tarball
 tarball:
 	wget -qO- http://apache.cs.utah.edu/zookeeper/zookeeper-$(ZK_VERSION)/zookeeper-$(ZK_VERSION).tar.gz | tar -C /opt -xz
 	cp /opt/zookeeper-$(ZK_VERSION)/conf/zoo_sample.cfg /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
+	echo maxClientCnxns=200 >> /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
 	mkdir /opt/exhibitor && \
 		wget -q -O /opt/exhibitor/pom.xml https://raw.github.com/Netflix/exhibitor/master/exhibitor-standalone/src/main/resources/buildscripts/standalone/maven/pom.xml && \
 		cd /opt/exhibitor && \
