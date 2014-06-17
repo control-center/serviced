@@ -115,7 +115,7 @@ type export struct {
 }
 
 type importedEndpoint struct {
-	endpoint *dao.ApplicationEndpoint
+	endpointID string
 }
 
 // Close shuts down the controller
@@ -378,13 +378,15 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, servic
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "import" {
-			ie := importedEndpoint{}
-			ie.endpoint, err = buildApplicationEndpoint(state, &defep)
+			endpoint, err := buildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return result, err
 			}
 
-			tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpoint.Application)
+			ie := importedEndpoint{}
+			ie.endpointID = endpoint.Application
+
+			tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpointID)
 			result[tenantEndpointKey] = ie
 		}
 	}
@@ -839,8 +841,8 @@ func (c *Controller) handleRemotePorts() {
 	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
 		// replace or add entries in importedEndpoints
 		ie := importedEndpoint{}
-		ie.endpoint = endpoint
-		key := registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application)
+		ie.endpointID = endpoint.Application
+		key := registry.TenantEndpointKey(c.tenantID, ie.endpointID)
 		c.importedEndpoints[key] = ie
 	}
 
@@ -923,7 +925,7 @@ func (c *Controller) watchRemotePorts() {
 	cMuxTLS = c.options.Mux.TLS
 
 	for key, endpoint := range c.importedEndpoints {
-		glog.Infof("importedEndpoints[%s]: %+v", key, *endpoint.endpoint)
+		glog.Infof("importedEndpoints[%s]: %+v", key, endpoint)
 	}
 
 	zkConn, err := c.cclient.GetConnection()
@@ -978,16 +980,16 @@ func (c *Controller) watchRemotePorts() {
 					// look for imports with regexes that match each tenantEndpointID
 					matched := false
 					for _, ie := range c.importedEndpoints {
-						endpointPattern := fmt.Sprintf("^%s$", registry.TenantEndpointKey(c.tenantID, ie.endpoint.Application))
+						endpointPattern := fmt.Sprintf("^%s$", registry.TenantEndpointKey(c.tenantID, ie.endpointID))
 						glog.Infof("  checking tenantEndpointID %s against pattern %s", id, endpointPattern)
 						endpointRegex, err := regexp.Compile(endpointPattern)
 						if err != nil {
-							glog.Warningf("  unable to check tenantEndpointID %s against imported endpoint %s", id, ie.endpoint.Application)
+							glog.Warningf("  unable to check tenantEndpointID %s against imported endpoint %s", id, ie.endpointID)
 							continue //Don't spam error message; it was reported at validation time
 						}
 
 						if endpointRegex.MatchString(id) {
-							glog.Infof("  tenantEndpointID:%s matched imported endpoint pattern:%s for %+v", id, endpointPattern, ie.endpoint)
+							glog.Infof("  tenantEndpointID:%s matched imported endpoint pattern:%s for %+v", id, endpointPattern, ie)
 							matched = true
 							watchers[id] = true
 							go watchTenantEndpoints(id)
