@@ -95,22 +95,28 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         var options= [{'Value':'Automatic', 'IPAddr':null}]
 
         //host ips
-        for(var i = 0; i < data.HostIPs.length; ++i) {
-          var IPAddr = data.HostIPs[i].IPAddress
-          var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
-          options.push({'Value': value, 'IPAddr':IPAddr})
-          // set the default value to the currently assigned value
-          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
-            $scope.ips.assign.value = options[ options.length-1]
+        if ( data && data.HostIPs) {
+          for(var i = 0; i < data.HostIPs.length; ++i) {
+            var IPAddr = data.HostIPs[i].IPAddress
+            var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
+            options.push({'Value': value, 'IPAddr':IPAddr})
+            // set the default value to the currently assigned value
+            if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+              $scope.ips.assign.value = options[ options.length-1]
+            }
           }
         }
-        for(var i = 0; i < data.VirtualIPs.length; ++i) {
-          var IPAddr = data.VirtualIPs[i].IP
-          var value =  "Virtual IP: " + IPAddr
-          options.push({'Value': value, 'IPAddr':IPAddr})
-          // set the default value to the currently assigned value
-          if ($scope.ips.assign.ip.IPAddr == IPAddr) {
-            $scope.ips.assign.value = options[ options.length-1]
+
+        //host ips
+        if ( data && data.VirtualIPs) {
+          for(var i = 0; i < data.VirtualIPs.length; ++i) {
+            var IPAddr = data.VirtualIPs[i].IP
+            var value =  "Virtual IP: " + IPAddr
+            options.push({'Value': value, 'IPAddr':IPAddr})
+            // set the default value to the currently assigned value
+            if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+              $scope.ips.assign.value = options[ options.length-1]
+            }
           }
         }
 
