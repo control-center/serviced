@@ -21,7 +21,7 @@ install: build_binary bash-complete
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
 
 bash-complete:
-	sudo cp ./serviced/serviced-bash-completion.sh /etc/bash_completion.d/serviced
+	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
 build_binary:
 	if [ "$(IN_DOCKER)" = "0" ]; then \
