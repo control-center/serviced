@@ -7,6 +7,7 @@
 package stats
 
 import (
+	"github.com/daniel-garcia/go-procfs/linux"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
@@ -47,6 +48,7 @@ type registryKey struct {
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
 func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
+
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
@@ -56,7 +58,13 @@ func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkD
 		glog.Errorf("zkDAO can not be nil")
 		return nil, fmt.Errorf("zkdao can not be nil")
 	}
-	sr := StatsReporter{destination, make(chan bool), zkDAO, make(map[registryKey]metrics.Registry), hostID, nil}
+	sr := StatsReporter{
+		destination:         destination,
+		closeChannel:        make(chan bool),
+		zkDAO:               zkDAO,
+		containerRegistries: make(map[registryKey]metrics.Registry),
+		hostID:              hostID,
+	}
 	sr.hostRegistry = sr.getOrCreateContainerRegistry("", 0)
 	go sr.report(interval)
 	return &sr, nil
@@ -102,15 +110,36 @@ func (sr StatsReporter) report(d time.Duration) {
 	}
 }
 
+func (sr StatsReporter) updateHostStats() {
+	stat, err := linux.ReadStat()
+	if err != nil {
+		glog.Errorf("could not read stat: %s", err)
+		return
+	}
+	metrics.GetOrRegisterGauge("cpu.user", sr.hostRegistry).Update(int64(stat.Cpu.User()))
+	metrics.GetOrRegisterGauge("cpu.nice", sr.hostRegistry).Update(int64(stat.Cpu.Nice()))
+	metrics.GetOrRegisterGauge("cpu.system", sr.hostRegistry).Update(int64(stat.Cpu.System()))
+	metrics.GetOrRegisterGauge("cpu.idle", sr.hostRegistry).Update(int64(stat.Cpu.Idle()))
+	metrics.GetOrRegisterGauge("cpu.iowait", sr.hostRegistry).Update(int64(stat.Cpu.Iowait()))
+
+	meminfo, err := linux.ReadMeminfo()
+	if err != nil {
+		glog.Errorf("could not read meminfo: %s", err)
+		return
+	}
+	metrics.GetOrRegisterGauge("memory.total", sr.hostRegistry).Update(int64(meminfo.MemTotal))
+	metrics.GetOrRegisterGauge("memory.free", sr.hostRegistry).Update(int64(meminfo.MemFree))
+	metrics.GetOrRegisterGauge("memory.buffers", sr.hostRegistry).Update(int64(meminfo.Buffers))
+	metrics.GetOrRegisterGauge("memory.cached", sr.hostRegistry).Update(int64(meminfo.Cached))
+	metrics.GetOrRegisterGauge("memory.used", sr.hostRegistry).Update(int64(int64(meminfo.MemTotal) - (int64(meminfo.MemFree) - int64(meminfo.Buffers) + int64(meminfo.Cached))))
+	metrics.GetOrRegisterGauge("swap.total", sr.hostRegistry).Update(int64(meminfo.SwapTotal))
+	metrics.GetOrRegisterGauge("swap.free", sr.hostRegistry).Update(int64(meminfo.SwapFree))
+}
+
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
 	// Stats for host.
-	if cpuacctStat, err := cgroup.ReadCpuacctStat(""); err != nil {
-		glog.V(3).Info("Couldn't read CpuacctStat:", err)
-	} else {
-		metrics.GetOrRegisterGauge("CpuacctStat.system", sr.hostRegistry).Update(cpuacctStat.System)
-		metrics.GetOrRegisterGauge("CpuacctStat.user", sr.hostRegistry).Update(cpuacctStat.User)
-	}
+	sr.updateHostStats()
 
 	if memoryStat, err := cgroup.ReadMemoryStat(""); err != nil {
 		glog.V(3).Info("Couldn't read MemoryStat:", err)
@@ -152,21 +181,28 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
 	reg.Each(func(name string, i interface{}) {
-		metric := i.(metrics.Gauge)
-		tagmap := make(map[string]string)
-		tagmap["controlplane_host_id"] = sr.hostID
-		stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		if metric, ok := i.(metrics.Gauge); ok {
+			tagmap := make(map[string]string)
+			tagmap["controlplane_host_id"] = sr.hostID
+			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		}
+		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
+			tagmap := make(map[string]string)
+			tagmap["controlplane_host_id"] = sr.hostID
+			stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+		}
 	})
 	// Handle each container's metrics.
 	for key, registry := range sr.containerRegistries {
 		reg, _ := registry.(*metrics.StandardRegistry)
 		reg.Each(func(name string, i interface{}) {
-			metric := i.(metrics.Gauge)
-			tagmap := make(map[string]string)
-			tagmap["controlplane_service_id"] = key.serviceID
-			tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
-			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			if metric, ok := i.(metrics.Gauge); ok {
+				tagmap := make(map[string]string)
+				tagmap["controlplane_service_id"] = key.serviceID
+				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
+				tagmap["controlplane_host_id"] = sr.hostID
+				stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			}
 		})
 	}
 	return stats
