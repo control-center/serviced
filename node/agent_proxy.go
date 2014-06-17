@@ -16,7 +16,6 @@ import (
 	"github.com/zenoss/serviced/domain"
 
 	"errors"
-	"fmt"
 	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
@@ -28,12 +27,6 @@ var _ LoadBalancer = &HostAgent{}
 type ServiceLogInfo struct {
 	ServiceID string
 	Message   string
-}
-
-// ServiceInstanceInfo is the search criteria to find a running service instance
-type ServiceInstanceInfo struct {
-	ServiceID  string
-	InstanceID string
 }
 
 func (a *HostAgent) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) (err error) {
@@ -212,34 +205,4 @@ func (a *HostAgent) GetZkDSN(string, dsn *string) error {
 	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
 	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
 	return nil
-}
-
-// GetDockerID returns the docker id based on given ServiceInstanceInfo
-func (a *HostAgent) GetDockerID(info ServiceInstanceInfo, dockerID *string) error {
-	glog.V(4).Infof("GetDockerID(%+v)", info.ServiceID)
-
-	client, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return err
-	}
-	defer client.Close()
-
-	services := []*dao.RunningService{}
-	err = client.GetRunningServicesForService(info.ServiceID, &services)
-	if err != nil {
-		glog.Errorf("Could not get running services for service %s %v", info.ServiceID, err)
-		return err
-	}
-
-	for _, svc := range services {
-		glog.V(4).Infof("looking at running service: %+v", svc)
-		if info.InstanceID == fmt.Sprintf("%d", svc.InstanceID) {
-			*dockerID = svc.DockerID
-			glog.V(4).Infof("GetDockerID(%+v): %s", info.ServiceID, *dockerID)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("unable to find docker id from service %s instance %s", info.ServiceID, info.InstanceID)
 }

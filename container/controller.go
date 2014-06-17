@@ -38,8 +38,6 @@ var (
 	ErrInvalidCommand = errors.New("container: invalid command")
 	// ErrInvalidEndpoint is returned if an endpoint is empty or malformed
 	ErrInvalidEndpoint = errors.New("container: invalid endpoint")
-	// ErrInvalidDockerID is returned if a DockerID is empty or malformed
-	ErrInvalidDockerID = errors.New("container: invalid docker id")
 	// ErrInvalidTenantID is returned if a TenantID is empty or malformed
 	ErrInvalidTenantID = errors.New("container: invalid tenant id")
 	// ErrInvalidServiceID is returned if a ServiceID is empty or malformed
@@ -184,26 +182,6 @@ func getAgentHostID(lbClientPort string) (string, error) {
 	return hostID, nil
 }
 
-// getDockerID retrieves a running service's dockerID
-func getDockerID(lbClientPort string, serviceID string, instanceID string) (string, error) {
-	client, err := node.NewLBClient(lbClientPort)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return "", err
-	}
-	defer client.Close()
-
-	var dockerID string
-	err = client.GetDockerID(serviceID, instanceID, &dockerID)
-	if err != nil {
-		glog.Errorf("Error getting dockerID from service %s's instance %s, error: %s", serviceID, instanceID, err)
-		return "", err
-	}
-
-	glog.Infof("getDockerID: service id=%s instance=%s: dockerID:'%s'", serviceID, instanceID, dockerID)
-	return dockerID, nil
-}
-
 // getAgentZkDSN retrieves the agent's zookeeper dsn
 func getAgentZkDSN(lbClientPort string) (string, error) {
 	client, err := node.NewLBClient(lbClientPort)
@@ -329,15 +307,9 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 }
 
 // buildExportedEndpoints builds the map to exported endpoints
-func buildExportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string][]export, error) {
-	result := make(map[string][]export)
-
-	state, err := getServiceState(conn, service.Id, instanceID)
-	if err != nil {
-		return result, err
-	}
-
+func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state *servicestate.ServiceState) (map[string][]export, error) {
 	glog.Infof("buildExportedEndpoints state: %+v", state)
+	result := make(map[string][]export)
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "export" {
@@ -347,6 +319,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 			exp.endpointName = defep.Name
 			exp.instanceID = state.InstanceID
 
+			var err error
 			exp.endpoint, err = buildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return result, err
@@ -364,15 +337,9 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, servic
 }
 
 // buildImportedEndpoints builds the map to imported endpoints
-func buildImportedEndpoints(conn coordclient.Connection, tenantID string, service *service.Service, instanceID string) (map[string]importedEndpoint, error) {
-	result := make(map[string]importedEndpoint)
-
-	state, err := getServiceState(conn, service.Id, instanceID)
-	if err != nil {
-		return result, err
-	}
-
+func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state *servicestate.ServiceState) (map[string]importedEndpoint, error) {
 	glog.Infof("buildImportedEndpoints state: %+v", state)
+	result := make(map[string]importedEndpoint)
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "import" {
@@ -541,23 +508,23 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, err
 	}
 
-	// Keep a copy of the service EndPoint exports
-	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, service, options.Service.InstanceID)
+	// get service state
+	sstate, err := getServiceState(conn, service.Id, options.Service.InstanceID)
+	if err != nil {
+		return c, err
+	}
+	c.dockerID = sstate.DockerID
+
+	// keep a copy of the service EndPoint exports
+	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
 	if err != nil {
 		glog.Errorf("Invalid ExportedEndpoints")
 		return c, ErrInvalidExportedEndpoints
 	}
 
-	// get dockerID - dockerID is not correctly set until after getServiceState() - call getDockerID after buildExportedEndpoints
-	c.dockerID, err = getDockerID(options.ServicedEndpoint, options.Service.ID, options.Service.InstanceID)
-	if err != nil {
-		glog.Errorf("Invalid dockerID from serviceID:%s instanceID:%s", options.Service.ID, options.Service.InstanceID)
-		return c, ErrInvalidDockerID
-	}
-
 	// initialize importedEndpoints
 	if useImportedEndpointServiceDiscovery {
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service, options.Service.InstanceID)
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return c, ErrInvalidImportedEndpoints

@@ -91,10 +91,3 @@ func (a *LBClient) GetZkDSN(dsn *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetZkDSN", "na", dsn)
 }
-
-// GetDockerID returns the docker id of the running service instance
-func (a *LBClient) GetDockerID(serviceID string, instanceID string, dockerID *string) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetDockerID()")
-	info := ServiceInstanceInfo{ServiceID: serviceID, InstanceID: instanceID}
-	return a.rpcClient.Call("ControlPlaneAgent.GetDockerID", info, dockerID)
-}
