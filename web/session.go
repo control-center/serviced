@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	userdomain "github.com/zenoss/serviced/domain/user"
 
 	"crypto/rand"
@@ -97,7 +97,7 @@ func restLogout(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Perform login, return JSON
  */
-func restLogin(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	creds := login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
@@ -137,7 +137,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *serviced.Control
 	}
 }
 
-func cpValidateLogin(creds *login, client *serviced.ControlClient) bool {
+func cpValidateLogin(creds *login, client *node.ControlClient) bool {
 	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds)
 	// create a client
 	user := userdomain.User{
