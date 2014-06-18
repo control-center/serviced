@@ -798,9 +798,6 @@ func (c *Controller) handleRemotePorts() {
 			tmp[tenantEndpointID] = endpoints[key]
 		}
 		endpoints = tmp
-		for key, endpointList := range endpoints {
-			glog.Infof("imported %s: %+v", key, endpointList[0])
-		}
 	}
 
 	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
@@ -813,6 +810,13 @@ func (c *Controller) handleRemotePorts() {
 
 	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
+		if useImportedEndpointServiceDiscovery {
+			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
+			if !strings.HasPrefix(key, ignorePrefix) {
+				continue
+			}
+		}
+
 		if len(endpointList) <= 0 {
 			if proxy, ok := proxies[key]; ok {
 				proxy.SetNewAddresses(emptyAddressList)
@@ -823,9 +827,10 @@ func (c *Controller) handleRemotePorts() {
 		addresses := make([]string, len(endpointList))
 		for i, endpoint := range endpointList {
 			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-			glog.V(2).Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
+			glog.V(0).Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
 		}
 		sort.Strings(addresses)
+		glog.Infof("endpoint key:%s addresses:%+v", key, addresses)
 
 		var (
 			prxy *proxy
@@ -1005,24 +1010,24 @@ func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostC
 	parts := strings.Split(parentPath, "/")
 	tenantEndpointID := parts[len(parts)-1]
 
-	endpointNodes := make([]registry.EndpointNode, len(hostContainerIDs))
+	endpoints := make([]*dao.ApplicationEndpoint, len(hostContainerIDs))
 	for ii, hostContainerID := range hostContainerIDs {
 		path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
 		endpointNode, err := endpointRegistry.GetItem(conn, path)
 		if err != nil {
 			glog.Errorf("error getting endpoint node at %s: %v", path, err)
 		}
-		endpointNodes[ii] = *endpointNode
+		endpoints[ii] = &endpointNode.ApplicationEndpoint
 	}
 
-	setProxyAddresses(tenantEndpointID, endpointNodes)
+	setProxyAddresses(tenantEndpointID, endpoints)
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.EndpointNode) {
+func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
 
-	if len(endpointNodes) <= 0 {
+	if len(endpoints) <= 0 {
 		if prxy, ok := proxies[tenantEndpointID]; ok {
 			glog.Errorf("Setting proxy %s to empty address list", tenantEndpointID)
 			emptyAddressList := []string{}
@@ -1033,12 +1038,13 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 		return
 	}
 
-	addresses := make([]string, len(endpointNodes))
-	for ii, endpoint := range endpointNodes {
+	addresses := make([]string, len(endpoints))
+	for ii, endpoint := range endpoints {
 		addresses[ii] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-		glog.Infof("addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
+		glog.Infof("  addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
 	}
 	sort.Strings(addresses)
+	glog.Infof("  endpoint key:%s addresses:%+v", tenantEndpointID, addresses)
 
 	for ii, pp := range proxies {
 		glog.Infof("  proxies[%s]: %+v", ii, *pp)
@@ -1047,14 +1053,14 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 	prxy, ok := proxies[tenantEndpointID]
 	if !ok {
 		var err error
-		prxy, err = createNewProxy(tenantEndpointID, endpointNodes[0])
+		prxy, err = createNewProxy(tenantEndpointID, endpoints[0])
 		if err != nil {
-			glog.Errorf("error with createNewProxy(%s, %+v) %v", tenantEndpointID, endpointNodes[0], err)
+			glog.Errorf("error with createNewProxy(%s, %+v) %v", tenantEndpointID, endpoints[0], err)
 			return
 		}
 		proxies[tenantEndpointID] = prxy
 
-		if ep := endpointNodes[0]; ep.VirtualAddress != "" {
+		if ep := endpoints[0]; ep.VirtualAddress != "" {
 			p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
 			err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
 			if err != nil {
@@ -1067,7 +1073,7 @@ func setProxyAddresses(tenantEndpointID string, endpointNodes []registry.Endpoin
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint registry.EndpointNode) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
