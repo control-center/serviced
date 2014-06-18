@@ -978,7 +978,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, virtualAddress string) {
+func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress string) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
 
 	if len(endpoints) <= 0 {
@@ -1014,14 +1014,16 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		}
 		proxies[tenantEndpointID] = prxy
 
-		if virtualAddress != "" {
-			ep := endpoints[0]
-			p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
-			err := vifs.RegisterVirtualAddress(virtualAddress, p, ep.Protocol)
-			if err != nil {
-				glog.Errorf("Error creating virtual address: %+v", err)
+		for _, virtualAddress := range []string{importVirtualAddress, endpoints[0].VirtualAddress} {
+			if virtualAddress != "" {
+				ep := endpoints[0]
+				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
+				err := vifs.RegisterVirtualAddress(virtualAddress, p, ep.Protocol)
+				if err != nil {
+					glog.Errorf("Error creating virtual address: %+v", err)
+				}
+				glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 			}
-			glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 		}
 	}
 	glog.Infof("Setting proxy %s to addresses %v", tenantEndpointID, addresses)
