@@ -1,6 +1,7 @@
-function EntryControl($scope, authService, resourcesService) {
+function EntryControl($scope, $notification, authService, resourcesService) {
     authService.checkLogin($scope);
     $scope.brand_label = "brand_zcp";
+    $scope.breadcrumbs = [{ label: 'breadcrumb_home', itemClass: 'active' }];
     $scope.page_content = "entry_content";
     $scope.showIfEmpty = function(){
         resourcesService.get_services(false, function(topServices, mappedServices){

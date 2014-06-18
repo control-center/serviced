@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "apps";

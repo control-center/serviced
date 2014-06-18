@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'ngStorage', 'zenNotify']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', {
@@ -212,7 +212,7 @@ function updateLanguage($scope, $cookies, $translate) {
     $translate.uses(ln);
 }
 
-function ResourcesService($http, $location) {
+function ResourcesService($http, $location, $notification) {
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -706,12 +706,12 @@ function ResourcesService($http, $location) {
         add_host: function(host, callback) {
             $http.post('/hosts/add', host).
                 success(function(data, status) {
-                    console.log('Added new host');
+                    $notification.create().success(data.Detail).show();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Adding host failed: %s', JSON.stringify(data));
+                    $notification.create().error(data.Detail).show();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1067,39 +1067,37 @@ function ResourcesService($http, $location) {
                 });
         },
 
-        get_backup_status: function(success, fail){
-            fail = fail || angular.noop;
+        get_backup_status: function(successCallback, failCallback){
+            failCallback = failCallback || angular.noop;
 
             $http.get('/backup/status').
                 success(function(data, status) {
                     console.log('Retrieved status of backup.');
-                    success(data);
+                    successCallback(data);
                 }).
                 error(function(data, status) {
-                    // TODO error screen
                     console.error('Failed retrieving status of backup.');
                     if (status === 401) {
                         unauthorized($location);
                     }
-                    fail(data, status);
+                    failCallback(data, status);
                 });
         },
 
-        get_restore_status: function(success, fail){
-            fail = fail || angular.noop;
+        get_restore_status: function(successCallback, failCallback){
+            failCallback = failCallback || angular.noop;
             
             $http.get('/backup/restore/status').
                 success(function(data, status) {
                     console.log('Retrieved status of restore.');
-                    success(data);
+                    successCallback(data);
                 }).
                 error(function(data, status) {
-                    // TODO error screen
                     console.error('Failed retrieving status of restore.');
                     if (status === 401) {
                         unauthorized($location);
                     }
-                    fail(data, status);
+                    failCallback(data, status);
                 });
         }
     };
@@ -1620,7 +1618,8 @@ function set_order(order, table) {
     } else {
         table.sort = order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-        console.log('Sorting by ' + order);
+        console.log('Sorting ' + table +' by ' + order);
+        console.log(table);
     }
 }
 

@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, $notification, resourcesService, authService){
     // Ensure logged in
     authService.checkLogin($scope);
 
