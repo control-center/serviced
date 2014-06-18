@@ -124,11 +124,11 @@ func validateEndpointNode(node EndpointNode) error {
 }
 
 // SetItem sets EndpointNode to the key in registry.  Returns the path of the node in the registry
-func (ar *EndpointRegistry) SetItem(conn client.Connection, tenantID, endpointID, hostID, containerID string, node EndpointNode) (string, error) {
+func (ar *EndpointRegistry) SetItem(conn client.Connection, node EndpointNode) (string, error) {
 	if err := validateEndpointNode(node); err != nil {
 		return "", err
 	}
-	return ar.setItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID), &node)
+	return ar.setItem(conn, TenantEndpointKey(node.TenantID, node.EndpointID), hostContainerKey(node.HostID, node.ContainerID), &node)
 }
 
 // GetItem gets EndpointNode at the given path.

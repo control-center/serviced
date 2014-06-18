@@ -76,7 +76,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	verifySetGet := func(expected registry.EndpointNode) {
 		glog.V(1).Infof("verifying set/get for expected %+v", expected)
 		for ii := 0; ii < 3; ii++ {
-			path, err := epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			path, err := epr.SetItem(dt.zkConn, expected)
 			glog.V(1).Infof("expected item[%s]: %+v", path, expected)
 			t.Assert(err, IsNil)
 			t.Assert(path, Not(Equals), 0)
@@ -155,7 +155,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		for i := 0; i < numEndpointsExpected; i++ {
 			glog.Infof("SetItem %+v", expected)
 			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
-			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			_, err = epr.SetItem(dt.zkConn, expected)
 			t.Assert(err, IsNil)
 			time.Sleep(1 * time.Second)
 		}
@@ -182,7 +182,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		for i := 0; i < numEndpointsExpected; i++ {
 			glog.Infof("SetItem %+v", expected)
 			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
-			_, err = epr.SetItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID, expected)
+			_, err = epr.SetItem(dt.zkConn, expected)
 			t.Assert(err, IsNil)
 			time.Sleep(1 * time.Second)
 		}
