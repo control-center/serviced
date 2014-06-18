@@ -112,7 +112,8 @@ type export struct {
 }
 
 type importedEndpoint struct {
-	endpointID string
+	endpointID     string
+	virtualAddress string
 }
 
 // Close shuts down the controller
@@ -330,6 +331,8 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 				result[key] = make([]export, 0)
 			}
 			result[key] = append(result[key], exp)
+
+			glog.Infof("  cached exported endpoint[%s]: %+v", key, exp)
 		}
 	}
 
@@ -350,9 +353,12 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 
 			ie := importedEndpoint{}
 			ie.endpointID = endpoint.Application
+			ie.virtualAddress = endpoint.VirtualAddress
 
 			tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpointID)
 			result[tenantEndpointKey] = ie
+
+			glog.Infof("  cached imported endpoint[%s]: %+v", tenantEndpointKey, ie)
 		}
 	}
 
@@ -382,6 +388,8 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 		}
 	}
 	ae.VirtualAddress = endpoint.VirtualAddress
+
+	glog.Infof("  built ApplicationEndpoint: %+v", ae)
 
 	return &ae, nil
 }
@@ -808,12 +816,13 @@ func (c *Controller) handleRemotePorts() {
 			}
 		}
 
-		setProxyAddresses(key, endpointList)
+		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
 
 		if useImportedEndpointServiceDiscovery {
 			// add/replace entries in importedEndpoints
 			ie := importedEndpoint{}
 			ie.endpointID = endpointList[0].Application
+			ie.virtualAddress = endpointList[0].VirtualAddress
 			key := registry.TenantEndpointKey(c.tenantID, ie.endpointID)
 			c.importedEndpoints[key] = ie
 
@@ -883,7 +892,7 @@ func (c *Controller) watchRemotePorts() {
 		watchTenantEndpoints := func(tenantEndpointKey string) {
 			glog.Infof("  watching tenantEndpointKey: %s", tenantEndpointKey)
 			if err := endpointRegistry.WatchTenantEndpoint(zkConn, tenantEndpointKey,
-				processTenantEndpoint, endpointWatchError); err != nil {
+				c.processTenantEndpoint, endpointWatchError); err != nil {
 				glog.Errorf("error watching tenantEndpointKey %s: %v", tenantEndpointKey, err)
 			}
 		}
@@ -942,7 +951,7 @@ func endpointWatchError(path string, err error) {
 }
 
 // processTenantEndpoint updates the addresses for an imported endpoint
-func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostContainerIDs ...string) {
+func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPath string, hostContainerIDs ...string) {
 	glog.Infof("processTenantEndpoint: parentPath:%s hostContainerIDs: %v", parentPath, hostContainerIDs)
 
 	// update the proxy for this tenant endpoint
@@ -965,11 +974,11 @@ func processTenantEndpoint(conn coordclient.Connection, parentPath string, hostC
 		endpoints[ii] = &endpointNode.ApplicationEndpoint
 	}
 
-	setProxyAddresses(tenantEndpointID, endpoints)
+	setProxyAddresses(tenantEndpointID, endpoints, c.importedEndpoints[tenantEndpointID].virtualAddress)
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint) {
+func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, virtualAddress string) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
 
 	if len(endpoints) <= 0 {
@@ -1005,12 +1014,14 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		}
 		proxies[tenantEndpointID] = prxy
 
-		if ep := endpoints[0]; ep.VirtualAddress != "" {
+		if virtualAddress != "" {
+			ep := endpoints[0]
 			p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
-			err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
+			err := vifs.RegisterVirtualAddress(virtualAddress, p, ep.Protocol)
 			if err != nil {
 				glog.Errorf("Error creating virtual address: %+v", err)
 			}
+			glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 		}
 	}
 	glog.Infof("Setting proxy %s to addresses %v", tenantEndpointID, addresses)
