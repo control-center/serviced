@@ -56,6 +56,7 @@
     "deployed_tbl_deployment_id": "ID de la Instalaci\u00f3n",
     "deployed_tbl_name": "Aplicaci\u00f3n",
     "deployed_tbl_pool": "Grupo de Recursos",
+    "vhost_names": "Nombre Servidor Virtual",
     "deployed_tbl_state": "Estado",
     "entry_content": "",
     "host": "Servidore",
