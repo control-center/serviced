@@ -625,12 +625,12 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningSer
 	rs.ImageID = s.ImageID
 	rs.DesiredState = s.DesiredState
 	rs.ParentServiceID = s.ParentServiceID
-	rs.MonitoringProfile = s.MonitoringProfile
+	rs.MonitoringProfile.MetricConfigs = make([]domain.MetricConfig, len(s.MonitoringProfile.MetricConfigs))
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 	if err != nil {
 		return nil, err
 	}
-	for i, metricGroup := range rs.MonitoringProfile.MetricConfigs {
+	for i, metricGroup := range s.MonitoringProfile.MetricConfigs {
 		for _, metric := range metricGroup.Metrics {
 			metricBuilder := build.Metric(metric.ID, metric.Name)
 			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))

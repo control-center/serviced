@@ -1,6 +1,7 @@
 package zzk
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -51,16 +52,29 @@ func TestSssToRs(t *testing.T) {
 			},
 		},
 	}
-	svcstate := servicestate.ServiceState{}
-	rs, err := sssToRs(svc, &svcstate)
+
+	svcstate, err := servicestate.BuildFromService(svc, "fakehostid")
 	if err != nil {
 		t.Error("%v", err)
 	}
 
-	if fmt.Sprintf("%+v", svc.MonitoringProfile.MetricConfigs) != fmt.Sprintf("%+v", rs.MonitoringProfile.MetricConfigs) {
-		t.Logf("expected: %+v", svc.MonitoringProfile.MetricConfigs)
-		t.Logf("actual: %+v", rs.MonitoringProfile.MetricConfigs)
-		t.Error("expected != actual")
+	rs, err := sssToRs(svc, svcstate)
+	if err != nil {
+		t.Error("%v", err)
 	}
+
+	var query interface{}
+	json.Unmarshal([]byte(rs.MonitoringProfile.MetricConfigs[0].Query.Data), &query)
+
+	// if query["metrics"][0]["metric"] != "jvm.memory.heap" {
+	// 	t.Errorf("Expected %s, got %s", "jvm.memory.heap", query["metrics"][0]["metric"])
+	// }
+
+	t.Logf("\n\n\n\n%+v\n\n\n\n", query)
+	t.Logf("\n\n\n\n%+v\n\n\n\n", query["metrics"])
+
+	//TODO check query[metrics][blah][blah] for instance id and serviceID for MetricConfigs[0] and [1]
+
+	// if (rs.MonitoringProfile.MetricConfigs[0].Query)
 
 }
