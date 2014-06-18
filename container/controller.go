@@ -31,7 +31,7 @@ import (
 )
 
 // TODO: remove useImportedEndpointServiceDiscovery or set it to true
-const useImportedEndpointServiceDiscovery = false
+const useImportedEndpointServiceDiscovery = true
 
 var (
 	// ErrInvalidCommand is returned if a command is empty or malformed
