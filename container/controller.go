@@ -1020,9 +1020,10 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
 				err := vifs.RegisterVirtualAddress(virtualAddress, p, ep.Protocol)
 				if err != nil {
-					glog.Errorf("Error creating virtual address: %+v", err)
+					glog.Errorf("Error creating virtual address %s: %+v", virtualAddress, err)
+				} else {
+					glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 				}
-				glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 			}
 		}
 	}
