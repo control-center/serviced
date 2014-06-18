@@ -334,7 +334,7 @@ function ResourcesService($http, $location, $notification) {
           }
           $http.put(url).
               success(function(data, status) {
-                  console.log('Assigned IP');
+                  $notification.create().success('Assigned IP').show();
                   if (callback) {
                     callback(data);
                   }
@@ -457,7 +457,7 @@ function ResourcesService($http, $location, $notification) {
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
                 success(function(data, status) {
-                    console.log('Added virtual host: %s, %s', ep, JSON.stringify(data));
+                    $notification.create().success('Added virtual host: ' + ep + JSON.stringify(data)).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -476,7 +476,7 @@ function ResourcesService($http, $location, $notification) {
             var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
             $http.delete(ep).
                 success(function(data, status) {
-                    console.log('Removed virtual host: %s, %s', ep, JSON.stringify(data));
+                    $notification.create().success('Removed virtual host: ' + ep + JSON.stringify(data)).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -539,7 +539,7 @@ function ResourcesService($http, $location, $notification) {
             console.log('Adding detail: %s', JSON.stringify(pool));
             $http.post('/pools/add', pool).
                 success(function(data, status) {
-                    console.log('Added new pool');
+                    $notification.create().success('Added new pool').show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -561,7 +561,7 @@ function ResourcesService($http, $location, $notification) {
         update_pool: function(poolID, editedPool, callback) {
             $http.put('/pools/' + poolID, editedPool).
                 success(function(data, status) {
-                    console.log('Updated pool %s', poolID);
+                    $notification.create().success('Updated pool ' + poolID).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -582,7 +582,7 @@ function ResourcesService($http, $location, $notification) {
         remove_pool: function(poolID, callback) {
             $http.delete('/pools/' + poolID).
                 success(function(data, status) {
-                    console.log('Removed pool %s', poolID);
+                    $notification.create().success('Removed pool ' + poolID).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -605,7 +605,7 @@ function ResourcesService($http, $location, $notification) {
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
-                    console.log('Added new pool virtual ip');
+                    $notification.create().success('Added new pool virtual ip').show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -627,7 +627,7 @@ function ResourcesService($http, $location, $notification) {
             console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
             $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
-                    console.log('Removed pool virtual ip');
+                    $notification.create().success('Removed pool virtual ip').show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -728,7 +728,7 @@ function ResourcesService($http, $location, $notification) {
         update_host: function(hostId, editedHost, callback) {
             $http.put('/hosts/' + hostId, editedHost).
                 success(function(data, status) {
-                    console.log('Updated host %s', hostId);
+                    $notification.create().success('Updated host ' + hostId).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -750,7 +750,7 @@ function ResourcesService($http, $location, $notification) {
         remove_host: function(hostId, callback) {
             $http.delete('/hosts/' + hostId).
                 success(function(data, status) {
-                    console.log('Removed host %s', hostId);
+                    $notification.create().success('Removed host ' + hostId).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -866,7 +866,7 @@ function ResourcesService($http, $location, $notification) {
             console.log('Adding detail: %s', JSON.stringify(service));
             $http.post('/services/add', service).
                 success(function(data, status) {
-                    console.log('Added new service');
+                    $notification.create().success('Added new service').show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -888,7 +888,7 @@ function ResourcesService($http, $location, $notification) {
         update_service: function(serviceId, editedService, callback) {
             $http.put('/services/' + serviceId, editedService).
                 success(function(data, status) {
-                    console.log('Updated service %s', serviceId);
+                    $notification.create().success('Updated service ' + serviceId).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -909,7 +909,7 @@ function ResourcesService($http, $location, $notification) {
         deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
-                    console.log('Deployed app template');
+                    $notification.create().success('Deployed app template').show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -951,7 +951,7 @@ function ResourcesService($http, $location, $notification) {
         remove_service: function(serviceId, callback) {
             $http.delete('/services/' + serviceId).
                 success(function(data, status) {
-                    console.log('Removed service %s', serviceId);
+                    $notification.create().success('Removed service ' + serviceId).show();
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -1103,7 +1103,7 @@ function ResourcesService($http, $location, $notification) {
     };
 }
 
-function AuthService($cookies, $cookieStore, $location) {
+function AuthService($cookies, $cookieStore, $location, $notification) {
     var loggedIn = false;
     var userName = null;
     return {
@@ -1146,7 +1146,7 @@ function AuthService($cookies, $cookieStore, $location) {
     };
 }
 
-function StatsService($http, $location) {
+function StatsService($http, $location, $notification) {
     return {
         /*
          * Get the list of services currently running on a particular host.
@@ -1564,14 +1564,14 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
     });
 }
 
-function fix_pool_paths($scope) {
+function fix_pool_paths($scope, $notification) {
     if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
         for(var i=0; i < $scope.hosts.all.length; i++) {
             var host = $scope.hosts.all[i];
             host.fullPath = $scope.pools.mapped[host.PoolID].fullPath;
         }
     } else {
-        console.log('Unable to update host pool paths');
+        $notification.create().error('Unable to update host pool paths').show();
     }
 }
 
@@ -1586,8 +1586,8 @@ function map_to_array(data) {
     return arr;
 }
 
-function unauthorized($location) {
-    console.log('You don\'t appear to be logged in.');
+function unauthorized($location, $notification) {
+    console.error('You don\'t appear to be logged in.');
     $location.path('/login');
 }
 
