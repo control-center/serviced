@@ -767,9 +767,8 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleRemotePorts() {
-	// TODO: remove handleRemotePorts() for useImportedEndpointServiceDiscovery
-	//		 this function is currently needed to handle special control plane
-	//		 imports
+	// this function is currently needed to handle special control plane imports
+	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
 	// get service endpoints
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
@@ -800,15 +799,6 @@ func (c *Controller) handleRemotePorts() {
 		endpoints = tmp
 	}
 
-	addImportedEndpoint := func(endpoint *dao.ApplicationEndpoint) {
-		// replace or add entries in importedEndpoints
-		ie := importedEndpoint{}
-		ie.endpointID = endpoint.Application
-		key := registry.TenantEndpointKey(c.tenantID, ie.endpointID)
-		c.importedEndpoints[key] = ie
-	}
-
-	emptyAddressList := []string{}
 	for key, endpointList := range endpoints {
 		if useImportedEndpointServiceDiscovery {
 			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
@@ -817,60 +807,14 @@ func (c *Controller) handleRemotePorts() {
 			}
 		}
 
-		if len(endpointList) <= 0 {
-			if proxy, ok := proxies[key]; ok {
-				proxy.SetNewAddresses(emptyAddressList)
-			}
-			continue
-		}
-
-		addresses := make([]string, len(endpointList))
-		for i, endpoint := range endpointList {
-			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-			glog.V(0).Infof("addresses[%d]:%-20s  endpoints[%s]: %+v", i, addresses[i], key, *endpoint)
-		}
-		sort.Strings(addresses)
-		glog.Infof("endpoint key:%s addresses:%+v", key, addresses)
-
-		var (
-			prxy *proxy
-			ok   bool
-		)
-
-		if prxy, ok = proxies[key]; !ok {
-			glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
-
-			// setup a new proxy
-			listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
-			if err != nil {
-				glog.Errorf("Could not bind to port: %s", err)
-				continue
-			}
-			prxy, err = newProxy(
-				fmt.Sprintf("%v", endpointList[0]),
-				uint16(c.options.Mux.Port),
-				c.options.Mux.TLS,
-				listener)
-			if err != nil {
-				glog.Errorf("Could not build proxy %s", err)
-				continue
-			}
-
-			glog.Infof("Success binding port: %s -> %+v", key, prxy)
-			proxies[key] = prxy
-
-			if ep := endpointList[0]; ep.VirtualAddress != "" {
-				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
-				err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
-				if err != nil {
-					glog.Errorf("Error creating virtual address: %+v", err)
-				}
-			}
-		}
-		prxy.SetNewAddresses(addresses)
+		setProxyAddresses(key, endpointList)
 
 		if useImportedEndpointServiceDiscovery {
-			addImportedEndpoint(endpointList[0])
+			// add/replace entries in importedEndpoints
+			ie := importedEndpoint{}
+			ie.endpointID = endpointList[0].Application
+			key := registry.TenantEndpointKey(c.tenantID, ie.endpointID)
+			c.importedEndpoints[key] = ie
 
 			// TODO: agent needs to register controlplane and controlplane_consumer
 			//       but don't do that here in the container code
