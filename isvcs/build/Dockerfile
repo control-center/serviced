@@ -14,17 +14,12 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/
     python ez_setup.py; \
     easy_install pip; \
     rm -rf /var/lib/apt/lists/*_* /tmp/*
-RUN git clone --branch 0.6.9 --depth 1 https://github.com/dotcloud/docker-registry.git && \
+RUN git clone --branch 0.7.3 --depth 1 https://github.com/dotcloud/docker-registry.git && \
     cd docker-registry && \
-    echo "common:"                                                                 > config/config_serviced.yml  && \
-    echo "  standalone: true"                                                      >> config/config_serviced.yml && \
-    echo "  disable_token_auth: true"                                              >> config/config_serviced.yml && \
-    echo "  secret_key: _env:SECRET_KEY"                                           >> config/config_serviced.yml && \
-    echo "  search_backend: sqlalchemy"                                            >> config/config_serviced.yml && \
-    echo "  sqlalchemy_index_database: sqlite:////tmp/registry/docker-registry.db" >> config/config_serviced.yml && \
-    echo "  storage: local"                                                        >> config/config_serviced.yml && \
-    echo "  storage_path: /tmp/registry"                                           >> config/config_serviced.yml && \
-    echo "  loglevel: debug"                                                       >> config/config_serviced.yml && \
+    echo "serviced:"                                                               >> config/config_sample.yml && \
+    echo "  <<: *local"                                                            >> config/config_sample.yml && \
+    echo "  sqlalchemy_index_database: _env:SQLALCHEMY_INDEX_DATABASE:sqlite:////tmp/registry/docker-registry.db" >> config/config_sample.yml && \
+    echo "  loglevel: debug"                                                       >> config/config_sample.yml && \
     pip install /docker-registry/
 ADD supervisor.conf /opt/zenoss/etc/supervisor.conf
 ADD consumer.tar.gz /
