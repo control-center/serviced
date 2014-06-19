@@ -395,9 +395,7 @@ func (c *Controller) Run() (err error) {
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
-	if useImportedEndpointServiceDiscovery {
-		c.watchRemotePorts()
-	}
+	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
@@ -422,11 +420,6 @@ func (c *Controller) Run() (err error) {
 
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
-
-		case <-time.After(time.Second * 10):
-			if !useImportedEndpointServiceDiscovery {
-				c.handleRemotePorts()
-			}
 
 		case exitError := <-serviceExited:
 			glog.Infof("Service process exited.")
@@ -570,13 +563,15 @@ func (c *Controller) handleRemotePorts() {
 	}
 	defer client.Close()
 
+	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
+	//       that returns only special "controlplane" imported endpoints
 	var endpoints map[string][]*dao.ApplicationEndpoint
 	err = client.GetServiceEndpoints(c.options.Service.ID, &endpoints)
 	if err != nil {
 		glog.Errorf("Error getting application endpoints for service %s: %s", c.options.Service.ID, err)
 		return
 	}
-	if useImportedEndpointServiceDiscovery {
+	if true {
 		tmp := make(map[string][]*dao.ApplicationEndpoint)
 		for key, endpointList := range endpoints {
 			if len(endpointList) <= 0 {
@@ -592,7 +587,8 @@ func (c *Controller) handleRemotePorts() {
 	}
 
 	for key, endpointList := range endpoints {
-		if useImportedEndpointServiceDiscovery {
+		if true {
+			// ignore endpoints that are not special controlplane imports
 			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
 			if !strings.HasPrefix(key, ignorePrefix) {
 				continue
@@ -601,7 +597,7 @@ func (c *Controller) handleRemotePorts() {
 
 		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
 
-		if useImportedEndpointServiceDiscovery {
+		if true {
 			// add/replace entries in importedEndpoints
 			ie := importedEndpoint{}
 			ie.endpointID = endpointList[0].Application

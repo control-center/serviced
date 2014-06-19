@@ -20,9 +20,6 @@ import (
 	"time"
 )
 
-// TODO: remove useImportedEndpointServiceDiscovery or set it to true
-const useImportedEndpointServiceDiscovery = true
-
 var (
 	// ErrInvalidZkDSN is returned if the zkDSN is empty or malformed
 	ErrInvalidZkDSN = errors.New("container: invalid zookeeper dsn")
@@ -143,14 +140,10 @@ func (c *Controller) getEndpoints() error {
 	}
 
 	// initialize importedEndpoints
-	if useImportedEndpointServiceDiscovery {
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
-		if err != nil {
-			glog.Errorf("Invalid ImportedEndpoints")
-			return ErrInvalidImportedEndpoints
-		}
-	} else {
-		c.importedEndpoints = make(map[string]importedEndpoint)
+	c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
+	if err != nil {
+		glog.Errorf("Invalid ImportedEndpoints")
+		return ErrInvalidImportedEndpoints
 	}
 
 	return nil
