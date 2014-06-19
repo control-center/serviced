@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	vregistry = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan <- bool)}
+	vregistry = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
 )
 
 type vhostInfo struct {
@@ -87,8 +87,8 @@ func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
 //vhostRegistry keeps track of all current known vhosts and vhost endpoints.
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup     map[string]*vhostInfo   //vhost name to all avaialbe endpoints
-	vhostWatch map[string]chan <- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
+	lookup     map[string]*vhostInfo  //vhost name to all availabe endpoints
+	vhostWatch map[string]chan<- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
 }
 
 //get returns a vhostInfo, bool is true or false if vhost is found
@@ -190,7 +190,7 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 
 		vhostEndpoints := newVhostInfo()
 		for _, child := range childIDs {
-			vhEndpoint, err := vr.GetItem(conn, parentPath + "/" + child)
+			vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
 			if err != nil {
 				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
 				continue
@@ -204,7 +204,7 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 }
 
 func vhostWatchError(path string, err error) {
-	glog.Infof("processing vhostWatchError on %s: %v", path, err)
+	glog.Warningf("processing vhostWatchError on %s: %v", path, err)
 
 }
 
@@ -213,11 +213,10 @@ func vhostWatchError(path string, err error) {
 // driven and only refresh the vhost map when service states change.
 func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	glog.V(0).Infof("vhosthandler handling: %+v", r)
+	glog.V(1).Infof("vhosthandler handling: %+v", r)
 	muxvars := mux.Vars(r)
 	subdomain := muxvars["subdomain"]
-	glog.V(0).Infof("muxvars: %+v", muxvars)
-	glog.V(0).Infof("subdomain: %+v", subdomain)
+	glog.V(1).Infof("muxvars: %+v", muxvars)
 
 	defer func() {
 		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
@@ -241,8 +240,8 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 		remoteAddr = fmt.Sprintf("%s:%d", vhEP.hostIP, sc.muxPort)
 	}
 	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
-	glog.V(0).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
-	glog.V(0).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
+	glog.V(1).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
+	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 	rp.ServeHTTP(w, r)
 	return
 
