@@ -138,7 +138,7 @@ func (sc *ServiceConfig) syncVhosts() {
 }
 
 func (sc *ServiceConfig) watchVhosts() error {
-	glog.Info("watchVhosts starting:")
+	glog.Info("watchVhosts starting...")
 	conn, err := sc.zkClient.GetConnection()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
@@ -152,7 +152,7 @@ func (sc *ServiceConfig) watchVhosts() error {
 	}
 
 	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.Info("processVhosts STARTING")
+		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
 		//watch any new vhost nodes
@@ -182,6 +182,7 @@ func (sc *ServiceConfig) watchVhosts() error {
 
 	cancelChan := make(chan bool)
 	vhostRegistry.WatchRegistry(conn, cancelChan, processVhosts, vhostWatchError)
+	glog.Warning("watchVhosts ended")
 
 	return nil
 }
@@ -263,9 +264,11 @@ func (sc *ServiceConfig) vhostFinder() error {
 // driven and only refresh the vhost map when service states change.
 func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	glog.V(1).Infof("vhosthandler handling: %v", r)
+	glog.V(0).Infof("vhosthandler handling: %+v", r)
 	muxvars := mux.Vars(r)
 	subdomain := muxvars["subdomain"]
+	glog.V(0).Infof("muxvars: %+v", muxvars)
+	glog.V(0).Infof("subdomain: %+v", subdomain)
 
 	defer func() {
 		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
@@ -299,7 +302,8 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 		remoteAddr = fmt.Sprintf("%s:%d", vhEP.hostIP, sc.muxPort)
 	}
 	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
-	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
+	glog.V(0).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
+	glog.V(0).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 	rp.ServeHTTP(w, r)
 	return
 
