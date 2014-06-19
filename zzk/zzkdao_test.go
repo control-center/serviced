@@ -66,15 +66,17 @@ func TestSssToRs(t *testing.T) {
 	var query interface{}
 	json.Unmarshal([]byte(rs.MonitoringProfile.MetricConfigs[0].Query.Data), &query)
 
-	// if query["metrics"][0]["metric"] != "jvm.memory.heap" {
-	// 	t.Errorf("Expected %s, got %s", "jvm.memory.heap", query["metrics"][0]["metric"])
-	// }
+	metrics := query.(map[string]interface{})["metrics"].([]interface{})[0].(map[string]interface{})
 
-	t.Logf("\n\n\n\n%+v\n\n\n\n", query)
-	t.Logf("\n\n\n\n%+v\n\n\n\n", query["metrics"])
+	tags := metrics["tags"].(map[string]interface{})
 
-	//TODO check query[metrics][blah][blah] for instance id and serviceID for MetricConfigs[0] and [1]
+	controlplane_instance_id := tags["controlplane_instance_id"].([]interface{})[0]
+	if controlplane_instance_id != "0" {
+		t.Errorf("Expected %+v, got %+v", "0", controlplane_instance_id)
+	}
 
-	// if (rs.MonitoringProfile.MetricConfigs[0].Query)
-
+	controlplane_service_id := tags["controlplane_service_id"].([]interface{})[0]
+	if controlplane_service_id != svc.Id {
+		t.Errorf("Expected %+v, got %+v", svc.Id, controlplane_service_id)
+	}
 }
