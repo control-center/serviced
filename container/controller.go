@@ -319,35 +319,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// Keep a copy of the service prerequisites in the Controller object.
 	c.prereqs = service.Prereqs
 
-	// get zookeeper connection
-	conn, err := c.getZkConnection()
-	if err != nil {
+	// get endpoints
+	if err := c.getEndpoints(); err != nil {
 		return c, err
-	}
-
-	// get service state
-	sstate, err := getServiceState(conn, service.Id, options.Service.InstanceID)
-	if err != nil {
-		return c, err
-	}
-	c.dockerID = sstate.DockerID
-
-	// keep a copy of the service EndPoint exports
-	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
-	if err != nil {
-		glog.Errorf("Invalid ExportedEndpoints")
-		return c, ErrInvalidExportedEndpoints
-	}
-
-	// initialize importedEndpoints
-	if useImportedEndpointServiceDiscovery {
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
-		if err != nil {
-			glog.Errorf("Invalid ImportedEndpoints")
-			return c, ErrInvalidImportedEndpoints
-		}
-	} else {
-		c.importedEndpoints = make(map[string]importedEndpoint)
 	}
 
 	// check command

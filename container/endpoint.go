@@ -120,6 +120,42 @@ func (c *Controller) getZkConnection() (coordclient.Connection, error) {
 	return c.zkConn, nil
 }
 
+// buildEndpoints builds exportedEndpoints and importedEndpoints
+func (c *Controller) getEndpoints() error {
+	// get zookeeper connection
+	conn, err := c.getZkConnection()
+	if err != nil {
+		return err
+	}
+
+	// get service state
+	sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
+	if err != nil {
+		return err
+	}
+	c.dockerID = sstate.DockerID
+
+	// keep a copy of the service EndPoint exports
+	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
+	if err != nil {
+		glog.Errorf("Invalid ExportedEndpoints")
+		return ErrInvalidExportedEndpoints
+	}
+
+	// initialize importedEndpoints
+	if useImportedEndpointServiceDiscovery {
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
+		if err != nil {
+			glog.Errorf("Invalid ImportedEndpoints")
+			return ErrInvalidImportedEndpoints
+		}
+	} else {
+		c.importedEndpoints = make(map[string]importedEndpoint)
+	}
+
+	return nil
+}
+
 // buildExportedEndpoints builds the map to exported endpoints
 func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state *servicestate.ServiceState) (map[string][]export, error) {
 	glog.Infof("buildExportedEndpoints state: %+v", state)
