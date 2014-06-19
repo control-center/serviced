@@ -32,11 +32,12 @@ func vhostPath(nodes ...string) string {
 	return path.Join(p...)
 }
 
+// NewVhostEndpoint creates a new VhostEndpoint
 func NewVhostEndpoint(endpointName string, appEndpoint dao.ApplicationEndpoint) VhostEndpoint {
 	return VhostEndpoint{ApplicationEndpoint: appEndpoint, EndpointName: endpointName}
 }
 
-// Action is the request node for initialized a serviced action on a host
+// VhostEndpoint contains information about a vhost
 type VhostEndpoint struct {
 	dao.ApplicationEndpoint
 	EndpointName string
@@ -49,6 +50,7 @@ func (v *VhostEndpoint) Version() interface{} { return v.version }
 // SetVersion is an implementation of client.Node
 func (v *VhostEndpoint) SetVersion(version interface{}) { v.version = version }
 
+// VhostRegistry is a specific registryType for vhosts
 type VhostRegistry struct {
 	registryType
 }

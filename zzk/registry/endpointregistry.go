@@ -141,7 +141,7 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
-// RemoveKey removes a key from the registry
+// RemoveTenantEndpointKey removes a tenant endpoint key from the registry
 func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tenantID, endpointID string) error {
 	return ar.removeKey(conn, TenantEndpointKey(tenantID, endpointID))
 }

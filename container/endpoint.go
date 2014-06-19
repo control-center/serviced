@@ -275,7 +275,7 @@ func (c *Controller) watchRemotePorts() {
 		{
 			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
 			missingWatchers := false
-			for id, _ := range c.importedEndpoints {
+			for id := range c.importedEndpoints {
 				if strings.HasPrefix(id, ignorePrefix) {
 					// ignore controlplane special imports for now - handleRemotePorts starts proxies for those right now
 					// TODO: register controlplane special imports in isvcs and watch for them

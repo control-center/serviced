@@ -14,8 +14,10 @@ type registryType struct {
 	ephemeral bool
 }
 
+// WatchError is called by Watch* functions when there are errors
 type WatchError func(path string, err error)
 
+// ProcessChildrenFunc is called by Watch* functions when node addition/deletion occurs
 type ProcessChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
 
 //SetEphemeral sets the ephemeral flag
