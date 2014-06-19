@@ -3,6 +3,7 @@ package dao
 import (
 	"time"
 
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/utils"
 )
@@ -54,20 +55,21 @@ type ServiceDeploymentRequest struct {
 
 // This is created by selecting from service_state and joining to service
 type RunningService struct {
-	Id              string
-	ServiceID       string
-	HostID          string
-	DockerID        string
-	StartedAt       time.Time
-	Name            string
-	Startup         string
-	Description     string
-	Instances       int
-	ImageID         string
-	PoolID          string
-	DesiredState    int
-	ParentServiceID string
-	InstanceID      int
+	Id                string
+	ServiceID         string
+	HostID            string
+	DockerID          string
+	StartedAt         time.Time
+	Name              string
+	Startup           string
+	Description       string
+	Instances         int
+	ImageID           string
+	PoolID            string
+	DesiredState      int
+	ParentServiceID   string
+	InstanceID        int
+	MonitoringProfile domain.MonitorProfile
 }
 
 // An instantiation of a Snapshot request
