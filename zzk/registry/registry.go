@@ -47,11 +47,13 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 	return path, nil
 }
 
+//WatchKey watches a key in the zk registry. Watches indefinitely or until cancelled, will block
 func (r *registryType) WatchKey(conn client.Connection, key string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	keyPath := r.getPath(key)
 	return watch(conn, keyPath, cancel, processChildren, errorHandler)
 }
 
+//WatchRegistry watches the registry for new keys in the zk registry. Watches indefinitely or until cancelled, will block
 func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	path := r.getPath()
 	return watch(conn, path, cancel, processChildren, errorHandler)

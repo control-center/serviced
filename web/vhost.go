@@ -7,8 +7,6 @@ package web
 import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	//	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk/registry"
 
@@ -26,8 +24,7 @@ import (
 )
 
 var (
-	vhostWatch = true //set to true to watch ZK for vhost info, false to poll periodically poll for vhost information
-	vregistry  = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
+	vregistry = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan <- bool)}
 )
 
 type vhostInfo struct {
@@ -90,8 +87,8 @@ func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
 //vhostRegistry keeps track of all current known vhosts and vhost endpoints.
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup     map[string]*vhostInfo  //vhost name to all avaialbe endpoints
-	vhostWatch map[string]chan<- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
+	lookup     map[string]*vhostInfo   //vhost name to all avaialbe endpoints
+	vhostWatch map[string]chan <- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
 }
 
 //get returns a vhostInfo, bool is true or false if vhost is found
@@ -99,6 +96,9 @@ func (vr *vhostRegistry) get(vhost string) (*vhostInfo, bool) {
 	vr.RLock()
 	defer vr.RUnlock()
 	vhInfo, found := vr.lookup[vhost]
+	if !found {
+		glog.V(4).Infof("vhost %v not found in map %v", vhost, vr.lookup)
+	}
 	return vhInfo, found
 }
 
@@ -124,17 +124,7 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 }
 
 func (sc *ServiceConfig) syncVhosts() {
-	if vhostWatch {
-		go sc.watchVhosts()
-	} else {
-		sc.vhostFinder()
-		for {
-			select {
-			case <-time.After(10 * time.Second):
-				sc.vhostFinder()
-			}
-		}
-	}
+	go sc.watchVhosts()
 }
 
 func (sc *ServiceConfig) watchVhosts() error {
@@ -163,7 +153,7 @@ func (sc *ServiceConfig) watchVhosts() error {
 				glog.Infof("processing vhost watch: %s", vhostPath)
 				cancelChan := make(chan bool)
 				vregistry.vhostWatch[vhostPath] = cancelChan
-				vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
+				go vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
 			} else {
 				glog.Infof("vhost %s already being watched", vhostPath)
 			}
@@ -200,7 +190,7 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 
 		vhostEndpoints := newVhostInfo()
 		for _, child := range childIDs {
-			vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
+			vhEndpoint, err := vr.GetItem(conn, parentPath + "/" + child)
 			if err != nil {
 				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
 				continue
@@ -218,47 +208,6 @@ func vhostWatchError(path string, err error) {
 
 }
 
-func (sc *ServiceConfig) vhostFinder() error {
-	glog.V(4).Infof("vhost syncing...")
-	if true {
-		return nil
-	}
-	client, err := sc.getClient()
-	if err != nil {
-		glog.Warningf("error getting client could not lookup vhosts: %v", err)
-		return err
-	}
-	defer client.Close()
-
-	services := []*dao.RunningService{}
-	client.GetRunningServices(&empty, &services)
-
-	vhosts := make(map[string]*vhostInfo, 0)
-
-	for _, s := range services {
-
-		svcstates := []*servicestate.ServiceState{}
-		if err := client.GetServiceStates(s.ServiceID, &svcstates); err != nil {
-			glog.Warningf("can't retrieve service states for %s (%v)", s.ServiceID, err)
-		}
-
-		for _, state := range svcstates {
-			vhostMap := createVhostInfos(state)
-			for vhost, info := range vhostMap {
-				if _, found := vhosts[vhost]; !found {
-					vhosts[vhost] = newVhostInfo()
-				}
-				vhInfo := vhosts[vhost]
-				vhInfo.endpoints = append(vhInfo.endpoints, info.endpoints...)
-
-			}
-		}
-	}
-
-	vregistry.setAll(vhosts)
-	return nil
-}
-
 // Lookup the appropriate virtual host and forward the request to it.
 // TODO: when zookeeper registration is integrated we can be more event
 // driven and only refresh the vhost map when service states change.
@@ -274,17 +223,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
 	}()
 
-	var vhInfo *vhostInfo
-	found := false
-	tries := 2
-	for !found && tries > 0 {
-		vhInfo, found = vregistry.get(subdomain)
-		tries--
-		if !found && tries > 0 {
-			glog.Infof("vhost %s not found, syncing...", subdomain)
-			sc.vhostFinder()
-		}
-	}
+	vhInfo, found := vregistry.get(subdomain)
 	if !found {
 		http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", subdomain), http.StatusNotFound)
 		return
