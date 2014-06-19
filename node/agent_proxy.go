@@ -135,6 +135,7 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.Applicat
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
+	endpoint.Application = "controlplane"
 	endpoint.ContainerIP = "127.0.0.1"
 	port, err := strconv.Atoi(a.uiport[1:])
 	if err != nil {
@@ -153,6 +154,7 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
+	endpoint.Application = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 8444
 	endpoint.HostPort = 8443
@@ -166,6 +168,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 	key := "tcp:5043"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_logstash"
+	endpoint.Application = "controlplane_logstash"
 	endpoint.ContainerIP = "127.0.0.1"
 	endpoint.ContainerPort = 5043
 	endpoint.HostPort = 5043
@@ -193,5 +196,13 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 func (a *HostAgent) GetHostID(string, hostID *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
 	*hostID = a.hostID
+	return nil
+}
+
+// GetZkDSN returns the agent's zookeeper connection string
+func (a *HostAgent) GetZkDSN(string, dsn *string) error {
+	localDSN := a.zkClient.ConnectionString()
+	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
+	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
 	return nil
 }

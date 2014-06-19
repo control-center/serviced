@@ -85,3 +85,9 @@ func (a *LBClient) GetHostID(hostID *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHostID()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetHostID", "na", hostID)
 }
+
+// GetZkDSN returns the agent's zookeeper connection string
+func (a *LBClient) GetZkDSN(dsn *string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetZkDSN", "na", dsn)
+}
