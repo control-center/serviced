@@ -693,7 +693,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 			cmd := exec.Command("sh", "-c", script.Script)
 			err := cmd.Run()
 			if err != nil {
-				glog.Warningf("Failed prereq [%s], not starting service.", script.Name)
+				glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
 				failedAny = true
 				break
 			} else {
