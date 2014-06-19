@@ -571,42 +571,35 @@ func (c *Controller) handleRemotePorts() {
 		glog.Errorf("Error getting application endpoints for service %s: %s", c.options.Service.ID, err)
 		return
 	}
-	if true {
-		tmp := make(map[string][]*dao.ApplicationEndpoint)
-		for key, endpointList := range endpoints {
-			if len(endpointList) <= 0 {
-				glog.Warningf("ignoring key: %s with empty endpointList", key)
-				continue
-			}
 
-			tenantEndpointID := registry.TenantEndpointKey(c.tenantID, endpointList[0].Application)
-			glog.Infof("changing key from %s to %s: %+v", key, tenantEndpointID, endpointList[0])
-			tmp[tenantEndpointID] = endpoints[key]
+	// convert keys set by GetServiceEndpoints to tenantID_endpointID
+	tmp := make(map[string][]*dao.ApplicationEndpoint)
+	for key, endpointList := range endpoints {
+		if len(endpointList) <= 0 {
+			glog.Warningf("ignoring key: %s with empty endpointList", key)
+			continue
 		}
-		endpoints = tmp
+
+		tenantEndpointID := registry.TenantEndpointKey(c.tenantID, endpointList[0].Application)
+		glog.Infof("changing key from %s to %s: %+v", key, tenantEndpointID, endpointList[0])
+		tmp[tenantEndpointID] = endpoints[key]
 	}
+	endpoints = tmp
 
 	for key, endpointList := range endpoints {
-		if true {
-			// ignore endpoints that are not special controlplane imports
-			ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
-			if !strings.HasPrefix(key, ignorePrefix) {
-				continue
-			}
+		// ignore endpoints that are not special controlplane imports
+		ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
+		if !strings.HasPrefix(key, ignorePrefix) {
+			continue
 		}
 
+		// set proxy addresses
 		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
 
-		if true {
-			// add/replace entries in importedEndpoints
-			ie := importedEndpoint{}
-			ie.endpointID = endpointList[0].Application
-			ie.virtualAddress = endpointList[0].VirtualAddress
-			key := registry.TenantEndpointKey(c.tenantID, ie.endpointID)
-			c.importedEndpoints[key] = ie
+		// add/replace entries in importedEndpoints
+		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, endpointList[0].VirtualAddress)
 
-			// TODO: agent needs to register controlplane and controlplane_consumer
-			//       but don't do that here in the container code
-		}
+		// TODO: agent needs to register controlplane and controlplane_consumer
+		//       but don't do that here in the container code
 	}
 }

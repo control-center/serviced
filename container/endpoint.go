@@ -193,14 +193,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 				return result, err
 			}
 
-			ie := importedEndpoint{}
-			ie.endpointID = endpoint.Application
-			ie.virtualAddress = endpoint.VirtualAddress
-
-			tenantEndpointKey := registry.TenantEndpointKey(tenantID, ie.endpointID)
-			result[tenantEndpointKey] = ie
-
-			glog.Infof("  cached imported endpoint[%s]: %+v", tenantEndpointKey, ie)
+			setImportedEndpoint(&result, tenantID, endpoint.Application, endpoint.VirtualAddress)
 		}
 	}
 
@@ -234,6 +227,16 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	glog.Infof("  built ApplicationEndpoint: %+v", ae)
 
 	return &ae, nil
+}
+
+// setImportedEndpoint sets an imported endpoint
+func setImportedEndpoint(importedEndpoints *map[string]importedEndpoint, tenantID, endpointID, virtualAddress string) {
+	ie := importedEndpoint{}
+	ie.endpointID = endpointID
+	ie.virtualAddress = virtualAddress
+	key := registry.TenantEndpointKey(tenantID, endpointID)
+	(*importedEndpoints)[key] = ie
+	glog.Infof("  cached imported endpoint[%s]: %+v", key, ie)
 }
 
 // watchRemotePorts watches imported endpoints and updates proxies
