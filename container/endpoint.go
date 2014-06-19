@@ -354,7 +354,7 @@ func (c *Controller) watchRemotePorts() {
 
 // endpointWatchError shows errors with watches
 func endpointWatchError(path string, err error) {
-	glog.Infof("processing endpointWatchError on %s: %v", path, err)
+	glog.Warningf("processing endpointWatchError on %s: %v", path, err)
 }
 
 // processTenantEndpoint updates the addresses for an imported endpoint
