@@ -260,6 +260,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
+        updateHealth();
     });
 
     $scope.$on('$destroy', function() {
