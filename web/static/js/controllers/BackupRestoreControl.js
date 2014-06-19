@@ -21,7 +21,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
 
     $scope.createBackup = function(){
 
-        var notification = $notification.create().updateStatus(BACKUP_RUNNING).show();
+        var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
 
         resourcesService.create_backup(function(data){
             setTimeout(function(){
@@ -32,7 +32,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
 
     $scope.restoreBackup = function(filename){
 
-        var notification = $notification.create().updateStatus(RESTORE_RUNNING).show();
+        var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);
 
         resourcesService.restore_backup(filename, function(data){
             setTimeout(function(){
@@ -49,7 +49,8 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
                     $scope.backupFiles = data;
                 });
 
-                notification.success(BACKUP_COMPLETE);
+                notification.updateStatus(BACKUP_COMPLETE);
+                notification.success();
                 return;
             }
             else if (data.Detail !== "timeout"){
@@ -62,7 +63,9 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
             }, 1);
 
         }, function(data, status){
-                notification.error(data.Detail).updateTitle(ERROR +" "+ status);
+                notification.updateTitle(ERROR +" "+ status);
+                notification.updateStatus(data.Detail);
+                notification.error();
         });
     }
 
@@ -71,7 +74,8 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
 
             // all done!
             if(data.Detail === ""){
-                notification.success(RESTORE_COMPLETE);
+                notification.updateStatus(RESTORE_COMPLETE);
+                notification.success();
                 return;
 
             // something neato has happened. lets show it.
@@ -85,7 +89,9 @@ function BackupRestoreControl($scope, $routeParams, $notification, resourcesServ
             }, 1);
 
         }, function(data, status){
-            notification.error(ERROR +" "+ status, data.Detail);
+            notification.updateTitle(ERROR +" "+ status);
+            notification.updateStatus(data.Detail);
+            notification.error();
         });
 
     }

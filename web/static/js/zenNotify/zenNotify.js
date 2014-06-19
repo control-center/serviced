@@ -15,18 +15,18 @@
      * @requires $templateCache
      */
 
-     factory('$notification', ['$templateCache', '$translate', function ($templateCache, $translate) {
+     factory('$notification', ['$rootScope', '$templateCache', '$translate', function ($rootScope, $templateCache, $translate) {
         /**
          * Notification
          * Creates a notification. Great for parties!
          */
-        function Notification(id){
+        function Notification(id, title, msg){
             this.id = id;
             this.$el = $($templateCache.get("notification.html"));
             this.$status = this.$el.find(".notification");
             this.$title = this.$el.find(".title");
-            this.msg = "";
-            this.title = "";
+            this.title = title;
+            this.msg = msg;
 
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
@@ -38,60 +38,72 @@
         Notification.prototype = {
             constructor: Notification,
 
-            success: function(msg){
+            success: function(){
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-success");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
 
-                this.updateTitle($translate("success"));
-                this.updateStatus(msg);
+                this.updateTitle(this.title || $translate("success"));
+                this.updateStatus(this.msg || "");
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
+                NotificationFactory.store(this);
+                this.show();
                 return this;
             },
 
-            warning: function(msg){
+            warning: function(){
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-warning");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-warning-sign");
 
-                this.updateTitle($translate("warning"));
-                this.updateStatus(msg);
+                this.updateTitle(this.title || $translate("warning"));
+                this.updateStatus(this.msg || "");
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
+                NotificationFactory.store(this);
+                this.show();
                 return this;
             },
 
-            info: function(msg){
-                this.updateTitle($translate("info"));
-                this.updateStatus(msg);
+            info: function(){
+                this.updateTitle(this.title || $translate("info"));
+                this.updateStatus(this.msg || "");
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
+                NotificationFactory.store(this);
+                this.show();
                 return this;
             },
 
-            error: function(msg){
+            error: function(){
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-danger");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-remove-sign");
 
-                this.updateTitle($translate("error"));
-                this.updateStatus(msg);
+                this.updateTitle(this.title || $translate("error"));
+                this.updateStatus(this.msg || "");
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
+                NotificationFactory.store(this);
+                this.show();
                 return this;
             },
 
             onClose: function(e){
+                NotificationFactory.markRead(this);
+                setTimeout(function(){return;}, 100);
+                this.hide();
+            },
+
+            hide: function(){
                 this.$el.slideUp("fast", function(){
                     this.$el.remove();
                 }.bind(this));
-
-                NotificationFactory.markRead(this);
             },
 
             // updates the status message (the smaller text)
@@ -108,9 +120,14 @@
                 return this;
             },
 
-            show: function(){
+            show: function(autoclose){
+                autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
                 this.$el.slideDown("fast");
-                NotificationFactory.store(this);
+
+                if(autoclose){
+                    setTimeout(this.hide.bind(this), 5000);
+                }
+
                 return this;
             }
         }
@@ -119,7 +136,7 @@
             $storage: JSON.parse(localStorage.getItem('messages')) || [],
             lastId: null,
 
-            create: function(){
+            create: function(title, msg){
                 // if this is the first time we sending a message, try to lookup the next ID from storage
                 if(this.lastId === null){
                     this.lastId = 0;
@@ -130,7 +147,8 @@
                     }.bind(this));
                 }
 
-                return new Notification(++this.lastId);
+                var notification = new Notification(++this.lastId, title, msg);
+                return notification;
             },
 
             // TODO: Rewrite this as an event listener and add emit to Notification.onClose()
@@ -143,16 +161,18 @@
                 }.bind(this));
 
                 localStorage.setItem('messages', JSON.stringify(this.$storage));
+                $rootScope.$broadcast("messageUpdate");
             },
 
             store: function(notification){
-                var storable = {id: notification.id, read: false, title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
 
                 if(this.$storage.unshift(storable) > 10){
                     this.$storage.pop();
                 }
 
                 localStorage.setItem('messages', JSON.stringify(this.$storage));
+                $rootScope.$broadcast("messageUpdate");
             },
 
             update: function(notification){
@@ -166,6 +186,28 @@
                 }.bind(this));
 
                 localStorage.setItem('messages', JSON.stringify(this.$storage));
+                $rootScope.$broadcast("messageUpdate");
+            },
+
+            getMessages: function(){
+                var unreadCount = 0;
+
+                this.$storage.forEach(function(el, idx){
+                    if(!el.read){
+                        ++unreadCount;
+                    }
+                });
+
+                return {
+                    unreadCount: unreadCount,
+                    messages: this.$storage
+                };
+            },
+
+            clearAll: function(){
+                this.$storage = [];
+                localStorage.clear();
+                $rootScope.$broadcast("messageUpdate");
             }
         };
 

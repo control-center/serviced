@@ -1,6 +1,20 @@
-function NavbarControl($scope, $http, $cookies, $location, $route, $translate, authService) {
+function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
+
+    $rootScope.messages = $notification.getMessages();
+    $scope.$on('messageUpdate', function(){
+        $rootScope.messages = $notification.getMessages();
+        if(!$scope.$$phase) {
+            $scope.$apply();
+        }
+    });
+    $rootScope.markRead = function(message){
+        $notification.markRead(message);
+    }
+    $rootScope.clearMessages = function(){
+        $notification.clearAll();
+    }
 
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps',

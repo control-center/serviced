@@ -906,3 +906,16 @@ rect {
     from {transform:rotate(0deg);}
     to {transform:rotate(360deg);}
 }
+
+.unreadMessage{
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.message .glyphicon{
+    margin-right: 7px;
+}
+
+.readMessage .glyphicon{
+    color: #cccccc;
+}
