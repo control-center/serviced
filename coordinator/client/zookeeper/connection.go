@@ -86,8 +86,6 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 	if err != nil {
 		return "", client.ErrSerialization
 	}
-	//	func (c *Conn) Create                            (path string, data []byte, flags int32, acl []ACL) (string, error) {
-	//	func (c *Conn) CreateProtectedEphemeralSequential(path string, data []byte, acl []ACL) (string, error) {
 
 	path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
 	if err == zklib.ErrNoNode {
