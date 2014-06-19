@@ -6,18 +6,31 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
 
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TODO: remove useImportedEndpointServiceDiscovery or set it to true
 const useImportedEndpointServiceDiscovery = true
+
+var (
+	// ErrInvalidZkDSN is returned if the zkDSN is empty or malformed
+	ErrInvalidZkDSN = errors.New("container: invalid zookeeper dsn")
+	// ErrInvalidExportedEndpoints is returned if the ExportedEndpoints is empty or malformed
+	ErrInvalidExportedEndpoints = errors.New("container: invalid exported endpoints")
+	// ErrInvalidImportedEndpoints is returned if the ImportedEndpoints is empty or malformed
+	ErrInvalidImportedEndpoints = errors.New("container: invalid imported endpoints")
+)
 
 type export struct {
 	endpoint     *dao.ApplicationEndpoint
@@ -29,6 +42,82 @@ type export struct {
 type importedEndpoint struct {
 	endpointID     string
 	virtualAddress string
+}
+
+// getAgentZkDSN retrieves the agent's zookeeper dsn
+func getAgentZkDSN(lbClientPort string) (string, error) {
+	client, err := node.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return "", err
+	}
+	defer client.Close()
+
+	var dsn string
+	err = client.GetZkDSN(&dsn)
+	if err != nil {
+		glog.Errorf("Error getting zookeeper dsn, error: %s", err)
+		return "", err
+	}
+
+	glog.V(1).Infof("getAgentZkDSN: %s", dsn)
+	return dsn, nil
+}
+
+// getServiceState gets the service state for a serviceID
+func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr string) (*servicestate.ServiceState, error) {
+
+	tmpID, err := strconv.Atoi(instanceIDStr)
+	if err != nil {
+		glog.Errorf("Unable to interpret InstanceID: %s", instanceIDStr)
+		return nil, err
+	}
+	instanceID := int(tmpID)
+
+	for {
+		var serviceStates []*servicestate.ServiceState
+		err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
+		if err != nil {
+			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
+			return nil, nil
+		}
+
+		for ii, ss := range serviceStates {
+			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
+				return serviceStates[ii], nil
+			}
+		}
+
+		glog.Infof("Polling to retrieve service state instanceID:%d with valid PrivateIP", instanceID)
+		time.Sleep(1 * time.Second)
+	}
+
+	return nil, fmt.Errorf("unable to retrieve service state")
+}
+
+// getZkConnection returns the zookeeper connection
+func (c *Controller) getZkConnection() (coordclient.Connection, error) {
+	if c.cclient == nil {
+		var err error
+		c.zkDSN, err = getAgentZkDSN(c.options.ServicedEndpoint)
+		if err != nil {
+			glog.Errorf("Invalid zk dsn")
+			return nil, ErrInvalidZkDSN
+		}
+
+		c.cclient, err = coordclient.New("zookeeper", c.zkDSN, "", nil)
+		if err != nil {
+			glog.Errorf("could not connect to zookeeper: %s", c.zkDSN)
+			return nil, err
+		}
+
+		c.zkConn, err = c.cclient.GetConnection()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return c.zkConn, nil
 }
 
 // buildExportedEndpoints builds the map to exported endpoints
