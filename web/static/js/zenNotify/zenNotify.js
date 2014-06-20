@@ -16,18 +16,20 @@
      */
 
      factory('$notification', ['$rootScope', '$templateCache', '$translate', function ($rootScope, $templateCache, $translate) {
+        var notificationFactory;
+
         /**
          * Notification
          * Creates a notification. Great for parties!
          */
-        function Notification(id, title, msg, attachPoint){
+        function Notification(id, title, msg, $attachPoint){
             this.id = id;
             this.$el = $($templateCache.get("notification.html"));
             this.$status = this.$el.find(".notification");
             this.$title = this.$el.find(".title");
             this.title = title;
             this.msg = msg;
-            this.attachPoint = attachPoint;
+            this.$attachPoint = $attachPoint;
 
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
@@ -48,7 +50,7 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                NotificationFactory.store(this);
+                notificationFactory.store(this);
                 this.show();
                 return this;
             },
@@ -63,7 +65,7 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                NotificationFactory.store(this);
+                notificationFactory.store(this);
                 this.show();
                 return this;
             },
@@ -74,7 +76,7 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                NotificationFactory.store(this);
+                notificationFactory.store(this);
                 this.show();
                 return this;
             },
@@ -89,13 +91,13 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                NotificationFactory.store(this);
+                notificationFactory.store(this);
                 this.show();
                 return this;
             },
 
             onClose: function(e){
-                NotificationFactory.markRead(this);
+                notificationFactory.markRead(this);
                 this.hide();
             },
 
@@ -120,34 +122,38 @@
             },
 
             show: function(autoclose){
-                this.attachPoint.append(this.$el);
+                this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
                 this.$el.slideDown("fast");
 
                 if(autoclose){
-                    setTimeout(this.hide(), 5000);
+                    setTimeout(this.hide, 5000);
                 }
 
                 return this;
             }
         }
 
-        var NotificationFactory = {
-            $storage: JSON.parse(localStorage.getItem('messages')) || [],
-            lastId: null,
+        function NotificationFactory(){
+            this.$storage = JSON.parse(localStorage.getItem('messages')) || [];
+            this.lastId = null;
+
+            // if this is the first time we sending a message, try to lookup the next ID from storage
+            if(this.lastId === null){
+                this.lastId = 0;
+                this.$storage.forEach(function(el, idx){
+                    if(el.id >= this.lastId){
+                        this.lastId = el.id;
+                    }
+                }.bind(this));
+            }
+        };
+
+        NotificationFactory.prototype = {
+            constructor: NotificationFactory,
 
             create: function(title, msg){
-                // if this is the first time we sending a message, try to lookup the next ID from storage
-                if(this.lastId === null){
-                    this.lastId = 0;
-                    this.$storage.forEach(function(el, idx){
-                        if(el.id >= this.lastId){
-                            this.lastId = el.id;
-                        }
-                    }.bind(this));
-                }
-
                 var notification = new Notification(++this.lastId, title, msg, $("#notifications"));
                 return notification;
             },
@@ -176,11 +182,11 @@
             },
 
             update: function(notification){
-                var storable = {id: notification.id, read: false, title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
 
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
-                        el.read = true;
+                        el = storable;
                     }
                 }.bind(this));
 
@@ -210,6 +216,7 @@
             }
         };
 
-        return NotificationFactory;
+        notificationFactory = new NotificationFactory();
+        return notificationFactory;
     }]);
 })();
