@@ -182,7 +182,6 @@
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
                         el.read = true;
-                        this.$storage[idx] = el;
                     }
                 }.bind(this));
 
