@@ -907,6 +907,10 @@ rect {
     to {transform:rotate(360deg);}
 }
 
+.clearLink{
+    cursor: pointer;
+}
+
 .messagesTitle{
     margin-bottom: 10px;
 }
