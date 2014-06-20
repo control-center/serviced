@@ -128,15 +128,17 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 		return nil
 	}
 
-	repoName, tag, err := repoNameAndTag(name)
+	imageID, err := ParseImageID(name)
 	if err != nil {
 		return err
 	}
+	tag := imageID.Tag
 	if tag == "" {
 		tag = "latest"
 	}
+
 	opts := dockerclient.PullImageOptions{
-		Repository: repoName,
+		Repository: imageID.BaseName(),
 		Tag:        tag,
 		Registry:   registry.String(),
 	}
