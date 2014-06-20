@@ -16,7 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 )
@@ -25,7 +26,7 @@ import (
 type ServiceConfig struct {
 	bindPort    string
 	agentPort   string
-	zookeepers  []string
+	zkClient    *coordclient.Client
 	stats       bool
 	hostaliases []string
 	muxTLS      bool
@@ -35,11 +36,11 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.Client, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
-		zookeepers:  zookeepers,
+		zkClient:    zkClient,
 		stats:       stats,
 		hostaliases: []string{},
 		muxTLS:      muxTLS,
@@ -47,9 +48,6 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
-	}
-	if len(cfg.zookeepers) == 0 {
-		cfg.zookeepers = []string{"127.0.0.1:2181"}
 	}
 	return &cfg
 }
@@ -147,7 +145,7 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	}
 	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
-		proxy := serviced.NewReverseProxy(path, targetURL)
+		proxy := node.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
 	// Add on a glob to match subpaths
@@ -200,9 +198,9 @@ func (sc *ServiceConfig) isCollectingStats() handlerFunc {
 	}
 }
 
-func (sc *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
+func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	// setup the client
-	c, err = serviced.NewControlClient(sc.agentPort)
+	c, err = node.NewControlClient(sc.agentPort)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client: %v", err)
 	}

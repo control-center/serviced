@@ -233,7 +233,7 @@ func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
 
 func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string) error {
 	pool.MonitoringProfile = domain.MonitorProfile{
-		Metrics: make([]domain.MetricConfig, len(metrics)),
+		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
 	}
 
 	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -250,7 +250,7 @@ func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string) error
 			pool.MonitoringProfile = domain.MonitorProfile{}
 			return err
 		}
-		pool.MonitoringProfile.Metrics[i] = *config
+		pool.MonitoringProfile.MetricConfigs[i] = *config
 	}
 
 	return nil

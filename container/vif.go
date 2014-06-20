@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 )
 
 type vif struct {
@@ -46,6 +46,7 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 // address, assigns it to the virtual interface, adds an entry to /etc/hosts,
 // and sets up the iptables rule to redirect traffic to the specified port.
 func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string) error {
+	glog.Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s", address, toport, protocol)
 	var (
 		host, port string
 		viface     *vif
@@ -82,6 +83,8 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 	default:
 		return fmt.Errorf("invalid protocol: %s", protocol)
 	}
+
+	glog.Infof("portmap: %+v", *portmap)
 	if _, ok := (*portmap)[toport]; !ok {
 		// dest isn't there, let's DO IT!!!!!
 		if err := viface.redirectCommand(port, toport, protocol); err != nil {
@@ -151,7 +154,9 @@ func (viface *vif) redirectCommand(from, to, protocol string) error {
 			return err
 		}
 	}
-	err := serviced.AddToEtcHosts(viface.hostname, viface.ip)
+
+	glog.Infof("AddToEtcHosts(%s, %s)", viface.hostname, viface.ip)
+	err := node.AddToEtcHosts(viface.hostname, viface.ip)
 	if err != nil {
 		glog.Errorf("Unable to add %s to /etc/hosts", viface.hostname)
 		return err

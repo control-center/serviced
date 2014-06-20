@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
@@ -177,7 +178,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		}
 		_, err = commons.InspectImage(registry, dc, name)
 		if err != nil {
-			if err != dockerclient.ErrNoSuchImage {
+			if err != dockerclient.ErrNoSuchImage && ! strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
 				return err
 			}
@@ -191,7 +192,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 				Repo:  name,
 				Force: true,
 			}
-			if err := commons.TagImage(registry, dc, image.ID, options); err != nil {
+			if err := commons.TagImage(registry, dc, svc.ImageID, options); err != nil {
 				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
 				return err
 			}
@@ -261,7 +262,6 @@ func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 		return "", errors.New("malformed imageid")
 	}
 	name := matches[1]
-
 	return fmt.Sprintf("%s/%s/%s", dockerRegistry, tenantId, name), nil
 }
 

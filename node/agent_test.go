@@ -1,4 +1,4 @@
-package serviced
+package node
 
 import (
 	"encoding/json"

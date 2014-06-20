@@ -4,10 +4,12 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -245,7 +247,25 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
 		return err
 	}
-	*running = *sssToRs(&s, &ss)
+	rs, err := sssToRs(&s, &ss)
+	if err != nil {
+		return err
+	}
+	*running = *rs
+	return nil
+}
+
+func (zkdao *ZkDao) RemoveHost(hostId string) error {
+	conn, err := zkdao.client.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	err = conn.Delete(HostPath(hostId))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -279,7 +299,10 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
 			return err
 		}
-		_ss[i] = sssToRs(&s, &ss)
+		_ss[i], err = sssToRs(&s, &ss)
+		if err != nil {
+			return err
+		}
 	}
 	*running = append(*running, _ss...)
 	return nil
@@ -430,7 +453,10 @@ func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningSer
 			if err := LoadServiceState(conn, serviceId, childId, &ss); err != nil {
 				return err
 			}
-			_ss[i] = sssToRs(&s, &ss)
+			_ss[i], err = sssToRs(&s, &ss)
+			if err != nil {
+				return err
+			}
 
 		}
 		*running = append(*running, _ss...)
@@ -583,7 +609,7 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 }
 
 // Service & ServiceState to RunningService
-func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningService {
+func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningService, error) {
 	rs := &dao.RunningService{}
 	rs.Id = ss.Id
 	rs.ServiceID = ss.ServiceID
@@ -599,7 +625,24 @@ func sssToRs(s *service.Service, ss *servicestate.ServiceState) *dao.RunningServ
 	rs.ImageID = s.ImageID
 	rs.DesiredState = s.DesiredState
 	rs.ParentServiceID = s.ParentServiceID
-	return rs
+	rs.MonitoringProfile.MetricConfigs = make([]domain.MetricConfig, len(s.MonitoringProfile.MetricConfigs))
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return nil, err
+	}
+	for i, metricGroup := range s.MonitoringProfile.MetricConfigs {
+		for _, metric := range metricGroup.Metrics {
+			metricBuilder := build.Metric(metric.ID, metric.Name)
+			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))
+			metricBuilder.SetTag("controlplane_service_id", rs.ServiceID)
+		}
+		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
+		if err != nil {
+			return nil, err
+		}
+		rs.MonitoringProfile.MetricConfigs[i] = *config
+	}
+	return rs, nil
 }
 
 // Snapshot section start

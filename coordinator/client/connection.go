@@ -38,6 +38,7 @@ type Connection interface {
 	SetOnClose(func(int))
 	Create(path string, node Node) error
 	CreateDir(path string) error
+	CreateEphemeral(path string, node Node) (string, error)
 	Exists(path string) (bool, error)
 	Delete(path string) error
 	ChildrenW(path string) (children []string, event <-chan Event, err error)

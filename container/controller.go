@@ -2,24 +2,23 @@ package container
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	"github.com/zenoss/serviced/commons/subprocess"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -77,11 +76,17 @@ type Controller struct {
 	options            ControllerOptions
 	hostID             string
 	tenantID           string
+	dockerID           string
 	metricForwarder    *MetricForwarder
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
 	closing            chan chan error
 	prereqs            []domain.Prereq
+	zkDSN              string
+	cclient            *coordclient.Client
+	zkConn             coordclient.Connection
+	exportedEndpoints  map[string][]export
+	importedEndpoints  map[string]importedEndpoint
 }
 
 // Close shuts down the controller
@@ -92,9 +97,8 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-
 func getService(lbClientPort string, serviceID string) (*service.Service, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return nil, err
@@ -112,9 +116,9 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 	return &service, nil
 }
 
-// getServiceTenaneID retrieves a service's tenantID
+// getServiceTenantID retrieves a service's tenantID
 func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return "", err
@@ -134,7 +138,7 @@ func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
 
 // getAgentHostID retrieves the agent's host id
 func getAgentHostID(lbClientPort string) (string, error) {
-	client, err := serviced.NewLBClient(lbClientPort)
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return "", err
@@ -315,6 +319,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// Keep a copy of the service prerequisites in the Controller object.
 	c.prereqs = service.Prereqs
 
+	// get endpoints
+	if err := c.getEndpoints(); err != nil {
+		return c, err
+	}
+
+	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
 		glog.Errorf("Invalid commandif ")
@@ -367,6 +377,7 @@ func (c *Controller) Run() (err error) {
 	env = append(env, fmt.Sprintf("CONTROLPLANE_CONSUMER_URL=http://localhost%s/api/metrics/store", c.options.Metric.Address))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
+	env = append(env, fmt.Sprintf("CONTROLPLANE_INSTANCE_ID=%s", c.options.Service.InstanceID))
 
 	if err := writeEnvFile(env); err != nil {
 		return err
@@ -384,8 +395,10 @@ func (c *Controller) Run() (err error) {
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleRemotePorts()
+	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
+	doRegisterEndpoints := true
 	for {
 		select {
 		case sig := <-sigc:
@@ -408,9 +421,6 @@ func (c *Controller) Run() (err error) {
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
 
-		case <-time.After(time.Second * 10):
-			c.handleRemotePorts()
-
 		case exitError := <-serviceExited:
 			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
@@ -423,6 +433,10 @@ func (c *Controller) Run() (err error) {
 		case <-startAfter:
 			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
+			if doRegisterEndpoints {
+				c.registerExportedEndpoints()
+				doRegisterEndpoints = false
+			}
 			startAfter = nil
 		}
 	}
@@ -455,7 +469,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 			cmd := exec.Command("sh", "-c", script.Script)
 			err := cmd.Run()
 			if err != nil {
-				glog.Warningf("Failed prereq [%s], not starting service.", script.Name)
+				glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
 				failedAny = true
 				break
 			} else {
@@ -473,7 +487,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 
 func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	exitChannels := make(map[string]chan bool)
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return nil
@@ -494,7 +508,7 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 }
 
 func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
@@ -538,13 +552,19 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleRemotePorts() {
-	client, err := serviced.NewLBClient(c.options.ServicedEndpoint)
+	// this function is currently needed to handle special control plane imports
+	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
+
+	// get service endpoints
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
 	}
 	defer client.Close()
 
+	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
+	//       that returns only special "controlplane" imported endpoints
 	var endpoints map[string][]*dao.ApplicationEndpoint
 	err = client.GetServiceEndpoints(c.options.Service.ID, &endpoints)
 	if err != nil {
@@ -552,70 +572,34 @@ func (c *Controller) handleRemotePorts() {
 		return
 	}
 
-	emptyAddressList := []string{}
+	// convert keys set by GetServiceEndpoints to tenantID_endpointID
+	tmp := make(map[string][]*dao.ApplicationEndpoint)
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
-			if proxy, ok := proxies[key]; ok {
-				proxy.SetNewAddresses(emptyAddressList)
-			}
+			glog.Warningf("ignoring key: %s with empty endpointList", key)
 			continue
 		}
 
-		addresses := make([]string, len(endpointList))
-		for i, endpoint := range endpointList {
-			glog.V(2).Infof("endpoints: %s, %v", key, *endpoint)
-			addresses[i] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-		}
-		sort.Strings(addresses)
-
-		var (
-			prxy *proxy
-			ok   bool
-		)
-
-		if prxy, ok = proxies[key]; !ok {
-			glog.Infof("Attempting port map for: %s -> %+v", key, *endpointList[0])
-
-			// setup a new proxy
-			listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpointList[0].ContainerPort))
-			if err != nil {
-				glog.Errorf("Could not bind to port: %s", err)
-				continue
-			}
-			prxy, err = newProxy(
-				fmt.Sprintf("%v", endpointList[0]),
-				uint16(c.options.Mux.Port),
-				c.options.Mux.TLS,
-				listener)
-			if err != nil {
-				glog.Errorf("Could not build proxy %s", err)
-				continue
-			}
-
-			glog.Infof("Success binding port: %s -> %+v", key, prxy)
-			proxies[key] = prxy
-
-			if ep := endpointList[0]; ep.VirtualAddress != "" {
-				p := strconv.FormatUint(uint64(ep.ContainerPort), 10)
-				err := vifs.RegisterVirtualAddress(ep.VirtualAddress, p, ep.Protocol)
-				if err != nil {
-					glog.Errorf("Error creating virtual address: %+v", err)
-				}
-			}
-		}
-		prxy.SetNewAddresses(addresses)
+		tenantEndpointID := registry.TenantEndpointKey(c.tenantID, endpointList[0].Application)
+		glog.Infof("changing key from %s to %s: %+v", key, tenantEndpointID, endpointList[0])
+		tmp[tenantEndpointID] = endpoints[key]
 	}
+	endpoints = tmp
 
-}
+	for key, endpointList := range endpoints {
+		// ignore endpoints that are not special controlplane imports
+		ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
+		if !strings.HasPrefix(key, ignorePrefix) {
+			continue
+		}
 
-var (
-	proxies map[string]*proxy
-	vifs    *VIFRegistry
-	nextip  int
-)
+		// set proxy addresses
+		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
 
-func init() {
-	proxies = make(map[string]*proxy)
-	vifs = NewVIFRegistry()
-	nextip = 1
+		// add/replace entries in importedEndpoints
+		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, endpointList[0].VirtualAddress)
+
+		// TODO: agent needs to register controlplane and controlplane_consumer
+		//       but don't do that here in the container code
+	}
 }

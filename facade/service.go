@@ -212,6 +212,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 						protocol = endpoint.Protocol
 					}
 					var ep dao.ApplicationEndpoint
+					ep.Application = endpoint.Application
 					ep.ServiceID = ss.ServiceID
 					ep.ContainerPort = containerPort
 					ep.HostPort = hostPort
@@ -725,6 +726,7 @@ type zkfuncs interface {
 	updateService(svc *service.Service) error
 	removeService(svcID string) error
 	getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
+	RemoveHost(hostID string) error
 }
 
 type zkf struct {
@@ -740,6 +742,10 @@ func (z *zkf) removeService(id string) error {
 }
 func (z *zkf) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	return z.zkDao.GetServiceStates(serviceStates, serviceIds...)
+}
+
+func (z *zkf) RemoveHost(hostID string) error {
+	return z.zkDao.RemoveHost(hostID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

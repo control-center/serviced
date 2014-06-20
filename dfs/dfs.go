@@ -3,7 +3,7 @@ package dfs
 import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -155,7 +155,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	label := serviced.GetLabel(tenantId)
+	label := node.GetLabel(tenantId)
 	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", myService.Id, label, theVolume)
 
 	parts := strings.SplitN(label, "_", 2)
@@ -532,8 +532,9 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 			Tag:  newtag,
 		}
 
-		glog.V(3).Infof("Adding tag to image %s: %+v", image.ID, options)
-		if err := commons.TagImage(*d.dockerRegistry, d.dockerClient, image.ID, options); err != nil {
+		oldRepo := fmt.Sprintf("%s:%s", image.Repository, oldtag)
+		glog.V(2).Infof("Adding tag to image %s: %+v", oldRepo, options)
+		if err := commons.TagImage(*d.dockerRegistry, d.dockerClient, oldRepo, options); err != nil {
 			glog.Errorf("error while adding tags, rolling back...")
 			for j := 0; j < i; j++ {
 				repotag := images[j].Repository + ":" + newtag

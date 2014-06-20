@@ -6,7 +6,6 @@ package api
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/coordinator/storage"
@@ -24,6 +23,7 @@ import (
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/isvcs"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
@@ -92,7 +92,7 @@ func (d *daemon) run() error {
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
 
-	dockerVersion, err := serviced.GetDockerVersion()
+	dockerVersion, err := node.GetDockerVersion()
 	if err != nil {
 		glog.Fatalf("could not determine docker version: %s", err)
 	}
@@ -252,7 +252,7 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
-func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
+func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 
 	muxListener, err := createMuxListener()
 	if err != nil {
@@ -267,6 +267,12 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//when running only an agent d.zkDAO is nil
+	if d.zkDAO == nil {
+		d.zkDAO = d.initZKDAO(zkClient)
+	}
+
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {
 		panic(err)
@@ -281,7 +287,20 @@ func (d *daemon) startAgent() (hostAgent *serviced.HostAgent, err error) {
 	}
 	nfsClient.Wait()
 
-	hostAgent, err = serviced.NewHostAgent(options.Endpoint, options.UIPort, options.DockerDNS, options.VarPath, options.Mount, options.VFS, options.Zookeepers, mux, options.DockerRegistry)
+	agentOptions := node.AgentOptions{
+		Master:          options.Endpoint,
+		UIPort:          options.UIPort,
+		DockerDNS:       options.DockerDNS,
+		VarPath:         options.VarPath,
+		Mount:           options.Mount,
+		VFS:             options.VFS,
+		Zookeepers:      options.Zookeepers,
+		Mux:             mux,
+		DockerRegistry:  options.DockerRegistry,
+		MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
+	}
+	hostAgent, err = node.NewHostAgent(agentOptions)
+
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
@@ -401,7 +420,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.Zookeepers, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, d.zclient, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 

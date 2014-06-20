@@ -301,3 +301,8 @@ func (client *Client) SetRetryPolicy(policy retry.Policy) error {
 	client.retryPolicy = policy
 	return nil
 }
+
+// ConnectionString returns the connection String
+func (client *Client) ConnectionString() string {
+	return client.connectionString
+}

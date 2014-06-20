@@ -20,10 +20,8 @@ func xlateError(err error) error {
 		return client.ErrNoAuth
 	case zklib.ErrBadVersion:
 		return client.ErrBadVersion
-	case zklib.ErrConnectionClosed:
-		return client.ErrNoChildrenForEphemerals
 	case zklib.ErrNoChildrenForEphemerals:
-		return client.ErrConnectionClosed
+		return client.ErrNoChildrenForEphemerals
 	case zklib.ErrNotEmpty:
 		return client.ErrNotEmpty
 	case zklib.ErrSessionExpired:
