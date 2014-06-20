@@ -824,24 +824,23 @@ rect {
 }
 
 /* backup info notification */
-.notification.backupInfo {
+.notification {
     clear: both;
     padding: 15px;
 }
-.notification.backupInfo .backupRunning {
-    margin: 0 5px;
-    font-size: 1.4em;
+
+.notification .title{
+    font-size: 1.3em;
+    font-weight: bold;
 }
-.notification.bg-info .dialogIcon,
-.notification.bg-info .backupRunning {
+
+.notification.bg-info .dialogIcon {
     color: #7890b6;
 }
-.notification.bg-success .dialogIcon,
-.notification.bg-success .backupRunning {
+.notification.bg-success .dialogIcon {
     color: green;
 }
-.notification.bg-danger .dialogIcon,
-.notification.bg-danger .backupRunning {
+.notification.bg-danger .dialogIcon {
     color: #7A0000;
 }
 
@@ -906,4 +905,24 @@ rect {
 @keyframes spin {
     from {transform:rotate(0deg);}
     to {transform:rotate(360deg);}
+}
+
+.clearLink{
+    cursor: pointer;
+}
+
+.messagesTitle{
+    margin-bottom: 10px;
+}
+.unreadMessage{
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.message .glyphicon{
+    margin-right: 7px;
+}
+
+.readMessage .glyphicon{
+    color: #cccccc;
 }

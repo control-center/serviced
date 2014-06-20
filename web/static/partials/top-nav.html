@@ -9,12 +9,15 @@
           </ul>
           <ul class="nav navbar-nav navbar-right">
             <li class="item">{{user.language}}</li>
-            <li>
-              <button class="btn-link" ng-click="modalUserDetails()">
-                <i class="glyphicon glyphicon-user"></i>
-                {{user.username}}
-              </button>
-            </li>
+              <li>
+                  <button class="btn-link" ng-click="modalUserDetails()">
+                      <i class="glyphicon glyphicon-user"></i>
+                      {{user.username}}
+                      &nbsp;
+                      <i class="glyphicon glyphicon-envelope"></i>
+                      <span ng-bind="messages.unreadCount"></span>
+                  </button>
+              </li>
             <li>
               <button class="btn-link" ng-click="logout()">
                 {{'nav_logout'|translate}}
@@ -30,3 +33,25 @@
       </div>
 
     <div ng-include="'/static/partials/user-details.html'"></div>
+
+    <div class="details">
+      <div class="details">
+          <ol class="breadcrumb inline">
+              <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
+                  <span ng-switch-when="undefined">{{crumb.label|translate}}</span>
+                  <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label|translate}}</a>
+              </li>
+          </ol>
+      </div>
+    </div>
+
+    <div id="notifications">
+        <script type="text/ng-template" id="notification.html">
+            <div class="bg-info notification" style="display:none;">
+                <span class="dialogIcon glyphicon glyphicon-info-sign"></span>
+                <span class="title"></span>
+                <span class="notification"></span>
+                <button type="button" class="close" aria-hidden="true" style="display:none;">&times;</button>
+            </div>
+        </script>
+    </div>

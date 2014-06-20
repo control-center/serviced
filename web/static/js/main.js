@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', {
@@ -212,7 +212,7 @@ function updateLanguage($scope, $cookies, $translate) {
     $translate.uses(ln);
 }
 
-function ResourcesService($http, $location) {
+function ResourcesService($http, $location, $notification) {
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -245,7 +245,7 @@ function ResourcesService($http, $location) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve services');
+                $notification.create("",('Unable to retrieve services')).error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -261,7 +261,7 @@ function ResourcesService($http, $location) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve app templates');
+                $notification.create("",('Unable to retrieve app templates')).error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -278,7 +278,7 @@ function ResourcesService($http, $location) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve list of pools');
+                $notification.create("",('Unable to retrieve list of pools')).error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -294,7 +294,7 @@ function ResourcesService($http, $location) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve hosts for pool %s', poolID);
+                $notification.create("",('Unable to retrieve hosts for pool ' + poolID)).error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -310,7 +310,7 @@ function ResourcesService($http, $location) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                console.error('Unable to retrieve host details');
+                $notification.create("",('Unable to retrieve host details')).error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -334,14 +334,14 @@ function ResourcesService($http, $location) {
           }
           $http.put(url).
               success(function(data, status) {
-                  console.log('Assigned IP');
+                  $notification.create("", 'Assigned IP').success();
                   if (callback) {
                     callback(data);
                   }
               }).
               error(function(data, status) {
                   // TODO error screen
-                  console.error('Unable to assign ip');
+                  $notification.create("",('Unable to assign ip')).error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -378,7 +378,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire pool: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -399,7 +399,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire pool: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire pool: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -420,7 +420,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire running services: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -441,7 +441,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire virtual hosts: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire virtual hosts: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -457,12 +457,12 @@ function ResourcesService($http, $location) {
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
                 success(function(data, status) {
-                    console.log('Added virtual host: %s, %s', ep, JSON.stringify(data));
+                    $notification.create("", 'Added virtual host: ' + ep + JSON.stringify(data)).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to add virtual hosts: %s, %s', ep, JSON.stringify(data));
+                    $notification.create("",('Unable to add virtual hosts: ' + ep + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -476,12 +476,12 @@ function ResourcesService($http, $location) {
             var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
             $http.delete(ep).
                 success(function(data, status) {
-                    console.log('Removed virtual host: %s, %s', ep, JSON.stringify(data));
+                    $notification.create("", 'Removed virtual host: ' + ep + JSON.stringify(data)).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to remove virtual hosts: %s, %s', ep, JSON.stringify(data));
+                    $notification.create("",('Unable to remove virtual hosts: ' + ep + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -502,7 +502,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire running services: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -522,7 +522,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire running services: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire running services: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -539,12 +539,12 @@ function ResourcesService($http, $location) {
             console.log('Adding detail: %s', JSON.stringify(pool));
             $http.post('/pools/add', pool).
                 success(function(data, status) {
-                    console.log('Added new pool');
+                    $notification.create("", 'Added new pool').success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Adding pool failed: %s', JSON.stringify(data));
+                    $notification.create("",('Adding pool failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -561,12 +561,12 @@ function ResourcesService($http, $location) {
         update_pool: function(poolID, editedPool, callback) {
             $http.put('/pools/' + poolID, editedPool).
                 success(function(data, status) {
-                    console.log('Updated pool %s', poolID);
+                    $notification.create("", 'Updated pool ' + poolID).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Updating pool failed: %s', JSON.stringify(data));
+                    $notification.create("",('Updating pool failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -582,12 +582,12 @@ function ResourcesService($http, $location) {
         remove_pool: function(poolID, callback) {
             $http.delete('/pools/' + poolID).
                 success(function(data, status) {
-                    console.log('Removed pool %s', poolID);
+                    $notification.create("", 'Removed pool ' + poolID).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Removing pool failed: %s', JSON.stringify(data));
+                    $notification.create("",('Removing pool failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -605,12 +605,12 @@ function ResourcesService($http, $location) {
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
-                    console.log('Added new pool virtual ip');
+                    $notification.create("", 'Added new pool virtual ip').success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Adding pool virtual ip failed: %s', JSON.stringify(data));
+                    $notification.create("",('Adding pool virtual ip failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -627,12 +627,12 @@ function ResourcesService($http, $location) {
             console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
             $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
-                    console.log('Removed pool virtual ip');
+                    $notification.create("", 'Removed pool virtual ip').success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Remove pool virtual ip failed: %s', JSON.stringify(data));
+                    $notification.create("",('Remove pool virtual ip failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -653,7 +653,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Terminating instance failed: %s', JSON.stringify(data));
+                    $notification.create("",('Terminating instance failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -690,7 +690,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to acquire host: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to acquire host: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -706,12 +706,12 @@ function ResourcesService($http, $location) {
         add_host: function(host, callback) {
             $http.post('/hosts/add', host).
                 success(function(data, status) {
-                    console.log('Added new host');
+                    $notification.create("", data.Detail).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Adding host failed: %s', JSON.stringify(data));
+                    $notification.create("", data.Detail).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -728,12 +728,12 @@ function ResourcesService($http, $location) {
         update_host: function(hostId, editedHost, callback) {
             $http.put('/hosts/' + hostId, editedHost).
                 success(function(data, status) {
-                    console.log('Updated host %s', hostId);
+                    $notification.create("", 'Updated host ' + hostId).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Updating host failed: %s', JSON.stringify(data));
+                    $notification.create("",('Updating host failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -750,12 +750,12 @@ function ResourcesService($http, $location) {
         remove_host: function(hostId, callback) {
             $http.delete('/hosts/' + hostId).
                 success(function(data, status) {
-                    console.log('Removed host %s', hostId);
+                    $notification.create("", 'Removed host ' + hostId).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Removing host failed: %s', JSON.stringify(data));
+                    $notification.create("",('Removing host failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -814,7 +814,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to retrieve service logs: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -834,7 +834,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Unable to retrieve service logs: %s', JSON.stringify(data));
+                    $notification.create("",('Unable to retrieve service logs: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -866,12 +866,12 @@ function ResourcesService($http, $location) {
             console.log('Adding detail: %s', JSON.stringify(service));
             $http.post('/services/add', service).
                 success(function(data, status) {
-                    console.log('Added new service');
+                    $notification.create("", 'Added new service').success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Adding service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Adding service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -888,12 +888,12 @@ function ResourcesService($http, $location) {
         update_service: function(serviceId, editedService, callback) {
             $http.put('/services/' + serviceId, editedService).
                 success(function(data, status) {
-                    console.log('Updated service %s', serviceId);
+                    $notification.create("", 'Updated service ' + serviceId).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Updating service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Updating service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -909,12 +909,12 @@ function ResourcesService($http, $location) {
         deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
-                    console.log('Deployed app template');
+                    $notification.create("", 'Deployed app template').success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Deploying app template failed: %s', JSON.stringify(data));
+                    $notification.create("",('Deploying app template failed: ' + JSON.stringify(data))).error();
                     failCallback(data);
                     if (status === 401) {
                         unauthorized($location);
@@ -935,7 +935,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Snapshot service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Snapshot service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -951,12 +951,12 @@ function ResourcesService($http, $location) {
         remove_service: function(serviceId, callback) {
             $http.delete('/services/' + serviceId).
                 success(function(data, status) {
-                    console.log('Removed service %s', serviceId);
+                    $notification.create("", 'Removed service ' + serviceId).success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Removing service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -976,7 +976,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Was unable to start service: %s', JSON.stringify(data));
+                    $notification.create("",('Was unable to start service: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -995,7 +995,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Was unable to stop service: %s', JSON.stringify(data));
+                    $notification.create("",('Was unable to stop service: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1011,7 +1011,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Could not retrieve Serviced version from server.');
+                    $notification.create("",('Could not retrieve Serviced version from server.')).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1028,7 +1028,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Removing service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1045,7 +1045,7 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Removing service failed: %s', JSON.stringify(data));
+                    $notification.create("",('Removing service failed: ' + JSON.stringify(data))).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -1060,52 +1060,50 @@ function ResourcesService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('Failed retrieving list of backup files.');
+                    $notification.create("",('Failed retrieving list of backup files.')).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
                 });
         },
 
-        get_backup_status: function(success, fail){
-            fail = fail || angular.noop;
+        get_backup_status: function(successCallback, failCallback){
+            failCallback = failCallback || angular.noop;
 
             $http.get('/backup/status').
                 success(function(data, status) {
                     console.log('Retrieved status of backup.');
-                    success(data);
+                    successCallback(data);
                 }).
                 error(function(data, status) {
-                    // TODO error screen
-                    console.error('Failed retrieving status of backup.');
+                    $notification.create("",('Failed retrieving status of backup.')).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
-                    fail(data, status);
+                    failCallback(data, status);
                 });
         },
 
-        get_restore_status: function(success, fail){
-            fail = fail || angular.noop;
+        get_restore_status: function(successCallback, failCallback){
+            failCallback = failCallback || angular.noop;
             
             $http.get('/backup/restore/status').
                 success(function(data, status) {
                     console.log('Retrieved status of restore.');
-                    success(data);
+                    successCallback(data);
                 }).
                 error(function(data, status) {
-                    // TODO error screen
-                    console.error('Failed retrieving status of restore.');
+                    $notification.create("",('Failed retrieving status of restore.')).error();
                     if (status === 401) {
                         unauthorized($location);
                     }
-                    fail(data, status);
+                    failCallback(data, status);
                 });
         }
     };
 }
 
-function AuthService($cookies, $cookieStore, $location) {
+function AuthService($cookies, $cookieStore, $location, $notification) {
     var loggedIn = false;
     var userName = null;
     return {
@@ -1148,7 +1146,7 @@ function AuthService($cookies, $cookieStore, $location) {
     };
 }
 
-function StatsService($http, $location) {
+function StatsService($http, $location, $notification) {
     return {
         /*
          * Get the list of services currently running on a particular host.
@@ -1164,7 +1162,7 @@ function StatsService($http, $location) {
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    console.error('serviced is not collecting stats');
+                    $notification.create("",('serviced is not collecting stats')).error();
                     callback(status);
                 });
         }
@@ -1573,7 +1571,7 @@ function fix_pool_paths($scope) {
             host.fullPath = $scope.pools.mapped[host.PoolID].fullPath;
         }
     } else {
-        console.log('Unable to update host pool paths');
+        console.error('Unable to update host pool paths');
     }
 }
 
@@ -1588,8 +1586,8 @@ function map_to_array(data) {
     return arr;
 }
 
-function unauthorized($location) {
-    console.log('You don\'t appear to be logged in.');
+function unauthorized($location, $notification) {
+    console.error('You don\'t appear to be logged in.');
     $location.path('/login');
 }
 
@@ -1620,7 +1618,7 @@ function set_order(order, table) {
     } else {
         table.sort = order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-        console.log('Sorting by ' + order);
+        console.log('Sorting ' + table +' by ' + order);
     }
 }
 
