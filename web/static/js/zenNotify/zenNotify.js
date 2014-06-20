@@ -32,6 +32,7 @@
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
             this.onClose = this.onClose.bind(this);
+            this.hide = this.hide.bind(this);
         }
 
         Notification.prototype = {
@@ -125,7 +126,7 @@
                 this.$el.slideDown("fast");
 
                 if(autoclose){
-                    setTimeout(this.hide.bind(this), 5000);
+                    setTimeout(this.hide(), 5000);
                 }
 
                 return this;
