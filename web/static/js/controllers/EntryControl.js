@@ -1,4 +1,4 @@
-function EntryControl($scope, $notification, authService, resourcesService) {
+function EntryControl($scope, authService, resourcesService) {
     authService.checkLogin($scope);
     $scope.brand_label = "brand_zcp";
     $scope.breadcrumbs = [{ label: 'breadcrumb_home', itemClass: 'active' }];
