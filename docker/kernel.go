@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	dockerep = "http://127.0.0.1:3006"
+	dockerep = "unix:///var/run/docker.sock"
 	snr      = "SERVICED_NOREGISTRY"
 	Wildcard = "*"
 )
