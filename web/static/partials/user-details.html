@@ -17,12 +17,15 @@
         </div>
 
         <hr>
-        <div class="pull-left">{{'label_messages'|translate}}</div>
-        <button type="button" class="btn btn-default pull-right" ng-click="clearMessages()">
-          <span class="glyphicon glyphicon-trash"></span>
-          {{'label_clear'|translate}}
-        </button>
-        <ul class="well list-group" style="clear: both;">
+        <div class="messagesTitle">
+            <div class="pull-left">{{'label_messages'|translate}}</div>
+            <div class="pull-right" ng-click="clearMessages()">
+              <i class="glyphicon glyphicon-trash"></i>
+              <span>{{'label_clear'|translate}}</span>
+            </div>
+            <br style="clear: both;"/>
+        </div>
+        <ul class="well list-group">
             <li class="list-group-item" ng-repeat="message in messages.messages track by message.id">
                 <div ng-if="!message.read" class="message unreadMessage" ng-click="markRead(message)">
                     <i class="glyphicon glyphicon-envelope"></i>

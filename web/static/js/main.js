@@ -1619,7 +1619,6 @@ function set_order(order, table) {
         table.sort = order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
         console.log('Sorting ' + table +' by ' + order);
-        console.log(table);
     }
 }
 

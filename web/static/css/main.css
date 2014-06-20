@@ -907,6 +907,9 @@ rect {
     to {transform:rotate(360deg);}
 }
 
+.messagesTitle{
+    margin-bottom: 10px;
+}
 .unreadMessage{
     font-weight: bold;
     cursor: pointer;
