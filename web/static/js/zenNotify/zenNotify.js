@@ -20,19 +20,18 @@
          * Notification
          * Creates a notification. Great for parties!
          */
-        function Notification(id, title, msg){
+        function Notification(id, title, msg, attachPoint){
             this.id = id;
             this.$el = $($templateCache.get("notification.html"));
             this.$status = this.$el.find(".notification");
             this.$title = this.$el.find(".title");
             this.title = title;
             this.msg = msg;
+            this.attachPoint = attachPoint;
 
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
             this.onClose = this.onClose.bind(this);
-
-            $("#notifications").append(this.$el);
         }
 
         Notification.prototype = {
@@ -96,7 +95,6 @@
 
             onClose: function(e){
                 NotificationFactory.markRead(this);
-                setTimeout(function(){return;}, 100);
                 this.hide();
             },
 
@@ -121,6 +119,8 @@
             },
 
             show: function(autoclose){
+                this.attachPoint.append(this.$el);
+
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
                 this.$el.slideDown("fast");
 
@@ -147,7 +147,7 @@
                     }.bind(this));
                 }
 
-                var notification = new Notification(++this.lastId, title, msg);
+                var notification = new Notification(++this.lastId, title, msg, $("#notifications"));
                 return notification;
             },
 
