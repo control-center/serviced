@@ -520,7 +520,7 @@ var (
 
 func init() {
 	proxies = make(map[string]*proxy)
-	vifs = NewVIFRegistry()
+	vifs = NewVIFRegistry("10.3")
 	nextip = 1
 	watchers = make(map[string]bool)
 	endpointsWatchCanceller = make(chan bool)

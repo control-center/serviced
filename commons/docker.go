@@ -324,7 +324,7 @@ func TagImage(registry DockerRegistry, client *dockerclient.Client, name string,
 		return nil
 	}
 
-	repoTag := opts.Repo;
+	repoTag := opts.Repo
 	if opts.Tag != "" {
 		repoTag = repoTag + ":" + opts.Tag
 	}
