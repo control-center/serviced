@@ -17,13 +17,14 @@ import (
 
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"math/rand"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 var zkAPI func(zkDao *zzk.ZkDao) zkfuncs = getZKAPI
@@ -220,6 +221,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 					ep.ContainerIP = ss.PrivateIP
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
+					ep.InstanceID = ss.InstanceID
 
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
 					if _, exists := result[key]; !exists {

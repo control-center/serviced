@@ -36,9 +36,10 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 
+	"path"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/validation"
-	"path"
 )
 
 const (
@@ -52,11 +53,12 @@ func zkEndpointsPath(nodes ...string) string {
 }
 
 // NewEndpointNode returns a new EndpointNode given tenantID, endpointID, hostID, containerID, ApplicationEndpoint
-func NewEndpointNode(tenantID, endpointID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
+func NewEndpointNode(tenantID, endpointID, instanceID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
 	return EndpointNode{
 		ApplicationEndpoint: endpoint,
 		TenantID:            tenantID,
 		EndpointID:          endpointID,
+		InstanceID:          instanceID,
 		HostID:              hostID,
 		ContainerID:         containerID,
 	}
@@ -67,6 +69,7 @@ type EndpointNode struct {
 	dao.ApplicationEndpoint
 	TenantID    string
 	EndpointID  string
+	InstanceID  string
 	HostID      string
 	ContainerID string
 	version     interface{}
@@ -147,7 +150,7 @@ func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tena
 }
 
 // RemoveItem removes an item from the registry
-func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) error {
+func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, instanceID, hostID, containerID string) error {
 	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID))
 }
 

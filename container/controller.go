@@ -586,6 +586,8 @@ func (c *Controller) handleRemotePorts() {
 	}
 	endpoints = tmp
 
+	cc_endpoint_purpose := "import" // Punting on control plane dynamic imports for now
+
 	for key, endpointList := range endpoints {
 		// ignore endpoints that are not special controlplane imports
 		ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
@@ -594,10 +596,11 @@ func (c *Controller) handleRemotePorts() {
 		}
 
 		// set proxy addresses
-		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
+		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress, cc_endpoint_purpose)
 
 		// add/replace entries in importedEndpoints
-		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, endpointList[0].VirtualAddress)
+		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)
+		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, instanceIDStr, endpointList[0].VirtualAddress, cc_endpoint_purpose)
 
 		// TODO: agent needs to register controlplane and controlplane_consumer
 		//       but don't do that here in the container code
