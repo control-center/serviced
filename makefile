@@ -33,8 +33,16 @@ build_isvcs:
 build_js:
 	cd web && make build-js
 
-build_serviced:
-	./godep restore
+GODEP = $(GOPATH)/bin/godep
+$(GODEP): | $(GOPATH)/src/$(godep_SRC)
+	go install $(godep_SRC)
+
+godep_SRC = github.com/tools/godep
+$(GOPATH)/src/$(godep_SRC):
+	go get $(godep_SRC)
+
+build_serviced: | $(GODEP)
+	$(GODEP) restore
 	rm serviced -Rf # temp workaround for moving main package
 	go build
 
