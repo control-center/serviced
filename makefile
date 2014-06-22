@@ -161,10 +161,10 @@ docker_ok:
 		exit 1;\
 	fi
 
-clean:
+clean: | $(GODEP)
 	rm serviced -Rf # needed for branch build to work to merge this commit, remove me later
 	cd dao && make clean
-	./godep restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
