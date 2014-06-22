@@ -23,20 +23,28 @@ install: build_binary bash-complete
 bash-complete:
 	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
-build_binary:
+build_isvcs:
 	if [ "$(IN_DOCKER)" = "0" ]; then \
 		cd isvcs && make; \
 	else \
 		cd isvcs && make buildgo; \
 	fi
+
+build_js:
 	cd web && make build-js
-	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
+
+build_serviced:
 	./godep restore
 	rm serviced -Rf # temp workaround for moving main package
 	go build
+
+build_nsinit:
+	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
 	cd $(NSINITDIR) && go build && go install
 	cp $(NSINITDIR)/nsinit .
 
+.PHONY: build_binary build_js build_serviced build_nsinit
+build_binary: build_isvcs build_js build_serviced build_nsinit
 
 go:
 	rm serviced -Rf # temp workaround for moving main package
