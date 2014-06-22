@@ -30,7 +30,7 @@ build_isvcs:
 		cd isvcs && make buildgo; \
 	fi
 
-build_js:
+build_js build-js:
 	cd web && make build-js
 
 #---------------------------------------------------------------------#
@@ -161,7 +161,27 @@ docker_ok:
 		exit 1;\
 	fi
 
-clean: | $(GODEP)
+.PHONY: clean_js
+clean_js:
+	cd web && make clean
+
+.PHONY: clean_nsinit
+clean_nsinit:
+	if [ -f nsinit ];then \
+		rm nsinit ;\
+	fi
+	if [ -d "$(NSINITDIR)" ];then \
+		cd $(NSINITDIR) && go clean ;\
+	fi
+
+.PHONY: clean_serviced
+clean_serviced:
+	if [ -f "serviced" ];then \
+		rm serviced ;\
+	fi
+
+.PHONY: clean
+clean: clean_js clean_nsinit | $(GODEP)
 	rm serviced -Rf # needed for branch build to work to merge this commit, remove me later
 	cd dao && make clean
 	$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
@@ -169,8 +189,6 @@ clean: | $(GODEP)
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	zenoss/serviced-build /bin/sh -c "cd /go/src/github.com/zenoss/serviced && make clean_fs" || exit 0
 	go clean
-	if [ -d "$(NSINITDIR)" ]; then cd $(NSINITDIR) && go clean; fi
-	rm -Rf nsinit
 
 
 clean_fs:
