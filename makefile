@@ -53,13 +53,17 @@ serviced: | $(GODEP)
 	$(GODEP) restore
 	go build
 
-build_nsinit:
-	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
-	cd $(NSINITDIR) && go build && go install
-	cp $(NSINITDIR)/nsinit .
+NSINIT = $(GOPATH)/bin/nsinit
+$(NSINIT): | $(GOPATH)/src/$(nsinit_SRC)
+	go install $(nsinit_SRC)
 
-.PHONY: build_binary build_js build_nsinit
-build_binary: build_isvcs build_js serviced build_nsinit
+nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
+docker_SRC = github.com/dotcloud/docker
+nsinit: | $(GOPATH)/src/$(nsinit_SRC)
+	go build $($@_SRC)
+
+.PHONY: build_binary build_js nsinit
+build_binary: build_isvcs build_js serviced nsinit
 
 go:
 	rm serviced -Rf # temp workaround for moving main package
