@@ -3,14 +3,15 @@ package dfs
 import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 
@@ -47,7 +48,7 @@ type DistributedFileSystem struct {
 	sync.Mutex
 	client         dao.ControlPlane
 	dockerClient   *dockerclient.Client
-	dockerRegistry *commons.DockerRegistry
+	dockerRegistry *docker.DockerRegistry
 	facade         *facade.Facade
 }
 
@@ -58,7 +59,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, do
 		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
 		return nil, err
 	}
-	registry, err := commons.NewDockerRegistry(dockerRegistry)
+	registry, err := docker.NewDockerRegistry(dockerRegistry)
 	if err != nil {
 		glog.V(2).Infof("unable to use docker registry %s: %s", dockerRegistry, err)
 		return nil, err
@@ -67,7 +68,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, do
 	return &DistributedFileSystem{
 		client:         client,
 		dockerClient:   dockerClient,
-		dockerRegistry: &registry,
+		dockerRegistry: registry,
 		facade:         facade,
 	}, nil
 }
@@ -232,7 +233,7 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 	} else {
 		for _, image := range images {
 			repo := image.Repository + ":" + timestamp
-			if err := commons.RemoveImage(*d.dockerRegistry, d.dockerClient, repo); err != nil {
+			if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, repo); err != nil {
 				glog.Errorf("unable to untag image: %s (%s)", image.ID, err)
 			}
 		}
@@ -262,7 +263,7 @@ func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
 		return err
 	}
 	for _, image := range images {
-		if err := commons.RemoveImage(*d.dockerRegistry, d.dockerClient, image.Repository); err != nil {
+		if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, image.Repository); err != nil {
 			glog.Errorf("error trying to delete image %s, err=%s", image.Repository, err)
 			err = errors.New("error(s) while removing service images")
 		}
@@ -325,7 +326,7 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 		Container:  container.ID,
 		Repository: image.Repository,
 	}
-	if _, err := commons.CommitContainer(*d.dockerRegistry, d.dockerClient, options); err != nil {
+	if _, err := docker.CommitContainer(*d.dockerRegistry, d.dockerClient, options); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return "", err
 	}
@@ -497,7 +498,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 }
 
 func (d *DistributedFileSystem) findImages(id, tag string) (images []dockerclient.APIImages, err error) {
-	if all, err := commons.ListImages(*d.dockerRegistry, d.dockerClient); err != nil {
+	if all, err := docker.ListImages(*d.dockerRegistry, d.dockerClient); err != nil {
 		return images, err
 	} else {
 		for _, image := range all {
@@ -534,11 +535,11 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 
 		oldRepo := fmt.Sprintf("%s:%s", image.Repository, oldtag)
 		glog.V(2).Infof("Adding tag to image %s: %+v", oldRepo, options)
-		if err := commons.TagImage(*d.dockerRegistry, d.dockerClient, oldRepo, options); err != nil {
+		if err := docker.TagImage(*d.dockerRegistry, d.dockerClient, oldRepo, options); err != nil {
 			glog.Errorf("error while adding tags, rolling back...")
 			for j := 0; j < i; j++ {
 				repotag := images[j].Repository + ":" + newtag
-				if err := commons.RemoveImage(*d.dockerRegistry, d.dockerClient, repotag); err != nil {
+				if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, repotag); err != nil {
 					glog.Errorf("cannot untag image %s: (%s)", repotag, err)
 				}
 			}
