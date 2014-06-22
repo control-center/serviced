@@ -41,9 +41,8 @@ godep_SRC = github.com/tools/godep
 $(GOPATH)/src/$(godep_SRC):
 	go get $(godep_SRC)
 
-build_serviced: | $(GODEP)
+serviced: | $(GODEP)
 	$(GODEP) restore
-	rm serviced -Rf # temp workaround for moving main package
 	go build
 
 build_nsinit:
@@ -51,8 +50,8 @@ build_nsinit:
 	cd $(NSINITDIR) && go build && go install
 	cp $(NSINITDIR)/nsinit .
 
-.PHONY: build_binary build_js build_serviced build_nsinit
-build_binary: build_isvcs build_js build_serviced build_nsinit
+.PHONY: build_binary build_js build_nsinit
+build_binary: build_isvcs build_js serviced build_nsinit
 
 go:
 	rm serviced -Rf # temp workaround for moving main package
