@@ -33,6 +33,14 @@ build_isvcs:
 build_js:
 	cd web && make build-js
 
+#---------------------------------------------------------------------#
+# Fail early if GOPATH not set.  Not all targets require this, but
+# the bldenv is probably wonky at any rate if it is /not/ set.
+#---------------------------------------------------------------------#
+ifeq "$(GOPATH)" ""
+    $(error "GOPATH not set.")
+endif
+
 GODEP = $(GOPATH)/bin/godep
 $(GODEP): | $(GOPATH)/src/$(godep_SRC)
 	go install $(godep_SRC)
