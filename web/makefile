@@ -17,14 +17,17 @@ javascript_BLDDIR        = $(javascript_SRCDIR)
 
 default: build
 
+.PHONY: build 
 build: build-js
 	./godep restore
 	go build
 
+.PHONY: test
 test: build
 	go test -i
 	go test $(GOTEST_FLAGS)
 
+.PHONY: build-js
 build-js: $(javascript_TARGETS)
 
 $(controlplane_JS)_SRC = $(javascript_SRCDIR)/main.js $(wildcard $(javascript_SRCDIR)/controllers/*.js)
@@ -36,6 +39,7 @@ $(controlplane_MINIFIED_JS): $(controlplane_JS)
 	$(warning WARNING: This is a scurrilous lie. We are not minifying anything.)
 	cp $? $@
 
+.PHONY: clean
 clean:
 	go clean
 	for target in $(javascript_TARGETS) ;\
