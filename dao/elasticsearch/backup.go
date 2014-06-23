@@ -7,7 +7,7 @@ package elasticsearch
 import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,7 +27,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"errors"
 )
 
 var backupOutput chan string = nil
@@ -129,8 +129,8 @@ var readJSONFromFile = func(v interface{}, filename string) error {
 	return nil
 }
 
-var getDockerImageNameIds = func(registry commons.DockerRegistry, client *dockerclient.Client) (map[string]string, error) {
-	images, e := commons.ListImages(registry, client)
+var getDockerImageNameIds = func(registry *docker.DockerRegistry, client *dockerclient.Client) (map[string]string, error) {
+	images, e := docker.ListImages(*registry, client)
 	if e != nil {
 		return nil, e
 	}
@@ -149,7 +149,7 @@ var getDockerImageNameIds = func(registry commons.DockerRegistry, client *docker
 	return result, nil
 }
 
-var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
+var exportDockerImageToFile = func(registry *docker.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
 	file, e := osCreate(filename)
 	if e != nil {
 		glog.Errorf("Could not create file %s: %v", filename, e)
@@ -178,7 +178,7 @@ var exportDockerImageToFile = func(registry commons.DockerRegistry, client *dock
 		},
 	}
 
-	container, e := commons.CreateContainer(registry, client, createOpts)
+	container, e := docker.CreateContainer(*registry, client, createOpts)
 	if e != nil {
 		glog.Errorf("Could not create container from image %s: %v", imageID, e)
 		return e
@@ -225,7 +225,7 @@ var repoAndTag = func(imageID string) (string, string) {
 	return imageID[:i], tag
 }
 
-var importDockerImageFromFile = func(registry commons.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
+var importDockerImageFromFile = func(registry *docker.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
 	file, e := os.Open(filename)
 	if e != nil {
 		return e
@@ -238,7 +238,7 @@ var importDockerImageFromFile = func(registry commons.DockerRegistry, client *do
 		InputStream: file,
 		Tag:         tag,
 	}
-	if e = commons.ImportImage(registry, client, importOpts); e != nil {
+	if e = docker.ImportImage(*registry, client, importOpts); e != nil {
 		return e
 	}
 	return nil
@@ -271,7 +271,7 @@ var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate,
 	return imageSet
 }
 
-func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath *string) (err error){
+func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath *string) (err error) {
 	go func() {
 		this.Backup(backupsDirectory, backupFilePath)
 	}()
@@ -279,10 +279,10 @@ func (this *ControlPlaneDao) AsyncBackup(backupsDirectory string, backupFilePath
 	return nil
 }
 
-func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) (err error){
+func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) (err error) {
 	select {
 	case *backupStatus = <-backupOutput:
-	case <-time.After(10 * time.Second ):
+	case <-time.After(10 * time.Second):
 		*backupStatus = "timeout"
 	case *backupStatus = <-backupError:
 		err = errors.New(*backupStatus)
@@ -296,7 +296,7 @@ func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) 
 func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
 	// Lock the error and output channels to ensure that only one backup runs at any given time.
 	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
-	err = func () error{
+	err = func() error {
 		cp.backupLock.Lock()
 
 		//ensure that the backupLock is unlocked after this function exits
@@ -395,7 +395,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 	// Note: client does not need to be .Close()'d
 
-	registry, e := commons.NewDockerRegistry(cp.dockerRegistry)
+	registry, e := docker.NewDockerRegistry(cp.dockerRegistry)
 	if e != nil {
 		glog.Errorf("Could not attain docker registry: %v", e)
 		backupError <- e.Error()
@@ -523,7 +523,7 @@ var getSnapshotPath = func(vfs, poolId, serviceID, snapshotID string) (string, e
 	return volume.SnapshotPath(snapshotID), nil
 }
 
-func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (err error){
+func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (err error) {
 	go func() {
 		this.Restore(backupFilePath, unused)
 	}()
@@ -531,10 +531,10 @@ func (this *ControlPlaneDao) AsyncRestore(backupFilePath string, unused *int) (e
 	return nil
 }
 
-func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string) (err error){
+func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string) (err error) {
 	select {
 	case *restoreStatus = <-restoreOutput:
-	case <-time.After(10 * time.Second ):
+	case <-time.After(10 * time.Second):
 		*restoreStatus = "timeout"
 	case *restoreStatus = <-restoreError:
 		err = errors.New(*restoreStatus)
@@ -578,7 +578,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	}
 
 	restoreOutput <- "Starting restore"
-	
+
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
@@ -653,7 +653,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		restoreError <- e.Error()
 		return e
 	}
-	registry, e := commons.NewDockerRegistry(cp.dockerRegistry)
+	registry, e := docker.NewDockerRegistry(cp.dockerRegistry)
 	if e != nil {
 		glog.Errorf("Could not attain docker registry: %v", e)
 		restoreError <- e.Error()
@@ -664,7 +664,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		imageTags := imageNameWithTags[1:]
 		imageName := "imported:" + imageID
 		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
-		image, e := commons.InspectImage(registry, client, imageID)
+		image, e := docker.InspectImage(*registry, client, imageID)
 		if e != nil {
 			if e != dockerclient.ErrNoSuchImage {
 				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageID, e)
@@ -677,7 +677,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 				restoreError <- e.Error()
 				return e
 			}
-			image, e = commons.InspectImage(registry, client, imageName)
+			image, e = docker.InspectImage(*registry, client, imageName)
 			if e != nil {
 				glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
 				restoreError <- e.Error()
@@ -698,7 +698,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 				Tag:   tag,
 				Force: true,
 			}
-			if e := commons.TagImage(registry, client, imageName, options); e != nil {
+			if e := docker.TagImage(*registry, client, imageName, options); e != nil {
 				glog.Errorf("Could not tag image %s (%s) options: %+v: %v", image.ID, imageName, options, e)
 				restoreError <- e.Error()
 				return e
@@ -715,7 +715,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	}
 	for _, snapFile := range snapFiles {
 		snapshotID := strings.TrimSuffix(snapFile, ".tgz")
-        restoreOutput <- fmt.Sprintf("Restoring snapshot: %v", snapshotID)
+		restoreOutput <- fmt.Sprintf("Restoring snapshot: %v", snapshotID)
 		if snapshotID == snapFile {
 			continue //the filename does not end with .tgz
 		}

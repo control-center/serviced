@@ -15,10 +15,10 @@ import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
+	"github.com/zenoss/serviced/node"
 )
 
 var empty interface{}
@@ -274,7 +274,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	registry, err := commons.NewDockerRegistry(e.dockerRegistry)
+	registry, err := docker.NewDockerRegistry(e.dockerRegistry)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -319,7 +319,7 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control plane client to look up the service
@@ -336,7 +336,7 @@ func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Cli
 	}
 
 	// make sure docker image is present
-	if _, err = commons.InspectImage(registry, dockerClient, svc.ImageID); err != nil {
+	if _, err = docker.InspectImage(*registry, dockerClient, svc.ImageID); err != nil {
 		glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
 		return nil, err
 	}
