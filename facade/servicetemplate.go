@@ -9,7 +9,7 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
@@ -171,18 +171,18 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			glog.Errorf("unable to start docker client")
 			return err
 		}
-		registry, err := commons.NewDockerRegistry(f.dockerRegistry)
+		registry, err := docker.NewDockerRegistry(f.dockerRegistry)
 		if err != nil {
 			glog.Errorf("unable to use docker registry: %s", err)
 			return err
 		}
-		_, err = commons.InspectImage(registry, dc, name)
+		_, err = docker.InspectImage(*registry, dc, name)
 		if err != nil {
-			if err != dockerclient.ErrNoSuchImage && ! strings.HasPrefix(err.Error(), "No such id:") {
+			if err != dockerclient.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
 				return err
 			}
-			image, err := commons.InspectImage(registry, dc, svc.ImageID)
+			image, err := docker.InspectImage(*registry, dc, svc.ImageID)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
@@ -192,7 +192,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 				Repo:  name,
 				Force: true,
 			}
-			if err := commons.TagImage(registry, dc, svc.ImageID, options); err != nil {
+			if err := docker.TagImage(*registry, dc, svc.ImageID, options); err != nil {
 				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
 				return err
 			}
@@ -220,13 +220,13 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 		glog.Errorf("unable to start docker client")
 		return err
 	}
-	registry, err := commons.NewDockerRegistry(f.dockerRegistry)
+	registry, err := docker.NewDockerRegistry(f.dockerRegistry)
 	if err != nil {
 		glog.Errorf("unable to use docker registry: %s", err)
 		return err
 	}
 	for imageId, _ := range imageIds {
-		_, err := commons.InspectImage(registry, dockerclient, imageId)
+		_, err := docker.InspectImage(*registry, dockerclient, imageId)
 		if err != nil {
 			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
 			glog.Error(err.Error())

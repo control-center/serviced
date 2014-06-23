@@ -11,6 +11,7 @@ package node
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
@@ -638,12 +639,12 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	glog.V(2).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
 	// pull the image from the registry first if necessary, then attempt to create the container.
-	registry, err := commons.NewDockerRegistry(a.dockerRegistry)
+	registry, err := docker.NewDockerRegistry(a.dockerRegistry)
 	if err != nil {
 		glog.Errorf("can't use docker registry %s: %s", a.dockerRegistry, err)
 		return false, err
 	}
-	ctr, err := commons.CreateContainer(registry, dc, dockerclient.CreateContainerOptions{Name: serviceState.Id, Config: config})
+	ctr, err := docker.CreateContainer(*registry, dc, dockerclient.CreateContainerOptions{Name: serviceState.Id, Config: config})
 	if err != nil {
 		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
@@ -752,7 +753,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// Make sure the image exists locally.
-	registry, err := commons.NewDockerRegistry(a.dockerRegistry)
+	registry, err := docker.NewDockerRegistry(a.dockerRegistry)
 	if err != nil {
 		glog.Errorf("Error using docker registry %s: %s", a.dockerRegistry, err)
 		return nil, nil, err
@@ -762,7 +763,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		glog.Errorf("can't create docker client: %v", err)
 		return nil, nil, err
 	}
-	if _, err = commons.InspectImage(registry, dc, service.ImageID); err != nil {
+	if _, err = docker.InspectImage(*registry, dc, service.ImageID); err != nil {
 		glog.Errorf("can't inspect docker image %s: %s", service.ImageID, err)
 		return nil, nil, err
 	}
