@@ -9,13 +9,13 @@
 
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
-IN_DOCKER := 0
+IN_DOCKER    = 0
 NSINITDIR=../../dotcloud/docker/pkg/libcontainer/nsinit
 
 default: build_binary
 
 install: build_binary bash-complete
-	cd web && make build-js
+	cd web && make build_js
 	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
 	go install
 	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
@@ -24,14 +24,11 @@ bash-complete:
 	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
 build_isvcs:
-	if [ "$(IN_DOCKER)" = "0" ]; then \
-		cd isvcs && make; \
-	else \
-		cd isvcs && make buildgo; \
-	fi
+	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
-build_js build-js:
-	cd web && make build-js
+.PHONY: build_js
+build_js:
+	cd web && make build_js
 
 #---------------------------------------------------------------------#
 # Fail early if GOPATH not set.  Not all targets require this, but
@@ -62,7 +59,7 @@ docker_SRC = github.com/dotcloud/docker
 nsinit: | $(GOPATH)/src/$(nsinit_SRC)
 	go build $($@_SRC)
 
-.PHONY: build_binary build_js nsinit
+.PHONY: build_binary 
 build_binary: build_isvcs build_js serviced nsinit
 
 go:
