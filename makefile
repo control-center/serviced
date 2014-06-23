@@ -210,7 +210,7 @@ clean: clean_js clean_nsinit | $(GODEP)
 # DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
 #==============================================================================#
 dockerbuild dockerbuild_binary:
-	$(error The $@ target has been depreated. Yo, fix your makefile.)
+	$(error The $@ target has been deprecated. Yo, fix your makefile.)
 
 ifeq "0" "1"
 pwdchecksum  := $(shell pwd | md5sum | awk '{print $$1}')
