@@ -58,23 +58,24 @@ const (
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
-	master          string               // the connection string to the master agent
-	uiport          string               // the port to the ui (legacy was port 8787, now default 443)
-	hostID          string               // the hostID of the current host
-	dockerDNS       []string             // docker dns addresses
-	varPath         string               // directory to store serviced	 data
-	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
-	vfs             string               // driver for container volumes
-	currentServices map[string]*exec.Cmd // the current running services
-	mux             *proxy.TCPMux
-	closing         chan chan error
-	proxyRegistry   proxy.ProxyRegistry
-	zkClient        *coordclient.Client
-	dockerRegistry  string // the docker registry to use
-	facade          *facade.Facade
-	context         datastore.Context
-	periodicTasks   chan struct{} // signal for periodic tasks to stop
-	maxContainerAge time.Duration // maximum age for a stopped container before it is removed
+	master               string               // the connection string to the master agent
+	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
+	hostID               string               // the hostID of the current host
+	dockerDNS            []string             // docker dns addresses
+	varPath              string               // directory to store serviced	 data
+	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
+	vfs                  string               // driver for container volumes
+	currentServices      map[string]*exec.Cmd // the current running services
+	mux                  *proxy.TCPMux
+	closing              chan chan error
+	proxyRegistry        proxy.ProxyRegistry
+	zkClient             *coordclient.Client
+	dockerRegistry       string // the docker registry to use
+	facade               *facade.Facade
+	context              datastore.Context
+	periodicTasks        chan struct{} // signal for periodic tasks to stop
+	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
+	virtualAddressSubnet string        // private subnet for virtual addresses
 }
 
 // assert that this implemenents the Agent interface
@@ -91,16 +92,17 @@ func getZkDSN(zookeepers []string) string {
 }
 
 type AgentOptions struct {
-	Master          string
-	UIPort          string
-	DockerDNS       []string
-	VarPath         string
-	Mount           []string
-	VFS             string
-	Zookeepers      []string
-	Mux             *proxy.TCPMux
-	DockerRegistry  string
-	MaxContainerAge time.Duration // Maximum container age for a stopped container before being removed
+	Master               string
+	UIPort               string
+	DockerDNS            []string
+	VarPath              string
+	Mount                []string
+	VFS                  string
+	Zookeepers           []string
+	Mux                  *proxy.TCPMux
+	DockerRegistry       string
+	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
+	VirtualAddressSubnet string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -117,6 +119,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.mux = options.Mux
 	agent.periodicTasks = make(chan struct{})
 	agent.maxContainerAge = options.MaxContainerAge
+	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 
 	dsn := getZkDSN(options.Zookeepers)
 	basePath := ""
@@ -625,7 +628,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	defer em.Close()
 
 	// create the docker client Config and HostConfig structures necessary to create and start the service
-	config, hostconfig, err := configureContainer(a, client, conn, procFinished, service, serviceState)
+	config, hostconfig, err := configureContainer(a, client, conn, procFinished, service, serviceState, a.virtualAddressSubnet)
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
 		return false, err
@@ -703,7 +706,7 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState) (*docker.Config, *docker.HostConfig, error) {
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState, virtualAddressSubnet string) (*docker.Config, *docker.HostConfig, error) {
 	cfg := &docker.Config{}
 	hcfg := &docker.HostConfig{}
 
@@ -880,6 +883,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
+		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup

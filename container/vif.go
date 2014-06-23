@@ -34,6 +34,7 @@ func NewVIFRegistry(subnet string) *VIFRegistry {
 func (reg *VIFRegistry) SetSubnet(subnet string) error {
 	// TODO: validate subnet is '%d.%d'
 	reg.subnet = subnet
+	glog.Infof("vif subnet is: %s", reg.subnet)
 	return nil
 }
 

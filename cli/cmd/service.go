@@ -104,7 +104,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
-					cli.StringFlag{"virtual-address-subnet", "10.3", "The subnet of virtual addresses"},
+					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "subnet for private virtual addresses"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {

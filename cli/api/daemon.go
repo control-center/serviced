@@ -288,16 +288,17 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 	nfsClient.Wait()
 
 	agentOptions := node.AgentOptions{
-		Master:          options.Endpoint,
-		UIPort:          options.UIPort,
-		DockerDNS:       options.DockerDNS,
-		VarPath:         options.VarPath,
-		Mount:           options.Mount,
-		VFS:             options.VFS,
-		Zookeepers:      options.Zookeepers,
-		Mux:             mux,
-		DockerRegistry:  options.DockerRegistry,
-		MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
+		Master:               options.Endpoint,
+		UIPort:               options.UIPort,
+		DockerDNS:            options.DockerDNS,
+		VarPath:              options.VarPath,
+		Mount:                options.Mount,
+		VFS:                  options.VFS,
+		Zookeepers:           options.Zookeepers,
+		Mux:                  mux,
+		DockerRegistry:       options.DockerRegistry,
+		MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
+		VirtualAddressSubnet: options.VirtualAddressSubnet,
 	}
 	hostAgent, err = node.NewHostAgent(agentOptions)
 
