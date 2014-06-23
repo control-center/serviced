@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/servicedversion"
+	"github.com/zenoss/serviced/validation"
 )
 
 // ServicedCli is the client ui for serviced
@@ -90,7 +91,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"alias", &cli.StringSlice{}, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60), "maximum age of a stopped container before removing"},
-		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "subnet for private virtual addresses"},
+		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for private virtual addresses"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},
@@ -155,6 +156,11 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Verbosity:            ctx.GlobalInt("v"),
 		CPUProfile:           ctx.GlobalString("cpuprofile"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
+	}
+
+	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
+		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
 
 	api.LoadOptions(options)

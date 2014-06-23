@@ -9,7 +9,10 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/validation"
 )
+
+const defaultSubnet string = "10.3" // /16 subnet for private virtual addresses
 
 type vif struct {
 	name     string
@@ -27,12 +30,14 @@ type VIFRegistry struct {
 }
 
 // NewVIFRegistry initializes a new VIFRegistry.
-func NewVIFRegistry(subnet string) *VIFRegistry {
-	return &VIFRegistry{subnet, make(map[string]*vif)}
+func NewVIFRegistry() *VIFRegistry {
+	return &VIFRegistry{subnet: defaultSubnet, vifs: make(map[string]*vif)}
 }
 
 func (reg *VIFRegistry) SetSubnet(subnet string) error {
-	// TODO: validate subnet is '%d.%d'
+	if err := validation.IsSubnet16(subnet); err != nil {
+		return err
+	}
 	reg.subnet = subnet
 	glog.Infof("vif subnet is: %s", reg.subnet)
 	return nil
