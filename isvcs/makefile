@@ -23,8 +23,9 @@ GZIP               := $(shell which pigz || which gzip)
 
 ifeq "$(IN_DOCKER)" "1"
 #
-# >> Your salient comment as to why it is not safe 
-# >> to build isvcs from within docker goes here.
+# Avoid building certain targets if it leads
+# to the problematic docker-in-docker build
+# scenario.
 #
 all: buildgo
 else
