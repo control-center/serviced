@@ -122,6 +122,7 @@ test: build_binary docker_ok
 	cd dfs/nfs && go test $(GOTEST_FLAGS)
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
+	cd validation && go test $(GOTEST_FLAGS)
 
 smoketest: build_binary docker_ok
 	/bin/bash smoke.sh
