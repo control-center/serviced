@@ -12,7 +12,7 @@ import (
 	"github.com/zenoss/serviced/validation"
 )
 
-const defaultSubnet string = "10.3" // /16 subnet for private virtual addresses
+const defaultSubnet string = "10.3" // /16 subnet for virtual addresses
 
 type vif struct {
 	name     string

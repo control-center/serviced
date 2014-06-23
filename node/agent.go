@@ -75,7 +75,7 @@ type HostAgent struct {
 	context              datastore.Context
 	periodicTasks        chan struct{} // signal for periodic tasks to stop
 	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
-	virtualAddressSubnet string        // private subnet for virtual addresses
+	virtualAddressSubnet string        // subnet for virtual addresses
 }
 
 // assert that this implemenents the Agent interface
