@@ -300,11 +300,7 @@ func (ed *elasticDriver) postIndex() error {
 				glog.V(4).Infof("Found error in response: '%v'", errString)
 				switch errString.(type) {
 				case string:
-					if strings.HasPrefix(errString.(string), "IndexAlreadyExistsException") {
-						errResponse = false
-					}
-					msg := fmt.Sprintf("nested: IndexAlreadyExistsException[[%s] already exists]; ", ed.index)
-					if strings.HasSuffix(errString.(string), msg) {
+					if strings.Contains(errString.(string), "IndexAlreadyExistsException") {
 						errResponse = false
 					}
 				}
