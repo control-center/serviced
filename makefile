@@ -10,7 +10,6 @@
 pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
 dockercache := /tmp/serviced-dind-$(pwdchecksum)
 IN_DOCKER    = 0
-NSINITDIR=../../dotcloud/docker/pkg/libcontainer/nsinit
 
 default: build_binary
 
@@ -176,8 +175,8 @@ clean_nsinit:
 	if [ -f nsinit ];then \
 		rm nsinit ;\
 	fi
-	if [ -d "$(NSINITDIR)" ];then \
-		cd $(NSINITDIR) && go clean ;\
+	if [ -d "$(GOSRC)/$(nsinit_SRC)" ];then \
+		cd $(GOSRC)/$(nsinit_SRC) && go clean ;\
 	fi
 
 .PHONY: clean_serviced
