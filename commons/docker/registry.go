@@ -20,11 +20,13 @@ import (
 
 type DockerRegistry struct {
 	host string
-	port uint64
+	port int64
 }
 
-// NewDockerRegistry creates a new DockerRegistry from the given specification. The
-// specification must be of the form: <host>:<port>.
+var auth = dockerclient.AuthConfiguration{}
+
+// NewDockerRegistry creates a new DockerRegistry from the given specification.
+// The spec must be of the form <host>:<port>.
 func NewDockerRegistry(spec string) (*DockerRegistry, error) {
 	parts := strings.Split(spec, ":")
 	if len(parts) != 2 {
@@ -37,18 +39,21 @@ func NewDockerRegistry(spec string) (*DockerRegistry, error) {
 		return nil, fmt.Errorf("invalid port %s: %v", parts[1], err)
 	}
 
-	return &DockerRegistry{host, port}, nil
+	return &DockerRegistry{host, int64(port)}, nil
+}
+
+// String returns the host and port of the registry.
+func (dr *DockerRegistry) String() string {
+	return strings.Join([]string{dr.host, strconv.Itoa(int(dr.port))}, ":")
 }
 
 // ListRemoteRepos returns a list of all repos in the registry.
 func (dr *DockerRegistry) ListRemoteRepos() ([]string, error) {
-	response := searchResponse{}
-
+	var response searchResponse
 	if err := dr.get("/v1/search", &response); err != nil {
-		glog.V(2).Infof("can't list remote repositories: %v", err)
+		glog.V(2).Infof("unable to list remote repos: %s", err)
 		return []string{}, err
 	}
-
 	result := []string{}
 	for _, entry := range response.results {
 		result = append(result, entry.name)
@@ -61,15 +66,14 @@ func (dr *DockerRegistry) ListRemoteRepos() ([]string, error) {
 func (dr *DockerRegistry) ListRemoteRepoTags(repo string) (map[string]string, error) {
 	repoName, _, err := repoNameAndTag(repo)
 	if err != nil {
-		glog.V(2).Infof("can't construct repository name: %v", err)
 		return map[string]string{}, err
 	}
 
 	path := "/v1/repositories/" + repoName + "/tags"
 
-	response := make(map[string]string)
+	var response map[string]string
 	if err = dr.get(path, &response); err != nil {
-		glog.V(2).Infof("can't list remote repository tags: %v", err)
+		glog.V(2).Infof("cannot get remote repo tags %s: %v", repo, err)
 		return map[string]string{}, err
 	}
 
@@ -78,21 +82,20 @@ func (dr *DockerRegistry) ListRemoteRepoTags(repo string) (map[string]string, er
 
 // GetRemoteRepoTag returns the UUID of the given image.
 func (dr *DockerRegistry) GetRemoteRepoTag(repoTag string) (string, error) {
+	// FIXME: this method is never used out side of this file and so shouldn't be exported.
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
-		glog.V(2).Infof("can't construct repository name: %v", err)
 		return "", err
 	}
-
 	if tag == "" {
 		tag = "latest"
 	}
 
 	path := "/v1/repositories/" + repoName + "/tags/" + tag
-	var response string
 
+	var response string
 	if err = dr.get(path, &response); err != nil {
-		glog.V(2).Infof("can't retrieve remote repository tag: %v", err)
+		glog.V(2).Infof("cannot get remote repo tag %s: %v", repoName, err)
 		return "", err
 	}
 
@@ -106,14 +109,12 @@ func (dr *DockerRegistry) ListRemoteImageTags() (map[string][]string, error) {
 
 	repos, err := dr.ListRemoteRepos()
 	if err != nil {
-		glog.V(2).Infof("can't list remote repositories: %v", err)
 		return result, err
 	}
 
 	for _, repo := range repos {
 		repoTags, err := dr.ListRemoteRepoTags(repo)
 		if err != nil {
-			glog.V(2).Infof("can't list remote repository tags: %v", err)
 			return result, err
 		}
 		for tag, imageID := range repoTags {
@@ -124,6 +125,7 @@ func (dr *DockerRegistry) ListRemoteImageTags() (map[string][]string, error) {
 			result[imageID] = append(tags, fmt.Sprintf("%s:%s", repo, tag))
 		}
 	}
+
 	return result, nil
 }
 
@@ -133,20 +135,20 @@ func (dr *DockerRegistry) ListRemoteImageTags() (map[string][]string, error) {
 func (dr *DockerRegistry) TagRemoteImage(imageID, repoTag string) error {
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
-		glog.V(2).Infof("can't construct repository name: %v", err)
 		return err
 	}
-
-	// Dev short circuit for ZEN-11996
-	if noregistry {
-		return nil
-	}
-
 	if tag == "" {
 		tag = "latest"
 	}
+
 	path := "/v1/repositories/" + repoName + "/tags/" + tag
-	return dr.put(path, imageID)
+
+	if err := dr.put(path, imageID); err != nil {
+		glog.V(2).Infof("cannot put remote image tag %s: %v", repoName, err)
+		return err
+	}
+
+	return nil
 }
 
 // RemoveRemoteImageTag removes the given tag from the registry.
@@ -154,64 +156,46 @@ func (dr *DockerRegistry) TagRemoteImage(imageID, repoTag string) error {
 func (dr *DockerRegistry) RemoveRemoteImageTag(repoTag string) error {
 	repoName, tag, err := repoNameAndTag(repoTag)
 	if err != nil {
-		glog.V(2).Infof("can't construct repository name: %v", err)
 		return err
 	}
-
 	if tag == "" {
 		return fmt.Errorf("no tag was specified for removal: %s", repoTag)
 	}
 
 	path := "/v1/repositories/" + repoName + "/tags/" + tag
 
-	switch err = dr.delete(path); {
-	case err == dockerclient.ErrNoSuchImage, err == nil:
-		return nil
-	default:
+	err = dr.delete(path)
+	if err != nil && err != dockerclient.ErrNoSuchImage {
 		return err
 	}
+
+	return nil
 }
 
-// String returns the host and port of the registry.
-func (dr *DockerRegistry) String() string {
-	return fmt.Sprintf("%s:%d", dr.host, dr.port)
-}
-
-func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) (e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.pullImageFromRegistry error: %s", e)
-		}
-	}()
-
+func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) error {
 	// Dev short circuit for ZEN-11996
 	if noregistry {
 		return nil
 	}
 
-	repoName, tag, err := repoNameAndTag(name)
+	imageID, err := commons.ParseImageID(name)
 	if err != nil {
 		return err
 	}
+	tag := imageID.Tag
 	if tag == "" {
 		tag = "latest"
 	}
+
 	opts := dockerclient.PullImageOptions{
-		Repository: fmt.Sprintf("%s:%s", repoName, tag),
+		Repository: imageID.BaseName(),
+		Tag:        tag,
 		Registry:   registry.String(),
 	}
 	return client.PullImage(opts, auth)
 }
 
-func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, name string, force bool) (e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.pushImageToRegistry name: %s, force: %t, error: %s", name, force, e)
-		} else {
-			glog.V(2).Infof("done pushing docker image %s to %s", name, registry)
-		}
-	}()
-
+func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, name string, force bool) error {
 	// Dev short circuit for ZEN-11996
 	if noregistry {
 		return nil
@@ -222,25 +206,30 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 	if err != nil {
 		return fmt.Errorf("invalid image name: %s, error: %s", name, err)
 	}
+
 	repoName := registry.String() + "/"
 	if imageID.User != "" {
 		repoName += imageID.User + "/"
 	}
+
 	repoName += imageID.Repo
 	fullName := repoName
+
 	if imageID.Tag != "" {
 		fullName += ":" + imageID.Tag
 	}
 
 	hostAndPort := imageID.Host
 	if imageID.Port != 0 {
-		hostAndPort += ":" + string(imageID.Port)
+		hostAndPort += ":" + fmt.Sprintf("%d", imageID.Port)
 	}
+
 	if hostAndPort != registry.String() {
 		image, err := client.InspectImage(name)
 		if err != nil {
 			return err
 		}
+
 		if force == dontForce {
 			// check to make sure that either the full (adjusted) name doesn't exist
 			// locally, or if it does exist, that it points to the exact same image.
@@ -253,36 +242,39 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 				return err
 			}
 		}
+
 		// tag the image locally
 		tagOpts := dockerclient.TagImageOptions{
 			Repo:  repoName,
 			Force: true,
 			Tag:   imageID.Tag,
 		}
-		glog.V(2).Infof("tagging image %s: %s", image.ID, tagOpts)
+
+		glog.V(2).Infof("tagging image %s: %+v", image.ID, tagOpts)
 		if err = client.TagImage(image.ID, tagOpts); err != nil {
+			glog.V(2).Infof("tagging image %s: %+v failed: %v", image.ID, tagOpts, err)
 			return err
 		}
 	}
+
 	opts := dockerclient.PushImageOptions{
 		Name:     repoName,
 		Tag:      imageID.Tag,
 		Registry: registry.String(),
 	}
-	glog.V(2).Infof("pushing image: %s", opts)
-	return client.PushImage(opts, auth)
+	glog.Infof("pushing image: %+v", opts)
+	if err := client.PushImage(opts, auth); err != nil {
+		glog.V(2).Infof("pushing image: %+v failed: %v", opts, err)
+	}
+
+	return nil
 }
 
 // syncImageFromRegistry gets the local docker image to match the registry.
 // If the image (name) is not already in the registry, pushes it in. (Error if
 // the image is missing locally too) Otherwise, if the local image is missing,
 // or its UUID differs from the registry, pulls from the registry.
-func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) (i *dockerclient.Image, e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.syncImageFromRegistry error: %s", e)
-		}
-	}()
+func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) (*dockerclient.Image, error) {
 	image, err := client.InspectImage(name)
 	if err != nil && err != dockerclient.ErrNoSuchImage {
 		return nil, err
@@ -307,6 +299,7 @@ func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 			return nil, err
 		}
 	}
+
 	if image == nil || image.ID != uuid {
 		if err = pullImageFromRegistry(registry, client, name); err != nil {
 			return nil, fmt.Errorf("failed to pull image \"%s\" from registry (%s): %s", name, registry, err)
@@ -320,43 +313,37 @@ func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 			return nil, fmt.Errorf("pulled image \"%s\" from registry (%s), but image id (%s) does not match", name, registry, uuid)
 		}
 	}
+
 	return image, err
 }
 
-var auth = dockerclient.AuthConfiguration{}
-
 func (dr *DockerRegistry) url(path string) string {
 	result := dr.String()
+
 	if len(result) < 4 || result[:4] != "http" {
 		result = "http://" + result
 	}
+
 	return strings.TrimRight(result, "/") + "/" + strings.TrimLeft(path, "/")
 }
 
-func (dr *DockerRegistry) get(path string, v interface{}) (e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.*dockerRegistry.get error: %s", e)
-		}
-	}()
+func (dr *DockerRegistry) get(path string, v interface{}) error {
 	var (
 		resp *http.Response
 		err  error
 	)
+
 	req := dr.url(path)
-	attempts := 0
-	for {
-		attempts++
-		resp, err = http.Get(req)
-		if err == nil {
-			break
-		}
-		if attempts < 3 {
+
+	for attempts := 0; attempts < 3; attempts++ {
+		if resp, err = http.Get(req); err != nil {
 			continue
 		}
-		return fmt.Errorf("failed to get response. attempts=%d, req=%s, err=%s", attempts, req, err)
+		goto success // yes, it's a goto and here it happens to make sense
 	}
+	return fmt.Errorf("failed to get response")
 
+success:
 	defer resp.Body.Close()
 	bytes, err := ioutil.ReadAll(resp.Body)
 
@@ -373,61 +360,64 @@ func (dr *DockerRegistry) get(path string, v interface{}) (e error) {
 	return nil
 }
 
-func (dr *DockerRegistry) put(path string, data interface{}) (e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.*dockerRegistry.put error: %s", e)
-		}
-	}()
+func (dr *DockerRegistry) put(path string, data interface{}) error {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
+
 	req, err := http.NewRequest("PUT", dr.url(path), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer res.Body.Close()
+
 	if res.StatusCode == 404 {
 		return dockerclient.ErrNoSuchImage
 	}
+
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if res.StatusCode > 304 {
 		return fmt.Errorf("status: %d, error: %s", res.StatusCode, bodyBytes)
 	}
+
 	return nil
 }
 
-func (dr *DockerRegistry) delete(path string) (e error) {
-	defer func() {
-		if e != nil {
-			glog.V(2).Infof("commons.*dockerRegistry.delete error: %s", e)
-		}
-	}()
+func (dr *DockerRegistry) delete(path string) error {
 	req, err := http.NewRequest("DELETE", dr.url(path), nil)
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer res.Body.Close()
+
 	if res.StatusCode == 404 {
 		return dockerclient.ErrNoSuchImage
 	}
+
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if res.StatusCode > 304 {
 		return fmt.Errorf("status: %d, error: %s", res.StatusCode, bodyBytes)
 	}
+
 	return nil
 }
 
