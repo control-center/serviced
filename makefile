@@ -36,27 +36,36 @@ build_js:
 #---------------------------------------------------------------------#
 ifeq "$(GOPATH)" ""
     $(error "GOPATH not set.")
+else
+    GOSRC = $(GOPATH)/src
+    GOBIN = $(GOPATH)/bin
+    GOPKG = $(GOPATH)/pkg
 endif
 
-GODEP = $(GOPATH)/bin/godep
-$(GODEP): | $(GOPATH)/src/$(godep_SRC)
+GODEP = $(GOBIN)/godep
+$(GODEP): | $(GOSRC)/$(godep_SRC)
 	go install $(godep_SRC)
 
 godep_SRC = github.com/tools/godep
-$(GOPATH)/src/$(godep_SRC):
+$(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
+
+.PHONY: serviced_svcdef_compiler
+SERVICED = $(GOBIN)/serviced
+$(SERVICED) serviced_svcdef_compiler:
+	go install .
 
 serviced: | $(GODEP)
 	$(GODEP) restore
 	go build
 
-NSINIT = $(GOPATH)/bin/nsinit
-$(NSINIT): | $(GOPATH)/src/$(nsinit_SRC)
+NSINIT = $(GOBIN)/nsinit
+$(NSINIT): | $(GOSRC)/$(nsinit_SRC)
 	go install $(nsinit_SRC)
 
 nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
 docker_SRC = github.com/dotcloud/docker
-nsinit: | $(GOPATH)/src/$(nsinit_SRC)
+nsinit: | $(GOSRC)/$(nsinit_SRC)
 	go build $($@_SRC)
 
 .PHONY: build_binary 
