@@ -34,6 +34,7 @@ func NewVIFRegistry() *VIFRegistry {
 	return &VIFRegistry{subnet: defaultSubnet, vifs: make(map[string]*vif)}
 }
 
+// SetSubnet sets the subnet used for virtual addresses
 func (reg *VIFRegistry) SetSubnet(subnet string) error {
 	if err := validation.IsSubnet16(subnet); err != nil {
 		return err
