@@ -6,33 +6,18 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 ################################################################################
+build_TARGETS = build_isvcs build_js serviced nsinit
+default: $(build_TARGETS)
 
-pwdchecksum := $(shell pwd | md5sum | awk '{print $$1}')
-dockercache := /tmp/serviced-dind-$(pwdchecksum)
-IN_DOCKER    = 0
+#---------------------#
+# Build macros        #
+#---------------------#
 
-default: build_binary
-
-install: build_binary bash-complete
-	cd web && make build_js
-	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
-	go install
-	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
-
-bash-complete:
-	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
-
-build_isvcs:
-	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
-
-.PHONY: build_js
-build_js:
-	cd web && make build_js
-
-#---------------------------------------------------------------------#
-# Fail early if GOPATH not set.  Not all targets require this, but
-# the bldenv is probably wonky at any rate if it is /not/ set.
-#---------------------------------------------------------------------#
+docker_SRC = github.com/dotcloud/docker
+#
+# Fail early if GOPATH not set.  Not all targets require 
+# this, but the bldenv is probably wonky otherwise.
+#
 ifeq "$(GOPATH)" ""
     $(error "GOPATH not set.")
 else
@@ -40,44 +25,46 @@ else
     GOBIN = $(GOPATH)/bin
     GOPKG = $(GOPATH)/pkg
 endif
+GODEP      = $(GOBIN)/godep
+IN_DOCKER  = 0
+nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
+NSINIT     = $(GOBIN)/nsinit
+SERVICED   = $(GOBIN)/serviced
 
-GODEP = $(GOBIN)/godep
-$(GODEP): | $(GOSRC)/$(godep_SRC)
-	go install $(godep_SRC)
+#---------------------#
+# Build targets       #
+#---------------------#
 
+.PHONY: build_binary 
+build_binary: $(build_TARGETS)
+
+.PHONY: build_js
+build_js:
+	cd web && make build_js
+
+.PHONY: build_isvcs
+build_isvcs:
+	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
+
+# Download godep source to $GOPATH/src/.
 godep_SRC = github.com/tools/godep
 $(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
 
-.PHONY: serviced_svcdef_compiler
-SERVICED = $(GOBIN)/serviced
-$(SERVICED) serviced_svcdef_compiler:
-	go install .
+.PHONY: go
+go:
+	go build
 
+nsinit: | $(GOSRC)/$(nsinit_SRC)
+	go build $($@_SRC)
+
+.PHONY: serviced_svcdef_compiler
 serviced: | $(GODEP)
 	$(GODEP) restore
 	go build
 
-NSINIT = $(GOBIN)/nsinit
-$(NSINIT): | $(GOSRC)/$(nsinit_SRC)
-	go install $(nsinit_SRC)
-
-nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-docker_SRC = github.com/dotcloud/docker
-nsinit: | $(GOSRC)/$(nsinit_SRC)
-	go build $($@_SRC)
-
-.PHONY: build_binary 
-build_binary: build_isvcs build_js serviced nsinit
-
-go:
-	rm serviced -Rf # temp workaround for moving main package
-	go build
-
-pkgs:
-	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
-
-dockerbuild_binaryx: docker_ok
+.PHONY: build_within_container dockerbuild_binaryx
+build_within_container dockerbuild_binaryx: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
@@ -89,23 +76,44 @@ dockerbuild_binaryx: docker_ok
 	zenoss/serviced-build make IN_DOCKER=1 build_binary
 	cd isvcs && make isvcs_repo
 
-dockerbuild_binary: docker_ok
-	docker build -t zenoss/serviced-build build
-	docker run --rm \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
-	echo "Using dock-in-docker cache dir $(dockercache)"
-	mkdir -p $(dockercache)
-	time docker run --rm \
-	--privileged \
-	-v $(dockercache):/var/lib/docker \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	-v `pwd`/pkg/build/tmp:/tmp \
-	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build /bin/bash \
-	-c '/usr/local/bin/wrapdocker && make build_binary'
+#---------------------#
+# Install targets     #
+#---------------------#
 
-dockerbuildx: docker_ok
+.PHONY: bash-complete
+bash-complete:
+	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
+
+# Make some things available through $(GOPATH)/bin/thing
+
+$(GODEP): | $(GOSRC)/$(godep_SRC)
+	go install $(godep_SRC)
+
+$(NSINIT): | $(GOSRC)/$(nsinit_SRC)
+	go install $(nsinit_SRC)
+
+$(SERVICED) serviced_svcdef_compiler:
+	go install .
+
+.PHONY: install
+# :-( Ug.  Build targets should not trigger install targets.
+#          Should probably be install: | <build_targets...>
+#
+install: build_binary bash-complete build_js
+	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
+	go install
+	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
+
+#---------------------#
+# Packaging targets   #
+#---------------------#
+
+.PHONY: pkgs
+pkgs:
+	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
+
+.PHONY: buildandpackage_within_container dockerbuildx
+buildandpackage_within_container dockerbuildx: docker_ok
 	docker build -t zenoss/serviced-build build
 	cd isvcs && make export
 	docker run --rm \
@@ -121,21 +129,9 @@ dockerbuildx: docker_ok
 		SUBPRODUCT=$(SUBPRODUCT) \
 		build_binary pkgs
 
-dockerbuild: docker_ok
-	docker build -t zenoss/serviced-build build
-	docker run --rm \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
-	echo "Using dock-in-docker cache dir $(dockercache)"
-	mkdir -p $(dockercache)
-	time docker run --rm \
-	--privileged \
-	-v $(dockercache):/var/lib/docker \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	-v `pwd`/pkg/build/tmp:/tmp \
-	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build /bin/bash \
-	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
+#---------------------#
+# Test targets        #
+#---------------------#
 
 test: build_binary docker_ok
 	go test ./commons/... $(GOTEST_FLAGS)
@@ -166,6 +162,10 @@ docker_ok:
 		exit 1;\
 	fi
 
+#---------------------#
+# Clean targets       #
+#---------------------#
+
 .PHONY: clean_js
 clean_js:
 	cd web && make clean
@@ -185,6 +185,13 @@ clean_serviced:
 		rm serviced ;\
 	fi
 
+# Better name for this target, please.
+# Should this be chained to the clean target?
+.PHONY: clean_fs
+clean_fs:
+	cd pkg && make clean
+
+# This needs more work.
 .PHONY: clean
 clean: clean_js clean_nsinit | $(GODEP)
 	rm serviced -Rf # needed for branch build to work to merge this commit, remove me later
@@ -196,6 +203,46 @@ clean: clean_js clean_nsinit | $(GODEP)
 	go clean
 
 
-clean_fs:
-	cd pkg && make clean
+#==============================================================================#
+# DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
+#==============================================================================#
+dockerbuild dockerbuild_binary:
+	$(error The $@ target has been depreated. Yo, fix your makefile.)
 
+ifeq "0" "1"
+pwdchecksum  := $(shell pwd | md5sum | awk '{print $$1}')
+dockercache  := /tmp/serviced-dind-$(pwdchecksum)
+
+dockerbuild: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	echo "Using dock-in-docker cache dir $(dockercache)"
+	mkdir -p $(dockercache)
+	time docker run --rm \
+	--privileged \
+	-v $(dockercache):/var/lib/docker \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build /bin/bash \
+	-c '/usr/local/bin/wrapdocker && make build_binary pkgs'
+
+dockerbuild_binary: docker_ok
+	docker build -t zenoss/serviced-build build
+	docker run --rm \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	zenoss/serviced-build /bin/bash -c "cd /go/src/github.com/zenoss/serviced/pkg/ && make clean && mkdir -p /go/src/github.com/zenoss/serviced/pkg/build/tmp"
+	echo "Using dock-in-docker cache dir $(dockercache)"
+	mkdir -p $(dockercache)
+	time docker run --rm \
+	--privileged \
+	-v $(dockercache):/var/lib/docker \
+	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`/pkg/build/tmp:/tmp \
+	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
+	zenoss/serviced-build /bin/bash \
+	-c '/usr/local/bin/wrapdocker && make build_binary'
+endif
+#==============================================================================#
