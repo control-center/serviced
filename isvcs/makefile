@@ -21,14 +21,14 @@ COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 
-ifeq "$(IN_DOCKER)" "0"
-all: buildgo isvcs_repo
-else
+ifeq "$(IN_DOCKER)" "1"
 #
 # >> Your salient comment as to why it is not safe 
 # >> to build isvcs from within docker goes here.
 #
 all: buildgo
+else
+all: buildgo isvcs_repo
 endif
 
 export: $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
