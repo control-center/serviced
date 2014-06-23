@@ -57,20 +57,22 @@ import (
 var minDockerVersion = version{0, 11, 1}
 
 type daemon struct {
-	staticIPs      []string
-	cpDao          dao.ControlPlane
-	dsDriver       datastore.Driver
-	dsContext      datastore.Context
-	facade         *facade.Facade
-	hostID         string
-	zclient        *coordclient.Client
-	storageHandler *storage.Server
-	zkDAO          *zzk.ZkDao
+	servicedEndpoint string
+	staticIPs        []string
+	cpDao            dao.ControlPlane
+	dsDriver         datastore.Driver
+	dsContext        datastore.Context
+	facade           *facade.Facade
+	hostID           string
+	zclient          *coordclient.Client
+	storageHandler   *storage.Server
+	zkDAO            *zzk.ZkDao
 }
 
-func newDaemon(staticIPs []string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string) (*daemon, error) {
 	d := &daemon{
-		staticIPs: staticIPs,
+		servicedEndpoint: servicedEndpoint,
+		staticIPs:        staticIPs,
 	}
 	return d, nil
 }
@@ -112,12 +114,19 @@ func (d *daemon) run() error {
 		}
 	}
 	if options.Agent {
-		if _, err = d.startAgent(); err != nil {
+		if _, err = d.setupAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
 
 	rpc.HandleHTTP()
+
+	if options.Agent {
+		glog.Infof(" ********** Calling START AGENT")
+		if _, err = d.startAgent(); err != nil {
+			glog.Fatalf("%v", err)
+		}
+	}
 
 	if options.ReportStats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
@@ -158,7 +167,8 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if d.zclient, err = d.initZK(); err != nil {
+	rootBasePath := ""
+	if d.zclient, err = d.initZK(rootBasePath); err != nil {
 		return err
 	}
 
@@ -209,7 +219,6 @@ func (d *daemon) startMaster() error {
 }
 
 func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
-
 	if len(certPEMFile) > 0 {
 		certPEM, err = ioutil.ReadFile(certPEMFile)
 		if err != nil {
@@ -252,8 +261,7 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
-func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
-
+func (d *daemon) setupAgent() (hostAgent *node.HostAgent, err error) {
 	muxListener, err := createMuxListener()
 	if err != nil {
 		return nil, err
@@ -262,30 +270,6 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 	if err != nil {
 		return nil, err
 	}
-
-	zkClient, err := d.initZK()
-	if err != nil {
-		return nil, err
-	}
-
-	//when running only an agent d.zkDAO is nil
-	if d.zkDAO == nil {
-		d.zkDAO = d.initZKDAO(zkClient)
-	}
-
-	agentIP, err := utils.GetIPAddress()
-	if err != nil {
-		panic(err)
-	}
-	thisHost, err := host.Build(agentIP, "unknown")
-	if err != nil {
-		panic(err)
-	}
-	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
-	if err != nil {
-		glog.Fatalf("could not create an NFS client: %s", err)
-	}
-	nfsClient.Wait()
 
 	agentOptions := node.AgentOptions{
 		Master:          options.Endpoint,
@@ -299,22 +283,8 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 		DockerRegistry:  options.DockerRegistry,
 		MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
 	}
+	// creates a zkClient that is not pool based!
 	hostAgent, err = node.NewHostAgent(agentOptions)
-
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
-	// register the API
-	glog.V(0).Infoln("registering ControlPlaneAgent service")
-	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
-		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
-	}
-	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
-	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
-		glog.Fatalf("could not register Agent RPC server: %v", err)
-	}
-
-	d.startAgentListeners()
 
 	go func() {
 		signalChan := make(chan os.Signal, 10)
@@ -331,6 +301,19 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 		os.Exit(0)
 	}()
 
+	if err != nil {
+		glog.Fatalf("Could not start ControlPlane agent: %v", err)
+	}
+	// register the API
+	glog.V(0).Infoln("registering ControlPlaneAgent service")
+	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
+		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
+	}
+	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
+	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
+		glog.Fatalf("could not register Agent RPC server: %v", err)
+	}
+
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
@@ -341,11 +324,61 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 	return hostAgent, nil
 }
 
-func (d *daemon) startAgentListeners() {
+func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
+	}
+	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		panic(err)
+	}
+
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return nil, fmt.Errorf("HostID failed: %v", err)
+	}
+	glog.Infof(" *********** myHostID: %+v", myHostID)
+
+	masterClient, err := master.NewClient(d.servicedEndpoint) //"172.17.42.1:4979") //d.servicedEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	glog.Infof(" *********** Made a new client...")
+	myHost, err := masterClient.GetHost(myHostID)
+	if err != nil {
+		return nil, err
+	}
+
+	glog.Infof(" *********** PoolID: %v", myHost.PoolID)
+	poolBasePath := "/pools/" + myHost.PoolID
+
+	zkClient, err := d.initZK(poolBasePath)
+	if err != nil {
+		return nil, err
+	}
+
+	//when running only an agent d.zkDAO is nil
+	if d.zkDAO == nil {
+		d.zkDAO = d.initZKDAO(zkClient)
+	}
+
+	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+	if err != nil {
+		glog.Fatalf("could not create an NFS client: %s", err)
+	}
+	nfsClient.Wait()
+
+	d.startAgentListeners(poolBasePath)
+
+	return hostAgent, nil
+}
+
+func (d *daemon) startAgentListeners(poolBasePath string) {
 	// start agent listeners
 	var err error
 	if d.zclient == nil {
-		d.zclient, err = d.initZK()
+		d.zclient, err = d.initZK(poolBasePath)
 		if err != nil {
 			glog.Fatal("could not initialize zk client: ", err)
 		}
@@ -390,7 +423,6 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 		return nil, err
 	}
 	return eDriver, nil
-
 }
 
 func (d *daemon) initFacade() *facade.Facade {
@@ -402,10 +434,10 @@ func (d *daemon) initISVCS() error {
 	return isvcs.Mgr.Start()
 }
 
-func (d *daemon) initZK() (*coordclient.Client, error) {
+func (d *daemon) initZK(basePath string) (*coordclient.Client, error) {
 	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
-	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	zclient, err := coordclient.New("zookeeper", dsn, basePath, nil)
 	return zclient, err
 }
 
@@ -445,5 +477,4 @@ func (d *daemon) runScheduler() {
 			}
 		}()
 	}
-
 }

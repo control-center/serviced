@@ -7,9 +7,9 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/rpc/agent"
 	"github.com/zenoss/serviced/rpc/master"
 )
@@ -87,7 +87,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.StaticIPs)
+	d, err := newDaemon(options.Endpoint, options.StaticIPs)
 	if err != nil {
 		return err
 	}

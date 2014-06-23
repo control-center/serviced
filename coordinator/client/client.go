@@ -143,6 +143,7 @@ func New(driverName, connectionString, basePath string, retryPolicy retry.Policy
 		retryPolicy = DefaultRetryPolicy()
 	}
 	client = &Client{
+		basePath:          basePath,
 		connectionString:  connectionString,
 		done:              make(chan chan struct{}),
 		retryPolicy:       retryPolicy,

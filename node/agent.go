@@ -163,7 +163,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *service.Service, cp dao.ControlPlane) error {
-
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := cp.GetService(svcID, &svc)
@@ -184,7 +183,6 @@ func (a *HostAgent) Shutdown() error {
 
 // Attempts to attach to a running container
 func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *servicestate.ServiceState, hss *zzk.HostServiceState) (bool, error) {
-
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerID)
 	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
@@ -285,7 +283,6 @@ func reapContainers(client *docker.Client, maxAge time.Duration) error {
 }
 
 func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
-
 	for {
 		select {
 		case <-time.After(interval):
@@ -448,7 +445,6 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
 		//TODO: should	"cmd" be cleaned up before returning?
 	} else {
-
 		//start IP resource proxy for each endpoint
 		var service service.Service
 		if err = zzk.LoadService(conn, serviceState.ServiceID, &service); err != nil {
@@ -468,10 +464,8 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 						glog.Warningf("Could not start External address proxy for %v; error: proxyId", proxyID, err)
 					}
 					defer a.proxyRegistry.RemoveProxy(proxyID)
-
 				}
 			}
-
 		}
 
 		glog.V(1).Infof("SSPath: %s, PortMapping: %v", zzk.ServiceStatePath(serviceState.ServiceID, serviceState.Id), serviceState.PortMapping)
@@ -526,13 +520,11 @@ func (a *HostAgent) waitForProcessToDie(dc *docker.Client, conn coordclient.Conn
 				}); err != nil {
 					glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
 				}
-
 			}
 		}
 		if err = zzk.ResetServiceState(conn, serviceState.ServiceID, serviceState.Id); err != nil {
 			glog.Errorf("Caught error marking process termination time for %s: %v", serviceState.Id, err)
 		}
-
 	}
 }
 
