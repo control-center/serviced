@@ -43,7 +43,8 @@ build_js:
 	cd web && make build_js
 
 .PHONY: build_isvcs
-build_isvcs:
+build_isvcs: | $(GODEP)
+	$(GODEP) restore
 	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
 # Download godep source to $GOPATH/src/.
@@ -72,8 +73,7 @@ build_within_container dockerbuild_binaryx: docker_ok
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
 	-v `pwd`/pkg/build/tmp:/tmp \
-	-e BUILD_NUMBER=$(BUILD_NUMBER) -t \
-	zenoss/serviced-build make IN_DOCKER=1 build_binary
+	-t zenoss/serviced-build make IN_DOCKER=1 build_binary
 	cd isvcs && make isvcs_repo
 
 #---------------------#
