@@ -150,7 +150,7 @@ func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tena
 }
 
 // RemoveItem removes an item from the registry
-func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, instanceID, hostID, containerID string) error {
+func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) error {
 	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID))
 }
 

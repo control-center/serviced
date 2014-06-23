@@ -549,7 +549,6 @@ func (c *Controller) registerExportedEndpoints() {
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			glog.Infof("Also exported endpoint[%s]: %+v", key, export.endpoint)
 			instanceIDStr := fmt.Sprintf("%d", export.endpoint.InstanceID)
 			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, instanceIDStr, c.hostID, c.dockerID, *endpoint))
 			if err != nil {
