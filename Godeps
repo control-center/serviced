@@ -83,7 +83,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Rev": "7440fd766bc6968eb71f0207134193b126b909b2"
+			"Rev": "bfb4a88fb60f3346eaaf225cac4877fbff0ed789"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
