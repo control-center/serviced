@@ -27,6 +27,20 @@ func IsIP(value string) error {
 	return nil
 }
 
+//IsSubnet16 checks to see if the value is a valid /16 subnet.  Returns an error if not valid
+func IsSubnet16(value string) error {
+	parts := strings.Split(value, ".")
+	if len(parts) != 2 {
+		return NewViolation(fmt.Sprintf("invalid /16 subnet %s", value))
+	}
+
+	ip := fmt.Sprintf("%s.1.1", value)
+	if nil == net.ParseIP(ip) {
+		return NewViolation(fmt.Sprintf("invalid /16 subnet %s", value))
+	}
+	return nil
+}
+
 //StringsEqual checks to see that strings are equal, optional msg to use instead of default
 func StringsEqual(expected string, other string, errMsg string) error {
 	if expected != other {
