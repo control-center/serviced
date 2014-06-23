@@ -19,10 +19,19 @@ var _ = Suite(&ValidationSuite{})
 func (vs *ValidationSuite) Test_IsSubnet16(c *C) {
 
 	subnetsValid := []string{
-		"10.3",
-		"10.5",
-		"10.20",
-		"10.255",
+		"9.0",     // non-private subnet
+		"10.0",    // start of private subnet 10.0 - 10.255
+		"10.3",    //   private subnet
+		"10.20",   //   private subnet
+		"10.255",  // end of private subnet
+		"11.0",    // non-private subnet
+		"172.15",  // non-private subnet
+		"172.16",  // start of private subnet 172.16 - 172.31
+		"172.31",  // end of private subnet
+		"172.32",  // non-private subnet
+		"192.167", // non-private subnet
+		"192.168", // private subnet 192.168
+		"192.169", // non-private subnet
 	}
 
 	for _, subnet := range subnetsValid {
@@ -35,6 +44,7 @@ func (vs *ValidationSuite) Test_IsSubnet16(c *C) {
 		"10",
 		"10.10.10",
 		"10.10.10.10",
+		"10.300",
 		"10.y",
 		"x.y",
 	}
