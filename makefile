@@ -84,6 +84,11 @@ build_within_container dockerbuild_binaryx: docker_ok
 bash-complete:
 	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
+install_logstash.conf = isvcs/resources/logstash/logstash.conf
+logstash.conf_SRC     = isvcs/resources/logstash/logstash.conf.in 
+$(install_logstash.conf): $(logstash.conf_SRC)
+	cp $? $@
+
 # Make some things available through $(GOPATH)/bin/thing
 
 $(GODEP): | $(GOSRC)/$(godep_SRC)
@@ -99,10 +104,8 @@ $(SERVICED) serviced_svcdef_compiler:
 # :-( Ug.  Build targets should not trigger install targets.
 #          Should probably be install: | <build_targets...>
 #
-install: build_binary bash-complete build_js
-	cp isvcs/resources/logstash/logstash.conf.in isvcs/resources/logstash/logstash.conf
+install: build_binary bash-complete build_js $(NSINIT) $(install_logstash.conf)
 	go install
-	go install github.com/dotcloud/docker/pkg/libcontainer/nsinit
 
 #---------------------#
 # Packaging targets   #
