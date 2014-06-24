@@ -17,21 +17,11 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     }
 
     $scope.navlinks = [
-        { url: '#/apps', label: 'nav_apps',
-            sublinks: [ '#/services/', '#/servicesmap' ], target: "_self"
-        },
-        { url: '#/pools', label: 'nav_pools',
-            sublinks: [ '#/pools/' ], target: "_self"
-        },
-        { url: '#/hosts', label: 'nav_hosts',
-            sublinks: [ '#/hosts/', '#/hostsmap' ], target: "_self"
-        },
-        { url: '#/logs', label: 'nav_logs',
-            sublinks: [], target: "_self"
-        },
-        { url: '#/backuprestore', label: 'nav_backuprestore',
-            sublinks: [], target: "_self"
-        }
+        { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
+        { url: '#/pools', label: 'nav_pools', sublinks: [ '#/pools/' ] },
+        { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/', '#/hostsmap' ] },
+        { url: '#/logs', label: 'nav_logs', sublinks: [] },
+        { url: '#/backuprestore', label: 'nav_backuprestore', sublinks: [] }
     ];
 
     for (var i=0; i < $scope.navlinks.length; i++) {
