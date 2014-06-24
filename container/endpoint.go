@@ -415,6 +415,7 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		return
 	}
 
+	// First pass of endpoints creates a map of instanceID to array of addresses
 	addressMap := make(map[int][]string, len(endpoints))
 	for _, endpoint := range endpoints {
 		address := fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
@@ -422,12 +423,16 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
+	// Populate a map representing the proxies that are to be created, again with instanceID as the key
 	proxyKeys := map[int]string{}
 	if purpose == "import" {
+		// We're doing a normal, load-balanced endpoint import
 		proxyKeys[0] = tenantEndpointID
 		glog.Infof("Importing service endpoint as port %d: %s", endpoints[0].ContainerPort, tenantEndpointID)
 	} else if purpose == "import_all" {
+		// Need to create a proxy per instance of the service whose endpoint is being imported
 		for _, instance := range endpoints {
+			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
 			glog.Infof("Importing service instance endpoint as port %d: %s instance %d", containerPort, tenantEndpointID, instance.InstanceID)
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
@@ -435,6 +440,7 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		}
 	}
 
+	// Now iterate over all the keys, create the proxies, and feed the the addresses for each instance
 	for instanceID, proxyKey := range proxyKeys {
 		prxy, ok := proxies[proxyKey]
 		if !ok {
