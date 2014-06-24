@@ -6,6 +6,7 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 ################################################################################
+GO = $(shell which go)
 
 javascript_TARGETS       = $(controlplane_JS) $(controlplane_MINIFIED_JS)
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
@@ -25,7 +26,7 @@ build: build_js
 
 .PHONY: test
 test: build
-	go test -i
+	go test -i ;\
 	go test $(GOTEST_FLAGS)
 
 .PHONY: build_js build-js
@@ -42,10 +43,12 @@ $(controlplane_MINIFIED_JS): $(controlplane_JS)
 
 .PHONY: clean
 clean:
-	go clean
+	if [ ! -z "$(GO)" ];then \
+		$(GO) clean ;\
+	fi
 	for target in $(javascript_TARGETS) ;\
 	do \
 		if [ -f "$${target}" ];then \
-			rm $${target} ;\
+			rm -f $${target} ;\
 		fi ;\
 	done
