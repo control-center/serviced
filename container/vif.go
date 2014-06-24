@@ -9,7 +9,10 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/validation"
 )
+
+const defaultSubnet string = "10.3" // /16 subnet for virtual addresses
 
 type vif struct {
 	name     string
@@ -22,12 +25,23 @@ type vif struct {
 // VIFRegistry holds state regarding virtual interfaces. It is meant to be
 // created in the proxy to manage vifs in the running service container.
 type VIFRegistry struct {
-	vifs map[string]*vif
+	subnet string
+	vifs   map[string]*vif
 }
 
 // NewVIFRegistry initializes a new VIFRegistry.
 func NewVIFRegistry() *VIFRegistry {
-	return &VIFRegistry{make(map[string]*vif)}
+	return &VIFRegistry{subnet: defaultSubnet, vifs: make(map[string]*vif)}
+}
+
+// SetSubnet sets the subnet used for virtual addresses
+func (reg *VIFRegistry) SetSubnet(subnet string) error {
+	if err := validation.IsSubnet16(subnet); err != nil {
+		return err
+	}
+	reg.subnet = subnet
+	glog.Infof("vif subnet is: %s", reg.subnet)
+	return nil
 }
 
 func (reg *VIFRegistry) nextIP() (string, error) {
@@ -37,8 +51,8 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 	}
 	o3 := (n / 255)
 	o4 := (n - (o3 * 255))
-	// TODO: Make this network configurable (See ZEN-11478)
-	return fmt.Sprintf("10.3.%d.%d", o3, o4), nil
+	// ZEN-11478: made the subnet configurable
+	return fmt.Sprintf("%s.%d.%d", reg.subnet, o3, o4), nil
 }
 
 // RegisterVirtualAddress takes care of the entire virtual address setup. It

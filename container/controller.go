@@ -68,6 +68,7 @@ type ControllerOptions struct {
 		Address       string // TCP port to host the metric service, :22350
 		RemoteEndoint string // The url to forward metric queries
 	}
+	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -238,6 +239,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 
 	if len(options.ServicedEndpoint) <= 0 {
 		return nil, ErrInvalidEndpoint
+	}
+
+	// set vifs subnet
+	if err := vifs.SetSubnet(options.VirtualAddressSubnet); err != nil {
+		glog.Errorf("Could not set VirtualAddressSubnet:%s %s", options.VirtualAddressSubnet, err)
+		return c, fmt.Errorf("container: invalid VirtualAddressSubnet:%s error:%s", options.VirtualAddressSubnet, err)
 	}
 
 	// get service

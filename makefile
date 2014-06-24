@@ -24,6 +24,7 @@ bash-complete:
 	sudo cp ./serviced-bash-completion.sh /etc/bash_completion.d/serviced
 
 build_binary:
+	./godep restore
 	if [ "$(IN_DOCKER)" = "0" ]; then \
 		cd isvcs && make; \
 	else \
@@ -31,7 +32,6 @@ build_binary:
 	fi
 	cd web && make build-js
 	if [ -d "$(NSINITDIR)/nsinit" ]; then rm -fr "$(NSINITDIR)/nsinit"; fi
-	./godep restore
 	rm serviced -Rf # temp workaround for moving main package
 	go build
 	cd $(NSINITDIR) && go build && go install
@@ -122,6 +122,7 @@ test: build_binary docker_ok
 	cd dfs/nfs && go test $(GOTEST_FLAGS)
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
+	cd validation && go test $(GOTEST_FLAGS)
 
 smoketest: build_binary docker_ok
 	/bin/bash smoke.sh

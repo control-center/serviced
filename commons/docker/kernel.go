@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	dockerep = "http://127.0.0.1:3006"
+	dockerep = "unix:///var/run/docker.sock"
 	snr      = "SERVICED_NOREGISTRY"
 	Wildcard = "*"
 )
@@ -246,7 +246,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- ctr
 		case req := <-cmds.Kill:
-			err := dc.KillContainer(req.args.id)
+			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGINT})
 			if err != nil {
 				req.errchan <- err
 				continue
