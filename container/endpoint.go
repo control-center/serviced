@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -118,32 +119,51 @@ func (c *Controller) getZkConnection() (coordclient.Connection, error) {
 }
 
 // buildEndpoints builds exportedEndpoints and importedEndpoints
-func (c *Controller) getEndpoints() error {
+func (c *Controller) getEndpoints(service *service.Service) error {
 	// get zookeeper connection
 	conn, err := c.getZkConnection()
 	if err != nil {
 		return err
 	}
 
-	// get service state
-	sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
-	if err != nil {
-		return err
-	}
-	c.dockerID = sstate.DockerID
+	if os.Getenv("SERVICED_PROXY_NOSERVICESTATE") == "" {
+		// get service state
+		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
+		if err != nil {
+			return err
+		}
+		c.dockerID = sstate.DockerID
 
-	// keep a copy of the service EndPoint exports
-	c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
-	if err != nil {
-		glog.Errorf("Invalid ExportedEndpoints")
-		return ErrInvalidExportedEndpoints
-	}
+		// keep a copy of the service EndPoint exports
+		c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
+		if err != nil {
+			glog.Errorf("Invalid ExportedEndpoints")
+			return ErrInvalidExportedEndpoints
+		}
 
-	// initialize importedEndpoints
-	c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
-	if err != nil {
-		glog.Errorf("Invalid ImportedEndpoints")
-		return ErrInvalidImportedEndpoints
+		// initialize importedEndpoints
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate.Endpoints)
+		if err != nil {
+			glog.Errorf("Invalid ImportedEndpoints")
+			return ErrInvalidImportedEndpoints
+		}
+	} else {
+		// this is not a running service, i.e. serviced shell/run
+		if hostname, err := os.Hostname(); err != nil {
+			glog.Errorf("could not get hostname : %s", err)
+			return err
+		} else {
+			c.dockerID = hostname
+		}
+
+		// TODO: deal with exports in the future when there is a use case for it
+
+		// initialize importedEndpoints
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service.Endpoints)
+		if err != nil {
+			glog.Errorf("Invalid ImportedEndpoints")
+			return ErrInvalidImportedEndpoints
+		}
 	}
 
 	return nil
@@ -182,18 +202,13 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 }
 
 // buildImportedEndpoints builds the map to imported endpoints
-func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state *servicestate.ServiceState) (map[string]importedEndpoint, error) {
-	glog.Infof("buildImportedEndpoints state: %+v", state)
+func buildImportedEndpoints(conn coordclient.Connection, tenantID string, endpoints []service.ServiceEndpoint) (map[string]importedEndpoint, error) {
+	glog.Infof("buildImportedEndpoints endpoints: %+v", endpoints)
 	result := make(map[string]importedEndpoint)
 
-	for _, defep := range state.Endpoints {
+	for _, defep := range endpoints {
 		if defep.Purpose == "import" {
-			endpoint, err := buildApplicationEndpoint(state, &defep)
-			if err != nil {
-				return result, err
-			}
-
-			setImportedEndpoint(&result, tenantID, endpoint.Application, endpoint.VirtualAddress)
+			setImportedEndpoint(&result, tenantID, defep.Application, defep.VirtualAddress)
 		}
 	}
 

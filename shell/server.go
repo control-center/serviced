@@ -405,6 +405,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_PROXY_NOSERVICESTATE=true"))
 
 	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)
