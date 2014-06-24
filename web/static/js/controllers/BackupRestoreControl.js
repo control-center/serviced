@@ -1,9 +1,7 @@
-function BackupRestoreControl($scope, $routeParams, $notification, resourcesService, authService, $translate, $templateCache) {
-
+function BackupRestoreControl($scope, $routeParams, $notification, $translate, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
-
-    $scope.name = "backupRestoreControl";
+    $scope.name = "backuprestore";
     $scope.params = $routeParams;
     $scope.breadcrumbs = [{ label: 'breadcrumb_backuprestore', itemClass: 'active' }];
 
