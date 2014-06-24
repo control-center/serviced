@@ -440,7 +440,7 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 
 	if purpose == "import" {
 		proxyKeys[0] = tenantEndpointID
-		glog.Infof("Importing service endpoint as port %d: %s", instance.ContainerPort, tenantEndpointID)
+		glog.Infof("Importing service endpoint as port %d: %s", endpoints[0].ContainerPort, tenantEndpointID)
 	} else if purpose == "import_all" {
 		for _, instance := range endpoints {
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
