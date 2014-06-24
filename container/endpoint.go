@@ -118,7 +118,7 @@ func (c *Controller) getZkConnection() (coordclient.Connection, error) {
 	return c.zkConn, nil
 }
 
-// buildEndpoints builds exportedEndpoints and importedEndpoints
+// getEndpoints builds exportedEndpoints and importedEndpoints
 func (c *Controller) getEndpoints(service *service.Service) error {
 	// get zookeeper connection
 	conn, err := c.getZkConnection()
