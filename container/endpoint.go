@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -393,12 +392,6 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 		if err != nil {
 			glog.Errorf("error getting endpoint node at %s: %v", path, err)
 		}
-		tmpID, err := strconv.Atoi(endpointNode.InstanceID)
-		if err != nil {
-			glog.Errorf("Unable to interpret InstanceID: %s", endpointNode.InstanceID)
-			return
-		}
-		endpointNode.ApplicationEndpoint.InstanceID = int(tmpID)
 		endpoints[ii] = &endpointNode.ApplicationEndpoint
 	}
 
@@ -422,20 +415,14 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		return
 	}
 
-	addresses := make([]string, len(endpoints))
-	for ii, endpoint := range endpoints {
-		addresses[ii] = fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", ii, addresses[ii], endpoint)
-	}
-	sort.Strings(addresses)
-	glog.V(2).Infof("  endpoint key:%s addresses:%+v", tenantEndpointID, addresses)
-
-	for ii, pp := range proxies {
-		glog.V(2).Infof("  proxies[%s]: %+v", ii, *pp)
+	addressMap := make(map[int][]string, len(endpoints))
+	for _, endpoint := range endpoints {
+		address := fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+		addressMap[endpoint.InstanceID] = append(addressMap[endpoint.InstanceID], address)
+		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
 	proxyKeys := map[int]string{}
-
 	if purpose == "import" {
 		proxyKeys[0] = tenantEndpointID
 		glog.Infof("Importing service endpoint as port %d: %s", endpoints[0].ContainerPort, tenantEndpointID)
@@ -478,8 +465,8 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 				}
 			}
 		}
-		glog.Infof("Setting proxy %s to addresses %v", proxyKey, addresses)
-		prxy.SetNewAddresses(addresses)
+		glog.Infof("Setting proxy %s to addresses %v", proxyKey, addressMap[instanceID])
+		prxy.SetNewAddresses(addressMap[instanceID])
 	}
 }
 

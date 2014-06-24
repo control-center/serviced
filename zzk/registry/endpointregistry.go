@@ -68,7 +68,6 @@ type EndpointNode struct {
 	dao.ApplicationEndpoint
 	TenantID    string
 	EndpointID  string
-	InstanceID  string
 	HostID      string
 	ContainerID string
 	version     interface{}
