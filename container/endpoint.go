@@ -32,7 +32,6 @@ var (
 type export struct {
 	endpoint     *dao.ApplicationEndpoint
 	vhosts       []string
-	instanceID   int
 	endpointName string
 }
 
@@ -171,7 +170,6 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			exp := export{}
 			exp.vhosts = defep.VHosts
 			exp.endpointName = defep.Name
-			exp.instanceID = state.InstanceID
 
 			var err error
 			exp.endpoint, err = buildApplicationEndpoint(state, &defep)
@@ -535,7 +533,7 @@ func (c *Controller) registerExportedEndpoints() {
 		for _, export := range exportList {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
-				epName := fmt.Sprintf("%s_%v", export.endpointName, export.instanceID)
+				epName := fmt.Sprintf("%s_%v", export.endpointName, export.endpoint.InstanceID)
 				var path string
 				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
 					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
@@ -544,8 +542,7 @@ func (c *Controller) registerExportedEndpoints() {
 			}
 
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			instanceIDStr := fmt.Sprintf("%d", export.endpoint.InstanceID)
-			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, instanceIDStr, c.hostID, c.dockerID, *endpoint))
+			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, *endpoint))
 			if err != nil {
 				glog.Errorf("  unable to add endpoint: %+v %v", *endpoint, err)
 				continue

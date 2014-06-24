@@ -53,12 +53,11 @@ func zkEndpointsPath(nodes ...string) string {
 }
 
 // NewEndpointNode returns a new EndpointNode given tenantID, endpointID, hostID, containerID, ApplicationEndpoint
-func NewEndpointNode(tenantID, endpointID, instanceID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
+func NewEndpointNode(tenantID, endpointID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
 	return EndpointNode{
 		ApplicationEndpoint: endpoint,
 		TenantID:            tenantID,
 		EndpointID:          endpointID,
-		InstanceID:          instanceID,
 		HostID:              hostID,
 		ContainerID:         containerID,
 	}
