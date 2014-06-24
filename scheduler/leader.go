@@ -31,59 +31,41 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string) {
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 
-	allPools, err := facade.GetResourcePools(datastore.Get())
-	if err != nil {
-		glog.Error(err)
-		return
-	} else if allPools == nil || len(allPools) == 0 {
-		glog.Error("no resource pools found")
-		return
-	}
-
-	for _, aPool := range allPools {
-		// TODO: Support non default pools
-		// Currently, only the default pool gets a leader
-		if aPool.ID != "default" {
-			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
-			continue
+	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID}
+	for {
+		if shutdownmode {
+			glog.V(1).Info("Shutdown mode encountered.")
+			break
 		}
-
-		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: aPool.ID}
-		for {
-			if shutdownmode {
-				glog.V(1).Info("Shutdown mode encountered.")
-				break
-			}
-			time.Sleep(time.Second)
-			func() error {
-				select {
-				case evt := <-zkEvent:
-					// shut this thing down
-					shutdownmode = true
-					glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-					return nil
-				default:
-					glog.V(0).Info("Processing leader duties")
-					// passthru
-				}
-
-				// creates a listener for snapshots with a function call to take snapshots
-				// and return the label and error message
-				go snapshot.Listen(conn, func(serviceID string) (string, error) {
-					var label string
-					err := dao.TakeSnapshot(serviceID, &label)
-					return label, err
-				})
-
-				leader.watchServices()
+		time.Sleep(time.Second)
+		func() error {
+			select {
+			case evt := <-zkEvent:
+				// shut this thing down
+				shutdownmode = true
+				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
 				return nil
-			}()
-		}
+			default:
+				glog.V(0).Info("Processing leader duties")
+				// passthru
+			}
+
+			// creates a listener for snapshots with a function call to take snapshots
+			// and return the label and error message
+			go snapshot.Listen(conn, func(serviceID string) (string, error) {
+				var label string
+				err := dao.TakeSnapshot(serviceID, &label)
+				return label, err
+			})
+
+			leader.watchServices()
+			return nil
+		}()
 	}
 }
 

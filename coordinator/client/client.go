@@ -79,6 +79,7 @@ type opClientRequestType int
 
 const (
 	opClientRequestConnection opClientRequestType = iota
+	opClientRequestCustomConnection
 	opClientCloseConnection
 	opClientClose
 )
@@ -115,7 +116,8 @@ type opClientRequest struct {
 // Client is a coordination client that abstracts using services like etcd or
 // zookeeper.
 type Client struct {
-	basePath          string               // the base path for every connection
+	basePath          string // the base path for every connection
+	customPath        string
 	connectionString  string               // the driver specific connection string
 	done              chan chan struct{}   // a shutdown channel
 	retryPolicy       retry.Policy         // the default retry policy to use
@@ -132,7 +134,6 @@ func DefaultRetryPolicy() retry.Policy {
 // New returns a client that will create connections using the given driver and
 // connection string. Any retryable operations will use the given retry policy.
 func New(driverName, connectionString, basePath string, retryPolicy retry.Policy) (client *Client, err error) {
-
 	var driver Driver
 	var exists bool
 	if driver, exists = registeredDrivers[driverName]; !exists {
@@ -157,7 +158,6 @@ func New(driverName, connectionString, basePath string, retryPolicy retry.Policy
 // EnsurePath creates the given path with empty nodes if they don't exist; the
 // last node in the path is only created if makeLastNode is true.
 func EnsurePath(client *Client, path string, makeLastNode bool) error {
-
 	pp := strings.Split(path, "/")
 	last := len(pp)
 	if last == 0 {
@@ -193,10 +193,9 @@ func EnsurePath(client *Client, path string, makeLastNode bool) error {
 		}).Wait()
 }
 
-// loop() is the  clients main entrypoint; it responds for requests for connections
+// loop() is the client's main entrypoint; it responds for requests for connections
 // and closing.
 func (client *Client) loop() {
-
 	// keep track of outstanding connections
 	connections := make(map[int]*Connection)
 	// connectionIDs are for local identification
@@ -216,6 +215,22 @@ func (client *Client) loop() {
 				}
 			case opClientRequestConnection:
 				c, err := client.connectionFactory.GetConnection(client.connectionString, client.basePath)
+				if err == nil {
+					// save a reference to the connection locally
+					connections[connectionID] = &c
+					c.SetID(connectionID)
+					c.SetOnClose(func(id int) {
+						client.closeConnection(id)
+					})
+					connectionID++
+					// setting up a callback to close the connection in this client
+					// if someone calls Close() on the driver reference
+					req.response <- c
+				} else {
+					req.response <- err
+				}
+			case opClientRequestCustomConnection:
+				c, err := client.connectionFactory.GetConnection(client.connectionString, client.customPath)
 				if err == nil {
 					// save a reference to the connection locally
 					connections[connectionID] = &c
@@ -274,8 +289,21 @@ func (client *Client) NewRetryLoop(cancelable func(chan chan error) chan error) 
 // Callers should call close() on thier connections when done. The client will also
 // close connections if close is called on the client.
 func (client *Client) GetConnection() (Connection, error) {
-
 	request := newOpClientRequest(opClientRequestConnection, nil)
+	client.opRequests <- request
+	response := <-request.response
+	switch response.(type) {
+	case error:
+		return nil, response.(error)
+	case Connection:
+		return response.(Connection), nil
+	}
+	panic("unreachable")
+}
+
+func (client *Client) GetCustomConnection(basePath string) (Connection, error) {
+	client.customPath = basePath
+	request := newOpClientRequest(opClientRequestCustomConnection, nil)
 	client.opRequests <- request
 	response := <-request.response
 	switch response.(type) {

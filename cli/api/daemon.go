@@ -114,7 +114,7 @@ func (d *daemon) run() error {
 		}
 	}
 	if options.Agent {
-		if _, err = d.setupAgent(); err != nil {
+		if err = d.setupAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -123,7 +123,7 @@ func (d *daemon) run() error {
 
 	if options.Agent {
 		glog.Infof(" ********** Calling START AGENT")
-		if _, err = d.startAgent(); err != nil {
+		if err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -261,54 +261,113 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
-func (d *daemon) setupAgent() (hostAgent *node.HostAgent, err error) {
+func (d *daemon) setupAgent() error {
 	muxListener, err := createMuxListener()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	agentOptions := node.AgentOptions{
-		Master:          options.Endpoint,
-		UIPort:          options.UIPort,
-		DockerDNS:       options.DockerDNS,
-		VarPath:         options.VarPath,
-		Mount:           options.Mount,
-		VFS:             options.VFS,
-		Zookeepers:      options.Zookeepers,
-		Mux:             mux,
-		DockerRegistry:  options.DockerRegistry,
-		MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
+	agentIP, err := utils.GetIPAddress()
+	if err != nil {
+		panic(err)
 	}
-	// creates a zkClient that is not pool based!
-	hostAgent, err = node.NewHostAgent(agentOptions)
+	thisHost, err := host.Build(agentIP, "unknown")
+	if err != nil {
+		panic(err)
+	}
 
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return fmt.Errorf("HostID failed: %v", err)
+	}
+	glog.Infof(" *********** myHostID: %+v", myHostID)
+
+	sleepRetry := 3
 	go func() {
-		signalChan := make(chan os.Signal, 10)
-		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-		<-signalChan
-		glog.V(0).Info("Shutting down due to interrupt")
-		err = hostAgent.Shutdown()
-		if err != nil {
-			glog.V(1).Infof("Agent shutdown with error: %v", err)
-		} else {
-			glog.Info("Agent shutdown")
+		var poolBasePath string
+		for {
+			masterClient, err := master.NewClient(d.servicedEndpoint) //"172.17.42.1:4979") //d.servicedEndpoint)
+			if err != nil {
+				glog.Errorf("master.NewClient failed: %v", err)
+				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
+				continue
+			}
+			glog.Infof(" *********** Made a new client...")
+			myHost, err := masterClient.GetHost(myHostID)
+			if err != nil {
+				glog.Errorf("masterClient.GetHost failed: %v", err)
+				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
+				continue
+			}
+			glog.Infof(" *********** PoolID: %v", myHost.PoolID)
+			poolBasePath = "/pools/" + myHost.PoolID
+			break
 		}
-		isvcs.Mgr.Stop()
-		os.Exit(0)
+
+		zkClient, err := d.initZK(poolBasePath)
+		if err != nil {
+			glog.Errorf("d.initZK failed: %v", err)
+		}
+
+		//when running only an agent d.zkDAO is nil
+		if d.zkDAO == nil {
+			d.zkDAO = d.initZKDAO(zkClient)
+		}
+
+		nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+		if err != nil {
+			glog.Fatalf("could not create an NFS client: %s", err)
+		}
+		nfsClient.Wait()
+
+		d.startAgentListeners(poolBasePath)
+
+		agentOptions := node.AgentOptions{
+			Master:          options.Endpoint,
+			UIPort:          options.UIPort,
+			DockerDNS:       options.DockerDNS,
+			VarPath:         options.VarPath,
+			Mount:           options.Mount,
+			VFS:             options.VFS,
+			Zookeepers:      options.Zookeepers,
+			Mux:             mux,
+			DockerRegistry:  options.DockerRegistry,
+			MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
+			BasePath:        poolBasePath,
+		}
+		// creates a zkClient that is not pool based!
+		hostAgent, err := node.NewHostAgent(agentOptions)
+
+		// register the API
+		glog.V(0).Infoln("registering ControlPlaneAgent service")
+		if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
+			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
+		}
+
+		go func() {
+			signalChan := make(chan os.Signal, 10)
+			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+			<-signalChan
+			glog.V(0).Info("Shutting down due to interrupt")
+			err = hostAgent.Shutdown()
+			if err != nil {
+				glog.V(1).Infof("Agent shutdown with error: %v", err)
+			} else {
+				glog.Info("Agent shutdown")
+			}
+			isvcs.Mgr.Stop()
+			os.Exit(0)
+		}()
 	}()
 
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
-	// register the API
-	glog.V(0).Infoln("registering ControlPlaneAgent service")
-	if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
-		glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
-	}
+
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
 	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
@@ -321,57 +380,11 @@ func (d *daemon) setupAgent() (hostAgent *node.HostAgent, err error) {
 		http.ListenAndServe(":50000", sio)
 	}()
 
-	return hostAgent, nil
+	return nil
 }
 
-func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
-	agentIP, err := utils.GetIPAddress()
-	if err != nil {
-		panic(err)
-	}
-	thisHost, err := host.Build(agentIP, "unknown")
-	if err != nil {
-		panic(err)
-	}
-
-	myHostID, err := utils.HostID()
-	if err != nil {
-		return nil, fmt.Errorf("HostID failed: %v", err)
-	}
-	glog.Infof(" *********** myHostID: %+v", myHostID)
-
-	masterClient, err := master.NewClient(d.servicedEndpoint) //"172.17.42.1:4979") //d.servicedEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	glog.Infof(" *********** Made a new client...")
-	myHost, err := masterClient.GetHost(myHostID)
-	if err != nil {
-		return nil, err
-	}
-
-	glog.Infof(" *********** PoolID: %v", myHost.PoolID)
-	poolBasePath := "/pools/" + myHost.PoolID
-
-	zkClient, err := d.initZK(poolBasePath)
-	if err != nil {
-		return nil, err
-	}
-
-	//when running only an agent d.zkDAO is nil
-	if d.zkDAO == nil {
-		d.zkDAO = d.initZKDAO(zkClient)
-	}
-
-	nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
-	if err != nil {
-		glog.Fatalf("could not create an NFS client: %s", err)
-	}
-	nfsClient.Wait()
-
-	d.startAgentListeners(poolBasePath)
-
-	return hostAgent, nil
+func (d *daemon) startAgent() error {
+	return nil
 }
 
 func (d *daemon) startAgentListeners(poolBasePath string) {
@@ -464,13 +477,7 @@ func (d *daemon) startScheduler() {
 func (d *daemon) runScheduler() {
 	for {
 		func() {
-			conn, err := d.zclient.GetConnection()
-			if err != nil {
-				return
-			}
-			defer conn.Close()
-
-			sched, shutdown := scheduler.NewScheduler("", conn, d.hostID, d.cpDao, d.facade)
+			sched, shutdown := scheduler.NewScheduler("", d.zclient, d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:

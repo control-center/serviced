@@ -101,6 +101,7 @@ type AgentOptions struct {
 	Mux             *proxy.TCPMux
 	DockerRegistry  string
 	MaxContainerAge time.Duration // Maximum container age for a stopped container before being removed
+	BasePath        string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -119,8 +120,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.maxContainerAge = options.MaxContainerAge
 
 	dsn := getZkDSN(options.Zookeepers)
-	basePath := ""
-	zkClient, err := coordclient.New("zookeeper", dsn, basePath, nil)
+	zkClient, err := coordclient.New("zookeeper", dsn, options.BasePath, nil)
 	if err != nil {
 		return nil, err
 	}
