@@ -222,6 +222,17 @@ func ParseImageID(iid string) (*ImageID, error) {
 
 // String returns a string representation of the ImageID structure
 func (iid ImageID) String() string {
+	name := iid.BaseName()
+
+	if iid.Tag != "" {
+		name = name + ":" + iid.Tag
+	}
+
+	return name
+}
+
+// BaseName returns a string representation of the ImageID structure sans tag
+func (iid ImageID) BaseName() string {
 	s := []string{}
 
 	if iid.Host != "" {
@@ -237,10 +248,6 @@ func (iid ImageID) String() string {
 	}
 
 	s = append(s, iid.Repo)
-
-	if iid.Tag != "" {
-		s = append(s, ":", iid.Tag)
-	}
 
 	return strings.Join(s, "")
 }

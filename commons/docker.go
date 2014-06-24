@@ -128,15 +128,17 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 		return nil
 	}
 
-	repoName, tag, err := repoNameAndTag(name)
+	imageID, err := ParseImageID(name)
 	if err != nil {
 		return err
 	}
+	tag := imageID.Tag
 	if tag == "" {
 		tag = "latest"
 	}
+
 	opts := dockerclient.PullImageOptions{
-		Repository: repoName,
+		Repository: imageID.BaseName(),
 		Tag:        tag,
 		Registry:   registry.String(),
 	}
@@ -200,7 +202,7 @@ func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, n
 			Force: true,
 			Tag:   imageID.Tag,
 		}
-		glog.V(2).Infof("tagging image %s: %s", image.ID, tagOpts)
+		glog.V(2).Infof("tagging image %s: %+v", image.ID, tagOpts)
 		if err = client.TagImage(image.ID, tagOpts); err != nil {
 			return err
 		}
@@ -313,6 +315,8 @@ func TagImage(registry DockerRegistry, client *dockerclient.Client, name string,
 	if err != nil {
 		return err
 	}
+
+	glog.V(2).Infof("Tagging %s %+v", name, opts)
 	if err = client.TagImage(name, opts); err != nil {
 		return err
 	}
@@ -322,10 +326,13 @@ func TagImage(registry DockerRegistry, client *dockerclient.Client, name string,
 		return nil
 	}
 
-	if opts.Tag == "" {
-		return registry.TagRemoteImage(image.ID, opts.Repo)
+	repoTag := opts.Repo;
+	if opts.Tag != "" {
+		repoTag = repoTag + ":" + opts.Tag
 	}
-	return registry.TagRemoteImage(image.ID, opts.Repo+":"+opts.Tag)
+
+	pushImageToRegistry(registry, client, repoTag, doForce)
+	return registry.TagRemoteImage(image.ID, repoTag)
 }
 
 // RemoveImage wraps client.RemoveImage, removing the tag from the registry

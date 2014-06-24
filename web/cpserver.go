@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
@@ -25,7 +26,7 @@ import (
 type ServiceConfig struct {
 	bindPort    string
 	agentPort   string
-	zookeepers  []string
+	zkClient    *coordclient.Client
 	stats       bool
 	hostaliases []string
 	muxTLS      bool
@@ -35,11 +36,11 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.Client, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
-		zookeepers:  zookeepers,
+		zkClient:    zkClient,
 		stats:       stats,
 		hostaliases: []string{},
 		muxTLS:      muxTLS,
@@ -47,9 +48,6 @@ func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, st
 	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
-	}
-	if len(cfg.zookeepers) == 0 {
-		cfg.zookeepers = []string{"127.0.0.1:2181"}
 	}
 	return &cfg
 }
