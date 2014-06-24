@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/zenoss/serviced/serviced",
+	"ImportPath": "github.com/zenoss/serviced",
 	"GoVersion": "go1.2",
 	"Deps": [
 		{
