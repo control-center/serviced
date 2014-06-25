@@ -126,7 +126,24 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	if os.Getenv("SERVICED_PROXY_NOSERVICESTATE") == "" {
+	if os.Getenv("SERVICED_IS_SERVICE_SHELL") != "" {
+		// this is not a running service, i.e. serviced shell/run
+		if hostname, err := os.Hostname(); err != nil {
+			glog.Errorf("could not get hostname : %s", err)
+			return err
+		} else {
+			c.dockerID = hostname
+		}
+
+		// TODO: deal with exports in the future when there is a use case for it
+
+		// initialize importedEndpoints
+		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service.Endpoints)
+		if err != nil {
+			glog.Errorf("Invalid ImportedEndpoints")
+			return ErrInvalidImportedEndpoints
+		}
+	} else {
 		// get service state
 		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
 		if err != nil {
@@ -143,23 +160,6 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 
 		// initialize importedEndpoints
 		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate.Endpoints)
-		if err != nil {
-			glog.Errorf("Invalid ImportedEndpoints")
-			return ErrInvalidImportedEndpoints
-		}
-	} else {
-		// this is not a running service, i.e. serviced shell/run
-		if hostname, err := os.Hostname(); err != nil {
-			glog.Errorf("could not get hostname : %s", err)
-			return err
-		} else {
-			c.dockerID = hostname
-		}
-
-		// TODO: deal with exports in the future when there is a use case for it
-
-		// initialize importedEndpoints
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, service.Endpoints)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return ErrInvalidImportedEndpoints
