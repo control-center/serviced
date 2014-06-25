@@ -16,7 +16,7 @@
             </button>
         </span>
     </div>
-    <table class="table table-striped table-bordered table-hover" id="apps_data" >
+    <table class="table table-striped table-bordered " id="apps_data" >
       <thead>
         <tr>
           <th ng-repeat="header in services.headers">{{header.name|translate}}
@@ -26,12 +26,12 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">		  
-          <td ng-click="click_app(app.Id)">{{app.Name}}</td>
+        <tr ng-repeat="app in services.data | orderBy:services.sort">		  
+          <td ng-click="click_app(app.Id)" class="link">{{app.Name}}</td>
           <td ng-class="app.deploymentClass"> <span ng-class="app.deploymentIcon"></span> {{app.Deployment}} </td>
           <td>{{app.DeploymentID}}</td>
           <td>{{app.PoolID}}</td>
-          <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank">{{vhost_url(vhost)}}</a></p></td>
+          <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a></p></td>
           <td width="130" style="text-align: center">
             <div class="toggle btn-group" data-toggle="buttons">
               <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
@@ -42,7 +42,7 @@
               </label>
             </div>
           </td>
-		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link">Delete</button> </td>
+		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link action">Delete</button> </td>
       </tr>
       </tbody>
     </table>
