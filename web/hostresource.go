@@ -7,7 +7,6 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
@@ -75,7 +74,7 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 //restGetMaster retrieves information related to the master.
 func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	w.WriteJson(&map[string]string{"hostalias":defaultHostAlias})
+	w.WriteJson(&map[string]string{"hostalias": defaultHostAlias})
 }
 
 //restAddHost adds a Host. Request input is host.Host
@@ -193,26 +192,12 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 }
 
 func buildHostMonitoringProfile(host *host.Host) error {
-	host.MonitoringProfile = domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
-	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	tags := map[string][]string{"controlplane_host_id": []string{host.ID}}
+	profile, err := newProfileWithGraphs(tags, host.Cores, host.Memory)
 	if err != nil {
-		glog.Errorf("Failed to create metric builder: %s", err)
+		glog.Error("Failed to create host profile: %s", err)
 		return err
 	}
-
-	for i := range metrics {
-		build.Metric(metrics[i].ID, metrics[i].Name).SetTag("controlplane_host_id", host.ID)
-		config, err := build.Config(metrics[i].ID, metrics[i].Name, metrics[i].Description, "1h-ago")
-		if err != nil {
-			glog.Errorf("Failed to build metric: %s", err)
-			host.MonitoringProfile = domain.MonitorProfile{}
-			return err
-		}
-		host.MonitoringProfile.MetricConfigs[i] = *config
-	}
-
+	host.MonitoringProfile = profile
 	return nil
 }

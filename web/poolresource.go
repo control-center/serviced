@@ -7,7 +7,6 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/rpc/master"
 
@@ -232,26 +231,12 @@ func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
 }
 
 func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string) error {
-	pool.MonitoringProfile = domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(metrics)),
-	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	tags := map[string][]string{"controlplane_host_id": hostIDs}
+	profile, err := newProfile(tags)
 	if err != nil {
-		glog.Errorf("Failed to create metric builder: %s", err)
+		glog.Error("Failed to create pool profile: %s", err)
 		return err
 	}
-
-	for i := range metrics {
-		build.Metric(metrics[i].ID, metrics[i].Name).SetTag("controlplane_host_id", hostIDs...)
-		config, err := build.Config(metrics[i].ID, metrics[i].Name, metrics[i].Description, "1h-ago")
-		if err != nil {
-			glog.Errorf("Failed to build metric: %s", err)
-			pool.MonitoringProfile = domain.MonitorProfile{}
-			return err
-		}
-		pool.MonitoringProfile.MetricConfigs[i] = *config
-	}
-
+	pool.MonitoringProfile = profile
 	return nil
 }
