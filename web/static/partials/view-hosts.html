@@ -18,16 +18,17 @@
         <label class="active">{{'nav_hosts_list'|translate}}</label>
         <a class="nav-link" href="#/hostsmap">{{'nav_hosts_map'|translate}}</a>
       </div>
-      <table class="table table-striped table-bordered  side-flush" id="hosts_data">
-        <tbody>
+      <table class="table table-striped side-flush" id="hosts_data">
+        <thead class="light">
           <tr>
             <th>{{'label_host_id' | translate}}</th>
             <th>{{'label_pool_name'| translate}}</th>
             <th>{{'label_host_memory' | translate}}</th>
             <th>{{'label_host_cores' | translate}}</th>
             <th>{{'label_host_kernel_version' | translate}}</th>
-
           </tr>
+        </thead>
+        <tbody>
           <tr ng-repeat="host in hosts.filtered">
             <td data-drag="true" ng-model="host" ng-click="clickHost(host.ID)"
                 data-jqyoui-options="{helper: 'clone', revert: 'invalid'}" 

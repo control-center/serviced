@@ -16,7 +16,7 @@
             </button>
         </span>
     </div>
-    <table class="table table-striped table-bordered " id="apps_data" >
+    <table class="table table-striped" id="apps_data" >
       <thead>
         <tr>
           <th ng-repeat="header in services.headers">{{header.name|translate}}
@@ -42,7 +42,7 @@
               </label>
             </div>
           </td>
-		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link action">Delete</button> </td>
+		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button> </td>
       </tr>
       </tbody>
     </table>
