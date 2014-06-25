@@ -23,8 +23,6 @@
     "restore_complete": "Restore Complete",
     "restore_running": "Restoring from Backup",
 
-    "brand_cp": "Control Plane",
-    "brand_zcp": "Zenoss Control Plane",
     "breadcrumb_deployed": "Deployed Apps",
     "breadcrumb_hosts": "Hosts",
     "breadcrumb_hosts_map": "Hosts Map",
