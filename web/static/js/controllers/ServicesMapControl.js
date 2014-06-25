@@ -41,7 +41,10 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
                 id: service.Id,
                 value: { label: service.Name}
             };
-            nodeClasses[service.Id] = 'service notrunning';
+
+            if(!nodeClasses[service.Id]){
+                nodeClasses[service.Id] = 'service notrunning';
+            }
 
             if (service.ParentServiceID !== '') {
                 var parent = $scope.services.mapped[service.ParentServiceID];
