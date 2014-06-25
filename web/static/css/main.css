@@ -27,7 +27,6 @@ a:hover, a:active, a:focus,
 
 .link:hover {
     color: #0084DB;
-    text-decoration: underline;
 }
 .link:active {
     color: #6694FF;
@@ -36,7 +35,7 @@ a:hover, a:active, a:focus,
 .action {
     font-weight: 500;
     cursor: pointer;
-    color: #0084DB;
+    color: #325385;
     text-decoration: none;
     padding-top: 0;
     padding-left: 0;
@@ -389,10 +388,10 @@ li.current > .extended {
 }
 
 td.deploy-success {
-    color: #468847;
+    color: #0084DB;
 }
 td.deploy-error {
-    color: #b94a48;
+    color: #9C1200;
 }
 td.deploy-info {
     color: #3a87ad;
@@ -1000,7 +999,7 @@ rect {
     font-size: 1.2em;
 }
 .healthIcon.good {
-    color: #3C91C9;
+    color: #0084DB;
 }
 .healthIcon.unknown {
     color: #999;
