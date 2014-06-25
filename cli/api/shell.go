@@ -3,14 +3,13 @@ package api
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/shell"
+	"github.com/zenoss/serviced/utils"
 )
 
 // ShellConfig is the deserialized object from the command-line
@@ -62,7 +61,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	if err != nil {
 		return err
 	}
-	dockerClient, err := a.connectDocker()
+	dockercli, err := a.connectDocker()
 	if err != nil {
 		return err
 	}
@@ -103,34 +102,29 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
+	cmd, err := shell.StartDocker(dockerRegistry, dockercli, &cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
-
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	err = cmd.Run()
-	if isAbnormalTermination(err) {
+	exitcode, ok := utils.GetExitStatus(err)
+	if !ok {
 		glog.Fatalf("abnormal termination from shell command: %s", err)
 	}
 
-	dockercli, err := a.connectDocker()
-	if err != nil {
-		glog.Fatalf("unable to connect to the docker service: %s", err)
-	}
-	exitcode, err := dockercli.WaitContainer(config.SaveAs)
-	if err != nil {
+	if _, err := dockercli.WaitContainer(config.SaveAs); err != nil {
 		glog.Fatalf("failure waiting for container: %s", err)
 	}
+
 	container, err := dockercli.InspectContainer(config.SaveAs)
 	if err != nil {
-		glog.Fatalf("cannot acquire information about container: %s (%s)", config.SaveAs, err)
+		glog.Fatalf("cannot acquire information about container %s: %s", config.SaveAs, err)
 	}
-	glog.V(2).Infof("Container ID: %s", container.ID)
 
+	glog.V(2).Infof("Container ID: %s", container.ID)
 	switch exitcode {
 	case 0:
 		// Commit the container
@@ -150,20 +144,4 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	return nil
-}
-
-// isAbnormalTermination checks for unexpected errors in running a command.  An
-// unexpected error is any error other than a non-zero status code.
-func isAbnormalTermination(err error) bool {
-	if err == nil {
-		return false
-	}
-	if exitError, ok := err.(*exec.ExitError); ok {
-		if exitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			if exitStatus.ExitStatus() != 0 {
-				return false
-			}
-		}
-	}
-	return true
 }
