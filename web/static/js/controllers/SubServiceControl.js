@@ -194,7 +194,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             for (var ServiceId in healths) {
                 data = healths[ServiceId];
                 element = document.getElementById("health-tooltip-" + ServiceId);
-                if (element != undefined) {
+                if (element) {
                     element.title = "";
                     passingAny = false;
                     failingAny = false;
@@ -213,17 +213,19 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                         }
                         element.title += name + ":" + data[name].Status + "\n";
                     }
-                    function setColor(color) {
-                        document.getElementById("health-" + ServiceId).src = "/static/img/"+color+"ball.png";
-                    }
+
+                    var setStatus = function(status) {
+                        document.getElementById("health-" + ServiceId).className = "healthIcon glyphicon glyphicon-" + status;
+                    };
+
                     if (failingAny) {
-                        setColor("red");
+                        setStatus("exclamation-sign bad");
                     } else if (!passingAny && unknownAny) {
-                        setColor("grey");
+                        setStatus("minus-sign unknown");
                     } else if (passingAny && unknownAny) {
-                        setColor("yellow");
+                        setStatus("question-sign unknown");
                     } else if (passingAny && !unknownAny) {
-                        setColor("green");
+                        setStatus("ok-sign good");
                     }
                 }
             }

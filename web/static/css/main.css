@@ -25,7 +25,7 @@ a:hover, a:active, a:focus,
     font-weight: 500;
 }
 
-.link:hover {    
+.link:hover {
     color: #0084DB;
     text-decoration: underline;
 }
@@ -119,7 +119,7 @@ table .btn,
 .toggle.btn-group > .btn.off:last-child:not(:first-child) {
     border-bottom-left-radius: 15px;
     border-top-left-radius: 15px;
-    border-color: #398439;
+    border-color: #3C91C9;
     padding-right: 20px;
     z-index:3;
 }
@@ -131,13 +131,22 @@ table .btn,
 .toggle.btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
     border-top-right-radius: 15px;
     border-bottom-right-radius: 15px;
-    border-color: #ac2925;
+    border-color: #999;
     padding-right: 20px;
     z-index:3;
 }
 
 .toggle.btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
     padding-right: 15px;
+}
+
+.toggle.btn-group .btn-danger {
+    background-color: #999;
+    border-color: #999;
+}
+.toggle.btn-group .btn-success {
+    background-color: #3C91C9;
+    border-color: #3C91C9;
 }
 
 .btn-group > .btn > input[type="radio"] {
@@ -280,7 +289,6 @@ table .btn,
     padding-top: 40px;
 }
 table .glyphicon {
-    cursor: pointer;
 }
 .sort.active {
     color: white;
@@ -986,4 +994,17 @@ rect {
 
 .readMessage .glyphicon{
     color: #cccccc;
+}
+
+.healthIcon {
+    font-size: 1.2em;
+}
+.healthIcon.good {
+    color: #3C91C9;
+}
+.healthIcon.unknown {
+    color: #999;
+}
+.healthIcon.bad {
+    color: #9C1200;
 }
