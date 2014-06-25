@@ -61,7 +61,7 @@ default build all: $(build_TARGETS)
 
 .PHONY: build_binary 
 build_binary: $(build_TARGETS)
-	$(warning ":-[ Can we deprecate this poorly named target? [$@]')
+	$(warning ":-[ Can we deprecate this poorly named target? [$@]")
 	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
 	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
 
