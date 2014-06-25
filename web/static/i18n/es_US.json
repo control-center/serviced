@@ -12,6 +12,7 @@
     "applications": "Aplicaciones",
     "brand_cp": "Centro de Control",
     "brand_zcp": "Centro de Control de Zenoss",
+    "breadcrumb_backuprestore": "Respaldar / Restaurar",
     "backuprestore": "Reserva / Restaurar",
     "backup_create": "Crear reserva",
     "backup_restore": "Restaurar reserva",
