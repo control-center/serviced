@@ -380,7 +380,7 @@ func Images() ([]*Image, error) {
 func FindImage(repotag string, pull bool) (*Image, error) {
 	imgs, err := Images()
 	if err != nil {
-		return nil, fmt.Errorf("docker: unable to find image %s: %v", repotag, err)
+		return nil, err
 	}
 
 	for _, img := range imgs {
