@@ -3,10 +3,10 @@ package docker
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"time"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
 )
 
 const (
@@ -57,6 +57,18 @@ type deletereq struct {
 	}
 }
 
+type delimgreq struct {
+	request
+	args struct {
+		repotag string
+	}
+}
+
+type imglistreq struct {
+	request
+	respchan chan []*Image
+}
+
 type inspectreq struct {
 	request
 	args struct {
@@ -93,6 +105,15 @@ type onstopreq struct {
 	}
 }
 
+type pullimgreq struct {
+	request
+	args struct {
+		repo     string
+		registry string
+		tag      string
+	}
+}
+
 type restartreq struct {
 	request
 	args struct {
@@ -118,6 +139,18 @@ type stopreq struct {
 	}
 }
 
+type tagimgreq struct {
+	request
+	args struct {
+		uuid     string
+		name     string
+		repo     string
+		registry string
+		tag      string
+	}
+	respchan chan *Image
+}
+
 type waitreq struct {
 	request
 	args struct {
@@ -132,28 +165,36 @@ var (
 		CancelAction    chan cancelactionreq
 		Create          chan createreq
 		Delete          chan deletereq
+		DeleteImage     chan delimgreq
+		ImageList       chan imglistreq
 		Inspect         chan inspectreq
 		Kill            chan killreq
 		List            chan listreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
+		PullImage       chan pullimgreq
 		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
+		TagImage        chan tagimgreq
 		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
 		make(chan createreq),
 		make(chan deletereq),
+		make(chan delimgreq),
+		make(chan imglistreq),
 		make(chan inspectreq),
 		make(chan killreq),
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
+		make(chan pullimgreq),
 		make(chan restartreq),
 		make(chan startreq),
 		make(chan stopreq),
+		make(chan tagimgreq),
 		make(chan waitreq),
 	}
 	dockerevents = []string{
@@ -200,7 +241,11 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	co := make(chan createreq)
 	go createq(ci, co)
 
-	go scheduler(dc, so, co, done)
+	pi := make(chan pullimgreq)
+	po := make(chan pullimgreq)
+	go pullq(pi, po)
+
+	go scheduler(dc, so, co, po, done)
 
 	for {
 		select {
@@ -237,6 +282,34 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
+		case req := <-cmds.DeleteImage:
+			err := dc.RemoveImage(req.args.repotag)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
+		case req := <-cmds.ImageList:
+			imgs, err := dc.ListImages(false)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			resp := []*Image{}
+			for _, img := range imgs {
+				for _, repotag := range img.RepoTags {
+					iid, err := commons.ParseImageID(repotag)
+					if err != nil {
+						req.errchan <- err
+						continue
+					}
+					resp = append(resp, &Image{img.ID, *iid})
+				}
+			}
+
+			close(req.errchan)
+			req.respchan <- resp
 		case req := <-cmds.Inspect:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -276,6 +349,9 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				go action(req.args.id)
 			}
 			close(req.errchan)
+		case req := <-cmds.PullImage:
+			req.errchan <- fmt.Errorf("kernel does not implement PullImage")
+			continue
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
 			err := dc.RestartContainer(req.args.id, req.args.timeout)
@@ -306,6 +382,35 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
+		case req := <-cmds.TagImage:
+			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			opts := dockerclient.PushImageOptions{
+				Name:     req.args.repo,
+				Registry: req.args.registry,
+				Tag:      req.args.tag,
+			}
+
+			// FIXME: pushing can be slow and should be moved to the scheduler
+			err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+
+			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			req.respchan <- &Image{req.args.uuid, *iid}
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
 				rc, err := dc.WaitContainer(req.args.id)
@@ -323,9 +428,9 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	}
 }
 
-// scheduler handles creating and starting up containers. Container creation can take a long time so
-// the scheduler runs in its own goroutine and pulls requests off of the create and start queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done chan struct{}) {
+// scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
+// the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, prc <-chan pullimgreq, done chan struct{}) {
 	em, err := dc.MonitorEvents()
 	if err != nil {
 		panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -334,25 +439,28 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 	for {
 		select {
 		case req := <-crc:
-			ctr, err := dc.CreateContainer(*req.args.containerOptions)
-			switch {
-			case err == dockerclient.ErrNoSuchImage:
-				if pullerr := dc.PullImage(dockerclient.PullImageOptions{
-					Repository:   req.args.containerOptions.Config.Image,
-					OutputStream: os.NewFile(uintptr(syscall.Stdout), "/def/stdout"),
-				}, dockerclient.AuthConfiguration{}); pullerr != nil {
-					req.errchan <- err
-					continue
-				}
-
-				ctr, err = dc.CreateContainer(*req.args.containerOptions)
-				if err != nil {
-					req.errchan <- err
-					continue
-				}
-			case err != nil:
+			// always pull the image to make sure we have the latest version
+			iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
+			if err != nil {
 				req.errchan <- err
 				continue
+			}
+
+			err = dc.PullImage(
+				dockerclient.PullImageOptions{
+					Repository: iid.BaseName(),
+					Registry:   iid.Registry(),
+					Tag:        iid.Tag,
+				},
+				dockerclient.AuthConfiguration{})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			ctr, err := dc.CreateContainer(*req.args.containerOptions)
+			if err != nil {
+				req.errchan <- err
 			}
 
 			if req.args.createaction != nil {
@@ -403,10 +511,25 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {
 				req.errchan <- err
+				continue
 			}
 
 			if req.args.action != nil {
 				req.args.action(req.args.id)
+			}
+
+			close(req.errchan)
+		case req := <-prc:
+			opts := dockerclient.PullImageOptions{
+				Repository: req.args.repo,
+				Registry:   req.args.registry,
+				Tag:        req.args.tag,
+			}
+
+			err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
+			if err != nil {
+				req.errchan <- err
+				continue
 			}
 
 			close(req.errchan)
@@ -491,6 +614,49 @@ restart:
 					next <- v
 				}
 				pending = []createreq{}
+			}
+		case next <- pending[0]:
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
+}
+
+// pullq implements an inifinite buffered channel of pull requests. Requests are added via the
+// in channel and received on the next channel.
+func pullq(in <-chan pullimgreq, next chan<- pullimgreq) {
+	defer close(next)
+
+	pending := []pullimgreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > 8 {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []pullimgreq{}
 			}
 		case next <- pending[0]:
 			pending = pending[1:]

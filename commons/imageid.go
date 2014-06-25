@@ -252,6 +252,23 @@ func (iid ImageID) BaseName() string {
 	return strings.Join(s, "")
 }
 
+// Registry returns registry component of the ImageID as a string with the form: hostname:port
+func (iid ImageID) Registry() string {
+	s := []string{}
+
+	if len(iid.Host) == 0 {
+		return ""
+	}
+
+	s = append(s, iid.Host)
+
+	if iid.Port != 0 {
+		s = append(s, ":", strconv.Itoa(iid.Port))
+	}
+
+	return strings.Join(s, "")
+}
+
 // Validate returns true if the ImageID structure is valid.
 func (iid *ImageID) Validate() bool {
 	piid, err := ParseImageID(iid.String())

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
 )
 
 // Container represents a Docker container.
@@ -43,6 +44,7 @@ var (
 	ErrRequestTimeout  = errors.New("docker: request timed out")
 	ErrKernelShutdown  = errors.New("docker: kernel shutdown")
 	ErrNoSuchContainer = errors.New("docker: no such container")
+	ErrNoSuchImage     = errors.New("docker: no such image")
 )
 
 // NewContainer creates a new container and returns its id. The supplied create action, if
@@ -344,6 +346,129 @@ func CancelOnContainerCreated(id string) error {
 	return cancelOnContainerEvent(dockerclient.Create, id)
 }
 
+// Image represents a Docker image
+type Image struct {
+	UUID string
+	ID   commons.ImageID
+}
+
+// Images returns a list of all the named images in the local repository
+func Images() ([]*Image, error) {
+	ec := make(chan error)
+	rc := make(chan []*Image)
+
+	cmds.ImageList <- imglistreq{
+		request{ec},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return []*Image{}, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return <-rc, nil
+		default:
+			return []*Image{}, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
+// TODO: add a FindImageByFilter that returns collections of images
+func FindImage(repotag string, pull bool) (*Image, error) {
+	imgs, err := Images()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, img := range imgs {
+		if img.ID.String() == repotag {
+			return img, nil
+		}
+	}
+
+	img, err := lookupImage(repotag, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if img != nil {
+		return img, nil
+	}
+
+	if !pull {
+		return nil, ErrNoSuchImage
+	}
+
+	pullImage(repotag)
+	if err != nil {
+		return nil, err
+	}
+
+	return lookupImage(repotag, false)
+}
+
+// Delete remove the image from the local repository
+func (img *Image) Delete() error {
+	ec := make(chan error)
+
+	cmds.DeleteImage <- delimgreq{
+		request{ec},
+		struct {
+			repotag string
+		}{img.ID.String()},
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// Tag tags an image in the local repository
+func (img *Image) Tag(tag string) (*Image, error) {
+	ec := make(chan error)
+	rc := make(chan *Image)
+
+	iid, err := commons.ParseImageID(tag)
+	if err != nil {
+		return nil, err
+	}
+
+	cmds.TagImage <- tagimgreq{
+		request{ec},
+		struct {
+			uuid     string
+			name     string
+			repo     string
+			registry string
+			tag      string
+		}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return <-rc, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 func onContainerEvent(event, id string, action ContainerActionFunc) error {
 	ec := make(chan error)
 
@@ -378,6 +503,55 @@ func cancelOnContainerEvent(event, id string) error {
 			id    string
 			event string
 		}{id, event},
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+func lookupImage(repotag string, missingOk bool) (*Image, error) {
+	imgs, err := Images()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, img := range imgs {
+		if img.ID.String() == repotag {
+			return img, nil
+		}
+	}
+
+	if missingOk {
+		return nil, nil
+	}
+
+	return nil, ErrNoSuchImage
+}
+
+func pullImage(repotag string) error {
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return err
+	}
+
+	ec := make(chan error)
+
+	cmds.PullImage <- pullimgreq{
+		request{ec},
+		struct {
+			repo     string
+			registry string
+			tag      string
+		}{iid.BaseName(), iid.Registry(), iid.Tag},
 	}
 
 	select {
