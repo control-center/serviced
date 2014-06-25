@@ -41,7 +41,10 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
                 id: service.Id,
                 value: { label: service.Name}
             };
-            nodeClasses[service.Id] = 'service notrunning';
+
+            if(!nodeClasses[service.Id]){
+                nodeClasses[service.Id] = 'service notrunning';
+            }
 
             if (service.ParentServiceID !== '') {
                 var parent = $scope.services.mapped[service.ParentServiceID];
@@ -53,8 +56,11 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
             }
         }
 
+        console.log(nodeClasses);
+
         var addedHosts = {};
 
+        // style running services
         for (var i=0; i < runningServices.length; i++) {
             var running = runningServices[i];
             if (!addedHosts[running.HostID]) {
@@ -65,13 +71,23 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
                 nodeClasses[running.HostID] = 'host';
                 addedHosts[running.HostID] = true;
             }
+
             nodeClasses[running.ServiceID] = 'service';
             edges[edges.length] = {
                 u: running.ServiceID,
                 v: running.HostID
             };
-
         }
+
+        // some services are a sum of their children so if their children are up, so is the parent
+//        for (var i=0; i<$scope.services.mapped.length; ++i){
+//            var service = $scope.services.mapped[i];
+//            if(service.children){
+//                for(var j=0; j<service.children.length; ++j){
+//                    if(runningServices)
+//                }
+//            }
+//        }
 
         var layout = dagreD3.layout().nodeSep(5).rankDir("LR")
         var renderer = new dagreD3.Renderer().layout(layout);
@@ -103,6 +119,8 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
     resourcesService.get_running_services(function(data) {
         data_received.running = true;
         runningServices = data;
+        console.log("running Services");
+        console.log(runningServices);
         draw();
     });
 
@@ -112,6 +130,7 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
     });
 
     refreshServices($scope, resourcesService, true, function() {
+        console.log($scope.services);
         data_received.services = true;
         draw();
     });
