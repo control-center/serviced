@@ -126,7 +126,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	if os.Getenv("SERVICED_IS_SERVICE_SHELL") != "" {
+	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
 		// this is not a running service, i.e. serviced shell/run
 		if hostname, err := os.Hostname(); err != nil {
 			glog.Errorf("could not get hostname : %s", err)
