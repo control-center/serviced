@@ -12,10 +12,11 @@
 package node
 
 import (
+	"time"
+
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
-	"time"
 )
 
 // Network protocol type.

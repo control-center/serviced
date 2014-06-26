@@ -166,14 +166,14 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
-func injectContext(s *service.Service, cp dao.ControlPlane) error {
+func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp dao.ControlPlane) error {
 
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := cp.GetService(svcID, &svc)
 		return svc, err
 	}
-	return s.Evaluate(getSvc)
+	return s.Evaluate(getSvc, svcState.InstanceID)
 }
 
 // Shutdown stops the agent
@@ -806,7 +806,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Volumes[strings.Split(volumeBinding, ":")[1]] = struct{}{}
 	hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(volumeBinding))
 
-	if err := injectContext(service, client); err != nil {
+	if err := injectContext(service, serviceState, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
 		return nil, nil, err
 	}

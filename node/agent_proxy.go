@@ -16,9 +16,10 @@ import (
 	"github.com/zenoss/serviced/domain"
 
 	"errors"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
+
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -72,7 +73,7 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		return svc, err
 	}
 
-	return response.Evaluate(getSvc)
+	return response.Evaluate(getSvc, 0)
 }
 
 // Call the master's to retrieve its tenant id

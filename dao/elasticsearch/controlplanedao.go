@@ -20,10 +20,11 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"fmt"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"sync"
+
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 const (
@@ -44,8 +45,8 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
-	backupLock sync.RWMutex
-	restoreLock sync.RWMutex
+	backupLock     sync.RWMutex
+	restoreLock    sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -70,7 +71,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		return fmt.Errorf("missing command")
 	}
 
-	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade)); err != nil {
+	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade), request.Running.InstanceID); err != nil {
 		return err
 	}
 

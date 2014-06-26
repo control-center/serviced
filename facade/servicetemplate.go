@@ -145,12 +145,12 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		return *svc, err
 	}
 
-	//for each endpoint, evaluate it's Application
+	//for each endpoint, evaluate its Application
 	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		return err
 	}
 
-	//for each endpoint, evaluate it's Application
+	//for each endpoint, evaluate its Application
 	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
 		return err
 	}
