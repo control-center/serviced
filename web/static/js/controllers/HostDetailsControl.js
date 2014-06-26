@@ -113,7 +113,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               "end": "0s-ago",
               "start": "1h-ago"
           },
-        "yAxisLabel":"% Used",
+          "yAxisLabel":"% Used",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]
@@ -167,7 +167,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                   "aggregator": "avg",
                   "color": "#aec7e8",
                   "expression": null,
-                  "expression": null,
                   "fill": false,
                   "format": "%d",
                   "id": "pgfault",
@@ -187,7 +186,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
               "end": "0s-ago",
               "start": "1h-ago"
           },
-        "yAxisLabel": "Faults / Min",
+          "yAxisLabel": "Faults / Min",
           "returnset": "EXACT",
           "tags": {
             "controlplane_host_id": [host.ID]

@@ -879,6 +879,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
+		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup

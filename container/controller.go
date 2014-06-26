@@ -328,7 +328,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	c.prereqs = service.Prereqs
 
 	// get endpoints
-	if err := c.getEndpoints(); err != nil {
+	if err := c.getEndpoints(service); err != nil {
 		return c, err
 	}
 
@@ -402,7 +402,7 @@ func (c *Controller) Run() (err error) {
 	var startAfter <-chan time.Time
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
-	c.handleRemotePorts()
+	c.handleControlCenterImports()
 	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
@@ -548,7 +548,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 	}
 }
 
-func (c *Controller) handleRemotePorts() {
+func (c *Controller) handleControlCenterImports() {
 	// this function is currently needed to handle special control plane imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
