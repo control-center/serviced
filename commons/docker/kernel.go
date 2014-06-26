@@ -389,20 +389,20 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 
-			opts := dockerclient.PushImageOptions{
-				Name:     req.args.repo,
-				Registry: req.args.registry,
-				Tag:      req.args.tag,
-			}
+			if !noregistry {
+				opts := dockerclient.PushImageOptions{
+					Name:     req.args.repo,
+					Registry: req.args.registry,
+					Tag:      req.args.tag,
+				}
 
-			// FIXME: pushing can be slow and should be moved to the scheduler
-			err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
-			if err != nil {
-				req.errchan <- err
-				continue
+				// FIXME: pushing can be slow and should be moved to the scheduler
+				err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+				if err != nil {
+					req.errchan <- err
+					continue
+				}
 			}
-
-			close(req.errchan)
 
 			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
 			if err != nil {
@@ -410,6 +410,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 
+			close(req.errchan)
 			req.respchan <- &Image{req.args.uuid, *iid}
 		case req := <-cmds.Wait:
 			go func(req waitreq) {

@@ -8,51 +8,6 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
-func TestFindImage(t *testing.T) {
-	_, err := FindImage("base:latest", false)
-	if err != nil {
-		t.Fatal("can't find base:latest: ", err)
-	}
-}
-
-func TestTagImage(t *testing.T) {
-	img, err := FindImage("base:latest", true)
-	if err != nil {
-		t.Fatal("can't find base:latest: ", err)
-	}
-
-	ti, err := img.Tag("localhost:5000/test/base:latest")
-	if err != nil {
-		t.Fatal("can't tag base:latest: ", err)
-	}
-
-	_, err = FindImage(ti.ID.String(), false)
-	if err != nil {
-		t.Fatalf("can't find %s: %v", ti.ID, err)
-	}
-}
-
-func TestDeleteImage(t *testing.T) {
-	img, err := FindImage("base:latest", true)
-	if err != nil {
-		t.Fatal("can't find base:latest: ", err)
-	}
-
-	ti, err := img.Tag("localhost:5000/victim/base:latest")
-	if err != nil {
-		t.Fatal("can't tag base:latest: ", err)
-	}
-
-	if err = ti.Delete(); err != nil {
-		t.Fatalf("can't delete %s: %v", ti.ID.String(), err)
-	}
-
-	img, err = FindImage(ti.ID.String(), false)
-	if img != nil {
-		t.Fatal("should not have found: ", ti.ID.String())
-	}
-}
-
 func TestOnContainerStart(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
