@@ -429,9 +429,9 @@ func (c *Controller) Run() (err error) {
 			startAfter = time.After(time.Millisecond * 1)
 
 		case exitError := <-serviceExited:
-			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
 				exitStatus := getExitStatus(exitError)
+				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
 				os.Exit(exitStatus)
 			}
 			glog.Infof("Restarting service process in 10 seconds.")
