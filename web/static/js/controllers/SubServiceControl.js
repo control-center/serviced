@@ -187,45 +187,92 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-    function updateHealth(ServiceID) {
+    // helper functions for updateHealth
+    function getServiceById(serviceId){
+        for(var i = 0; i < $scope.services.subservices.length; i++){
+            if($scope.services.subservices[i].Id === serviceId){
+                return $scope.services.subservices[i];
+            }
+        }
+    }
+    function setStatus(id, status){
+        document.getElementById("health-" + id).className = "healthIcon glyphicon glyphicon-" + status;
+    }
+
+    function updateHealth() {
         $.getJSON("/servicehealth", function(packet) {
-            var healths = packet["Statuses"];
-            var timestamp = packet["Timestamp"];
+            var healths = packet.Statuses;
+            var timestamp = packet.Timestamp;
+
+            var service;
+
             for (var ServiceId in healths) {
+
+                service = getServiceById(ServiceId);
+
+                if(!service){
+                    throw new Error("Could not find service with id" + ServiceId);
+                }
+
                 data = healths[ServiceId];
                 element = document.getElementById("health-tooltip-" + ServiceId);
                 if (element) {
                     element.title = "";
                     passingAny = false;
                     failingAny = false;
-                    lateAny = false;
                     unknownAny = false;
                     for (var name in data) {
                         if (timestamp - data[name].Timestamp >= data[name].Interval * 2) {
                             data[name].Status = "unknown";
                         }
-                        if (data[name].Status == "passed") {
-                            passingAny = true;
-                        } else if (data[name].Status == "failed") {
-                            failingAny = true;
-                        } else if (data[name].Status == "unknown") {
-                            unknownAny = true;
+
+                        switch(data[name].Status){
+                            case "passed":
+                                passingAny = true;
+                                break;
+                            case "failed":
+                                failingAny = true;
+                                break;
+                            case "unknown":
+                                unknownAny = true;
+                                break;
+                            default:
+                                break;
                         }
+
                         element.title += name + ":" + data[name].Status + "\n";
                     }
 
-                    var setStatus = function(status) {
-                        document.getElementById("health-" + ServiceId).className = "healthIcon glyphicon glyphicon-" + status;
-                    };
+                    // the following conditions are relevant when the service
+                    // *should* be started
+                    if(service.DesiredState === 1){
 
-                    if (failingAny) {
-                        setStatus("exclamation-sign bad");
-                    } else if (!passingAny && unknownAny) {
-                        setStatus("minus-sign unknown");
-                    } else if (passingAny && unknownAny) {
-                        setStatus("question-sign unknown");
-                    } else if (passingAny && !unknownAny) {
-                        setStatus("ok-sign good");
+                        // service should be up, but is failing. bad!
+                        if(failingAny){
+                            setStatus(ServiceId, "exclamation-sign bad");
+
+                        // service should be up, but seems unresponsive
+                        // It could be just starting, or on its way down
+                        } else if(!passingAny && unknownAny){
+                            setStatus(ServiceId, "question-sign unknown");
+
+                        // service is up and healthy
+                        } else if(passingAny && !unknownAny){
+                            setStatus(ServiceId, "ok-sign good");
+                        }
+
+                    // the following conditions are relevant when the service
+                    // *should* be off
+                    } else if(service.DesiredState === 0){
+
+                        // it should be off, but its still on... weird.
+                        if(passingAny){
+                            setStatus(ServiceId, "question-sign unknown");
+
+                        // service is off, as expected
+                        } else {
+                           setStatus(ServiceId, "minus-sign disabled");
+                        }
                     }
                 }
             }

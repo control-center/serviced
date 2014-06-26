@@ -1011,13 +1011,16 @@ rect {
 }
 
 .healthIcon {
-    font-size: 1.2em;
+    font-size: 1.3em;
 }
 .healthIcon.good {
     color: #0084DB;
 }
 .healthIcon.unknown {
-    color: #999;
+    color: #94C0DB;
+}
+.healthIcon.disabled {
+    color: #666;
 }
 .healthIcon.bad {
     color: #9C1200;
