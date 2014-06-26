@@ -1,0 +1,290 @@
+package layer
+
+// Copyright 2014 Zenoss, Inc. All rights reserved
+
+import (
+	"github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/circular"
+
+	"archive/tar"
+	"bufio"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
+)
+
+var FilesToIgnore = map[string]struct{}{
+	".dockerenv":      struct{}{},
+	".dockerinit":     struct{}{},
+	"./":              struct{}{},
+	"dev/":            struct{}{},
+	"dev/console":     struct{}{},
+	"dev/shm/":        struct{}{},
+	"etc/":            struct{}{},
+	"etc/hostname":    struct{}{},
+	"etc/hosts":       struct{}{},
+	"etc/mtab":        struct{}{},
+	"etc/resolv.conf": struct{}{},
+}
+
+type DockerClient interface {
+	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
+	RemoveContainer(docker.RemoveContainerOptions) error
+	ExportContainer(docker.ExportContainerOptions) error
+	InspectImage(name string) (*docker.Image, error)
+	ImportImage(docker.ImportImageOptions) error
+}
+
+func export(client DockerClient, image string) (f *os.File, err error) {
+
+	log.Printf("creating container for export of %s", image)
+	container, err := client.CreateContainer(docker.CreateContainerOptions{Config: &docker.Config{Cmd: []string{"/bin/true"}, Image: image}})
+	if err != nil {
+		return f, err
+	}
+	log.Printf("create container %s for image %s", container.ID, image)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID})
+
+	log.Printf("exporting %s", image)
+	file, err := ioutil.TempFile("", fmt.Sprintf("docker_squash_%s_", image))
+	if err == nil {
+		err = client.ExportContainer(docker.ExportContainerOptions{container.ID, file})
+		if err == nil {
+			_, err = file.Seek(0, 0)
+		}
+	}
+	return file, err
+}
+
+func getTarHeaders(tr *tar.Reader) ([]*tar.Header, error) {
+	topHeaders := make([]*tar.Header, 0)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		topHeaders = append(topHeaders, hdr)
+	}
+	sort.Sort(byName(topHeaders))
+	return topHeaders, nil
+}
+
+func pushImage(client DockerClient, imageName string, image *os.File) (imageId string, err error) {
+	parsedImage, err := commons.ParseImageID(imageName)
+	if err != nil {
+		return "", err
+	}
+
+	buffer := circular.NewBuffer(1000)
+	opts := docker.ImportImageOptions{
+		Repository:   parsedImage.BaseName(),
+		Tag:          parsedImage.Tag,
+		Source:       "-",
+		InputStream:  image,
+		OutputStream: buffer,
+	}
+	err = client.ImportImage(opts)
+	if err != nil {
+		return "", err
+	}
+	idbuffer := make([]byte, 100)
+	if _, err = buffer.Read(idbuffer); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(idbuffer)), nil
+}
+
+func Squash(client DockerClient, imageName, downToLayer, newName, tempDir string) (resultImageId string, err error) {
+
+	// get list of layers for the image
+	layers, err := getLayers(client, imageName)
+	if err != nil {
+		return "", err
+	}
+	topName := layers[0] // top layer is the first layer
+
+	// if the downToLayer is specified, make sure it's in our list of layers
+	if downToLayer != "" {
+		if !layers.contains(downToLayer) {
+			return "", fmt.Errorf("invalid downto layer id: %s is not in %+v", downToLayer, layers)
+		}
+	}
+
+	// export the top image
+	topTar, err := export(client, topName)
+	if err != nil {
+		return "", fmt.Errorf("error exporting %s: %s", topName, err)
+	}
+	defer topTar.Close()
+	defer os.Remove(topTar.Name())
+
+	// if no downToLayer was specified, lets squash the whole thing by uploaded the exported image
+	if downToLayer == "" {
+		return pushImage(client, imageName, topTar)
+	}
+
+	// lets extract the headers of the top image and sort them
+	topHeaders, err := getTarHeaders(tar.NewReader(topTar))
+	if err != nil {
+		return "", fmt.Errorf("error getting headers %s: %s", topName, err)
+	}
+	if len(topHeaders) == 0 {
+		return "", fmt.Errorf("empty top layer")
+	}
+
+	// let's extract the headers of the base image and sort them
+	log.Printf("exporting base layer %s", downToLayer)
+	baseTar, err := export(client, downToLayer)
+	if err != nil {
+		return "", fmt.Errorf("error exporting base image %s: %s", downToLayer, err)
+	}
+	defer baseTar.Close()
+	defer os.Remove(baseTar.Name())
+	baseHeaders, err := getTarHeaders(tar.NewReader(baseTar))
+	if err != nil {
+		return "", fmt.Errorf("error getting headers %s: %s", downToLayer, err)
+	}
+
+	// the headers for the top and base images are sorted
+	// we can merge them and determine which files were added/deleted
+	var i, j int
+
+	baseHdr, topHdr := baseHeaders[0], topHeaders[0]
+	removals := make([]string, 0)
+	additions := make(map[string]struct{})
+	for {
+
+		if i > len(baseHeaders)-1 {
+			//get all of j
+			for n := j; n < len(topHeaders); n++ {
+				additions[topHeaders[n].Name] = struct{}{}
+			}
+			break
+		}
+		if j > len(topHeaders)-1 {
+			//get all of i
+			for n := i; n < len(baseHeaders); n++ {
+				removals = append(removals, baseHeaders[n].Name)
+			}
+			break
+		}
+		baseHdr = baseHeaders[i]
+		topHdr = topHeaders[j]
+
+		switch {
+		case baseHdr.Name == topHdr.Name:
+			if !reflect.DeepEqual(baseHdr, topHdr) {
+				if _, ignore := FilesToIgnore[topHdr.Name]; !ignore {
+					additions[topHdr.Name] = struct{}{}
+				}
+			}
+			i++
+			j++
+		case baseHdr.Name > topHdr.Name:
+			if _, ignore := FilesToIgnore[topHdr.Name]; !ignore {
+				additions[topHdr.Name] = struct{}{}
+			}
+			j++
+		case baseHdr.Name < topHdr.Name:
+			if _, ignore := FilesToIgnore[baseHdr.Name]; !ignore {
+				removals = append(removals, baseHdr.Name)
+			}
+			i++
+		}
+	}
+	// reset top layer
+	if _, err = topTar.Seek(0, 0); err != nil {
+		return "", err
+	}
+	tarReader := tar.NewReader(topTar)
+
+	// create tar directory
+	tdirName, err := ioutil.TempDir(tempDir, "docker_build_")
+	if err != nil {
+		return "", err
+	}
+	outputFilename := fmt.Sprintf("%s/%s.tar", tdirName, topName)
+	output, err := os.Create(outputFilename)
+	if err != nil {
+		return "", err
+	}
+	// defer os.Remove(output.Name)
+	tarWriter := tar.NewWriter(output)
+	buffer := make([]byte, 1024*1024)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		if _, found := additions[hdr.Name]; found {
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				return "", err
+			}
+			for {
+				n, err := tarReader.Read(buffer)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return "", err
+				}
+				wn, err := tarWriter.Write(buffer[0:n])
+				if err != nil {
+					return "", err
+				}
+				if wn != n {
+					return "", fmt.Errorf("got %d, wrote %d", n, wn)
+				}
+			}
+		}
+	}
+	dfile, err := os.Create(tdirName + "/Dockerfile")
+	if err != nil {
+		return "", err
+	}
+	dockerfile := bufio.NewWriter(dfile)
+	if _, err := dockerfile.WriteString(fmt.Sprintf("FROM %s\n ADD %s.tar /\n", downToLayer, topName)); err != nil {
+		return "", err
+	}
+	if len(removals) > 0 {
+		removalStr := "#/bin/sh\nrm -Rf " + strings.Join(removals, "\nrm -Rf ") + "\nrm /removal.sh\n"
+		if err := tarWriter.WriteHeader(&tar.Header{
+			Name:  "removal.sh",
+			Mode:  0775,
+			Uid:   0,
+			Gid:   0,
+			Size:  int64(len(removalStr)),
+			Uname: "root",
+			Gname: "root",
+		}); err != nil {
+			return "", err
+		}
+		if _, err := tarWriter.Write([]byte(removalStr)); err != nil {
+			return "", err
+		}
+		if _, err := dockerfile.WriteString("RUN /removal.sh\n"); err != nil {
+			return "", err
+		}
+	}
+	if err := tarWriter.Flush(); err != nil {
+		return "", err
+	}
+	if err := dockerfile.Flush(); err != nil {
+		return "", err
+	}
+	dfile.Close()
+
+	return "", nil
+}

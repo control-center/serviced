@@ -118,6 +118,7 @@ func New(driver api.API) *ServicedCli {
 	c.initSnapshot()
 	c.initLog()
 	c.initBackup()
+	c.initDocker()
 
 	return c
 }
