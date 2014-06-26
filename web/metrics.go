@@ -219,7 +219,7 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 	}
 }
 
-//newProfile builds a MonitoringProfile without graphs pools
+//newProfile builds a MonitoringProfile without graphs
 func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
 	p := domain.MonitorProfile{
 		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
@@ -244,21 +244,5 @@ func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
 		}
 		p.MetricConfigs[i] = *config
 	}
-	return p, nil
-}
-
-//newProfile builds a MonitoringProfile with graphs for hosts
-func newProfileWithGraphs(tags map[string][]string, totalCores int, totalMemory uint64) (domain.MonitorProfile, error) {
-	p, err := newProfile(tags)
-	if err != nil {
-		return p, err
-	}
-
-	//add graphs to profile
-	p.GraphConfigs = make([]domain.GraphConfig, 4)
-	p.GraphConfigs[0] = newOpenFileDescriptorsGraph(tags)
-	p.GraphConfigs[1] = newMajorPageFaultGraph(tags)
-	p.GraphConfigs[2] = newCpuConfigGraph(tags, totalCores)
-	p.GraphConfigs[3] = newRSSConfigGraph(tags, totalMemory)
 	return p, nil
 }
