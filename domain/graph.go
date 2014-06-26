@@ -43,20 +43,21 @@ type GraphConfigRange struct {
 
 // GraphConfig defines a graph for display using central query's
 type GraphConfig struct {
-	ID         string              `json:"id"`
-	Name       string              `json:"name"`
-	Footer     bool                `json:"footer"`
-	Format     string              `json:"format"`
-	ReturnSet  string              `json:"returnset"`
-	Type       string              `json:"type"`
-	Tags       map[string][]string `json:"tags"`
-	MinY       *int                `json:"miny"`
-	MaxY       *int                `json:"maxy"`
-	YAxisLabel string              `json:"yAxisLabel"`
-	TimeZone   string              `json:"timezone"`
-	DownSample string              `json:"downsample"`
-	Range      *GraphConfigRange   `json:"range"`
-	DataPoints []DataPoint         `json:"datapoints"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Footer      bool                `json:"footer"`
+	Format      string              `json:"format"`
+	ReturnSet   string              `json:"returnset"`
+	Type        string              `json:"type"`
+	Tags        map[string][]string `json:"tags"`
+	MinY        *int                `json:"miny"`
+	MaxY        *int                `json:"maxy"`
+	YAxisLabel  string              `json:"yAxisLabel"`
+	TimeZone    string              `json:"timezone"`
+	DownSample  string              `json:"downsample"`
+	Description string              `json:"description"`
+	Range       *GraphConfigRange   `json:"range"`
+	DataPoints  []DataPoint         `json:"datapoints"`
 }
 
 // Equals returns if graph equals that graph
