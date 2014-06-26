@@ -61,7 +61,7 @@ default build all: $(build_TARGETS)
 
 .PHONY: build_binary 
 build_binary: $(build_TARGETS)
-	$(warning ":-[ Can we deprecate this poorly named target? [$@]')
+	$(warning ":-[ Can we deprecate this poorly named target? [$@]")
 	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
 	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
 
@@ -128,11 +128,6 @@ logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in
 $(logstash.conf): $(logstash.conf_SRC)
 	cp $? $@
 
-# Make some things available through $(GOPATH)/bin/<thing>
-
-GODEP: $(GODEP)
-	echo building $@ from $^
-
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
 # If that directory is missing, then trigger the 'go get' of the
@@ -148,7 +143,7 @@ $(GODEP): | $(missing_godep_SRC)
 
 nsinit = $(GOBIN)/nsinit
 missing_nsinit_SRC =  $(filter-out $(wildcard $(GOSRC)/$(nsinit_SRC)), $(GOSRC)/$(nsinit_SRC))
-$(nsinit): | $(GOSRC)/$(nsinit_SRC)
+$(nsinit): | $(missing_nsinit_SRC)
 	go install $(nsinit_SRC)
 
 .PHONY: serviced_svcdef_compiler
@@ -168,7 +163,7 @@ install: $(install_TARGETS)
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
 
-.PHONY: buildandpackage_within_container dockerbuildx
+.PHONY: docker_buildandpackage dockerbuildx
 docker_buildandpackage dockerbuildx: docker_ok
 	docker build -t zenoss/serviced-build build
 	cd isvcs && make export

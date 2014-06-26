@@ -15,6 +15,10 @@ func TestBuildHostMonitoringProfile(t *testing.T) {
 	}
 
 	if len(host.MonitoringProfile.MetricConfigs) <= 0 {
-		t.Fatalf("Failed to build host monitoring profile: host=%+v", host)
+		t.Fatalf("Failed to build host monitoring profile (missing metrics): host=%+v", host)
+	}
+
+	if len(host.MonitoringProfile.GraphConfigs) <= 0 {
+		t.Fatalf("Failed to build host monitoring profile (missing graphs): host=%+v", host)
 	}
 }

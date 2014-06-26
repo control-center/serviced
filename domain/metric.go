@@ -36,6 +36,12 @@ func (request *MetricBuilder) SetTag(Name string, Values ...string) *MetricBuild
 	return request
 }
 
+// SetTags sets tags to value
+func (request *MetricBuilder) SetTags(tags map[string][]string) *MetricBuilder {
+	request.Tags = tags
+	return request
+}
+
 // QueryConfig defines the parameters to request a collection of metrics
 type QueryConfig struct {
 	RequestURI string      // the http request uri for grabbing metrics
