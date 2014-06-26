@@ -62,10 +62,10 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 // address, assigns it to the virtual interface, adds an entry to /etc/hosts,
 // and sets up the iptables rule to redirect traffic to the specified port.
 func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string) error {
-	glog.Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s  locking...", address, toport, protocol)
+	glog.Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s", address, toport, protocol)
 	reg.Lock()
 	defer reg.Unlock()
-	glog.Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s  locked", address, toport, protocol)
+	glog.V(2).Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s  locked", address, toport, protocol)
 
 	var (
 		host, port string
@@ -104,7 +104,7 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 		return fmt.Errorf("invalid protocol: %s", protocol)
 	}
 
-	glog.Infof("RegisterVirtualAddress portmap: %+v", *portmap)
+	glog.V(2).Infof("RegisterVirtualAddress portmap: %+v", *portmap)
 	if _, ok := (*portmap)[toport]; !ok {
 		// dest isn't there, let's DO IT!!!!!
 		if err := viface.redirectCommand(port, toport, protocol); err != nil {
