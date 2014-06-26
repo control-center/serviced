@@ -1,12 +1,27 @@
+/*
+    good: #0084DB
+    bad: #9C1200;
+
+    action/link: #325385;
+    action/link hover: #4F83D1;
+    action/link active: #8EA9D1;
+
+    header bar: #516685;
+    header bar secondary: #8090A8;
+    header bar tertiary: #C1CEE0;
+
+    zebra stripe bg: #F0F3F7;
+
+ */
+
 body {
     padding: 20px;
-    color: #444;
+    color: #666;
     font-family: "Roboto";
 }
 .invisible {
     visibility: hidden;
 }
-
 
 a, .btn-link {
     text-decoration: none;
@@ -26,10 +41,10 @@ a:hover, a:active, a:focus,
 }
 
 .link:hover {
-    color: #0084DB;
+    color: #4F83D1;
 }
 .link:active {
-    color: #6694FF;
+    color: #8EA9D1;
 }
 
 .action {
@@ -41,10 +56,10 @@ a:hover, a:active, a:focus,
     padding-left: 0;
 }
 .action:hover {
-    color: #3BB0FF;
+    color: #4F83D1;
 }
 .action:active {
-    color: #69C3FF;
+    color: #8EA9D1;
 }
 .action[disabled="disabled"],
 .action.disabled {
