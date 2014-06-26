@@ -1133,7 +1133,7 @@ function AuthService($cookies, $cookieStore, $location, $notification) {
                 };
                 return;
             }
-            if ($cookies.ZCPToken !== undefined) {
+            if ($cookies.ZCPToken) {
                 loggedIn = true;
                 $scope.loggedIn = true;
                 $scope.user = {

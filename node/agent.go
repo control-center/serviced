@@ -334,7 +334,7 @@ func (a *HostAgent) dockerTerminate(dockerID string) error {
 		return err
 	}
 
-	if err = dc.KillContainer(dockerID); err != nil && !strings.Contains(err.Error(), "No such container") {
+	if err = dc.KillContainer(dockerclient.KillContainerOptions{dockerID, dockerclient.SIGINT}); err != nil && !strings.Contains(err.Error(), "No such container") {
 		glog.Errorf("unable to kill container %s: %v", dockerID, err)
 		return err
 	}
@@ -885,6 +885,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
+		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup

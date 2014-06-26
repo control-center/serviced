@@ -21,7 +21,16 @@ COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 
+ifeq "$(IN_DOCKER)" "1"
+#
+# Avoid building certain targets if it leads
+# to the problematic docker-in-docker build
+# scenario.
+#
+all: buildgo
+else
 all: buildgo isvcs_repo
+endif
 
 export: $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 
