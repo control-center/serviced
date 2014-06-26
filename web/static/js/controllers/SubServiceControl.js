@@ -9,7 +9,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.servicesService = resourcesService;
 
     $scope.defaultHostAlias = location.hostname;
-    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {
         $.getJSON("/hosts/defaultHostAlias", "", function(data) {
             $scope.defaultHostAlias = data.hostalias;
@@ -90,19 +90,19 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     // modalAssignIP opens a modal view to assign an ip address to a service
     $scope.modalAssignIP = function(ip, poolID) {
-      $scope.ips.assign = {'ip':ip, 'value':null}
+      $scope.ips.assign = {'ip':ip, 'value':null};
       resourcesService.get_pool_ips(poolID, function(data) {
-        var options= [{'Value':'Automatic', 'IPAddr':null}]
+        var options= [{'Value':'Automatic', 'IPAddr':null}];
 
         //host ips
         if ( data && data.HostIPs) {
           for(var i = 0; i < data.HostIPs.length; ++i) {
-            var IPAddr = data.HostIPs[i].IPAddress
-            var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName
-            options.push({'Value': value, 'IPAddr':IPAddr})
+            var IPAddr = data.HostIPs[i].IPAddress;
+            var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
+            options.push({'Value': value, 'IPAddr':IPAddr});
             // set the default value to the currently assigned value
             if ($scope.ips.assign.ip.IPAddr == IPAddr) {
-              $scope.ips.assign.value = options[ options.length-1]
+              $scope.ips.assign.value = options[ options.length-1];
             }
           }
         }
@@ -110,24 +110,24 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         //host ips
         if ( data && data.VirtualIPs) {
           for(var i = 0; i < data.VirtualIPs.length; ++i) {
-            var IPAddr = data.VirtualIPs[i].IP
-            var value =  "Virtual IP: " + IPAddr
-            options.push({'Value': value, 'IPAddr':IPAddr})
+            var IPAddr = data.VirtualIPs[i].IP;
+            var value =  "Virtual IP: " + IPAddr;
+            options.push({'Value': value, 'IPAddr':IPAddr});
             // set the default value to the currently assigned value
             if ($scope.ips.assign.ip.IPAddr == IPAddr) {
-              $scope.ips.assign.value = options[ options.length-1]
+              $scope.ips.assign.value = options[ options.length-1];
             }
           }
         }
 
         //default to automatic
         if(!$scope.ips.assign.value) {
-          $scope.ips.assign.value = options[0]
+          $scope.ips.assign.value = options[0];
         }
 
-        $scope.ips.assign.options = options
+        $scope.ips.assign.options = options;
         $('#assignIP').modal('show');
-      })
+      });
     };
 
     $scope.AssignIP = function() {
@@ -139,9 +139,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     $scope.vhost_url = function(vhost) {
-        var port = location.port == "" ? "" : ":"+location.port;
+        var port = location.port === "" ? "" : ":"+location.port;
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
-    }
+    };
 
     $scope.indent = indentClass;
     $scope.clickRunning = toggleRunning;
@@ -243,9 +243,11 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             updateHealth();
         }
     }
+
     if(!angular.isDefined($scope.updateRunningInterval)) {
         $scope.updateRunningInterval = $interval(updateRunning, 3000);
     }
+
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, true, function() {
         if ($scope.services.current) {
