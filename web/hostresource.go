@@ -7,6 +7,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/rpc/agent"
 
@@ -193,11 +194,19 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 func buildHostMonitoringProfile(host *host.Host) error {
 	tags := map[string][]string{"controlplane_host_id": []string{host.ID}}
-	profile, err := newProfileWithGraphs(tags, host.Cores, host.Memory)
+	profile, err := newProfile(tags)
 	if err != nil {
 		glog.Error("Failed to create host profile: %s", err)
 		return err
 	}
+
+	//add graphs to profile
+	profile.GraphConfigs = make([]domain.GraphConfig, 4)
+	profile.GraphConfigs[0] = newOpenFileDescriptorsGraph(tags)
+	profile.GraphConfigs[1] = newMajorPageFaultGraph(tags)
+	profile.GraphConfigs[2] = newCpuConfigGraph(tags, host.Cores)
+	profile.GraphConfigs[3] = newRSSConfigGraph(tags, host.Memory)
+
 	host.MonitoringProfile = profile
 	return nil
 }
