@@ -43,6 +43,7 @@ type GraphConfigRange struct {
 
 // GraphConfig defines a graph for display using central query's
 type GraphConfig struct {
+	ID         string              `json:"id"`
 	Name       string              `json:"name"`
 	Footer     bool                `json:"footer"`
 	Format     string              `json:"format"`
