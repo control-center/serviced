@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -402,6 +403,9 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 // setProxyAddresses tells the proxies to update with addresses
 func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress string) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s)", tenantEndpointID)
+	proxiesLock.Lock()
+	defer proxiesLock.Unlock()
+	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s) locked", tenantEndpointID)
 
 	if len(endpoints) <= 0 {
 		if prxy, ok := proxies[tenantEndpointID]; ok {
@@ -524,6 +528,7 @@ func (c *Controller) registerExportedEndpoints() {
 }
 
 var (
+	proxiesLock             sync.RWMutex
 	proxies                 map[string]*proxy
 	vifs                    *VIFRegistry
 	nextip                  int
