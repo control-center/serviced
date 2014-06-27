@@ -9,6 +9,8 @@
 package node
 
 import (
+	"bytes"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
@@ -41,6 +43,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 )
 
@@ -704,6 +707,10 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	return true, nil
 }
 
+func plus(a, b int) int {
+	return a + b
+}
+
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
@@ -735,8 +742,25 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	if svc.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
-		for _, endpoint := range svc.Endpoints {
+		funcmap := template.FuncMap{
+			"plus": plus,
+		}
+		for i, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
+				if endpoint.PortTemplate != "" {
+					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
+					b := bytes.Buffer{}
+					err := t.Execute(&b, serviceState)
+					if err == nil {
+						i, err := strconv.Atoi(b.String())
+						if err != nil {
+							glog.Errorf("%+v", err)
+						} else {
+							endpoint.PortNumber = uint16(i)
+						}
+					}
+				}
+				svc.Endpoints[i] = endpoint
 				var p string
 				switch endpoint.Protocol {
 				case commons.UDP:

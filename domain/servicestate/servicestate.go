@@ -5,16 +5,20 @@
 package servicestate
 
 import (
+	"bytes"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/service"
 
 	"fmt"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/utils"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
+
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/utils"
 )
 
 // An instantiation of a Service.
@@ -35,6 +39,10 @@ type ServiceState struct {
 	InstanceID int
 }
 
+func plus(a, b int) int {
+	return a + b
+}
+
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
@@ -44,15 +52,49 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
+		funcmap := template.FuncMap{
+			"plus": plus,
+		}
+		for j, ep := range serviceState.Endpoints {
+			if ep.PortTemplate != "" {
+				t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(ep.PortTemplate))
+				b := bytes.Buffer{}
+				err := t.Execute(&b, serviceState)
+				if err == nil {
+					i, err := strconv.Atoi(b.String())
+					if err == nil {
+						ep.PortNumber = uint16(i)
+					}
+				}
+				serviceState.Endpoints[j] = ep
+			}
+		}
 	}
 	return serviceState, err
 }
 
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
+	funcmap := template.FuncMap{
+		"plus": plus,
+	}
 	for _, ep := range ss.Endpoints {
+
 		if ep.Purpose == "export" {
 			if applicationRegex.MatchString(ep.Application) {
+				if ep.PortTemplate != "" {
+					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(ep.PortTemplate))
+					b := bytes.Buffer{}
+					err := t.Execute(&b, ss)
+					if err == nil {
+						i, err := strconv.Atoi(b.String())
+						if err != nil {
+							glog.Errorf("%+v", err)
+						} else {
+							ep.PortNumber = uint16(i)
+						}
+					}
+				}
 				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
 
 				external := ss.PortMapping[portS]

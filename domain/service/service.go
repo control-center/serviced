@@ -12,9 +12,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
 	"time"
+
+	"github.com/zenoss/serviced/domain/addressassignment"
 )
 
 // Desired states of services.
@@ -178,7 +179,7 @@ func (s *Service) GetServiceImports() []ServiceEndpoint {
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
-			if ep.Purpose == "import" {
+			if ep.Purpose == "import" || ep.Purpose == "import_all" {
 				result = append(result, ep)
 			}
 		}

@@ -40,9 +40,9 @@ type export struct {
 type importedEndpoint struct {
 	endpointID     string
 	instanceID     string
-	basePort       int
 	virtualAddress string
 	purpose        string
+	port           uint16
 }
 
 // getAgentZkDSN retrieves the agent's zookeeper dsn
@@ -175,10 +175,30 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			exp.endpointName = defep.Name
 
 			var err error
-			exp.endpoint, err = buildApplicationEndpoint(state, &defep)
+			ep, err := buildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return result, err
 			}
+			funcmap := template.FuncMap{
+				"plus": plus,
+			}
+			glog.Infof("Defep.PortTemplate: %s", defep.PortTemplate)
+			glog.Infof("HERE is my endpoint: %+v", ep)
+			if defep.PortTemplate != "" {
+				t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(defep.PortTemplate))
+				b := bytes.Buffer{}
+				err := t.Execute(&b, state)
+				if err == nil {
+					i, err := strconv.Atoi(b.String())
+					if err != nil {
+						glog.Errorf("%+v", err)
+					} else {
+						ep.ContainerPort = uint16(i)
+					}
+				}
+			}
+			exp.endpoint = ep
+			glog.Infof("HERE is my exported endpoint: %+v", exp.endpoint)
 
 			key := registry.TenantEndpointKey(tenantID, exp.endpoint.Application)
 			if _, exists := result[key]; !exists {
@@ -206,7 +226,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			}
 			instanceIDStr := fmt.Sprintf("%d", endpoint.InstanceID)
 			setImportedEndpoint(&result, tenantID, endpoint.Application,
-				instanceIDStr, endpoint.VirtualAddress, defep.Purpose)
+				instanceIDStr, endpoint.VirtualAddress, defep.Purpose, endpoint.ContainerPort)
 		}
 	}
 
@@ -248,12 +268,13 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 }
 
 // setImportedEndpoint sets an imported endpoint
-func setImportedEndpoint(importedEndpoints *map[string]importedEndpoint, tenantID, endpointID, instanceID, virtualAddress, purpose string) {
+func setImportedEndpoint(importedEndpoints *map[string]importedEndpoint, tenantID, endpointID, instanceID, virtualAddress, purpose string, port uint16) {
 	ie := importedEndpoint{}
 	ie.endpointID = endpointID
 	ie.virtualAddress = virtualAddress
 	ie.purpose = purpose
 	ie.instanceID = instanceID
+	ie.port = port
 	key := registry.TenantEndpointKey(tenantID, endpointID)
 	(*importedEndpoints)[key] = ie
 	glog.V(2).Infof("  cached imported endpoint[%s]: %+v", key, ie)
@@ -393,17 +414,20 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	parts := strings.Split(parentPath, "/")
 	tenantEndpointID := parts[len(parts)-1]
 
-	endpoints := make([]*dao.ApplicationEndpoint, len(hostContainerIDs))
-	for ii, hostContainerID := range hostContainerIDs {
-		path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
-		endpointNode, err := endpointRegistry.GetItem(conn, path)
-		if err != nil {
-			glog.Errorf("error getting endpoint node at %s: %v", path, err)
-		}
-		endpoints[ii] = &endpointNode.ApplicationEndpoint
-	}
-
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
+		endpoints := make([]*dao.ApplicationEndpoint, len(hostContainerIDs))
+		for ii, hostContainerID := range hostContainerIDs {
+			path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
+			endpointNode, err := endpointRegistry.GetItem(conn, path)
+			if err != nil {
+				glog.Errorf("error getting endpoint node at %s: %v", path, err)
+			}
+			endpoints[ii] = &endpointNode.ApplicationEndpoint
+			glog.Infof("I've got an endpoint 1: %+v", endpoints[ii])
+			endpoints[ii].ContainerPort = ep.port
+			glog.Infof("I've got an endpoint 2: %+v", endpoints[ii])
+		}
+
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
 	}
 }
@@ -431,6 +455,15 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
+	// Populate a map represnting the exports in this container, so we don't conflict
+	exported := map[uint16]struct{}{}
+	for _, explist := range c.exportedEndpoints {
+		for _, exp := range explist {
+			exported[exp.endpoint.ContainerPort] = struct{}{}
+		}
+	}
+	glog.Infof("Exported endpoints: %+v", exported)
+
 	// Populate a map representing the proxies that are to be created, again with instanceID as the key
 	proxyKeys := map[int]string{}
 	if purpose == "import" {
@@ -443,6 +476,9 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 		for _, instance := range endpoints {
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
+			if _, conflict := exported[containerPort]; conflict {
+				continue
+			}
 			glog.Infof("Importing service instance endpoint as port %d: %s instance %d", containerPort, tenantEndpointID, instance.InstanceID)
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
 			instance.ContainerPort = containerPort

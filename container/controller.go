@@ -615,7 +615,10 @@ func (c *Controller) handleRemotePorts() {
 
 		// add/replace entries in importedEndpoints
 		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)
-		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, instanceIDStr, endpointList[0].VirtualAddress, cc_endpoint_purpose)
+		setImportedEndpoint(&c.importedEndpoints, c.tenantID,
+			endpointList[0].Application, instanceIDStr,
+			endpointList[0].VirtualAddress, cc_endpoint_purpose,
+			endpointList[0].ContainerPort)
 
 		// TODO: agent needs to register controlplane and controlplane_consumer
 		//       but don't do that here in the container code

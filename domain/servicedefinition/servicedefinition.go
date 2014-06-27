@@ -54,6 +54,7 @@ type EndpointDefinition struct {
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
+	PortTemplate        string // A template which, if specified, is used to calculate the port number
 	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
 	Application         string
 	ApplicationTemplate string
