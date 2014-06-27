@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', {
@@ -1450,7 +1450,7 @@ function toggleRunning(app, status, servicesService) {
     }
 
     // stop service
-    if ((newState == 0) || (newState == -1)) {
+    if ((newState === 0) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(app.Id, function() {
             updateApp(app);
@@ -1459,13 +1459,16 @@ function toggleRunning(app, status, servicesService) {
     }
 
     // start service
-    if ((newState == 1) || (newState == -1)) {
+    if ((newState === 1) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.start_service(app.Id, function() {
             updateApp(app);
         });
         updateAppText(app, "ctl_running_blank", "starting...");
     }
+
+    // HACK - this is a terrible way to get this object
+    this.$parent.serviceHealth.update(app.Id);
 }
 
 function updateRunning(app) {

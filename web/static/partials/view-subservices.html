@@ -132,37 +132,31 @@
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
-          <th ng-repeat="header in services.headers">{{header.name|translate}}</th>
+          <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
+          <th style="white-space: nowrap; width:200px;">Application</th>
+          <th style="width: 40px;">Status</th>
+          <th style="width: 700px;">Startup Command</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.subservices">
-          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap; width:200px">
-            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}</td>
-          <td width="130" style="text-align: center">
-            <div class="toggle btn-group" data-toggle="buttons">
-              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
-                <input type="radio" name="running{{$index}}" 
-                       ng-model="app.Running" value="1">
-                {{app.runningText|translate}}
-              </label>
-              
-              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
-                <input type="radio" name="running{{$index}}" 
-                       ng-model="app.Running" value="stopped">
-                {{app.notRunningText|translate}}
-              </label>
-            </div>
+        <tr ng-repeat="app in services.subservices" data-id="{{app.Id}}">
+          <td ng-click="click_app(app.Id)" class="link">
+            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
           </td>
-          <td style="text-align: center; width:60px">
-            <span data-toggle="tooltip" data-placement="top" title="" id="health-tooltip-{{app.Id}}">
+          <td style="text-align:center;">
+            <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
               <div ng-if="app.children === undefined">
-                <i class="glyphicon" id="health-{{app.Id}}"></i>
+                <i class="healthIcon" ng-class="app.healthIconClass"></i>
               </div>
             </span>
           </td>
           <td>
             <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
+          </td>
+          <td>
+            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
           </td>
         </tr>
       </tbody>

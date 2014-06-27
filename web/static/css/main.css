@@ -936,7 +936,8 @@ rect {
   0%   { opacity: 1; }
   10%  { opacity: .5;}
   20% { opacity: 1; }
-}@-webkit-keyframes throb {
+}
+@-webkit-keyframes throb {
   0%   { opacity: 1; }
   10%  { opacity: .5;}
   20% { opacity: 1; }
@@ -990,6 +991,8 @@ rect {
     to {transform:rotate(360deg);}
 }
 
+
+
 .clearLink{
     cursor: pointer;
 }
@@ -1011,7 +1014,7 @@ rect {
 }
 
 .healthIcon {
-    font-size: 1.3em;
+    -webkit-transform: scale(1.4, 1.4);
 }
 .healthIcon.good {
     color: #0084DB;
@@ -1024,4 +1027,12 @@ rect {
 }
 .healthIcon.bad {
     color: #9C1200;
+}
+.healthIcon.zoom {
+    -webkit-animation: zoom .3s;
+}
+@-webkit-keyframes zoom {
+    0% { -webkit-transform: scale(1.4, 1.4); }
+    50% { -webkit-transform: scale(2.4, 2.4); }
+    100% { -webkit-transform: scale(1.4, 1.4);  }
 }

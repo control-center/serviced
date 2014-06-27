@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService) {
+function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -23,7 +23,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.services = buildTable('Name', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'DesiredState', name: 'deployed_tbl_state' },
-        { id: 'Health', name: 'Health' },
         { id: 'Startup', name: 'label_service_startup' }
     ]);
 
@@ -45,6 +44,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Port', name: 'tbl_virtual_ip_port'},
         { id: 'Actions', name: 'tbl_virtual_ip_actions'}
     ]);
+
+    // give servicesHealth the list of services to check up on
+    $serviceHealth.setServices($scope.services);
 
     //add vhost data (includes name, app & service endpoint)
     $scope.vhosts.add = {};
@@ -187,97 +189,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         });
     };
 
-    // helper functions for updateHealth
-    function getServiceById(serviceId){
-        for(var i = 0; i < $scope.services.subservices.length; i++){
-            if($scope.services.subservices[i].Id === serviceId){
-                return $scope.services.subservices[i];
-            }
-        }
-    }
-    function setStatus(id, status){
-        document.getElementById("health-" + id).className = "healthIcon glyphicon glyphicon-" + status;
-    }
-
-    function updateHealth() {
-        $.getJSON("/servicehealth", function(packet) {
-            var healths = packet.Statuses;
-            var timestamp = packet.Timestamp;
-
-            var service;
-
-            for (var ServiceId in healths) {
-
-                service = getServiceById(ServiceId);
-
-                if(!service){
-                    throw new Error("Could not find service with id" + ServiceId);
-                }
-
-                data = healths[ServiceId];
-                element = document.getElementById("health-tooltip-" + ServiceId);
-                if (element) {
-                    element.title = "";
-                    passingAny = false;
-                    failingAny = false;
-                    unknownAny = false;
-                    for (var name in data) {
-                        if (timestamp - data[name].Timestamp >= data[name].Interval * 2) {
-                            data[name].Status = "unknown";
-                        }
-
-                        switch(data[name].Status){
-                            case "passed":
-                                passingAny = true;
-                                break;
-                            case "failed":
-                                failingAny = true;
-                                break;
-                            case "unknown":
-                                unknownAny = true;
-                                break;
-                            default:
-                                break;
-                        }
-
-                        element.title += name + ":" + data[name].Status + "\n";
-                    }
-
-                    // the following conditions are relevant when the service
-                    // *should* be started
-                    if(service.DesiredState === 1){
-
-                        // service should be up, but is failing. bad!
-                        if(failingAny){
-                            setStatus(ServiceId, "exclamation-sign bad");
-
-                        // service should be up, but seems unresponsive
-                        // It could be just starting, or on its way down
-                        } else if(!passingAny && unknownAny){
-                            setStatus(ServiceId, "question-sign unknown");
-
-                        // service is up and healthy
-                        } else if(passingAny && !unknownAny){
-                            setStatus(ServiceId, "ok-sign good");
-                        }
-
-                    // the following conditions are relevant when the service
-                    // *should* be off
-                    } else if(service.DesiredState === 0){
-
-                        // it should be off, but its still on... weird.
-                        if(passingAny){
-                            setStatus(ServiceId, "question-sign unknown");
-
-                        // service is off, as expected
-                        } else {
-                           setStatus(ServiceId, "minus-sign disabled");
-                        }
-                    }
-                }
-            }
-        });
-    }
+    
 
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
@@ -287,12 +199,13 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 wait.running = true;
                 mashHostsToInstances();
             });
-            updateHealth();
+            $serviceHealth.update();
         }
     }
 
     if(!angular.isDefined($scope.updateRunningInterval)) {
-        $scope.updateRunningInterval = $interval(updateRunning, 3000);
+        // DONT CHECK THIS IN! - set poll frequency back to 3000
+        $scope.updateRunningInterval = $interval(updateRunning, 500);
     }
 
     // Get a list of deployed apps
@@ -311,7 +224,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
-        updateHealth();
+        $serviceHealth.update();
     });
 
     $scope.$on('$destroy', function() {
