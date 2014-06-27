@@ -10,14 +10,18 @@
 #---------------------#
 # Macros              #
 #---------------------#
-build_TARGETS   = build_isvcs build_js serviced nsinit
-install_TARGETS = $(bash_completion) $(nsinit) $(logstash.conf) $(serviced)
+build_TARGETS   = build_isvcs build_js $(logstash.conf) nsinit serviced
+install_TARGETS = $(bash_completion)
 
 # Define GOPATH for containerized builds.
 #
 #    NB: Keep this in sync with build/Dockerfile: ENV GOPATH /go
 #
 docker_GOPATH = /go
+
+serviced_SRC            = github.com/zenoss/serviced
+docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
+docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
 
 ifeq "$(GOPATH)" ""
     $(warning "GOPATH not set. Ok to ignore for containerized builds.")
@@ -65,9 +69,16 @@ build_binary: $(build_TARGETS)
 	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
 	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
 
-.PHONY: build_isvcs
-build_isvcs: | $(GODEP) $(Godeps)
+# The presence of this file indicates that godep restore 
+# has been run.  It will refresh when ./Godeps itself is updated.
+Godeps_restored = .Godeps_restored
+$(Godeps_restored): | $(GODEP)
+$(Godeps_restored): $(Godeps)
 	$(GODEP) restore
+	touch $@
+
+.PHONY: build_isvcs
+build_isvcs: | $(Godeps_restored)
 	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
 .PHONY: build_js
@@ -82,19 +93,37 @@ $(GOSRC)/$(godep_SRC):
 go: 
 	go build
 
+# As a dev convenience, we call both 'go build' and 'go install'
+# so the current directory and $GOPATH/bin are updated
+# with the built target.  This allows dev's to reference the target out
+# of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
+
 docker_SRC = github.com/dotcloud/docker
 nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-nsinit: | $(GOSRC)/$(nsinit_SRC) $(GODEP) $(Godeps)
-	$(GODEP) restore
-	go build $($@_SRC)
+nsinit: $(Godeps_restored)
+	go build   $($@_SRC)
+	go install $($@_SRC)
 
-serviced: | $(GODEP) $(Godeps)
-	$(GODEP) restore
+nsinit = $(GOBIN)/nsinit
+$(nsinit): $(Godeps_restored)
+	go install $($(@F)_SRC)
+
+# https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
+#
+# Force our go recipies to always fire since make doesn't 
+# understand all of the target's *.go dependencies.  In this case let
+# 'go build' determine if the target needs to be rebuilt.
+FORCE:
+
+serviced: $(Godeps_restored)
+serviced: FORCE
 	go build
+	go install
 
-serviced_SRC            = github.com/zenoss/serviced
-docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
-docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
+serviced = $(GOBIN)/serviced
+$(serviced): $(Godeps_restored)
+$(serviced): FORCE
+	go install
 
 .PHONY: docker_build dockerbuild_binaryx
 docker_build dockerbuild_binaryx: docker_ok
@@ -107,21 +136,6 @@ docker_build dockerbuild_binaryx: docker_ok
 	-v `pwd`/pkg/build/tmp:/tmp \
 	-t zenoss/serviced-build make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build_binary
 	cd isvcs && make isvcs_repo
-
-#---------------------#
-# Install targets     #
-#---------------------#
-
-bash_completion_SRC = serviced-bash-completion.sh
-bash_completion     = /etc/bash_completion.d/serviced
-#
-# CM: This is a bit non-std to inline the sudo.  
-#     More typical pattern is:
-#
-#        sudo make install
-#
-$(bash_completion): $(bash_completion_SRC)
-	sudo cp $? $@
 
 logstash.conf     = isvcs/resources/logstash/logstash.conf
 logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in 
@@ -141,18 +155,23 @@ missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(g
 $(GODEP): | $(missing_godep_SRC)
 	go install $(godep_SRC)
 
-nsinit = $(GOBIN)/nsinit
-missing_nsinit_SRC =  $(filter-out $(wildcard $(GOSRC)/$(nsinit_SRC)), $(GOSRC)/$(nsinit_SRC))
-$(nsinit): | $(missing_nsinit_SRC)
-	go install $(nsinit_SRC)
 
-.PHONY: serviced_svcdef_compiler
-serviced = $(GOBIN)/serviced
-$(serviced) serviced_svcdef_compiler:
-	go install
+#---------------------#
+# Install targets     #
+#---------------------#
+
+bash_completion_SRC = serviced-bash-completion.sh
+bash_completion     = /etc/bash_completion.d/serviced
+#
+# CM: This is a bit non-std to inline the sudo.  
+#     More typical pattern is:
+#
+#        sudo make install
+#
+$(bash_completion): $(bash_completion_SRC)
+	sudo cp $? $@
 
 .PHONY: install
-install: | $(build_TARGETS)
 install: $(install_TARGETS)
 
 #---------------------#
@@ -226,18 +245,26 @@ clean_js:
 
 .PHONY: clean_nsinit
 clean_nsinit:
-	if [ -f nsinit ];then \
-		rm -f nsinit ;\
-	fi
+	@for target in nsinit $(nsinit) ;\
+        do \
+                if [ -f "$${target}" ];then \
+                        rm -f $${target} ;\
+			echo "rm -f $${target}" ;\
+                fi ;\
+        done
 	if [ -d "$(GOSRC)/$(nsinit_SRC)" ];then \
 		cd $(GOSRC)/$(nsinit_SRC) && go clean ;\
 	fi
 
 .PHONY: clean_serviced
 clean_serviced:
-	if [ -f "serviced" ];then \
-		rm -f serviced ;\
-	fi
+	@for target in serviced $(serviced) ;\
+        do \
+                if [ -f "$${target}" ];then \
+                        rm -f $${target} ;\
+			echo "rm -f $${target}" ;\
+                fi ;\
+        done
 	-go clean
 
 .PHONY: clean_pkg
@@ -247,6 +274,10 @@ clean_pkg:
 .PHONY: clean_godeps
 clean_godeps: | $(GODEP) $(Godeps)
 	$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	@if [ -f "$(Godeps_restored)" ];then \
+		rm -f $(Godeps_restored) ;\
+		echo "rm -f $(Godeps_restored)" ;\
+	fi
 
 .PHONY: clean_dao
 clean_dao:

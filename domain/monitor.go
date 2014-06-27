@@ -1,36 +1,20 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package domain defines the monitoring profiles for control center domain objects
 package domain
+
+import "reflect"
 
 //MonitorProfile describes metrics, thresholds and graphs to monitor an entity's performance
 type MonitorProfile struct {
-	MetricConfigs []MetricConfig
+	MetricConfigs []MetricConfig //metrics for domain object
+	GraphConfigs  []GraphConfig  //graphs for a domain object
 	//TODO Thresholds
-	//TODO Graphs
 }
 
-//Equals equality test for Monitor
+//Equals equality test for MonitorProfile
 func (profile *MonitorProfile) Equals(that *MonitorProfile) bool {
-	if profile.MetricConfigs == nil && that.MetricConfigs == nil {
-		return true
-	}
-
-	if profile.MetricConfigs == nil && that.MetricConfigs != nil {
-		return false
-	}
-
-	if profile.MetricConfigs != nil && that.MetricConfigs == nil {
-		return false
-	}
-
-	if len(profile.MetricConfigs) != len(that.MetricConfigs) {
-		return false
-	}
-
-	for i := range profile.MetricConfigs {
-		metric := &profile.MetricConfigs[i]
-		if !metric.Equals(&that.MetricConfigs[i]) {
-			return false
-		}
-	}
-
-	return true
+	return reflect.DeepEqual(profile, that)
 }
