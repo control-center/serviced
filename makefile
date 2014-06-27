@@ -93,13 +93,6 @@ $(GOSRC)/$(godep_SRC):
 go: 
 	go build
 
-# https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
-#
-# Force our go recipies to always fire since make doesn't 
-# understand all of the target's *.go dependencies.  In this case let
-# 'go build' determine if the target needs to be rebuilt.
-FORCE:
-
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
 # with the built target.  This allows dev's to reference the target out
@@ -107,16 +100,20 @@ FORCE:
 
 docker_SRC = github.com/dotcloud/docker
 nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-nsinit: $(Godeps_restored) | $(GOSRC)/$(nsinit_SRC)
-nsinit: FORCE
+nsinit: $(Godeps_restored)
 	go build   $($@_SRC)
 	go install $($@_SRC)
 
 nsinit = $(GOBIN)/nsinit
-$(nsinit): | $(GOSRC)/$(nsinit_SRC)
-$(nsinit): $(Godeps_restored) FORCE
-$(nsinit): FORCE
+$(nsinit): $(Godeps_restored)
 	go install $($(@F)_SRC)
+
+# https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
+#
+# Force our go recipies to always fire since make doesn't 
+# understand all of the target's *.go dependencies.  In this case let
+# 'go build' determine if the target needs to be rebuilt.
+FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
