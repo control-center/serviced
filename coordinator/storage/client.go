@@ -27,7 +27,6 @@ type Client struct {
 
 // NewClient returns a Client that manages remote mounts
 func NewClient(host *host.Host, zclient *client.Client, localPath string) (*Client, error) {
-
 	if err := mkdirAll(localPath, 0755); err != nil {
 		return nil, err
 	}
@@ -58,7 +57,6 @@ func (c *Client) Close() {
 }
 
 func (c *Client) loop() {
-
 	var err error
 	var e <-chan client.Event
 	node := &Node{

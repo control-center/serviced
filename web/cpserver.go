@@ -207,6 +207,16 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	return c, err
 }
 
+func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
+	c, err := master.NewClient(sc.agentPort)
+	if err != nil {
+		glog.Errorf("Could not create a control plane client to %v: %v", sc.agentPort, err)
+		return nil, err
+	}
+
+	return c, nil
+}
+
 func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !check(w, r) {
@@ -247,9 +257,9 @@ func newRequestContext(sc *ServiceConfig) *requestContext {
 
 func (ctx *requestContext) getMasterClient() (*master.Client, error) {
 	if ctx.master == nil {
-		c, err := master.NewClient(ctx.sc.agentPort)
+		c, err := ctx.sc.getMasterClient()
 		if err != nil {
-			glog.Errorf("Could not create a control plane client to %v: %v", ctx.sc.agentPort, err)
+			glog.Errorf("Could not create a control plane client: %v", err)
 			return nil, err
 		}
 		ctx.master = c

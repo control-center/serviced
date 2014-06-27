@@ -127,21 +127,8 @@ func (sc *ServiceConfig) syncVhosts() {
 	go sc.watchVhosts()
 }
 
-func (sc *ServiceConfig) watchVhosts() error {
-	glog.Info("watchVhosts starting...")
-	conn, err := sc.zkClient.GetConnection()
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
-		return err
-	}
-
-	vhostRegistry, err := registry.VHostRegistry(conn)
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
-		return err
-	}
-
-	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry) registry.ProcessChildrenFunc {
+	return func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
@@ -169,10 +156,41 @@ func (sc *ServiceConfig) watchVhosts() error {
 			}
 		}
 	}
+}
 
-	cancelChan := make(chan bool)
-	vhostRegistry.WatchRegistry(conn, cancelChan, processVhosts, vhostWatchError)
-	glog.Warning("watchVhosts ended")
+func (sc *ServiceConfig) watchVhosts() error {
+	glog.Info("watchVhosts starting...")
+
+	mc, err := sc.getMasterClient()
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting master client: %v", err)
+		return err
+	}
+	allPools, err := mc.GetResourcePools()
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting resource pools: %v", err)
+		return err
+	}
+	for _, aPool := range allPools {
+		conn, err := sc.zkClient.GetCustomConnection("/pools/" + aPool.ID)
+		if err != nil {
+			glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
+			return err
+		}
+
+		vhostRegistry, err := registry.VHostRegistry(conn)
+		if err != nil {
+			glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
+			return err
+		}
+
+		cancelChan := make(chan bool)
+		go func() {
+			vhostRegistry.WatchRegistry(conn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
+			glog.Warning("watchVhosts ended")
+			conn.Close()
+		}()
+	}
 
 	return nil
 }
@@ -205,7 +223,6 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 
 func vhostWatchError(path string, err error) {
 	glog.Warningf("processing vhostWatchError on %s: %v", path, err)
-
 }
 
 // Lookup the appropriate virtual host and forward the request to it.
@@ -244,7 +261,6 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 	rp.ServeHTTP(w, r)
 	return
-
 }
 
 var reverseProxies map[string]*httputil.ReverseProxy
