@@ -70,6 +70,7 @@
     "deployed_tbl_state": "Status",
     "entry_content": "",
     "error": "Error",
+    "graphs": "Graphs",
     "graph_tbl_cpu": "CPU",
     "graph_tbl_mem": "Memory",
     "host": "Host",
