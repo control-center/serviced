@@ -319,6 +319,18 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
+func parseMountArg(arg string) (hostPath, containerPath string, err error) {
+	splitMount := strings.Split(arg, ",")
+	hostPath = splitMount[0]
+	if len(splitMount) > 1 {
+		containerPath = splitMount[1]
+	} else {
+		containerPath = hostPath
+	}
+	return
+
+}
+
 func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
@@ -382,6 +394,14 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
+	for _, mount := range cfg.Mount {
+		hostPath, containerPath, err := parseMountArg(mount)
+		if err != nil {
+			return nil, err
+		}
+		argv = append(argv, "-v", fmt.Sprintf("%s:%s", hostPath, containerPath))
+	}
+
 	argv = append(argv, cfg.Envv...)
 
 	if cfg.SaveAs != "" {
