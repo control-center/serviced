@@ -378,36 +378,14 @@ func Images() ([]*Image, error) {
 // FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {
-	imgs, err := Images()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, img := range imgs {
-		if img.ID.String() == repotag {
-			return img, nil
+	if pull {
+		err := pullImage(repotag)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	img, err := lookupImage(repotag, true)
-	if err != nil {
-		return nil, err
-	}
-
-	if img != nil {
-		return img, nil
-	}
-
-	if !pull {
-		return nil, ErrNoSuchImage
-	}
-
-	pullImage(repotag)
-	if err != nil {
-		return nil, err
-	}
-
-	return lookupImage(repotag, false)
+	return lookupImage(repotag)
 }
 
 // Delete remove the image from the local repository
@@ -518,7 +496,7 @@ func cancelOnContainerEvent(event, id string) error {
 	}
 }
 
-func lookupImage(repotag string, missingOk bool) (*Image, error) {
+func lookupImage(repotag string) (*Image, error) {
 	imgs, err := Images()
 	if err != nil {
 		return nil, err
@@ -528,10 +506,6 @@ func lookupImage(repotag string, missingOk bool) (*Image, error) {
 		if img.ID.String() == repotag {
 			return img, nil
 		}
-	}
-
-	if missingOk {
-		return nil, nil
 	}
 
 	return nil, ErrNoSuchImage
@@ -545,13 +519,16 @@ func pullImage(repotag string) error {
 
 	ec := make(chan error)
 
-	cmds.PullImage <- pullimgreq{
+	cmds.PullImage <- pushpullreq{
 		request{ec},
 		struct {
-			repo     string
+			op       int
+			uuid     string
+			reponame string
 			registry string
 			tag      string
-		}{iid.BaseName(), iid.Registry(), iid.Tag},
+		}{pullop, "", iid.BaseName(), iid.Registry(), iid.Tag},
+		nil,
 	}
 
 	select {
