@@ -19,6 +19,7 @@ import (
 	"strings"
 )
 
+// FilesToIgnore are the files that Squash will ignore when computing diffs.
 var FilesToIgnore = map[string]struct{}{
 	".dockerenv":      struct{}{},
 	".dockerinit":     struct{}{},
@@ -33,6 +34,7 @@ var FilesToIgnore = map[string]struct{}{
 	"etc/resolv.conf": struct{}{},
 }
 
+// DockerClient is the minimal docker client interface this package needs.
 type DockerClient interface {
 	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
 	RemoveContainer(docker.RemoveContainerOptions) error
@@ -78,7 +80,7 @@ func getTarHeaders(tr *tar.Reader) ([]*tar.Header, error) {
 	return topHeaders, nil
 }
 
-func pushImage(client DockerClient, imageName string, image *os.File) (imageId string, err error) {
+func pushImage(client DockerClient, imageName string, image *os.File) (imageID string, err error) {
 	parsedImage, err := commons.ParseImageID(imageName)
 	if err != nil {
 		return "", err
@@ -103,7 +105,9 @@ func pushImage(client DockerClient, imageName string, image *os.File) (imageId s
 	return strings.TrimSpace(string(idbuffer)), nil
 }
 
-func Squash(client DockerClient, imageName, downToLayer, newName, tempDir string) (resultImageId string, err error) {
+// Squash flattens the image down to the downToLayer and optionally retag the generated
+// layer with newName. The resulting layer is returned in resultImageID.
+func Squash(client DockerClient, imageName, downToLayer, newName, tempDir string) (resultImageID string, err error) {
 
 	// get list of layers for the image
 	layers, err := getLayers(client, imageName)

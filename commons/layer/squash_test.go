@@ -5,31 +5,38 @@ package layer
 import (
 	"github.com/zenoss/go-dockerclient"
 
+	"fmt"
 	"io"
 	"os"
 	"testing"
-	"fmt"
 )
 
 var errUnimplemented = fmt.Errorf("unimplemented")
 
 type mockClientT struct {
-	createContainer docker.Container
-	createContainerErr error
-	removeContainerErr error
+	createContainer          docker.Container
+	createContainerErr       error
+	removeContainerErr       error
 	exportContainerDatapaths []string
-	exportContainerErr error
-	buildImageErr error
+	exportContainerErr       error
+	buildImageErr            error
 }
 
-func (c *mockClientT) CreateContainer(docker.CreateContainerOptions) (docker.Container, error) {
-	return c.createContainer, c.createContainerErr
+func (c *mockClientT) CreateContainer(docker.CreateContainerOptions) (*docker.Container, error) {
+	return &c.createContainer, c.createContainerErr
+}
+
+func (c *mockClientT) ImportImage(docker.ImportImageOptions) error {
+	return nil
+}
+
+func (c *mockClientT) InspectImage(string) (*docker.Image, error) {
+	return &docker.Image{}, nil
 }
 
 func (c *mockClientT) RemoveContainer(docker.RemoveContainerOptions) error {
 	return c.removeContainerErr
 }
-
 
 func (c *mockClientT) ExportContainer(options docker.ExportContainerOptions) error {
 	if c.exportContainerErr != nil {
@@ -53,34 +60,33 @@ func (c *mockClientT) BuildImage(docker.BuildImageOptions) error {
 	return c.buildImageErr
 }
 
-
 type testCase struct {
-	layer           string
-	downTo          string
-	err             error
-	shouldBeEqualTo string
+	layer                    string
+	downTo                   string
+	err                      error
+	shouldBeEqualTo          string
 	exportContainerDatapaths []string
 }
 
-var testCases = []testCase {
+var testCases = []testCase{
 	testCase{
-        	layer: "7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c",
-        	downTo: "",
-		exportContainerDatapaths: []string{"data/7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c.tar",},
-		shouldBeEqualTo: "",
-		err: nil,
+		layer:  "7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c",
+		downTo: "",
+		exportContainerDatapaths: []string{"data/7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c.tar"},
+		shouldBeEqualTo:          "",
+		err:                      nil,
 	},
 }
+
 // -rw-rw-r-- 1 dgarcia dgarcia 6656 Jun 20 13:02 ad892dd21d607a1458a722598a2e4d93015c4507abcd0ebfc16a43d4d1b41520.tar
 
 func TestSquash(t *testing.T) {
 	client := &mockClientT{}
 	for _, tc := range testCases {
 		client.exportContainerDatapaths = tc.exportContainerDatapaths
-		_, err := Squash(client, tc.layer, tc.downTo, "")
+		_, err := Squash(client, tc.layer, tc.downTo, "", "")
 		if err != tc.err {
 			t.Fatalf("unexpected err condition: %s, expected %+v", err, tc.err)
 		}
 	}
 }
-
