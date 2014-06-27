@@ -53,7 +53,7 @@
                 var timestamp = packet.Timestamp;
 
                 var service, data,
-                    passingAny, failingAny, unknownAny, status;
+                    passingAny, failingAny, unknownAny, status, missedIntervals;
 
                 for (var ServiceId in healths) {
 
@@ -71,10 +71,19 @@
                     failingAny = false;
                     unknownAny = false;
                     status = null;
+                    missedIntervals = 0;
 
                     for (var name in data) {
-                        if (timestamp - data[name].Timestamp >= data[name].Interval * 2) {
+
+                        missedIntervals = (timestamp - data[name].Timestamp) / data[name].Interval;
+
+                        // if service has missed 2 updates, mark unknown
+                        if (missedIntervals > 2 && missedIntervals < 30) {
                             data[name].Status = "unknown";
+
+                        // if service has missed 30 updates, mark failed
+                        } else if (missedIntervals > 30) {
+                            data[name].Status = "failed";
                         }
 
                         switch(data[name].Status){
