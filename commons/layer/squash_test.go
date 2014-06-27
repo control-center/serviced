@@ -26,7 +26,8 @@ func (c *mockClientT) CreateContainer(docker.CreateContainerOptions) (*docker.Co
 	return &c.createContainer, c.createContainerErr
 }
 
-func (c *mockClientT) ImportImage(docker.ImportImageOptions) error {
+func (c *mockClientT) ImportImage(opts docker.ImportImageOptions) error {
+	go opts.OutputStream.Write([]byte("testimage"))
 	return nil
 }
 
@@ -73,7 +74,7 @@ var testCases = []testCase{
 		layer:  "7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c",
 		downTo: "",
 		exportContainerDatapaths: []string{"data/7f8a29e4050bb8a80d5cb143cae6831555080cf677904c10e8729988d2ac3d6c.tar"},
-		shouldBeEqualTo:          "",
+		shouldBeEqualTo:          "testlayer",
 		err:                      nil,
 	},
 }
@@ -84,9 +85,12 @@ func TestSquash(t *testing.T) {
 	client := &mockClientT{}
 	for _, tc := range testCases {
 		client.exportContainerDatapaths = tc.exportContainerDatapaths
-		_, err := Squash(client, tc.layer, tc.downTo, "", "")
+		imageID, err := Squash(client, tc.layer, tc.downTo, "", "")
 		if err != tc.err {
 			t.Fatalf("unexpected err condition: %s, expected %+v", err, tc.err)
+		}
+		if imageID != tc.shouldBeEqualTo {
+			t.Fatalf("imageID should be %s instead of %s", tc.shouldBeEqualTo, imageID)
 		}
 	}
 }

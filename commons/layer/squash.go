@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"reflect"
 	"sort"
 	"strings"
@@ -290,5 +291,29 @@ func Squash(client DockerClient, imageName, downToLayer, newName, tempDir string
 	}
 	dfile.Close()
 
-	return "", nil
+	// TODO: replace this with a streaming tar built on the fly
+	// so that we don't rely on calling the CLI
+	buildArgs := []string{"build"}
+	tagName := ""
+	if newName != "" {
+		tagName = newName
+		buildArgs = append(buildArgs, "--tag", newName)
+	} else {
+		tagName = imageName
+		buildArgs = append(buildArgs, "--tag", imageName)
+	}
+	buildArgs = append(buildArgs, tdirName)
+	build := exec.Command("docker", buildArgs...)
+	build.Stdout = os.Stdout
+	build.Stderr = os.Stderr
+	if err := build.Run(); err != nil {
+		return "", fmt.Errorf("error building image")
+	}
+
+	newImage, err := client.InspectImage(tagName)
+	if err != nil {
+		return "", err
+	}
+
+	return newImage.ID, nil
 }
