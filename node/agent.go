@@ -450,6 +450,7 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 			}
 			ss.PortMapping[string(k)] = pm
 		}
+		glog.Infof("PortMapping: %+v", ss.PortMapping)
 		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
@@ -529,6 +530,7 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 						}
 						ss.PortMapping[string(k)] = pm
 					}
+					glog.Infof("PortMapping: %+v", ss.PortMapping)
 					sState = ss
 				}); err != nil {
 					glog.Warningf("Unable to update service state %s: %v", serviceState.Id, err)
@@ -745,28 +747,29 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		funcmap := template.FuncMap{
 			"plus": plus,
 		}
-		for i, endpoint := range svc.Endpoints {
+		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
+				var port uint16
+				port = endpoint.PortNumber
 				if endpoint.PortTemplate != "" {
 					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
 					b := bytes.Buffer{}
 					err := t.Execute(&b, serviceState)
 					if err == nil {
-						i, err := strconv.Atoi(b.String())
+						j, err := strconv.Atoi(b.String())
 						if err != nil {
 							glog.Errorf("%+v", err)
-						} else {
-							endpoint.PortNumber = uint16(i)
+						} else if j > 0 {
+							port = uint16(j)
 						}
 					}
 				}
-				svc.Endpoints[i] = endpoint
 				var p string
 				switch endpoint.Protocol {
 				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
+					p = fmt.Sprintf("%d/%s", port, "udp")
 				default:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
+					p = fmt.Sprintf("%d/%s", port, "tcp")
 				}
 				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
 				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
