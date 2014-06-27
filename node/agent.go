@@ -707,15 +707,15 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState, virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, svc *service.Service, serviceState *servicestate.ServiceState, virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	err := client.GetTenantId(service.Id, &tenantID)
+	err := client.GetTenantId(svc.Id, &tenantID)
 	if err != nil {
-		glog.Errorf("Failed getting tenantID for service: %s, %s", service.Id, err)
+		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.Id, err)
 	}
 
 	// get the system user
@@ -727,15 +727,15 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
-	cfg.Image = service.ImageID
+	cfg.Image = svc.ImageID
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
-	if service.Endpoints != nil {
-		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
-		for _, endpoint := range service.Endpoints {
+	if svc.Endpoints != nil {
+		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
+		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				var p string
 				switch endpoint.Protocol {
@@ -750,9 +750,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		}
 	}
 
-	if len(tenantID) == 0 && len(service.Volumes) > 0 {
+	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
-		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, service.Id)
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.Id, svc.Id)
 	}
 
 	// Make sure the image exists locally.
@@ -766,20 +766,25 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		glog.Errorf("can't create docker client: %v", err)
 		return nil, nil, err
 	}
-	if _, err = docker.InspectImage(*registry, dc, service.ImageID); err != nil {
-		glog.Errorf("can't inspect docker image %s: %s", service.ImageID, err)
+	if _, err = docker.InspectImage(*registry, dc, svc.ImageID); err != nil {
+		glog.Errorf("can't inspect docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
 	}
 
 	cfg.Volumes = make(map[string]struct{})
 	hcfg.Binds = []string{}
 
-	for _, volume := range service.Volumes {
-		sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
+	if err := injectContext(svc, serviceState, client); err != nil {
+		glog.Errorf("Error injecting context: %s", err)
+		return nil, nil, err
+	}
+
+	for _, volume := range svc.Volumes {
+		sv, err := getSubvolume(a.varPath, svc.PoolID, tenantID, a.vfs)
 		if err != nil {
 			glog.Fatalf("Could not create subvolume: %s", err)
 		} else {
-			glog.V(2).Infof("Volume for service Name:%s ID:%s", service.Name, service.Id)
+			glog.V(2).Infof("Volume for service Name:%s ID:%s", svc.Name, svc.Id)
 
 			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
 			glog.V(2).Infof("FullResourcePath: %s", resourcePath)
@@ -787,7 +792,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
 			}
 
-			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+			if err := createVolumeDir(resourcePath, volume.ContainerPath, svc.ImageID, volume.Owner, volume.Permission); err != nil {
 				glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 			}
 
@@ -806,13 +811,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Volumes[strings.Split(volumeBinding, ":")[1]] = struct{}{}
 	hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(volumeBinding))
 
-	if err := injectContext(service, serviceState, client); err != nil {
-		glog.Errorf("Error injecting context: %s", err)
-		return nil, nil, err
-	}
-
 	// bind mount everything we need for logstash-forwarder
-	if len(service.LogConfigs) != 0 {
+	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
 		binding := fmt.Sprintf("%s:%s", logstashPath, LOGSTASH_CONTAINER_DIRECTORY)
@@ -822,7 +822,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// add arguments to mount requested directory (if requested)
-	glog.V(2).Infof("Checking Mount options for service %#v", service)
+	glog.V(2).Infof("Checking Mount options for service %#v", svc)
 	for _, bindMountString := range a.mount {
 		glog.V(2).Infof("bindmount is  %#v", bindMountString)
 		splitMount := strings.Split(bindMountString, ",")
@@ -853,9 +853,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
 					continue
 				}
-				svcImageID, err := commons.ParseImageID(service.ImageID)
+				svcImageID, err := commons.ParseImageID(svc.ImageID)
 				if err != nil {
-					glog.Errorf("error parsing service imageid %v; %v", service.ImageID, err)
+					glog.Errorf("error parsing service imageid %v; %v", svc.ImageID, err)
 					continue
 				}
 				glog.V(2).Infof("mount checking %#v and %#v ", imageID, svcImageID)
@@ -896,19 +896,19 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// Add hostname if set
-	if service.Hostname != "" {
-		cfg.Hostname = service.Hostname
+	if svc.Hostname != "" {
+		cfg.Hostname = svc.Hostname
 	}
 
 	cfg.Cmd = append([]string{},
 		fmt.Sprintf("/serviced/%s", binary),
 		"service",
 		"proxy",
-		service.Id,
+		svc.Id,
 		strconv.Itoa(serviceState.InstanceID),
-		service.Startup)
+		svc.Startup)
 
-	if service.Privileged {
+	if svc.Privileged {
 		hcfg.Privileged = true
 	}
 

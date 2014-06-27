@@ -1,6 +1,8 @@
 package container
 
 import (
+	"bytes"
+
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -16,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -37,6 +40,7 @@ type export struct {
 type importedEndpoint struct {
 	endpointID     string
 	instanceID     string
+	basePort       int
 	virtualAddress string
 	purpose        string
 }
@@ -207,6 +211,10 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 	}
 
 	return result, nil
+}
+
+func plus(a, b int) int {
+	return a + b
 }
 
 // buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
@@ -396,12 +404,12 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	}
 
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
-		setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
+		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
 	}
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
+func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
 	glog.V(2).Infof("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 
 	if len(endpoints) <= 0 {
@@ -430,7 +438,8 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 		proxyKeys[0] = tenantEndpointID
 		glog.Infof("Importing service endpoint as port %d: %s", endpoints[0].ContainerPort, tenantEndpointID)
 	} else if purpose == "import_all" {
-		// Need to create a proxy per instance of the service whose endpoint is being imported
+		// Need to create a proxy per instance of the service whose endpoint is
+		// being imported
 		for _, instance := range endpoints {
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
@@ -459,7 +468,19 @@ func setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndp
 			}
 			proxies[proxyKey] = prxy
 
-			for _, virtualAddress := range []string{importVirtualAddress, endpoint.VirtualAddress} {
+			funcmap := template.FuncMap{
+				"plus": plus,
+			}
+			for _, vaddr := range []string{importVirtualAddress, endpoint.VirtualAddress} {
+				// Evaluate virtual address template
+				t := template.Must(template.New(endpoint.Application).Funcs(funcmap).Parse(vaddr))
+				var buffer bytes.Buffer
+				if err := t.Execute(&buffer, endpoint); err != nil {
+					glog.Errorf("Failed to evaluate VirtualAddress template")
+					return
+				}
+				virtualAddress := buffer.String()
+				// Now actually make the thing
 				if virtualAddress != "" {
 					p := strconv.FormatUint(uint64(endpoint.ContainerPort), 10)
 					err := vifs.RegisterVirtualAddress(virtualAddress, p, endpoint.Protocol)

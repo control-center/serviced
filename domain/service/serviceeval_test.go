@@ -17,8 +17,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"fmt"
-	"time"
 	"strings"
+	"time"
 )
 
 var startup_testcases = []struct {
@@ -55,10 +55,10 @@ var startup_testcases = []struct {
 		},
 		ConfigFiles: map[string]servicedefinition.ConfigFile{
 			"Zenosstest.conf": servicedefinition.ConfigFile{
-				Filename: "{{.Name}}test.conf",
-				Owner: "",
+				Filename:    "{{.Name}}test.conf",
+				Owner:       "",
 				Permissions: "0700",
-				Content: "\n# SAMPLE config file for {{.Name}}\n\n",
+				Content:     "\n# SAMPLE config file for {{.Name}}\n\n",
 			},
 		},
 		Snapshot: servicedefinition.SnapshotCommands{
@@ -204,7 +204,7 @@ func (s *S) TestEvaluateLogConfigTemplate(t *C) {
 	t.Assert(err, IsNil)
 
 	testcase := startup_testcases[0]
-	testcase.service.EvaluateLogConfigTemplate(s.getSVC)
+	testcase.service.EvaluateLogConfigTemplate(s.getSVC, 0)
 	// check the tag
 	result := testcase.service.LogConfigs[0].LogTags[0].Value
 	if result != testcase.service.Name {
@@ -223,7 +223,7 @@ func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
 	t.Assert(err, IsNil)
 
 	testcase := startup_testcases[0]
-	testcase.service.EvaluateConfigFilesTemplate(s.getSVC)
+	testcase.service.EvaluateConfigFilesTemplate(s.getSVC, 0)
 
 	if len(testcase.service.ConfigFiles) != 1 {
 		t.Errorf("Was expecting 1 ConfigFile, found %d", len(testcase.service.ConfigFiles))
@@ -244,7 +244,7 @@ func (s *S) TestEvaluateStartupTemplate(t *C) {
 
 	for _, testcase := range startup_testcases {
 		glog.Infof("Service.Startup before: %s", testcase.service.Startup)
-		err = testcase.service.EvaluateStartupTemplate(s.getSVC)
+		err = testcase.service.EvaluateStartupTemplate(s.getSVC, 0)
 		t.Assert(err, IsNil)
 		glog.Infof("Service.Startup after: %s, error=%s", testcase.service.Startup, err)
 		result := testcase.service.Startup
@@ -261,7 +261,7 @@ func (s *S) TestEvaluateActionsTemplate(t *C) {
 	t.Assert(err, IsNil)
 	for _, testcase := range startup_testcases {
 		glog.Infof("Service.Actions before: %s", testcase.service.Actions)
-		err = testcase.service.EvaluateActionsTemplate(s.getSVC)
+		err = testcase.service.EvaluateActionsTemplate(s.getSVC, 0)
 		glog.Infof("Service.Actions after: %v, error=%v", testcase.service.Actions, err)
 		for key, result := range testcase.service.Actions {
 			expected := fmt.Sprintf("%s %s", testcase.service.Name, key)
@@ -327,7 +327,7 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 		UpdatedAt:       time.Now(),
 	}
 
-	svc.EvaluateStartupTemplate(s.getSVC)
+	svc.EvaluateStartupTemplate(s.getSVC, 0)
 	if svc.Startup == "/usr/bin/ping -c 64 zenoss.com" {
 		t.Errorf("Not expecting a match")
 	}

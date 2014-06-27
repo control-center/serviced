@@ -12,13 +12,19 @@ import (
 	"text/template"
 )
 
-func parent(gs GetService) func(s Service) (Service, error) {
-	return func(svc Service) (Service, error) {
-		return gs(svc.ParentServiceID)
+func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
+	rc := &runtimeContext{}
+	return func(svc *runtimeContext) (*runtimeContext, error) {
+		s, err := gs(svc.ParentServiceID)
+		if err != nil {
+			return rc, err
+		}
+		return &runtimeContext{s, 0}, nil
 	}
 }
-func context() func(s Service) (map[string]interface{}, error) {
-	return func(s Service) (map[string]interface{}, error) {
+
+func context() func(s *runtimeContext) (map[string]interface{}, error) {
+	return func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
@@ -35,6 +41,26 @@ func (service *Service) EvaluateActionsTemplate(gs GetService, instanceID int) (
 		if result != "" {
 			service.Actions[key] = result
 		}
+	}
+	return
+}
+
+// EvaluateHostnameTemplate parses and evaluates the Hostname string of a service.
+func (service *Service) EvaluateHostnameTemplate(gs GetService, instanceID int) (err error) {
+	result := service.evaluateTemplate(gs, instanceID, service.Hostname)
+	service.Hostname = result
+	return
+}
+
+// EvaluateVolumesTemplate parses and evaluates the ResourcePath string in
+// volumes of a service
+func (service *Service) EvaluateVolumesTemplate(gs GetService, instanceID int) (err error) {
+	for i, vol := range service.Volumes {
+		result := service.evaluateTemplate(gs, instanceID, vol.ResourcePath)
+		if result != "" {
+			vol.ResourcePath = result
+		}
+		service.Volumes[i] = vol
 	}
 	return
 }
@@ -70,17 +96,23 @@ func (service *Service) evaluateTemplate(gs GetService, instanceID int, serviceT
 		"context":      context(),
 		"percentScale": percentScale,
 		"bytesToMB":    bytesToMB,
+		"plus":         plus,
+		"each":         each,
 	}
 
-	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
+	glog.Infof("Evaluating template string %v", serviceTemplate)
 	// parse the template
 	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
 
 	// evaluate it
 	var buffer bytes.Buffer
-	err := t.Execute(&buffer, newRuntimeContext(service, instanceID))
+	ctx := newRuntimeContext(service, instanceID)
+	glog.Infof("Using runtime context: %+v", ctx)
+	err := t.Execute(&buffer, ctx)
 	if err == nil {
-		return buffer.String()
+		result := buffer.String()
+		glog.Infof("Evaluated to:\n%s", result)
+		return result
 	}
 
 	// something went wrong, warn them
@@ -118,9 +150,8 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService, instanceID int)
 // EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
 // ConfigFile on the service.
 func (service *Service) EvaluateConfigFilesTemplate(gs GetService, instanceID int) (err error) {
-	glog.V(3).Infof("Evaluating Config Files for %s", service.Id)
+	glog.Infof("Evaluating Config Files for %s:%d", service.Id, instanceID)
 	for key, configFile := range service.ConfigFiles {
-		glog.V(3).Infof("Evaluating Config File: %v", key)
 		// Filename
 		result := service.evaluateTemplate(gs, instanceID, configFile.Filename)
 		if result != "" {
@@ -144,6 +175,18 @@ func bytesToMB(x uint64) uint64 {
 	return uint64(round(float64(x) / (1048576.0))) // 1024.0 * 1024
 }
 
+func each(n int) []int {
+	r := make([]int, n)
+	for i := 0; i < n; i++ {
+		r[i] = i
+	}
+	return r
+}
+
+func plus(a, b int) int {
+	return a + b
+}
+
 // round value - convert to int64
 func round(value float64) int64 {
 	if value < 0.0 {
@@ -162,6 +205,8 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 		"context":      context(),
 		"percentScale": percentScale,
 		"bytesToMB":    bytesToMB,
+		"plus":         plus,
+		"each":         each,
 	}
 
 	for i, ep := range service.Endpoints {
@@ -172,7 +217,7 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 		if ep.ApplicationTemplate != "" {
 			t := template.Must(template.New(service.Name).Funcs(functions).Parse(ep.ApplicationTemplate))
 			var buffer bytes.Buffer
-			if err = t.Execute(&buffer, service); err != nil {
+			if err = t.Execute(&buffer, newRuntimeContext(service, 0)); err != nil {
 				return
 			}
 			service.Endpoints[i].Application = buffer.String()
@@ -183,7 +228,7 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 
 // runtimeContext wraps a service and adds extra fields for template evaluation.
 type runtimeContext struct {
-	*Service
+	Service
 	InstanceID int
 }
 
@@ -191,7 +236,7 @@ type runtimeContext struct {
 // extra attributes passed in.
 func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 	return &runtimeContext{
-		svc,
+		*svc,
 		instanceID,
 	}
 }
@@ -202,21 +247,35 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 func (service *Service) Evaluate(getSvc GetService, instanceID int) error {
 
 	if err := service.EvaluateEndpointTemplates(getSvc); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 	if err := service.EvaluateLogConfigTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 	if err := service.EvaluateConfigFilesTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 	if err := service.EvaluateStartupTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 	if err := service.EvaluateRunsTemplate(getSvc); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 	if err := service.EvaluateActionsTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
+		return err
+	}
+	if err := service.EvaluateHostnameTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
+		return err
+	}
+	if err := service.EvaluateVolumesTemplate(getSvc, instanceID); err != nil {
+		glog.Errorf("%+v", err)
 		return err
 	}
 

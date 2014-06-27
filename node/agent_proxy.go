@@ -54,15 +54,15 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetService(serviceId string, response *service.Service) (err error) {
+func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
+		return nil
 	}
 	defer controlClient.Close()
 
-	err = controlClient.GetService(serviceId, response)
+	err = controlClient.GetService(serviceID, response)
 	if err != nil {
 		return err
 	}
@@ -72,8 +72,28 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		err := controlClient.GetService(svcID, &svc)
 		return svc, err
 	}
-
 	return response.Evaluate(getSvc, 0)
+}
+
+func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return nil
+	}
+	defer controlClient.Close()
+
+	err = controlClient.GetService(req.ServiceID, response)
+	if err != nil {
+		return err
+	}
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+	return response.Evaluate(getSvc, req.InstanceID)
 }
 
 // Call the master's to retrieve its tenant id
