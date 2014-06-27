@@ -172,7 +172,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 }
 
 func (zkdao *ZkDao) UpdateService(service *service.Service) error {
-	conn, err := zkdao.client.GetConnection()
+	conn, err := zkdao.client.GetCustomConnection("/pools/" + service.PoolID)
 	if err != nil {
 		return err
 	}

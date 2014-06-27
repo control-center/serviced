@@ -107,9 +107,10 @@ func (s *scheduler) loop() {
 		}
 
 		defer func() {
-			conn.Close()
 			leader.ReleaseLead()
+			conn.Close()
 		}()
+
 		s.zkleaderFunc(s.facade, s.cpDao, conn, events, aPool.ID)
 	}
 }

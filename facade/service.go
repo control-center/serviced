@@ -28,7 +28,7 @@ import (
 
 var zkAPI func(zkDao *zzk.ZkDao) zkfuncs = getZKAPI
 
-// AddService add a service. Return  error if service already exists
+// AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore

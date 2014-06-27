@@ -24,9 +24,8 @@ type Client struct {
 func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr
-	glog.Infof(" *************************** Connecting to %s", s.addr)
+	glog.V(4).Infof("Agent connecting to %s", addr)
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	glog.Infof(" *************************** Dialing done...")
 	s.rpcClient = rpcClient
 	return s, err
 }

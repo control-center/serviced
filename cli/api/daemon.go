@@ -114,19 +114,12 @@ func (d *daemon) run() error {
 		}
 	}
 	if options.Agent {
-		if err = d.setupAgent(); err != nil {
+		if err = d.initiateAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
 
 	rpc.HandleHTTP()
-
-	if options.Agent {
-		glog.Infof(" ********** Calling START AGENT")
-		if err = d.startAgent(); err != nil {
-			glog.Fatalf("%v", err)
-		}
-	}
 
 	if options.ReportStats {
 		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
@@ -209,6 +202,7 @@ func (d *daemon) startMaster() error {
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
+		// I think this needs to be pool based...?
 		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zclient)
 		if err != nil {
 			return err
@@ -261,7 +255,7 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
-func (d *daemon) setupAgent() error {
+func (d *daemon) initiateAgent() error {
 	muxListener, err := createMuxListener()
 	if err != nil {
 		return err
@@ -284,9 +278,8 @@ func (d *daemon) setupAgent() error {
 	if err != nil {
 		return fmt.Errorf("HostID failed: %v", err)
 	}
-	glog.Infof(" *********** myHostID: %+v", myHostID)
 
-	sleepRetry := 3
+	sleepRetry := 5
 	go func() {
 		var poolBasePath string
 		for {
@@ -296,14 +289,13 @@ func (d *daemon) setupAgent() error {
 				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
 				continue
 			}
-			glog.Infof(" *********** Made a new client...")
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
 				glog.Errorf("masterClient.GetHost failed: %v", err)
 				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
 				continue
 			}
-			glog.Infof(" *********** PoolID: %v", myHost.PoolID)
+			glog.Infof(" My PoolID: %v", myHost.PoolID)
 			poolBasePath = "/pools/" + myHost.PoolID
 			break
 		}
@@ -380,10 +372,6 @@ func (d *daemon) setupAgent() error {
 		http.ListenAndServe(":50000", sio)
 	}()
 
-	return nil
-}
-
-func (d *daemon) startAgent() error {
 	return nil
 }
 
