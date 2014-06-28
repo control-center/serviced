@@ -10,8 +10,11 @@
 #---------------------#
 # Macros              #
 #---------------------#
+install_TARGETS = $(install_DIRS)
+prefix          = /opt/serviced
+sysconfdir      = /etc
+
 build_TARGETS   = build_isvcs build_js $(logstash.conf) nsinit serviced
-install_TARGETS = $(bash_completion)
 
 # Define GOPATH for containerized builds.
 #
@@ -56,6 +59,20 @@ IN_DOCKER = 0
 GODEP     = $(GOBIN)/godep
 Godeps    = Godeps
 godep_SRC = github.com/tools/godep
+
+# Normalize DESTDIR so we can use this idiom in our install targets:
+#
+# $(_DESTDIR)$(prefix)
+#
+# and not end up with double slashes.
+ifneq "$(DESTDIR)" ""
+    PREFIX_HAS_LEADING_SLASH = $(patsubst /%,/,$(prefix))
+    ifeq "$(PREFIX_HAS_LEADING_SLASH)" "/"
+        _DESTDIR := $(shell echo $(DESTDIR) | sed -e "s|\/$$||g")
+    else
+        _DESTDIR := $(shell echo $(DESTDIR) | sed -e "s|\/$$||g" -e "s|$$|\/|g")
+    endif
+endif
 
 #---------------------#
 # Build targets       #
@@ -160,16 +177,81 @@ $(GODEP): | $(missing_godep_SRC)
 # Install targets     #
 #---------------------#
 
-bash_completion_SRC = serviced-bash-completion.sh
-bash_completion     = /etc/bash_completion.d/serviced
+install_DIRS    = $(_DESTDIR)$(prefix)
+install_DIRS   += $(_DESTDIR)$(prefix)/bin
+install_DIRS   += $(_DESTDIR)$(prefix)/share/web
+install_DIRS   += $(_DESTDIR)$(prefix)/share/shell
+install_DIRS   += $(_DESTDIR)$(prefix)/isvcs
+install_DIRS   += $(_DESTDIR)$(prefix)/templates
+install_DIRS   += $(_DESTDIR)$(sysconfdir)/default
+install_DIRS   += $(_DESTDIR)$(sysconfdir)/bash_completion.d
+# TODO: This needs to be distro-specific.
+# install_DIRS += $(_DESTDIR)$(sysconfdir)/init
+
+# Specify the stuff to install as attributes of the various
+# install directories we know about.
 #
-# CM: This is a bit non-std to inline the sudo.  
-#     More typical pattern is:
+# Usage:
 #
-#        sudo make install
+#     $(dir)_TARGETS = filename
+#     $(dir)_TARGETS = src_filename:dest_filename
 #
-$(bash_completion): $(bash_completion_SRC)
-	sudo cp $? $@
+$(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
+$(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
+$(_DESTDIR)$(prefix)/share/web_TARGETS_CP_OPT      = -R
+$(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
+$(_DESTDIR)$(prefix)/share/shell_TARGETS_CP_OPT    = -R
+$(_DESTDIR)$(prefix)/isvcs_TARGETS                 = isvcs/resources:.
+$(_DESTDIR)$(prefix)/isvcs_TARGETS_CP_OPT          = -R
+$(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
+$(_DESTDIR)$(prefix)_TARGETS_CP_OPT                = -R
+$(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
+$(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
+
+$(install_DIRS): dir_TARGETS = $($@_TARGETS)
+$(install_DIRS): cp_OPT    = $($@_TARGETS_CP_OPT)
+$(install_DIRS): FORCE
+	@for install_DIR in $@ ;\
+	do \
+		if [ ! -d "$${install_DIR}" ];then \
+			echo "mkdir -p $${install_DIR}" ;\
+			mkdir -p $${install_DIR};\
+			rc=$$? ;\
+			if [ $${rc} -ne 0 ];then \
+				exit $${rc} ;\
+			fi ;\
+		fi ;\
+		if [ -z "$(dir_TARGETS)" ];then \
+			continue ;\
+		else \
+			for dir_FILE in $(dir_TARGETS) ;\
+			do \
+				case $${dir_FILE} in \
+					*:*) \
+						from=`echo $${dir_FILE} | cut -d: -f1`;\
+						to=`echo $${dir_FILE} | cut -d: -f2` ;\
+						;;\
+					*) \
+						from=$${dir_FILE} ;\
+						to=$${dir_FILE} ;\
+						;;\
+				esac ;\
+				if [ -e "$${from}" ];then \
+					echo "cp $(cp_OPT) $${from} $${install_DIR}/$${to}" ;\
+					cp $(cp_OPT) $${from} $${install_DIR}/$${to} ;\
+					rc=$$? ;\
+					if [ $${rc} -ne 0 ];then \
+						exit $${rc} ;\
+					fi ;\
+				else \
+					echo "[$@] Missing $${from}" ;\
+					echo "[$@] Try: 'make build'" ;\
+					exit 1 ;\
+				fi ;\
+			done ;\
+		fi ;\
+	done
 
 .PHONY: install
 install: $(install_TARGETS)
