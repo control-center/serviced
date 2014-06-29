@@ -55,8 +55,10 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 
 		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: aPool.ID}
 		for {
+			shutdown := make(chan interface{})
 			if shutdownmode {
 				glog.V(1).Info("Shutdown mode encountered.")
+				close(shutdown)
 				break
 			}
 			time.Sleep(time.Second)
@@ -74,12 +76,8 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 
 				// creates a listener for snapshots with a function call to take snapshots
 				// and return the label and error message
-				go snapshot.Listen(conn, func(serviceID string) (string, error) {
-					var label string
-					err := dao.TakeSnapshot(serviceID, &label)
-					return label, err
-				})
-
+				snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+				go snapshotListener.Listen(shutdown)
 				leader.watchServices()
 				return nil
 			}()
@@ -92,6 +90,12 @@ func snapShotName(volumeName string) string {
 	loc := time.Now()
 	utc := loc.UTC()
 	return volumeName + "_" + utc.Format(format)
+}
+
+func (l *leader) TakeSnapshot(serviceID string) (string, error) {
+	var label string
+	err := l.dao.TakeSnapshot(serviceID, &label)
+	return label, err
 }
 
 func (l *leader) watchServices() {
