@@ -25,6 +25,7 @@ import (
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	"github.com/zenoss/serviced/zzk/virtualips"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -919,6 +920,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
+	shutdown := make(chan interface{})
+
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
@@ -951,6 +954,7 @@ func (a *HostAgent) start() {
 			select {
 			case errc := <-a.closing:
 				glog.Info("Received shutdown notice")
+				close(shutdown)
 				a.zkClient.Close()
 				errc <- errors.New("unable to connect to zookeeper")
 				return false
@@ -964,12 +968,20 @@ func (a *HostAgent) start() {
 			// watch virtual IP zookeeper nodes
 			go virtualips.WatchVirtualIPs(conn)
 
+			// watch docker action nodes
+			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+			go actionListener.Listen(shutdown)
+
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {
 			break
 		}
 	}
+}
+
+func (a *HostAgent) AttachAndRun(dockerID string, command []string) ([]byte, error) {
+	return utils.AttachAndRun(dockerID, command)
 }
 
 type stateResult struct {
