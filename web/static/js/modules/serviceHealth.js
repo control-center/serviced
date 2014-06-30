@@ -15,8 +15,6 @@
             "disabled": ""
         };
 
-        // TODO - call update until it works!
-
         // auto update all service health statuses
         var updateInterval = setInterval(update, 3000);
 
@@ -33,8 +31,9 @@
             // subservices isn't defined if we're on a single
             // service page, so just skip this service alltogether
             if(!running) return;
+            
             return findInArray("ServiceID", running, serviceId);
-        }        
+        }
 
         // updates health check data for all services
         // `appId` is the id of the specific service being clicked
@@ -46,7 +45,6 @@
             var runningServicesDeferred = $q.defer();
             var healthCheckDeferred = $http.get("/servicehealth");
 
-            // TODO - get caching config arg
             servicesService.get_services(true, function(top, mapped){
                 servicesDeferred.resolve(mapped);
             });

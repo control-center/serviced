@@ -219,6 +219,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
+        $serviceHealth.update();
     });
 
     $scope.$on('$destroy', function() {
