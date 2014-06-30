@@ -140,7 +140,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		}
 	default:
 		// Delete the container
-		glog.V(0).Infof("Command failed (exit code %d)", exitcode)
+		glog.V(0).Infof("Command returned non-zero exit code %d.  Container not commited.", exitcode)
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
