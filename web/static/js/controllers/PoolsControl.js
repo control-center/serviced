@@ -11,8 +11,8 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     ];
 
     // Build metadata for displaying a list of pools
-    $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'pools_tbl_id'},
+    $scope.pools = buildTable('ID', [
+        { id: 'ID', name: 'pools_tbl_id'},
         { id: 'Priority', name: 'pools_tbl_priority'},
         { id: 'CoreCapacity', name: 'pools_tbl_core_capacity'},
         { id: 'MemoryCapacity', name: 'pools_tbl_memory_capacity'},

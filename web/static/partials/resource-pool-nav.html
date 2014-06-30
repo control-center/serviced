@@ -23,15 +23,5 @@
             <span ng-class="indent(pool.zendepth)">&nbsp;</span>
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
             <a class="main" ng-click="clickPool(pool.ID)">{{pool.ID}}</a>
-
-            <span class="dropdown extended pull-right" id="pool_menu_{{$index}}">
-              <button class="btn-link glyphicon glyphicon-info-sign" popover='<table class="table table-striped"><tr><th>Description</th><td>{{pool.Description}}</td></tr><tr><th>Cores</th><td>{{pool.CoreCapacity}}</td></tr><tr><th>Memory</th><td>{{pool.MemoryCapacity | toGB}}</td></tr><tr><th>RAM Commitment</th><td>{{pool.MemoryCommitment | toGB}}</td></tr></table>' popover-title="{{pool.Id}}"></button>
-              <!-- Link or button to toggle dropdown -->
-              <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown" ng-click="clickMenu($index)"></button>
-              <ul class="dropdown-menu" role="menu">
-                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="addSubpool(pool.ID)">{{'menu_add_subpool'|translate}} {{pool.ID}}</a></li>
-                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="delSubpool(pool.ID)">{{'menu_delete'|translate}} {{pool.ID}}</a></li>
-              </ul>
-            </span>
         </li>
       </ul>

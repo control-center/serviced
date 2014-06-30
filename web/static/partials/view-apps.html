@@ -42,7 +42,10 @@
               </label>
             </div>
           </td>
-		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button> </td>
+		  <td>
+              <button ng-click="click_app(app.Id)" class="btn btn-link action"><i class="glyphicon glyphicon-cog"></i> Details</button>
+              <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+          </td>
       </tr>
       </tbody>
     </table>

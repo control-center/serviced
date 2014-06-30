@@ -1,4 +1,7 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+    <h3>{{services.current.Name}}</h3>
+
     <div class="details">
       <div class="details-form">
         <div class="vertical-info">
@@ -69,7 +72,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort">			
+			<tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
 				<td>{{vhost.Name}}</td>
 				<td>{{vhost.Application}}</td>
 				<td>{{vhost.ServiceEndpoint}}</td>
@@ -91,7 +94,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr ng-repeat="ip in ips.data track by $index | orderBy:ips.sort">
+			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
 				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
 				<td>{{ip.EndpointName}}</td>
 				<td>{{ip.AssignmentType}}</td>
