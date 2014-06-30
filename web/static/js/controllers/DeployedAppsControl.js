@@ -22,9 +22,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
         { id: 'poolID', name: 'deployed_tbl_pool'},
-        { id: 'VirtualHost', name: 'vhost_names'},
-        { id: 'DesiredState', name: 'deployed_tbl_state' },
-        { id: 'DesiredState', name: 'running_tbl_actions' }
+        { id: 'VirtualHost', name: 'vhost_names'}
     ]);
 
     $scope.click_app = function(id) {

@@ -4,25 +4,7 @@
         <div class="vertical-info">
           <label for="app_data_name">{{'label_service_name'|translate}}</label>
           <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
-        </div>
-
-        <div class="vertical-info">
-          <label for="app_data_status">{{'label_service_status'|translate}}</label>
-
-          <div id="app_data_status" class="toggle btn-group" data-toggle="buttons">
-            <label ng-class="services.current.runningClass" ng-click="clickRunning(services.current, 'start', servicesService)">
-              <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="1" />
-              {{services.current.runningText|translate}}
-            </label>
-            
-            <label ng-class="services.current.notRunningClass" ng-click="clickRunning(services.current, 'stop', servicesService)">
-              <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="stopped" />
-              {{services.current.notRunningText|translate}}
-            </label>
-          </div>
-        </div>
+        </div>        
 
         <div class="vertical-info">
           <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
@@ -41,6 +23,15 @@
           <input type="text" id="app_data_image" class="image"
                  ng-model="services.current.ImageID"></input>
         </div>
+
+        <div class="vertical-info">
+          <label for="">Actions</label>
+          <div>
+            <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+            <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+          </div>
+        </div>
+
       </div>
       <div class="details-actions">	    
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>

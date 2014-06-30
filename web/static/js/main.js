@@ -1312,7 +1312,6 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
                 iconClass = "glyphicon glyphicon-question-sign";
                 break;
             }
-            updateRunning(svc);
 
             svc.deploymentClass = depClass;
             svc.deploymentIcon = iconClass;
@@ -1422,25 +1421,9 @@ function toggleRunning(app, status, servicesService) {
         return;
     }
 
-    // recursively updates the text of the status button, this
-    // is so that when stopping takes a long time you can see that
-    // something is happening. This doesn't update the color
-    function updateAppText(app, text, notRunningText) {
-        app.runningText = text;
-        app.notRunningText = notRunningText;
-        if (!app.children) {
-            return;
-        }
-        for (var i=0; i<app.children.length;i++) {
-            updateAppText(app.children[i], text, notRunningText);
-        }
-    }
-
-    // updates the color and the running/non-running text of the
-    // status buttons
+    // recursively set services children to it's desired state
     function updateApp(app) {
         var i, child;
-        updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
                 app.children[i].DesiredState = app.DesiredState;
@@ -1455,7 +1438,6 @@ function toggleRunning(app, status, servicesService) {
         servicesService.stop_service(app.Id, function() {
             updateApp(app);
         });
-        updateAppText(app, "stopping...", "ctl_running_blank");
     }
 
     // start service
@@ -1464,34 +1446,10 @@ function toggleRunning(app, status, servicesService) {
         servicesService.start_service(app.Id, function() {
             updateApp(app);
         });
-        updateAppText(app, "ctl_running_blank", "starting...");
     }
 
     // HACK - this is a terrible way to get this object
     this.$parent.serviceHealth.update(app.Id);
-}
-
-function updateRunning(app) {
-    if (app.DesiredState === 1) {
-        app.runningText = "ctl_running_started";
-        app.notRunningText = "ctl_running_blank"; // &nbsp
-        app.runningClass = "btn btn-success active";
-        app.notRunningClass = "btn btn-default off";
-    } else if (app.DesiredState === -1) {
-        app.runningText = "ctl_running_restarting";
-        app.notRunningText = "ctl_running_blank"; // &nbsp
-        app.runningClass = "btn btn-info active";
-        app.notRunningClass = "btn btn-default off";
-    } else {
-        app.runningText = "ctl_running_blank"; // &nbsp
-        app.notRunningText = "ctl_running_stopped";
-        app.runningClass = "btn btn-default off";
-        app.notRunningClass = "btn btn-danger active";
-    }
-    if (app.Deployment !== "successful") {
-        app.runningClass += " disabled";
-        app.notRunningClass += " disabled";
-    }
 }
 
 function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
@@ -1542,7 +1500,6 @@ function refreshRunningForHost($scope, resourcesService, hostId) {
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
-            updateRunning(runningServices[i]);
         }
     });
 }
@@ -1558,7 +1515,6 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
-            updateRunning(runningServices[i]);
         }
 
         if (extracallback) {

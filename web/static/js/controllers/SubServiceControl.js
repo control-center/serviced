@@ -45,9 +45,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Actions', name: 'tbl_virtual_ip_actions'}
     ]);
 
-    // give servicesHealth the list of services to check up on
-    $serviceHealth.setServices($scope.services);
-
     //add vhost data (includes name, app & service endpoint)
     $scope.vhosts.add = {};
 
@@ -199,13 +196,11 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 wait.running = true;
                 mashHostsToInstances();
             });
-            $serviceHealth.update();
         }
     }
 
     if(!angular.isDefined($scope.updateRunningInterval)) {
-        // DONT CHECK THIS IN! - set poll frequency back to 3000
-        $scope.updateRunningInterval = $interval(updateRunning, 500);
+        $scope.updateRunningInterval = $interval(updateRunning, 3000);
     }
 
     // Get a list of deployed apps
@@ -224,7 +219,6 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
-        $serviceHealth.update();
     });
 
     $scope.$on('$destroy', function() {

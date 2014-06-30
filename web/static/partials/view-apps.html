@@ -23,6 +23,7 @@
             <button ng-click="services.set_order(header.id, services)" 
                     ng-class="services.get_order_class(header.id, services)"></button>
           </th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -32,17 +33,12 @@
           <td>{{app.DeploymentID}}</td>
           <td>{{app.PoolID}}</td>
           <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a></p></td>
-          <td width="130" style="text-align: center">
-            <div class="toggle btn-group" data-toggle="buttons">
-              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
-                <input type="radio" name="running{{$index}}" ng-model="app.Running" value="1"> {{app.runningText|translate}}
-              </label>
-              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
-                <input type="radio" name="running{{$index}}" ng-model="app.Running" value="stopped"> {{app.notRunningText|translate}}
-              </label>
-            </div>
           </td>
-		      <td> <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button> </td>
+		      <td>
+            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+            <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+          </td>
       </tr>
       </tbody>
     </table>

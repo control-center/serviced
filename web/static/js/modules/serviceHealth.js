@@ -1,26 +1,214 @@
 /* global angular, console, $ */
-'use strict';
-
 (function() {
+    'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", function($rootScope){
+    factory("$serviceHealth", ["$rootScope", "$q", "$http", "resourcesService", function($rootScope, $q, $http, resourcesService){
 
-        var services;
+        var servicesService = resourcesService;
 
         var STATUS_STYLES = {
             "bad": "glyphicon-exclamation-sign bad",
             "good": "glyphicon-ok-sign good",
             "unknown": "glyphicon-question-sign unknown",
-            "disabled": "glyphicon-minus-sign disabled",
+            // "disabled": "glyphicon-minus-sign disabled",
+            "disabled": ""
         };
 
-        function getServiceById(serviceId){
-            for(var i = 0; i < services.subservices.length; i++){
-                if(services.subservices[i].Id === serviceId){
-                    return services.subservices[i];
+        // TODO - call update until it works!
+
+        // auto update all service health statuses
+        var updateInterval = setInterval(update, 3000);
+
+        // simple array search util
+        function findInArray(key, arr, val){
+            for(var i = 0; i < arr.length; i++){
+                if(arr[i][key] === val){
+                    return arr[i];
                 }
             }
+        }
+
+        function getRunningServiceById(serviceId){
+            // subservices isn't defined if we're on a single
+            // service page, so just skip this service alltogether
+            if(!running) return;
+            return findInArray("ServiceID", running, serviceId);
+        }        
+
+        // updates health check data for all services
+        // `appId` is the id of the specific service being clicked
+        function update(appId) {
+
+            // TODO - these methods should return promises, but they
+            // don't so use our own promises
+            var servicesDeferred = $q.defer();
+            var runningServicesDeferred = $q.defer();
+            var healthCheckDeferred = $http.get("/servicehealth");
+
+            // TODO - get caching config arg
+            servicesService.get_services(true, function(top, mapped){
+                servicesDeferred.resolve(mapped);
+            });
+
+            servicesService.get_running_services(function(runningServices){
+                runningServicesDeferred.resolve(runningServices);
+            });
+
+            $q.all({
+                services: servicesDeferred.promise,
+                health: healthCheckDeferred,
+                running: runningServicesDeferred.promise
+            }).then(function(results){
+                evaluateServiceStatus(results.running, results.services, results.health.data, appId);
+            });
+        }
+
+        function evaluateServiceStatus(running, services, healthCheckData, appId) {
+
+            var healths = healthCheckData.Statuses,
+                timestamp = healthCheckData.Timestamp;
+
+            var service, data, runningService, startTime,
+                passingAny, failingAny, unknownAny, downAny, status,
+                missedIntervals, tooltipMessage;
+
+            for (var ServiceId in healths) {
+
+                service = services[ServiceId];
+                runningService = findInArray("ServiceID", running, ServiceId);
+
+                if(!service){
+                    return;
+                }
+
+                // get the time this service was started
+                if(runningService){
+                    startTime = new Date(runningService.StartedAt).getTime();
+
+                // otherwise service hasn't been started
+                } else {
+                    startTime = 0;
+                }
+
+                data = healths[ServiceId];
+
+                service.healthTooltipTitle = "";
+
+                passingAny = false;
+                failingAny = false;
+                unknownAny = false;
+                downAny = false;
+                status = null;
+                missedIntervals = 0;
+                tooltipMessage = "";
+
+                for (var name in data) {
+
+                    // calculates the number of missed healthchecks since last start time
+                    missedIntervals = (timestamp - Math.max(data[name].Timestamp, startTime)) / data[name].Interval;
+
+                    // if service hasn't started yet
+                    if(!startTime){
+                        data[name].Status = "down";
+                    
+                    // if service has missed 2 updates, mark unknown
+                    } else if (missedIntervals > 2 && missedIntervals < 60) {
+                        data[name].Status = "unknown";
+
+                    // if service has missed 60 updates, mark failed
+                    } else if (missedIntervals > 60) {
+                        data[name].Status = "failed";
+                    }
+
+                    switch(data[name].Status){
+                        case "passed":
+                            passingAny = true;
+                            break;
+                        case "failed":
+                            failingAny = true;
+                            break;
+                        case "unknown":
+                            unknownAny = true;
+                            break;
+                        case "down":
+                            downAny = true;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    // TODO - do something with `name` so the user has a
+                    // more detailed explanation of which checks are failing
+                }
+
+                // the following conditions are relevant when the service
+                // *should* be started
+                if(service.DesiredState === 1){
+
+                    // service should be up, but is failing. bad!
+                    if(failingAny){
+                        status = "bad";
+                        tooltipMessage = "Failing Health Checks";
+
+                    // service should be up, but container has not
+                    // yet loaded
+                    } else if(downAny){
+                        status = "unknown";
+                        tooltipMessage = "Container Unavailable";
+
+                    // service should be up, but seems unresponsive
+                    // It could be just starting, or on its way down
+                    } else if(!passingAny && unknownAny){
+                        status = "unknown";
+                        tooltipMessage = "Missing Some Health Checks";
+
+                    // service is up and healthy
+                    } else if(passingAny && !unknownAny){
+                        status = "good";
+                        tooltipMessage = "Passing All Health Checks";
+                    }
+
+                // the following conditions are relevant when the service
+                // *should* be off
+                } else if(service.DesiredState === 0){
+
+                    // it should be off, but its still on... weird.
+                    if(passingAny){
+                        status = "unknown";
+                        tooltipMessage = "Stopping Service...";
+                        // TODO - enable stop control?
+
+                    // service is off, as expected
+                    } else {
+                        status = "disabled";
+                    }
+                }
+
+                updateServiceStatus(service, status, tooltipMessage);
+            }
+
+            // if a specific appId was provided, its status may not
+            // yet be part of health checks, so give it unknown status
+            if(appId && !findInArray("ServiceID", running, appId)){
+                updateServiceStatus(services[appId], "unknown", "Container Unavailable");
+            }
+        }
+
+        function updateServiceStatus(service, status, tooltipMessage){
+            setStatus(service, status);
+
+            // if the status has changed since last tick, or
+            // it was and is still unknown, notify user
+            if(service.healthStatus !== status ||
+                service.healthStatus === "unknown" && status === "unknown"){
+                bounceStatus(service);
+            }
+
+            service.healthTooltipTitle = tooltipMessage;
+
+            // store the status for comparison later
+            service.healthStatus = status;
         }
 
         function setStatus(service, status){
@@ -41,131 +229,14 @@
             });
         }
 
-        function update(id) {
-            if(!services){
-                console.error("Health check failed. No services to check.");
-            }
-
-            // TODO - if id is provided, update just that id
-            
-            $.get("/servicehealth", function(packet) {
-                var healths = packet.Statuses;
-                var timestamp = packet.Timestamp;
-
-                var service, data,
-                    passingAny, failingAny, unknownAny, status, missedIntervals;
-
-                for (var ServiceId in healths) {
-
-                    service = getServiceById(ServiceId);
-
-                    if(!service){
-                        throw new Error("Could not find service with id" + ServiceId);
-                    }
-
-                    data = healths[ServiceId];
-
-                    service.healthTooltipTitle = "";
-
-                    passingAny = false;
-                    failingAny = false;
-                    unknownAny = false;
-                    status = null;
-                    missedIntervals = 0;
-
-                    for (var name in data) {
-
-                        missedIntervals = (timestamp - data[name].Timestamp) / data[name].Interval;
-
-                        // if service has missed 2 updates, mark unknown
-                        if (missedIntervals > 2 && missedIntervals < 30) {
-                            data[name].Status = "unknown";
-
-                        // if service has missed 30 updates, mark failed
-                        } else if (missedIntervals > 30) {
-                            data[name].Status = "failed";
-                        }
-
-                        switch(data[name].Status){
-                            case "passed":
-                                passingAny = true;
-                                break;
-                            case "failed":
-                                failingAny = true;
-                                break;
-                            case "unknown":
-                                unknownAny = true;
-                                break;
-                            default:
-                                break;
-                        }
-
-                        // TODO - does `data` ever contain more than just one key?
-                        // need to make this tooltip a little more useful
-                        service.healthTooltipTitle = name + ":" + data[name].Status;
-                    }
-
-                    // the following conditions are relevant when the service
-                    // *should* be started
-                    if(service.DesiredState === 1){
-
-                        // service should be up, but is failing. bad!
-                        if(failingAny){
-                            status = "bad";
-
-                        // service should be up, but seems unresponsive
-                        // It could be just starting, or on its way down
-                        } else if(!passingAny && unknownAny){
-                            status = "unknown";
-
-                        // service is up and healthy
-                        } else if(passingAny && !unknownAny){
-                            status = "good";
-                        }
-
-                    // the following conditions are relevant when the service
-                    // *should* be off
-                    } else if(service.DesiredState === 0){
-
-                        // it should be off, but its still on... weird.
-                        if(passingAny){
-                            status = "unknown";
-
-                        // service is off, as expected
-                        } else {
-                            status = "disabled";
-                        }
-                    }
-
-                    setStatus(service, status);
-
-                    // if the status has changed since last tick, or
-                    // it was and is still unknown, notify user
-                    if(service.healthStatus !== status ||
-                        service.healthStatus === "unknown" && status === "unknown"){
-                        bounceStatus(service);
-                    }
-
-                    // store the status for comparison later
-                    service.healthStatus = status;
-                }
-            });
-        }
-
-        function setServices($services){
-            services = $services;
-        }
-
         // expose serviceHealth to everyone
         // HACK - this really is terrible :/
         $rootScope.serviceHealth = {
-            update: update,
-            setServices: setServices
+            update: update
         };
 
         return {
-            update: update,
-            setServices: setServices
+            update: update
         };
     }]);
 
