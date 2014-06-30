@@ -247,3 +247,8 @@ func (conn *TestConnection) NewLock(path string) Lock {
 func (conn *TestConnection) NewLeader(path string, data Node) Leader {
 	return nil
 }
+
+// CreateEphemeral implements Connection.CreateEphemeral
+func (conn *TestConnection) CreateEphemeral(path string, node Node) (string, error) {
+	return "", nil
+}
