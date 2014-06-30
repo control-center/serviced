@@ -5,6 +5,7 @@ import (
 	"syscall"
 )
 
+// GetExitStatus tries to extract the exit code from an error
 func GetExitStatus(err error) (int, bool) {
 	if err != nil {
 		if e, ok := err.(*exec.ExitError); ok {

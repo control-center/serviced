@@ -61,7 +61,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	if err != nil {
 		return err
 	}
-	dockercli, err := a.connectDocker()
+	dockerClient, err := a.connectDocker()
 	if err != nil {
 		return err
 	}
@@ -102,29 +102,34 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(dockerRegistry, dockercli, &cfg, options.Endpoint)
+	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
+
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	err = cmd.Run()
-	exitcode, ok := utils.GetExitStatus(err)
-	if !ok {
+	if _, ok := utils.GetExitStatus(err); !ok {
 		glog.Fatalf("abnormal termination from shell command: %s", err)
 	}
 
-	if _, err := dockercli.WaitContainer(config.SaveAs); err != nil {
+	dockercli, err := a.connectDocker()
+	if err != nil {
+		glog.Fatalf("unable to connect to the docker service: %s", err)
+	}
+	exitcode, err := dockercli.WaitContainer(config.SaveAs)
+	if err != nil {
 		glog.Fatalf("failure waiting for container: %s", err)
 	}
-
 	container, err := dockercli.InspectContainer(config.SaveAs)
 	if err != nil {
-		glog.Fatalf("cannot acquire information about container %s: %s", config.SaveAs, err)
+		glog.Fatalf("cannot acquire information about container: %s (%s)", config.SaveAs, err)
 	}
-
 	glog.V(2).Infof("Container ID: %s", container.ID)
+
 	switch exitcode {
 	case 0:
 		// Commit the container
