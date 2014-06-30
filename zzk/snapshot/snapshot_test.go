@@ -79,7 +79,6 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	}
 
 	// shutdown and wait for result
-	close(shutdown)
 	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
 		t.Fatal("Could not receive failure snapshot: ", err)
 	}
@@ -95,5 +94,5 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	}
 
 	// make sure listener shuts down
-	<-done
+	close(shutdown)
 }
