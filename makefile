@@ -10,6 +10,8 @@
 #---------------------#
 # Macros              #
 #---------------------#
+
+PKG             = deb # deb | rpm
 install_TARGETS = $(install_DIRS)
 prefix          = /opt/serviced
 sysconfdir      = /etc
@@ -185,8 +187,16 @@ install_DIRS   += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS   += $(_DESTDIR)$(prefix)/templates
 install_DIRS   += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS   += $(_DESTDIR)$(sysconfdir)/bash_completion.d
-# TODO: This needs to be distro-specific.
-# install_DIRS += $(_DESTDIR)$(sysconfdir)/init
+#---------------------#
+# Distro-specific     #
+#---------------------#
+_PKG = $(strip $(PKG))
+ifeq "$(_PKG)" "deb"
+install_DIRS   += $(_DESTDIR)$(sysconfdir)/init
+endif
+ifeq "$(_PKG)" "rpm"
+install_DIRS   += $(_DESTDIR)/usr/lib/systemd/system
+endif
 
 # Specify the stuff to install as attributes of the various
 # install directories we know about.
@@ -208,6 +218,15 @@ $(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
 $(_DESTDIR)$(prefix)_TARGETS_CP_OPT                = -R
 $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
+#---------------------#
+# Distro-specific     #
+#---------------------#
+ifeq "$(_PKG)" "deb"
+$(_DESTDIR)$(sysconfdir)/init_TARGETS              = pkg/serviced.upstart:serviced.conf
+endif
+ifeq "$(_PKG)" "rpm"
+$(_DESTDIR)/usr/lib/systemd/system_TARGETS         = pkg/serviced.service:serviced.service
+endif
 
 $(install_DIRS): dir_TARGETS = $($@_TARGETS)
 $(install_DIRS): cp_OPT    = $($@_TARGETS_CP_OPT)
