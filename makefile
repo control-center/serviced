@@ -117,10 +117,6 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	if [ -d $@ ]; then \
-		echo removing serviced subdir $(shell pwd)/$@; \
-		rm -fr $(shell pwd)/$@; \
-	fi
 	go build
 	go install
 
