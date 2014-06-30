@@ -28,7 +28,7 @@
         </div>
 
         <div class="vertical-info">
-          <label for="">Actions</label>
+          <label>{{'running_tbl_actions'|translate}}</label>
           <div>
             <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
             <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
@@ -106,7 +106,7 @@
           <th>Path</th>
           <th>Owner</th>
           <th>Perms</th>
-          <th>Actions</th>
+          <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
@@ -115,7 +115,7 @@
           <td>{{ configFile.Owner }}</td>
           <td>{{ configFile.Permissions }}</td>
           <td>
-            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> Edit</button>
+            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
           </td>
         </tr>
       </tbody>
@@ -127,10 +127,10 @@
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
-          <th style="white-space: nowrap; width:200px;">Application</th>
-          <th style="width: 40px;">Status</th>
-          <th style="width: 700px;">Startup Command</th>
-          <th>Actions</th>
+          <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
+          <th style="width: 40px;">{{'label_service_status'|translate}}</th>
+          <th style="width: 700px;">{{'label_service_startup'|translate}}</th>
+          <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
