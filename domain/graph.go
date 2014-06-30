@@ -16,18 +16,19 @@ type DataPointRateOptions struct {
 
 // DataPoint defines a datum to be plotted within a graph
 type DataPoint struct {
-	Aggregator  string                `json:"aggregator"`
-	Color       string                `json:"color"`
-	Expression  string                `json:"expression"`
-	Fill        bool                  `json:"fill"`
-	Format      string                `json:"format"`
-	Legend      string                `json:"legend"`
-	Metric      string                `json:"metric"`
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	Rate        bool                  `json:"rate"`
-	RateOptions *DataPointRateOptions `json:"rateOptions"`
-	Type        string                `json:"type"`
+	Aggregator   string                `json:"aggregator"`
+	Color        string                `json:"color"`
+	Expression   string                `json:"expression"`
+	Fill         bool                  `json:"fill"`
+	Format       string                `json:"format"`
+	Legend       string                `json:"legend"`
+	Metric       string                `json:"metric"`       //the metric id inside the metric config (defined by metric source)
+	MetricSource string                `json:"metricSource"` //the metric config id in the monitoring profile
+	ID           string                `json:"id"`
+	Name         string                `json:"name"`
+	Rate         bool                  `json:"rate"`
+	RateOptions  *DataPointRateOptions `json:"rateOptions"`
+	Type         string                `json:"type"`
 }
 
 // Equals returns if point equals that point
@@ -43,19 +44,21 @@ type GraphConfigRange struct {
 
 // GraphConfig defines a graph for display using central query's
 type GraphConfig struct {
-	Name       string              `json:"name"`
-	Footer     bool                `json:"footer"`
-	Format     string              `json:"format"`
-	ReturnSet  string              `json:"returnset"`
-	Type       string              `json:"type"`
-	Tags       map[string][]string `json:"tags"`
-	MinY       *int                `json:"miny"`
-	MaxY       *int                `json:"maxy"`
-	YAxisLabel string              `json:"yAxisLabel"`
-	TimeZone   string              `json:"timezone"`
-	DownSample string              `json:"downsample"`
-	Range      *GraphConfigRange   `json:"range"`
-	DataPoints []DataPoint         `json:"datapoints"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Footer      bool                `json:"footer"`
+	Format      string              `json:"format"`
+	ReturnSet   string              `json:"returnset"`
+	Type        string              `json:"type"`
+	Tags        map[string][]string `json:"tags"`
+	MinY        *int                `json:"miny"`
+	MaxY        *int                `json:"maxy"`
+	YAxisLabel  string              `json:"yAxisLabel"`
+	TimeZone    string              `json:"timezone"`
+	DownSample  string              `json:"downsample"`
+	Description string              `json:"description"`
+	Range       *GraphConfigRange   `json:"range"`
+	DataPoints  []DataPoint         `json:"datapoints"`
 }
 
 // Equals returns if graph equals that graph

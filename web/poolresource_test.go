@@ -8,7 +8,7 @@ import (
 
 func TestBuildPoolMonitoringProfile(t *testing.T) {
 	pool := pool.ResourcePool{}
-	err := buildPoolMonitoringProfile(&pool, []string{"1", "2", "3"})
+	err := buildPoolMonitoringProfile(&pool, []string{}, nil)
 
 	if err != nil {
 		t.Fatalf("Failed to build pool monitoring profile: err=%s", err)
@@ -18,7 +18,7 @@ func TestBuildPoolMonitoringProfile(t *testing.T) {
 		t.Fatalf("Failed to build pool monitoring profile (missing metric configs): pool=%+v", pool)
 	}
 
-	if pool.MonitoringProfile.GraphConfigs != nil {
+	if len(pool.MonitoringProfile.GraphConfigs) <= 0 {
 		t.Fatalf("Failed to build pool monitoring profile (missing graphs): pool=%+v", pool)
 	}
 }

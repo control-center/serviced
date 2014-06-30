@@ -81,6 +81,8 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 				Type:       "line",
 			},
 		},
+		ID:     "serviced.ofd",
+		Name:   "Serviced Open File Descriptors",
 		Footer: false,
 		Format: "%d",
 		MinY:   &zero,
@@ -88,10 +90,11 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		ReturnSet:  "EXACT",
-		Type:       "line",
-		DownSample: "1m-avg",
-		Tags:       tags,
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of serviced's total open file descriptors over time",
 	}
 }
 
@@ -100,18 +103,21 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
-				Aggregator: "avg",
-				ID:         "pgfault",
-				Color:      "#aec7e8",
-				Fill:       false,
-				Format:     "%d",
-				Legend:     "Major Page Faults",
-				Metric:     "vmstat.pgmajfault",
-				Name:       "Major Page Faults",
-				Rate:       true,
-				Type:       "line",
+				Aggregator:   "avg",
+				ID:           "pgfault",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%d",
+				Legend:       "Major Page Faults",
+				Metric:       "vmstat.pgmajfault",
+				MetricSource: "virtual.memory",
+				Name:         "Major Page Faults",
+				Rate:         true,
+				Type:         "line",
 			},
 		},
+		ID:     "memory.major.pagefault",
+		Name:   "Memory Major Page Faults",
 		Footer: false,
 		Format: "%d",
 		MinY:   &zero,
@@ -119,11 +125,12 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		YAxisLabel: "Faults / Min",
-		ReturnSet:  "EXACT",
-		Type:       "line",
-		DownSample: "1m-avg",
-		Tags:       tags,
+		YAxisLabel:  "Faults / Min",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of major memory page faults over time",
 	}
 }
 
@@ -132,32 +139,36 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
-				Aggregator: "avg",
-				Color:      "#aec7e8",
-				Expression: fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
-				Fill:       false,
-				Format:     "%6.2f",
-				ID:         "system",
-				Legend:     "CPU (System)",
-				Metric:     "cpu.system",
-				Name:       "CPU (System)",
-				Rate:       true,
-				Type:       "line",
+				Aggregator:   "avg",
+				Color:        "#aec7e8",
+				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "system",
+				Legend:       "CPU (System)",
+				Metric:       "cpu.system",
+				MetricSource: "cpu",
+				Name:         "CPU (System)",
+				Rate:         true,
+				Type:         "line",
 			},
 			domain.DataPoint{
-				Aggregator: "avg",
-				Color:      "#98df8a",
-				Expression: fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
-				ID:         "user",
-				Fill:       false,
-				Format:     "%6.2f",
-				Legend:     "CPU (User)",
-				Metric:     "cpu.user",
-				Name:       "CPU (User)",
-				Rate:       true,
-				Type:       "line",
+				Aggregator:   "avg",
+				Color:        "#98df8a",
+				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				ID:           "user",
+				Fill:         false,
+				Format:       "%6.2f",
+				Legend:       "CPU (User)",
+				Metric:       "cpu.user",
+				MetricSource: "cpu",
+				Name:         "CPU (User)",
+				Rate:         true,
+				Type:         "line",
 			},
 		},
+		ID:     "cpu.usage",
+		Name:   "CPU Usage",
 		Footer: false,
 		Format: "%d",
 		MinY:   &zero,
@@ -166,11 +177,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		YAxisLabel: "% Used",
-		ReturnSet:  "EXACT",
-		Type:       "line",
-		DownSample: "1m-avg",
-		Tags:       tags,
+		YAxisLabel:  "% Used",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of system and user cpu usage over time",
 	}
 }
 
@@ -179,30 +191,34 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
-				Aggregator: "avg",
-				Expression: "rpn:1024,/,1024,/,1024,/",
-				Color:      "#aec7e8",
-				Fill:       true,
-				Format:     "%6.2f",
-				Legend:     "Used",
-				Metric:     "memory.used",
-				Name:       "RSS",
-				Type:       "area",
-				ID:         "used",
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#aec7e8",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Used",
+				Metric:       "memory.used",
+				MetricSource: "memory",
+				Name:         "RSS",
+				Type:         "area",
+				ID:           "used",
 			},
 			domain.DataPoint{
-				Aggregator: "avg",
-				Expression: "rpn:1024,/,1024,/,1024,/",
-				Color:      "#98df8a",
-				Fill:       true,
-				Format:     "%6.2f",
-				Legend:     "Cache",
-				Metric:     "memory.free",
-				Name:       "Free",
-				ID:         "Memory",
-				Type:       "area",
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#98df8a",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Cache",
+				Metric:       "memory.free",
+				MetricSource: "memory",
+				Name:         "Free",
+				ID:           "Memory",
+				Type:         "area",
 			},
 		},
+		ID:     "memory.usage",
+		Name:   "Memory Usage",
 		Footer: false,
 		Format: "%6.2f",
 		MaxY:   &MaxY,
@@ -211,15 +227,16 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		YAxisLabel: "GB",
-		ReturnSet:  "EXACT",
-		Type:       "line",
-		DownSample: "1m-avg",
-		Tags:       tags,
+		YAxisLabel:  "GB",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of memory free vs used over time",
 	}
 }
 
-//newProfile builds a MonitoringProfile without graphs pools
+//newProfile builds a MonitoringProfile without graphs
 func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
 	p := domain.MonitorProfile{
 		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
@@ -244,21 +261,5 @@ func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
 		}
 		p.MetricConfigs[i] = *config
 	}
-	return p, nil
-}
-
-//newProfile builds a MonitoringProfile with graphs for hosts
-func newProfileWithGraphs(tags map[string][]string, totalCores int, totalMemory uint64) (domain.MonitorProfile, error) {
-	p, err := newProfile(tags)
-	if err != nil {
-		return p, err
-	}
-
-	//add graphs to profile
-	p.GraphConfigs = make([]domain.GraphConfig, 4)
-	p.GraphConfigs[0] = newOpenFileDescriptorsGraph(tags)
-	p.GraphConfigs[1] = newMajorPageFaultGraph(tags)
-	p.GraphConfigs[2] = newCpuConfigGraph(tags, totalCores)
-	p.GraphConfigs[3] = newRSSConfigGraph(tags, totalMemory)
 	return p, nil
 }

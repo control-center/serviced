@@ -7,6 +7,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/rpc/master"
 
@@ -36,7 +37,7 @@ func restGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 			return
 		}
 
-		if err := buildPoolMonitoringProfile(pool, hostIDs); err != nil {
+		if err := buildPoolMonitoringProfile(pool, hostIDs, client); err != nil {
 			restServerError(w)
 			return
 		}
@@ -74,7 +75,7 @@ func restGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	if err := buildPoolMonitoringProfile(pool, hostIDs); err != nil {
+	if err := buildPoolMonitoringProfile(pool, hostIDs, client); err != nil {
 		restServerError(w)
 		return
 	}
@@ -230,13 +231,35 @@ func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
 	return hostIDs, nil
 }
 
-func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string) error {
+func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, client *master.Client) error {
+	var totalMemory uint64 = 0
+	var totalCores int = 0
+
+	//calculate total memory and total cores
+	for i := range hostIDs {
+		host, err := client.GetHost(hostIDs[i])
+		if err != nil {
+			glog.Errorf("Failed to get host for id=%s -> %s", hostIDs[i], err)
+			return err
+		}
+
+		totalCores += host.Cores
+		totalMemory += host.Memory
+	}
+
 	tags := map[string][]string{"controlplane_host_id": hostIDs}
 	profile, err := newProfile(tags)
 	if err != nil {
 		glog.Error("Failed to create pool profile: %s", err)
 		return err
 	}
+
+	//add graphs to profile
+	profile.GraphConfigs = make([]domain.GraphConfig, 4)
+	profile.GraphConfigs[1] = newMajorPageFaultGraph(tags)
+	profile.GraphConfigs[2] = newCpuConfigGraph(tags, totalCores)
+	profile.GraphConfigs[3] = newRSSConfigGraph(tags, totalMemory)
+
 	pool.MonitoringProfile = profile
 	return nil
 }
