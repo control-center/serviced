@@ -41,7 +41,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -487,19 +486,14 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 			select {
 			case err := <-exited:
 				if err != nil {
-					if exiterr, ok := err.(*exec.ExitError); ok {
-						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-							statusCode := status.ExitStatus()
-							switch {
-							case statusCode == 137:
-								glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
-
-							case statusCode == 2:
-								glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
-
-							default:
-								glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-							}
+					if exitcode, ok := utils.GetExitStatus(err); ok {
+						switch exitcode {
+						case 137:
+							glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+						case 2:
+							glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+						default:
+							glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, exitcode)
 						}
 					} else {
 						glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
