@@ -29,9 +29,9 @@ func TestNewRunningService(t *testing.T) {
 	if err != nil {
 		t.Errorf("BuildService Failed w/err=%s", err)
 	}
-	data_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
-	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
-	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", data_heap_request, data_non_heap_request)
+	dataHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
+	dataNonHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
+	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", dataHeapRequest, dataNonHeapRequest)
 	svc.MonitoringProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			domain.MetricConfig{
@@ -70,13 +70,13 @@ func TestNewRunningService(t *testing.T) {
 
 	tags := metrics["tags"].(map[string]interface{})
 
-	controlplane_instance_id := tags["controlplane_instance_id"].([]interface{})[0]
-	if controlplane_instance_id != "0" {
-		t.Errorf("Expected %+v, got %+v", "0", controlplane_instance_id)
+	controlplaneInstanceID := tags["controlplane_instance_id"].([]interface{})[0]
+	if controlplaneInstanceID != "0" {
+		t.Errorf("Expected %+v, got %+v", "0", controlplaneInstanceID)
 	}
 
-	controlplane_service_id := tags["controlplane_service_id"].([]interface{})[0]
-	if controlplane_service_id != svc.Id {
-		t.Errorf("Expected %+v, got %+v", svc.Id, controlplane_service_id)
+	controlplaneServiceID := tags["controlplane_service_id"].([]interface{})[0]
+	if controlplaneServiceID != svc.Id {
+		t.Errorf("Expected %+v, got %+v", svc.Id, controlplaneServiceID)
 	}
 }

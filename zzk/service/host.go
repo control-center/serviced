@@ -13,6 +13,8 @@ func hostpath(nodes ...string) string {
 	return path.Join(p...)
 }
 
+// HostState is the zookeeper node for storing service instance information
+// per host
 type HostState struct {
 	HostID         string
 	ServiceID      string
@@ -21,10 +23,12 @@ type HostState struct {
 	version        interface{}
 }
 
+// Version inplements client.Node
 func (node *HostState) Version() interface{} {
 	return node.version
 }
 
+// SetVersion implements client.Node
 func (node *HostState) SetVersion(version interface{}) {
 	node.version = version
 }

@@ -16,18 +16,26 @@ func servicepath(nodes ...string) string {
 	return path.Join(p...)
 }
 
+// ServiceNode is the zookeeper client Node for services
 type ServiceNode struct {
 	Service *service.Service
 	version interface{}
 }
 
-func (node *ServiceNode) Version() interface{}           { return node.version }
+// Version implements client.Node
+func (node *ServiceNode) Version() interface{} { return node.version }
+
+// SetVersion implements client.Node
 func (node *ServiceNode) SetVersion(version interface{}) { node.version = version }
 
+// ServiceStateNode is the zookeeper client node for service states
 type ServiceStateNode struct {
 	ServiceState *servicestate.ServiceState
 	version      interface{}
 }
 
-func (node *ServiceStateNode) Version() interface{}           { return node.version }
+// Version implements client.Node
+func (node *ServiceStateNode) Version() interface{} { return node.version }
+
+//SetVersion implements client.Node
 func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = version }

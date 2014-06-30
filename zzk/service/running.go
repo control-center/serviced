@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 )
 
+// NewRunningService instantiates a RunningService object from a given service and service state
 func NewRunningService(service *service.Service, state *servicestate.ServiceState) (*dao.RunningService, error) {
 	rs := &dao.RunningService{
 		Id:              state.Id,
@@ -48,6 +49,7 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 	return rs, nil
 }
 
+// LoadRunningService returns a RunningService object given a coordinator connection
 func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.RunningService, error) {
 	var service ServiceNode
 	if err := conn.Get(servicepath(serviceID), &service); err != nil {
@@ -62,6 +64,7 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 	return NewRunningService(service.Service, state.ServiceState)
 }
 
+// LoadRunningServicesByHost returns a slice of RunningServices given a host(s)
 func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*dao.RunningService, error) {
 	var rss []*dao.RunningService
 	for _, hostID := range hostIDs {
@@ -86,6 +89,7 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*da
 	return rss, nil
 }
 
+// LoadRunningServicesByService returns a slice of RunningServices per service id(s)
 func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]*dao.RunningService, error) {
 	var rss []*dao.RunningService
 	for _, serviceID := range serviceIDs {
@@ -104,6 +108,7 @@ func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) 
 	return rss, nil
 }
 
+// LoadRunningServices gets all RunningServices
 func LoadRunningServices(conn client.Connection) ([]*dao.RunningService, error) {
 	serviceIDs, err := conn.Children(servicepath())
 	if err != nil {
