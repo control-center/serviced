@@ -224,6 +224,7 @@ test: build_binary docker_ok
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
 	cd zzk/snapshot && go test $(GOTEST_FLAGS)
+	cd zzk/docker && go test $(GOTEST_FLAGS)
 
 smoketest: build_binary docker_ok
 	/bin/bash smoke.sh
