@@ -980,6 +980,9 @@ func (a *HostAgent) start() {
 	}
 }
 
+// AttachAndRun implements zkdocker.ActionHandler; it attaches to a running
+// container and performs a command as specified by the container's service
+// definition
 func (a *HostAgent) AttachAndRun(dockerID string, command []string) ([]byte, error) {
 	return utils.AttachAndRun(dockerID, command)
 }

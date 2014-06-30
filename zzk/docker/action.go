@@ -32,6 +32,7 @@ func (a *Action) Version() interface{} { return a.version }
 // SetVersion is an implementation of client.Node
 func (a *Action) SetVersion(version interface{}) { a.version = version }
 
+// ActionHandler handles all non-zookeeper interactions required by the Action
 type ActionHandler interface {
 	AttachAndRun(dockerID string, command []string) ([]byte, error)
 }
