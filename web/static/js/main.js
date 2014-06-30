@@ -104,7 +104,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 html: true,
                 content: attrs.popover
             });
-        }
+        };
     }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
@@ -142,7 +142,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
     filter('toGB', function(){
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
-        }
+        };
     }).
     directive('scroll', function($rootScope, $window, $timeout) {
         return {
@@ -273,7 +273,7 @@ function ResourcesService($http, $location, $notification) {
         $http.get('/pools').
             success(function(data, status) {
                 console.log('Retrieved list of pools');
-                cached_pools = data
+                cached_pools = data;
                 callback(data);
             }).
             error(function(data, status) {
@@ -330,7 +330,7 @@ function ResourcesService($http, $location, $notification) {
         assign_ip: function(serviceID, ip, callback) {
           var url = '/services/' + serviceID + "/ip";
           if (ip != null) {
-            url = url + "/" + ip
+            url = url + "/" + ip;
           }
           $http.put(url).
               success(function(data, status) {
@@ -452,7 +452,7 @@ function ResourcesService($http, $location, $notification) {
          * add a virtual host,
          */
         add_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
@@ -473,7 +473,7 @@ function ResourcesService($http, $location, $notification) {
          * Remove a virtual host
          */
         delete_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             $http.delete(ep).
                 success(function(data, status) {
                     $notification.create("", 'Removed virtual host: ' + ep + JSON.stringify(data)).success();
@@ -601,7 +601,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Add result passed to callback on success.
          */
         add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
-            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface})
+            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
@@ -1166,7 +1166,7 @@ function StatsService($http, $location, $notification) {
                     callback(status);
                 });
         }
-    }
+    };
 }
 
 /*
@@ -1186,7 +1186,7 @@ function flattenTree(depth, current, sortFunction) {
         current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
     }
     return retVal;
 }
@@ -1206,7 +1206,7 @@ function aggregateVhosts( service) {
         for ( var j in endpoint.VHosts) {
           var name = endpoint.VHosts[j];
           var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
-          vhosts.push( vhost)
+          vhosts.push( vhost);
         }
       }
     }
@@ -1235,11 +1235,11 @@ function aggregateAddressAssigments( service, api) {
           'Port': endpoint.AddressConfig.Port,
           'ServiceID': service.Id,
           'ServiceName': service.Name
-        }
+        };
         api.get_host( assignment.HostID, function(data) {
-          assignment.HostName = data.Name
+          assignment.HostName = data.Name;
         })
-        assignments.push( assignment)
+        assignments.push( assignment);
       }
     }
   }
@@ -1325,7 +1325,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
             // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
-                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1
+                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1;
                 });
             }
 
@@ -1336,7 +1336,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
                 if ($scope.vhosts.options.length > 0) {
                   $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
                 }
-                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService)
+                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService);
             }
         }
         if (extraCallback) {
@@ -1650,7 +1650,7 @@ function buildTable(sort, headers) {
 
 function indentClass(depth) {
     return 'indent' + (depth -1);
-};
+}
 
 function toggleCollapse(child, collapsed) {
     child.parentCollapsed = collapsed;
