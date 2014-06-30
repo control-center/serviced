@@ -25,7 +25,7 @@
 
     "brand_cp": "Control Plane",
     "brand_zcp": "Zenoss Control Plane",
-    "breadcrumb_deployed": "Deployed Apps",
+    "breadcrumb_deployed": "Applications",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",
     "breadcrumb_hosts_map": "Hosts Map",
@@ -149,7 +149,7 @@
     "modal_add_virtual_ip": "Add Virtual IP",
     "modal_assign_ip": "Assign IP",
     "msg_filtering": "Filtering for",
-    "nav_apps": "Deployed Apps",
+    "nav_apps": "Applications",
     "nav_by_cpu": "By CPU",
     "nav_by_ram": "By RAM",
     "nav_hosts": "Hosts",

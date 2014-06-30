@@ -26,21 +26,21 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         { id: 'Startup', name: 'label_service_startup' }
     ]);
 
-    $scope.vhosts = buildTable('vhost_name', [
+    $scope.vhosts = buildTable('Name', [
         { id: 'Name', name: 'vhost_name'},
         { id: 'Application', name: 'vhost_application'},
         { id: 'ServiceEndpoint', name: 'vhost_service_endpoint'},
-        { id: 'URL', name: 'vhost_url'},
+        { id: 'Name', name: 'vhost_url'},
         { id: 'Action', name: 'vhost_actions'},
     ]);
 
-    $scope.ips = buildTable('Service', [
-        { id: 'Service', name: 'tbl_virtual_ip_service'},
-        { id: 'Application', name: 'tbl_virtual_ip_application'},
+    $scope.ips = buildTable('ServiceID', [
+        { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
+        { id: 'EndpointName', name: 'tbl_virtual_ip_application'},
         { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
-        { id: 'Host', name: 'tbl_virtual_ip_host'},
-        { id: 'Pool', name: 'tbl_virtual_ip_pool'},
-        { id: 'IPAddress', name: 'tbl_virtual_ip'},
+        { id: 'HostName', name: 'tbl_virtual_ip_host'},
+        { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
+        { id: 'IPAddr', name: 'tbl_virtual_ip'},
         { id: 'Port', name: 'tbl_virtual_ip_port'},
         { id: 'Actions', name: 'tbl_virtual_ip_actions'}
     ]);
