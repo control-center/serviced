@@ -227,8 +227,8 @@
             });
         }
 
-        // expose serviceHealth to everyone
-        // HACK - this really is terrible :/
+        // TODO - this is a terrible way to expose this object, but
+        // until main.js is fully encapsulated, this is the only way
         $rootScope.serviceHealth = {
             update: update
         };

@@ -14,6 +14,27 @@
 
  */
 
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/roboto-regular-webfont.eot');
+    src: url('../fonts/roboto-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/roboto-regular-webfont.woff') format('woff'),
+         url('../fonts/roboto-regular-webfont.ttf') format('truetype'),
+         url('../fonts/roboto-regular-webfont.svg#Roboto') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/roboto-bold-webfont.eot');
+    src: url('../fonts/roboto-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/roboto-bold-webfont.woff') format('woff'),
+         url('../fonts/roboto-bold-webfont.ttf') format('truetype'),
+         url('../fonts/roboto-bold-webfont.svg#Roboto') format('svg');
+    font-weight: bold;
+    font-style: normal;
+}
+
 body {
     padding: 20px;
     color: #666;
@@ -37,7 +58,7 @@ a:hover, a:active, a:focus,
 .link {
     cursor: pointer;
     color: #325385;
-    font-weight: 500;
+    font-weight: bold;
 }
 
 .link:hover {
@@ -48,7 +69,7 @@ a:hover, a:active, a:focus,
 }
 
 .action {
-    font-weight: 500;
+    font-weight: bold;
     cursor: pointer;
     color: #325385;
     text-decoration: none;

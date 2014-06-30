@@ -1448,7 +1448,8 @@ function toggleRunning(app, status, servicesService) {
         });
     }
 
-    // HACK - this is a terrible way to get this object
+    // TODO - this is a terrible way to get this object, but until
+    // this js file is fully encapsulated, this is the only way
     this.$parent.serviceHealth.update(app.Id);
 }
 
