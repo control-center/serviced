@@ -11,10 +11,17 @@
 # Macros              #
 #---------------------#
 
-PKG             = deb # deb | rpm
 install_TARGETS = $(install_DIRS)
 prefix          = /opt/serviced
 sysconfdir      = /etc
+
+# The installed footprint is influenced by the distro
+# we're targeting.  Allow this usage:
+#
+#    sudo make install DESTDIR=/tmp/pkgroot PKG=<deb|rpm>
+#
+PKG             = $(default_PKG) # deb | rpm
+default_PKG     = deb
 
 build_TARGETS   = build_isvcs build_js $(logstash.conf) nsinit serviced
 
@@ -38,6 +45,16 @@ endif
 
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
+
+# If connection to internet is lost, 'godep restore' will fail with:
+#
+# godep: Get https://code.google.com/p/go/source/checkout?repo=crypto: 
+#        dial tcp: lookup code.google.com: no such host
+#
+# Allow dev work-flow to continue in that case with 'make REQUIRE_INET=0'
+
+REQUIRE_INET = 1
+FAIL_ON_GODEP_RESTORE_FAIL = $(REQUIRE_INET)
 
 #------------------------------------------------------------------------------#
 # Build Repeatability with Godeps
@@ -89,12 +106,33 @@ build_binary: $(build_TARGETS)
 	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
 
 # The presence of this file indicates that godep restore 
-# has been run.  It will refresh when ./Godeps itself is updated.
+# has been run.  It will refresh when ./Godeps itself is 
+# updated.
 Godeps_restored = .Godeps_restored
 $(Godeps_restored): | $(GODEP)
+ifeq "$(FAIL_ON_GODEP_RESTORE_FAIL)" "1"
 $(Godeps_restored): $(Godeps)
-	$(GODEP) restore
+	@echo "$(GODEP) restore" ;\
+	$(GODEP) restore ;\
+	rc=$$? ;\
+	if [ $${rc} -ne 0 ] ; then \
+		echo "ERROR: Failed $(GODEP) restore. [rc=$${rc}]" ;\
+		echo "** Unable to restore your GOPATH to a baseline state." ;\
+		echo "** Perhaps internet connectivity is down." ;\
+		echo "** Try: $(MAKE) .. REQUIRE_INET=0" ;\
+		exit $${rc} ;\
+	fi
 	touch $@
+else
+$(Godeps_restored): $(Godeps)
+	@echo "$(GODEP) restore" ;\
+	if ! $(GODEP) restore ;then \
+		echo "WARNING: Failed $(GODEP) restore." ;\
+		echo "** Unable to restore your GOPATH to a baseline state." ;\
+		echo "** Perhaps internet connectivity is down. [IGNORING]" ;\
+	fi
+	touch $@
+endif
 
 .PHONY: build_isvcs
 build_isvcs: | $(Godeps_restored)
@@ -174,29 +212,19 @@ missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(g
 $(GODEP): | $(missing_godep_SRC)
 	go install $(godep_SRC)
 
-
 #---------------------#
 # Install targets     #
 #---------------------#
 
-install_DIRS    = $(_DESTDIR)$(prefix)
-install_DIRS   += $(_DESTDIR)$(prefix)/bin
-install_DIRS   += $(_DESTDIR)$(prefix)/share/web
-install_DIRS   += $(_DESTDIR)$(prefix)/share/shell
-install_DIRS   += $(_DESTDIR)$(prefix)/isvcs
-install_DIRS   += $(_DESTDIR)$(prefix)/templates
-install_DIRS   += $(_DESTDIR)$(sysconfdir)/default
-install_DIRS   += $(_DESTDIR)$(sysconfdir)/bash_completion.d
-#---------------------#
-# Distro-specific     #
-#---------------------#
-_PKG = $(strip $(PKG))
-ifeq "$(_PKG)" "deb"
-install_DIRS   += $(_DESTDIR)$(sysconfdir)/init
-endif
-ifeq "$(_PKG)" "rpm"
-install_DIRS   += $(_DESTDIR)/usr/lib/systemd/system
-endif
+install_DIRS  = $(_DESTDIR)$(prefix)
+install_DIRS += $(_DESTDIR)/usr/bin
+install_DIRS += $(_DESTDIR)$(prefix)/bin
+install_DIRS += $(_DESTDIR)$(prefix)/share/web
+install_DIRS += $(_DESTDIR)$(prefix)/share/shell
+install_DIRS += $(_DESTDIR)$(prefix)/isvcs
+install_DIRS += $(_DESTDIR)$(prefix)/templates
+install_DIRS += $(_DESTDIR)$(sysconfdir)/default
+install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 
 # Specify the stuff to install as attributes of the various
 # install directories we know about.
@@ -206,30 +234,50 @@ endif
 #     $(dir)_TARGETS = filename
 #     $(dir)_TARGETS = src_filename:dest_filename
 #
+default_INSTCMD                                    = cp
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/nsinit:$(_DESTDIR)/usr/bin/nsinit
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
-$(_DESTDIR)$(prefix)/share/web_TARGETS_CP_OPT      = -R
+$(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
-$(_DESTDIR)$(prefix)/share/shell_TARGETS_CP_OPT    = -R
+$(_DESTDIR)$(prefix)/share/shell_INSTOPT           = -R
 $(_DESTDIR)$(prefix)/isvcs_TARGETS                 = isvcs/resources:.
-$(_DESTDIR)$(prefix)/isvcs_TARGETS_CP_OPT          = -R
+$(_DESTDIR)$(prefix)/isvcs_INSTOPT                 = -R
 $(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
-$(_DESTDIR)$(prefix)_TARGETS_CP_OPT                = -R
+$(_DESTDIR)$(prefix)_INSTOPT                       = -R
 $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
-#---------------------#
-# Distro-specific     #
-#---------------------#
+$(_DESTDIR)$(prefix)/templates_TARGETS             = pkg/templates/:.
+$(_DESTDIR)$(prefix)/templates_INSTCMD             = rsync
+$(_DESTDIR)$(prefix)/templates_INSTOPT             = -a --exclude=README.txt 
+
+#-----------------------------------#
+# Install targets (distro-specific) #
+#-----------------------------------#
+_PKG = $(strip $(PKG))
 ifeq "$(_PKG)" "deb"
-$(_DESTDIR)$(sysconfdir)/init_TARGETS              = pkg/serviced.upstart:serviced.conf
+install_DIRS += $(_DESTDIR)$(sysconfdir)/init
 endif
 ifeq "$(_PKG)" "rpm"
-$(_DESTDIR)/usr/lib/systemd/system_TARGETS         = pkg/serviced.service:serviced.service
+install_DIRS += $(_DESTDIR)/usr/lib/systemd/system
 endif
 
-$(install_DIRS): dir_TARGETS = $($@_TARGETS)
-$(install_DIRS): cp_OPT    = $($@_TARGETS_CP_OPT)
+ifeq "$(_PKG)" "deb"
+$(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
+endif
+ifeq "$(_PKG)" "rpm"
+$(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
+endif
+
+# Iterate across all the install dirs, populating
+# same with install targets (e.g., files, directories).
+#
+$(install_DIRS): install_TARGETS = $($@_TARGETS)
+$(install_DIRS): install_LINK_TARGETS = $($@_LINK_TARGETS)
+$(install_DIRS): instcmd = $(firstword $($@_INSTCMD) $(default_INSTCMD))
+$(install_DIRS): instopt = $($@_INSTOPT)
 $(install_DIRS): FORCE
 	@for install_DIR in $@ ;\
 	do \
@@ -238,38 +286,60 @@ $(install_DIRS): FORCE
 			mkdir -p $${install_DIR};\
 			rc=$$? ;\
 			if [ $${rc} -ne 0 ];then \
+				echo "[$@] Try: 'sudo make install'" ;\
 				exit $${rc} ;\
 			fi ;\
 		fi ;\
-		if [ -z "$(dir_TARGETS)" ];then \
-			continue ;\
-		else \
-			for dir_FILE in $(dir_TARGETS) ;\
-			do \
-				case $${dir_FILE} in \
-					*:*) \
-						from=`echo $${dir_FILE} | cut -d: -f1`;\
-						to=`echo $${dir_FILE} | cut -d: -f2` ;\
-						;;\
-					*) \
-						from=$${dir_FILE} ;\
-						to=$${dir_FILE} ;\
-						;;\
-				esac ;\
-				if [ -e "$${from}" ];then \
-					echo "cp $(cp_OPT) $${from} $${install_DIR}/$${to}" ;\
-					cp $(cp_OPT) $${from} $${install_DIR}/$${to} ;\
-					rc=$$? ;\
-					if [ $${rc} -ne 0 ];then \
-						exit $${rc} ;\
-					fi ;\
-				else \
-					echo "[$@] Missing $${from}" ;\
-					echo "[$@] Try: 'make build'" ;\
-					exit 1 ;\
+		for install_TARGET in $(install_TARGETS) ;\
+		do \
+			case $${install_TARGET} in \
+				*:*) \
+					from=`echo $${install_TARGET} | cut -d: -f1`;\
+					to=`echo $${install_TARGET} | cut -d: -f2` ;\
+					;;\
+				*) \
+					from=$${install_TARGET} ;\
+					to=$${install_TARGET} ;\
+					;;\
+			esac ;\
+			if [ -e "$${from}" ];then \
+				echo "$(instcmd) $(instopt) $${from} $${install_DIR}/$${to}" ;\
+				$(instcmd) $(instopt) $${from} $${install_DIR}/$${to} ;\
+				rc=$$? ;\
+				if [ $${rc} -ne 0 ];then \
+					exit $${rc} ;\
 				fi ;\
-			done ;\
-		fi ;\
+			else \
+				echo "[$@] Missing $${from}" ;\
+				echo "[$@] Try: 'make build'" ;\
+				exit 1 ;\
+			fi ;\
+		done ;\
+		for install_LINK_TARGET in $(install_LINK_TARGETS) ;\
+		do \
+			case $${install_LINK_TARGET} in \
+				*:*) \
+					from=`echo $${install_LINK_TARGET} | cut -d: -f1`;\
+					to=`echo $${install_LINK_TARGET} | cut -d: -f2` ;\
+					;;\
+				*) \
+					from=$${install_LINK_TARGET} ;\
+					to= ;\
+					;;\
+			esac ;\
+			if [ -e "$(_DESTDIR)$${from}" ];then \
+				echo "ln -sf $${from} $${to}" ;\
+				ln -sf $${from} $${to} ;\
+				rc=$$? ;\
+				if [ $${rc} -ne 0 ];then \
+					exit $${rc} ;\
+				fi ;\
+			else \
+				echo "[$@] Missing $(_DESTDIR)$${from}" ;\
+				echo "[$@] Try: 'make build && make install'" ;\
+				exit 1 ;\
+			fi ;\
+		done ;\
 	done
 
 .PHONY: install
@@ -373,8 +443,8 @@ clean_pkg:
 	cd pkg && make clean
 
 .PHONY: clean_godeps
-clean_godeps: | $(GODEP) $(Godeps)
-	$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+clean_godeps: $(Godeps_restored) | $(GODEP) $(Godeps)
+	go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	@if [ -f "$(Godeps_restored)" ];then \
 		rm -f $(Godeps_restored) ;\
 		echo "rm -f $(Godeps_restored)" ;\
