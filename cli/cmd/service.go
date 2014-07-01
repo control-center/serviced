@@ -9,9 +9,9 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/node"
 )
 
 // Initializer for serviced service subcommands
@@ -104,6 +104,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
+					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
@@ -484,20 +485,21 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:             ctx.GlobalInt("muxport"),
-		Mux:                 ctx.GlobalBool("mux"),
-		TLS:                 ctx.GlobalBool("tls"),
-		KeyPEMFile:          ctx.GlobalString("keyfile"),
-		CertPEMFile:         ctx.GlobalString("certfile"),
-		ServicedEndpoint:    ctx.GlobalString("endpoint"),
-		Autorestart:         ctx.GlobalBool("autorestart"),
-		MetricForwarderPort: ctx.GlobalString("metric-forwarder-port"),
-		Logstash:            ctx.GlobalBool("logstash"),
-		LogstashBinary:      ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:      ctx.GlobalString("forwarder-config"),
-		ServiceID:           args[0],
-		InstanceID:          args[1],
-		Command:             args[2:],
+		MuxPort:              ctx.GlobalInt("muxport"),
+		Mux:                  ctx.GlobalBool("mux"),
+		TLS:                  ctx.GlobalBool("tls"),
+		KeyPEMFile:           ctx.GlobalString("keyfile"),
+		CertPEMFile:          ctx.GlobalString("certfile"),
+		ServicedEndpoint:     ctx.GlobalString("endpoint"),
+		Autorestart:          ctx.GlobalBool("autorestart"),
+		MetricForwarderPort:  ctx.GlobalString("metric-forwarder-port"),
+		Logstash:             ctx.GlobalBool("logstash"),
+		LogstashBinary:       ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:       ctx.GlobalString("forwarder-config"),
+		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
+		ServiceID:            args[0],
+		InstanceID:           args[1],
+		Command:              args[2:],
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {

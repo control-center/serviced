@@ -6,10 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/validation"
 )
+
+const defaultSubnet string = "10.3" // /16 subnet for virtual addresses
 
 type vif struct {
 	name     string
@@ -22,12 +26,24 @@ type vif struct {
 // VIFRegistry holds state regarding virtual interfaces. It is meant to be
 // created in the proxy to manage vifs in the running service container.
 type VIFRegistry struct {
-	vifs map[string]*vif
+	sync.RWMutex
+	subnet string
+	vifs   map[string]*vif
 }
 
 // NewVIFRegistry initializes a new VIFRegistry.
 func NewVIFRegistry() *VIFRegistry {
-	return &VIFRegistry{make(map[string]*vif)}
+	return &VIFRegistry{subnet: defaultSubnet, vifs: make(map[string]*vif)}
+}
+
+// SetSubnet sets the subnet used for virtual addresses
+func (reg *VIFRegistry) SetSubnet(subnet string) error {
+	if err := validation.IsSubnet16(subnet); err != nil {
+		return err
+	}
+	reg.subnet = subnet
+	glog.Infof("vif subnet is: %s", reg.subnet)
+	return nil
 }
 
 func (reg *VIFRegistry) nextIP() (string, error) {
@@ -37,8 +53,8 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 	}
 	o3 := (n / 255)
 	o4 := (n - (o3 * 255))
-	// TODO: Make this network configurable (See ZEN-11478)
-	return fmt.Sprintf("10.3.%d.%d", o3, o4), nil
+	// ZEN-11478: made the subnet configurable
+	return fmt.Sprintf("%s.%d.%d", reg.subnet, o3, o4), nil
 }
 
 // RegisterVirtualAddress takes care of the entire virtual address setup. It
@@ -47,6 +63,10 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 // and sets up the iptables rule to redirect traffic to the specified port.
 func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string) error {
 	glog.Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s", address, toport, protocol)
+	reg.Lock()
+	defer reg.Unlock()
+	glog.V(2).Infof("RegisterVirtualAddress address:%s toport:%s protocol:%s  locked", address, toport, protocol)
+
 	var (
 		host, port string
 		viface     *vif
@@ -84,7 +104,7 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 		return fmt.Errorf("invalid protocol: %s", protocol)
 	}
 
-	glog.Infof("portmap: %+v", *portmap)
+	glog.V(2).Infof("RegisterVirtualAddress portmap: %+v", *portmap)
 	if _, ok := (*portmap)[toport]; !ok {
 		// dest isn't there, let's DO IT!!!!!
 		if err := viface.redirectCommand(port, toport, protocol); err != nil {
@@ -134,6 +154,7 @@ func (viface *vif) createCommand() error {
 }
 
 func (viface *vif) redirectCommand(from, to, protocol string) error {
+	glog.Infof("Trying to set up redirect %s:%s->:%s %s", viface.hostname, from, to, protocol)
 	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
 		command := []string{
 			"iptables",
@@ -150,7 +171,7 @@ func (viface *vif) redirectCommand(from, to, protocol string) error {
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stdout
 		if err := c.Run(); err != nil {
-			glog.Errorf("Unable to set up redirect %s:%s->:%s", viface.hostname, from, to)
+			glog.Errorf("Unable to set up redirect %s:%s->:%s %s command:%+v", viface.hostname, from, to, protocol, command)
 			return err
 		}
 	}
@@ -158,7 +179,7 @@ func (viface *vif) redirectCommand(from, to, protocol string) error {
 	glog.Infof("AddToEtcHosts(%s, %s)", viface.hostname, viface.ip)
 	err := node.AddToEtcHosts(viface.hostname, viface.ip)
 	if err != nil {
-		glog.Errorf("Unable to add %s to /etc/hosts", viface.hostname)
+		glog.Errorf("Unable to add %s %s to /etc/hosts", viface.ip, viface.hostname)
 		return err
 	}
 	return nil

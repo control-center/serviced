@@ -38,7 +38,6 @@ import (
 	_ "github.com/zenoss/serviced/volume/rsync"
 	"github.com/zenoss/serviced/web"
 	"github.com/zenoss/serviced/zzk"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"crypto/tls"
 	"errors"
@@ -180,7 +179,7 @@ func (d *daemon) startMaster() error {
 		panic(err)
 	}
 
-	thisHost, err := host.Build(agentIP, "unknown")
+	thisHost, err := host.Build(agentIP, "default") //CLARK TODO "unknown"
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -271,7 +270,7 @@ func (d *daemon) initiateAgent() error {
 		return fmt.Errorf("HostID failed: %v", err)
 	}
 
-	sleepRetry := 1
+	sleepRetry := 5
 	go func() {
 		var poolID string
 		for {
@@ -284,7 +283,7 @@ func (d *daemon) initiateAgent() error {
 			}
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
-				glog.Errorf("masterClient.GetHost failed: %v", err)
+				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
 				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
 				continue
 			}
@@ -292,6 +291,8 @@ func (d *daemon) initiateAgent() error {
 			glog.Infof(" My PoolID: %v", poolID)
 			break
 		}
+
+		thisHost.PoolID = poolID
 
 		basePoolPath := "/pools/" + poolID
 		dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
@@ -313,20 +314,18 @@ func (d *daemon) initiateAgent() error {
 		}
 		nfsClient.Wait()
 
-		// start agent listeners
-		go zkdocker.ListenAction(poolBasedConn, d.hostID)
-
 		agentOptions := node.AgentOptions{
-			Master:          options.Endpoint,
-			UIPort:          options.UIPort,
-			DockerDNS:       options.DockerDNS,
-			VarPath:         options.VarPath,
-			Mount:           options.Mount,
-			VFS:             options.VFS,
-			Zookeepers:      options.Zookeepers,
-			Mux:             mux,
-			DockerRegistry:  options.DockerRegistry,
-			MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
+			Master:               options.Endpoint,
+			UIPort:               options.UIPort,
+			DockerDNS:            options.DockerDNS,
+			VarPath:              options.VarPath,
+			Mount:                options.Mount,
+			VFS:                  options.VFS,
+			Zookeepers:           options.Zookeepers,
+			Mux:                  mux,
+			DockerRegistry:       options.DockerRegistry,
+			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
+			VirtualAddressSubnet: options.VirtualAddressSubnet,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
@@ -342,8 +341,7 @@ func (d *daemon) initiateAgent() error {
 			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
 			glog.V(0).Info("Shutting down due to interrupt")
-			err = hostAgent.Shutdown()
-			if err != nil {
+			if err := hostAgent.Shutdown(); err != nil {
 				glog.V(1).Infof("Agent shutdown with error: %v", err)
 			} else {
 				glog.Info("Agent shutdown")
@@ -365,13 +363,13 @@ func (d *daemon) initiateAgent() error {
 		}
 	}()
 
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
-
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
 	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
+	}
+
+	if err != nil {
+		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
 
 	// TODO: Integrate this server into the rpc server, or something.

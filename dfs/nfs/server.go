@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/zenoss/serviced/commons/atomicfile"
+	"github.com/zenoss/serviced/utils"
 )
 
 // Server manages exporting an NFS mount.
@@ -246,12 +247,8 @@ func bindMountImp(src, dst string) error {
 		// by a return code of 32. Stale handle can occur if e.g., the source
 		// directory has been deleted and restored (a common occurrence in the
 		// dev workflow) Try again, with remount option.
-		if exitError, ok := returnErr.(*exec.ExitError); ok {
-			if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-				if (status.ExitStatus() & 32) != 0 {
-					returnErr = runMountCommand("bind", "remount")
-				}
-			}
+		if exitcode, ok := utils.GetExitStatus(returnErr); ok && (exitcode&32) != 0 {
+			returnErr = runMountCommand("bind", "remount")
 		}
 	}
 	return returnErr

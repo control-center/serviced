@@ -68,23 +68,22 @@ func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 		return err
 	}
 
-	req := zkSnapshot.Snapshot{
-		ServiceID: serviceID,
-	}
-
-	if err := zkSnapshot.Send(conn, &req); err != nil {
+	if err := zkSnapshot.Send(conn, serviceID); err != nil {
 		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
 
-	res, err := zkSnapshot.Recv(conn, serviceID)
-	if err != nil {
+	var snapshot zkSnapshot.Snapshot
+	if err := zkSnapshot.Recv(conn, serviceID, &snapshot); err != nil {
 		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
 
-	*label = res.Label
-	return res.Error
+	*label = snapshot.Label
+	if snapshot.Err != "" {
+		return errors.New(snapshot.Err)
+	}
+	return nil
 }
 
 func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {

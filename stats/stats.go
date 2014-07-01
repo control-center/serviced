@@ -156,7 +156,7 @@ func (sr StatsReporter) updateStats() {
 	}
 	// Stats for the containers.
 	var running []*dao.RunningService
-	zzk.GetRunningServicesForHost(sr.conn, sr.hostID, &running) // TODO check for errors?????
+	zzk.GetRunningServicesForHost(sr.conn, sr.hostID, &running) // CLARK TODO FIXME check for errors?????
 	for _, rs := range running {
 		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {

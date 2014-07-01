@@ -7,7 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -18,34 +18,35 @@ var options Options
 
 // Options are the server options
 type Options struct {
-	Endpoint         string // the endpoint address to make RPC requests to
-	UIPort           string
-	Listen           string
-	Master           bool
-	DockerDNS        []string
-	Agent            bool
-	MuxPort          int
-	TLS              bool
-	KeyPEMFile       string
-	CertPEMFile      string
-	VarPath          string
-	ResourcePath     string
-	Zookeepers       []string
-	ReportStats      bool
-	HostStats        string
-	StatsPeriod      int
-	MCUsername       string
-	MCPasswd         string
-	Mount            []string
-	ResourcePeriod   int
-	VFS              string
-	ESStartupTimeout int
-	HostAliases      []string
-	Verbosity        int
-	StaticIPs        []string
-	DockerRegistry   string
-	CPUProfile       string // write cpu profile to file
-	MaxContainerAge  int    // max container age in seconds
+	Endpoint             string // the endpoint address to make RPC requests to
+	UIPort               string
+	Listen               string
+	Master               bool
+	DockerDNS            []string
+	Agent                bool
+	MuxPort              int
+	TLS                  bool
+	KeyPEMFile           string
+	CertPEMFile          string
+	VarPath              string
+	ResourcePath         string
+	Zookeepers           []string
+	ReportStats          bool
+	HostStats            string
+	StatsPeriod          int
+	MCUsername           string
+	MCPasswd             string
+	Mount                []string
+	ResourcePeriod       int
+	VFS                  string
+	ESStartupTimeout     int
+	HostAliases          []string
+	Verbosity            int
+	StaticIPs            []string
+	DockerRegistry       string
+	CPUProfile           string // write cpu profile to file
+	MaxContainerAge      int    // max container age in seconds
+	VirtualAddressSubnet string
 }
 
 // LoadOptions overwrites the existing server options
@@ -130,8 +131,8 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 	return a.docker, nil
 }
 
-func (a *api) connectDockerRegistry() (commons.DockerRegistry, error) {
-	return commons.NewDockerRegistry(options.DockerRegistry)
+func (a *api) connectDockerRegistry() (*docker.DockerRegistry, error) {
+	return docker.NewDockerRegistry(options.DockerRegistry)
 }
 
 // DEPRECATED: Opens a connection to the DAO if not already connected

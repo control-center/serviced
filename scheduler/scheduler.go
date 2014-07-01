@@ -111,6 +111,7 @@ func (s *scheduler) loop() {
 			leader.ReleaseLead()
 		}()
 
+		glog.Infof(" ********** Creating a leader for pool: %v --- %+v", aPool.ID, poolBasedConn)
 		s.zkleaderFunc(s.facade, s.cpDao, poolBasedConn, events, aPool.ID)
 	}
 }

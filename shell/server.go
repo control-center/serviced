@@ -9,16 +9,16 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/utils"
 )
 
 var empty interface{}
@@ -274,7 +274,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	registry, err := commons.NewDockerRegistry(e.dockerRegistry)
+	registry, err := docker.NewDockerRegistry(e.dockerRegistry)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -296,17 +296,13 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 
 	go func() {
 		defer p.Close()
-
-		if err := cmd.Run(); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					p.Result <- Result{status.ExitStatus(), err.Error(), NORMAL}
-					return
-				}
-			}
-			p.Result <- Result{0, err.Error(), ABNORMAL}
+		err := cmd.Run()
+		if exitcode, ok := utils.GetExitStatus(err); !ok {
+			p.Result <- Result{exitcode, err.Error(), ABNORMAL}
+		} else if exitcode == 0 {
+			p.Result <- Result{exitcode, "", NORMAL}
 		} else {
-			p.Result <- Result{0, "", NORMAL}
+			p.Result <- Result{exitcode, err.Error(), NORMAL}
 		}
 	}()
 
@@ -319,7 +315,7 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
-func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control plane client to look up the service
@@ -336,7 +332,7 @@ func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Cli
 	}
 
 	// make sure docker image is present
-	if _, err = commons.InspectImage(registry, dockerClient, svc.ImageID); err != nil {
+	if _, err = docker.InspectImage(*registry, dockerClient, svc.ImageID); err != nil {
 		glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
 		return nil, err
 	}
@@ -405,6 +401,7 @@ func StartDocker(registry commons.DockerRegistry, dockerClient *dockerclient.Cli
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 
 	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)

@@ -159,12 +159,14 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 }
 
 func (sc *ServiceConfig) watchVhosts() error {
+	glog.Info("watchVhosts starting")
+
 	mc, err := sc.getMasterClient()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting master client: %v", err)
 		return err
 	}
-	glog.Info("watchVhosts starting...1")
+
 	allPools, err := mc.GetResourcePools()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting resource pools: %v", err)

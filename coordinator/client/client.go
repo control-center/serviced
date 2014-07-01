@@ -116,8 +116,7 @@ type opClientRequest struct {
 // Client is a coordination client that abstracts using services like etcd or
 // zookeeper.
 type Client struct {
-	basePath          string // the base path for every connection
-	customPath        string
+	basePath          string               // the base path for every connection
 	connectionString  string               // the driver specific connection string
 	done              chan chan struct{}   // a shutdown channel
 	retryPolicy       retry.Policy         // the default retry policy to use
@@ -230,7 +229,8 @@ func (client *Client) loop() {
 					req.response <- err
 				}
 			case opClientRequestCustomConnection:
-				c, err := client.connectionFactory.GetConnection(client.connectionString, client.customPath)
+				myBasePath := req.args.(string)
+				c, err := client.connectionFactory.GetConnection(client.connectionString, myBasePath)
 				if err == nil {
 					// save a reference to the connection locally
 					connections[connectionID] = &c
@@ -302,8 +302,7 @@ func (client *Client) GetConnection() (Connection, error) {
 }
 
 func (client *Client) GetCustomConnection(basePath string) (Connection, error) {
-	client.customPath = basePath
-	request := newOpClientRequest(opClientRequestCustomConnection, nil)
+	request := newOpClientRequest(opClientRequestCustomConnection, basePath)
 	client.opRequests <- request
 	response := <-request.response
 	switch response.(type) {

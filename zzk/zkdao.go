@@ -4,13 +4,12 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"errors"
 	"runtime/debug"
-	"strconv"
 	"time"
 )
 
@@ -29,7 +28,7 @@ func InitializeGlobals(myZClient coordclient.Client) {
 
 // GetPoolBasedConnection returns a connection based on the poolID provided
 func GetPoolBasedConnection(poolID string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
-	glog.Warningf("zClient: %+v", zClient)
+	glog.Infof("   Getting connection based on pool: %v", poolID)
 	basePath := "/pools/" + poolID
 	if _, ok := poolBasedConnections[basePath]; ok {
 		return poolBasedConnections[basePath], nil
@@ -183,19 +182,11 @@ func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestat
 }
 
 func GetRunningService(conn coordclient.Connection, serviceId string, serviceStateId string, running *dao.RunningService) error {
-	var s service.Service
-	if err := LoadService(conn, serviceId, &s); err != nil {
-		return err
-	}
-
-	var ss servicestate.ServiceState
-	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
-		return err
-	}
-	rs, err := sssToRs(&s, &ss)
+	rs, err := zkservice.LoadRunningService(conn, serviceId, serviceStateId)
 	if err != nil {
 		return err
 	}
+
 	*running = *rs
 	return nil
 }
@@ -205,49 +196,21 @@ func RemoveHost(conn coordclient.Connection, hostId string) error {
 }
 
 func GetRunningServicesForHost(conn coordclient.Connection, hostId string, running *[]*dao.RunningService) error {
-	serviceStateIds, err := conn.Children(HostPath(hostId))
-	if err != nil {
-		glog.Errorf("Unable to acquire list of services")
-		return err
-	}
-
-	_ss := make([]*dao.RunningService, len(serviceStateIds))
-	for i, hssId := range serviceStateIds {
-
-		var hss HostServiceState
-		if err := LoadHostServiceState(conn, hostId, hssId, &hss); err != nil {
-			return err
-		}
-
-		var s service.Service
-		if err := LoadService(conn, hss.ServiceID, &s); err != nil {
-			return err
-		}
-
-		var ss servicestate.ServiceState
-		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
-			return err
-		}
-		_ss[i], err = sssToRs(&s, &ss)
-		if err != nil {
-			return err
-		}
-	}
-	*running = append(*running, _ss...)
-	return nil
+	var err error
+	*running, err = zkservice.LoadRunningServicesByHost(conn, hostId)
+	return err
 }
 
 func GetRunningServicesForService(conn coordclient.Connection, serviceId string, running *[]*dao.RunningService) error {
-	return LoadRunningServices(conn, running, serviceId)
+	var err error
+	*running, err = zkservice.LoadRunningServicesByService(conn, serviceId)
+	return err
 }
 
 func GetAllRunningServices(conn coordclient.Connection, running *[]*dao.RunningService) error {
-	serviceIds, err := conn.Children(SERVICE_PATH)
-	if err != nil {
-		glog.Errorf("Unable to acquire list of services")
-		return err
-	}
-	return LoadRunningServices(conn, running, serviceIds...)
+	var err error
+	*running, err = zkservice.LoadRunningServices(conn)
+	return err
 }
 
 func HostPath(hostId string) string {
@@ -337,36 +300,6 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 	if err := conn.Delete(hssPath); err != nil {
 		glog.Errorf("Unable to delete host service state %s", hssPath)
 		return err
-	}
-	return nil
-}
-
-func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningService, serviceIds ...string) error {
-	for _, serviceId := range serviceIds {
-		var s service.Service
-		if err := LoadService(conn, serviceId, &s); err != nil {
-			return err
-		}
-
-		servicePath := ServicePath(serviceId)
-		childNodes, err := conn.Children(servicePath)
-		if err != nil {
-			return err
-		}
-
-		_ss := make([]*dao.RunningService, len(childNodes))
-		for i, childId := range childNodes {
-			var ss servicestate.ServiceState
-			if err := LoadServiceState(conn, serviceId, childId, &ss); err != nil {
-				return err
-			}
-			_ss[i], err = sssToRs(&s, &ss)
-			if err != nil {
-				return err
-			}
-
-		}
-		*running = append(*running, _ss...)
 	}
 	return nil
 }
@@ -514,43 +447,6 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 		ServiceStateID: ss.Id,
 		DesiredState:   service.SVCRun,
 	}
-}
-
-// Service & ServiceState to RunningService
-func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningService, error) {
-	rs := &dao.RunningService{}
-	rs.Id = ss.Id
-	rs.ServiceID = ss.ServiceID
-	rs.StartedAt = ss.Started
-	rs.HostID = ss.HostID
-	rs.DockerID = ss.DockerID
-	rs.InstanceID = ss.InstanceID
-	rs.Startup = s.Startup
-	rs.Name = s.Name
-	rs.Description = s.Description
-	rs.Instances = s.Instances
-	rs.PoolID = s.PoolID
-	rs.ImageID = s.ImageID
-	rs.DesiredState = s.DesiredState
-	rs.ParentServiceID = s.ParentServiceID
-	rs.MonitoringProfile.MetricConfigs = make([]domain.MetricConfig, len(s.MonitoringProfile.MetricConfigs))
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		return nil, err
-	}
-	for i, metricGroup := range s.MonitoringProfile.MetricConfigs {
-		for _, metric := range metricGroup.Metrics {
-			metricBuilder := build.Metric(metric.ID, metric.Name)
-			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))
-			metricBuilder.SetTag("controlplane_service_id", rs.ServiceID)
-		}
-		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
-		if err != nil {
-			return nil, err
-		}
-		rs.MonitoringProfile.MetricConfigs[i] = *config
-	}
-	return rs, nil
 }
 
 // Snapshot section start

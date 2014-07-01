@@ -746,7 +746,7 @@ func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, se
 
 func RemoveHost(hostID string) error {
 	poolID := "default"
-	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // FIXME !?????
+	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // CLARK TODO FIXME ?????
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err

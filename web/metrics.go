@@ -1,63 +1,265 @@
 package web
 
-//metric defines metrics for hosts or pools
-type metric struct {
-	ID          string
-	Name        string
-	Description string
-}
+import (
+	"github.com/zenoss/serviced/domain"
 
+	"fmt"
+)
+
+//profile defines meta-data for the host/pool resource's metrics and graphs
 var (
-	metrics = []metric{
-		metric{
-			"cpu.system",
-			"CPU System",
-			"System CPU Usage",
-		},
-		metric{
-			"cpu.user",
-			"CPU User",
-			"User CPU Usage",
-		},
-		metric{
-			"cpu.idle",
-			"CPU Idle",
-			"Idle CPU Usage",
-		},
-		metric{
-			"cpu.iowait",
-			"CPU IO Wait",
-			"IO Wait CPU Usage",
-		},
-		metric{
-			"cpu.nice",
-			"CPU Nice",
-			"Nice CPU Usage",
-		},
-		metric{
-			"memory.buffers",
-			"Memory Buffer",
-			"Memory Buffers Usage",
-		},
-		metric{
-			"memory.cached",
-			"Memory Cache",
-			"Memory Cache Usage",
-		},
-		metric{
-			"memory.free",
-			"Memory Free",
-			"Free Memory",
-		},
-		metric{
-			"memory.total",
-			"Total Memory",
-			"Total Memory",
-		},
-		metric{
-			"memory.used",
-			"Used Memory",
-			"Used Memory",
+	zero       int = 0
+	onehundred int = 100
+
+	profile = domain.MonitorProfile{
+		MetricConfigs: []domain.MetricConfig{
+			//CPU
+			domain.MetricConfig{
+				ID:          "cpu",
+				Name:        "CPU Usage",
+				Description: "CPU Statistics",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "cpu.system", Name: "CPU System"},
+					domain.Metric{ID: "cpu.user", Name: "CPU User"},
+					domain.Metric{ID: "cpu.idle", Name: "CPU Idle"},
+					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait"},
+					domain.Metric{ID: "cpu.nice", Name: "CPU Nice"},
+				},
+			},
+			//Memory
+			domain.MetricConfig{
+				ID:          "memory",
+				Name:        "Memory Usage",
+				Description: "Memory Usage Statistics -- /proc/meminfo",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "memory.buffers", Name: "Memory Buffer"},
+					domain.Metric{ID: "memory.cached", Name: "Memory Cache"},
+					domain.Metric{ID: "memory.free", Name: "Memory Free"},
+					domain.Metric{ID: "memory.total", Name: "Total Memory"},
+					domain.Metric{ID: "memory.used", Name: "Used Memory"},
+					domain.Metric{ID: "swap.total", Name: "Total Swap"},
+					domain.Metric{ID: "swap.free", Name: "Free Swap"},
+				},
+			},
+			//Virtual Memory
+			domain.MetricConfig{
+				ID:          "virtual.memory",
+				Name:        "Virtual Memory Usage",
+				Description: "Virtual Memory Usage Statistics -- /proc/vmstat",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault"},
+					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault"},
+				},
+			},
+			//Files
+			domain.MetricConfig{
+				ID:          "files",
+				Name:        "File Usage",
+				Description: "File Statistics",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "Serviced.OpenFileDescriptors", Name: "OpenFileDescriptors"},
+				},
+			},
 		},
 	}
 )
+
+//Open File Descriptors
+func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				ID:         "ofd",
+				Aggregator: "avg",
+				Color:      "#aec7e8",
+				Fill:       false,
+				Format:     "%6.2f",
+				Legend:     "Serviced Open File Descriptors",
+				Metric:     "Serviced.OpenFileDescriptors",
+				Name:       "Serviced Open File Descriptors",
+				Rate:       false,
+				Type:       "line",
+			},
+		},
+		ID:     "serviced.ofd",
+		Name:   "Serviced Open File Descriptors",
+		Footer: false,
+		Format: "%d",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of serviced's total open file descriptors over time",
+	}
+}
+
+//Major Page Faults
+func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "pgfault",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%d",
+				Legend:       "Major Page Faults",
+				Metric:       "vmstat.pgmajfault",
+				MetricSource: "virtual.memory",
+				Name:         "Major Page Faults",
+				Rate:         true,
+				Type:         "line",
+			},
+		},
+		ID:     "memory.major.pagefault",
+		Name:   "Memory Major Page Faults",
+		Footer: false,
+		Format: "%d",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "Faults / Min",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of major memory page faults over time",
+	}
+}
+
+//Cpu Usage
+func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#aec7e8",
+				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "system",
+				Legend:       "CPU (System)",
+				Metric:       "cpu.system",
+				MetricSource: "cpu",
+				Name:         "CPU (System)",
+				Rate:         true,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#98df8a",
+				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				ID:           "user",
+				Fill:         false,
+				Format:       "%6.2f",
+				Legend:       "CPU (User)",
+				Metric:       "cpu.user",
+				MetricSource: "cpu",
+				Name:         "CPU (User)",
+				Rate:         true,
+				Type:         "line",
+			},
+		},
+		ID:     "cpu.usage",
+		Name:   "CPU Usage",
+		Footer: false,
+		Format: "%d",
+		MinY:   &zero,
+		MaxY:   &onehundred,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "% Used",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of system and user cpu usage over time",
+	}
+}
+
+func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.GraphConfig {
+	MaxY := int(totalMemory / 1024 / 1024 / 1024)
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#aec7e8",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Used",
+				Metric:       "memory.used",
+				MetricSource: "memory",
+				Name:         "RSS",
+				Type:         "area",
+				ID:           "used",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#98df8a",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Cache",
+				Metric:       "memory.free",
+				MetricSource: "memory",
+				Name:         "Free",
+				ID:           "Memory",
+				Type:         "area",
+			},
+		},
+		ID:     "memory.usage",
+		Name:   "Memory Usage",
+		Footer: false,
+		Format: "%6.2f",
+		MaxY:   &MaxY,
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "GB",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		DownSample:  "1m-avg",
+		Tags:        tags,
+		Description: "Graph of memory free vs used over time",
+	}
+}
+
+//newProfile builds a MonitoringProfile without graphs
+func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
+	p := domain.MonitorProfile{
+		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
+	}
+
+	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return p, err
+	}
+
+	//add metrics to profile
+	for i := range profile.MetricConfigs {
+		metricConfig := &profile.MetricConfigs[i]
+		for j := range metricConfig.Metrics {
+			metric := &metricConfig.Metrics[j]
+			build.Metric(metric.ID, metric.Name).SetTags(tags)
+		}
+
+		config, err := build.Config(metricConfig.ID, metricConfig.Name, metricConfig.Description, "1h-ago")
+		if err != nil {
+			return p, err
+		}
+		p.MetricConfigs[i] = *config
+	}
+	return p, nil
+}

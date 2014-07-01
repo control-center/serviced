@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
@@ -68,6 +69,7 @@ type ControllerOptions struct {
 		Address       string // TCP port to host the metric service, :22350
 		RemoteEndoint string // The url to forward metric queries
 	}
+	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -239,6 +241,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
+	// set vifs subnet
+	if err := vifs.SetSubnet(options.VirtualAddressSubnet); err != nil {
+		glog.Errorf("Could not set VirtualAddressSubnet:%s %s", options.VirtualAddressSubnet, err)
+		return c, fmt.Errorf("container: invalid VirtualAddressSubnet:%s error:%s", options.VirtualAddressSubnet, err)
+	}
+
 	// get service
 	service, err := getService(options.ServicedEndpoint, options.Service.ID)
 	if err != nil {
@@ -319,7 +327,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	c.prereqs = service.Prereqs
 
 	// get endpoints
-	if err := c.getEndpoints(); err != nil {
+	if err := c.getEndpoints(service); err != nil {
 		return c, err
 	}
 
@@ -393,7 +401,7 @@ func (c *Controller) Run() (err error) {
 	var startAfter <-chan time.Time
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
-	c.handleRemotePorts()
+	c.handleControlCenterImports()
 	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
 	healthExits := c.kickOffHealthChecks()
@@ -421,9 +429,9 @@ func (c *Controller) Run() (err error) {
 			startAfter = time.After(time.Millisecond * 1)
 
 		case exitError := <-serviceExited:
-			glog.Infof("Service process exited.")
 			if !c.options.Service.Autorestart {
-				exitStatus := getExitStatus(exitError)
+				exitStatus, _ := utils.GetExitStatus(exitError)
+				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
 				os.Exit(exitStatus)
 			}
 			glog.Infof("Restarting service process in 10 seconds.")
@@ -443,17 +451,6 @@ func (c *Controller) Run() (err error) {
 		exitChannel <- true
 	}
 	return
-}
-
-func getExitStatus(err error) int {
-	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			if status, ok := e.Sys().(syscall.WaitStatus); ok {
-				return status.ExitStatus()
-			}
-		}
-	}
-	return 0
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
@@ -550,7 +547,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 	}
 }
 
-func (c *Controller) handleRemotePorts() {
+func (c *Controller) handleControlCenterImports() {
 	// this function is currently needed to handle special control plane imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
