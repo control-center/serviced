@@ -99,17 +99,23 @@ endif
 .PHONY: default build all
 default build all: $(build_TARGETS)
 
-.PHONY: build_binary 
-build_binary: $(build_TARGETS)
-	$(warning ":-[ Can we deprecate this poorly named target? [$@]")
-	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
-	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
-
 # The presence of this file indicates that godep restore 
 # has been run.  It will refresh when ./Godeps itself is 
 # updated.
 Godeps_restored = .Godeps_restored
-$(Godeps_restored): | $(GODEP)
+
+# NB: $GOPATH may be missing deps (like mattbaird/elastigo/cluster et al) 
+#     unless we make our .Godeps_restored rule sensitive to the mod time of
+#     the godep primitive.  Otherwise we may be left with a stale sentinel file
+#     in the shared source tree (preventing a needed 'godep restore') when we 
+#     toggle between building dockerized and non-dockerized targets.  
+#
+#     Could also be addressed (with more effort) by separating src tree from build tree to 
+#     avoid state bleed-through.  That would also solve the issue of root-owned
+#     files left over from docker targets from cluttering up the source tree and 
+#     thwarting mortals from 'make clean'.
+
+$(Godeps_restored): $(GODEP)
 ifeq "$(FAIL_ON_GODEP_RESTORE_FAIL)" "1"
 $(Godeps_restored): $(Godeps)
 	@echo "$(GODEP) restore" ;\
@@ -135,7 +141,7 @@ $(Godeps_restored): $(Godeps)
 endif
 
 .PHONY: build_isvcs
-build_isvcs: | $(Godeps_restored)
+build_isvcs: $(Godeps_restored)
 	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
 .PHONY: build_js
@@ -182,16 +188,21 @@ $(serviced): $(Godeps_restored)
 $(serviced): FORCE
 	go install
 
-.PHONY: docker_build dockerbuild_binaryx
-docker_build dockerbuild_binaryx: docker_ok
+.PHONY: docker_build
+$(pkg_build_TMP):
+	mkdir -p $@
+
+pkg_build_TMP = $(abspath pkg/build/tmp)
+docker_build: docker_ok | $(pkg_build_TMP)
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	-v `pwd`/pkg/build/tmp:/tmp \
-	-t zenoss/serviced-build make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build_binary
+	-v $(pkg_build_TMP):/tmp \
+	-t zenoss/serviced-build \
+	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 	cd isvcs && make isvcs_repo
 
 logstash.conf     = isvcs/resources/logstash/logstash.conf
@@ -349,12 +360,13 @@ install: $(install_TARGETS)
 # Packaging targets   #
 #---------------------#
 
+PKGS = deb rpm
 .PHONY: pkgs
 pkgs:
-	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
+	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) $(PKGS)
 
-.PHONY: docker_buildandpackage dockerbuildx
-docker_buildandpackage dockerbuildx: docker_ok
+.PHONY: docker_buildandpackage
+docker_buildandpackage: docker_ok
 	docker build -t zenoss/serviced-build build
 	cd isvcs && make export
 	docker run --rm \
@@ -369,14 +381,14 @@ docker_buildandpackage dockerbuildx: docker_ok
 		BUILD_NUMBER=$(BUILD_NUMBER) \
 		RELEASE_PHASE=$(RELEASE_PHASE) \
 		SUBPRODUCT=$(SUBPRODUCT) \
-		build_binary pkgs
+		build pkgs
 
 #---------------------#
 # Test targets        #
 #---------------------#
 
 .PHONY: test
-test: build_binary docker_ok
+test: build docker_ok
 	go test ./commons/... $(GOTEST_FLAGS)
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
@@ -395,7 +407,7 @@ test: build_binary docker_ok
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
 
-smoketest: build_binary docker_ok
+smoketest: build docker_ok
 	/bin/bash smoke.sh
 
 docker_ok:
@@ -443,8 +455,8 @@ clean_pkg:
 	cd pkg && make clean
 
 .PHONY: clean_godeps
-clean_godeps: $(Godeps_restored) | $(GODEP) $(Godeps)
-	go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+clean_godeps: | $(GODEP) $(Godeps)
+	-$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
 	@if [ -f "$(Godeps_restored)" ];then \
 		rm -f $(Godeps_restored) ;\
 		echo "rm -f $(Godeps_restored)" ;\
@@ -472,6 +484,11 @@ mrclean: docker_clean clean
 #==============================================================================#
 # DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
 #==============================================================================#
-dockerbuild dockerbuild_binary:
-	$(error The $@ target has been deprecated. Yo, fix your makefile.)
+.PHONY: dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx
+dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx:
+	$(error The $@ target has been deprecated. Yo, fix your makefile. Use docker_build or possibly docker_buildandpackage.)
+
+.PHONY: build_binary 
+build_binary: $(build_TARGETS)
+	$(error The $@ target has been deprecated.  Just use 'make build' or 'make' instead.)
 #==============================================================================#
