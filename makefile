@@ -392,6 +392,9 @@ test: build docker_ok
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
+	cd zzk/snapshot && go test $(GOTEST_FLAGS)
+	cd zzk/service && go test $(GOTEST_FLAGS)
+	cd zzk/docker && go test $(GOTEST_FLAGS)
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
