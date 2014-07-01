@@ -126,6 +126,38 @@ func (c *Container) CancelOnEvent(event string) error {
 	return cancelOnContainerEvent(event, c.ID)
 }
 
+// Commit creates a new Image from the containers changes.
+func (c *Container) Commit(iidstr string) (*Image, error) {
+	iid, err := commons.ParseImageID(iidstr)
+	if err != nil {
+		return nil, err
+	}
+
+	ec := make(chan error)
+	rc := make(chan *Image)
+
+	cmds.Commit <- commitreq{
+		request{ec},
+		struct {
+			containerID string
+			imageID     *commons.ImageID
+		}{c.ID, iid},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return <-rc, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 // Delete removes the container.
 func (c *Container) Delete(volumes bool) error {
 	ec := make(chan error)

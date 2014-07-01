@@ -43,6 +43,15 @@ type cancelactionreq struct {
 	}
 }
 
+type commitreq struct {
+	request
+	args struct {
+		containerID string
+		imageID     *commons.ImageID
+	}
+	respchan chan *Image
+}
+
 type createreq struct {
 	request
 	args struct {
@@ -171,6 +180,7 @@ var (
 	cmds = struct {
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
+		Commit          chan commitreq
 		Create          chan createreq
 		Delete          chan deletereq
 		DeleteImage     chan delimgreq
@@ -189,6 +199,7 @@ var (
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
+		make(chan commitreq),
 		make(chan createreq),
 		make(chan deletereq),
 		make(chan delimgreq),
@@ -281,6 +292,20 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 
 			delete(eventactions[event], req.args.id)
 			close(req.errchan)
+		case req := <-cmds.Commit:
+			// TODO: this may need to be shifted to the scheduler if commits take too long
+			opts := dockerclient.CommitContainerOptions{
+				Container:  req.args.containerID,
+				Repository: req.args.imageID.BaseName(),
+			}
+			img, err := dc.CommitContainer(opts)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+			req.respchan <- &Image{img.ID, *req.args.imageID}
 		case req := <-cmds.Create:
 			ci <- req
 		case req := <-cmds.Delete:
@@ -327,7 +352,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- ctr
 		case req := <-cmds.Kill:
-			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGINT})
+			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGKILL})
 			if err != nil {
 				req.errchan <- err
 				continue

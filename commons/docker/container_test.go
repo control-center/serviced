@@ -1,12 +1,57 @@
 package docker
 
 import (
+	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
+
+func TestContainerCommit(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	sc := make(chan struct{})
+
+	ctr.OnEvent(Start, func(id string) {
+		sc <- struct{}{}
+	})
+
+	err = ctr.Start(30*time.Second, nil)
+	if err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	select {
+	case <-sc:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for event")
+	}
+
+	_, err = ctr.Commit("testcontainer/commit")
+	if err != nil {
+		t.Fatal("can't commit: ", err)
+	}
+
+	ctr.Kill()
+
+	cmd := []string{"docker", "rmi", "testcontainer/commit"}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+}
 
 func TestOnContainerStart(t *testing.T) {
 	cd := &ContainerDefinition{
@@ -39,6 +84,10 @@ func TestOnContainerStart(t *testing.T) {
 	case <-sc:
 	case <-time.After(10 * time.Second):
 		t.Fatal("Timed out waiting for event")
+	}
+
+	if !ctr.IsRunning() {
+		t.Fatal("expected container to be running")
 	}
 
 	ctr.Kill()
@@ -396,7 +445,7 @@ func TestNewContainerTimeout(t *testing.T) {
 	}
 }
 
-func TestNewContainerOnCreated(t *testing.T) {
+func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -448,6 +497,102 @@ func TestNewContainerOnCreated(t *testing.T) {
 	}
 
 	glog.V(4).Infof("received both create action and start action")
+	select {
+	case <-ctrCreated:
+		ctr.Kill()
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for NewContainer to return a ctr")
+	}
+}
+
+func TestNewContainerOnCreatedAction(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	cc := make(chan struct{})
+
+	ca := func(id string) {
+		cc <- struct{}{}
+	}
+
+	var ctr *Container
+	ctrCreated := make(chan struct{})
+	go func() {
+		glog.V(4).Infof("calling NewContainer")
+		var err error
+		ctr, err = NewContainer(cd, false, 300*time.Second, ca, nil)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+		ctrCreated <- struct{}{}
+	}()
+
+	glog.V(4).Infof("waiting for create action")
+	select {
+	case <-cc:
+		break
+	case <-time.After(360 * time.Second):
+		t.Fatal("timed out waiting for create action execution")
+	}
+
+	glog.V(4).Infof("received create action")
+	select {
+	case <-ctrCreated:
+		ctr.Kill()
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for NewContainer to return a ctr")
+	}
+}
+
+func TestNewContainerOnStartedAction(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	sc := make(chan struct{})
+
+	sa := func(id string) {
+		sc <- struct{}{}
+	}
+
+	var ctr *Container
+	ctrCreated := make(chan struct{})
+	go func() {
+		glog.V(4).Infof("calling NewContainer")
+		var err error
+		ctr, err = NewContainer(cd, true, 300*time.Second, nil, sa)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+		ctrCreated <- struct{}{}
+	}()
+
+	glog.V(4).Infof("waiting for start action")
+	select {
+	case <-sc:
+		break
+	case <-time.After(360 * time.Second):
+		t.Fatal("timed out waiting for create action execution")
+	}
+
+	glog.V(4).Infof("received start action")
 	select {
 	case <-ctrCreated:
 		ctr.Kill()
