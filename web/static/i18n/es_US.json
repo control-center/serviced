@@ -19,14 +19,12 @@
     "backup_running": "Creación respaldo",
     "restore_running": "Restauración a partir de un respaldo",
 
-    /* health checks */
     "failing_health_checks": "Fallando controles de la Salud",
     "missing_health_checks": "Missing Algunos controles de la Salud",
     "passing_health_checks": "Pasando Todos los controles de la Salud",
     "container_unavailable": "Container No disponible",
     "stopping_service": "Detener Servicio ...",
 
-    /* table labels */
     "file_name": "Nombre del archivo",
     "modified": "Modificado",
     "actions": "Ccciones",
@@ -34,7 +32,6 @@
     "owner": "Propietario",
     "permissions": "Permisos",
 
-    /* actions */
     "delete": "Borrar",
     "start": "Comienzo",
     "stop": "Deténgase",
