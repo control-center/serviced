@@ -152,12 +152,12 @@ func (s *ImageTestSuite) TestDoubleTagImage(c *C) {
 func (s *ImageTestSuite) TestDeleteImage(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Error("can't find %s: %v", rawbase, err)
+		c.Errorf("can't find %s: %v", rawbase, err)
 	}
 
 	ti, err := img.Tag(victim)
 	if err != nil {
-		c.Error("can't tag %s as %s: %v", rawbase, victim, err)
+		c.Errorf("can't tag %s as %s: %v", rawbase, victim, err)
 	}
 
 	if err = ti.Delete(); err != nil {
