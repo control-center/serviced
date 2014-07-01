@@ -2,6 +2,8 @@ package service
 
 import (
 	"path"
+
+	"github.com/zenoss/serviced/coordinator/client"
 )
 
 const (
@@ -31,4 +33,16 @@ func (node *HostState) Version() interface{} {
 // SetVersion implements client.Node
 func (node *HostState) SetVersion(version interface{}) {
 	node.version = version
+}
+
+func removeInstance(conn client.Connection, hostID, ssID string) error {
+	var hs HostState
+	if err := conn.Get(hostpath(hostID, ssID), &hs); err != nil {
+		return err
+	} else if err := conn.Delete(hostpath(hostID, ssID)); err != nil {
+		return err
+	} else if err := conn.Delete(servicepath(hs.ServiceID, hs.ServiceStateID)); err != nil {
+		return err
+	}
+	return nil
 }
