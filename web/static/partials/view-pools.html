@@ -31,7 +31,7 @@
       <td>{{pool.MemoryCommitment | toGB}}</td>
       <td>{{pool.CreatedAt | date : 'medium'}}</td>
       <td>{{pool.UpdatedAt | date : 'medium'}}</td>
-      <td> <button ng-click="clickRemovePool(pool.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button> </td>
+      <td> <button ng-click="clickRemovePool(pool.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'delete'|translate}}</button> </td>
     </tr>
   </tbody>
 </table>

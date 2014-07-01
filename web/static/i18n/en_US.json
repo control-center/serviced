@@ -23,6 +23,26 @@
     "restore_complete": "Restore Complete",
     "restore_running": "Restoring from Backup",
 
+    /* health checks */
+    "failing_health_checks": "Failing Health Checks",
+    "missing_health_checks": "Missing Some Health Checks",
+    "passing_health_checks": "Passing All Health Checks",
+    "container_unavailable": "Container Unavailable",
+    "stopping_service": "Stopping Service...",
+
+    /* table labels */
+    "file_name": "File Name",
+    "modified": "Modified",
+    "actions": "Actions",
+    "path": "Path",
+    "owner": "Owner",
+    "permissions": "Permissions",
+
+    /* actions */
+    "delete": "Delete",
+    "start": "Start",
+    "stop": "Stop",
+
     "breadcrumb_deployed": "Deployed Apps",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",

@@ -1423,7 +1423,7 @@ function toggleRunning(app, status, servicesService, serviceId) {
         return;
     }
 
-    // recursively set services children to it's desired state
+    // recursively set service's children to its desired state
     function updateApp(app) {
         var i, child;
         if (app.children && app.children.length) {

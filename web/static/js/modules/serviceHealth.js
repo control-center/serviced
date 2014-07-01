@@ -3,7 +3,7 @@
     'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "$http", "resourcesService", function($rootScope, $q, $http, resourcesService){
+    factory("$serviceHealth", ["$rootScope", "$q", "$http", "resourcesService", "$interval", "$translate", function($rootScope, $q, $http, resourcesService, $interval, $translate){
 
         var servicesService = resourcesService;
 
@@ -16,7 +16,12 @@
         };
 
         // auto update all service health statuses
-        var updateInterval = setInterval(update, 3000);
+        var updateInterval = $interval(function(){
+            // NOTE: can't use update directly because $interval
+            // passes an argument to the function it calls,
+            // which breaks the update function
+            update();
+        }, 3000);
 
         // simple array search util
         function findInArray(key, arr, val){
@@ -59,6 +64,9 @@
                 running: runningServicesDeferred.promise
             }).then(function(results){
                 evaluateServiceStatus(results.running, results.services, results.health.data, appId);
+            }).catch(function(err){
+                // something went awry
+                console.log("Promise err", err);
             });
         }
 
@@ -147,24 +155,24 @@
                     // service should be up, but is failing. bad!
                     if(failingAny){
                         status = "bad";
-                        tooltipMessage = "Failing Health Checks";
+                        tooltipMessage = $translate("failing_health_checks");
 
                     // service should be up, but container has not
                     // yet loaded
                     } else if(downAny){
                         status = "unknown";
-                        tooltipMessage = "Container Unavailable";
+                        tooltipMessage = $translate("container_unavailable");
 
                     // service should be up, but seems unresponsive
                     // It could be just starting, or on its way down
                     } else if(!passingAny && unknownAny){
                         status = "unknown";
-                        tooltipMessage = "Missing Some Health Checks";
+                        tooltipMessage = $translate("missing_health_checks");
 
                     // service is up and healthy
                     } else if(passingAny && !unknownAny){
                         status = "good";
-                        tooltipMessage = "Passing All Health Checks";
+                        tooltipMessage = $translate("passing_health_checks");
                     }
 
                 // the following conditions are relevant when the service
@@ -174,7 +182,7 @@
                     // it should be off, but its still on... weird.
                     if(passingAny){
                         status = "unknown";
-                        tooltipMessage = "Stopping Service...";
+                        tooltipMessage = $translate("stopping_service");
                         // TODO - enable stop control?
 
                     // service is off, as expected
@@ -189,7 +197,14 @@
             // if a specific appId was provided, its status may not
             // yet be part of health checks, so give it unknown status
             if(appId && !findInArray("ServiceID", running, appId)){
-                updateServiceStatus(services[appId], "unknown", "Container Unavailable");
+
+                // if this appId doesn't exist in the services list, then
+                // something must be pretty messed up
+                if(!services[appId]){
+                    throw new Error("Service with id", appId, "does not exist");
+                }
+                
+                updateServiceStatus(services[appId], "unknown", $translate("container_unavailable"));
             }
         }
 
