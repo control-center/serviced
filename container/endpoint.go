@@ -98,7 +98,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 			}
 		}
 
-		glog.Infof("Polling to retrieve service state instanceID:%d with valid PrivateIP", instanceID)
+		glog.V(2).Infof("Polling to retrieve service state instanceID:%d with valid PrivateIP", instanceID)
 		time.Sleep(1 * time.Second)
 	}
 
@@ -179,26 +179,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			if err != nil {
 				return result, err
 			}
-			funcmap := template.FuncMap{
-				"plus": plus,
-			}
-			glog.Infof("Defep.PortTemplate: %s", defep.PortTemplate)
-			glog.Infof("HERE is my endpoint: %+v", ep)
-			if defep.PortTemplate != "" {
-				t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(defep.PortTemplate))
-				b := bytes.Buffer{}
-				err := t.Execute(&b, state)
-				if err == nil {
-					i, err := strconv.Atoi(b.String())
-					if err != nil {
-						glog.Errorf("%+v", err)
-					} else {
-						ep.ContainerPort = uint16(i)
-					}
-				}
-			}
 			exp.endpoint = ep
-			glog.Infof("HERE is my exported endpoint: %+v", exp.endpoint)
 
 			key := registry.TenantEndpointKey(tenantID, exp.endpoint.Application)
 			if _, exists := result[key]; !exists {
@@ -245,7 +226,24 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.Application = endpoint.Application
 	ae.Protocol = endpoint.Protocol
 	ae.ContainerIP = state.PrivateIP
-	ae.ContainerPort = endpoint.PortNumber
+	if endpoint.PortTemplate != "" {
+		funcmap := template.FuncMap{
+			"plus": plus,
+		}
+		t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
+		b := bytes.Buffer{}
+		err := t.Execute(&b, state)
+		if err == nil {
+			i, err := strconv.Atoi(b.String())
+			if err != nil {
+				glog.Errorf("%+v", err)
+			} else {
+				ae.ContainerPort = uint16(i)
+			}
+		}
+	} else {
+		ae.ContainerPort = endpoint.PortNumber
+	}
 	ae.HostIP = state.HostIP
 	if len(state.PortMapping) > 0 {
 		pmKey := fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)
@@ -423,9 +421,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
 			}
 			endpoints[ii] = &endpointNode.ApplicationEndpoint
-			glog.Infof("I've got an endpoint 1: %+v", endpoints[ii])
 			endpoints[ii].ContainerPort = ep.port
-			glog.Infof("I've got an endpoint 2: %+v", endpoints[ii])
 		}
 
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
@@ -462,14 +458,12 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 			exported[exp.endpoint.ContainerPort] = struct{}{}
 		}
 	}
-	glog.Infof("Exported endpoints: %+v", exported)
 
 	// Populate a map representing the proxies that are to be created, again with instanceID as the key
 	proxyKeys := map[int]string{}
 	if purpose == "import" {
 		// We're doing a normal, load-balanced endpoint import
 		proxyKeys[0] = tenantEndpointID
-		glog.Infof("Importing service endpoint as port %d: %s", endpoints[0].ContainerPort, tenantEndpointID)
 	} else if purpose == "import_all" {
 		// Need to create a proxy per instance of the service whose endpoint is
 		// being imported
@@ -479,7 +473,6 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 			if _, conflict := exported[containerPort]; conflict {
 				continue
 			}
-			glog.Infof("Importing service instance endpoint as port %d: %s instance %d", containerPort, tenantEndpointID, instance.InstanceID)
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
 			instance.ContainerPort = containerPort
 		}
@@ -522,13 +515,10 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 					err := vifs.RegisterVirtualAddress(virtualAddress, p, endpoint.Protocol)
 					if err != nil {
 						glog.Errorf("Error creating virtual address %s: %+v", virtualAddress, err)
-					} else {
-						glog.Infof("created virtual address %s: %+v", virtualAddress, endpoints)
 					}
 				}
 			}
 		}
-		glog.Infof("Setting proxy %s to addresses %v", proxyKey, addressMap[instanceID])
 		prxy.SetNewAddresses(addressMap[instanceID])
 	}
 }

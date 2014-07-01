@@ -3,10 +3,11 @@ package container
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/zenoss/glog"
 	"io"
 	"net"
 	"strings"
+
+	"github.com/zenoss/glog"
 )
 
 /*
