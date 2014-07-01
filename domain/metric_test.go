@@ -19,7 +19,8 @@ func TestNewBuilder(t *testing.T) {
 
 func TestBuilder(t *testing.T) {
 	build, _ := NewMetricConfigBuilder("metrics/api/performance/query", "POST")
-	build.Metric("metric_0", "metric_name_0").SetTag("tag", "value-0")
+	metric := Metric{ID: "metric_0", Name: "metric_name_0"}
+	build.Metric(metric).SetTag("tag", "value-0")
 	config, err := build.Config("metric_group", "metric_group_name", "metric_group_description", "1h-ago")
 	if err != nil {
 		t.Fatalf("Error building config=%+v, err=%+v", config, err)

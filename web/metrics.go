@@ -11,7 +11,7 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
-	profile = domain.MonitorProfile{
+	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//CPU
 			domain.MetricConfig{
@@ -235,32 +235,4 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		Tags:        tags,
 		Description: "Graph of memory free vs used over time",
 	}
-}
-
-//newProfile builds a MonitoringProfile without graphs
-func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
-	p := domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
-	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		return p, err
-	}
-
-	//add metrics to profile
-	for i := range profile.MetricConfigs {
-		metricConfig := &profile.MetricConfigs[i]
-		for j := range metricConfig.Metrics {
-			metric := &metricConfig.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTags(tags)
-		}
-
-		config, err := build.Config(metricConfig.ID, metricConfig.Name, metricConfig.Description, "1h-ago")
-		if err != nil {
-			return p, err
-		}
-		p.MetricConfigs[i] = *config
-	}
-	return p, nil
 }
