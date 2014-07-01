@@ -636,62 +636,17 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(2).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
-	// pull the image from the registry first if necessary, then attempt to create the container.
-	registry, err := docker.NewDockerRegistry(a.dockerRegistry)
-	if err != nil {
-		glog.Errorf("can't use docker registry %s: %s", a.dockerRegistry, err)
-		return false, err
+	cd := &docker.ContainerDefinition{
+		dockerclient.CreateContainerOptions{Name: serviceState.Id, Config: config},
+		*hostconfig,
 	}
-	ctr, err := docker.CreateContainer(*registry, dc, dockerclient.CreateContainerOptions{Name: serviceState.Id, Config: config})
+	ctr, err := docker.NewContainer(cd, true, 600*time.Second, nil, nil)
 	if err != nil {
 		glog.Errorf("can't create container %v: %v", config, err)
 		return false, err
 	}
 
 	glog.V(2).Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.Id, service.Name, service.Id, config.Cmd)
-
-	// use the docker client EventMonitor to listen for events from this container
-	s, err := em.Subscribe(ctr.ID)
-	if err != nil {
-		glog.Errorf("can't subscribe to Docker events on container %s: %v", ctr.ID, err)
-		return false, err
-	}
-
-	emc := make(chan struct{})
-
-	s.Handle(dockerclient.Start, func(e dockerclient.Event) error {
-		glog.V(2).Infof("container %s starting Name:%s for service Name:%s ID:%s Cmd:%+v", e["id"], serviceState.Id, service.Name, service.Id, config.Cmd)
-		emc <- struct{}{}
-		return nil
-	})
-
-	err = dc.StartContainer(ctr.ID, hostconfig)
-	if err != nil {
-		glog.Errorf("can't start container %s for service Name:%s ID:%s error: %v", ctr.ID, service.Name, service.Id, err)
-		return false, err
-	}
-
-	// wait until we get notified that the container is started, or ten seconds, whichever comes first.
-	// TODO: make the timeout configurable
-	timeout := 10 * time.Second
-	tout := time.After(timeout)
-	select {
-	case <-emc:
-		glog.V(0).Infof("container %s started  Name:%s for service Name:%s ID:%s", ctr.ID, serviceState.Id, service.Name, service.Id)
-	case <-tout:
-		glog.Warningf("container %s start timed out after %v Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, timeout, serviceState.Id, service.Name, service.Id, config.Cmd)
-		// FIXME: WORKAROUND for issue where dockerclient.Start event doesn't always notify
-		if container, err := dc.InspectContainer(ctr.ID); err != nil {
-			glog.Warning("container %s could not be inspected error:%v\n\n", ctr.ID, err)
-		} else {
-			glog.Warningf("container %s inspected State:%+v", ctr.ID, container.State)
-			if container.State.Running == true {
-				glog.Infof("container %s start event timed out, but is running - will not return start timed out", ctr.ID)
-				break
-			}
-		}
-		return false, fmt.Errorf("start timed out")
-	}
 
 	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
 	go a.waitForProcessToDie(dc, conn, ctr.ID, procFinished, serviceState)
@@ -751,18 +706,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// Make sure the image exists locally.
-	registry, err := docker.NewDockerRegistry(a.dockerRegistry)
-	if err != nil {
-		glog.Errorf("Error using docker registry %s: %s", a.dockerRegistry, err)
-		return nil, nil, err
-	}
-	dc, err := dockerclient.NewClient(dockerEndpoint)
-	if err != nil {
-		glog.Errorf("can't create docker client: %v", err)
-		return nil, nil, err
-	}
-	if _, err = docker.InspectImage(*registry, dc, service.ImageID); err != nil {
-		glog.Errorf("can't inspect docker image %s: %s", service.ImageID, err)
+	if _, err = docker.FindImage(service.ImageID, false); err != nil {
+		glog.Errorf("can't find docker image %s: %s", service.ImageID, err)
 		return nil, nil, err
 	}
 

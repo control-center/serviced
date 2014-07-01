@@ -166,34 +166,21 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
 			return err
 		}
-		dc, err := getDockerClient()
-		if err != nil {
-			glog.Errorf("unable to start docker client")
-			return err
-		}
-		registry, err := docker.NewDockerRegistry(f.dockerRegistry)
-		if err != nil {
-			glog.Errorf("unable to use docker registry: %s", err)
-			return err
-		}
-		_, err = docker.InspectImage(*registry, dc, name)
+
+		_, err = docker.FindImage(name, false)
 		if err != nil {
 			if err != dockerclient.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
 				return err
 			}
-			image, err := docker.InspectImage(*registry, dc, svc.ImageID)
+			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
 				return msg
 			}
-			options := dockerclient.TagImageOptions{
-				Repo:  name,
-				Force: true,
-			}
-			if err := docker.TagImage(*registry, dc, svc.ImageID, options); err != nil {
-				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			if _, err := image.Tag(name); err != nil {
+				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
 				return err
 			}
 		}
@@ -215,18 +202,8 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 		getSubServiceImageIDs(imageIds, svc)
 	}
 
-	dockerclient, err := dockerclient.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("unable to start docker client")
-		return err
-	}
-	registry, err := docker.NewDockerRegistry(f.dockerRegistry)
-	if err != nil {
-		glog.Errorf("unable to use docker registry: %s", err)
-		return err
-	}
 	for imageId, _ := range imageIds {
-		_, err := docker.InspectImage(*registry, dockerclient, imageId)
+		_, err := docker.FindImage(imageId, false)
 		if err != nil {
 			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
 			glog.Error(err.Error())
