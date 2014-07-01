@@ -6,12 +6,13 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/zzk"
 )
 
 type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event, string)
 
 type scheduler struct {
-	zkClient     *coordclient.Client // ?????
+	zkClient     *coordclient.Client // client from which connections can be created from
 	cpDao        dao.ControlPlane    // ControlPlane interface
 	cluster_path string              // path to the cluster node
 	instance_id  string              // unique id for this node instance
@@ -92,14 +93,14 @@ func (s *scheduler) loop() {
 			continue
 		}
 
-		conn, err := s.zkClient.GetCustomConnection("/pools/" + aPool.ID)
+		poolBasedConn, err := zzk.GetPoolBasedConnection(aPool.ID)
 		if err != nil {
 			glog.Error(err)
 			return
 		}
 
 		hostNode := hostNodeT{HostID: s.instance_id}
-		leader := conn.NewLeader("/pools/"+aPool.ID+"/scheduler", &hostNode)
+		leader := poolBasedConn.NewLeader("/pools/"+aPool.ID+"/scheduler", &hostNode)
 		events, err := leader.TakeLead()
 		if err != nil {
 			glog.Error("could not take lead: ", err)
@@ -108,9 +109,8 @@ func (s *scheduler) loop() {
 
 		defer func() {
 			leader.ReleaseLead()
-			conn.Close()
 		}()
 
-		s.zkleaderFunc(s.facade, s.cpDao, conn, events, aPool.ID)
+		s.zkleaderFunc(s.facade, s.cpDao, poolBasedConn, events, aPool.ID)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dfs/nfs"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/zzk"
 )
 
 type nfsMountT func(string, string) error
@@ -19,20 +20,18 @@ var mkdirAll = os.MkdirAll
 // Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
 	host      *host.Host
-	zclient   *client.Client
 	localPath string
 	closing   chan struct{}
 	mounted   chan string
 }
 
 // NewClient returns a Client that manages remote mounts
-func NewClient(host *host.Host, zclient *client.Client, localPath string) (*Client, error) {
+func NewClient(host *host.Host, localPath string) (*Client, error) {
 	if err := mkdirAll(localPath, 0755); err != nil {
 		return nil, err
 	}
 	c := &Client{
 		host:      host,
-		zclient:   zclient,
 		localPath: localPath,
 		mounted:   make(chan string, 1),
 		closing:   make(chan struct{}),
@@ -81,7 +80,7 @@ func (c *Client) loop() {
 		}
 		err = nil
 		if leader == nil {
-			conn, err = c.zclient.GetConnection()
+			conn, err = zzk.GetPoolBasedConnection(c.host.PoolID)
 			if err != nil {
 				continue
 			}

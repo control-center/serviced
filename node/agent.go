@@ -77,8 +77,6 @@ type HostAgent struct {
 	maxContainerAge time.Duration // maximum age for a stopped container before it is removed
 }
 
-// assert that this implemenents the Agent interface
-
 func getZkDSN(zookeepers []string) string {
 	if len(zookeepers) == 0 {
 		zookeepers = []string{"127.0.0.1:2181"}
@@ -89,6 +87,8 @@ func getZkDSN(zookeepers []string) string {
 	}
 	return dsn.String()
 }
+
+// assert that this implemenents the Agent interface
 
 type AgentOptions struct {
 	Master          string
@@ -101,7 +101,6 @@ type AgentOptions struct {
 	Mux             *proxy.TCPMux
 	DockerRegistry  string
 	MaxContainerAge time.Duration // Maximum container age for a stopped container before being removed
-	BasePath        string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -120,7 +119,8 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.maxContainerAge = options.MaxContainerAge
 
 	dsn := getZkDSN(options.Zookeepers)
-	zkClient, err := coordclient.New("zookeeper", dsn, options.BasePath, nil)
+	basePath := ""
+	zkClient, err := coordclient.New("zookeeper", dsn, basePath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -918,7 +918,7 @@ func (a *HostAgent) start() {
 
 			go func() {
 				for {
-					c, err := a.zkClient.GetConnection()
+					c, err := zzk.GetPoolBasedConnection("default") // TODO ... FIXME ... ?????
 					if err == nil {
 						connc <- c
 						return
@@ -937,7 +937,6 @@ func (a *HostAgent) start() {
 			select {
 			case errc := <-a.closing:
 				glog.Info("Received shutdown notice")
-				a.zkClient.Close()
 				errc <- errors.New("unable to connect to zookeeper")
 				return false
 

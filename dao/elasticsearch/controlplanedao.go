@@ -12,7 +12,6 @@ package elasticsearch
 import (
 	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/facade"
@@ -34,18 +33,15 @@ const (
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
 type ControlPlaneDao struct {
-	hostName string
-	port     int
-	varpath  string
-	vfs      string
-	zclient  *coordclient.Client
-	zkDao    *zzk.ZkDao
-	dfs      *dfs.DistributedFileSystem
-	//needed while we move things over
+	hostName       string
+	port           int
+	varpath        string
+	vfs            string
+	dfs            *dfs.DistributedFileSystem
 	facade         *facade.Facade
 	dockerRegistry string
-	backupLock sync.RWMutex
-	restoreLock sync.RWMutex
+	backupLock     sync.RWMutex
+	restoreLock    sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -86,11 +82,10 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		Command:  command,
 	}
 
-	conn, err := this.zclient.GetConnection()
+	conn, err := zzk.GetPoolBasedConnection(svc.PoolID)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
 
 	_, err = zkdocker.SendAction(conn, &req)
 	return err
@@ -120,7 +115,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string, zkDAO *zzk.ZkDao) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -134,9 +129,6 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *co
 
 	s.varpath = varpath
 	s.vfs = vfs
-
-	s.zclient = zclient
-	s.zkDao = zkDAO
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {

@@ -64,9 +64,8 @@ type daemon struct {
 	dsContext        datastore.Context
 	facade           *facade.Facade
 	hostID           string
-	zclient          *coordclient.Client
+	zClient          *coordclient.Client
 	storageHandler   *storage.Server
-	zkDAO            *zzk.ZkDao
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string) (*daemon, error) {
@@ -121,18 +120,6 @@ func (d *daemon) run() error {
 
 	rpc.HandleHTTP()
 
-	if options.ReportStats {
-		statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-		statsduration := time.Duration(options.StatsPeriod) * time.Second
-		glog.V(1).Infoln("Staring container statistics reporter")
-		statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, d.zkDAO)
-		if err != nil {
-			glog.Errorf("Error kicking off stats reporter %v", err)
-		} else {
-			defer statsReporter.Close()
-		}
-	}
-
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	return http.Serve(l, nil) // start the server
 }
@@ -161,11 +148,15 @@ func (d *daemon) startMaster() error {
 	}
 
 	rootBasePath := ""
-	if d.zclient, err = d.initZK(rootBasePath); err != nil {
+	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	zClient, err := coordclient.New("zookeeper", dsn, rootBasePath, nil)
+	if err != nil {
+		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
+	zzk.InitializeGlobals(*zClient)
 
-	d.zkDAO = d.initZKDAO(d.zclient)
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
@@ -180,7 +171,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	d.initWeb()
+	d.initWeb() // rpc must be
 
 	d.startScheduler()
 
@@ -199,11 +190,12 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
 		return err
 	}
+	glog.Warningf("Calling nfs.NewServer...")
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
-		// I think this needs to be pool based...?
-		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zclient)
+		glog.Warningf("Calling storage.NewServer...")
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zClient)
 		if err != nil {
 			return err
 		}
@@ -279,11 +271,12 @@ func (d *daemon) initiateAgent() error {
 		return fmt.Errorf("HostID failed: %v", err)
 	}
 
-	sleepRetry := 5
+	sleepRetry := 1
 	go func() {
-		var poolBasePath string
+		var poolID string
 		for {
-			masterClient, err := master.NewClient(d.servicedEndpoint) //"172.17.42.1:4979") //d.servicedEndpoint)
+			glog.Infof("Trying to discover my pool...")
+			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
 				glog.Errorf("master.NewClient failed: %v", err)
 				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
@@ -295,28 +288,33 @@ func (d *daemon) initiateAgent() error {
 				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
 				continue
 			}
-			glog.Infof(" My PoolID: %v", myHost.PoolID)
-			poolBasePath = "/pools/" + myHost.PoolID
+			poolID = myHost.PoolID
+			glog.Infof(" My PoolID: %v", poolID)
 			break
 		}
 
-		zkClient, err := d.initZK(poolBasePath)
+		basePoolPath := "/pools/" + poolID
+		dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
+		glog.Infof("zookeeper dsn: %s", dsn)
+		zClient, err := coordclient.New("zookeeper", dsn, basePoolPath, nil)
 		if err != nil {
-			glog.Errorf("d.initZK failed: %v", err)
+			glog.Errorf("failed create a new coordclient: %v", err)
+		}
+		zzk.InitializeGlobals(*zClient)
+
+		poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
+		if err != nil {
+			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
 
-		//when running only an agent d.zkDAO is nil
-		if d.zkDAO == nil {
-			d.zkDAO = d.initZKDAO(zkClient)
-		}
-
-		nfsClient, err := storage.NewClient(thisHost, zkClient, options.VarPath)
+		nfsClient, err := storage.NewClient(thisHost, options.VarPath)
 		if err != nil {
 			glog.Fatalf("could not create an NFS client: %s", err)
 		}
 		nfsClient.Wait()
 
-		d.startAgentListeners(poolBasePath)
+		// start agent listeners
+		go zkdocker.ListenAction(poolBasedConn, d.hostID)
 
 		agentOptions := node.AgentOptions{
 			Master:          options.Endpoint,
@@ -329,9 +327,8 @@ func (d *daemon) initiateAgent() error {
 			Mux:             mux,
 			DockerRegistry:  options.DockerRegistry,
 			MaxContainerAge: time.Duration(int(time.Second) * options.MaxContainerAge),
-			BasePath:        poolBasePath,
 		}
-		// creates a zkClient that is not pool based!
+		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
 
 		// register the API
@@ -354,6 +351,18 @@ func (d *daemon) initiateAgent() error {
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
+
+		if options.ReportStats {
+			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+			statsduration := time.Duration(options.StatsPeriod) * time.Second
+			glog.V(1).Infoln("Staring container statistics reporter")
+			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
+			if err != nil {
+				glog.Errorf("Error kicking off stats reporter %v", err)
+			} else {
+				defer statsReporter.Close()
+			}
+		}
 	}()
 
 	if err != nil {
@@ -373,23 +382,6 @@ func (d *daemon) initiateAgent() error {
 	}()
 
 	return nil
-}
-
-func (d *daemon) startAgentListeners(poolBasePath string) {
-	// start agent listeners
-	var err error
-	if d.zclient == nil {
-		d.zclient, err = d.initZK(poolBasePath)
-		if err != nil {
-			glog.Fatal("could not initialize zk client: ", err)
-		}
-	}
-	zconn, err := d.zclient.GetConnection()
-	if err != nil {
-		glog.Fatal("could not connect to zk: ", err)
-	}
-
-	go zkdocker.ListenAction(zconn, d.hostID)
 }
 
 func (d *daemon) registerMasterRPC() error {
@@ -427,7 +419,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(d.zkDAO, options.DockerRegistry)
+	f := facade.New(options.DockerRegistry)
 	return f
 }
 
@@ -435,28 +427,16 @@ func (d *daemon) initISVCS() error {
 	return isvcs.Mgr.Start()
 }
 
-func (d *daemon) initZK(basePath string) (*coordclient.Client, error) {
-	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
-	glog.Infof("zookeeper dsn: %s", dsn)
-	zclient, err := coordclient.New("zookeeper", dsn, basePath, nil)
-	return zclient, err
-}
-
-func (d *daemon) initZKDAO(zkClient *coordclient.Client) *zzk.ZkDao {
-	return zzk.NewZkDao(zkClient)
-}
-
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry, d.zkDAO)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, options.DockerRegistry)
 }
 
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, d.zclient, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, d.zClient, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
-
 }
 func (d *daemon) startScheduler() {
 	go d.runScheduler()
@@ -465,7 +445,7 @@ func (d *daemon) startScheduler() {
 func (d *daemon) runScheduler() {
 	for {
 		func() {
-			sched, shutdown := scheduler.NewScheduler("", d.zclient, d.hostID, d.cpDao, d.facade)
+			sched, shutdown := scheduler.NewScheduler("", d.zClient, d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:

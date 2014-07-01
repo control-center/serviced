@@ -7,13 +7,14 @@ package web
 import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/coordinator/client"
 	"io"
 	"net"
 	"net/http"
@@ -60,7 +61,6 @@ func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
 		epPort:    vep.ContainerPort,
 		privateIP: vep.ContainerIP,
 	}
-
 }
 
 func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
@@ -159,26 +159,25 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 }
 
 func (sc *ServiceConfig) watchVhosts() error {
-	glog.Info("watchVhosts starting...")
-
 	mc, err := sc.getMasterClient()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting master client: %v", err)
 		return err
 	}
+	glog.Info("watchVhosts starting...1")
 	allPools, err := mc.GetResourcePools()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting resource pools: %v", err)
 		return err
 	}
 	for _, aPool := range allPools {
-		conn, err := sc.zkClient.GetCustomConnection("/pools/" + aPool.ID)
+		poolBasedConn, err := zzk.GetPoolBasedConnection(aPool.ID)
 		if err != nil {
-			glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
+			glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
 			return err
 		}
 
-		vhostRegistry, err := registry.VHostRegistry(conn)
+		vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
 		if err != nil {
 			glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
 			return err
@@ -186,9 +185,8 @@ func (sc *ServiceConfig) watchVhosts() error {
 
 		cancelChan := make(chan bool)
 		go func() {
-			vhostRegistry.WatchRegistry(conn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
+			vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
 			glog.Warning("watchVhosts ended")
-			conn.Close()
 		}()
 	}
 

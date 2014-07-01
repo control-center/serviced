@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 
 	"errors"
+	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -19,18 +20,31 @@ const SCHEDULER_PATH = "/scheduler"
 const SNAPSHOT_PATH = "/snapshots"
 const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
 
-type ZkDao struct {
-	client *coordclient.Client
+var zClient coordclient.Client
+var poolBasedConnections = make(map[string]coordclient.Connection)
+
+func InitializeGlobals(myZClient coordclient.Client) {
+	zClient = myZClient
 }
 
-func NewZkDao(client *coordclient.Client) *ZkDao {
-	return &ZkDao{
-		client: client,
+// GetPoolBasedConnection returns a connection based on the poolID provided
+func GetPoolBasedConnection(poolID string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
+	glog.Warningf("zClient: %+v", zClient)
+	basePath := "/pools/" + poolID
+	if _, ok := poolBasedConnections[basePath]; ok {
+		return poolBasedConnections[basePath], nil
 	}
-}
 
-type ZkConn struct {
-	Conn coordclient.Connection
+	myNewConnection, err := zClient.GetCustomConnection(basePath)
+	if err != nil {
+		glog.Errorf("Failed to obtain a connection to %v: %v", basePath, err)
+		return nil, err
+	}
+
+	// save off the new connection to the map
+	poolBasedConnections[basePath] = myNewConnection
+
+	return myNewConnection, nil
 }
 
 type HostServiceState struct {
@@ -60,28 +74,6 @@ func ResetServiceState(conn coordclient.Connection, serviceId string, serviceSta
 	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *servicestate.ServiceState) {
 		ss.Terminated = time.Now()
 	})
-}
-
-// Communicates to the agent that this service instance should stop
-func (zkdao *ZkDao) TerminateHostService(hostId string, serviceStateId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		glog.Errorf("Unable to connect to zookeeper: %v", err)
-		return err
-	}
-	defer conn.Close()
-
-	return TerminateHostService(conn, hostId, serviceStateId)
-}
-
-func (zkdao *ZkDao) AddService(service *service.Service) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddService(conn, service)
 }
 
 type ServiceNode struct {
@@ -125,16 +117,6 @@ func (s *ServiceStateNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
-func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddServiceState(conn, state)
-}
-
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 
@@ -155,13 +137,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 	return nil
 }
 
-func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func UpdateServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 	ssn := ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
@@ -171,13 +147,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	return conn.Set(serviceStatePath, &ssn)
 }
 
-func (zkdao *ZkDao) UpdateService(service *service.Service) error {
-	conn, err := zkdao.client.GetCustomConnection("/pools/" + service.PoolID)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func UpdateService(conn coordclient.Connection, service *service.Service) error {
 	servicePath := ServicePath(service.Id)
 
 	sn := ServiceNode{}
@@ -192,15 +162,6 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	return conn.Set(servicePath, &sn)
 }
 
-func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	return GetServiceState(conn, serviceState, serviceId, serviceStateId)
-}
-
 func GetServiceState(conn coordclient.Connection, serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
 	serviceStateNode := ServiceStateNode{}
 	err := conn.Get(ServiceStatePath(serviceId, serviceStateId), &serviceStateNode)
@@ -209,16 +170,6 @@ func GetServiceState(conn coordclient.Connection, serviceState *servicestate.Ser
 	}
 	*serviceState = *serviceStateNode.ServiceState
 	return nil
-}
-
-func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return GetServiceStates(conn, serviceStates, serviceIds...)
 }
 
 func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
@@ -231,13 +182,7 @@ func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestat
 	return nil
 }
 
-func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, running *dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func GetRunningService(conn coordclient.Connection, serviceId string, serviceStateId string, running *dao.RunningService) error {
 	var s service.Service
 	if err := LoadService(conn, serviceId, &s); err != nil {
 		return err
@@ -255,27 +200,11 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	return nil
 }
 
-func (zkdao *ZkDao) RemoveHost(hostId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	err = conn.Delete(HostPath(hostId))
-	if err != nil {
-		return err
-	}
-	return nil
+func RemoveHost(conn coordclient.Connection, hostId string) error {
+	return conn.Delete(HostPath(hostId))
 }
 
-func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func GetRunningServicesForHost(conn coordclient.Connection, hostId string, running *[]*dao.RunningService) error {
 	serviceStateIds, err := conn.Children(HostPath(hostId))
 	if err != nil {
 		glog.Errorf("Unable to acquire list of services")
@@ -308,23 +237,11 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 	return nil
 }
 
-func (zkdao *ZkDao) GetRunningServicesForService(serviceId string, running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func GetRunningServicesForService(conn coordclient.Connection, serviceId string, running *[]*dao.RunningService) error {
 	return LoadRunningServices(conn, running, serviceId)
 }
 
-func (zkdao *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func GetAllRunningServices(conn coordclient.Connection, running *[]*dao.RunningService) error {
 	serviceIds, err := conn.Children(SERVICE_PATH)
 	if err != nil {
 		glog.Errorf("Unable to acquire list of services")
@@ -349,19 +266,9 @@ func HostServiceStatePath(hostId string, serviceStateId string) string {
 	return HOSTS_PATH + "/" + hostId + "/" + serviceStateId
 }
 
-func (zkdao *ZkDao) RemoveService(id string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return RemoveService(conn, id)
-}
-
 func RemoveService(conn coordclient.Connection, id string) error {
-	glog.V(2).Infof("zkdao.RemoveService: %s - begin", id)
-	defer glog.V(2).Infof("zkdao.RemoveService: %s - complete", id)
+	glog.V(2).Infof("RemoveService: %s - begin", id)
+	defer glog.V(2).Infof("RemoveService: %s - complete", id)
 
 	servicePath := ServicePath(id)
 
@@ -489,6 +396,7 @@ func LoadService(conn coordclient.Connection, serviceId string, s *service.Servi
 	err := conn.Get(ServicePath(serviceId), &sn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
+		debug.PrintStack()
 		return err
 	}
 	*s = *sn.Service
@@ -650,16 +558,6 @@ func SnapshotRequestsPath(requestID string) string {
 	return SNAPSHOT_REQUEST_PATH + "/" + requestID
 }
 
-func (zkdao *ZkDao) AddSnapshotRequest(snapshotRequest *dao.SnapshotRequest) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddSnapshotRequest(conn, snapshotRequest)
-}
-
 type SnapShotRequestNode struct {
 	SnapshotRequest *dao.SnapshotRequest
 	version         interface{}
@@ -703,18 +601,7 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	return nil
 }
 
-func (zkdao *ZkDao) LoadSnapshotRequest(requestID string, sr *dao.SnapshotRequest) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return LoadSnapshotRequest(conn, requestID, sr)
-}
-
 func LoadSnapshotRequest(conn coordclient.Connection, requestID string, sr *dao.SnapshotRequest) error {
-
 	srn := SnapShotRequestNode{}
 	err := conn.Get(SnapshotRequestsPath(requestID), &srn)
 	if err != nil {
@@ -723,16 +610,6 @@ func LoadSnapshotRequest(conn coordclient.Connection, requestID string, sr *dao.
 	}
 	*sr = *srn.SnapshotRequest
 	return nil
-}
-
-func (zkdao *ZkDao) LoadSnapshotRequestW(requestID string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	return LoadSnapshotRequestW(conn, requestID, sr)
 }
 
 func LoadSnapshotRequestW(conn coordclient.Connection, requestID string, sr *dao.SnapshotRequest) (<-chan coordclient.Event, error) {
@@ -744,16 +621,6 @@ func LoadSnapshotRequestW(conn coordclient.Connection, requestID string, sr *dao
 	}
 	*sr = *srn.SnapshotRequest
 	return event, nil
-}
-
-func (zkdao *ZkDao) UpdateSnapshotRequest(snapshotRequest *dao.SnapshotRequest) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return UpdateSnapshotRequest(conn, snapshotRequest)
 }
 
 func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
@@ -776,16 +643,6 @@ func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Sna
 	srn.SnapshotRequest = snapshotRequest
 	glog.Infof("Setting snapshotrequest: %+v, %+v", srn, srn.SnapshotRequest)
 	return conn.Set(snapshotRequestsPath, &srn)
-}
-
-func (zkdao *ZkDao) RemoveSnapshotRequest(requestID string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return RemoveSnapshotRequest(conn, requestID)
 }
 
 func RemoveSnapshotRequest(conn coordclient.Connection, requestID string) error {

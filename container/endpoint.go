@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	// ErrInvalidZkDSN is returned if the zkDSN is empty or malformed
-	ErrInvalidZkDSN = errors.New("container: invalid zookeeper dsn")
+	// ErrInvalidZkInfo is returned if the zkDSN is empty or malformed or poolID was not obtained
+	ErrInvalidZkInfo = errors.New("container: invalid zookeeper info (dsn/poolID)")
 	// ErrInvalidExportedEndpoints is returned if the ExportedEndpoints is empty or malformed
 	ErrInvalidExportedEndpoints = errors.New("container: invalid exported endpoints")
 	// ErrInvalidImportedEndpoints is returned if the ImportedEndpoints is empty or malformed
@@ -41,24 +41,24 @@ type importedEndpoint struct {
 	virtualAddress string
 }
 
-// getAgentZkDSN retrieves the agent's zookeeper dsn
-func getAgentZkDSN(lbClientPort string) (string, error) {
+// getAgentZkInfo retrieves the agent's zookeeper dsn
+func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
+	var zkInfo node.ZkInfo
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return "", err
+		return zkInfo, err
 	}
 	defer client.Close()
 
-	var dsn string
-	err = client.GetZkDSN(&dsn)
+	err = client.GetZkInfo(&zkInfo)
 	if err != nil {
-		glog.Errorf("Error getting zookeeper dsn, error: %s", err)
-		return "", err
+		glog.Errorf("Error getting zookeeper dsn/poolID, error: %s", err)
+		return zkInfo, err
 	}
 
-	glog.V(1).Infof("getAgentZkDSN: %s", dsn)
-	return dsn, nil
+	glog.V(1).Infof("GetZkInfo: %s", zkInfo)
+	return zkInfo, nil
 }
 
 // getServiceState gets the service state for a serviceID
@@ -94,24 +94,16 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 
 // getZkConnection returns the zookeeper connection
 func (c *Controller) getZkConnection() (coordclient.Connection, error) {
-	if c.cclient == nil {
-		var err error
-		c.zkDSN, err = getAgentZkDSN(c.options.ServicedEndpoint)
-		if err != nil {
-			glog.Errorf("Invalid zk dsn")
-			return nil, ErrInvalidZkDSN
-		}
+	var err error
+	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
+	if err != nil {
+		glog.Errorf("Invalid zk info: %v", err)
+		return nil, ErrInvalidZkInfo
+	}
 
-		c.cclient, err = coordclient.New("zookeeper", c.zkDSN, "", nil)
-		if err != nil {
-			glog.Errorf("could not connect to zookeeper: %s", c.zkDSN)
-			return nil, err
-		}
-
-		c.zkConn, err = c.cclient.GetConnection()
-		if err != nil {
-			return nil, err
-		}
+	c.zkConn, err = zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
+	if err != nil {
+		return nil, err
 	}
 
 	return c.zkConn, nil
@@ -259,7 +251,14 @@ func (c *Controller) watchRemotePorts() {
 		glog.Infof("importedEndpoints[%s]: %+v", key, endpoint)
 	}
 
-	zkConn, err := c.cclient.GetConnection()
+	var err error
+	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
+	if err != nil {
+		glog.Errorf("Invalid zk info: %v", err)
+		return
+	}
+
+	zkConn, err := zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return

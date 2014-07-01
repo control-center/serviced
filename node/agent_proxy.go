@@ -14,9 +14,9 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 
 	"errors"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
 )
@@ -27,6 +27,11 @@ var _ LoadBalancer = &HostAgent{}
 type ServiceLogInfo struct {
 	ServiceID string
 	Message   string
+}
+
+type ZkInfo struct {
+	ZkDSN  string
+	PoolID string
 }
 
 func (a *HostAgent) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) (err error) {
@@ -199,10 +204,11 @@ func (a *HostAgent) GetHostID(string, hostID *string) error {
 	return nil
 }
 
-// GetZkDSN returns the agent's zookeeper connection string
-func (a *HostAgent) GetZkDSN(string, dsn *string) error {
+// GetZkInfo returns the agent's zookeeper connection string and its poolID
+func (a *HostAgent) GetZkInfo(string, zkInfo *ZkInfo) error {
 	localDSN := a.zkClient.ConnectionString()
-	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
-	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
+	zkInfo.ZkDSN = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
+	zkInfo.PoolID = ""
+	glog.V(4).Infof("ControlPlaneAgent.GetZkInfo(): %+v", zkInfo)
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/zzk"
 
 	"fmt"
 	"time"
@@ -82,7 +83,15 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
 	if err == nil {
-		err = zkAPI(f.zkDao).RemoveHost(hostID)
+		myHost, err := f.GetHost(ctx, hostID)
+		if err != nil {
+			return err
+		}
+		poolBasedConnection, err := zzk.GetPoolBasedConnection(myHost.PoolID)
+		if err != nil {
+			return err
+		}
+		err = zzk.RemoveHost(poolBasedConnection, hostID)
 	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err

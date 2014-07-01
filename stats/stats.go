@@ -10,6 +10,7 @@ import (
 	"github.com/daniel-garcia/go-procfs/linux"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/stats/cgroup"
 	"github.com/zenoss/serviced/utils"
@@ -28,7 +29,7 @@ import (
 type StatsReporter struct {
 	destination         string
 	closeChannel        chan bool
-	zkDAO               *zzk.ZkDao
+	conn                coordclient.Connection
 	containerRegistries map[registryKey]metrics.Registry
 	hostID              string
 	hostRegistry        metrics.Registry
@@ -47,21 +48,20 @@ type registryKey struct {
 }
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
-func NewStatsReporter(destination string, interval time.Duration, zkDAO *zzk.ZkDao) (*StatsReporter, error) {
-
+func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection) (*StatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
 		return nil, err
 	}
-	if zkDAO == nil {
-		glog.Errorf("zkDAO can not be nil")
-		return nil, fmt.Errorf("zkdao can not be nil")
+	if conn == nil {
+		glog.Errorf("conn can not be nil")
+		return nil, fmt.Errorf("conn can not be nil")
 	}
 	sr := StatsReporter{
 		destination:         destination,
 		closeChannel:        make(chan bool),
-		zkDAO:               zkDAO,
+		conn:                conn,
 		containerRegistries: make(map[registryKey]metrics.Registry),
 		hostID:              hostID,
 	}
@@ -156,7 +156,7 @@ func (sr StatsReporter) updateStats() {
 	}
 	// Stats for the containers.
 	var running []*dao.RunningService
-	sr.zkDAO.GetRunningServicesForHost(sr.hostID, &running)
+	zzk.GetRunningServicesForHost(sr.conn, sr.hostID, &running) // TODO check for errors?????
 	for _, rs := range running {
 		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {

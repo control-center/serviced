@@ -7,6 +7,7 @@ package facade
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/commons"
+	//coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/addressassignment"
@@ -25,8 +26,6 @@ import (
 	"sync"
 	"time"
 )
-
-var zkAPI func(zkDao *zzk.ZkDao) zkfuncs = getZKAPI
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
@@ -47,7 +46,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 	glog.V(2).Infof("Facade.AddService: id %+v", svc.Id)
 
-	return zkAPI(f.zkDao).updateService(&svc)
+	return updateService(&svc)
 }
 
 //
@@ -68,7 +67,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
 	err := f.walkServices(ctx, id, func(svc *service.Service) error {
-		zkAPI(f.zkDao).removeService(svc.Id)
+		removeService(svc)
 		return nil
 	})
 
@@ -183,7 +182,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		//build 'OR' query to grab all service states with in "service" tree
 		relatedServiceIDs := walkTree(topService)
 		var states []*servicestate.ServiceState
-		err = zkAPI(f.zkDao).getSvcStates(&states, relatedServiceIDs...)
+		err = getSvcStates(myService.PoolID, &states, relatedServiceIDs...)
 		if err != nil {
 			return result, err
 		}
@@ -715,37 +714,44 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	if err := svcStore.Put(ctx, svc); err != nil {
 		return err
 	}
-	return zkAPI(f.zkDao).updateService(svc)
+	return updateService(svc)
 }
 
-func getZKAPI(zkDao *zzk.ZkDao) zkfuncs {
-	return &zkf{zkDao}
+func updateService(svc *service.Service) error {
+	poolBasedConn, err := zzk.GetPoolBasedConnection(svc.PoolID)
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
+		return err
+	}
+	return zzk.UpdateService(poolBasedConn, svc)
 }
 
-type zkfuncs interface {
-	updateService(svc *service.Service) error
-	removeService(svcID string) error
-	getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
-	RemoveHost(hostID string) error
+func removeService(svc *service.Service) error {
+	poolBasedConn, err := zzk.GetPoolBasedConnection(svc.PoolID)
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
+		return err
+	}
+	return zzk.RemoveService(poolBasedConn, svc.Id)
 }
 
-type zkf struct {
-	zkDao *zzk.ZkDao
+func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
+		return err
+	}
+	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
 }
 
-func (z *zkf) updateService(svc *service.Service) error {
-	return z.zkDao.UpdateService(svc)
-}
-
-func (z *zkf) removeService(id string) error {
-	return z.zkDao.RemoveService(id)
-}
-func (z *zkf) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
-	return z.zkDao.GetServiceStates(serviceStates, serviceIds...)
-}
-
-func (z *zkf) RemoveHost(hostID string) error {
-	return z.zkDao.RemoveHost(hostID)
+func RemoveHost(hostID string) error {
+	poolID := "default"
+	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // FIXME !?????
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
+		return err
+	}
+	return zzk.RemoveHost(poolBasedConn, hostID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

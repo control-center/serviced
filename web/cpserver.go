@@ -54,7 +54,7 @@ func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.C
 
 // Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
-// Virutal host routing to zenoss web based services is done by the vhosthandler function.
+// Virtual host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve() {
 
 	//start getting vhost endpoints
@@ -208,12 +208,13 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 }
 
 func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
+	glog.Info("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
 		glog.Errorf("Could not create a control plane client to %v: %v", sc.agentPort, err)
 		return nil, err
 	}
-
+	glog.Info("end getMasterClient")
 	return c, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/zzk"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -29,7 +30,6 @@ type StorageDriver interface {
 
 // NewServer returns a Server object to manage the exported file system
 func NewServer(driver StorageDriver, host *host.Host, zclient *client.Client) (*Server, error) {
-
 	if len(driver.ExportPath()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
@@ -52,12 +52,15 @@ func (s *Server) Close() {
 }
 
 func (s *Server) loop() {
-
 	var err error
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
 
-	conn, _ := s.zclient.GetConnection()
+	conn, err := zzk.GetPoolBasedConnection(s.host.PoolID)
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", s.host.PoolID, err)
+	}
+
 	var children []string
 	node := &Node{
 		Host:       *s.host,
@@ -115,6 +118,5 @@ func (s *Server) loop() {
 			storageLead.ReleaseLead()
 			continue
 		}
-
 	}
 }
