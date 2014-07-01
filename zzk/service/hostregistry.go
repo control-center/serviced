@@ -38,6 +38,15 @@ func (node *HostNode) SetVersion(version interface{}) {
 type HostRegistryListener struct {
 	conn    client.Connection
 	hostmap map[string]*host.Host
+	alertC  chan<- bool // for testing only
+}
+
+// NewHostRegistryListener instantiates a new HostRegistryListener
+func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
+	return &HostRegistryListener{
+		conn:    conn,
+		hostmap: make(map[string]*host.Host),
+	}
 }
 
 // Listen listens for changes to /registry/hosts and updates the host list
@@ -89,7 +98,7 @@ func (l *HostRegistryListener) sync(ehosts []string) {
 			delete(unsynced, id)
 			l.hostmap[id] = host
 		} else {
-			l.unregister(id, host)
+			l.unregister(id)
 		}
 	}
 
@@ -103,12 +112,14 @@ func (l *HostRegistryListener) register(id string, host *host.Host) {
 		glog.Errorf("Could not look up host %s: %s", host.ID, err)
 	} else if !exists {
 		glog.Errorf("Host %s not initialized", host.ID)
-	} else {
-		l.hostmap[id] = host
 	}
+
+	l.hostmap[id] = host
+	l.alert()
 }
 
-func (l *HostRegistryListener) unregister(id string, host *host.Host) {
+func (l *HostRegistryListener) unregister(id string) {
+	host := l.hostmap[id]
 	ssids, err := l.conn.Children(hostpath(host.ID))
 	if err != nil {
 		glog.Errorf("Could not get states on host %s: %s", host.ID, err)
@@ -123,6 +134,13 @@ func (l *HostRegistryListener) unregister(id string, host *host.Host) {
 	}
 
 	delete(l.hostmap, id)
+	l.alert()
+}
+
+func (l *HostRegistryListener) alert() {
+	if l.alertC != nil {
+		l.alertC <- true
+	}
 }
 
 func (l *HostRegistryListener) GetHosts() (hosts []*host.Host) {
