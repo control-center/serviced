@@ -65,9 +65,9 @@
         function evaluateServiceStatus(running, services, healthCheckData, appId) {
 
             var healths = healthCheckData.Statuses,
-                timestamp = healthCheckData.Timestamp;
+                serverTimestamp = healthCheckData.Timestamp;
 
-            var service, data, runningService, startTime,
+            var service, healthCheck, runningService, startTime,
                 passingAny, failingAny, unknownAny, downAny, status,
                 missedIntervals, tooltipMessage;
 
@@ -89,7 +89,7 @@
                     startTime = 0;
                 }
 
-                data = healths[ServiceId];
+                healthCheck = healths[ServiceId];
 
                 service.healthTooltipTitle = "";
 
@@ -101,25 +101,25 @@
                 missedIntervals = 0;
                 tooltipMessage = "";
 
-                for (var name in data) {
+                for (var name in healthCheck) {
 
                     // calculates the number of missed healthchecks since last start time
-                    missedIntervals = (timestamp - Math.max(data[name].Timestamp, startTime)) / data[name].Interval;
+                    missedIntervals = (serverTimestamp - Math.max(healthCheck[name].Timestamp, startTime)) / healthCheck[name].Interval;
 
                     // if service hasn't started yet
                     if(!startTime){
-                        data[name].Status = "down";
+                        healthCheck[name].Status = "down";
                     
                     // if service has missed 2 updates, mark unknown
                     } else if (missedIntervals > 2 && missedIntervals < 60) {
-                        data[name].Status = "unknown";
+                        healthCheck[name].Status = "unknown";
 
                     // if service has missed 60 updates, mark failed
                     } else if (missedIntervals > 60) {
-                        data[name].Status = "failed";
+                        healthCheck[name].Status = "failed";
                     }
 
-                    switch(data[name].Status){
+                    switch(healthCheck[name].Status){
                         case "passed":
                             passingAny = true;
                             break;
