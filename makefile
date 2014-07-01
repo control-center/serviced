@@ -293,7 +293,7 @@ ifneq (,$(filter 1,$(INSTALL_TEMPLATES) $(INSTALL_TEMPLATES_ONLY)))
 
     # At the moment, the pkg/templates directory is actually 
     # populated by our top-level makefile.  This seems a bit disjoint.
-    # Will fix once if figure out some cleaner.
+    # Will fix once I figure out some cleaner.
 
     $(_DESTDIR)$(prefix)/templates_TARGETS = pkg/templates/:.
     $(_DESTDIR)$(prefix)/templates_INSTCMD = rsync
