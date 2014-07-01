@@ -85,6 +85,8 @@ func (s *scheduler) loop() {
 		return
 	}
 
+	// CLARK TODO
+	// instead of looping through the pools, add a watch on /pools ... start/stop schedulers per pool
 	for _, aPool := range allPools {
 		// TODO: Support non default pools
 		// Currently, only the default pool gets a leader
