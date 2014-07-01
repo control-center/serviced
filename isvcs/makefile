@@ -42,7 +42,7 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: isvcs_repo
 	rm -f $(EXPORT_CONTAINER_ID)
 
 buildgo:
-	go build
+	godep go build
 
 build_repo:
 	[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \

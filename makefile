@@ -10,7 +10,7 @@
 #---------------------#
 # Macros              #
 #---------------------#
-build_TARGETS   = build_isvcs build_js $(logstash.conf) nsinit serviced
+build_TARGETS   = build_isvcs build_js $(logstash.conf) serviced
 install_TARGETS = $(bash_completion)
 
 # Define GOPATH for containerized builds.
@@ -69,29 +69,17 @@ build_binary: $(build_TARGETS)
 	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
 	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
 
-# The presence of this file indicates that godep restore 
-# has been run.  It will refresh when ./Godeps itself is updated.
-Godeps_restored = .Godeps_restored
-$(Godeps_restored): | $(GODEP)
-$(Godeps_restored): $(Godeps)
-	$(GODEP) restore
-	touch $@
-
 .PHONY: build_isvcs
-build_isvcs: | $(Godeps_restored)
+build_isvcs:
 	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
 .PHONY: build_js
 build_js:
 	cd web && make build_js
 
-# Download godep source to $GOPATH/src/.
-$(GOSRC)/$(godep_SRC):
-	go get $(godep_SRC)
-
 .PHONY: go
 go: 
-	go build
+	godep go build
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -99,14 +87,6 @@ go:
 # of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
 
 docker_SRC = github.com/dotcloud/docker
-nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-nsinit: $(Godeps_restored)
-	go build   $($@_SRC)
-	go install $($@_SRC)
-
-nsinit = $(GOBIN)/nsinit
-$(nsinit): $(Godeps_restored)
-	go install $($(@F)_SRC)
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
 #
@@ -117,13 +97,13 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build
-	go install
+	godep go build
+	godep go install
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go install
+	godep go install
 
 .PHONY: docker_build dockerbuild_binaryx
 docker_build dockerbuild_binaryx: docker_ok
@@ -141,20 +121,6 @@ logstash.conf     = isvcs/resources/logstash/logstash.conf
 logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in 
 $(logstash.conf): $(logstash.conf_SRC)
 	cp $? $@
-
-# Make the installed godep primitive (under $GOPATH/bin/godep)
-# dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the 'go get' of the
-# source.
-#
-# This requires some make fu borrowed from:
-#
-#    https://lists.gnu.org/archive/html/help-gnu-utils/2007-08/msg00019.html
-#
-missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
-$(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
-
 
 #---------------------#
 # Install targets     #
@@ -246,18 +212,6 @@ docker_ok:
 clean_js:
 	cd web && make clean
 
-.PHONY: clean_nsinit
-clean_nsinit:
-	@for target in nsinit $(nsinit) ;\
-        do \
-                if [ -f "$${target}" ];then \
-                        rm -f $${target} ;\
-			echo "rm -f $${target}" ;\
-                fi ;\
-        done
-	if [ -d "$(GOSRC)/$(nsinit_SRC)" ];then \
-		cd $(GOSRC)/$(nsinit_SRC) && go clean ;\
-	fi
 
 .PHONY: clean_serviced
 clean_serviced:
@@ -287,7 +241,7 @@ clean_dao:
 	cd dao && make clean
 
 .PHONY: clean
-clean: clean_js clean_nsinit clean_pkg clean_dao clean_godeps clean_serviced
+clean: clean_js clean_pkg clean_dao clean_godeps clean_serviced
 
 .PHONY: docker_clean_pkg
 docker_clean_pkg:
