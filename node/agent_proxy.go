@@ -198,14 +198,14 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 }
 
 // GetHostID returns the agent's host id
-func (a *HostAgent) GetHostID(string, hostID *string) error {
+func (a *HostAgent) GetHostID(foo string, hostID *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
 	*hostID = a.hostID
 	return nil
 }
 
 // GetZkInfo returns the agent's zookeeper connection string and its poolID
-func (a *HostAgent) GetZkInfo(string, zkInfo *ZkInfo) error {
+func (a *HostAgent) GetZkInfo(foo string, zkInfo *ZkInfo) error {
 	localDSN := a.zkClient.ConnectionString()
 	zkInfo.ZkDSN = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
 	zkInfo.PoolID = ""

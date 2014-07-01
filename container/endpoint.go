@@ -96,14 +96,25 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 
 // getZkConnection returns the zookeeper connection
 func (c *Controller) getZkConnection() (coordclient.Connection, error) {
+	glog.Infof(" ^^^^^^^^^^^^^^^ start getZkConnection ... c.options.ServicedEndpoint: %+v", c.options.ServicedEndpoint)
 	var err error
 	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
 	if err != nil {
 		glog.Errorf("Invalid zk info: %v", err)
-		return nil, ErrInvalidZkInfo
+		return nil, err //ErrInvalidZkInfo
+	}
+	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
+
+	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, "", nil)
+	if err != nil {
+		glog.Errorf("failed create a new coordclient: %v", err)
+		return nil, err
 	}
 
-	c.zkConn, err = zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
+	c.zkConn, err = zClient.GetConnection()
+
+	// CLARK TODO GET A connection at root!
+	//c.zkConn, err = zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
 	if err != nil {
 		return nil, err
 	}
