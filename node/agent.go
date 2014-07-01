@@ -708,7 +708,9 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection, procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState, virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection,
+		procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState,
+		virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
@@ -844,7 +846,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 			}
 			glog.V(2).Infof("mount containerPath %#v", containerPath)
 
-			// insert tenantId into requestedImage - see dao.DeployService
+			// insert tenantId into requestedImage - see facade.DeployService
 			matchedRequestedImage := false
 			if requestedImage == "*" {
 				matchedRequestedImage = true
@@ -887,7 +889,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
-		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
+		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
+		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", service.ImageID))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
