@@ -235,6 +235,10 @@ table .btn,
     color: #f6f6f6;
 }
 
+.navbar-brand {
+    font-weight: bold;
+}
+
 .nav > li > .item {
     position: relative;
     display: block;
