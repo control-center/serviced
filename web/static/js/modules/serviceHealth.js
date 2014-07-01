@@ -227,12 +227,6 @@
             });
         }
 
-        // TODO - this is a terrible way to expose this object, but
-        // until main.js is fully encapsulated, this is the only way
-        $rootScope.serviceHealth = {
-            update: update
-        };
-
         return {
             update: update
         };
