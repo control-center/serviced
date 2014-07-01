@@ -148,7 +148,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	tags := map[string][]string{
 		"controlplane_service_id": []string{svc.Id},
 	}
-	profile, err := svc.MonitoringProfile.ReBuild("1h-ago", tags)
+	profile, err := sd.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		return nil, err
 	}
