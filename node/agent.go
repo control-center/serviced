@@ -25,6 +25,7 @@ import (
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	"github.com/zenoss/serviced/zzk/virtualips"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -40,7 +41,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -486,19 +486,14 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 			select {
 			case err := <-exited:
 				if err != nil {
-					if exiterr, ok := err.(*exec.ExitError); ok {
-						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-							statusCode := status.ExitStatus()
-							switch {
-							case statusCode == 137:
-								glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
-
-							case statusCode == 2:
-								glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
-
-							default:
-								glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, statusCode)
-							}
+					if exitcode, ok := utils.GetExitStatus(err); ok {
+						switch exitcode {
+						case 137:
+							glog.V(1).Infof("Docker process killed: %s", serviceState.Id)
+						case 2:
+							glog.V(1).Infof("Docker process stopped: %s", serviceState.Id)
+						default:
+							glog.V(0).Infof("Docker process %s exited with code %d", serviceState.Id, exitcode)
 						}
 					} else {
 						glog.V(1).Info("Unable to determine exit code for %s", serviceState.Id)
@@ -885,6 +880,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
+		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 
 	// add dns values to setup
@@ -918,6 +914,8 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
+	shutdown := make(chan interface{})
+
 	for {
 		// create a wrapping function so that client.Close() can be handled via defer
 		keepGoing := func() bool {
@@ -950,6 +948,7 @@ func (a *HostAgent) start() {
 			select {
 			case errc := <-a.closing:
 				glog.Info("Received shutdown notice")
+				close(shutdown)
 				a.zkClient.Close()
 				errc <- errors.New("unable to connect to zookeeper")
 				return false
@@ -963,12 +962,23 @@ func (a *HostAgent) start() {
 			// watch virtual IP zookeeper nodes
 			go virtualips.WatchVirtualIPs(conn)
 
+			// watch docker action nodes
+			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+			go actionListener.Listen(shutdown)
+
 			return a.processChildrenAndWait(conn)
 		}()
 		if !keepGoing {
 			break
 		}
 	}
+}
+
+// AttachAndRun implements zkdocker.ActionHandler; it attaches to a running
+// container and performs a command as specified by the container's service
+// definition
+func (a *HostAgent) AttachAndRun(dockerID string, command []string) ([]byte, error) {
+	return utils.AttachAndRun(dockerID, command)
 }
 
 type stateResult struct {

@@ -39,28 +39,18 @@
       </div>
     </div>
 
-    <table ng-if=collectingStats class="table side-flush">
-      <thead>
-        <tr>
-            <th ng-repeat="header in graph.headers">{{header.name|translate}}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td width="50%">
-            <div id="{{'cpuchart-'+hosts.current.ID}}" class="medChart">{{viz('cpuchart', cpuconfig)}}</div>
-            <div id="{{'ofdchart-'+hosts.current.ID}}" class="medChart">{{viz('ofdchart', ofdconfig)}}</div>
-          </td>
-          <td>
-            <div id="{{'memchart-'+hosts.current.ID}}" class="medChart">{{viz('memchart', memconfig)}}</div>
-            <div id="{{'rsschart-'+hosts.current.ID}}" class="medChart">{{viz('rsschart', rssconfig)}}</div>
-          </td>
-        </tr>        
-      </tbody>
+  <h3>{{'graphs'|translate}}</h3>
+    <table ng-if="collectingStats" class="table table-striped table-bordered side-flush">
+      <tr ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
+        <td>
+          <div>{{graph.name}}</div>
+          <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+        </td>
+      </tr>
     </table>
 
-    <h3>{{'ip_addresses'|translate}}</h3>
-    <table class="table table-striped side-flush">
+	<h3>{{'ip_addresses'|translate}}</h3>
+    <table class="table table-striped table-bordered table-hover side-flush">
       <thead>
         <tr>
           <th ng-repeat="header in ip_addresses.headers">{{header.name|translate}}</th>

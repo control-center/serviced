@@ -23,9 +23,7 @@
     "restore_complete": "Restore Complete",
     "restore_running": "Restoring from Backup",
 
-    "brand_cp": "Control Plane",
-    "brand_zcp": "Zenoss Control Plane",
-    "breadcrumb_deployed": "Applications",
+    "breadcrumb_deployed": "Deployed Apps",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",
     "breadcrumb_hosts_map": "Hosts Map",
@@ -72,6 +70,7 @@
     "deployed_tbl_state": "Status",
     "entry_content": "",
     "error": "Error",
+    "graphs": "Graphs",
     "graph_tbl_cpu": "CPU",
     "graph_tbl_mem": "Memory",
     "host": "Host",

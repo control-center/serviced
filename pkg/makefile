@@ -52,16 +52,44 @@ all: desc
 desc:
 	echo "Usage: make deb or make rpm. Both options package $(FULL_NAME)-$(PKG_VERSION)."
 
-# Clean staged files and produced packages
-clean:
-	rm -f $(FULL_NAME)*.deb
-	rm -f $(FULL_NAME)*.rpm
-	rm -rf pkgroot
-	rm -rf build
-	# we need to perform a clean here
+.PHONY: clean_files
+clean_files:
+	for pkg in $(FULL_NAME)*.deb $(FULL_NAME)*.rpm ;\
+	do \
+		if [ -f "$${pkg}" ];then \
+			if ! rm -f $${pkg} ;then \
+				if ! sudo rm -f $${dir} ; then \
+					echo "Warning: Unable to remove $${pkg}" ;\
+					exit 1 ;\
+				fi ;\
+			fi ;\
+		fi ;\
+	done
 
+.PHONY: clean_dirs
+clean_dirs:
+	for dir in pkgroot build ;\
+	do \
+		if [ -d "$${dir}" ];then \
+			if ! rm -rf $${dir} ;then \
+				if ! sudo rm -rf $${dir} ; then \
+					echo "Warning: Unable to remove $${dir}" ;\
+					exit 1 ;\
+				fi ;\
+			fi ;\
+		fi ;\
+	done
+
+# Clean staged files and produced packages
+.PHONY: clean
+clean: clean_files clean_dirs
+
+.PHONY: clean_templates
 clean_templates:
 	find templates -type f ! -name 'README.txt' -exec rm {} + # remove everything under templates except README.txt
+
+.PHONY: mrclean
+mrclean: clean clean_templates
 
 # Make root dir for packaging
 pkgroot:

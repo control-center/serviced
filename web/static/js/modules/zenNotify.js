@@ -92,7 +92,7 @@
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
                 notificationFactory.store(this);
-                this.show();
+                this.show(false);
                 return this;
             },
 

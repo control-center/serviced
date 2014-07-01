@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
@@ -334,6 +335,8 @@ func TestInspectContainer(t *testing.T) {
 	if poststart.State.Running == prestart.State.Running {
 		t.Fatal("inspected stated didn't change")
 	}
+
+	ctr.Kill()
 }
 
 func TestRepeatedStart(t *testing.T) {
@@ -372,6 +375,8 @@ func TestRepeatedStart(t *testing.T) {
 	if err := ctr.Start(1*time.Second, nil); err == nil {
 		t.Fatal("expecting ErrAlreadyStarted")
 	}
+
+	ctr.Kill()
 }
 
 func TestNewContainerTimeout(t *testing.T) {
@@ -413,13 +418,20 @@ func TestNewContainerOnCreated(t *testing.T) {
 		sc <- struct{}{}
 	}
 
+	var ctr *Container
+	ctrCreated := make(chan struct{})
 	go func() {
-		_, err := NewContainer(cd, true, 300*time.Second, ca, sa)
+		glog.V(4).Infof("calling NewContainer")
+		var err error
+		ctr, err = NewContainer(cd, true, 300*time.Second, ca, sa)
 		if err != nil {
 			t.Fatal("can't create container: ", err)
 		}
+		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+		ctrCreated <- struct{}{}
 	}()
 
+	glog.V(4).Infof("waiting for create action")
 	select {
 	case <-cc:
 		break
@@ -427,11 +439,21 @@ func TestNewContainerOnCreated(t *testing.T) {
 		t.Fatal("timed out waiting for create action execution")
 	}
 
+	glog.V(4).Infof("waiting for start action")
 	select {
 	case <-sc:
 		break
 	case <-time.After(1 * time.Second):
 		t.Fatal("timed out waiting for start action execution")
+	}
+
+	glog.V(4).Infof("received both create action and start action")
+	select {
+	case <-ctrCreated:
+		ctr.Kill()
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for NewContainer to return a ctr")
 	}
 }
 

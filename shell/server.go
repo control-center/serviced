@@ -9,7 +9,6 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
@@ -19,6 +18,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/utils"
 )
 
 var empty interface{}
@@ -296,17 +296,13 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 
 	go func() {
 		defer p.Close()
-
-		if err := cmd.Run(); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					p.Result <- Result{status.ExitStatus(), err.Error(), NORMAL}
-					return
-				}
-			}
-			p.Result <- Result{0, err.Error(), ABNORMAL}
+		err := cmd.Run()
+		if exitcode, ok := utils.GetExitStatus(err); !ok {
+			p.Result <- Result{exitcode, err.Error(), ABNORMAL}
+		} else if exitcode == 0 {
+			p.Result <- Result{exitcode, "", NORMAL}
 		} else {
-			p.Result <- Result{0, "", NORMAL}
+			p.Result <- Result{exitcode, err.Error(), NORMAL}
 		}
 	}()
 
@@ -405,6 +401,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 
 	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)

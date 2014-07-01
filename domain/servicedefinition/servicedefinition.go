@@ -117,8 +117,13 @@ type MetricGroup struct {
 
 // Metric defines a single metric in a group
 type Metric struct {
-	ID   string
-	Name string
+	ID          string
+	Name        string
+	Description string
+	Counter     bool
+	CounterMax  *int64 `json:"CounterMax,omitempty"`
+	ResetValue  int64
+	Unit        string
 }
 
 // HostPolicy represents the optional policy used to determine which hosts on
