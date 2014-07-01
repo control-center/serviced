@@ -15,6 +15,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { label: 'breadcrumb_hosts', url: '#/hosts' }
     ];
 
+    $scope.resourcesService = resourcesService;
+
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, true);
 
@@ -43,10 +45,12 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.Id, function(log) {
-            $scope.editService.log = log.Detail;
+            $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
             $('#viewLog').modal('show');
         });
     };
+
+    $scope.toggleRunning = toggleRunning;
 
     $scope.click_app = function(instance) {
         $location.path('/services/' + instance.ServiceID);

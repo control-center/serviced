@@ -1409,7 +1409,9 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     });
 }
 
-function toggleRunning(app, status, servicesService) {
+function toggleRunning(app, status, servicesService, serviceId) {
+    serviceId = serviceId || app.Id;
+
     var newState = -1;
     switch(status) {
         case 'start': newState = 1; break;
@@ -1435,7 +1437,7 @@ function toggleRunning(app, status, servicesService) {
     // stop service
     if ((newState === 0) || (newState === -1)) {
         app.DesiredState = newState;
-        servicesService.stop_service(app.Id, function() {
+        servicesService.stop_service(serviceId, function() {
             updateApp(app);
         });
     }
@@ -1443,14 +1445,10 @@ function toggleRunning(app, status, servicesService) {
     // start service
     if ((newState === 1) || (newState === -1)) {
         app.DesiredState = newState;
-        servicesService.start_service(app.Id, function() {
+        servicesService.start_service(serviceId, function() {
             updateApp(app);
         });
     }
-
-    // TODO - this is a terrible way to get this object, but until
-    // this js file is fully encapsulated, this is the only way
-    this.$parent.serviceHealth.update(app.Id);
 }
 
 function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {

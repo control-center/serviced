@@ -58,7 +58,8 @@
         </tr>        
       </tbody>
     </table>
-	<h3>{{'ip_addresses'|translate}}</h3>
+
+    <h3>{{'ip_addresses'|translate}}</h3>
     <table class="table table-striped side-flush">
       <thead>
         <tr>
@@ -72,11 +73,15 @@
         </tr>
       </tbody>
     </table>
-	<h3>{{'running_services'|translate}}</h3>
+
+    <h3>{{'running_services'|translate}}</h3>
     <table class="table table-striped side-flush">
       <thead>
         <tr>
-          <th ng-repeat="header in running.headers">{{header.name|translate}}</th>
+          <th ng-repeat="header in running.headers">{{header.name|translate}}
+              <button ng-click="running.set_order(header.id, running)"
+                        ng-class="running.get_order_class(header.id, running)"></button>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -84,9 +89,8 @@
           <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
           <td><span am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span></td>
           <td>
-            <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
-            <button ng-click="killRunning(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-circle"></i> {{'action_kill'|translate}}</button>
-            <button ng-click="viewConfig(app)" class="btn btn-link action disabled"><i class="glyphicon glyphicon-cog"></i> {{'action_view_cfg'|translate}}</button> 
+              <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+              <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
           </td>
         </tr>
       </tbody>

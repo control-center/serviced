@@ -143,7 +143,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     $scope.indent = indentClass;
-    $scope.clickRunning = toggleRunning;
+
+    $scope.clickRunning = function(app, status, servicesService){
+        toggleRunning(app, status, servicesService);
+
+        // TODO - this is a terrible way to get this object, but until
+        // this js file is fully encapsulated, this is the only way
+        this.$parent.serviceHealth.update(app.Id);
+    }
 
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
