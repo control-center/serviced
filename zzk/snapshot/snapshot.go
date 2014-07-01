@@ -21,7 +21,7 @@ func snapshotPath(nodes ...string) string {
 type Snapshot struct {
 	ServiceID string
 	Label     string
-	Error     error
+	Err       string
 	version   interface{}
 }
 
@@ -31,19 +31,32 @@ func (s *Snapshot) Version() interface{} { return s.version }
 // SetVersion implements client.Node
 func (s *Snapshot) SetVersion(version interface{}) { s.version = version }
 
-func (s *Snapshot) done() bool { return s.Label != "" || s.Error != nil }
+func (s *Snapshot) done() bool { return s.Label != "" || s.Err != "" }
 
-// TakeSnapshot is the function call for taking the snapshot
-type TakeSnapshot func(serviceID string) (label string, err error)
+// SnapshotHandler is the handler interface for running a snapshot listener
+type SnapshotHandler interface {
+	TakeSnapshot(serviceID string) (label string, err error)
+}
 
-// Listen listens for changes on the event node and processes the snapshot
-func Listen(conn client.Connection, ts TakeSnapshot) {
+// SnapshotListener is the zk listener for snapshots
+type SnapshotListener struct {
+	conn    client.Connection
+	handler SnapshotHandler
+}
+
+// NewSnapshotListener instantiates a new listener for snapshots
+func NewSnapshotListener(conn client.Connection, handler SnapshotHandler) *SnapshotListener {
+	return &SnapshotListener{conn, handler}
+}
+
+// Listen is the listener call for snapshots
+func (l *SnapshotListener) Listen(shutdown <-chan interface{}) {
 	// Make the path if it doesn't exist
-	if exists, err := conn.Exists(snapshotPath()); err != nil && err != client.ErrNoNode {
+	if exists, err := l.conn.Exists(snapshotPath()); err != nil && err != client.ErrNoNode {
 		glog.Errorf("Error checking path %s: %s", snapshotPath(), err)
 		return
 	} else if !exists {
-		if err := conn.CreateDir(snapshotPath()); err != nil {
+		if err := l.conn.CreateDir(snapshotPath()); err != nil {
 			glog.Errorf("Could not create path %s: %s", snapshotPath(), err)
 			return
 		}
@@ -51,7 +64,7 @@ func Listen(conn client.Connection, ts TakeSnapshot) {
 
 	// Wait for snapshot events
 	for {
-		nodes, event, err := conn.ChildrenW(snapshotPath())
+		nodes, event, err := l.conn.ChildrenW(snapshotPath())
 		if err != nil {
 			glog.Errorf("Could not watch snapshots: %s", err)
 			return
@@ -61,7 +74,7 @@ func Listen(conn client.Connection, ts TakeSnapshot) {
 			// Get the request
 			path := snapshotPath(serviceID)
 			var snapshot Snapshot
-			if err := conn.Get(path, &snapshot); err != nil {
+			if err := l.conn.Get(path, &snapshot); err != nil {
 				glog.V(1).Infof("Could not get snapshot %s: %s", serviceID, err)
 				continue
 			}
@@ -73,12 +86,14 @@ func Listen(conn client.Connection, ts TakeSnapshot) {
 
 			// Do snapshot
 			glog.V(1).Infof("Taking snapshot for request: %v", snapshot)
-			snapshot.Label, snapshot.Error = ts(snapshot.ServiceID)
-			if snapshot.Error != nil {
-				glog.V(1).Infof("Snapshot failed for request: %v", snapshot)
+			snapshot.Label, err = l.handler.TakeSnapshot(snapshot.ServiceID)
+			if err != nil {
+				glog.Warning("Snapshot failed for request: ", snapshot)
+				snapshot.Err = err.Error()
 			}
+
 			// Update request
-			if err := conn.Set(path, &snapshot); err != nil {
+			if err := l.conn.Set(path, &snapshot); err != nil {
 				glog.V(1).Infof("Could not update snapshot request %s: %s", serviceID, err)
 				continue
 			}
@@ -86,31 +101,35 @@ func Listen(conn client.Connection, ts TakeSnapshot) {
 			glog.V(1).Infof("Finished taking snapshot for request: %v", snapshot)
 		}
 		// Wait for an event that something changed
-		<-event
+		select {
+		case e := <-event:
+			glog.V(2).Info("Receieved snapshot event: ", e)
+		case <-shutdown:
+			return
+		}
 	}
 }
 
 // Send sends a new snapshot request to the queue
-func Send(conn client.Connection, snapshot *Snapshot) error {
-	return conn.Create(snapshotPath(snapshot.ServiceID), snapshot)
+func Send(conn client.Connection, serviceID string) error {
+	return conn.Create(snapshotPath(serviceID), &Snapshot{ServiceID: serviceID})
 }
 
 // Recv waits for a snapshot to be complete
-func Recv(conn client.Connection, serviceID string) (Snapshot, error) {
-	var snapshot Snapshot
+func Recv(conn client.Connection, serviceID string, snapshot *Snapshot) error {
 	node := snapshotPath(serviceID)
 
 	for {
-		event, err := conn.GetW(node, &snapshot)
+		event, err := conn.GetW(node, snapshot)
 		if err != nil {
-			return snapshot, err
+			return err
 		}
 		if snapshot.done() {
 			// Delete the request
 			if err := conn.Delete(node); err != nil {
 				glog.Warningf("Could not delete snapshot request %s: %s", node, err)
 			}
-			return snapshot, nil
+			return nil
 		}
 		// Wait for something to happen
 		<-event
