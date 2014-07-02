@@ -233,6 +233,8 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	if len(serviceStates) != service.Instances && utils.StringInSlice("restartAllOnInstanceChanged", service.ChangeOptions) {
 		instancesToKill = len(serviceStates)
 		instancesToStart = service.Instances
+		glog.V(2).Infof("Service %s requests restartAllOnInstanceChanged. Killing %d instances then starting %d.",
+			service.ID, instancesToKill, instancesToStart)
 	} else if len(serviceStates) < service.Instances {
 		instancesToStart = service.Instances - len(serviceStates)
 	} else if len(serviceStates) > service.Instances {
@@ -242,9 +244,7 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	if instancesToKill > 0 {
 		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
 		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
-	}
-
-	if instancesToStart > 0 {
+	} else if instancesToStart > 0 {
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
 		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
 		if err != nil {
