@@ -333,7 +333,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
-	for i := len(serviceStates) - 1; i >= len(serviceStates) - numToKill; i-- {
+	for i := len(serviceStates) - 1; i >= len(serviceStates)-numToKill; i-- {
 		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
 		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
