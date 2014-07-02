@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"path"
 
 	"github.com/zenoss/glog"
@@ -10,6 +11,10 @@ import (
 
 const (
 	zkRegistry = "/registry"
+)
+
+var (
+	ErrHostNotInitialized = errors.New("host not initialized")
 )
 
 func hostregpath(nodes ...string) string {
@@ -98,43 +103,56 @@ func (l *HostRegistryListener) sync(ehosts []string) {
 			delete(unsynced, id)
 			l.hostmap[id] = host
 		} else {
-			l.unregister(id)
+			if err := l.unregister(id); err != nil {
+				glog.Warningf("Could not unregister %s: %s", id, err)
+			}
 		}
 	}
 
 	for id, host := range unsynced {
-		l.register(id, host)
+		if err := l.register(id, host); err != nil {
+			glog.Warningf("Could not register host %s (%s): %s", host.ID, id, err)
+		}
 	}
 }
 
-func (l *HostRegistryListener) register(id string, host *host.Host) {
+func (l *HostRegistryListener) register(id string, host *host.Host) error {
+	// verify that there is a running listener for that host
 	if exists, err := l.conn.Exists(hostpath(host.ID)); err != nil {
-		glog.Errorf("Could not look up host %s: %s", host.ID, err)
+		return err
 	} else if !exists {
-		glog.Errorf("Host %s not initialized", host.ID)
+		return ErrHostNotInitialized
 	}
 
 	l.hostmap[id] = host
 	l.alert()
+	return nil
 }
 
-func (l *HostRegistryListener) unregister(id string) {
+func (l *HostRegistryListener) unregister(id string) error {
+	defer func() {
+		delete(l.hostmap, id)
+		l.alert()
+	}()
+
+	// remove all the instances running on that host
 	host := l.hostmap[id]
+	if exists, err := l.conn.Exists(hostpath(host.ID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
 	ssids, err := l.conn.Children(hostpath(host.ID))
 	if err != nil {
-		glog.Errorf("Could not get states on host %s: %s", host.ID, err)
-		return
+		return err
 	}
-
 	for _, ssid := range ssids {
 		if err := removeInstance(l.conn, host.ID, ssid); err != nil {
-			glog.Errorf("Could not remove instance %s: %s", ssid, err)
-			return
+			return err
 		}
 	}
-
-	delete(l.hostmap, id)
-	l.alert()
+	return nil
 }
 
 func (l *HostRegistryListener) alert() {

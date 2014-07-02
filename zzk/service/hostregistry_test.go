@@ -93,10 +93,121 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 }
 
 func TestHostRegistryListener_sync(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	listener := NewHostRegistryListener(conn)
+
+	// Add some hosts
+	hosts := map[string]*host.Host{
+		"ehost-1": &host.Host{ID: "test-host-1"},
+		"ehost-2": &host.Host{ID: "test-host-2"},
+		"ehost-3": &host.Host{ID: "test-host-3"},
+		"ehost-4": &host.Host{ID: "test-host-4"},
+	}
+
+	for ehost, host := range hosts {
+		if err := conn.CreateDir(hostpath(host.ID)); err != nil {
+			t.Fatalf("Could not create host node %s: %s", host.ID, err)
+		}
+		if err := conn.Create(hostregpath(ehost), &HostNode{Host: host}); err != nil {
+			t.Fatalf("Could not add host %s to registry %s: %s", host.ID, ehost, err)
+		}
+	}
+
+	nodes := [][]string{
+		{"ehost-1", "ehost-2", "ehost-3"},
+		{"ehost-1", "ehost-3"},
+		{"ehost-3", "ehost-4"},
+	}
+
+	for _, sync := range nodes {
+		listener.sync(sync)
+		if len(sync) != len(listener.hostmap) {
+			t.Errorf("MISMATCH: Expected %d mapped nodes; Actual: %d", len(nodes), len(listener.hostmap))
+		}
+		for _, n := range sync {
+			if host := listener.hostmap[n]; host == nil {
+				t.Errorf("HOST %s (%v) not found", n, hosts[n])
+			} else if host.ID != hosts[n].ID {
+				t.Errorf("MISMATCH: Expected host %s from %s; Actual: %s", hosts[n].ID, n, host.ID)
+			}
+		}
+	}
 }
 
 func TestHostRegistryListener_register(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	listener := NewHostRegistryListener(conn)
+	host := &host.Host{ID: "test-host-1"}
+
+	// no running listener
+	if err := listener.register("test-ehost-1", host); err != ErrHostNotInitialized {
+		t.Errorf("Expected error: '%s'; Actual error: '%s'", ErrHostNotInitialized, err)
+	}
+
+	// success
+	if err := conn.CreateDir(hostpath(host.ID)); err != nil {
+		t.Fatalf("Could not create host node %s: %s", host.ID, err)
+	}
+	if err := listener.register("test-ehost-1", host); err != nil {
+		t.Errorf("Could not register host node %s: %s", "test-ehost-1", err)
+	}
+	if h, ok := listener.hostmap["test-ehost-1"]; !ok || h == nil {
+		t.Errorf("Host %s not found", "test-ehost-1")
+	} else if h.ID != host.ID {
+		t.Errorf("MISMATCH: expected %s; actual %s", host.ID, h.ID)
+	}
 }
 
 func TestHostRegistryListener_unregister(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	listener := NewHostRegistryListener(conn)
+
+	// Create the host
+	host := &host.Host{ID: "test-host-1"}
+
+	// Create the service
+	svc := &service.Service{
+		Id:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Could not add service %s: %s", svc.Id, err)
+	}
+
+	// Add some instances
+	var states []*servicestate.ServiceState
+	for i := 0; i < 3; i++ {
+		// Create a service instance
+		state, err := servicestate.BuildFromService(svc, host.ID)
+		if err != nil {
+			t.Fatalf("Could not generate instance from service %s: %s", svc.Id, err)
+		} else if err := addInstance(conn, state); err != nil {
+			t.Fatalf("Could not add instance %s from service %s: %s", state.Id, state.ServiceID, err)
+		}
+		states = append(states, state)
+	}
+
+	// register the ephemeral node
+	if err := listener.register("test-ehost-1", host); err != nil {
+		t.Fatalf("Could not register node: %s", err)
+	}
+
+	// unregister the ephemeral node
+	if err := listener.unregister("test-ehost-1"); err != nil {
+		t.Errorf("Could not unregister node: %s", err)
+	}
+
+	if _, ok := listener.hostmap["test-ehost-1"]; ok {
+		t.Errorf("Did not remove node from host map")
+	}
+
+	// verify the children were removed
+	if ssids, err := conn.Children(hostpath(host.ID)); err != nil {
+		t.Fatalf("Errror looking up children on host path: %s", err)
+	} else if count := len(ssids); count > 0 {
+		t.Errorf("Some instances still left behind: %d", count)
+	}
 }
