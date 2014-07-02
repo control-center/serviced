@@ -248,7 +248,7 @@ func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, clien
 	}
 
 	tags := map[string][]string{"controlplane_host_id": hostIDs}
-	profile, err := newProfile(tags)
+	profile, err := hostPoolProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		glog.Error("Failed to create pool profile: %s", err)
 		return err
@@ -260,6 +260,6 @@ func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, clien
 	profile.GraphConfigs[1] = newCpuConfigGraph(tags, totalCores)
 	profile.GraphConfigs[2] = newRSSConfigGraph(tags, totalMemory)
 
-	pool.MonitoringProfile = profile
+	pool.MonitoringProfile = *profile
 	return nil
 }

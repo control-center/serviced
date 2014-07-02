@@ -665,9 +665,10 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 	//    serviced service shell SERVICEID COMMAND
 	//
 	// OPTIONS:
-	//    --saveas, -s 	saves the service instance with the given name
-	//    --interactive, -i	runs the service instance as a tty
-	//    -v '0'		log level for V logs
+	//    --saveas, -s 				saves the service instance with the given name
+	//    --mount '--mount option --mount option'	bind mount: HOST_PATH[,CONTAINER_PATH]
+	//    --interactive, -i				runs the service instance as a tty
+	//    -v '0'					log level for V logs
 
 }
 
@@ -709,7 +710,8 @@ func ExampleServicedCLI_CmdServiceRun_usage() {
 	//    serviced service run SERVICEID COMMAND [ARGS]
 	//
 	// OPTIONS:
-	//    --interactive, -i	runs the service instance as a tty
+	//    --interactive, -i				runs the service instance as a tty
+	//    --mount '--mount option --mount option'	bind mount: HOST_PATH[,CONTAINER_PATH]
 }
 
 func ExampleServicedCLI_CmdServiceRun_err() {

@@ -315,6 +315,18 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	ns.Session.Values[PROCESSKEY] = nil
 }
 
+func parseMountArg(arg string) (hostPath, containerPath string, err error) {
+	splitMount := strings.Split(arg, ",")
+	hostPath = splitMount[0]
+	if len(splitMount) > 1 {
+		containerPath = splitMount[1]
+	} else {
+		containerPath = hostPath
+	}
+	return
+
+}
+
 func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
@@ -378,6 +390,14 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
+	for _, mount := range cfg.Mount {
+		hostPath, containerPath, err := parseMountArg(mount)
+		if err != nil {
+			return nil, err
+		}
+		argv = append(argv, "-v", fmt.Sprintf("%s:%s", hostPath, containerPath))
+	}
+
 	argv = append(argv, cfg.Envv...)
 
 	if cfg.SaveAs != "" {
@@ -402,6 +422,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID))
 
 	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)
