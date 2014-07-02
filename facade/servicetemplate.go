@@ -144,14 +144,18 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		svc, err := f.GetService(ctx, svcID)
 		return *svc, err
 	}
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc, err := f.FindChildService(ctx, svcID, childName)
+		return *svc, err
+	}
 
 	//for each endpoint, evaluate its Application
-	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		return err
 	}
 
 	//for each endpoint, evaluate its Application
-	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		return err
 	}
 

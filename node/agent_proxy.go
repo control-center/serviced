@@ -73,7 +73,13 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 		return svc, err
 	}
 
-	return response.Evaluate(getSvc, 0)
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, 0)
 }
 
 func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
@@ -95,7 +101,13 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 		return svc, err
 	}
 
-	return response.Evaluate(getSvc, req.InstanceID)
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, req.InstanceID)
 }
 
 // Call the master's to retrieve its tenant id

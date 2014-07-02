@@ -59,6 +59,16 @@ func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
 	}
 }
 
+func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildService {
+	return func(svcID, childName string) (service.Service, error) {
+		svc, err := f.FindChildService(ctx, svcID, childName)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *svc, nil
+	}
+}
+
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
 	ctx := datastore.Get()
 	svc, err := this.facade.GetService(ctx, request.Running.ServiceID)
@@ -71,7 +81,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		return fmt.Errorf("missing command")
 	}
 
-	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade), request.Running.InstanceID); err != nil {
+	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade), childFinder(ctx, this.facade), request.Running.InstanceID); err != nil {
 		return err
 	}
 
