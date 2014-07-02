@@ -14,7 +14,7 @@ import (
 
 func (ft *FacadeTest) TestDaoValidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoValidServiceForStart_ServiceID",
+		ID: "TestDaoValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{
@@ -35,7 +35,7 @@ func (ft *FacadeTest) TestDaoValidServiceForStart(t *C) {
 
 func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := service.Service{
-		Id: "TestDaoInvalidServiceForStart_ServiceID",
+		ID: "TestDaoInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{

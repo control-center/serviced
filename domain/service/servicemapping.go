@@ -14,7 +14,7 @@ var (
 {
 	"service": {
 	  "properties": {
-		"Id" :             {"type": "string", "index":"not_analyzed"},
+		"ID" :             {"type": "string", "index":"not_analyzed"},
 		"Name":            {"type": "string", "index":"not_analyzed"},
 		"Startup":         {"type": "string", "index":"not_analyzed"},
 		"Context":         {"type": "string", "index":"not_analyzed"},
