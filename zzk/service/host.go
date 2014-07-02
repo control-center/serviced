@@ -177,7 +177,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 			return
 		}
 
-		glog.V(2).Infof("Processing %s (%s); Desired State: %d", svc.Name, svc.Id, hs.DesiredState)
+		glog.V(2).Infof("Processing %s (%s); Desired State: %d", svc.Name, svc.ID, hs.DesiredState)
 		switch hs.DesiredState {
 		case service.SVCRun:
 			var err error
@@ -187,7 +187,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 				processDone, err = l.attachInstance(&svc, &state)
 			}
 			if err != nil {
-				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.Id, err)
+				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
 				l.stopInstance(&state)
 				return
 			}
@@ -199,7 +199,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 			}
 			return
 		default:
-			glog.V(2).Infof("Unhandled service %s (%s)", svc.Name, svc.Id)
+			glog.V(2).Infof("Unhandled service %s (%s)", svc.Name, svc.ID)
 		}
 
 		select {
@@ -231,16 +231,16 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 		<-done
 		var s servicestate.ServiceState
 		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
-			glog.Errorf("Could not get service state %s: %s", state.Id, err)
+			glog.Errorf("Could not get service state %s: %s", state.ID, err)
 			return
 		}
 
 		s.Terminated = time.Now()
 		if err := updateInstance(l.conn, &s); err != nil {
-			glog.Errorf("Could not update the service instance %s with the time terminated (%s): %s", s.Id, s.Terminated.UnixNano(), err)
+			glog.Errorf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
 			return
 		}
-	}(servicepath(state.ServiceID, state.Id))
+	}(servicepath(state.ServiceID, state.ID))
 
 	return wait, updateInstance(l.conn, state)
 }
@@ -278,7 +278,7 @@ func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
-	return removeInstance(l.conn, state.HostID, state.Id)
+	return removeInstance(l.conn, state.HostID, state.ID)
 }
 
 func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
@@ -287,7 +287,7 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 		return err
 	}
 	<-done
-	return removeInstance(l.conn, state.HostID, state.Id)
+	return removeInstance(l.conn, state.HostID, state.ID)
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
@@ -315,7 +315,7 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 }
 
 func updateInstance(conn client.Connection, state *servicestate.ServiceState) error {
-	return conn.Set(servicepath(state.ServiceID, state.Id), &ServiceStateNode{ServiceState: state})
+	return conn.Set(servicepath(state.ServiceID, state.ID), &ServiceStateNode{ServiceState: state})
 }
 
 func removeInstance(conn client.Connection, hostID, ssID string) error {
