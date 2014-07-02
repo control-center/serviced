@@ -12,7 +12,6 @@ import (
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/domain/service"
@@ -274,17 +273,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	registry, err := docker.NewDockerRegistry(e.dockerRegistry)
-	if err != nil {
-		p.Result <- Result{0, err.Error(), ABNORMAL}
-		return
-	}
-	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
-	if err != nil {
-		p.Result <- Result{0, err.Error(), ABNORMAL}
-		return
-	}
-	cmd, err := StartDocker(registry, dockerClient, cfg, e.port)
+	cmd, err := StartDocker(cfg, e.port)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -327,7 +316,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
-func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control plane client to look up the service
@@ -344,7 +333,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 	}
 
 	// make sure docker image is present
-	if _, err = docker.InspectImage(*registry, dockerClient, svc.ImageID); err != nil {
+	if _, err = docker.FindImage(svc.ImageID, false); err != nil {
 		glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
 		return nil, err
 	}
