@@ -703,8 +703,8 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
 func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Connection,
-		procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState,
-		virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+	procFinished chan<- int, service *service.Service, serviceState *servicestate.ServiceState,
+	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
@@ -870,9 +870,9 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	// Get host IP
-	ip, err := utils.GetIPAddress()
+	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
-		glog.Errorf("Error getting host IP address: %v", err)
+		glog.Errorf("Error getting host IP addresses: %v", err)
 		return nil, nil, err
 	}
 
@@ -880,7 +880,7 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
-		fmt.Sprintf("CONTROLPLANE_HOST_IP=%s", ip),
+		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
