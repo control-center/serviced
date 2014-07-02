@@ -273,12 +273,12 @@ func TestSnapshotPauseResume(t *testing.T) {
 	}
 	MockServices = services
 	if _, err := dfs.Snapshot("nilvolume-snapshot"); err.Error() != dfs.client.GetVolume("nilvolume-snapshot", nil).Error() {
-		if paused, ok := MockPauseResume[services[0].Id]; paused || !ok {
-			t.Errorf("unexpected state for %s", services[0].Id)
-		} else if paused, ok := MockPauseResume[services[1].Id]; paused || !ok {
-			t.Errorf("unexpected state for %s", services[1].Id)
-		} else if paused, ok := MockPauseResume[services[2].Id]; paused || ok {
-			t.Errorf("unexpected state for %s", services[2].Id)
+		if paused, ok := MockPauseResume[services[0].ID]; paused || !ok {
+			t.Errorf("unexpected state for %s", services[0].ID)
+		} else if paused, ok := MockPauseResume[services[1].ID]; paused || !ok {
+			t.Errorf("unexpected state for %s", services[1].ID)
+		} else if paused, ok := MockPauseResume[services[2].ID]; paused || ok {
+			t.Errorf("unexpected state for %s", services[2].ID)
 		}
 	} else {
 		t.Errorf("error not caught while pausing and resuming services")
@@ -311,12 +311,12 @@ func TestSnapshotPauseResume(t *testing.T) {
 	if label, err := dfs.Snapshot("errsnapshot"); err.Error() != MockVolumeInstance.Snapshot(label).Error() {
 		t.Errorf("error not caught while taking the snapshot")
 	} else {
-		if paused, ok := MockPauseResume[services[0].Id]; paused || !ok {
-			t.Errorf("unexpected state for %s", services[0].Id)
-		} else if paused, ok := MockPauseResume[services[1].Id]; !paused || !ok {
-			t.Errorf("unexpected state for %s", services[1].Id)
-		} else if paused, ok := MockPauseResume[services[2].Id]; paused || ok {
-			t.Errorf("unexpected state for %s", services[2].Id)
+		if paused, ok := MockPauseResume[services[0].ID]; paused || !ok {
+			t.Errorf("unexpected state for %s", services[0].ID)
+		} else if paused, ok := MockPauseResume[services[1].ID]; !paused || !ok {
+			t.Errorf("unexpected state for %s", services[1].ID)
+		} else if paused, ok := MockPauseResume[services[2].ID]; paused || ok {
+			t.Errorf("unexpected state for %s", services[2].ID)
 		}
 	}
 

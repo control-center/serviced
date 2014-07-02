@@ -97,12 +97,12 @@ func (s *ServiceNode) SetVersion(version interface{}) {
 }
 
 func AddService(conn coordclient.Connection, service *service.Service) error {
-	glog.V(2).Infof("Creating new service %s", service.Id)
+	glog.V(2).Infof("Creating new service %s", service.ID)
 
 	svcNode := &ServiceNode{
 		Service: service,
 	}
-	servicePath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 	if err := conn.Create(servicePath, svcNode); err != nil {
 		glog.Errorf("Unable to create service for %s: %v", servicePath, err)
 	}
@@ -135,7 +135,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 
 	serviceStateNode := &ServiceStateNode{
 		ServiceState: state,
@@ -145,7 +145,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
-	hostServicePath := HostServiceStatePath(state.HostID, state.Id)
+	hostServicePath := HostServiceStatePath(state.HostID, state.ID)
 	hss := SsToHss(state)
 	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
@@ -161,7 +161,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	}
 	defer conn.Close()
 
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 	ssn := ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
@@ -177,7 +177,7 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	}
 	defer conn.Close()
 
-	servicePath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 
 	sn := ServiceNode{}
 	if err := conn.Get(servicePath, &sn); err != nil {
@@ -533,7 +533,7 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
 		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
-		ServiceStateID: ss.Id,
+		ServiceStateID: ss.ID,
 		DesiredState:   service.SVCRun,
 	}
 }
@@ -562,7 +562,7 @@ func (s *SnapShotRequestNode) Version() interface{}           { return s.version
 func (s *SnapShotRequestNode) SetVersion(version interface{}) { s.version = version }
 
 func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
-	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.Id)
+	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.ID)
 
 	// make sure toplevel paths exist
 	paths := []string{SNAPSHOT_PATH, SNAPSHOT_REQUEST_PATH}
@@ -586,7 +586,7 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	srn := SnapShotRequestNode{
 		SnapshotRequest: snapshotRequest,
 	}
-	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
+	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.ID)
 	if err := conn.Create(snapshotRequestsPath, &srn); err != nil {
 		glog.Errorf("Unable to create snapshot request %s: %v", snapshotRequestsPath, err)
 		return err
@@ -651,7 +651,7 @@ func (zkdao *ZkDao) UpdateSnapshotRequest(snapshotRequest *dao.SnapshotRequest) 
 
 func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
 	glog.V(3).Infof("UpdateSnapshotRequest with snapshotrequest: %+v", snapshotRequest)
-	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
+	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.ID)
 	exists, err := conn.Exists(snapshotRequestsPath)
 	if err != nil {
 		if err == coordclient.ErrNoNode {
