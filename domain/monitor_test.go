@@ -8,19 +8,19 @@ import (
 func TestReBuild(t *testing.T) {
 	profile := MonitorProfile{
 		MetricConfigs: []MetricConfig{
-      MetricConfig{
-        ID:   "memory",
-        Name: "Memory Metrics",
-        Metrics: []Metric{
-          Metric{ID: "free", Name: "Free Memory"},
-        },
-      },
+			MetricConfig{
+				ID:   "memory",
+				Name: "Memory Metrics",
+				Metrics: []Metric{
+					Metric{ID: "free", Name: "Free Memory"},
+				},
+			},
 		},
 		GraphConfigs: []GraphConfig{
-      GraphConfig {
-        ID: "free.memory",
-      },
-    },
+			GraphConfig{
+				ID: "free.memory",
+			},
+		},
 	}
 
 	tags := map[string][]string{
@@ -45,17 +45,17 @@ func TestReBuild(t *testing.T) {
 					Headers:    headers,
 					Data:       "{\"metrics\":[{\"metric\":\"free\",\"tags\":{\"controlplane_host_id\":[\"1\",\"2\"]}}],\"start\":\"1h-ago\"}",
 				},
-        Metrics: []Metric{
-          Metric{ID: "free", Name: "Free Memory"},
-        },
+				Metrics: []Metric{
+					Metric{ID: "free", Name: "Free Memory"},
+				},
 			},
 		},
 		GraphConfigs: []GraphConfig{
-      GraphConfig {
-        ID: "free.memory",
-        Tags: tags,
-      },
-    },
+			GraphConfig{
+				ID:   "free.memory",
+				Tags: tags,
+			},
+		},
 	}
 
 	if !newProfile.Equals(expectedProfile) {
