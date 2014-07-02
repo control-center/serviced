@@ -50,7 +50,7 @@ func (s *Store) Delete(ctx datastore.Context, id string) error {
 
 //GetServices returns all services
 func (s *Store) GetServices(ctx datastore.Context) ([]*Service, error) {
-	return query(ctx, "_exists_:Id")
+	return query(ctx, "_exists_:ID")
 }
 
 //GetTaggedServices returns services with the given tags

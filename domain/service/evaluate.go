@@ -22,7 +22,7 @@ func context() func(s Service) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
-			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.ID, s.Context, err)
+			glog.Errorf("Error unmarshal service context ID=%s: %s -> %s", s.ID, s.Context, err)
 		}
 		return ctx, err
 	}

@@ -102,7 +102,7 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.ID)
 	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", data_heap_request, data_non_heap_request)
 	expected := Service{
-		Id:        actual.ID,
+		ID:        actual.ID,
 		CreatedAt: actual.CreatedAt,
 		UpdatedAt: actual.UpdatedAt,
 		Context:   actual.Context,

@@ -38,7 +38,7 @@ func (s *S) SetUpTest(c *C) {
 }
 
 func (s *S) Test_ServiceCRUD(t *C) {
-	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 
 	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
 	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
@@ -81,7 +81,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 0)
 
-	svc := &Service{Id: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
