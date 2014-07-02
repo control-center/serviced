@@ -56,20 +56,21 @@ type HostHandler interface {
 	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
-	GetHost() (*host.Host, error)
 }
 
 // HostStateListener is the listener for monitoring service instances
 type HostStateListener struct {
 	conn    client.Connection
 	handler HostHandler
+	host    *host.Host
 }
 
 // NewHostListener instantiates a HostListener object
-func NewHostStateListener(conn client.Connection, handler HostHandler) *HostStateListener {
+func NewHostStateListener(conn client.Connection, handler HostHandler, host *host.Host) *HostStateListener {
 	return &HostStateListener{
 		conn:    conn,
 		handler: handler,
+		host:    host,
 	}
 }
 
@@ -81,17 +82,10 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 		processing = make(map[string]interface{})
 	)
 
-	// Get the host
-	host, err := l.handler.GetHost()
-	if err != nil {
-		glog.Error("Could not get host: ", err)
-		return
-	}
-
 	// Make the path
-	hpath := hostpath(host.ID)
+	hpath := hostpath(l.host.ID)
 	if exists, err := zkutils.PathExists(l.conn, hpath); err != nil {
-		glog.Errorf("Unable to look up host path %s on zookeeper: %s", host.ID, err)
+		glog.Errorf("Unable to look up host path %s on zookeeper: %s", l.host.ID, err)
 		return
 	} else if exists {
 		// pass
@@ -107,13 +101,13 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 			delete(processing, <-done)
 		}
 		if err := l.conn.Delete(hpath); err != nil {
-			glog.Warningf("Could not clean up host %s: %s", host.ID, err)
+			glog.Warningf("Could not clean up host %s: %s", l.host.ID, err)
 		}
 	}()
 
 	// Register the host
-	if err := registerHost(l.conn, host); err != nil {
-		glog.Errorf("Could not register host %s: %s", host.ID, err)
+	if err := registerHost(l.conn, l.host); err != nil {
+		glog.Errorf("Could not register host %s: %s", l.host.ID, err)
 		return
 	}
 
@@ -121,7 +115,7 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 	for {
 		stateIDs, event, err := l.conn.ChildrenW(hpath)
 		if err != nil {
-			glog.Errorf("Could not watch for states on host %s: %s", host.ID, err)
+			glog.Errorf("Could not watch for states on host %s: %s", l.host.ID, err)
 			return
 		}
 
@@ -129,7 +123,7 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 			if _, ok := processing[ssid]; !ok {
 				glog.V(1).Info("Spawning a listener for %s", ssid)
 				processing[ssid] = nil
-				go l.listenHostState(shutdown, done, host.ID, ssid)
+				go l.listenHostState(shutdown, done, ssid)
 			}
 		}
 
@@ -145,14 +139,14 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 	}
 }
 
-func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done chan<- string, hostID, ssID string) {
+func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done chan<- string, ssID string) {
 	defer func() {
 		glog.V(2).Info("Shutting down listener for host instance ", ssID)
 		done <- ssID
 	}()
 
 	var processDone <-chan interface{}
-	hpath := hostpath(hostID, ssID)
+	hpath := hostpath(l.host.ID, ssID)
 	for {
 		var hs HostState
 		event, err := l.conn.GetW(hpath, &hs)
@@ -308,4 +302,15 @@ func removeInstance(conn client.Connection, hostID, ssID string) error {
 		return err
 	}
 	return nil
+}
+
+func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
+	hpath := hostpath(hostID, stateID)
+	var hs HostState
+	if err := conn.Get(hpath, &hs); err != nil {
+		return err
+	}
+	glog.V(2).Infof("Stopping instance %s via host %s", stateID, hostID)
+	hs.DesiredState = service.SVCStop
+	return conn.Set(hpath, &hs)
 }
