@@ -13,14 +13,16 @@ import (
 
 func TestNewRunningService(t *testing.T) {
 	sd := servicedefinition.ServiceDefinition{
-		Metrics: []servicedefinition.MetricGroup{
-			servicedefinition.MetricGroup{
-				ID:          "jvm.memory",
-				Name:        "JVM Memory",
-				Description: "JVM heap vs. non-heap memory usage",
-				Metrics: []servicedefinition.Metric{
-					servicedefinition.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
-					servicedefinition.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "jvm.memory",
+					Name:        "JVM Memory",
+					Description: "JVM heap vs. non-heap memory usage",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+						domain.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+					},
 				},
 			},
 		},
