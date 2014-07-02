@@ -32,25 +32,9 @@ type ZkConn struct {
 	Conn coordclient.Connection
 }
 
-type HostServiceState struct {
-	HostID         string
-	ServiceID      string
-	ServiceStateID string
-	DesiredState   int
-	version        interface{}
-}
-
-func (hss *HostServiceState) Version() interface{} {
-	return hss.version
-}
-
-func (hss *HostServiceState) SetVersion(version interface{}) {
-	hss.version = version
-}
-
 // Communicates to the agent that this service instance should stop
 func TerminateHostService(conn coordclient.Connection, hostId string, serviceStateId string) error {
-	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *HostServiceState) {
+	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *zkservice.HostState) {
 		hss.DesiredState = service.SVCStop
 	})
 }
@@ -98,19 +82,6 @@ func AddService(conn coordclient.Connection, service *service.Service) error {
 	return nil
 }
 
-type ServiceStateNode struct {
-	ServiceState *servicestate.ServiceState
-	version      interface{}
-}
-
-func (s *ServiceStateNode) Version() interface{} {
-	return s.version
-}
-
-func (s *ServiceStateNode) SetVersion(version interface{}) {
-	s.version = version
-}
-
 func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
@@ -124,7 +95,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
 
-	serviceStateNode := &ServiceStateNode{
+	serviceStateNode := &zkservice.ServiceStateNode{
 		ServiceState: state,
 	}
 
@@ -149,7 +120,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	defer conn.Close()
 
 	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
-	ssn := ServiceStateNode{}
+	ssn := zkservice.ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
 	}
@@ -176,7 +147,7 @@ func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, ser
 }
 
 func GetServiceState(conn coordclient.Connection, serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
-	serviceStateNode := ServiceStateNode{}
+	serviceStateNode := zkservice.ServiceStateNode{}
 	err := conn.Get(ServiceStatePath(serviceId, serviceStateId), &serviceStateNode)
 	if err != nil {
 		return err
@@ -356,7 +327,7 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 	}
 
 	hssPath := HostServiceStatePath(ss.HostID, serviceStateId)
-	hss := HostServiceState{}
+	hss := zkservice.HostState{}
 	if err := conn.Get(hssPath, &hss); err != nil {
 		glog.Errorf("Unable to get host service state %s for delete because: %v", hssPath, err)
 		return err
@@ -369,7 +340,7 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 	return nil
 }
 
-func LoadHostServiceState(conn coordclient.Connection, hostId string, hssId string, hss *HostServiceState) error {
+func LoadHostServiceState(conn coordclient.Connection, hostId string, hssId string, hss *zkservice.HostState) error {
 	hssPath := HostServiceStatePath(hostId, hssId)
 	err := conn.Get(hssPath, hss)
 	if err != nil {
@@ -379,7 +350,7 @@ func LoadHostServiceState(conn coordclient.Connection, hostId string, hssId stri
 	return nil
 }
 
-func LoadHostServiceStateW(conn coordclient.Connection, hostId string, hssId string, hss *HostServiceState) (<-chan coordclient.Event, error) {
+func LoadHostServiceStateW(conn coordclient.Connection, hostId string, hssId string, hss *zkservice.HostState) (<-chan coordclient.Event, error) {
 	hssPath := HostServiceStatePath(hostId, hssId)
 	event, err := conn.GetW(hssPath, hss)
 	if err != nil {
@@ -413,7 +384,7 @@ func LoadServiceW(conn coordclient.Connection, serviceId string, s *service.Serv
 
 func LoadServiceState(conn coordclient.Connection, serviceId string, serviceStateId string, ss *servicestate.ServiceState) error {
 	ssPath := ServiceStatePath(serviceId, serviceStateId)
-	ssn := ServiceStateNode{}
+	ssn := zkservice.ServiceStateNode{}
 	err := conn.Get(ssPath, &ssn)
 	if err != nil {
 		glog.Errorf("Got error for %s: %v", ssPath, err)
@@ -432,7 +403,7 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 	_ss := make([]*servicestate.ServiceState, len(childNodes))
 	for i, childId := range childNodes {
 		childPath := servicePath + "/" + childId
-		ssn := ServiceStateNode{}
+		ssn := zkservice.ServiceStateNode{}
 		err := conn.Get(childPath, &ssn)
 		if err != nil {
 			glog.Errorf("Got error for %s: %v", childId, err)
@@ -445,13 +416,13 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 }
 
 type serviceMutator func(*service.Service)
-type hssMutator func(*HostServiceState)
+type hssMutator func(*zkservice.HostState)
 type ssMutator func(*servicestate.ServiceState)
 
 func LoadAndUpdateServiceState(conn coordclient.Connection, serviceId string, ssId string, mutator ssMutator) error {
 	ssPath := ServiceStatePath(serviceId, ssId)
 
-	ssn := ServiceStateNode{}
+	ssn := zkservice.ServiceStateNode{}
 	err := conn.Get(ssPath, &ssn)
 	if err != nil {
 		// Should it really be an error if we can't find anything?
@@ -486,7 +457,7 @@ func loadAndUpdateService(conn coordclient.Connection, serviceId string, mutator
 
 func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, mutator hssMutator) error {
 	hssPath := HostServiceStatePath(hostId, hssId)
-	var hss HostServiceState
+	var hss zkservice.HostState
 
 	err := conn.Get(hssPath, &hss)
 	if err != nil {
@@ -504,8 +475,8 @@ func loadAndUpdateHss(conn coordclient.Connection, hostId string, hssId string, 
 }
 
 // ServiceState to HostServiceState
-func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
-	return &HostServiceState{
+func SsToHss(ss *servicestate.ServiceState) *zkservice.HostState {
+	return &zkservice.HostState{
 		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
 		ServiceStateID: ss.Id,
