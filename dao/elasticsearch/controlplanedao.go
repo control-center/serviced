@@ -20,10 +20,11 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 
 	"fmt"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"sync"
+
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 const (
@@ -44,8 +45,8 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
-	backupLock sync.RWMutex
-	restoreLock sync.RWMutex
+	backupLock     sync.RWMutex
+	restoreLock    sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -101,17 +102,16 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName:       hostName,
-		port:           port,
-		dockerRegistry: dockerRegistry,
+		hostName: hostName,
+		port:     port,
 	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, dockerRegistry); err != nil {
+	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
 		return nil, err
 	} else {
 		dao.dfs = dfs
@@ -120,11 +120,11 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, docker
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, dockerRegistry string, zkDAO *zzk.ZkDao) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, zclient *coordclient.Client, varpath, vfs string, zkDAO *zzk.ZkDao) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade, dockerRegistry)
+	s, err := NewControlPlaneDao(hostName, port, facade)
 	if err != nil {
 		return nil, err
 	}
