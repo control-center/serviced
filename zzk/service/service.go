@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -53,7 +54,7 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 		node  = &ServiceNode{Service: svc}
 	)
 
-	if exists, err := conn.Exists(spath); err != nil {
+	if exists, err := zkutils.PathExists(conn, spath); err != nil {
 		return err
 	} else if !exists {
 		return conn.Create(spath, node)

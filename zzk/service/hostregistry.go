@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/host"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -59,7 +60,7 @@ func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
 func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
 	// create the path
 	regpath := hostregpath()
-	if exists, err := l.conn.Exists(regpath); err != nil {
+	if exists, err := zkutils.PathExists(l.conn, regpath); err != nil {
 		glog.Errorf("Error checking path %s: %s", regpath, err)
 		return
 	} else if exists {
@@ -118,7 +119,7 @@ func (l *HostRegistryListener) sync(ehosts []string) {
 
 func (l *HostRegistryListener) register(id string, host *host.Host) error {
 	// verify that there is a running listener for that host
-	if exists, err := l.conn.Exists(hostpath(host.ID)); err != nil {
+	if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
 		return err
 	} else if !exists {
 		return ErrHostNotInitialized
@@ -137,7 +138,7 @@ func (l *HostRegistryListener) unregister(id string) error {
 
 	// remove all the instances running on that host
 	host := l.hostmap[id]
-	if exists, err := l.conn.Exists(hostpath(host.ID)); err != nil {
+	if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
 		return err
 	} else if !exists {
 		return nil

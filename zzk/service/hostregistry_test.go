@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 func TestHostRegistryListener_Listen(t *testing.T) {
@@ -77,11 +78,11 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	}
 
 	for _, state := range states {
-		if exists, err := conn.Exists(hostpath(state.HostID, state.Id)); err != nil {
+		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.Id)); err != nil {
 			t.Fatalf("Could not check existance of host state %s: %s", state.Id, err)
 		} else if exists {
 			t.Fatal("State still exists for host state ", state.Id)
-		} else if exists, err := conn.Exists(servicepath(state.ServiceID, state.Id)); err != nil {
+		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.Id)); err != nil {
 			t.Fatalf("Could not check existance of service state %s: %s", state.Id, err)
 		} else if exists {
 			t.Fatal("State still exists for service state ", state.Id)
