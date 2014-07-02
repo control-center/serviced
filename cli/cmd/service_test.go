@@ -26,7 +26,7 @@ var DefaultServiceAPITest = ServiceAPITest{
 
 var DefaultTestServices = []*service.Service{
 	{
-		Id:             "test-service-1",
+		ID:             "test-service-1",
 		Name:           "Zenoss",
 		Startup:        "startup command 1",
 		Instances:      0,
@@ -41,7 +41,7 @@ var DefaultTestServices = []*service.Service{
 			"goodbye": "echo goodbye world",
 		},
 	}, {
-		Id:             "test-service-2",
+		ID:             "test-service-2",
 		Name:           "Zope",
 		Startup:        "startup command 2",
 		Instances:      1,
@@ -52,7 +52,7 @@ var DefaultTestServices = []*service.Service{
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-core",
 	}, {
-		Id:             "test-service-3",
+		ID:             "test-service-3",
 		Name:           "zencommand",
 		Startup:        "startup command 3",
 		Instances:      2,
@@ -132,7 +132,7 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	}
 
 	s := service.Service{
-		Id:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
+		ID:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
 		Name:           config.Name,
 		PoolID:         config.PoolID,
 		ImageID:        config.ImageID,
