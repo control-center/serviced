@@ -31,6 +31,23 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Ip', name: 'ip_addresses_ip' }
     ]);
 
+    // groups graphs in twos for use by angular template
+    $scope.staggerGraphs = function(){
+
+        if(!$scope.hosts.current) return;
+
+        var arr = [];
+
+        for(var i = 0; i < $scope.hosts.current.MonitoringProfile.GraphConfigs.length; i++){
+            arr.push([
+                $scope.hosts.current.MonitoringProfile.GraphConfigs[i],
+                $scope.hosts.current.MonitoringProfile.GraphConfigs[++i],
+            ]);
+        }
+
+        return arr;
+    };
+
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
         $scope.editService.config = 'TODO: Implement';

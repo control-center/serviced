@@ -40,14 +40,12 @@
     </div>
 
   <h3>{{'graphs'|translate}}</h3>
-    <table ng-if="collectingStats" class="table table-striped table-bordered side-flush">
-      <tr ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
-        <td>
-          <div>{{graph.name}}</div>
-          <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
-        </td>
-      </tr>
-    </table>
+    <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
+      <div style="width: 50%; float: left;">
+        <h4>{{graph.name}}</h4>
+        <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+      </div>
+    </div>
 
 	<h3>{{'ip_addresses'|translate}}</h3>
     <table class="table table-striped side-flush">

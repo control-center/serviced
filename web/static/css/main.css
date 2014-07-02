@@ -1060,3 +1060,14 @@ rect {
     50% { -webkit-transform: scale(2.4, 2.4); }
     100% { -webkit-transform: scale(1.4, 1.4);  }
 }
+
+
+/* chart styles */
+.nv-axis .tick text,
+.nv-axis .nv-axisMaxMin {
+    fill: #999;
+}
+
+.nv-axis .tick line {
+    stroke-dasharray: 2,2;
+}
