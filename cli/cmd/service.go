@@ -115,6 +115,7 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceShell,
 				Flags: []cli.Flag{
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
+					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
@@ -126,6 +127,7 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 				},
 			}, {
 				Name:         "attach",
@@ -529,7 +531,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 	var (
 		serviceID, command string
-		argv               []string
+		argv, mount        []string
 		saveAs             string
 		isTTY              bool
 	)
@@ -541,6 +543,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	}
 	saveAs = ctx.GlobalString("saveas")
 	isTTY = ctx.GlobalBool("interactive")
+	mount = ctx.GlobalStringSlice("mount")
 
 	config := api.ShellConfig{
 		ServiceID: serviceID,
@@ -548,6 +551,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		Args:      argv,
 		SaveAs:    saveAs,
 		IsTTY:     isTTY,
+		Mount:	   mount,
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -574,7 +578,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 
 	var (
 		serviceID, command string
-		argv               []string
+		argv, mount        []string
 		saveAs             string
 		isTTY              bool
 	)
@@ -586,6 +590,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 	saveAs = node.GetLabel(serviceID)
 	isTTY = ctx.GlobalBool("interactive")
+	mount = ctx.GlobalStringSlice("mount")
 
 	config := api.ShellConfig{
 		ServiceID: serviceID,
@@ -593,6 +598,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		Args:      argv,
 		SaveAs:    saveAs,
 		IsTTY:     isTTY,
+		Mount:	   mount,
 	}
 
 	if err := c.driver.RunShell(config); err != nil {
