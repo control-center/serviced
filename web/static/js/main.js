@@ -59,6 +59,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
             }).
+            when('/isvcs', {
+                templateUrl: '/static/partials/view-isvcs.html',
+                controller: IsvcsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
