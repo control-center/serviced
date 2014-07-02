@@ -366,7 +366,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 		"proxy",
 		"--autorestart=false",
 		"--logstash=false",
-		svc.Id,
+		svc.ID,
 		"0",
 		shellcmd,
 	}

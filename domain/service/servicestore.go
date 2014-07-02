@@ -28,7 +28,7 @@ type Store struct {
 func (s *Store) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
-	return s.ds.Put(ctx, Key(svc.Id), svc)
+	return s.ds.Put(ctx, Key(svc.ID), svc)
 }
 
 // Get a Service by id. Return ErrNoSuchEntity if not found

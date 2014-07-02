@@ -224,7 +224,7 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
-		fmt.Println(service.Id)
+		fmt.Println(service.ID)
 	}
 }
 

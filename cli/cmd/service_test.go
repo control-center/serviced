@@ -103,7 +103,7 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 	}
 
 	for _, s := range t.services {
-		if s.Id == id {
+		if s.ID == id {
 			return s, nil
 		}
 	}
@@ -162,7 +162,7 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 		return nil, ErrInvalidService
 	}
 
-	if _, err := t.GetService(s.Id); err != nil {
+	if _, err := t.GetService(s.ID); err != nil {
 		return nil, err
 	}
 

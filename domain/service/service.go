@@ -26,7 +26,7 @@ const (
 
 // Service A Service that can run in serviced.
 type Service struct {
-	Id                string
+	ID                string
 	Name              string
 	Context           string
 	Startup           string
@@ -71,7 +71,7 @@ type ServiceEndpoint struct {
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = utils.NewUUID36()
+	s.ID, err = utils.NewUUID36()
 	return s, err
 }
 
@@ -109,7 +109,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	now := time.Now()
 
 	svc := Service{}
-	svc.Id = svcuuid
+	svc.ID = svcuuid
 	svc.Name = sd.Name
 	svc.Context = string(ctx)
 	svc.Startup = sd.Command
@@ -158,7 +158,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		metricGroup := &sd.Metrics[i]
 		for j := range metricGroup.Metrics {
 			metric := metricGroup.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTag("controlplane_service_id", svc.Id)
+			build.Metric(metric.ID, metric.Name).SetTag("controlplane_service_id", svc.ID)
 		}
 
 		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
@@ -325,7 +325,7 @@ func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment 
 
 //Equals are they the same
 func (s *Service) Equals(b *Service) bool {
-	if s.Id != b.Id {
+	if s.ID != b.ID {
 		return false
 	}
 	if s.Name != b.Name {

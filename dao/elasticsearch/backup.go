@@ -456,11 +456,11 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 
 	// Dump all snapshots
 	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
-		glog.V(0).Infof("snapshotToTgzFile(%v)", service.Id)
+		glog.V(0).Infof("snapshotToTgzFile(%v)", service.ID)
 		backupOutput <- fmt.Sprintf("Taking snapshot of service: %v", service.Name)
 		var snapshotID string
-		if e := cp.Snapshot(service.Id, &snapshotID); e != nil {
-			glog.Errorf("Could not snapshot service %s: %v", service.Id, e)
+		if e := cp.Snapshot(service.ID, &snapshotID); e != nil {
+			glog.Errorf("Could not snapshot service %s: %v", service.ID, e)
 			backupError <- e.Error()
 			return "", e
 		}
@@ -475,9 +475,9 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 				}
 			}
 		}()
-		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.Id, snapshotID)
+		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.ID, snapshotID)
 		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
+			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.ID, e)
 			backupError <- e.Error()
 			return "", e
 		}
@@ -488,7 +488,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 			return "", e
 		}
 
-		glog.V(2).Infof("Saved snapshot of service:%v from dir:%v to snapFile:%v", service.Id, snapDir, snapFile)
+		glog.V(2).Infof("Saved snapshot of service:%v from dir:%v to snapFile:%v", service.ID, snapDir, snapFile)
 		return snapFile, nil
 	}
 
@@ -497,7 +497,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	for _, service := range services {
 		if service.ParentServiceID == "" {
 			if _, e := snapshotToTgzFile(service); e != nil {
-				glog.Errorf("Could not save snapshot of service %s: %v", service.Id, e)
+				glog.Errorf("Could not save snapshot of service %s: %v", service.ID, e)
 				backupError <- e.Error()
 				return e
 			}
@@ -746,9 +746,9 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 			return e
 		}
 
-		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.Id, snapshotID)
+		snapDir, e := getSnapshotPath(cp.vfs, service.PoolID, service.ID, snapshotID)
 		if e != nil {
-			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.Id, e)
+			glog.Errorf("Could not get subvolume %s:%s: %v", service.PoolID, service.ID, e)
 			restoreError <- e.Error()
 			return e
 		}

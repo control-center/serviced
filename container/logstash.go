@@ -20,7 +20,7 @@ const (
 func createFields(service *service.Service, logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
-	fields["service"] = service.Id
+	fields["service"] = service.ID
 	for _, tag := range logConfig.LogTags {
 		fields[tag.Name] = tag.Value
 	}

@@ -13,7 +13,7 @@ import (
 // NewRunningService instantiates a RunningService object from a given service and service state
 func NewRunningService(service *service.Service, state *servicestate.ServiceState) (*dao.RunningService, error) {
 	rs := &dao.RunningService{
-		Id:              state.Id,
+		ID:              state.ID,
 		ServiceID:       state.ServiceID,
 		StartedAt:       state.Started,
 		HostID:          state.HostID,

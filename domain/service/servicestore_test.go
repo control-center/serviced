@@ -43,7 +43,7 @@ func (s *S) Test_ServiceCRUD(t *C) {
 	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
 	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
 
-	svc2, err := s.store.Get(s.ctx, svc.Id)
+	svc2, err := s.store.Get(s.ctx, svc.ID)
 	t.Assert(err, NotNil)
 	if !datastore.IsErrNoSuchEntity(err) {
 		t.Fatalf("unexpected error type: %v", err)
@@ -57,7 +57,7 @@ func (s *S) Test_ServiceCRUD(t *C) {
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
-	svc2, err = s.store.Get(s.ctx, svc.Id)
+	svc2, err = s.store.Get(s.ctx, svc.ID)
 	t.Assert(err, IsNil)
 
 	t.Assert(svc2.Description, Equals, svc.Description)
@@ -65,10 +65,10 @@ func (s *S) Test_ServiceCRUD(t *C) {
 	t.Assert(svc2.ConfigFiles["testname"], Equals, svc.OriginalConfigs["testname"])
 
 	//test delete
-	err = s.store.Delete(s.ctx, svc.Id)
+	err = s.store.Delete(s.ctx, svc.ID)
 	t.Assert(err, IsNil)
 
-	svc2, err = s.store.Get(s.ctx, svc.Id)
+	svc2, err = s.store.Get(s.ctx, svc.ID)
 	t.Assert(err, NotNil)
 	if !datastore.IsErrNoSuchEntity(err) {
 		t.Fatalf("unexpected error type: %v", err)
@@ -89,8 +89,8 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 1)
 
-	svc.ParentServiceID = svc.Id
-	svc.Id = "Test_GetHosts2"
+	svc.ParentServiceID = svc.ID
+	svc.ID = "Test_GetHosts2"
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
@@ -102,7 +102,7 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 2)
 
-	svc.Id = "Test_GetHosts3"
+	svc.ID = "Test_GetHosts3"
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
