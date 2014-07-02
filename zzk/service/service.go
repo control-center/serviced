@@ -45,12 +45,12 @@ func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = v
 
 // UpdateService updates a service node if it exists, otherwise it creates it
 func UpdateService(conn client.Connection, svc *service.Service) error {
-	if svc.Id == "" {
+	if svc.ID == "" {
 		return fmt.Errorf("service id required")
 	}
 
 	var (
-		spath = servicepath(svc.Id)
+		spath = servicepath(svc.ID)
 		node  = &ServiceNode{Service: svc}
 	)
 
