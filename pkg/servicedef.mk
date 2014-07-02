@@ -10,14 +10,14 @@
 THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 
 #
-# RPM and DEB builder for Zenoss service definitions.
+# RPM and DEB builder for service definitions.
 #
 
 NAME          = servicedef
 FROMVERSION   = 0.3.70
 VERSION       = 1.0.0
 RELEASE_PHASE = 
-SUBPRODUCT    = zenoss-subproduct
+SUBPRODUCT    = subproduct
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot_$(NAME)
 
@@ -42,7 +42,7 @@ endif
 define DESCRIPTION
 These service definitions allow $(SUBPRODUCT) to be instantiated by the
 Zenoss Control Center serviced application into a runtime environment that
-leverages the scalability, performance, and deployent lifecycle associated
+leverages the scalability, performance, and deployment lifecycle associated
 with Docker containers.
 endef
 export DESCRIPTION
