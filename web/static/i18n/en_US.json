@@ -40,6 +40,10 @@
     "start": "Start",
     "stop": "Stop",
 
+    "hosts": "Hosts",
+    "pools": "Pools",
+    "pool": "Pool",
+
     "breadcrumb_deployed": "Deployed Apps",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",
@@ -107,7 +111,7 @@
     "label_host_and_port": "Host and port",
     "label_host_cores": "CPU Cores",
     "label_host_graphs": "Graphs",
-    "label_host_id": "Host",
+    "label_host_id": "Name",
     "label_host_ip_addr": "IP Address",
     "label_host_memory": "Memory",
     "label_host_parent": "Pool ID",

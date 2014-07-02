@@ -31,23 +31,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'Ip', name: 'ip_addresses_ip' }
     ]);
 
-    // groups graphs in twos for use by angular template
-    $scope.staggerGraphs = function(){
-
-        if(!$scope.hosts.current) return;
-
-        var arr = [];
-
-        for(var i = 0; i < $scope.hosts.current.MonitoringProfile.GraphConfigs.length; i++){
-            arr.push([
-                $scope.hosts.current.MonitoringProfile.GraphConfigs[i],
-                $scope.hosts.current.MonitoringProfile.GraphConfigs[++i],
-            ]);
-        }
-
-        return arr;
-    };
-
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
         $scope.editService.config = 'TODO: Implement';
@@ -74,6 +57,13 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         });
     };
 
+    $scope.updateHost = function(){
+        var modifiedHost = $.extend({}, $scope.hosts.current);
+        resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
+            refreshHosts($scope, resourcesService, false, hostCallback);
+        });
+    };
+
     refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
     refreshHosts($scope, resourcesService, true, function() {
         if ($scope.hosts.current) {
@@ -96,15 +86,18 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
-        var id = $scope.hosts.current.ID+'-graph-'+index
+        var id = $scope.hosts.current.ID+'-graph-'+index;
         if (!$scope.drawn[id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;
             }
         }
     };
+
+    // Ensure we have a list of pools and update when the list is ready
+    refreshPools($scope, resourcesService, false);
 }

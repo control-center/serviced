@@ -9,7 +9,10 @@
 
         <div class="vertical-info">
           <label for="host_data_pool">{{'label_host_pool'|translate}}</label>
-          <div id="host_data_pool">{{hosts.current.PoolID}}</div>
+          <select type="text" id="host_data_pool"
+            ng-model="hosts.current.PoolID"
+            ng-options="pool.ID as pool.ID for pool in pools.flattened">
+          </select>
         </div>
 
         <div class="vertical-info">
@@ -36,6 +39,9 @@
           <label for="host_data_ip_addr">{{'label_host_ip_addr'|translate}}</label>
           <div id="host_data_ip_addr">{{hosts.current.IPAddr}}</div>
         </div>
+      </div>
+      <div class="details-actions">     
+        <button class="btn btn-primary" ng-click="updateHost()">{{'btn_save_changes'|translate}}</button>
       </div>
     </div>
 

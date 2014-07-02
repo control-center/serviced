@@ -1,25 +1,18 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
-    <div class="col-xs-6 col-sm-3 flow sidebar-nav" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'"></div>
-    <div class="col-xs-12 col-sm-9 side-flush" 
-         scroll-handler-obj="hosts" scroll-handler-field="scroll" 
-         scroll-size="100" scroll="loadMore()">
-      <div class="top-bar">
-        <div class="search-control pull-right">
-          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>{{'msg_filtering'|translate}} '{{selectedPool}}'</label>
-          <label class="sr-only" for="all_hosts_search">{{'label_hosts_search'|translate}}</label>
-          <input placeholder="{{'placeholder_hosts_search'|translate}}" id="all_hosts_search" type="text" ng-model="hosts.search" class="form-control search" ng-change="filterHosts()"></input>
-          <span class="add-control">
-            <button class="btn-link" ng-click="modalAddHost()">
-              <span class="glyphicon glyphicon-plus-sign"></span>
-              {{'modal_add_host'|translate}}
-            </button>
-          </span>
-        </div>
-        <label class="active">{{'nav_hosts_list'|translate}}</label>
-        <a class="nav-link" href="#/hostsmap">{{'nav_hosts_map'|translate}}</a>
+      <h3 class="pull-left">
+        {{'hosts'|translate}}
+      </h3>
+
+      <div class="control-buttons pull-right">
+        <span class="add-control">
+          <button class="btn-link" ng-click="modalAddHost()">
+            <span class="glyphicon glyphicon-plus-sign"></span>
+            {{'host'|translate}}
+          </button>
+        </span>
       </div>
       <table class="table table-striped side-flush" id="hosts_data">
-        <thead class="light">
+        <thead>
           <tr>
             <th>{{'label_host_id' | translate}}</th>
             <th>{{'label_pool_name'| translate}}</th>
@@ -30,11 +23,8 @@
         </thead>
         <tbody>
           <tr ng-repeat="host in hosts.filtered">
-            <td data-drag="true" ng-model="host" ng-click="clickHost(host.ID)"
-                data-jqyoui-options="{helper: 'clone', revert: 'invalid'}" 
-                jqyoui-draggable="{index: {{$index}}, placeholder: 'keep'}"
-                class="link">{{host.Name}}</td>
-            <td>{{host.fullPath}}</td>
+            <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
+            <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
             <td>{{host.Memory | toGB}}</td>
             <td>{{host.Cores}}</td>
             <td>{{host.KernelVersion}}</td>

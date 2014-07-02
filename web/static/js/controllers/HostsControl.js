@@ -35,16 +35,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         };
     };
 
-    $scope.addSubpool = function(poolID) {
-        $scope.newPool.ParentId = poolID;
-        $('#addPool').modal('show');
-    };
-    $scope.delSubpool = function(poolID) {
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-
     $scope.modalAddHost = function() {
         $('#addHost').modal('show');
     };
@@ -56,38 +46,12 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'Priority', name: 'Priority'}
     ]);
 
-    var clearLastStyle = function() {
-        var lastPool = $scope.pools.mapped[$scope.selectedPool];
-        if (lastPool) {
-            lastPool.current = false;
-        }
-    };
-
-    $scope.clearSelectedPool = function() {
-        clearLastStyle();
-        $scope.selectedPool = null;
-        $scope.subPools = null;
-        hostCallback();
-    };
-
     $scope.clickHost = function(hostId) {
         $location.path('/hosts/' + hostId);
     };
 
     $scope.clickPool = function(poolID) {
-        var topPool = $scope.pools.mapped[poolID];
-        if (!topPool || $scope.selectedPool === poolID) {
-            $scope.clearSelectedPool();
-            return;
-        }
-        clearLastStyle();
-        topPool.current = true;
-
-        var allowed = {};
-        addChildren(allowed, topPool);
-        $scope.subPools = allowed;
-        $scope.selectedPool = poolID;
-        hostCallback();
+        $location.path('/pools/' + poolID);
     };
 
     $scope.dropped = [];
@@ -157,43 +121,16 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         });
     };
 
-    // Function for adding new pools
-    $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.ID, $scope.params.poolID);
-        resourcesService.add_pool($scope.newPool, function(data) {
-            // After adding, refresh our list
-            refreshPools($scope, resourcesService, false);
-        });
-        // Reset for another add
-        $scope.newPool = {};
-    };
-
-    // Function for removing the current pool
-    $scope.remove_pool = function() {
-        console.log('Removing pool %s', $scope.params.poolID);
-        resourcesService.remove_pool($scope.params.poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-
     // Build metadata for displaying a list of hosts
     $scope.hosts = buildTable('Name', [
         { id: 'Name', name: 'Name'},
         { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
 
-    $scope.clickMenu = function(index) {
-        $('#pool_menu_' + index).addClass('tempvis');
-        setTimeout(function() {
-            $('#pool_menu_' + index).removeClass('tempvis');
-        }, 600);
-    };
-
     var hostCallback = function() {
         $scope.hosts.page = 1;
         $scope.hosts.pageSize = 10;
         $scope.filterHosts();
-        $timeout($scope.hosts.scroll, 100);
     };
 
     // Ensure we have a list of pools
