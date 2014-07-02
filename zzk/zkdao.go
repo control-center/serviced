@@ -134,7 +134,20 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 		return err
 	}
 	defer conn.Close()
-	return zkservice.UpdateService(conn, service)
+
+	servicepath := ServicePath(service.Id)
+
+	sn := zkservice.ServiceNode{}
+	if err := conn.Get(servicepath, &sn); err != nil {
+		glog.V(3).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error: %v", servicepath, err)
+		err = AddService(conn, service)
+		return err
+	}
+
+	sn.Service = service
+	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicepath, service)
+
+	return conn.Set(servicepath, &sn)
 }
 
 func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
