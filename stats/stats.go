@@ -131,7 +131,9 @@ func (sr StatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("memory.free", sr.hostRegistry).Update(int64(meminfo.MemFree))
 	metrics.GetOrRegisterGauge("memory.buffers", sr.hostRegistry).Update(int64(meminfo.Buffers))
 	metrics.GetOrRegisterGauge("memory.cached", sr.hostRegistry).Update(int64(meminfo.Cached))
-	metrics.GetOrRegisterGauge("memory.used", sr.hostRegistry).Update(int64(int64(meminfo.MemTotal) - (int64(meminfo.MemFree) - int64(meminfo.Buffers) + int64(meminfo.Cached))))
+	actualFree := int64(meminfo.MemFree) + int64(meminfo.Buffers) + int64(meminfo.Cached)
+	metrics.GetOrRegisterGauge("memory.actualfree", sr.hostRegistry).Update(actualFree)
+	metrics.GetOrRegisterGauge("memory.actualused", sr.hostRegistry).Update(int64(meminfo.MemTotal) - actualFree)
 	metrics.GetOrRegisterGauge("swap.total", sr.hostRegistry).Update(int64(meminfo.SwapTotal))
 	metrics.GetOrRegisterGauge("swap.free", sr.hostRegistry).Update(int64(meminfo.SwapFree))
 
