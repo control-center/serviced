@@ -20,7 +20,7 @@ type ServiceDefinition struct {
 	Tags              []string               // Searchable service tags
 	ImageID           string                 // Docker image hosting the service
 	Instances         domain.MinMax          // Constraints on the number of instances
-	ChangeOptions 	  []string               // Control options for what happens when a running service is changed
+	ChangeOptions     []string               // Control options for what happens when a running service is changed
 	Launch            string                 // Must be "AUTO", the default, or "MANUAL"
 	HostPolicy        HostPolicy             // Policy for starting up instances
 	Hostname          string                 // Optional hostname which should be set on run
