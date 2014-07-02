@@ -23,11 +23,11 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 
 	// Create the service
 	svc := &service.Service{
-		Id:        "test-service-1",
+		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
 	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.Id, err)
+		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
 
 	// Create a host
@@ -40,9 +40,9 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 		// Create a service instance
 		state, err := servicestate.BuildFromService(svc, host.ID)
 		if err != nil {
-			t.Fatalf("Could not generate instance from service %s", svc.Id)
+			t.Fatalf("Could not generate instance from service %s", svc.ID)
 		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s", state.Id, state.ServiceID)
+			t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 		}
 		states = append(states, state)
 	}
@@ -78,14 +78,14 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	}
 
 	for _, state := range states {
-		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.Id)); err != nil {
-			t.Fatalf("Could not check existance of host state %s: %s", state.Id, err)
+		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+			t.Fatalf("Could not check existance of host state %s: %s", state.ID, err)
 		} else if exists {
-			t.Fatal("State still exists for host state ", state.Id)
-		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.Id)); err != nil {
-			t.Fatalf("Could not check existance of service state %s: %s", state.Id, err)
+			t.Fatal("State still exists for host state ", state.ID)
+		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+			t.Fatalf("Could not check existance of service state %s: %s", state.ID, err)
 		} else if exists {
-			t.Fatal("State still exists for service state ", state.Id)
+			t.Fatal("State still exists for service state ", state.ID)
 		}
 	}
 
@@ -171,11 +171,11 @@ func TestHostRegistryListener_unregister(t *testing.T) {
 
 	// Create the service
 	svc := &service.Service{
-		Id:        "test-service-1",
+		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
 	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.Id, err)
+		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
 
 	// Add some instances
@@ -184,9 +184,9 @@ func TestHostRegistryListener_unregister(t *testing.T) {
 		// Create a service instance
 		state, err := servicestate.BuildFromService(svc, host.ID)
 		if err != nil {
-			t.Fatalf("Could not generate instance from service %s: %s", svc.Id, err)
+			t.Fatalf("Could not generate instance from service %s: %s", svc.ID, err)
 		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s: %s", state.Id, state.ServiceID, err)
+			t.Fatalf("Could not add instance %s from service %s: %s", state.ID, state.ServiceID, err)
 		}
 		states = append(states, state)
 	}
