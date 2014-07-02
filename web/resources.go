@@ -264,7 +264,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	for _, service := range allServices {
-		if service.Id == sid {
+		if service.ID == sid {
 			w.WriteJson(&service)
 			return
 		}

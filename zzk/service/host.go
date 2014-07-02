@@ -37,7 +37,7 @@ func NewHostState(state *servicestate.ServiceState) *HostState {
 	return &HostState{
 		HostID:         state.HostID,
 		ServiceID:      state.ServiceID,
-		ServiceStateID: state.Id,
+		ServiceStateID: state.ID,
 		DesiredState:   service.SVCRun,
 	}
 }
@@ -291,23 +291,23 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
-	if state.Id == "" {
+	if state.ID == "" {
 		return fmt.Errorf("missing service state id")
 	} else if state.ServiceID == "" {
 		return fmt.Errorf("missing service id")
 	}
 
 	var (
-		spath = servicepath(state.ServiceID, state.Id)
+		spath = servicepath(state.ServiceID, state.ID)
 		node  = &ServiceStateNode{ServiceState: state}
 	)
 
 	if err := conn.Create(spath, node); err != nil {
 		return err
-	} else if err := conn.Create(hostpath(state.HostID, state.Id), NewHostState(state)); err != nil {
+	} else if err := conn.Create(hostpath(state.HostID, state.ID), NewHostState(state)); err != nil {
 		// try to clean up if create fails
 		if err := conn.Delete(spath); err != nil {
-			glog.Warningf("Could not remove service instance %s: %s", state.Id, err)
+			glog.Warningf("Could not remove service instance %s: %s", state.ID, err)
 		}
 		return err
 	}

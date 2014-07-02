@@ -68,12 +68,12 @@ func (zkdao *ZkDao) AddService(service *service.Service) error {
 }
 
 func AddService(conn coordclient.Connection, service *service.Service) error {
-	glog.V(2).Infof("Creating new service %s", service.Id)
+	glog.V(2).Infof("Creating new service %s", service.ID)
 
 	svcNode := &zkservice.ServiceNode{
 		Service: service,
 	}
-	servicePath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 	if err := conn.Create(servicePath, svcNode); err != nil {
 		glog.Errorf("Unable to create service for %s: %v", servicePath, err)
 	}
@@ -93,7 +93,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 
 	serviceStateNode := &zkservice.ServiceStateNode{
 		ServiceState: state,
@@ -103,7 +103,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
-	hostServicePath := HostServiceStatePath(state.HostID, state.Id)
+	hostServicePath := HostServiceStatePath(state.HostID, state.ID)
 	hss := SsToHss(state)
 	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
@@ -119,7 +119,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	}
 	defer conn.Close()
 
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 	ssn := zkservice.ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
@@ -135,19 +135,19 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	}
 	defer conn.Close()
 
-	servicepath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 
 	sn := zkservice.ServiceNode{}
-	if err := conn.Get(servicepath, &sn); err != nil {
-		glog.V(3).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error: %v", servicepath, err)
+	if err := conn.Get(servicePath, &sn); err != nil {
+		glog.V(3).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error: %v", servicePath, err)
 		err = AddService(conn, service)
 		return err
 	}
 
 	sn.Service = service
-	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicepath, service)
+	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicePath, service)
 
-	return conn.Set(servicepath, &sn)
+	return conn.Set(servicePath, &sn)
 }
 
 func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
@@ -492,7 +492,7 @@ func SsToHss(ss *servicestate.ServiceState) *zkservice.HostState {
 	return &zkservice.HostState{
 		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
-		ServiceStateID: ss.Id,
+		ServiceStateID: ss.ID,
 		DesiredState:   service.SVCRun,
 	}
 }

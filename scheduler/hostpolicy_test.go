@@ -51,7 +51,7 @@ func (t *TestHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
 }
 
 func (t *TestHostInfo) addServiceToHost(svc *service.Service, h *host.Host) {
-	t.services[h] = append(t.services[h], svc.Id)
+	t.services[h] = append(t.services[h], svc.ID)
 }
 
 func TestLeastCommitted(t *testing.T) {

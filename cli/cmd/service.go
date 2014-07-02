@@ -167,7 +167,7 @@ func (c *ServicedCli) services() (data []string) {
 
 	data = make([]string, len(svcs))
 	for i, s := range svcs {
-		data[i] = s.Id
+		data[i] = s.ID
 	}
 
 	return
@@ -309,7 +309,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 				id[1] = id[1][:7] + "..."
 				imageID = strings.Join(id, "/")
 			}
-			return append(row, s.Name, s.Id, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
+			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
 		})
 		tableService.flush()
 	}
@@ -338,7 +338,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
-		fmt.Println(service.Id)
+		fmt.Println(service.ID)
 	}
 }
 
@@ -389,7 +389,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	name := fmt.Sprintf("serviced_service_edit_%s", service.Id)
+	name := fmt.Sprintf("serviced_service_edit_%s", service.ID)
 	reader, err := openEditor(jsonService, name, ctx.String("editor"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -401,7 +401,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
 	} else {
-		fmt.Println(service.Id)
+		fmt.Println(service.ID)
 	}
 }
 
@@ -621,7 +621,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		}
 
 		switch keyword {
-		case rs.ServiceID, rs.Name, rs.Id, rs.DockerID:
+		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
