@@ -81,6 +81,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		err := client.GetService(svcID, &s)
 		return s, err
 	}
+
 	if err := svc.EvaluateRunsTemplate(getSvc); err != nil {
 		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.Id, svc.Runs, err)
 	}

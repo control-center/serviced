@@ -72,6 +72,7 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 		err := controlClient.GetService(svcID, &svc)
 		return svc, err
 	}
+
 	return response.Evaluate(getSvc, 0)
 }
 
@@ -93,6 +94,7 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 		err := controlClient.GetService(svcID, &svc)
 		return svc, err
 	}
+
 	return response.Evaluate(getSvc, req.InstanceID)
 }
 

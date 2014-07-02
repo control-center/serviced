@@ -176,6 +176,7 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 		err := cp.GetService(svcID, &svc)
 		return svc, err
 	}
+
 	return s.Evaluate(getSvc, svcState.InstanceID)
 }
 

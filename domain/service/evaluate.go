@@ -12,6 +12,16 @@ import (
 	"text/template"
 )
 
+// numinstances looks up the number of instances of the application string specified
+func numinstances(svc *Service, getAppInsts GetApplicationInstances) func(application string) int {
+	return func(application string) int {
+		glog.Infof("Looking up instances for app %s", application)
+		i, _ := getAppInsts(svc.Id, application)
+		glog.Infof("Found %d instances", i)
+		return i
+	}
+}
+
 func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
 	rc := &runtimeContext{}
 	return func(svc *runtimeContext) (*runtimeContext, error) {
@@ -98,6 +108,7 @@ func (service *Service) evaluateTemplate(gs GetService, instanceID int, serviceT
 		"bytesToMB":    bytesToMB,
 		"plus":         plus,
 		"each":         each,
+		//"numinstances": numinstances(service),
 	}
 
 	glog.Infof("Evaluating template string %v", serviceTemplate)
@@ -241,11 +252,17 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 	}
 }
 
+// GetApplicationInstances simply returns the number of instances per
+// application imported by the given service.  This is for a very specific
+// purpose (support of the `numinstances` template function) and should be
+// reworked to be more generally useful, but that would involve a considerable
+// refactoring of this code which would be inadvisable at this late stage.
+type GetApplicationInstances func(svcID, app string) (int, error)
+
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
 func (service *Service) Evaluate(getSvc GetService, instanceID int) error {
-
 	if err := service.EvaluateEndpointTemplates(getSvc); err != nil {
 		glog.Errorf("%+v", err)
 		return err
