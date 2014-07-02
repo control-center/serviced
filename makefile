@@ -367,7 +367,7 @@ docker_buildandpackage: docker_ok
 		BUILD_NUMBER=$(BUILD_NUMBER) \
 		RELEASE_PHASE=$(RELEASE_PHASE) \
 		SUBPRODUCT=$(SUBPRODUCT) \
-		pkgs
+		build pkgs
 
 #---------------------#
 # Test targets        #

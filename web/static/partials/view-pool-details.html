@@ -44,7 +44,7 @@
     </button>
   </span>
 </div>
-<table class="table table-striped table-bordered table-hover side-flush">
+<table class="table table-striped side-flush">
   <thead>
     <tr>
       <th ng-repeat="header in virtual_ip_addresses.headers">{{header.name|translate}}</th>
@@ -55,7 +55,7 @@
       <td>{{address.IP}}</td>
       <td>{{address.Netmask}}</td>
       <td>{{address.BindInterface}}</td>
-      <td> <button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link">{{'label_delete'|translate}}</button> </td>
+      <td><button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button> </td>
     </tr>
   </tbody>
 </table>

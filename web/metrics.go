@@ -11,7 +11,7 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
-	profile = domain.MonitorProfile{
+	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//CPU
 			domain.MetricConfig{
@@ -36,7 +36,8 @@ var (
 					domain.Metric{ID: "memory.cached", Name: "Memory Cache"},
 					domain.Metric{ID: "memory.free", Name: "Memory Free"},
 					domain.Metric{ID: "memory.total", Name: "Total Memory"},
-					domain.Metric{ID: "memory.used", Name: "Used Memory"},
+					domain.Metric{ID: "memory.actualfree", Name: "Actual Free Memory"},
+					domain.Metric{ID: "memory.actualused", Name: "Actual Used Memory"},
 					domain.Metric{ID: "swap.total", Name: "Total Swap"},
 					domain.Metric{ID: "swap.free", Name: "Free Swap"},
 				},
@@ -197,10 +198,10 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 				Color:        "#aec7e8",
 				Fill:         true,
 				Format:       "%6.2f",
-				Legend:       "Used",
-				Metric:       "memory.used",
+				Legend:       "Used (total - free)",
+				Metric:       "memory.actualused",
 				MetricSource: "memory",
-				Name:         "RSS",
+				Name:         "Used",
 				Type:         "area",
 				ID:           "used",
 			},
@@ -210,8 +211,8 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 				Color:        "#98df8a",
 				Fill:         true,
 				Format:       "%6.2f",
-				Legend:       "Cache",
-				Metric:       "memory.free",
+				Legend:       "Free (-buffers/+cached)",
+				Metric:       "memory.actualfree",
 				MetricSource: "memory",
 				Name:         "Free",
 				ID:           "Memory",
@@ -233,34 +234,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		Type:        "line",
 		DownSample:  "1m-avg",
 		Tags:        tags,
-		Description: "Graph of memory free vs used over time",
+		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
 	}
-}
-
-//newProfile builds a MonitoringProfile without graphs
-func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
-	p := domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
-	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		return p, err
-	}
-
-	//add metrics to profile
-	for i := range profile.MetricConfigs {
-		metricConfig := &profile.MetricConfigs[i]
-		for j := range metricConfig.Metrics {
-			metric := &metricConfig.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTags(tags)
-		}
-
-		config, err := build.Config(metricConfig.ID, metricConfig.Name, metricConfig.Description, "1h-ago")
-		if err != nil {
-			return p, err
-		}
-		p.MetricConfigs[i] = *config
-	}
-	return p, nil
 }
