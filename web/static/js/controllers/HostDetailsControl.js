@@ -60,7 +60,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.updateHost = function(){
         var modifiedHost = $.extend({}, $scope.hosts.current);
         resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, hostCallback);
+            refreshHosts($scope, resourcesService, false);
         });
     };
 
