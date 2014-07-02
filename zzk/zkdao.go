@@ -83,23 +83,10 @@ func (zkdao *ZkDao) AddService(service *service.Service) error {
 	return AddService(conn, service)
 }
 
-type ServiceNode struct {
-	Service *service.Service
-	version interface{}
-}
-
-func (s *ServiceNode) Version() interface{} {
-	return s.version
-}
-
-func (s *ServiceNode) SetVersion(version interface{}) {
-	s.version = version
-}
-
 func AddService(conn coordclient.Connection, service *service.Service) error {
 	glog.V(2).Infof("Creating new service %s", service.Id)
 
-	svcNode := &ServiceNode{
+	svcNode := &zkservice.ServiceNode{
 		Service: service,
 	}
 	servicePath := ServicePath(service.Id)
@@ -176,19 +163,7 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 		return err
 	}
 	defer conn.Close()
-
-	servicePath := ServicePath(service.Id)
-
-	sn := ServiceNode{}
-	if err := conn.Get(servicePath, &sn); err != nil {
-		glog.V(3).Infof("ZkDao.UpdateService unexpectedly could not retrieve %s error:%v", servicePath, err)
-		err = AddService(conn, service)
-		return err
-	}
-	sn.Service = service
-	glog.V(4).Infof("ZkDao.UpdateService %v, %v", servicePath, service)
-
-	return conn.Set(servicePath, &sn)
+	return zkservice.UpdateService(conn, service)
 }
 
 func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
@@ -415,7 +390,7 @@ func LoadHostServiceStateW(conn coordclient.Connection, hostId string, hssId str
 }
 
 func LoadService(conn coordclient.Connection, serviceId string, s *service.Service) error {
-	sn := ServiceNode{}
+	sn := zkservice.ServiceNode{}
 	err := conn.Get(ServicePath(serviceId), &sn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
@@ -426,7 +401,7 @@ func LoadService(conn coordclient.Connection, serviceId string, s *service.Servi
 }
 
 func LoadServiceW(conn coordclient.Connection, serviceId string, s *service.Service) (<-chan coordclient.Event, error) {
-	sn := ServiceNode{}
+	sn := zkservice.ServiceNode{}
 	event, err := conn.GetW(ServicePath(serviceId), &sn)
 	if err != nil {
 		//glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
@@ -494,7 +469,7 @@ func LoadAndUpdateServiceState(conn coordclient.Connection, serviceId string, ss
 func loadAndUpdateService(conn coordclient.Connection, serviceId string, mutator serviceMutator) error {
 	servicePath := ServicePath(serviceId)
 
-	serviceNode := ServiceNode{}
+	serviceNode := zkservice.ServiceNode{}
 	err := conn.Get(servicePath, &serviceNode)
 	if err != nil {
 		glog.Errorf("Unable to find data %s: %v", servicePath, err)
