@@ -35,7 +35,7 @@ var (
 					domain.Metric{ID: "memory.buffers", Name: "Memory Buffer"},
 					domain.Metric{ID: "memory.cached", Name: "Memory Cache"},
 					domain.Metric{ID: "memory.free", Name: "Memory Free"},
-					domain.Metric{ID: "memory.used", Name: "Used Memory"},
+					domain.Metric{ID: "memory.total", Name: "Total Memory"},
 					domain.Metric{ID: "memory.actualfree", Name: "Actual Free Memory"},
 					domain.Metric{ID: "memory.actualused", Name: "Actual Used Memory"},
 					domain.Metric{ID: "swap.total", Name: "Total Swap"},
