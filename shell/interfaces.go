@@ -23,6 +23,7 @@ type ProcessConfig struct {
 	IsTTY     bool
 	SaveAs    string
 	Envv      []string
+	Mount	  []string
 	Command   string
 }
 

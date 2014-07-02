@@ -6,7 +6,7 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.params = $routeParams;
 
     $scope.breadcrumbs = [
-        { label: 'breadcrumb_pools', itemClass: 'active'}
+        { label: 'breadcrumb_pools', url: '#/pools' }
     ];
 
     // Build metadata for displaying a pool's virtual ips
@@ -48,7 +48,7 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, true, function() {
         if ($scope.pools.current) {
-            $scope.breadcrumbs.push({label: $scope.pools.current.Id, itemClass: 'active'});
+            $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
         }
     });
 }

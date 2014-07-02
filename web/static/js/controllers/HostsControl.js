@@ -54,7 +54,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'Id', name: 'Id'},
         { id: 'ParentId', name: 'Parent Id'},
         { id: 'Priority', name: 'Priority'}
-    ])
+    ]);
 
     var clearLastStyle = function() {
         var lastPool = $scope.pools.mapped[$scope.selectedPool];

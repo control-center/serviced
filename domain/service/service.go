@@ -145,29 +145,14 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		svc.Endpoints = append(svc.Endpoints, ServiceEndpoint{EndpointDefinition: ep})
 	}
 
-	svc.MonitoringProfile = domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(sd.Metrics)),
+	tags := map[string][]string{
+		"controlplane_service_id": []string{svc.Id},
 	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	profile, err := sd.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		return nil, err
 	}
-
-	for i := range sd.Metrics {
-		metricGroup := &sd.Metrics[i]
-		for j := range metricGroup.Metrics {
-			metric := metricGroup.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTag("controlplane_service_id", svc.Id)
-		}
-
-		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
-		if err != nil {
-			return nil, err
-		}
-
-		svc.MonitoringProfile.MetricConfigs[i] = *config
-	}
+	svc.MonitoringProfile = *profile
 
 	return &svc, nil
 }
