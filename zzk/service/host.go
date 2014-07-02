@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
@@ -223,17 +224,39 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 	}
 }
 
+func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servicestate.ServiceState) (<-chan interface{}, error) {
+	wait := make(chan interface{})
+	go func(path string) {
+		defer close(wait)
+		<-done
+		var s servicestate.ServiceState
+		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
+			glog.Errorf("Could not get service state %s: %s", state.Id, err)
+			return
+		}
+
+		s.Terminated = time.Now()
+		if err := updateInstance(l.conn, &s); err != nil {
+			glog.Errorf("Could not update the service instance %s with the time terminated (%s): %s", s.Id, s.Terminated.UnixNano(), err)
+			return
+		}
+	}(servicepath(state.ServiceID, state.Id))
+
+	return wait, updateInstance(l.conn, state)
+}
+
 func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
 	done := make(chan interface{})
 	if err := l.handler.StartService(done, svc, state); err != nil {
 		return nil, err
 	}
 
-	if err := updateInstance(l.conn, state); err != nil {
+	wait, err := l.updateInstance(done, state)
+	if err != nil {
 		return nil, err
 	}
 
-	return done, nil
+	return wait, nil
 }
 
 func (l *HostStateListener) attachInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
@@ -242,14 +265,16 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 		return nil, err
 	}
 
-	if err := updateInstance(l.conn, state); err != nil {
+	wait, err := l.updateInstance(done, state)
+	if err != nil {
 		return nil, err
 	}
 
-	return done, nil
+	return wait, nil
 }
 
 func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error {
+	glog.Info("Stopping instance")
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
@@ -257,6 +282,7 @@ func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error
 }
 
 func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
+	glog.Info("Detaching instance")
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
@@ -301,6 +327,7 @@ func removeInstance(conn client.Connection, hostID, ssID string) error {
 	} else if err := conn.Delete(servicepath(hs.ServiceID, hs.ServiceStateID)); err != nil {
 		return err
 	}
+	glog.Info(hostpath(hostID, ssID), " ", servicepath(hs.ServiceID, hs.ServiceStateID))
 	return nil
 }
 

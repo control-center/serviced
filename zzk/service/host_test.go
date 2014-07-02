@@ -60,15 +60,6 @@ func (handler *TestHostHandler) StopService(state *servicestate.ServiceState) er
 	return nil
 }
 
-func (handler *TestHostHandler) CheckInstance(state *servicestate.ServiceState) error {
-	if s, ok := handler.states[state.Id]; ok {
-		*state = *s
-		return nil
-	}
-
-	return fmt.Errorf("instance %s not found", state.Id)
-}
-
 func (handler *TestHostHandler) UpdateInstance(state *servicestate.ServiceState) error {
 	if _, ok := handler.states[state.Id]; ok {
 		handler.states[state.Id] = state
