@@ -9,6 +9,8 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
+	zeroInt64 int64 = 0
+
 	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//CPU
@@ -60,6 +62,23 @@ var (
 				Description: "File Statistics",
 				Metrics: []domain.Metric{
 					domain.Metric{ID: "Serviced.OpenFileDescriptors", Name: "OpenFileDescriptors"},
+				},
+			},
+		},
+		ThresholdConfigs: []domain.ThresholdConfig{
+			domain.ThresholdConfig{
+				ID:           "swap.empty",
+				Name:         "Swap empty",
+				Description:  "Alert when swap reaches zero",
+				MetricSource: "memory",
+				MetricID:     "swap.free",
+				Type:         "MinMax",
+				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
+				EventTags: map[string]interface{}{
+					"Severity":    1,
+					"Resolution":  "Increase swap or memory",
+					"Explanation": "Ran out of swap space",
+					"EventClass":  "/Memory",
 				},
 			},
 		},
