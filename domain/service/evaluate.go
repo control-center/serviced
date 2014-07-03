@@ -120,7 +120,6 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 		"bytesToMB":    bytesToMB,
 		"plus":         plus,
 		"each":         each,
-		//"numinstances": numinstances(service),
 	}
 
 	glog.Infof("Evaluating template string %v", serviceTemplate)

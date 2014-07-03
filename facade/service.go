@@ -241,6 +241,15 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 	return result, nil
 }
 
+// foundchild is an error used exclusively to short-circuit the service walking
+// when an appropriate child has been found
+type foundchild bool
+
+// Satisfy the error interface
+func (f foundchild) Error() string {
+	return ""
+}
+
 // FindChildService walks services below the service specified by serviceId, checking to see
 // if childName matches the service's name. If so, it returns it.
 func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
@@ -249,12 +258,16 @@ func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, child
 	visitor := func(svc *service.Service) error {
 		if svc.Name == childName {
 			child = svc
-			return nil
+			// Short-circuit the rest of the walk
+			return foundchild(true)
 		}
-		return fmt.Errorf("No service named %s found", childName)
+		return nil
 	}
 	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
-		return nil, err
+		// If err is a foundchild we're just short-circuiting; otherwise it's a real err, pass it on
+		if _, ok := err.(foundchild); !ok {
+			return nil, err
+		}
 	}
 	return child, nil
 }
