@@ -36,6 +36,7 @@ type Service struct {
 	ConfigFiles       map[string]servicedefinition.ConfigFile
 	Instances         int
 	InstanceLimits    domain.MinMax
+	ChangeOptions     []string
 	ImageID           string
 	PoolID            string
 	DesiredState      int
@@ -117,6 +118,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
+	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID
 	svc.PoolID = poolID
 	svc.DesiredState = desiredState
