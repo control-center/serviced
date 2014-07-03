@@ -337,7 +337,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(0).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
-	maxId := len(serviceStates)-numToKill-1
+	maxId := len(serviceStates) - numToKill - 1
 	for i := 0; i < len(serviceStates); i++ {
 		if serviceStates[i].InstanceId > maxId {
 			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
