@@ -192,11 +192,6 @@ func exportDockerImageToFile(imageID, filename string) error {
 		}
 	}()
 
-	exportOpts := dockerclient.ExportContainerOptions{
-		ID:           container.ID,
-		OutputStream: file,
-	}
-
 	if err = container.Export(file); err != nil {
 		glog.Errorf("Could not export container %s: %v", container.ID, err)
 		return err
@@ -219,13 +214,7 @@ func repoAndTag(imageID string) (string, string) {
 }
 
 func importDockerImageFromFile(imageID, filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	if err = docker.ImportImage(imageID, file); err != nil {
+	if err := docker.ImportImage(imageID, filename); err != nil {
 		return err
 	}
 	return nil
@@ -374,14 +363,6 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Export each of the referenced docker images
-	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
-	if e != nil {
-		glog.Errorf("Could not connect to docker: %v", e)
-		backupError <- e.Error()
-		return e
-	}
-	// Note: client does not need to be .Close()'d
-
 	imageNameIds, e := getDockerImageNameIds()
 	if e != nil {
 		glog.Errorf("Could not get image tags from docker: %v", e)
