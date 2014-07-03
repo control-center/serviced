@@ -112,18 +112,15 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 		"each":         each,
 	}
 
-	glog.Infof("Evaluating template string %v", serviceTemplate)
 	// parse the template
 	t := template.Must(template.New("ServiceDefinitionTemplate").Funcs(functions).Parse(serviceTemplate))
 
 	// evaluate it
 	var buffer bytes.Buffer
 	ctx := newRuntimeContext(service, instanceID)
-	glog.Infof("Using runtime context: %+v", ctx)
 	err := t.Execute(&buffer, ctx)
 	if err == nil {
 		result := buffer.String()
-		glog.Infof("Evaluated to:\n%s", result)
 		return result
 	}
 
