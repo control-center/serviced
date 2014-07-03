@@ -434,6 +434,31 @@ func Images() ([]*Image, error) {
 	}
 }
 
+// ImportImage creates a new image in the local repository from a file system archive.
+func ImportImage(repotag, filename string) error {
+	ec := make(chan error)
+
+	cmds.ImageImport <- impimgreq{
+		request{ec},
+		struct {
+			repotag  string
+			filename string
+		}{repotag, filename},
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
 // FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {

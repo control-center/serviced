@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -15,6 +18,7 @@ const (
 	bogusimage = "iam/bogus:zenoss"
 	rawbase    = "busybox:latest"
 	basetag    = "localhost:5000/testimageapi/busybox:latest"
+	imptag     = "testimageapi/imported:latest"
 	snaptag    = "localhost:5000/testimageapi/busybox:snapshot"
 	victim     = "localhost:5000/testimageapi/busybox:victim"
 )
@@ -79,9 +83,25 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 		break
 	}
 
-	cmd = []string{"docker", "export", s.regid, "/tmp/regexp.tar"}
-	if err = exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
-		panic("can't export registry container for import testing: ", err)
+	exportcmd := exec.Command("docker", "export", s.regid)
+	stdout, err := exportcmd.StdoutPipe()
+	if err != nil {
+		panic(fmt.Errorf("can't create pipe for docker export: %v", err))
+	}
+
+	if err = exportcmd.Start(); err != nil {
+		panic(fmt.Errorf("can't start docker export command: %v", err))
+	}
+
+	f, err := os.Create("/tmp/regexp.tar")
+	if err != nil {
+		panic(fmt.Errorf("can't create /tmp/regexp.tar: %v", err))
+	}
+
+	go io.Copy(f, stdout)
+
+	if err = exportcmd.Wait(); err != nil {
+		panic(fmt.Errorf("waiting for docker export to finish failed: %v", err))
 	}
 }
 
@@ -91,7 +111,13 @@ func (s *ImageTestSuite) TearDownSuite(c *C) {
 		panic("can't kill the registry")
 	}
 
+	cmd = []string{"docker", "rm", s.regid}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+
 	cmd = []string{"docker", "rmi", basetag}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+
+	cmd = []string{"docker", "rmi", imptag}
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
 	cmd = []string{"docker", "rmi", snaptag}
@@ -201,5 +227,21 @@ func (s *ImageTestSuite) TestFindThruLocalRepository(c *C) {
 	_, err = FindImage(basetag, true)
 	if err != nil {
 		c.Errorf("can't find %s in local registry: %v", basetag, err)
+	}
+}
+
+func (s *ImageTestSuite) TestImportImage(c *C) {
+	_, err := FindImage(imptag, false)
+	if err == nil {
+		c.Errorf("%s should not be in the repo", imptag)
+	}
+
+	if err = ImportImage(imptag, "/tmp/regexp.tar"); err != nil {
+		c.Errorf("can't import %s: %v", imptag, err)
+	}
+
+	_, err = FindImage(imptag, false)
+	if err != nil {
+		c.Errorf("can't find imported image (%s): %v", imptag, err)
 	}
 }

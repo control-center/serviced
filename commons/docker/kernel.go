@@ -87,7 +87,12 @@ type exportreq struct {
 	}
 }
 
-type imgimportreq struct {
+type impimgreq struct {
+	request
+	args struct {
+		repotag  string
+		filename string
+	}
 }
 
 type imglistreq struct {
@@ -197,6 +202,7 @@ var (
 		Delete          chan deletereq
 		DeleteImage     chan delimgreq
 		Export          chan exportreq
+		ImageImport     chan impimgreq
 		ImageList       chan imglistreq
 		Inspect         chan inspectreq
 		Kill            chan killreq
@@ -217,6 +223,7 @@ var (
 		make(chan deletereq),
 		make(chan delimgreq),
 		make(chan exportreq),
+		make(chan impimgreq),
 		make(chan imglistreq),
 		make(chan inspectreq),
 		make(chan killreq),
@@ -340,6 +347,34 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			// TODO: this may need to be shifted to the scheduler, exporting takes some time
 			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
 			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+		case req := <-cmds.ImageImport:
+			// TODO: this may need to be shifted to the scheduler, importing takes some time
+			f, err := os.Open(req.args.filename)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			defer f.Close()
+
+			iid, err := commons.ParseImageID(req.args.repotag)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			opts := dockerclient.ImportImageOptions{
+				Repository:  iid.BaseName(),
+				Source:      "-",
+				InputStream: f,
+				Tag:         iid.Tag,
+			}
+
+			if err = dc.ImportImage(opts); err != nil {
 				req.errchan <- err
 				continue
 			}
