@@ -1,6 +1,7 @@
-'use strict';
+/* global: $ */
 
 (function() {
+    'use strict';
 
     /**
      * @ngdoc overview
@@ -25,7 +26,7 @@
         function Notification(id, title, msg, $attachPoint){
             this.id = id;
             this.$el = $($templateCache.get("notification.html"));
-            this.$status = this.$el.find(".notification");
+            this.$message = this.$el.find(".message");
             this.$title = this.$el.find(".title");
             this.title = title;
             this.msg = msg;
@@ -110,7 +111,7 @@
             // updates the status message (the smaller text)
             updateStatus: function(msg){
                 this.msg = msg || "";
-                this.$status.html(this.msg);
+                this.$message.html(this.msg);
                 return this;
             },
 
@@ -122,6 +123,15 @@
             },
 
             show: function(autoclose){
+                var navWidth = $(".navbar-zen").outerWidth(),
+                    windowWidth = $(window).width();
+
+                // size and position based on nav width
+                this.$el.css({
+                    "width": navWidth + "px",
+                    "left": (windowWidth * 0.5) - (navWidth * 0.5)
+                });
+
                 this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
@@ -133,7 +143,7 @@
 
                 return this;
             }
-        }
+        };
 
         function NotificationFactory(){
             this.$storage = JSON.parse(localStorage.getItem('messages')) || [];
@@ -148,7 +158,7 @@
                     }
                 }.bind(this));
             }
-        };
+        }
 
         NotificationFactory.prototype = {
             constructor: NotificationFactory,
@@ -171,7 +181,7 @@
             },
 
             store: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
                 if(this.$storage.unshift(storable) > 10){
                     this.$storage.pop();
@@ -182,7 +192,7 @@
             },
 
             update: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
