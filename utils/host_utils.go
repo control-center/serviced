@@ -43,6 +43,28 @@ func GetIPAddress() (ip string, err error) {
 	}
 }
 
+// GetIPAddresses returns a list of all IPv4 interface addresses
+func GetIPv4Addresses() (ips []string, err error) {
+	ips = []string{}
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("unable to use InterfaceAddrs to find local ipv4 addresses: %v", err)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && nil != ipnet.IP.To4() {
+			ips = append(ips, ipnet.IP.String())
+		}
+	}
+
+	if len(ips) == 0 {
+		return ips, fmt.Errorf("unable to identify local ip address")
+	}
+
+	return ips, nil
+}
+
 // GetMemorySize attempts to get the size of the installed RAM.
 func GetMemorySize() (size uint64, err error) {
 	file, err := os.Open(meminfoFile)
