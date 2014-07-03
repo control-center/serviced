@@ -156,7 +156,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 	}
 
 	if parentServiceID == "" {
-		*tenantId = svc.Id
+		*tenantId = svc.ID
 	}
 
 	// Using the tenant id, tag the base image with the tenantID
@@ -192,7 +192,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		return err
 	}
 
-	return f.deployServiceDefinitions(ctx, sd.Services, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
+	return f.deployServiceDefinitions(ctx, sd.Services, pool, svc.ID, exportedVolumes, deploymentId, tenantId)
 }
 
 func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {

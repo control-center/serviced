@@ -367,7 +367,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		"proxy",
 		"--autorestart=false",
 		"--logstash=false",
-		svc.Id,
+		svc.ID,
 		"0",
 		shellcmd,
 	}

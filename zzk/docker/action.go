@@ -6,6 +6,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/utils"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -57,7 +58,7 @@ func (l *ActionListener) Listen(shutdown <-chan interface{}) {
 	)
 
 	apath := actionPath(l.hostID)
-	if exists, err := l.conn.Exists(apath); err != nil {
+	if exists, err := zkutils.PathExists(l.conn, apath); err != nil {
 		glog.Error("Unable to look up docker path on zookeeper: ", err)
 		return
 	} else if exists {

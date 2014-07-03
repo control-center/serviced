@@ -90,7 +90,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	// Only the root user can pause and resume services
 	if whoami, err := getCurrentUser(); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	} else if USER_ROOT == whoami.Username {
 		iamRoot = true
@@ -98,7 +98,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	var servicesList []*service.Service
 	if err := d.client.GetServices(unused, &servicesList); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
 
@@ -108,21 +108,21 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		}
 
 		var states []*servicestate.ServiceState
-		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", myService.Id, err)
+		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
+			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", myService.ID, err)
 			return "", err
 		}
 
 		// Pause all running service states
 		for i, state := range states {
-			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.Id, state.DockerID)
+			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.ID, state.DockerID)
 			if state.DockerID != "" {
 				if iamRoot {
 					err := d.Pause(service, state)
 					defer d.Resume(service, state) // resume service state when snapshot is done
 					if err != nil {
-						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.Id, err)
-						return "", fmt.Errorf("failed to pause \"%s\" (%s): %s", service.Name, service.Id, err)
+						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.ID, err)
+						return "", fmt.Errorf("failed to pause \"%s\" (%s): %s", service.Name, service.ID, err)
 					}
 				} else if !warnedAboutNonRoot {
 					warnedAboutNonRoot = true
@@ -135,17 +135,17 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 	// create a snapshot
 	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
 
 	label := node.GetLabel(tenantId)
-	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", myService.Id, label, theVolume)
+	glog.Infof("DistributedFileSystem.Snapshot service=%+v label=%+v volume=%+v", myService.ID, label, theVolume)
 
 	parts := strings.SplitN(label, "_", 2)
 	if len(parts) < 2 {
 		err := errors.New("invalid label")
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v label=%s err=%s", myService.Id, parts, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v label=%s err=%s", myService.ID, parts, err)
 		return "", err
 	}
 
@@ -153,13 +153,13 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	// Add tags to the images
 	if err := d.tag(tenantId, DOCKER_LATEST, tag); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
 
 	// Add snapshot to the volume
 	if err := theVolume.Snapshot(label); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
 
@@ -172,7 +172,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", e
 	}
 
-	glog.V(0).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", myService.Id, myService.Name, label)
+	glog.V(0).Infof("Successfully created snapshot for service Id:%s Name:%s Label:%s", myService.ID, myService.Name, label)
 	return label, nil
 }
 
@@ -199,7 +199,7 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 
 	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s service=%s err=%s", snapshotId, service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s service=%s err=%s", snapshotId, service.ID, err)
 		return err
 	}
 
@@ -363,12 +363,12 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	}
 	for _, service := range services {
 		var states []*servicestate.ServiceState
-		if err := d.client.GetServiceStates(service.Id, &states); err != nil {
+		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
 		}
 		if numstates := len(states); numstates > 0 {
-			err := errors.New(fmt.Sprintf("%s has %d running services. Stop all services before rolling back", service.Id, numstates))
+			err := errors.New(fmt.Sprintf("%s has %d running services. Stop all services before rolling back", service.ID, numstates))
 			glog.V(2).Info("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
 		}
@@ -389,22 +389,22 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	}
 
 	// Rollback the dfs
-	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", service.Id, snapshotId)
+	glog.V(0).Infof("performing rollback on serviceId: %s to snaphotId: %s", service.ID, snapshotId)
 	if err := theVolume.Rollback(snapshotId); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.ID, err)
 		return err
 	}
 
 	// Set tags on the images
 	glog.V(3).Infof("DistributedFileSystem.Rollback retagging snapshots tenant=%s", tenantId)
 	if err := d.tag(tenantId, timestamp, DOCKER_LATEST); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.ID, err)
 		return err
 	}
 
 	// Restore service definitions and services
 	if err := d.RollbackServices(theVolume.SnapshotPath(snapshotId)); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.Id, err)
+		glog.V(2).Infof("DistributedFileSystem.Rollback service=%+v err=%s", service.ID, err)
 		return err
 	}
 
@@ -446,40 +446,40 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 
 	existingServiceMap := make(map[string]*service.Service)
 	for _, service := range existingServices {
-		existingServiceMap[service.Id] = service
+		existingServiceMap[service.ID] = service
 	}
 	for _, service := range services {
-		if existingService := existingServiceMap[service.Id]; existingService != nil {
+		if existingService := existingServiceMap[service.ID]; existingService != nil {
 			var unused *int
-			if e := d.client.StopService(service.Id, unused); e != nil {
-				glog.Errorf("Could not stop service %s: %v", service.Id, e)
+			if e := d.client.StopService(service.ID, unused); e != nil {
+				glog.Errorf("Could not stop service %s: %v", service.ID, e)
 				return e
 			}
 			service.PoolID = existingService.PoolID
 			if existingPools[service.PoolID] == nil {
-				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				glog.Infof("Changing PoolID of service %s from %s to default", service.ID, service.PoolID)
 				service.PoolID = "default"
 			}
 			if e := d.client.UpdateService(*service, unused); e != nil {
-				glog.Errorf("Could not update service %s: %v", service.Id, e)
+				glog.Errorf("Could not update service %s: %v", service.ID, e)
 				return e
 			}
 		} else {
 			if existingPools[service.PoolID] == nil {
-				glog.Infof("Changing PoolID of service %s from %s to default", service.Id, service.PoolID)
+				glog.Infof("Changing PoolID of service %s from %s to default", service.ID, service.PoolID)
 				service.PoolID = "default"
 			}
 			var serviceId string
 			if e := d.client.AddService(*service, &serviceId); e != nil {
-				glog.Errorf("Could not add service %s: %v", service.Id, e)
+				glog.Errorf("Could not add service %s: %v", service.ID, e)
 				return e
 			}
-			if service.Id != serviceId {
-				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.Id, serviceId)
+			if service.ID != serviceId {
+				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.ID, serviceId)
 				glog.Errorf(msg)
 				return errors.New(msg)
 			}
-			existingServiceMap[service.Id] = service
+			existingServiceMap[service.ID] = service
 		}
 	}
 

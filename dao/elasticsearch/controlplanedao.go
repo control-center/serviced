@@ -77,7 +77,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 
 	action, ok := svc.Actions[request.Command]
 	if !ok {
-		return fmt.Errorf("action not found for service %s: %s", svc.Id, request.Command)
+		return fmt.Errorf("action not found for service %s: %s", svc.ID, request.Command)
 	}
 
 	command = append([]string{action}, request.Args...)

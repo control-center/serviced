@@ -1,10 +1,13 @@
 package service
 
 import (
+	"fmt"
 	"path"
 
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -37,5 +40,24 @@ type ServiceStateNode struct {
 // Version implements client.Node
 func (node *ServiceStateNode) Version() interface{} { return node.version }
 
-//SetVersion implements client.Node
+// SetVersion implements client.Node
 func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = version }
+
+// UpdateService updates a service node if it exists, otherwise it creates it
+func UpdateService(conn client.Connection, svc *service.Service) error {
+	if svc.ID == "" {
+		return fmt.Errorf("service id required")
+	}
+
+	var (
+		spath = servicepath(svc.ID)
+		node  = &ServiceNode{Service: svc}
+	)
+
+	if exists, err := zkutils.PathExists(conn, spath); err != nil {
+		return err
+	} else if !exists {
+		return conn.Create(spath, node)
+	}
+	return conn.Set(spath, node)
+}

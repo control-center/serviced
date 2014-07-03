@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
@@ -16,7 +15,7 @@ func TestContainerCommit(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestContainerCommit"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -50,6 +49,7 @@ func TestContainerCommit(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 
 	cmd := []string{"docker", "rmi", "testcontainer/commit"}
 	exec.Command(cmd[0], cmd[1:]...).Run()
@@ -60,7 +60,7 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestOnContainerStart"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -93,6 +93,7 @@ func TestOnContainerStart(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestOnContainerCreated(t *testing.T) {
@@ -106,7 +107,7 @@ func TestOnContainerCreated(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestOnContainerCreated"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -124,6 +125,7 @@ func TestOnContainerCreated(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestOnContainerStop(t *testing.T) {
@@ -131,7 +133,7 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestOnContainerStop"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -153,6 +155,7 @@ func TestOnContainerStop(t *testing.T) {
 	})
 
 	ctr.Stop(30)
+	defer ctr.Delete(true)
 
 	select {
 	case <-ec:
@@ -166,7 +169,7 @@ func TestCancelOnEvent(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestCancelOnEvent"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -199,6 +202,7 @@ func TestCancelOnEvent(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestRestartContainer(t *testing.T) {
@@ -206,7 +210,7 @@ func TestRestartContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestRestartContainer"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -243,6 +247,7 @@ func TestRestartContainer(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestListContainers(t *testing.T) {
@@ -250,7 +255,7 @@ func TestListContainers(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestListContainers"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -304,7 +309,7 @@ func TestWaitForContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestWaitForContainer"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -335,6 +340,7 @@ func TestWaitForContainer(t *testing.T) {
 	select {
 	case <-wc:
 		// success
+		ctr.Delete(true)
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for wait to finish")
 	}
@@ -345,7 +351,7 @@ func TestInspectContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestInspectContainer"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -388,6 +394,7 @@ func TestInspectContainer(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestRepeatedStart(t *testing.T) {
@@ -395,7 +402,7 @@ func TestRepeatedStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestRepeatedStart"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -428,6 +435,7 @@ func TestRepeatedStart(t *testing.T) {
 	}
 
 	ctr.Kill()
+	ctr.Delete(true)
 }
 
 func TestNewContainerTimeout(t *testing.T) {
@@ -435,13 +443,13 @@ func TestNewContainerTimeout(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestNewContainerTimeout"},
 			},
 		},
 		dockerclient.HostConfig{},
 	}
 
-	_, err := NewContainer(cd, false, 10*time.Millisecond, nil, nil)
+	_, err := NewContainer(cd, false, 5*time.Microsecond, nil, nil)
 	if err == nil {
 		t.Fatal("expecting timeout")
 	}
@@ -452,7 +460,7 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestNewContainerOnCreatedAndStartedAction"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -472,17 +480,16 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	var ctr *Container
 	ctrCreated := make(chan struct{})
 	go func() {
-		glog.V(4).Infof("calling NewContainer")
 		var err error
+
 		ctr, err = NewContainer(cd, true, 300*time.Second, ca, sa)
 		if err != nil {
 			t.Fatal("can't create container: ", err)
 		}
-		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+
 		ctrCreated <- struct{}{}
 	}()
 
-	glog.V(4).Infof("waiting for create action")
 	select {
 	case <-cc:
 		break
@@ -490,7 +497,6 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		t.Fatal("timed out waiting for create action execution")
 	}
 
-	glog.V(4).Infof("waiting for start action")
 	select {
 	case <-sc:
 		break
@@ -498,10 +504,10 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		t.Fatal("timed out waiting for start action execution")
 	}
 
-	glog.V(4).Infof("received both create action and start action")
 	select {
 	case <-ctrCreated:
 		ctr.Kill()
+		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for NewContainer to return a ctr")
@@ -513,7 +519,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestNewContainerOnCreatedAction"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -528,17 +534,14 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 	var ctr *Container
 	ctrCreated := make(chan struct{})
 	go func() {
-		glog.V(4).Infof("calling NewContainer")
 		var err error
 		ctr, err = NewContainer(cd, false, 300*time.Second, ca, nil)
 		if err != nil {
 			t.Fatal("can't create container: ", err)
 		}
-		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
 		ctrCreated <- struct{}{}
 	}()
 
-	glog.V(4).Infof("waiting for create action")
 	select {
 	case <-cc:
 		break
@@ -546,10 +549,10 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 		t.Fatal("timed out waiting for create action execution")
 	}
 
-	glog.V(4).Infof("received create action")
 	select {
 	case <-ctrCreated:
 		ctr.Kill()
+		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for NewContainer to return a ctr")
@@ -561,7 +564,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestNewContainerOnStartedAction"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -576,17 +579,16 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 	var ctr *Container
 	ctrCreated := make(chan struct{})
 	go func() {
-		glog.V(4).Infof("calling NewContainer")
 		var err error
+
 		ctr, err = NewContainer(cd, true, 300*time.Second, nil, sa)
 		if err != nil {
 			t.Fatal("can't create container: ", err)
 		}
-		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+
 		ctrCreated <- struct{}{}
 	}()
 
-	glog.V(4).Infof("waiting for start action")
 	select {
 	case <-sc:
 		break
@@ -594,10 +596,10 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		t.Fatal("timed out waiting for create action execution")
 	}
 
-	glog.V(4).Infof("received start action")
 	select {
 	case <-ctrCreated:
 		ctr.Kill()
+		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for NewContainer to return a ctr")
@@ -609,7 +611,7 @@ func TestFindContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestFindContainer"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -620,10 +622,11 @@ func TestFindContainer(t *testing.T) {
 		t.Fatal("can't create container: ", err)
 	}
 
-	if _, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
+	if ctr2, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
 		t.Fatal("can't create second container: ", err)
+	} else {
+		defer ctr2.Delete(true)
 	}
-
 	cid := ctrone.ID
 
 	ctr, err := FindContainer(cid)
@@ -650,7 +653,7 @@ func TestContainerExport(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+				Cmd:   []string{"TestContainerExport"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -660,10 +663,13 @@ func TestContainerExport(t *testing.T) {
 	if err != nil {
 		t.Fatal("can't create container: ", err)
 	}
+	defer ctrone.Delete(true)
 
-	if _, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
+	ctrtwo, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
 		t.Fatal("can't create second container: ", err)
 	}
+	defer ctrtwo.Delete(true)
 
 	cf, err := ioutil.TempFile("/tmp", "containertest")
 	if err != nil {

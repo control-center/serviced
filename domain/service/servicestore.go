@@ -28,7 +28,7 @@ type Store struct {
 func (s *Store) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
-	return s.ds.Put(ctx, Key(svc.Id), svc)
+	return s.ds.Put(ctx, Key(svc.ID), svc)
 }
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
@@ -50,7 +50,7 @@ func (s *Store) Delete(ctx datastore.Context, id string) error {
 
 //GetServices returns all services
 func (s *Store) GetServices(ctx datastore.Context) ([]*Service, error) {
-	return query(ctx, "_exists_:Id")
+	return query(ctx, "_exists_:ID")
 }
 
 //GetTaggedServices returns services with the given tags
