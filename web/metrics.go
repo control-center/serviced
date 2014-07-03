@@ -143,7 +143,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			domain.DataPoint{
 				Aggregator:   "avg",
 				Color:        "#aec7e8",
-				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				Expression:   fmt.Sprintf("rpn:%d,/", totalCores),
 				Fill:         false,
 				Format:       "%6.2f",
 				ID:           "system",
@@ -157,7 +157,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			domain.DataPoint{
 				Aggregator:   "avg",
 				Color:        "#98df8a",
-				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				Expression:   fmt.Sprintf("rpn:%d,/", totalCores),
 				ID:           "user",
 				Fill:         false,
 				Format:       "%6.2f",
