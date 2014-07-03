@@ -8,6 +8,7 @@ import (
 	gocheck "gopkg.in/check.v1"
 
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -145,7 +146,18 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	tc := &testCluster{}
 	tc.shutdown = false
 
-	command := []string{elasticDir + "/bin/elasticsearch", "-f", fmt.Sprintf("-Des.http.port=%v", port)}
+	command := []string{
+		elasticDir + "/bin/elasticsearch",
+		"-f",
+		fmt.Sprintf("-Des.http.port=%v", port),
+	}
+
+	conf := fmt.Sprintf("cluster.name: %v", rand.Int())
+	err := ioutil.WriteFile(elasticDir+"/config/elasticsearch.yml", []byte(conf), 0644)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := exec.Command(command[0], command[1:]...)
 	tc.cmd = cmd
 	go func() {

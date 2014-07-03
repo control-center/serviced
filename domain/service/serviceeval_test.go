@@ -26,7 +26,7 @@ var startup_testcases = []struct {
 	expected string
 }{
 	{Service{
-		Id:              "0",
+		ID:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",
@@ -68,7 +68,7 @@ var startup_testcases = []struct {
 		Actions: map[string]string{"debug": "{{.Name}} debug", "stats": "{{.Name}} stats"},
 	}, ""},
 	{Service{
-		Id:              "1",
+		ID:              "1",
 		Name:            "Collector",
 		Context:         "{\"RemoteHost\":\"a_hostname\"}",
 		Startup:         "",
@@ -88,7 +88,7 @@ var startup_testcases = []struct {
 		Actions:         map[string]string{},
 	}, ""},
 	{Service{
-		Id:              "2",
+		ID:              "2",
 		Name:            "pinger",
 		Context:         "{\"Count\": 32}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
@@ -107,7 +107,7 @@ var startup_testcases = []struct {
 		Snapshot:        servicedefinition.SnapshotCommands{},
 	}, "/usr/bin/ping -c 32 a_hostname"},
 	{Service{
-		Id:              "3",
+		ID:              "3",
 		Name:            "/bin/sh",
 		Context:         "",
 		Startup:         "{{.Name}} ls -l .",
@@ -132,7 +132,7 @@ var endpoint_testcases = []struct {
 	expected string
 }{
 	{Service{
-		Id:              "100",
+		ID:              "100",
 		Name:            "Zenoss",
 		Context:         "{\"RemoteHost\":\"hostname\"}",
 		Startup:         "",
@@ -149,7 +149,7 @@ var endpoint_testcases = []struct {
 		UpdatedAt:       time.Now(),
 	}, ""},
 	{Service{
-		Id:             "101",
+		ID:             "101",
 		Name:           "Collector",
 		Context:        "",
 		Startup:        "",
@@ -310,7 +310,7 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 	t.Assert(err, IsNil)
 
 	svc := Service{
-		Id:              "1000",
+		ID:              "1000",
 		Name:            "pinger",
 		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",

@@ -19,6 +19,7 @@ type ShellConfig struct {
 	Args      []string
 	SaveAs    string
 	IsTTY     bool
+	Mount	  []string
 }
 
 // StartShell runs a command for a given service
@@ -38,6 +39,7 @@ func (a *api) StartShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
+		Mount:     config.Mount,
 		Command:   strings.Join(command, " "),
 	}
 
@@ -81,7 +83,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		return s, err
 	}
 	if err := svc.EvaluateRunsTemplate(getSvc); err != nil {
-		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.Id, svc.Runs, err)
+		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
 	command, ok := svc.Runs[config.Command]
 	if !ok {
@@ -98,6 +100,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
+		Mount:     config.Mount,
 		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
 	}
 
@@ -140,7 +143,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		}
 	default:
 		// Delete the container
-		glog.V(0).Infof("Command failed (exit code %d)", exitcode)
+		glog.V(0).Infof("Command returned non-zero exit code %d.  Container not commited.", exitcode)
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {

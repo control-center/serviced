@@ -5,7 +5,6 @@ import (
 
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 )
@@ -13,7 +12,7 @@ import (
 // NewRunningService instantiates a RunningService object from a given service and service state
 func NewRunningService(service *service.Service, state *servicestate.ServiceState) (*dao.RunningService, error) {
 	rs := &dao.RunningService{
-		Id:              state.Id,
+		ID:              state.ID,
 		ServiceID:       state.ServiceID,
 		StartedAt:       state.Started,
 		HostID:          state.HostID,
@@ -29,23 +28,16 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 		ParentServiceID: service.ParentServiceID,
 	}
 
-	rs.MonitoringProfile.MetricConfigs = make([]domain.MetricConfig, len(service.MonitoringProfile.MetricConfigs))
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	tags := map[string][]string{
+		"controlplane_instance_id": []string{strconv.FormatInt(int64(rs.InstanceID), 10)},
+		"controlplane_service_id":  []string{rs.ServiceID},
+	}
+
+	profile, err := service.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		return nil, err
 	}
-	for i, metricGroup := range service.MonitoringProfile.MetricConfigs {
-		for _, metric := range metricGroup.Metrics {
-			metricBuilder := build.Metric(metric.ID, metric.Name)
-			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))
-			metricBuilder.SetTag("controlplane_service_id", rs.ServiceID)
-		}
-		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
-		if err != nil {
-			return nil, err
-		}
-		rs.MonitoringProfile.MetricConfigs[i] = *config
-	}
+	rs.MonitoringProfile = *profile
 	return rs, nil
 }
 

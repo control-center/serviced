@@ -1,23 +1,25 @@
 #############################################################################
 #
-# Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+# Copyright (C) Zenoss, Inc. 2014, all rights reserved.
 #
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 ##############################################################################
 
+THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+
 #
-# RPM and DEB builder for Zenoss Serviced.
+# RPM and DEB builder for service definitions.
 #
 
-NAME          ?= serviced
-FROMVERSION   ?= 0.3.70
-VERSION       ?= 1.0.0
-RELEASE_PHASE ?=
-SUBPRODUCT    ?=
+NAME          = servicedef
+FROMVERSION   = 0.3.70
+VERSION       = 1.0.0
+RELEASE_PHASE = 
+SUBPRODUCT    = subproduct
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
-PKGROOT       = pkgroot
+PKGROOT       = pkgroot_$(NAME)
 
 ifneq ("$(BUILD_NUMBER)", "")
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
@@ -38,8 +40,10 @@ FULL_NAME=$(NAME)
 endif
 
 define DESCRIPTION
-Zenoss Serviced is a PaaS runtime. It allows users to create, manage and scale
-services in a uniform way.
+These service definitions allow $(SUBPRODUCT) to be instantiated by the
+Zenoss Control Center serviced application into a runtime environment that
+leverages the scalability, performance, and deployment lifecycle associated
+with Docker containers.
 endef
 export DESCRIPTION
 
@@ -68,7 +72,7 @@ clean_files:
 	done
 
 .PHONY: clean_dirs
-clean_dirs = $(PKGROOT) build
+clean_dirs = $(PKGROOT)
 clean_dirs: 
 	@for dir in $(clean_dirs) ;\
 	do \
@@ -99,32 +103,23 @@ mrclean: clean clean_templates
 $(PKGROOT):
 	mkdir -p $@
 
-# Build serviced binary
-build:
-	cd ../ && $(MAKE)
+stage_deb: 
+	$(MAKE) -f $(THIS_MAKEFILE) clean clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=deb INSTALL_TEMPLATES_ONLY=1
 
-stage_deb: build
-	make clean_dirs clean_dirs=$(PKGROOT)
-	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=deb
-
-stage_rpm: build
-	make clean_dirs clean_dirs=$(PKGROOT)
-	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm
+stage_rpm:
+	$(MAKE) -f $(THIS_MAKEFILE) clean clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm INSTALL_TEMPLATES_ONLY=1
 
 # Make a DEB
-# net-tools provides ifconfig, needed for VIPs
 deb: stage_deb
 	fpm \
 		-n $(FULL_NAME) \
-		-v $(DEB_PKG_VERSION)~$$(lsb_release -cs) \
+		-v $(DEB_PKG_VERSION) \
 		-s dir \
-		-d nfs-kernel-server \
-		-d net-tools \
-		-d nfs-common \
-		-d 'lxc-docker >= 1.0.0' \
-		-d 'docker-smuggle >= 2.24' \
+		-d serviced \
 		-t deb \
-		-a x86_64 \
+		-a noarch \
 		-C pkgroot \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
@@ -138,12 +133,12 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d serviced \
 		-t rpm \
-		-a x86_64 \
+		-a noarch \
 		-C pkgroot \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
 		--rpm-group root \
 		.
-#		-d "supervisor" \

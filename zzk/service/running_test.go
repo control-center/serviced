@@ -13,14 +13,16 @@ import (
 
 func TestNewRunningService(t *testing.T) {
 	sd := servicedefinition.ServiceDefinition{
-		Metrics: []servicedefinition.MetricGroup{
-			servicedefinition.MetricGroup{
-				ID:          "jvm.memory",
-				Name:        "JVM Memory",
-				Description: "JVM heap vs. non-heap memory usage",
-				Metrics: []servicedefinition.Metric{
-					servicedefinition.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
-					servicedefinition.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "jvm.memory",
+					Name:        "JVM Memory",
+					Description: "JVM heap vs. non-heap memory usage",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+						domain.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+					},
 				},
 			},
 		},
@@ -29,8 +31,8 @@ func TestNewRunningService(t *testing.T) {
 	if err != nil {
 		t.Errorf("BuildService Failed w/err=%s", err)
 	}
-	dataHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
-	dataNonHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.Id)
+	dataHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.ID)
+	dataNonHeapRequest := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", svc.ID)
 	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", dataHeapRequest, dataNonHeapRequest)
 	svc.MonitoringProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
@@ -76,7 +78,7 @@ func TestNewRunningService(t *testing.T) {
 	}
 
 	controlplaneServiceID := tags["controlplane_service_id"].([]interface{})[0]
-	if controlplaneServiceID != svc.Id {
-		t.Errorf("Expected %+v, got %+v", svc.Id, controlplaneServiceID)
+	if controlplaneServiceID != svc.ID {
+		t.Errorf("Expected %+v, got %+v", svc.ID, controlplaneServiceID)
 	}
 }
