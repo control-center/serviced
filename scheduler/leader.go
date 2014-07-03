@@ -299,7 +299,7 @@ func getFreeInstanceIDs(conn coordclient.Connection, svc *service.Service, n int
 	return ids, nil
 }
 func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host, numToStart int) error {
-	glog.V(2).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
+	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
 	freeids, err := getFreeInstanceIDs(l.conn, svc, numToStart)
