@@ -56,7 +56,7 @@ type ServiceDeploymentRequest struct {
 
 // This is created by selecting from service_state and joining to service
 type RunningService struct {
-	Id                string
+	ID                string
 	ServiceID         string
 	HostID            string
 	DockerID          string
@@ -75,7 +75,7 @@ type RunningService struct {
 
 // An instantiation of a Snapshot request
 type SnapshotRequest struct {
-	Id            string
+	ID            string
 	ServiceID     string
 	SnapshotLabel string
 	SnapshotError string
@@ -84,7 +84,7 @@ type SnapshotRequest struct {
 // A new snapshot request instance (SnapshotRequest)
 func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
 	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.Id, err = utils.NewUUID36()
+	snapshotRequest.ID, err = utils.NewUUID36()
 	if err == nil {
 		snapshotRequest.ServiceID = serviceId
 		snapshotRequest.SnapshotLabel = snapshotLabel

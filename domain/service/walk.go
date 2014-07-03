@@ -35,7 +35,7 @@ func Walk(serviceID string, visitFn Visit, getService GetService, getChildren Ge
 		return err
 	}
 	for _, svc := range subServices {
-		err = Walk(svc.Id, visitFn, getService, getChildren)
+		err = Walk(svc.ID, visitFn, getService, getChildren)
 		if err != nil {
 			return err
 		}

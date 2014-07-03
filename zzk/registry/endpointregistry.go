@@ -35,6 +35,7 @@ package registry
 import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/zzk/utils"
 
 	"path"
 
@@ -87,7 +88,7 @@ type EndpointRegistry struct {
 // CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if exists, err := pathExists(conn, path); err != nil {
+	if exists, err := utils.PathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

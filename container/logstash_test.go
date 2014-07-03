@@ -24,7 +24,7 @@ import (
 
 func getTestService() service.Service {
 	return service.Service{
-		Id:              "0",
+		ID:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",
@@ -138,7 +138,7 @@ func TestMakeSureConfigIsValidJSON(t *testing.T) {
 
 func TestDontWriteToNilMap(t *testing.T) {
 	service := service.Service{
-		Id:              "0",
+		ID:              "0",
 		Name:            "Zenoss",
 		Context:         "",
 		Startup:         "",

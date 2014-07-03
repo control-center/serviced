@@ -22,9 +22,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { id: 'Deployment', name: 'deployed_tbl_deployment'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
         { id: 'poolID', name: 'deployed_tbl_pool'},
-        { id: 'VirtualHost', name: 'vhost_names'},
-        { id: 'DesiredState', name: 'deployed_tbl_state' },
-        { id: 'DesiredState', name: 'running_tbl_actions' }
+        { id: 'VirtualHost', name: 'vhost_names'}
     ]);
 
     $scope.click_app = function(id) {
@@ -61,7 +59,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             console.log('No selected service to remove');
             return;
         }
-        var id = $scope.appToRemove.Id;
+        var id = $scope.appToRemove.ID;
         resourcesService.remove_service(id, function() {
             delete $scope.appToRemove;
             var i = 0, newServices = [];
@@ -69,7 +67,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             // build up a new services array containing all the services
             // except the one we just deleted
             for (i=0;i<$scope.services.data.length;i++) {
-                if ($scope.services.data[i].Id != id) {
+                if ($scope.services.data[i].ID != id) {
                     newServices.push($scope.services.data[i]);
                 }
             }

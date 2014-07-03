@@ -29,3 +29,18 @@ func TestGetMemorySize(t *testing.T) {
 		t.Fail()
 	}
 }
+
+// Test GetIPv4Addresses()
+func TestGetIPv4Addresses(t *testing.T) {
+	ips, err := GetIPv4Addresses()
+	if err != nil {
+		t.Errorf("Failed to get ipv4 addresses: %s", err)
+		t.Fail()
+	}
+
+	expectedMinimumLen := 1
+	if len(ips) < expectedMinimumLen {
+		t.Errorf("minimum IPs expected %d > retrieved %d  ips:%v", expectedMinimumLen, len(ips), ips)
+		t.Fail()
+	}
+}

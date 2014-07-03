@@ -95,7 +95,7 @@ func New(driver api.API) *ServicedCli {
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},
-		cli.IntFlag{"stats-period", 60, "Period (seconds) for container statistics reporting"},
+		cli.IntFlag{"stats-period", 10, "Period (seconds) for container statistics reporting"},
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},

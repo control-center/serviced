@@ -54,3 +54,4 @@ web/node_modules/
 web/static/js/controlplane.js
 web/static/js/controlplane.min.js
 
+*.Godeps_restored

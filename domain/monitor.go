@@ -1,36 +1,57 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by a
+// license that can be found in the LICENSE file.
+
+// Package domain defines the monitoring profiles for control center domain objects
 package domain
 
-//MonitorProfile describes metrics, thresholds and graphs to monitor an entity's performance
+import "reflect"
+
+//MonitorProfile describes metrics, thresholds and graphs to monitor an object's performance
 type MonitorProfile struct {
-	MetricConfigs []MetricConfig
+	MetricConfigs []MetricConfig //metrics for domain object
+	GraphConfigs  []GraphConfig  //graphs for a domain object
 	//TODO Thresholds
-	//TODO Graphs
 }
 
-//Equals equality test for Monitor
+//Equals equality test for MonitorProfile
 func (profile *MonitorProfile) Equals(that *MonitorProfile) bool {
-	if profile.MetricConfigs == nil && that.MetricConfigs == nil {
-		return true
+	return reflect.DeepEqual(profile, that)
+}
+
+//ReBuild metrics, graphs and thresholds with the new parameters
+func (profile *MonitorProfile) ReBuild(timeSpan string, tags map[string][]string) (*MonitorProfile, error) {
+	newProfile := MonitorProfile{
+		MetricConfigs: make([]MetricConfig, len(profile.MetricConfigs)),
+		GraphConfigs:  make([]GraphConfig, len(profile.GraphConfigs)),
 	}
 
-	if profile.MetricConfigs == nil && that.MetricConfigs != nil {
-		return false
+	build, err := NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return nil, err
 	}
 
-	if profile.MetricConfigs != nil && that.MetricConfigs == nil {
-		return false
-	}
-
-	if len(profile.MetricConfigs) != len(that.MetricConfigs) {
-		return false
-	}
-
+	//rebuild metrics
 	for i := range profile.MetricConfigs {
-		metric := &profile.MetricConfigs[i]
-		if !metric.Equals(&that.MetricConfigs[i]) {
-			return false
+		metricGroup := &profile.MetricConfigs[i]
+		for j := range metricGroup.Metrics {
+			metric := metricGroup.Metrics[j]
+			build.Metric(metric).SetTags(tags)
 		}
+
+		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, timeSpan)
+		if err != nil {
+			return nil, err
+		}
+
+		newProfile.MetricConfigs[i] = *config
 	}
 
-	return true
+	//rebuild graphs
+	for i := range profile.GraphConfigs {
+		newProfile.GraphConfigs[i] = profile.GraphConfigs[i]
+		newProfile.GraphConfigs[i].Tags = tags
+	}
+
+	return &newProfile, nil
 }

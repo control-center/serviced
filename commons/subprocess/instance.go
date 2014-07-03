@@ -87,9 +87,9 @@ func (s *Instance) loop() {
 		case s := <-s.signalChan:
 			cmd.Process.Signal(s)
 
-		case <-s.commandExit:
+		case exitError := <-s.commandExit:
 			select {
-			case s.commandExit <- nil:
+			case s.commandExit <- exitError:
 			default:
 			}
 			return

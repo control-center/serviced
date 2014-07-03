@@ -8,31 +8,41 @@ package domain
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
 
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 )
 
 // Metric defines the meta-data for a single metric
 type Metric struct {
-	ID   string //id is a unique idenitifier for the metric
-	Name string //name is a canonical name for the metric
+	ID          string //id is a unique idenitifier for the metric
+	Name        string //name is a canonical name for the metric
+	Description string //description of this metric
+	Counter     bool
+	CounterMax  *int64 `json:"CounterMax,omitempty"`
+	ResetValue  int64
+	Unit        string
 }
 
 // MetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
 type MetricBuilder struct {
-	ID   string              //unique idenitifier for a Metric also used to query a metric
-	Name string              //canonical name for a Metric
+	Metric
 	Tags map[string][]string //tags required for querying a metric
 }
 
 // SetTag puts a tag into the metric request object
 func (request *MetricBuilder) SetTag(Name string, Values ...string) *MetricBuilder {
 	request.Tags[Name] = Values
+	return request
+}
+
+// SetTags sets tags to value
+func (request *MetricBuilder) SetTags(tags map[string][]string) *MetricBuilder {
+	request.Tags = tags
 	return request
 }
 
@@ -46,45 +56,7 @@ type QueryConfig struct {
 
 // Equals compares two QueryConfig objects for equality
 func (config *QueryConfig) Equals(that *QueryConfig) bool {
-	if config.RequestURI != that.RequestURI {
-		return false
-	}
-
-	if config.Method != that.Method {
-		return false
-	}
-
-	if config.Data != that.Data {
-		return false
-	}
-
-	if config.Headers == nil && that.Headers == nil {
-		return true
-	}
-
-	if config.Headers != nil && that.Headers == nil {
-		return false
-	}
-
-	if config.Headers == nil && that.Headers != nil {
-		return false
-	}
-
-	if len(config.Headers) != len(that.Headers) {
-		return false
-	}
-
-	for k, v := range config.Headers {
-		tv, ok := that.Headers[k]
-		if !ok {
-			return false
-		}
-		if !utils.StringSliceEquals(v, tv) {
-			return false
-		}
-	}
-
-	return true
+	return reflect.DeepEqual(config, that)
 }
 
 // MetricConfig defines a collection of metrics and the query to request said metrics
@@ -98,34 +70,7 @@ type MetricConfig struct {
 
 // Equals equality test for MetricConfig
 func (config *MetricConfig) Equals(that *MetricConfig) bool {
-	if config.ID != that.ID {
-		return false
-	}
-
-	if config.Name != that.Name {
-		return false
-	}
-
-	if config.Description != that.Description {
-		return false
-	}
-
-	if !config.Query.Equals(&that.Query) {
-		return false
-	}
-
-	if config.Metrics != nil && that.Metrics != nil {
-		if len(config.Metrics) == len(that.Metrics) {
-			for i := range config.Metrics {
-				if config.Metrics[i] != that.Metrics[i] {
-					return false
-				}
-			}
-			return true
-		}
-	}
-
-	return false
+	return reflect.DeepEqual(config, that)
 }
 
 // Builder aggregates a url, method, and metrics for building a MetricConfig
@@ -136,9 +81,20 @@ type Builder struct {
 }
 
 // Metric appends a metric configuration to the Builder
-func (builder *Builder) Metric(ID string, Name string) *MetricBuilder {
-	metric := MetricBuilder{ID: ID, Name: Name, Tags: make(map[string][]string)}
-	builder.metrics = append(builder.metrics, metric)
+func (builder *Builder) Metric(metric Metric) *MetricBuilder {
+	newMetric := MetricBuilder{
+		Metric{
+			ID:          metric.ID,
+			Name:        metric.Name,
+			Description: metric.Description,
+			Counter:     metric.Counter,
+			CounterMax:  metric.CounterMax,
+			ResetValue:  metric.ResetValue,
+			Unit:        metric.Unit,
+		},
+		make(map[string][]string),
+	}
+	builder.metrics = append(builder.metrics, newMetric)
 	return &builder.metrics[len(builder.metrics)-1]
 }
 
@@ -177,15 +133,12 @@ func (builder *Builder) Config(ID, Name, Description, Start string) (*MetricConf
 		Start:   Start,
 	}
 
+	//build the metrics
 	for i := range builder.metrics {
 		id := &builder.metrics[i].ID
-		name := &builder.metrics[i].Name
 		tags := &builder.metrics[i].Tags
 		request.Metrics[i] = metric{*id, *tags}
-		config.Metrics[i] = Metric{
-			ID:   *id,
-			Name: *name,
-		}
+		config.Metrics[i] = builder.metrics[i].Metric
 	}
 
 	//build the query body object

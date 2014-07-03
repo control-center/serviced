@@ -17,6 +17,7 @@ VERSION       ?= 1.0.0
 RELEASE_PHASE ?=
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
+PKGROOT       = pkgroot
 
 ifneq ("$(BUILD_NUMBER)", "")
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
@@ -42,9 +43,7 @@ services in a uniform way.
 endef
 export DESCRIPTION
 
-INSTALL_DIR=/opt/serviced
-
-.PHONY: all clean stage deb rpm
+.PHONY: all clean deb rpm
 .SILENT: desc
 
 all: desc
@@ -52,72 +51,65 @@ all: desc
 desc:
 	echo "Usage: make deb or make rpm. Both options package $(FULL_NAME)-$(PKG_VERSION)."
 
-# Clean staged files and produced packages
-clean:
-	rm -f $(FULL_NAME)*.deb
-	rm -f $(FULL_NAME)*.rpm
-	rm -rf pkgroot
-	rm -rf build
-	# we need to perform a clean here
+.PHONY: clean_files
+clean_files:
+	@for pkg in $(FULL_NAME)*.deb $(FULL_NAME)*.rpm ;\
+	do \
+		if [ -f "$${pkg}" ];then \
+			echo "rm -f $${pkg}" ;\
+			if ! rm -f $${pkg} ;then \
+				echo "sudo rm -f $${pkg}" ;\
+				if ! sudo rm -f $${pkg} ; then \
+					echo "Warning: Unable to remove $${pkg}" ;\
+					exit 1 ;\
+				fi ;\
+			fi ;\
+		fi ;\
+	done
 
+.PHONY: clean_dirs
+clean_dirs = $(PKGROOT) build
+clean_dirs: 
+	@for dir in $(clean_dirs) ;\
+	do \
+		if [ -d "$${dir}" ];then \
+			echo "rm -rf $${dir}" ;\
+			if ! rm -rf $${dir} ;then \
+				echo "sudo rm -rf $${dir}" ;\
+				if ! sudo rm -rf $${dir} ; then \
+					echo "Warning: Unable to remove $${dir}" ;\
+					exit 1 ;\
+				fi ;\
+			fi ;\
+		fi ;\
+	done
+
+# Clean staged files and produced packages
+.PHONY: clean
+clean: clean_files clean_dirs
+
+.PHONY: clean_templates
 clean_templates:
 	find templates -type f ! -name 'README.txt' -exec rm {} + # remove everything under templates except README.txt
 
+.PHONY: mrclean
+mrclean: clean clean_templates
+
 # Make root dir for packaging
-pkgroot:
-	mkdir -p pkgroot
+$(PKGROOT):
+	mkdir -p $@
 
 # Build serviced binary
 build:
-	mkdir -p build/tmp
-	cd ../ && make build_binary
+	cd ../ && $(MAKE)
 
-# Stage serviced files
-stage: build pkgroot
-	# Create install location
-	mkdir -p pkgroot$(INSTALL_DIR)
+stage_deb: build
+	make clean_dirs clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=deb
 
-	# Stage binary
-	mkdir -p pkgroot$(INSTALL_DIR)/bin
-	cp ../serviced pkgroot$(INSTALL_DIR)/bin
-	cp ../nsinit pkgroot$(INSTALL_DIR)/bin
-
-	# Stage web files
-	mkdir -p pkgroot$(INSTALL_DIR)/share/web
-	mkdir -p pkgroot$(INSTALL_DIR)/share/shell
-
-	# Stage environment default file
-	mkdir -p pkgroot/etc/default
-	cp serviced.default pkgroot/etc/default/serviced
-	cp ../dao/elasticsearch/controlplane.json pkgroot$(INSTALL_DIR)/share/
-	cp ../web/static pkgroot$(INSTALL_DIR)/share/web -R
-	cp ../shell/static pkgroot$(INSTALL_DIR)/share/shell -R
-	mkdir -p pkgroot$(INSTALL_DIR)/isvcs
-	cp ../isvcs/resources/logstash/logstash.conf.in ../isvcs/resources/logstash/logstash.conf
-	cp ../isvcs/resources pkgroot$(INSTALL_DIR)/isvcs -R
-	cp ../isvcs/images pkgroot$(INSTALL_DIR)/ -R
-	# stage any templates that are present
-	mkdir -p pkgroot$(INSTALL_DIR)/templates
-	rsync -a --exclude=README.txt templates/ pkgroot$(INSTALL_DIR)/templates/
-
-	# add serviced to the path via symlink
-	mkdir -p pkgroot/usr/bin/ && rm -f pkgroot/usr/bin/serviced && ln -s $(INSTALL_DIR)/bin/serviced  pkgroot/usr/bin/serviced
-	ln -sf $(INSTALL_DIR)/bin/nsinit  pkgroot/usr/bin/nsinit
-
-	# add serviced bash complete file to etc/bash_completion.d
-	mkdir -p pkgroot/etc/bash_completion.d
-	cp ../serviced-bash-completion.sh pkgroot/etc/bash_completion.d/serviced
-
-
-stage_deb: stage
-	# Stage upstart script
-	mkdir -p pkgroot/etc/init
-	cp serviced.upstart pkgroot/etc/init/serviced.conf
-
-stage_rpm: stage
-	# Stage systemd script
-	mkdir -p pkgroot/usr/lib/systemd/system
-	cp serviced.service pkgroot/usr/lib/systemd/system
+stage_rpm: build
+	make clean_dirs clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm
 
 # Make a DEB
 # net-tools provides ifconfig, needed for VIPs

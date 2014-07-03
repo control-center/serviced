@@ -9,7 +9,6 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
@@ -19,6 +18,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/utils"
 )
 
 var empty interface{}
@@ -296,17 +296,13 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 
 	go func() {
 		defer p.Close()
-
-		if err := cmd.Run(); err != nil {
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					p.Result <- Result{status.ExitStatus(), err.Error(), NORMAL}
-					return
-				}
-			}
-			p.Result <- Result{0, err.Error(), ABNORMAL}
+		err := cmd.Run()
+		if exitcode, ok := utils.GetExitStatus(err); !ok {
+			p.Result <- Result{exitcode, err.Error(), ABNORMAL}
+		} else if exitcode == 0 {
+			p.Result <- Result{exitcode, "", NORMAL}
 		} else {
-			p.Result <- Result{0, "", NORMAL}
+			p.Result <- Result{exitcode, err.Error(), NORMAL}
 		}
 	}()
 
@@ -317,6 +313,18 @@ func (e *Executor) onDisconnect(ns *socketio.NameSpace) {
 	inst := ns.Session.Values[PROCESSKEY].(*ProcessInstance)
 	inst.Disconnect()
 	ns.Session.Values[PROCESSKEY] = nil
+}
+
+func parseMountArg(arg string) (hostPath, containerPath string, err error) {
+	splitMount := strings.Split(arg, ",")
+	hostPath = splitMount[0]
+	if len(splitMount) > 1 {
+		containerPath = splitMount[1]
+	} else {
+		containerPath = hostPath
+	}
+	return
+
 }
 
 func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Client, cfg *ProcessConfig, port string) (*exec.Cmd, error) {
@@ -370,7 +378,7 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 		"proxy",
 		"--autorestart=false",
 		"--logstash=false",
-		svc.Id,
+		svc.ID,
 		"0",
 		shellcmd,
 	}
@@ -382,6 +390,14 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
+	for _, mount := range cfg.Mount {
+		hostPath, containerPath, err := parseMountArg(mount)
+		if err != nil {
+			return nil, err
+		}
+		argv = append(argv, "-v", fmt.Sprintf("%s:%s", hostPath, containerPath))
+	}
+
 	argv = append(argv, cfg.Envv...)
 
 	if cfg.SaveAs != "" {
@@ -405,6 +421,8 @@ func StartDocker(registry *docker.DockerRegistry, dockerClient *dockerclient.Cli
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID))
 
 	argv = append(argv, svc.ImageID)
 	argv = append(argv, proxycmd...)

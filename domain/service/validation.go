@@ -13,7 +13,7 @@ import (
 func (s *Service) ValidEntity() error {
 
 	vErr := validation.NewValidationError()
-	vErr.Add(validation.NotEmpty("ID", s.Id))
+	vErr.Add(validation.NotEmpty("ID", s.ID))
 	vErr.Add(validation.NotEmpty("Name", s.Name))
 	vErr.Add(validation.NotEmpty("PoolID", s.PoolID))
 

@@ -12,16 +12,6 @@ import (
 	"text/template"
 )
 
-// numinstances looks up the number of instances of the application string specified
-func numinstances(svc *Service, getAppInsts GetApplicationInstances) func(application string) int {
-	return func(application string) int {
-		glog.Infof("Looking up instances for app %s", application)
-		i, _ := getAppInsts(svc.Id, application)
-		glog.Infof("Found %d instances", i)
-		return i
-	}
-}
-
 func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
 	rc := &runtimeContext{}
 	return func(svc *runtimeContext) (*runtimeContext, error) {
@@ -36,7 +26,7 @@ func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
 func child(fc FindChildService) func(s *runtimeContext, childName string) (*runtimeContext, error) {
 	rc := &runtimeContext{}
 	return func(svc *runtimeContext, childName string) (*runtimeContext, error) {
-		s, err := fc(svc.Id, childName)
+		s, err := fc(svc.ID, childName)
 		if err != nil {
 			return rc, err
 		}
@@ -49,7 +39,7 @@ func context() func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
-			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.Id, s.Context, err)
+			glog.Errorf("Error unmarshal service context ID=%s: %s -> %s", s.ID, s.Context, err)
 		}
 		return ctx, err
 	}
@@ -172,7 +162,7 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildSer
 // EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
 // ConfigFile on the service.
 func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
-	glog.Infof("Evaluating Config Files for %s:%d", service.Id, instanceID)
+	glog.V(3).Infof("Evaluating Config Files for %s:%d", service.ID, instanceID)
 	for key, configFile := range service.ConfigFiles {
 		// Filename
 		result := service.evaluateTemplate(gs, fc, instanceID, configFile.Filename)

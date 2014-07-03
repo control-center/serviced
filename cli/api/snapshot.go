@@ -17,9 +17,9 @@ func (a *api) GetSnapshots() ([]string, error) {
 
 	var snapshots []string
 	for _, s := range services {
-		ss, err := a.GetSnapshotsByServiceID(s.Id)
+		ss, err := a.GetSnapshotsByServiceID(s.ID)
 		if err != nil {
-			return nil, fmt.Errorf("error trying to retrieve snapshots for service %s: %s", s.Id, err)
+			return nil, fmt.Errorf("error trying to retrieve snapshots for service %s: %s", s.ID, err)
 		}
 		snapshots = append(snapshots, ss...)
 	}
