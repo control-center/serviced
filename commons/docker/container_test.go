@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -639,5 +641,42 @@ func TestFindContainer(t *testing.T) {
 
 	if _, err = FindContainer(cid); err == nil {
 		t.Fatal("should not have found container: ", cid)
+	}
+}
+
+// TODO: add some additional Export tests, e.g., bogus path, insufficient permissions, etc.
+func TestContainerExport(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"/bin/sh", "-c", "while true; do echo hello world; sleep 1; done"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	if _, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
+		t.Fatal("can't create second container: ", err)
+	}
+
+	cf, err := ioutil.TempFile("/tmp", "containertest")
+	if err != nil {
+		t.Fatal("can't create temp file for export: ", err)
+	}
+
+	err = ctrone.Export(cf)
+	if err != nil {
+		t.Fatal("can't export container: ", err)
+	}
+
+	err = os.Remove(cf.Name())
+	if err != nil {
+		t.Fatalf("can't remove %s: %v", cf.Name(), err)
 	}
 }

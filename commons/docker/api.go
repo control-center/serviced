@@ -3,6 +3,8 @@ package docker
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -167,6 +169,31 @@ func (c *Container) Delete(volumes bool) error {
 		struct {
 			removeOptions dockerclient.RemoveContainerOptions
 		}{dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes}},
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// Export writes the contents of the container's filesystem as a tar archive to outfile.
+func (c *Container) Export(outfile *os.File) error {
+	ec := make(chan error)
+
+	cmds.Export <- exportreq{
+		request{ec},
+		struct {
+			id      string
+			outfile io.Writer
+		}{c.ID, outfile},
 	}
 
 	select {

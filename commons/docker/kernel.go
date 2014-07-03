@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -76,6 +77,17 @@ type delimgreq struct {
 	args struct {
 		repotag string
 	}
+}
+
+type exportreq struct {
+	request
+	args struct {
+		id      string
+		outfile io.Writer
+	}
+}
+
+type imgimportreq struct {
 }
 
 type imglistreq struct {
@@ -184,6 +196,7 @@ var (
 		Create          chan createreq
 		Delete          chan deletereq
 		DeleteImage     chan delimgreq
+		Export          chan exportreq
 		ImageList       chan imglistreq
 		Inspect         chan inspectreq
 		Kill            chan killreq
@@ -203,6 +216,7 @@ var (
 		make(chan createreq),
 		make(chan deletereq),
 		make(chan delimgreq),
+		make(chan exportreq),
 		make(chan imglistreq),
 		make(chan inspectreq),
 		make(chan killreq),
@@ -321,6 +335,15 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				req.errchan <- err
 				continue
 			}
+			close(req.errchan)
+		case req := <-cmds.Export:
+			// TODO: this may need to be shifted to the scheduler, exporting takes some time
+			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
 			close(req.errchan)
 		case req := <-cmds.ImageList:
 			imgs, err := dc.ListImages(false)

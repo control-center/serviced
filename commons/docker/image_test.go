@@ -78,6 +78,11 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 	case <-regup:
 		break
 	}
+
+	cmd = []string{"docker", "export", s.regid, "/tmp/regexp.tar"}
+	if err = exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
+		panic("can't export registry container for import testing: ", err)
+	}
 }
 
 func (s *ImageTestSuite) TearDownSuite(c *C) {
@@ -93,6 +98,9 @@ func (s *ImageTestSuite) TearDownSuite(c *C) {
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
 	cmd = []string{"docker", "rmi", rawbase}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+
+	cmd = []string{"rm", "/tmp/regexp.tar"}
 	exec.Command(cmd[0], cmd[1:]...).Run()
 }
 
