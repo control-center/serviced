@@ -27,8 +27,7 @@
       <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>
       <td>{{pool.Priority}}</td>
       <td>{{pool.CoreCapacity}}</td>
-      <td>{{pool.MemoryCapacity | toGB}}</td>
-      <td>{{pool.MemoryCommitment | toGB}}</td>
+      <td><span ng-class="{error: pool.MemoryCommitment>pool.MemoryCapacity}">{{pool.MemoryCommitment | toGB}}</span> / {{pool.MemoryCapacity | toGB}}</td>
       <td>{{pool.CreatedAt | date : 'medium'}}</td>
       <td>{{pool.UpdatedAt | date : 'medium'}}</td>
       <td> <button ng-click="clickRemovePool(pool.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'delete'|translate}}</button> </td>
