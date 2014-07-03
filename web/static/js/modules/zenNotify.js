@@ -152,9 +152,14 @@
 
         NotificationFactory.prototype = {
             constructor: NotificationFactory,
-
-            create: function(title, msg){
-                var notification = new Notification(++this.lastId, title, msg, $("#notifications"));
+            setAttachPoint: function(attachPoint){
+                this.$attachPiont = attachPoint;
+            },
+            create: function(title, msg, $attachPoint){
+                if(!$attachPoint){
+                    $attachPoint = $("#notifications");
+                }
+                var notification = new Notification(++this.lastId, title, msg, $attachPoint);
                 return notification;
             },
 

@@ -13,7 +13,7 @@ function LoginControl($scope, $http, $location, $notification, $translate, authS
                 $location.path('/apps');
             }).
             error(function(data, status) {
-                $notification.create("", $translate("login_fail")).error();
+                $notification.create("", $translate("login_fail"), $("#loginNotifications")).error();
                 // Ensure that the auth service knows that the login failed
                 authService.login(false);
             });
