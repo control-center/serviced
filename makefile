@@ -14,16 +14,22 @@
 install_TARGETS   = $(install_DIRS)
 prefix            = /opt/serviced
 sysconfdir        = /etc
+
 #
 # Specify if we want service definition templates (picked up from
-# of pkg/templates) to be included as part of the serviced packaging.
+# pkg/templates) to be included as part of the serviced packaging.
 #
-INSTALL_TEMPLATES = 1
+INSTALL_TEMPLATES      = 1
+
+#
+# When packaging just the templates, throw this option.
+#
+INSTALL_TEMPLATES_ONLY = 0
 
 # The installed footprint is influenced by the distro
 # we're targeting.  Allow this usage:
 #
-#    sudo make install DESTDIR=/tmp/pkgroot PKG=<deb|rpm>
+#    sudo make install PKG=<deb|rpm>
 #
 PKG         = $(default_PKG) # deb | rpm
 default_PKG = deb
@@ -226,7 +232,7 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 #     $(dir)_TARGETS = filename
 #     $(dir)_TARGETS = src_filename:dest_filename
 #
-default_INSTCMD                                    = cp
+default_INSTCMD = cp
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
@@ -241,11 +247,6 @@ $(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
 $(_DESTDIR)$(prefix)_INSTOPT                       = -R
 $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
-ifeq "$(INSTALL_TEMPLATES)" "1"
-$(_DESTDIR)$(prefix)/templates_TARGETS             = pkg/templates/:.
-$(_DESTDIR)$(prefix)/templates_INSTCMD             = rsync
-$(_DESTDIR)$(prefix)/templates_INSTOPT             = -a --exclude=README.txt 
-endif
 
 #-----------------------------------#
 # Install targets (distro-specific) #
@@ -263,6 +264,40 @@ $(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
 endif
 ifeq "$(_PKG)" "rpm"
 $(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
+endif
+
+#-----------------------------------#
+# Install targets (service defs)    #
+#-----------------------------------#
+
+# We're moving toward packaging service definitions by themselves.
+# Define the policies that control when templates show up under the
+# staged install directory (i.e., $(PKGROOT)/opt/serviced/templates)
+# consumed at package time.
+#
+# TODO: Revisit where to tuck these templates relative to FHS.
+
+# NB: If either INSTALL_TEMPLATES or INSTALL_TEMPLATES_ONLY is asserted
+#     then jump into the body of the ifneq and augment install_DIRS and 
+#     targets accordingly.
+
+ifneq (,$(filter 1,$(INSTALL_TEMPLATES) $(INSTALL_TEMPLATES_ONLY)))
+    ifeq "$(INSTALL_TEMPLATES_ONLY)" "1"
+        # Install just the service definitions in preparation
+        # for creating servicedef packages.
+        install_DIRS  = $(_DESTDIR)$(prefix)/templates
+    else
+        # Include svcdefs with serviced deb.
+        install_DIRS += $(_DESTDIR)$(prefix)/templates
+    endif
+
+    # At the moment, the pkg/templates directory is actually 
+    # populated by our top-level makefile.  This seems a bit disjoint.
+    # Will fix once I figure out some cleaner.
+
+    $(_DESTDIR)$(prefix)/templates_TARGETS = pkg/templates/:.
+    $(_DESTDIR)$(prefix)/templates_INSTCMD = rsync
+    $(_DESTDIR)$(prefix)/templates_INSTOPT = -a --exclude=README.txt 
 endif
 
 # Iterate across all the install dirs, populating
