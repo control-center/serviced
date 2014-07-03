@@ -145,6 +145,7 @@
             }
         };
 
+
         function NotificationFactory(){
             this.$storage = JSON.parse(localStorage.getItem('messages')) || [];
             this.lastId = null;
@@ -160,20 +161,34 @@
             }
         }
 
+        /**
+         * Notification Factory
+         * interface for creating, storing, and updating notifications
+         */
         NotificationFactory.prototype = {
             constructor: NotificationFactory,
-            setAttachPoint: function(attachPoint){
-                this.$attachPiont = attachPoint;
-            },
+
+            /**
+             * create a new notification. Loads of fun!
+             * @param  {string} title  notification title. treated as plain text
+             * @param  {string} msg  notification message. treated as HTML
+             * @param  {jQueryObject} $attachPoint  jQuery DOM element to attach notification to
+             *                                      defaults to `#notification` element
+             * @return {Notification}  returns the Notification object
+             */
             create: function(title, msg, $attachPoint){
-                if(!$attachPoint){
+                // if no valid attachPoint is provided, default to #notifications
+                if(!$attachPoint || !$attachPoint.length){
                     $attachPoint = $("#notifications");
                 }
                 var notification = new Notification(++this.lastId, title, msg, $attachPoint);
                 return notification;
             },
 
-            // TODO: Rewrite this as an event listener and add emit to Notification.onClose()
+            /**
+             * marks provided notification read and updates local data store
+             * @param  {Notification} notification  the Notification object to mark read
+             */
             markRead: function(notification){
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
@@ -185,6 +200,10 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * stores provided notification
+             * @param  {Notification} notification  the Notification object to store
+             */
             store: function(notification){
                 var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
@@ -196,6 +215,10 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * updates stored notification (by id) with the provided notification
+             * @param  {Notification} notification  the Notification object to update
+             */
             update: function(notification){
                 var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
@@ -209,14 +232,17 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * gets all stored messages as well as number of unread messages
+             * @return {object}  object containing `unreadCount` - the number of unread messages,
+             *                          and `messages` - an array of stored notifications.
+             */
             getMessages: function(){
-                var unreadCount = 0;
+                var unreadCount;
 
-                this.$storage.forEach(function(el, idx){
-                    if(!el.read){
-                        ++unreadCount;
-                    }
-                });
+                unreadCount = this.$storage.reduce(function(acc, el){
+                    return !el.read ? acc+1 : acc;
+                }, 0);
 
                 return {
                     unreadCount: unreadCount,
@@ -224,6 +250,9 @@
                 };
             },
 
+            /**
+             * removes all stored Notifications (read and unread)
+             */
             clearAll: function(){
                 this.$storage = [];
                 localStorage.clear();
