@@ -26,6 +26,7 @@ import (
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -187,7 +188,7 @@ func (a *HostAgent) Shutdown() error {
 }
 
 // Attempts to attach to a running container
-func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *servicestate.ServiceState, hss *zzk.HostServiceState) (bool, error) {
+func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished chan<- int, serviceState *servicestate.ServiceState, hss *zkservice.HostState) (bool, error) {
 
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerID)
@@ -214,7 +215,7 @@ func (a *HostAgent) attachToService(conn coordclient.Connection, procFinished ch
 	return true, nil
 }
 
-func markTerminated(conn coordclient.Connection, hss *zzk.HostServiceState) {
+func markTerminated(conn coordclient.Connection, hss *zkservice.HostState) {
 	ssPath := zzk.ServiceStatePath(hss.ServiceID, hss.ServiceStateID)
 	exists, err := conn.Exists(ssPath)
 	if err != nil {
@@ -1076,7 +1077,7 @@ func (a *HostAgent) processServiceState(conn coordclient.Connection, shutdown <-
 	var attached bool
 
 	for {
-		var hss zzk.HostServiceState
+		var hss zkservice.HostState
 		zkEvent, err := zzk.LoadHostServiceStateW(conn, a.hostID, ssID, &hss)
 		if err != nil {
 			errS := fmt.Sprintf("Unable to load host service state %s: %v", ssID, err)
