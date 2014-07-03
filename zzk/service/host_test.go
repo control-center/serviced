@@ -12,24 +12,24 @@ import (
 	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
-type TestHostHandler struct {
+type TestHostStateHandler struct {
 	processing map[string]chan<- interface{}
 	states     map[string]*servicestate.ServiceState
 }
 
-func NewTestHostHandler() *TestHostHandler {
-	return new(TestHostHandler).init()
+func NewTestHostStateHandler() *TestHostStateHandler {
+	return new(TestHostStateHandler).init()
 }
 
-func (handler *TestHostHandler) init() *TestHostHandler {
-	*handler = TestHostHandler{
+func (handler *TestHostStateHandler) init() *TestHostStateHandler {
+	*handler = TestHostStateHandler{
 		processing: make(map[string]chan<- interface{}),
 		states:     make(map[string]*servicestate.ServiceState),
 	}
 	return handler
 }
 
-func (handler *TestHostHandler) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (handler *TestHostStateHandler) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
 	if instanceC, ok := handler.processing[state.ID]; ok {
 		delete(handler.processing, state.ID)
 		close(instanceC)
@@ -40,18 +40,18 @@ func (handler *TestHostHandler) AttachService(done chan<- interface{}, svc *serv
 	return fmt.Errorf("instance %s not running", state.ID)
 }
 
-func (handler *TestHostHandler) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (handler *TestHostStateHandler) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
 	if _, ok := handler.processing[state.ID]; !ok {
 		handler.processing[state.ID] = done
 		handler.states[state.ID] = state
-		state.Started = time.Now()
+		(*state).Started = time.Now()
 		return nil
 	}
 
 	return fmt.Errorf("instance %s already started", state.ID)
 }
 
-func (handler *TestHostHandler) StopService(state *servicestate.ServiceState) error {
+func (handler *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
 	if instanceC, ok := handler.processing[state.ID]; ok {
 		delete(handler.processing, state.ID)
 		delete(handler.states, state.ID)
@@ -60,7 +60,7 @@ func (handler *TestHostHandler) StopService(state *servicestate.ServiceState) er
 	return nil
 }
 
-func (handler *TestHostHandler) UpdateInstance(state *servicestate.ServiceState) error {
+func (handler *TestHostStateHandler) UpdateInstance(state *servicestate.ServiceState) error {
 	if _, ok := handler.states[state.ID]; ok {
 		handler.states[state.ID] = state
 		return nil
@@ -69,10 +69,10 @@ func (handler *TestHostHandler) UpdateInstance(state *servicestate.ServiceState)
 	return fmt.Errorf("instance %s not found", state.ID)
 }
 
-func TestHostListener_Listen(t *testing.T) {
+func TestHostStateListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 	shutdown := make(chan interface{})
 	wait := make(chan interface{})
@@ -102,27 +102,43 @@ func TestHostListener_Listen(t *testing.T) {
 		states = append(states, state)
 	}
 
-	// stop 1 instance and verify
 	spath := servicepath(states[0].ServiceID, states[0].ID)
 	var s servicestate.ServiceState
 	eventC, err := conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
 	if err != nil {
-		t.Fatalf("Error retrieving watch for %s: %s", spath, err)
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
 	}
-	<-time.After(3 * time.Second)
-	if err := StopServiceInstance(conn, listener.host.ID, states[0].ID); err != nil {
-		t.Fatalf("Could not stop service instance %s: %s", states[0].ID, err)
-	}
+
+	// verify the service has started
 	<-eventC
 	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
 	if err != nil {
-		t.Fatalf("Error retrieving watch for %s: %s", spath, err)
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
 	}
+	if s.Started.UnixNano() <= s.Terminated.UnixNano() {
+		t.Fatalf("Service instance %s not started", s.ID)
+	}
+
+	// schedule stopping the instance
+	<-time.After(3 * time.Second)
+	t.Logf("Stopping service instance %s", states[0].ID)
+	if err := StopServiceInstance(conn, listener.host.ID, states[0].ID); err != nil {
+		t.Fatalf("Could not stop service instance %s: %s", states[0].ID, err)
+	}
+
+	// verify the instance stopped
 	<-eventC
-	if exists, err := zkutils.PathExists(conn, spath); err != nil {
-		t.Fatalf("Error checking the instance %s for service %s: %s", s.ID, s.ServiceID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for service %s", s.ID, s.ServiceID)
+	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
+	}
+	if s.Started.UnixNano() > s.Terminated.UnixNano() {
+		t.Fatalf("Service instance %s not stopped", s.ID)
+	}
+
+	// verify the instance was removed
+	if e := <-eventC; e.Type != client.EventNodeDeleted {
+		t.Errorf("Service instance %s still exists for service %s", s.ID, s.ServiceID)
 	} else if exists, err := zkutils.PathExists(conn, hostpath(listener.host.ID, s.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.host.ID, err)
 	} else if exists {
@@ -145,10 +161,10 @@ func TestHostListener_Listen(t *testing.T) {
 	}
 }
 
-func TestHostListener_listenHostState_StartAndStop(t *testing.T) {
+func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 
 	// Create the service
@@ -225,10 +241,10 @@ func TestHostListener_listenHostState_StartAndStop(t *testing.T) {
 	}
 }
 
-func TestHostListener_listenHostState_AttachAndDelete(t *testing.T) {
+func TestHostStateListener_listenHostState_AttachAndDelete(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 
 	// Create the service
@@ -279,10 +295,10 @@ func TestHostListener_listenHostState_AttachAndDelete(t *testing.T) {
 	}
 }
 
-func TestHostListener_listenHostState_Shutdown(t *testing.T) {
+func TestHostStateListener_listenHostState_Shutdown(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 
 	// Create the service
@@ -324,10 +340,10 @@ func TestHostListener_listenHostState_Shutdown(t *testing.T) {
 	}
 }
 
-func TestHostListener_stopInstance(t *testing.T) {
+func TestHostStateListener_stopInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 
 	// Create the instance
@@ -354,10 +370,10 @@ func TestHostListener_stopInstance(t *testing.T) {
 	}
 }
 
-func TestHostListener_detachInstance(t *testing.T) {
+func TestHostStateListener_detachInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostHandler()
+	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, &host.Host{ID: "test-host-1"})
 
 	// Create the instance

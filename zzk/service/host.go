@@ -231,7 +231,7 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 		<-done
 		var s servicestate.ServiceState
 		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
-			glog.Errorf("Could not get service state %s: %s", state.ID, err)
+			glog.Warningf("Could not get service state %s: %s", state.ID, err)
 			return
 		}
 
@@ -274,7 +274,6 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 }
 
 func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error {
-	glog.Info("Stopping instance")
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
@@ -282,7 +281,6 @@ func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error
 }
 
 func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
-	glog.Info("Detaching instance")
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
@@ -327,7 +325,6 @@ func removeInstance(conn client.Connection, hostID, ssID string) error {
 	} else if err := conn.Delete(servicepath(hs.ServiceID, hs.ServiceStateID)); err != nil {
 		return err
 	}
-	glog.Info(hostpath(hostID, ssID), " ", servicepath(hs.ServiceID, hs.ServiceStateID))
 	return nil
 }
 
