@@ -13,25 +13,23 @@
   </span>
 </div>
 
-<table class="table table-striped table-bordered table-hover" id="backup_data" >
+<table class="table table-striped" id="backup_data" >
     <thead>
         <tr>
-            <th>File Name</th>
-            <th>Modified</th>
-            <th>&nbsp;</th>
+            <th>{{'file_name'|translate}}</th>
+            <th>{{'modified'|translate}}</th>
+            <th>{{'actions'|translate}}</th>
         </tr>
     </thead>
     <tbody>
-        <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true" class="link">
+        <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
             <td>{{fileInfo.name}}</td>
             <td>{{fileInfo.mod_time | date: 'medium'}}</td>
             <td>
-                <span class="add-control">
-                    <button class="btn-link" ng-click="restoreBackup(fileInfo.name)">
+                    <button class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
                         <span class="glyphicon glyphicon-refresh"></span>
                         {{'backup_restore'|translate}}
                     </button>
-                </span>
             </td>
         </tr>
     </tbody>

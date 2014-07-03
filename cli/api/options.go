@@ -111,17 +111,17 @@ func (m ServiceMap) Get(serviceID string) *service.Service { return m[serviceID]
 
 // Add appends a service to the service map
 func (m ServiceMap) Add(service *service.Service) error {
-	if _, ok := m[service.Id]; ok {
+	if _, ok := m[service.ID]; ok {
 		return fmt.Errorf("service already exists")
 	}
-	m[service.Id] = service
+	m[service.ID] = service
 	return nil
 }
 
 // Update updates an existing service within the ServiceMap.  If the service
 // not exist, it gets created.
 func (m ServiceMap) Update(service *service.Service) {
-	m[service.Id] = service
+	m[service.ID] = service
 }
 
 // Remove removes a service from the service map

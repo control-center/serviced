@@ -4,12 +4,11 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"errors"
-	"strconv"
 	"time"
 )
 
@@ -98,12 +97,12 @@ func (s *ServiceNode) SetVersion(version interface{}) {
 }
 
 func AddService(conn coordclient.Connection, service *service.Service) error {
-	glog.V(2).Infof("Creating new service %s", service.Id)
+	glog.V(2).Infof("Creating new service %s", service.ID)
 
 	svcNode := &ServiceNode{
 		Service: service,
 	}
-	servicePath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 	if err := conn.Create(servicePath, svcNode); err != nil {
 		glog.Errorf("Unable to create service for %s: %v", servicePath, err)
 	}
@@ -136,7 +135,7 @@ func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 
 	serviceStateNode := &ServiceStateNode{
 		ServiceState: state,
@@ -146,7 +145,7 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 		glog.Errorf("Unable to create path %s because %v", serviceStatePath, err)
 		return err
 	}
-	hostServicePath := HostServiceStatePath(state.HostID, state.Id)
+	hostServicePath := HostServiceStatePath(state.HostID, state.ID)
 	hss := SsToHss(state)
 	if err := conn.Create(hostServicePath, hss); err != nil {
 		glog.Errorf("Unable to create path %s because %v", hostServicePath, err)
@@ -162,7 +161,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	}
 	defer conn.Close()
 
-	serviceStatePath := ServiceStatePath(state.ServiceID, state.Id)
+	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 	ssn := ServiceStateNode{}
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
@@ -178,7 +177,7 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	}
 	defer conn.Close()
 
-	servicePath := ServicePath(service.Id)
+	servicePath := ServicePath(service.ID)
 
 	sn := ServiceNode{}
 	if err := conn.Get(servicePath, &sn); err != nil {
@@ -238,19 +237,11 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	}
 	defer conn.Close()
 
-	var s service.Service
-	if err := LoadService(conn, serviceId, &s); err != nil {
-		return err
-	}
-
-	var ss servicestate.ServiceState
-	if err := LoadServiceState(conn, serviceId, serviceStateId, &ss); err != nil {
-		return err
-	}
-	rs, err := sssToRs(&s, &ss)
+	rs, err := zkservice.LoadRunningService(conn, serviceId, serviceStateId)
 	if err != nil {
 		return err
 	}
+
 	*running = *rs
 	return nil
 }
@@ -276,36 +267,8 @@ func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.Run
 	}
 	defer conn.Close()
 
-	serviceStateIds, err := conn.Children(HostPath(hostId))
-	if err != nil {
-		glog.Errorf("Unable to acquire list of services")
-		return err
-	}
-
-	_ss := make([]*dao.RunningService, len(serviceStateIds))
-	for i, hssId := range serviceStateIds {
-
-		var hss HostServiceState
-		if err := LoadHostServiceState(conn, hostId, hssId, &hss); err != nil {
-			return err
-		}
-
-		var s service.Service
-		if err := LoadService(conn, hss.ServiceID, &s); err != nil {
-			return err
-		}
-
-		var ss servicestate.ServiceState
-		if err := LoadServiceState(conn, hss.ServiceID, hss.ServiceStateID, &ss); err != nil {
-			return err
-		}
-		_ss[i], err = sssToRs(&s, &ss)
-		if err != nil {
-			return err
-		}
-	}
-	*running = append(*running, _ss...)
-	return nil
+	*running, err = zkservice.LoadRunningServicesByHost(conn, hostId)
+	return err
 }
 
 func (zkdao *ZkDao) GetRunningServicesForService(serviceId string, running *[]*dao.RunningService) error {
@@ -315,7 +278,8 @@ func (zkdao *ZkDao) GetRunningServicesForService(serviceId string, running *[]*d
 	}
 	defer conn.Close()
 
-	return LoadRunningServices(conn, running, serviceId)
+	*running, err = zkservice.LoadRunningServicesByService(conn, serviceId)
+	return err
 }
 
 func (zkdao *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
@@ -325,12 +289,8 @@ func (zkdao *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error 
 	}
 	defer conn.Close()
 
-	serviceIds, err := conn.Children(SERVICE_PATH)
-	if err != nil {
-		glog.Errorf("Unable to acquire list of services")
-		return err
-	}
-	return LoadRunningServices(conn, running, serviceIds...)
+	*running, err = zkservice.LoadRunningServices(conn)
+	return err
 }
 
 func HostPath(hostId string) string {
@@ -430,36 +390,6 @@ func RemoveServiceState(conn coordclient.Connection, serviceId string, serviceSt
 	if err := conn.Delete(hssPath); err != nil {
 		glog.Errorf("Unable to delete host service state %s", hssPath)
 		return err
-	}
-	return nil
-}
-
-func LoadRunningServices(conn coordclient.Connection, running *[]*dao.RunningService, serviceIds ...string) error {
-	for _, serviceId := range serviceIds {
-		var s service.Service
-		if err := LoadService(conn, serviceId, &s); err != nil {
-			return err
-		}
-
-		servicePath := ServicePath(serviceId)
-		childNodes, err := conn.Children(servicePath)
-		if err != nil {
-			return err
-		}
-
-		_ss := make([]*dao.RunningService, len(childNodes))
-		for i, childId := range childNodes {
-			var ss servicestate.ServiceState
-			if err := LoadServiceState(conn, serviceId, childId, &ss); err != nil {
-				return err
-			}
-			_ss[i], err = sssToRs(&s, &ss)
-			if err != nil {
-				return err
-			}
-
-		}
-		*running = append(*running, _ss...)
 	}
 	return nil
 }
@@ -603,46 +533,9 @@ func SsToHss(ss *servicestate.ServiceState) *HostServiceState {
 	return &HostServiceState{
 		HostID:         ss.HostID,
 		ServiceID:      ss.ServiceID,
-		ServiceStateID: ss.Id,
+		ServiceStateID: ss.ID,
 		DesiredState:   service.SVCRun,
 	}
-}
-
-// Service & ServiceState to RunningService
-func sssToRs(s *service.Service, ss *servicestate.ServiceState) (*dao.RunningService, error) {
-	rs := &dao.RunningService{}
-	rs.Id = ss.Id
-	rs.ServiceID = ss.ServiceID
-	rs.StartedAt = ss.Started
-	rs.HostID = ss.HostID
-	rs.DockerID = ss.DockerID
-	rs.InstanceID = ss.InstanceID
-	rs.Startup = s.Startup
-	rs.Name = s.Name
-	rs.Description = s.Description
-	rs.Instances = s.Instances
-	rs.PoolID = s.PoolID
-	rs.ImageID = s.ImageID
-	rs.DesiredState = s.DesiredState
-	rs.ParentServiceID = s.ParentServiceID
-	rs.MonitoringProfile.MetricConfigs = make([]domain.MetricConfig, len(s.MonitoringProfile.MetricConfigs))
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		return nil, err
-	}
-	for i, metricGroup := range s.MonitoringProfile.MetricConfigs {
-		for _, metric := range metricGroup.Metrics {
-			metricBuilder := build.Metric(metric.ID, metric.Name)
-			metricBuilder.SetTag("controlplane_instance_id", strconv.FormatInt(int64(rs.InstanceID), 10))
-			metricBuilder.SetTag("controlplane_service_id", rs.ServiceID)
-		}
-		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
-		if err != nil {
-			return nil, err
-		}
-		rs.MonitoringProfile.MetricConfigs[i] = *config
-	}
-	return rs, nil
 }
 
 // Snapshot section start
@@ -669,7 +562,7 @@ func (s *SnapShotRequestNode) Version() interface{}           { return s.version
 func (s *SnapShotRequestNode) SetVersion(version interface{}) { s.version = version }
 
 func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
-	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.Id)
+	glog.V(3).Infof("Creating new snapshot request %s", snapshotRequest.ID)
 
 	// make sure toplevel paths exist
 	paths := []string{SNAPSHOT_PATH, SNAPSHOT_REQUEST_PATH}
@@ -693,7 +586,7 @@ func AddSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.Snapsh
 	srn := SnapShotRequestNode{
 		SnapshotRequest: snapshotRequest,
 	}
-	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
+	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.ID)
 	if err := conn.Create(snapshotRequestsPath, &srn); err != nil {
 		glog.Errorf("Unable to create snapshot request %s: %v", snapshotRequestsPath, err)
 		return err
@@ -758,7 +651,7 @@ func (zkdao *ZkDao) UpdateSnapshotRequest(snapshotRequest *dao.SnapshotRequest) 
 
 func UpdateSnapshotRequest(conn coordclient.Connection, snapshotRequest *dao.SnapshotRequest) error {
 	glog.V(3).Infof("UpdateSnapshotRequest with snapshotrequest: %+v", snapshotRequest)
-	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.Id)
+	snapshotRequestsPath := SnapshotRequestsPath(snapshotRequest.ID)
 	exists, err := conn.Exists(snapshotRequestsPath)
 	if err != nil {
 		if err == coordclient.ErrNoNode {

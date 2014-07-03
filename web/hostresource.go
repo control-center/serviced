@@ -194,7 +194,7 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 func buildHostMonitoringProfile(host *host.Host) error {
 	tags := map[string][]string{"controlplane_host_id": []string{host.ID}}
-	profile, err := newProfile(tags)
+	profile, err := hostPoolProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		glog.Error("Failed to create host profile: %s", err)
 		return err
@@ -207,6 +207,6 @@ func buildHostMonitoringProfile(host *host.Host) error {
 	profile.GraphConfigs[2] = newCpuConfigGraph(tags, host.Cores)
 	profile.GraphConfigs[3] = newRSSConfigGraph(tags, host.Memory)
 
-	host.MonitoringProfile = profile
+	host.MonitoringProfile = *profile
 	return nil
 }

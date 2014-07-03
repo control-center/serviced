@@ -80,14 +80,16 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 
 	sd := servicedefinition.ServiceDefinition{
-		Metrics: []servicedefinition.MetricGroup{
-			servicedefinition.MetricGroup{
-				ID:          "jvm.memory",
-				Name:        "JVM Memory",
-				Description: "JVM heap vs. non-heap memory usage",
-				Metrics: []servicedefinition.Metric{
-					servicedefinition.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
-					servicedefinition.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "jvm.memory",
+					Name:        "JVM Memory",
+					Description: "JVM heap vs. non-heap memory usage",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "jvm.memory.heap", Name: "JVM Heap Usage"},
+						domain.Metric{ID: "jvm.memory.non_heap", Name: "JVM Non-Heap Usage"},
+					},
 				},
 			},
 		},
@@ -98,11 +100,11 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 		t.Errorf("BuildService Failed w/err=%s", err)
 	}
 
-	data_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
-	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.Id)
+	data_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.ID)
+	data_non_heap_request := fmt.Sprintf("{\"metric\":\"jvm.memory.non_heap\",\"tags\":{\"controlplane_service_id\":[\"%s\"]}}", actual.ID)
 	data := fmt.Sprintf("{\"metrics\":[%s,%s],\"start\":\"1h-ago\"}", data_heap_request, data_non_heap_request)
 	expected := Service{
-		Id:        actual.Id,
+		ID:        actual.ID,
 		CreatedAt: actual.CreatedAt,
 		UpdatedAt: actual.UpdatedAt,
 		Context:   actual.Context,
@@ -126,12 +128,13 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 					},
 				},
 			},
+			GraphConfigs: []domain.GraphConfig{},
 		},
 	}
 
 	if !expected.Equals(actual) {
-		t.Logf("expected: %+v", expected)
-		t.Logf("actual: %+v", *actual)
+		t.Logf("expected: %+v", expected.MonitoringProfile)
+		t.Logf("actual: %+v", actual.MonitoringProfile)
 		t.Error("expected != actual")
 	}
 }

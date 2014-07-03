@@ -16,7 +16,7 @@ var (
       "properties":{
         "ID" :          {"type": "string", "index":"not_analyzed"},
         "Description" : {"type": "string", "index":"not_analyzed"},
-        "ParentId":     {"type": "string", "index":"not_analyzed"},
+        "ParentID":     {"type": "string", "index":"not_analyzed"},
         "CoreLimit":    {"type": "long", "index":"not_analyzed"},
         "MemoryLimit":  {"type": "long", "index":"not_analyzed"},
         "Priority":     {"type": "long", "index":"not_analyzed"},

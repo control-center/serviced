@@ -10,14 +10,41 @@
 #---------------------#
 # Macros              #
 #---------------------#
-build_TARGETS   = build_isvcs build_js serviced nsinit
-install_TARGETS = $(bash_completion) $(nsinit) $(logstash.conf) $(serviced)
+
+install_TARGETS   = $(install_DIRS)
+prefix            = /opt/serviced
+sysconfdir        = /etc
+
+#
+# Specify if we want service definition templates (picked up from
+# pkg/templates) to be included as part of the serviced packaging.
+#
+INSTALL_TEMPLATES      = 1
+
+#
+# When packaging just the templates, throw this option.
+#
+INSTALL_TEMPLATES_ONLY = 0
+
+# The installed footprint is influenced by the distro
+# we're targeting.  Allow this usage:
+#
+#    sudo make install PKG=<deb|rpm>
+#
+PKG         = $(default_PKG) # deb | rpm
+default_PKG = deb
+
+build_TARGETS = build_isvcs build_js $(logstash.conf) nsinit serviced
 
 # Define GOPATH for containerized builds.
 #
 #    NB: Keep this in sync with build/Dockerfile: ENV GOPATH /go
 #
 docker_GOPATH = /go
+
+serviced_SRC            = github.com/zenoss/serviced
+docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
+docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
 
 ifeq "$(GOPATH)" ""
     $(warning "GOPATH not set. Ok to ignore for containerized builds.")
@@ -53,21 +80,53 @@ GODEP     = $(GOBIN)/godep
 Godeps    = Godeps
 godep_SRC = github.com/tools/godep
 
+# Normalize DESTDIR so we can use this idiom in our install targets:
+#
+# $(_DESTDIR)$(prefix)
+#
+# and not end up with double slashes.
+ifneq "$(DESTDIR)" ""
+    PREFIX_HAS_LEADING_SLASH = $(patsubst /%,/,$(prefix))
+    ifeq "$(PREFIX_HAS_LEADING_SLASH)" "/"
+        _DESTDIR := $(shell echo $(DESTDIR) | sed -e "s|\/$$||g")
+    else
+        _DESTDIR := $(shell echo $(DESTDIR) | sed -e "s|\/$$||g" -e "s|$$|\/|g")
+    endif
+endif
+
 #---------------------#
 # Build targets       #
 #---------------------#
 .PHONY: default build all
 default build all: $(build_TARGETS)
 
-.PHONY: build_binary 
-build_binary: $(build_TARGETS)
-	$(warning ":-[ Can we deprecate this poorly named target? [$@]")
-	$(warning ":-[ We're building more than just one thing and we're building more than just binaries.")
-	$(warning ":-] Why not just 'make all' or 'make serviced' if that is what you really want?")
+# The presence of this file indicates that godep restore 
+# has been run.  It will refresh when ./Godeps itself is updated.
+Godeps_restored = .Godeps_restored
+
+# NB: Dependency upon $(GODEP) below is intentional.  Otherwise dockerized builds
+#     may not 'go restore' properly, leaving an incompletely populated $GOPATH/src.
+#     Fundamental issue is we employ separate $GOPATHS for docker and non-dockerized
+#     build targets (which is good), but we share the same serviced source and
+#     use it as a build tree (which is ungood). Until we separate out the build trees 
+#     and keep the source pristine, the potential exists for build-state from a 
+#     non-dockerized build targets to affect build behavior in the dockerized 
+#     build targets and vice-versa.
+
+$(Godeps_restored): $(GODEP) $(Godeps)
+	@echo "$(GODEP) restore" ;\
+	$(GODEP) restore ;\
+	rc=$$? ;\
+	if [ $${rc} -ne 0 ] ; then \
+		echo "ERROR: Failed $(GODEP) restore. [rc=$${rc}]" ;\
+		echo "** Unable to restore your GOPATH to a baseline state." ;\
+		echo "** Perhaps internet connectivity is down." ;\
+		exit $${rc} ;\
+	fi
+	touch $@
 
 .PHONY: build_isvcs
-build_isvcs: | $(GODEP) $(Godeps)
-	$(GODEP) restore
+build_isvcs: $(Godeps_restored)
 	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
 
 .PHONY: build_js
@@ -82,47 +141,57 @@ $(GOSRC)/$(godep_SRC):
 go: 
 	go build
 
+# As a dev convenience, we call both 'go build' and 'go install'
+# so the current directory and $GOPATH/bin are updated
+# with the built target.  This allows dev's to reference the target out
+# of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
+
 docker_SRC = github.com/dotcloud/docker
 nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-nsinit: | $(GOSRC)/$(nsinit_SRC) $(GODEP) $(Godeps)
-	$(GODEP) restore
-	go build $($@_SRC)
+nsinit: $(Godeps_restored)
+	go build   $($@_SRC)
+	go install $($@_SRC)
 
-serviced: | $(GODEP) $(Godeps)
-	$(GODEP) restore
+nsinit = $(GOBIN)/nsinit
+$(nsinit): $(Godeps_restored)
+	go install $($(@F)_SRC)
+
+# https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
+#
+# Force our go recipies to always fire since make doesn't 
+# understand all of the target's *.go dependencies.  In this case let
+# 'go build' determine if the target needs to be rebuilt.
+FORCE:
+
+serviced: $(Godeps_restored)
+serviced: FORCE
 	go build
+	go install
 
-serviced_SRC            = github.com/zenoss/serviced
-docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
-docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
+serviced = $(GOBIN)/serviced
+$(serviced): $(Godeps_restored)
+$(serviced): FORCE
+	go install
 
-.PHONY: docker_build dockerbuild_binaryx
-docker_build dockerbuild_binaryx: docker_ok
+.PHONY: docker_build
+pkg_build_tmp = pkg/build/tmp
+docker_build: docker_ok 
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	if [ ! -d "$(pkg_build_tmp)" ];then \
+		mkdir -p $(pkg_build_tmp) ;\
+	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	-v `pwd`/pkg/build/tmp:/tmp \
-	-t zenoss/serviced-build make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build_binary
+	-v `pwd`/$(pkg_build_tmp):/tmp \
+	-t zenoss/serviced-build \
+	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 	cd isvcs && make isvcs_repo
 
-#---------------------#
-# Install targets     #
-#---------------------#
-
-bash_completion_SRC = serviced-bash-completion.sh
-bash_completion     = /etc/bash_completion.d/serviced
-#
-# CM: This is a bit non-std to inline the sudo.  
-#     More typical pattern is:
-#
-#        sudo make install
-#
-$(bash_completion): $(bash_completion_SRC)
-	sudo cp $? $@
-
+# Seems odd that we're 'building' logstash.conf here.  
+# Why not as part of 'make isvcs'?
 logstash.conf     = isvcs/resources/logstash/logstash.conf
 logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in 
 $(logstash.conf): $(logstash.conf_SRC)
@@ -141,52 +210,206 @@ missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(g
 $(GODEP): | $(missing_godep_SRC)
 	go install $(godep_SRC)
 
-nsinit = $(GOBIN)/nsinit
-missing_nsinit_SRC =  $(filter-out $(wildcard $(GOSRC)/$(nsinit_SRC)), $(GOSRC)/$(nsinit_SRC))
-$(nsinit): | $(missing_nsinit_SRC)
-	go install $(nsinit_SRC)
+#---------------------#
+# Install targets     #
+#---------------------#
 
-.PHONY: serviced_svcdef_compiler
-serviced = $(GOBIN)/serviced
-$(serviced) serviced_svcdef_compiler:
-	go install
+install_DIRS  = $(_DESTDIR)$(prefix)
+install_DIRS += $(_DESTDIR)/usr/bin
+install_DIRS += $(_DESTDIR)$(prefix)/bin
+install_DIRS += $(_DESTDIR)$(prefix)/share/web
+install_DIRS += $(_DESTDIR)$(prefix)/share/shell
+install_DIRS += $(_DESTDIR)$(prefix)/isvcs
+install_DIRS += $(_DESTDIR)$(prefix)/templates
+install_DIRS += $(_DESTDIR)$(sysconfdir)/default
+install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
+
+# Specify the stuff to install as attributes of the various
+# install directories we know about.
+#
+# Usage:
+#
+#     $(dir)_TARGETS = filename
+#     $(dir)_TARGETS = src_filename:dest_filename
+#
+default_INSTCMD = cp
+$(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/nsinit:$(_DESTDIR)/usr/bin/nsinit
+$(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
+$(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
+$(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
+$(_DESTDIR)$(prefix)/share/shell_INSTOPT           = -R
+$(_DESTDIR)$(prefix)/isvcs_TARGETS                 = isvcs/resources:.
+$(_DESTDIR)$(prefix)/isvcs_INSTOPT                 = -R
+$(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
+$(_DESTDIR)$(prefix)_INSTOPT                       = -R
+$(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
+$(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
+
+#-----------------------------------#
+# Install targets (distro-specific) #
+#-----------------------------------#
+_PKG = $(strip $(PKG))
+ifeq "$(_PKG)" "deb"
+install_DIRS += $(_DESTDIR)$(sysconfdir)/init
+endif
+ifeq "$(_PKG)" "rpm"
+install_DIRS += $(_DESTDIR)/usr/lib/systemd/system
+endif
+
+ifeq "$(_PKG)" "deb"
+$(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
+endif
+ifeq "$(_PKG)" "rpm"
+$(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
+endif
+
+#-----------------------------------#
+# Install targets (service defs)    #
+#-----------------------------------#
+
+# We're moving toward packaging service definitions by themselves.
+# Define the policies that control when templates show up under the
+# staged install directory (i.e., $(PKGROOT)/opt/serviced/templates)
+# consumed at package time.
+#
+# TODO: Revisit where to tuck these templates relative to FHS.
+
+# NB: If either INSTALL_TEMPLATES or INSTALL_TEMPLATES_ONLY is asserted
+#     then jump into the body of the ifneq and augment install_DIRS and 
+#     targets accordingly.
+
+ifneq (,$(filter 1,$(INSTALL_TEMPLATES) $(INSTALL_TEMPLATES_ONLY)))
+    ifeq "$(INSTALL_TEMPLATES_ONLY)" "1"
+        # Install just the service definitions in preparation
+        # for creating servicedef packages.
+        install_DIRS  = $(_DESTDIR)$(prefix)/templates
+    else
+        # Include svcdefs with serviced deb.
+        install_DIRS += $(_DESTDIR)$(prefix)/templates
+    endif
+
+    # At the moment, the pkg/templates directory is actually 
+    # populated by our top-level makefile.  This seems a bit disjoint.
+    # Will fix once I figure out some cleaner.
+
+    $(_DESTDIR)$(prefix)/templates_TARGETS = pkg/templates/:.
+    $(_DESTDIR)$(prefix)/templates_INSTCMD = rsync
+    $(_DESTDIR)$(prefix)/templates_INSTOPT = -a --exclude=README.txt 
+endif
+
+# Iterate across all the install dirs, populating
+# same with install targets (e.g., files, directories).
+#
+$(install_DIRS): install_TARGETS = $($@_TARGETS)
+$(install_DIRS): install_LINK_TARGETS = $($@_LINK_TARGETS)
+$(install_DIRS): instcmd = $(firstword $($@_INSTCMD) $(default_INSTCMD))
+$(install_DIRS): instopt = $($@_INSTOPT)
+$(install_DIRS): FORCE
+	@for install_DIR in $@ ;\
+	do \
+		if [ ! -d "$${install_DIR}" ];then \
+			echo "mkdir -p $${install_DIR}" ;\
+			mkdir -p $${install_DIR};\
+			rc=$$? ;\
+			if [ $${rc} -ne 0 ];then \
+				echo "[$@] Try: 'sudo make install' or 'make install DESTDIR=/tmp/root'" ;\
+				exit $${rc} ;\
+			fi ;\
+		fi ;\
+		for install_TARGET in $(install_TARGETS) ;\
+		do \
+			case $${install_TARGET} in \
+				*:*) \
+					from=`echo $${install_TARGET} | cut -d: -f1`;\
+					to=`echo $${install_TARGET} | cut -d: -f2` ;\
+					;;\
+				*) \
+					from=$${install_TARGET} ;\
+					to=$${install_TARGET} ;\
+					;;\
+			esac ;\
+			if [ -e "$${from}" ];then \
+				echo "$(instcmd) $(instopt) $${from} $${install_DIR}/$${to}" ;\
+				$(instcmd) $(instopt) $${from} $${install_DIR}/$${to} ;\
+				rc=$$? ;\
+				if [ $${rc} -ne 0 ];then \
+					exit $${rc} ;\
+				fi ;\
+			else \
+				echo "[$@] Missing $${from}" ;\
+				echo "[$@] Try: 'make build'" ;\
+				exit 1 ;\
+			fi ;\
+		done ;\
+		for install_LINK_TARGET in $(install_LINK_TARGETS) ;\
+		do \
+			case $${install_LINK_TARGET} in \
+				*:*) \
+					from=`echo $${install_LINK_TARGET} | cut -d: -f1`;\
+					to=`echo $${install_LINK_TARGET} | cut -d: -f2` ;\
+					;;\
+				*) \
+					from=$${install_LINK_TARGET} ;\
+					to= ;\
+					;;\
+			esac ;\
+			if [ -e "$(_DESTDIR)$${from}" ];then \
+				echo "ln -sf $${from} $${to}" ;\
+				ln -sf $${from} $${to} ;\
+				rc=$$? ;\
+				if [ $${rc} -ne 0 ];then \
+					exit $${rc} ;\
+				fi ;\
+			else \
+				echo "[$@] Missing $(_DESTDIR)$${from}" ;\
+				echo "[$@] Try: 'make build && make install'" ;\
+				exit 1 ;\
+			fi ;\
+		done ;\
+	done
 
 .PHONY: install
-install: | $(build_TARGETS)
 install: $(install_TARGETS)
 
 #---------------------#
 # Packaging targets   #
 #---------------------#
 
+PKGS = deb rpm
 .PHONY: pkgs
 pkgs:
-	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) deb rpm
+	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) $(PKGS)
 
-.PHONY: docker_buildandpackage dockerbuildx
-docker_buildandpackage dockerbuildx: docker_ok
+.PHONY: docker_buildandpackage
+docker_buildandpackage: docker_ok
 	docker build -t zenoss/serviced-build build
 	cd isvcs && make export
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/zenoss/serviced \
-	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean && mkdir -p $(docker_serviced_pkg_SRC)/build/tmp"
+	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	if [ ! -d "$(pkg_build_tmp)" ];then \
+		mkdir -p $(pkg_build_tmp) ;\
+	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	-v `pwd`/pkg/build/tmp:/tmp \
+	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build make \
 		IN_DOCKER=1 \
 		GOPATH=$(docker_GOPATH) \
 		BUILD_NUMBER=$(BUILD_NUMBER) \
 		RELEASE_PHASE=$(RELEASE_PHASE) \
 		SUBPRODUCT=$(SUBPRODUCT) \
-		build_binary pkgs
+		build pkgs
 
 #---------------------#
 # Test targets        #
 #---------------------#
 
 .PHONY: test
-test: build_binary docker_ok
+test: build docker_ok
 	go test ./commons/... $(GOTEST_FLAGS)
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
@@ -204,8 +427,11 @@ test: build_binary docker_ok
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
+	cd zzk/snapshot && go test $(GOTEST_FLAGS)
+	cd zzk/service && go test $(GOTEST_FLAGS)
+	cd zzk/docker && go test $(GOTEST_FLAGS)
 
-smoketest: build_binary docker_ok
+smoketest: build docker_ok
 	/bin/bash smoke.sh
 
 docker_ok:
@@ -226,18 +452,26 @@ clean_js:
 
 .PHONY: clean_nsinit
 clean_nsinit:
-	if [ -f nsinit ];then \
-		rm -f nsinit ;\
-	fi
+	@for target in nsinit $(nsinit) ;\
+        do \
+                if [ -f "$${target}" ];then \
+                        rm -f $${target} ;\
+			echo "rm -f $${target}" ;\
+                fi ;\
+        done
 	if [ -d "$(GOSRC)/$(nsinit_SRC)" ];then \
 		cd $(GOSRC)/$(nsinit_SRC) && go clean ;\
 	fi
 
 .PHONY: clean_serviced
 clean_serviced:
-	if [ -f "serviced" ];then \
-		rm -f serviced ;\
-	fi
+	@for target in serviced $(serviced) ;\
+        do \
+                if [ -f "$${target}" ];then \
+                        rm -f $${target} ;\
+			echo "rm -f $${target}" ;\
+                fi ;\
+        done
 	-go clean
 
 .PHONY: clean_pkg
@@ -246,7 +480,11 @@ clean_pkg:
 
 .PHONY: clean_godeps
 clean_godeps: | $(GODEP) $(Godeps)
-	$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	-$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	@if [ -f "$(Godeps_restored)" ];then \
+		rm -f $(Godeps_restored) ;\
+		echo "rm -f $(Godeps_restored)" ;\
+	fi
 
 .PHONY: clean_dao
 clean_dao:
@@ -270,6 +508,11 @@ mrclean: docker_clean clean
 #==============================================================================#
 # DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
 #==============================================================================#
-dockerbuild dockerbuild_binary:
-	$(error The $@ target has been deprecated. Yo, fix your makefile.)
+.PHONY: dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx
+dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx:
+	$(error The $@ target has been deprecated. Yo, fix your makefile. Use docker_build or possibly docker_buildandpackage.)
+
+.PHONY: build_binary 
+build_binary: $(build_TARGETS)
+	$(error The $@ target has been deprecated.  Just use 'make build' or 'make' instead.)
 #==============================================================================#

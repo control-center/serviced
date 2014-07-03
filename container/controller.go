@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
@@ -430,7 +431,7 @@ func (c *Controller) Run() (err error) {
 
 		case exitError := <-serviceExited:
 			if !c.options.Service.Autorestart {
-				exitStatus := getExitStatus(exitError)
+				exitStatus, _ := utils.GetExitStatus(exitError)
 				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
 				os.Exit(exitStatus)
 			}
@@ -451,17 +452,6 @@ func (c *Controller) Run() (err error) {
 		exitChannel <- true
 	}
 	return
-}
-
-func getExitStatus(err error) int {
-	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			if status, ok := e.Sys().(syscall.WaitStatus); ok {
-				return status.ExitStatus()
-			}
-		}
-	}
-	return 0
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
