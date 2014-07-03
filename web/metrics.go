@@ -95,7 +95,6 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		},
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of serviced's total open file descriptors over time",
 	}
@@ -131,7 +130,6 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		YAxisLabel:  "Faults / Min",
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of major memory page faults over time",
 	}
@@ -245,7 +243,6 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		YAxisLabel:  "% Used",
 		ReturnSet:   "EXACT",
 		Type:        "area",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of system and user cpu usage over time",
 	}
@@ -321,7 +318,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		YAxisLabel:  "GB",
 		ReturnSet:   "EXACT",
 		Type:        "area",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
 	}
