@@ -65,11 +65,10 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 
 // getServiceState gets the service state for a serviceID
 func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr string) (*servicestate.ServiceState, error) {
-
 	tmpID, err := strconv.Atoi(instanceIDStr)
 	if err != nil {
 		glog.Errorf("Unable to interpret InstanceID: %s", instanceIDStr)
-		return nil, err
+		return nil, fmt.Errorf("endpoint.go getServiceState failed: %v", err)
 	}
 	instanceID := int(tmpID)
 
@@ -78,7 +77,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 		err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
 		if err != nil {
 			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
-			return nil, nil
+			return nil, fmt.Errorf("endpoint.go getServiceState zzk.GetServiceStates failed: %v", err)
 		}
 
 		for ii, ss := range serviceStates {
@@ -94,47 +93,37 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 	return nil, fmt.Errorf("unable to retrieve service state")
 }
 
-// getZkConnection returns the zookeeper connection
-func (c *Controller) getZkConnection() (coordclient.Connection, error) {
-	glog.Infof(" ^^^^^^^^^^^^^^^ start getZkConnection ... c.options.ServicedEndpoint: %+v", c.options.ServicedEndpoint)
+// getEndpoints builds exportedEndpoints and importedEndpoints
+func (c *Controller) getEndpoints(service *service.Service) error {
 	var err error
 	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
 	if err != nil {
 		glog.Errorf("Invalid zk info: %v", err)
-		return nil, err //ErrInvalidZkInfo
+		return err //ErrInvalidZkInfo
 	}
 	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
 
-	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, "", nil)
+	// CLARK TODO make root connection from zkdao
+	rootBasePath := ""
+	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, rootBasePath, nil)
 	if err != nil {
 		glog.Errorf("failed create a new coordclient: %v", err)
-		return nil, err
-	}
-
-	c.zkConn, err = zClient.GetConnection()
-
-	// CLARK TODO GET A connection at root!
-	//c.zkConn, err = zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.zkConn, nil
-}
-
-// getEndpoints builds exportedEndpoints and importedEndpoints
-func (c *Controller) getEndpoints(service *service.Service) error {
-	// get zookeeper connection
-	conn, err := c.getZkConnection()
-	if err != nil {
 		return err
+	}
+
+	zzk.InitializeGlobals(zClient)
+
+	// get zookeeper connection
+	conn, err := zzk.GetPoolBasedConnection(service.PoolID)
+	if err != nil {
+		return fmt.Errorf("endpoint.go getEndpoints zzk.GetPoolBasedConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
 		// this is not a running service, i.e. serviced shell/run
 		if hostname, err := os.Hostname(); err != nil {
-			glog.Errorf("could not get hostname : %s", err)
-			return err
+			glog.Errorf("could not get hostname: %s", err)
+			return fmt.Errorf("getEndpoints failed could not get hostname: %v", err)
 		} else {
 			c.dockerID = hostname
 		}
@@ -151,7 +140,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		// get service state
 		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
 		if err != nil {
-			return err
+			return fmt.Errorf("endpoint.go getEndpoints getServiceState failed: %v", err)
 		}
 		c.dockerID = sstate.DockerID
 
@@ -374,7 +363,7 @@ func (c *Controller) watchRemotePorts() {
 
 	}
 
-	glog.Infof("watching endpointRegistry")
+	glog.Warningf("watching endpointRegistry")
 	go endpointRegistry.WatchRegistry(zkConn, endpointsWatchCanceller, processTenantEndpoints, endpointWatchError)
 }
 
@@ -493,8 +482,8 @@ func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) 
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() {
-	// get zookeeper connection
-	conn, err := c.getZkConnection()
+	// get zookeeper connection to /
+	conn, err := zzk.GetPoolBasedConnection("")
 	if err != nil {
 		return
 	}

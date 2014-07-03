@@ -9,6 +9,7 @@ import (
 	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"errors"
+	"fmt"
 	"runtime/debug"
 	"time"
 )
@@ -19,19 +20,30 @@ const SCHEDULER_PATH = "/scheduler"
 const SNAPSHOT_PATH = "/snapshots"
 const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
 
-var zClient coordclient.Client
+var zClient *coordclient.Client
 var poolBasedConnections = make(map[string]coordclient.Connection)
 
-func InitializeGlobals(myZClient coordclient.Client) {
+func InitializeGlobals(myZClient *coordclient.Client) {
 	zClient = myZClient
 }
 
 // GetPoolBasedConnection returns a connection based on the poolID provided
+// if poolID is "", return root connection
 func GetPoolBasedConnection(poolID string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
-	glog.Infof("   Getting connection based on pool: %v", poolID)
-	basePath := "/pools/" + poolID
+	var basePath string
+	if poolID == "" {
+		basePath = "/"
+	} else {
+		glog.Infof("   Getting connection based on pool: %v", poolID)
+		basePath = "/pools/" + poolID
+	}
 	if _, ok := poolBasedConnections[basePath]; ok {
 		return poolBasedConnections[basePath], nil
+	}
+
+	if zClient == nil {
+		debug.PrintStack()
+		glog.Errorf("zkdao zClient has not been initialized!")
 	}
 
 	myNewConnection, err := zClient.GetCustomConnection(basePath)
@@ -363,7 +375,7 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 	servicePath := ServicePath(serviceId)
 	childNodes, err := conn.Children(servicePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("zkdao.appendServiceStates failed to get the children of %v: %v", servicePath, err)
 	}
 	_ss := make([]*servicestate.ServiceState, len(childNodes))
 	for i, childId := range childNodes {

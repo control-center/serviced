@@ -391,12 +391,12 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 			} else {
 				// get last 1000 bytes
 				str := string(output)
-				last := len(str) - 1000
+				last := len(str) - 50000
 				if last < 0 {
 					last = 0
 				}
 				str = str[last:]
-				glog.Warningf("Last 1000 bytes of container %s: %s", containerID, str)
+				glog.Warningf("Last 50000 bytes of container %s: %s", containerID, str)
 
 			}
 		}

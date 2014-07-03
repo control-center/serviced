@@ -146,7 +146,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	rootBasePath := ""
+	rootBasePath := "/"
 	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	zClient, err := coordclient.New("zookeeper", dsn, rootBasePath, nil)
@@ -154,7 +154,7 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobals(*zClient)
+	zzk.InitializeGlobals(zClient)
 
 	d.facade = d.initFacade()
 
@@ -301,7 +301,7 @@ func (d *daemon) initiateAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobals(*zClient)
+		zzk.InitializeGlobals(zClient)
 
 		poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
 		if err != nil {

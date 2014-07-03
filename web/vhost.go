@@ -161,7 +161,7 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 func (sc *ServiceConfig) watchVhosts() error {
 	glog.Info("watchVhosts starting")
 
-	mc, err := sc.getMasterClient()
+	/*mc, err := sc.getMasterClient()
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting master client: %v", err)
 		return err
@@ -171,26 +171,27 @@ func (sc *ServiceConfig) watchVhosts() error {
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting resource pools: %v", err)
 		return err
+	}*/
+	// CLARK TODO
+	//for _, aPool := range allPools {
+	poolBasedConn, err := zzk.GetPoolBasedConnection("")
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
+		return err
 	}
-	for _, aPool := range allPools {
-		poolBasedConn, err := zzk.GetPoolBasedConnection(aPool.ID)
-		if err != nil {
-			glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
-			return err
-		}
 
-		vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
-		if err != nil {
-			glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
-			return err
-		}
-
-		cancelChan := make(chan bool)
-		go func() {
-			vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
-			glog.Warning("watchVhosts ended")
-		}()
+	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
+		return err
 	}
+
+	cancelChan := make(chan bool)
+	go func() {
+		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
+		glog.Warning("watchVhosts ended")
+	}()
+	//}
 
 	return nil
 }

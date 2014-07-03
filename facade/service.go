@@ -744,7 +744,7 @@ func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, se
 	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
 }
 
-func RemoveHost(hostID string) error {
+/*func RemoveHost(hostID string) error {
 	poolID := "default"
 	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // CLARK TODO FIXME ?????
 	if err != nil {
@@ -752,7 +752,7 @@ func RemoveHost(hostID string) error {
 		return err
 	}
 	return zzk.RemoveHost(poolBasedConn, hostID)
-}
+}*/
 
 func lookUpTenant(svcID string) (string, bool) {
 	tenanIDMutex.RLock()
