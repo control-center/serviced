@@ -209,7 +209,11 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 		case e := <-event:
 			glog.V(3).Info("Receieved event: ", e)
 			if e.Type == client.EventNodeDeleted {
-				l.stopInstance(&state)
+				if processDone != nil {
+					l.detachInstance(processDone, &state)
+				} else {
+					l.stopInstance(&state)
+				}
 				return
 			}
 		case <-shutdown:
