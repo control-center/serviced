@@ -44,15 +44,23 @@ func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]str
 	return bindmounts, nil
 }
 
+func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) ([]string, error) {
+	bindmounts, err := getServiceBindMounts(lbClientPort, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	mounts := defaultMounts
+	for hostPath, containerPath := range bindmounts {
+		bind := hostPath + "," + containerPath
+		mounts = append(mounts, bind)
+	}
+
+	return mounts, nil
+}
+
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
-	bindmounts, err := getServiceBindMounts(config.ServicedEndpoint, config.ServiceID)
-	if err != nil {
-		return err
-	}
-	glog.Infof("bindmounts: %+v", bindmounts)
-	// TODO: append volumes to config.Mount
-
 	dockerClient, err := a.connectDocker()
 	if err != nil {
 		return err
@@ -61,6 +69,11 @@ func (a *api) StartShell(config ShellConfig) error {
 	if err != nil {
 		return err
 	}
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mount)
+	if err != nil {
+		return err
+	}
+
 	command := []string{config.Command}
 	command = append(command, config.Args...)
 
@@ -68,7 +81,7 @@ func (a *api) StartShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Mount:     config.Mount,
+		Mount:     mounts,
 		Command:   strings.Join(command, " "),
 	}
 
@@ -118,6 +131,10 @@ func (a *api) RunShell(config ShellConfig) error {
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mount)
+	if err != nil {
+		return err
+	}
 
 	quotedArgs := []string{}
 	for _, arg := range config.Args {
@@ -129,7 +146,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Mount:     config.Mount,
+		Mount:     mounts,
 		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
 	}
 
