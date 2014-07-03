@@ -53,7 +53,7 @@ func (node *HostState) SetVersion(version interface{}) {
 }
 
 // HostHandler is the handler for running the HostListener
-type HostHandler interface {
+type HostStateHandler interface {
 	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
@@ -62,12 +62,12 @@ type HostHandler interface {
 // HostStateListener is the listener for monitoring service instances
 type HostStateListener struct {
 	conn    client.Connection
-	handler HostHandler
+	handler HostStateHandler
 	host    *host.Host
 }
 
 // NewHostListener instantiates a HostListener object
-func NewHostStateListener(conn client.Connection, handler HostHandler, host *host.Host) *HostStateListener {
+func NewHostStateListener(conn client.Connection, handler HostStateHandler, host *host.Host) *HostStateListener {
 	return &HostStateListener{
 		conn:    conn,
 		handler: handler,
@@ -209,7 +209,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 		case e := <-event:
 			glog.V(3).Info("Receieved event: ", e)
 			if e.Type == client.EventNodeDeleted {
-				// node was deleted so process was terminated
+				l.stopInstance(&state)
 				return
 			}
 		case <-shutdown:
