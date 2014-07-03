@@ -121,6 +121,13 @@ func (sr StatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("cpu.system", sr.hostRegistry).Update(int64(stat.Cpu.System()))
 	metrics.GetOrRegisterGauge("cpu.idle", sr.hostRegistry).Update(int64(stat.Cpu.Idle()))
 	metrics.GetOrRegisterGauge("cpu.iowait", sr.hostRegistry).Update(int64(stat.Cpu.Iowait()))
+	metrics.GetOrRegisterGauge("cpu.irq", sr.hostRegistry).Update(int64(stat.Cpu.Irq()))
+	metrics.GetOrRegisterGauge("cpu.softirq", sr.hostRegistry).Update(int64(stat.Cpu.Softirq()))
+	var steal int64
+	if stat.Cpu.StealSupported() {
+		steal = int64(stat.Cpu.Steal())
+	}
+	metrics.GetOrRegisterGauge("cpu.steal", sr.hostRegistry).Update(steal)
 
 	meminfo, err := linux.ReadMeminfo()
 	if err != nil {
