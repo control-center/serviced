@@ -9,21 +9,10 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { label: 'breadcrumb_hosts', itemClass: 'active' }
     ];
 
-    $scope.toggleCollapsed = function(toggled) {
-        toggled.collapsed = !toggled.collapsed;
-        if (toggled.children === undefined) {
-            return;
-        }
-        toggled.icon = toggled.collapsed? POOL_ICON_CLOSED : POOL_ICON_OPEN;
-        for (var i=0; i < toggled.children.length; i++) {
-            toggleCollapse(toggled.children[i], toggled.collapsed);
-        }
-    };
     $scope.itemClass = itemClass;
-    $scope.indent = indentClass;
-    $scope.newPool = {};
+    $scope.indent = indentClass;                                                      $
     $scope.newHost = {};
-
+                                                                                                       $
     $scope.add_host = function() {
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
@@ -38,13 +27,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.modalAddHost = function() {
         $('#addHost').modal('show');
     };
-
-    // Build metadata for displaying a list of pools
-    $scope.pools = buildTable('Id', [
-        { id: 'Id', name: 'Id'},
-        { id: 'ParentId', name: 'Parent Id'},
-        { id: 'Priority', name: 'Priority'}
-    ]);
 
     $scope.clickHost = function(hostId) {
         $location.path('/hosts/' + hostId);
@@ -94,33 +76,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         return false;
     };
 
-    $scope.dropIt = function(event, ui) {
-        var poolID = $(event.target).attr('data-pool-id');
-        var pool = $scope.pools.mapped[poolID];
-        var host = $scope.dropped[0];
-
-        if (poolID === host.poolID) {
-            // Nothing changed. Don't bother showing the dialog.
-            return;
-        }
-
-        $scope.move = {
-            host: host,
-            newpool: poolID
-        };
-        $scope.dropped = [];
-        $('#confirmMove').modal('show');
-    };
-
-    $scope.confirmMove = function() {
-        console.log('Reassigning %s to %s', $scope.move.host.Name, $scope.move.newpool);
-        var modifiedHost = $.extend({}, $scope.move.host);
-        modifiedHost.poolID = $scope.move.newpool;
-        resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false, hostCallback);
-        });
-    };
-
     // Build metadata for displaying a list of hosts
     $scope.hosts = buildTable('Name', [
         { id: 'Name', name: 'Name'},
@@ -135,6 +90,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
+
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
 }

@@ -15,8 +15,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'ID', name: 'pools_tbl_id'},
         { id: 'Priority', name: 'pools_tbl_priority'},
         { id: 'CoreCapacity', name: 'pools_tbl_core_capacity'},
-        { id: 'MemoryCapacity', name: 'pools_tbl_memory_capacity'},
-        { id: 'MemoryCommitment', name: 'pools_tbl_memory_commitment'},
+        { id: 'MemoryCapacity', name: 'memory_usage'},
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
         { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
         { id: 'Actions', name: 'pools_tbl_actions'}
@@ -28,7 +27,6 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function to remove a pool
     $scope.clickRemovePool = function(poolID) {
-        console.log( "Click Remove pool w/id: ", poolID);
         resourcesService.remove_pool(poolID, function(data) {
             refreshPools($scope, resourcesService, false);
         });
@@ -51,5 +49,5 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
 
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, true);
+    refreshPools($scope, resourcesService, false);
 }

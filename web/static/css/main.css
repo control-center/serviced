@@ -840,7 +840,7 @@ rect {
 }
 
 .node.service.notrunning rect { 
-    fill: red;
+    fill: #AAAAAA;
     stroke: black;
 }
 
@@ -1070,4 +1070,16 @@ rect {
 
 .nv-axis .tick line {
     stroke-dasharray: 2,2;
+}
+
+input.ng-invalid.ng-dirty{
+    border-color: #9C1200 !important;
+}
+
+input.ng-invalid:focus.ng-dirty:focus{
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(156, 18, 0, .6) !important;
+}
+
+.error{
+    color: #9C1200;
 }
