@@ -234,7 +234,7 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 		instancesToKill = len(serviceStates)
 		instancesToStart = service.Instances
 		glog.V(0).Infof("Service %s requests restartAllOnInstanceChanged. Killing %d instances then starting %d.",
-			service.Id, instancesToKill, instancesToStart)
+			service.ID, instancesToKill, instancesToStart)
 	} else if len(serviceStates) < service.Instances {
 		instancesToStart = service.Instances - len(serviceStates)
 	} else if len(serviceStates) > service.Instances {
@@ -260,7 +260,7 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 		} else {
 			err = l.startServiceInstances(service, hosts, instancesToStart)
 			if err != nil {
-				glog.Errorf("Leader unable to start %d instances of service %s: %v", instancesToStart, service.Id, err)
+				glog.Errorf("Leader unable to start %d instances of service %s: %v", instancesToStart, service.ID, err)
 				return err
 			}
 		}
@@ -340,7 +340,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 	maxId := len(serviceStates) - numToKill - 1
 	for i := 0; i < len(serviceStates); i++ {
 		// Kill all instances with an ID > maxId - leaving instances with IDs [0 - Instances-1] running
-		if serviceStates[i].InstanceId > maxId {
+		if serviceStates[i].InstanceID > maxId {
 			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
 			err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
