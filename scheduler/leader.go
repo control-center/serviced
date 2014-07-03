@@ -233,8 +233,8 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	if len(serviceStates) != service.Instances && utils.StringInSlice("restartAllOnInstanceChanged", service.ChangeOptions) {
 		instancesToKill = len(serviceStates)
 		instancesToStart = service.Instances
-		glog.V(2).Infof("Service %s requests restartAllOnInstanceChanged. Killing %d instances then starting %d.",
-			service.ID, instancesToKill, instancesToStart)
+		glog.V(0).Infof("Service %s requests restartAllOnInstanceChanged. Killing %d instances then starting %d.",
+			service.Id, instancesToKill, instancesToStart)
 	} else if len(serviceStates) < service.Instances {
 		instancesToStart = service.Instances - len(serviceStates)
 	} else if len(serviceStates) > service.Instances {
@@ -242,10 +242,14 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	}
 
 	if instancesToKill > 0 {
-		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
+		glog.V(0).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
 		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
 	} else if instancesToStart > 0 {
-		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
+		//Note: This must not be a separate 'if' statement. Since killing instances is an asynchronous operation,
+		//	 	multple zk updates come through this method. This causes a race condition and runaway instance
+		//	 	creation, unless we wait until we no longer have to kill any containers, before starting up any
+		//	 	new ones.
+		glog.V(0).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
 		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
 		if err != nil {
 			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolID, err)
@@ -295,7 +299,7 @@ func getFreeInstanceIDs(conn coordclient.Connection, svc *service.Service, n int
 	return ids, nil
 }
 func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host, numToStart int) error {
-	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
+	glog.V(0).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
 	// Get numToStart free instance ids
 	freeids, err := getFreeInstanceIDs(l.conn, svc, numToStart)
@@ -312,7 +316,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 			return err
 		}
 
-		glog.V(2).Info("Selected host ", servicehost)
+		glog.V(0).Info("Selected host ", servicehost)
 		serviceState, err := servicestate.BuildFromService(svc, servicehost.ID)
 		if err != nil {
 			glog.Errorf("Error creating ServiceState instance: %v", err)
@@ -326,19 +330,22 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 			glog.Errorf("Leader unable to add service state: %v", err)
 			return err
 		}
-		glog.V(2).Info("Started ", serviceState)
+		glog.V(0).Info("Started ", serviceState)
 	}
 	return nil
 }
 
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
-	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
-	for i := len(serviceStates) - 1; i >= len(serviceStates)-numToKill; i-- {
-		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
-		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
-		if err != nil {
-			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
+	glog.V(0).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
+	maxId := len(serviceStates)-numToKill-1
+	for i := 0; i < len(serviceStates); i++ {
+		if serviceStates[i].InstanceId > maxId {
+			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
+			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+			err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
+			if err != nil {
+				glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
+			}
 		}
 	}
 }
