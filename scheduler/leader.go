@@ -339,6 +339,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 	glog.V(0).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	maxId := len(serviceStates) - numToKill - 1
 	for i := 0; i < len(serviceStates); i++ {
+		// Kill all instances with an ID > maxId - leaving instances with IDs [0 - Instances-1] running
 		if serviceStates[i].InstanceId > maxId {
 			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
