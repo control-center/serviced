@@ -116,8 +116,8 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
@@ -128,8 +128,8 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "attach",
@@ -548,7 +548,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            ctx.GlobalBool("interactive"),
-		Mount:            ctx.GlobalStringSlice("mount"),
+		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 	}
 
@@ -591,7 +591,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		Args:             argv,
 		SaveAs:           node.GetLabel(serviceID),
 		IsTTY:            ctx.GlobalBool("interactive"),
-		Mount:            ctx.GlobalStringSlice("mount"),
+		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
 	}
 

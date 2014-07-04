@@ -20,7 +20,7 @@ type ShellConfig struct {
 	Args             []string
 	SaveAs           string
 	IsTTY            bool
-	Mount            []string
+	Mounts           []string
 	ServicedEndpoint string
 }
 
@@ -69,7 +69,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	if err != nil {
 		return err
 	}
-	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mount)
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
-	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mount)
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
 	if err != nil {
 		return err
 	}
