@@ -193,7 +193,7 @@ function DeployWizard($scope, resourcesService) {
                     //start the service if requested
                     if($scope.install.startNow){
                         for(var i=0; i < $scope.services.data.length; ++i){
-                            if (result.Detail == $scope.services.data[i].Id){
+                            if (result.Detail == $scope.services.data[i].ID){
                                 toggleRunning($scope.services.data[i], "start", resourcesService);
                             }
                         }
