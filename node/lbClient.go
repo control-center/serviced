@@ -94,6 +94,6 @@ func (a *LBClient) GetZkDSN(dsn *string) error {
 
 // GetServiceBindMounts returns the service
 func (a *LBClient) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
-	glog.V(0).Infof("ControlPlaneAgent.GetServiceBindMounts()")
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceBindMounts", serviceID, bindmounts)
 }

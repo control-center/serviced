@@ -209,7 +209,7 @@ func (a *HostAgent) GetZkDSN(string, dsn *string) error {
 
 // GetServiceBindMounts returns the service bindmounts
 func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
-	glog.V(0).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 
 	var tenantID string
 	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
@@ -225,10 +225,10 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 	for _, volume := range service.Volumes {
 		resourcePath, err := a.setupVolume(tenantID, &service, volume)
 		if err != nil {
-			glog.Fatalf("%s", err)
+			return err
 		}
 
-		glog.Infof("retrieved bindmount resourcePath:%s containerPath:%s", resourcePath, volume.ContainerPath)
+		glog.V(4).Infof("retrieved bindmount resourcePath:%s containerPath:%s", resourcePath, volume.ContainerPath)
 		response[resourcePath] = volume.ContainerPath
 	}
 	*bindmounts = response

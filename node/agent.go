@@ -906,14 +906,13 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
-	glog.V(0).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
+	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
 	sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}
 
 	resourcePath := path.Join(sv.Path(), volume.ResourcePath)
-	glog.V(0).Infof("FullResourcePath: %s", resourcePath)
 	if err = os.MkdirAll(resourcePath, 0770); err != nil {
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
@@ -922,6 +921,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 	}
 
+	glog.V(4).Infof("resourcePath: %s  containerPath: %s", resourcePath, volume.ContainerPath)
 	return resourcePath, nil
 }
 
