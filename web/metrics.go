@@ -71,7 +71,7 @@ var (
 				Name:         "Swap empty",
 				Description:  "Alert when swap reaches zero",
 				MetricSource: "memory",
-				MetricID:     "swap.free",
+				DataPoints:   []string{"memory.cached", "memory.free"},
 				Type:         "MinMax",
 				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
 				EventTags: map[string]interface{}{
