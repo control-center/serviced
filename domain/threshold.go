@@ -16,7 +16,7 @@ type ThresholdConfig struct {
 	AppliedTo   int    //how should this threshold be applied 0=everything, 1=services only, 2=running services only
 
 	MetricSource string                 //id of the MetricConfig this is applied to
-	MetricID     string                 //id of the metric within a MetricConfig this is applied to
+	DataPoints   []string               //List of metrics within a MetricConfig this is applied to
 	Threshold    interface{}            // threshold data (either MinMaxThreshold, DurationThreshold, HoltWintersThreshold)
 	EventTags    map[string]interface{} //all relevant event data
 }
