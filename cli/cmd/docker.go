@@ -3,6 +3,8 @@ package cmd
 import (
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
+
+	"fmt"
 )
 
 // initDocker is the initializer for serviced docker
@@ -51,5 +53,5 @@ func (c *ServicedCli) cmdSquash(ctx *cli.Context) {
 	if err != nil {
 		glog.Fatalf("error squashing: %s", err)
 	}
-	glog.Infof("imageId: %s", imageID)
+	fmt.Println(imageID)
 }

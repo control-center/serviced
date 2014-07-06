@@ -100,10 +100,12 @@ func pushImage(client DockerClient, imageName string, image *os.File) (imageID s
 		return "", err
 	}
 	idbuffer := make([]byte, 100)
-	if _, err = buffer.Read(idbuffer); err != nil {
+	n, err := buffer.Read(idbuffer)
+	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(idbuffer)), nil
+	s := fmt.Sprintf("%s", strings.TrimSpace(string(idbuffer[0:n])))
+	return s, nil
 }
 
 // Squash flattens the image down to the downToLayer and optionally retag the generated

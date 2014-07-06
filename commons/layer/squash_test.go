@@ -27,7 +27,7 @@ func (c *mockClientT) CreateContainer(docker.CreateContainerOptions) (*docker.Co
 }
 
 func (c *mockClientT) ImportImage(opts docker.ImportImageOptions) error {
-	go opts.OutputStream.Write([]byte("testimage"))
+	opts.OutputStream.Write([]byte("testlayer"))
 	return nil
 }
 
@@ -90,7 +90,7 @@ func TestSquash(t *testing.T) {
 			t.Fatalf("unexpected err condition: %s, expected %+v", err, tc.err)
 		}
 		if imageID != tc.shouldBeEqualTo {
-			t.Fatalf("imageID should be %s instead of %s", tc.shouldBeEqualTo, imageID)
+			t.Fatalf("imageID should be '%s' instead of '%s'", tc.shouldBeEqualTo, imageID)
 		}
 	}
 }
