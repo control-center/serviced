@@ -9,7 +9,6 @@ package elasticsearch
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -726,63 +725,6 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	}
 	if templates[templateId].Name != "test_template" {
 		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-}
-
-func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
-	t.Skip("TODO: fix this test")
-
-	glog.V(0).Infof("TestDao_SnapshotRequest started")
-	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
-
-	dsn := coordzk.DSN{
-		Servers: []string{"127.0.0.1:2181"},
-		Timeout: time.Second * 10,
-	}
-	cclient, _ := coordclient.New("zookeeper", dsn.String(), "", nil)
-	zkDao := zzk.NewZkDao(cclient)
-
-	srExpected := dao.SnapshotRequest{
-		ID:            "request13",
-		ServiceID:     "12345",
-		SnapshotLabel: "foo",
-		SnapshotError: "bar",
-	}
-	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
-		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
-	}
-	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: node already exists")
-	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
-		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
-	}
-
-	srResult := dao.SnapshotRequest{}
-	if err := zkDao.LoadSnapshotRequest(srExpected.ID, &srResult); err != nil {
-		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
-	}
-	if !reflect.DeepEqual(srExpected, srResult) {
-		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
-	}
-
-	srExpected.ServiceID = "67890"
-	srExpected.SnapshotLabel = "bin"
-	srExpected.SnapshotError = "baz"
-	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {
-		t.Fatalf("Failure updating snapshot request %+v with error: %s", srResult, err)
-	}
-
-	if err := zkDao.LoadSnapshotRequest(srExpected.ID, &srResult); err != nil {
-		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
-	}
-	if !reflect.DeepEqual(srExpected, srResult) {
-		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
-	}
-
-	if err := zkDao.RemoveSnapshotRequest(srExpected.ID); err != nil {
-		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
-	}
-	if err := zkDao.RemoveSnapshotRequest(srExpected.ID); err == nil {
-		t.Fatalf("Failure removing non-existant snapshot request expected %+v", srExpected)
 	}
 }
 
