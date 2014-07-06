@@ -3,6 +3,7 @@ package layer
 // Copyright 2014 Zenoss, Inc. All rights reserved
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/circular"
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"reflect"
@@ -46,15 +46,15 @@ type DockerClient interface {
 
 func export(client DockerClient, image string) (f *os.File, err error) {
 
-	log.Printf("creating container for export of %s", image)
+	glog.V(1).Infof("creating container for export of %s", image)
 	container, err := client.CreateContainer(docker.CreateContainerOptions{Config: &docker.Config{Cmd: []string{"/bin/true"}, Image: image}})
 	if err != nil {
 		return f, err
 	}
-	log.Printf("create container %s for image %s", container.ID, image)
+	glog.V(1).Infof("create container %s for image %s", container.ID, image)
 	defer client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID})
 
-	log.Printf("exporting %s", image)
+	glog.V(1).Infof("exporting %s", image)
 	file, err := ioutil.TempFile("", fmt.Sprintf("docker_squash_%s_", image))
 	if err == nil {
 		err = client.ExportContainer(docker.ExportContainerOptions{container.ID, file})
@@ -147,7 +147,7 @@ func Squash(client DockerClient, imageName, downToLayer, newName, tempDir string
 	}
 
 	// let's extract the headers of the base image and sort them
-	log.Printf("exporting base layer %s", downToLayer)
+	glog.V(1).Infof("exporting base layer %s", downToLayer)
 	baseTar, err := export(client, downToLayer)
 	if err != nil {
 		return "", fmt.Errorf("error exporting base image %s: %s", downToLayer, err)
