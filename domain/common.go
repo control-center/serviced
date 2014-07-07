@@ -45,7 +45,7 @@ type jsonHealthCheck struct {
 	Interval float64 // the serialzed version will be in seconds
 }
 
-func (hc *HealthCheck) MarshalJSON() ([]byte, error) {
+func (hc HealthCheck) MarshalJSON() ([]byte, error) {
 	// in json, the interval is represented in seconds
 	interval := float64(hc.Interval) / 1000000000.0
 	return json.Marshal(jsonHealthCheck{

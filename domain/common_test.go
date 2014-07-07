@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const testHcJSON = `{ "Script": "foo", "Interval": 1.5 }`
+const testHcJSON = `{"Script":"foo","Interval":1.5}`
 
 var testHc = HealthCheck{Script: "foo", Interval: time.Millisecond * 1500}
 
@@ -22,4 +22,16 @@ func TestHealthCheck(t *testing.T) {
 	if hc != testHc {
 		t.Fatalf("test hc values is not equal: %v vs %v", hc, testHc)
 	}
+
+	// test marshalling
+	data, err := json.Marshal(testHc)
+	if err != nil {
+		t.Fatalf("could not marshal test health check: %s", err)
+	}
+
+	str := string(data)
+	if str != testHcJSON {
+		t.Fatalf("%s does not equal to  %s", str, testHcJSON)
+	}
+
 }

@@ -46,7 +46,7 @@ type jsonDurationThreshold struct {
 	Percentage int     //Percentage of violations to trigger an event: a number from 0 (any violation triggers an event) to 100 (all values must violate the threshold)
 }
 
-func (t *DurationThreshold) MarshalJSON() ([]byte, error) {
+func (t DurationThreshold) MarshalJSON() ([]byte, error) {
 	// in json, the TimePeriod is represented in seconds
 	timePeriod := float64(t.TimePeriod) / 1000000000.0
 	return json.Marshal(jsonDurationThreshold{

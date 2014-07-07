@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const testDTHjson = `{ "Min": 1, "Max": 99, "TimePeriod": 1.5, "Percentage": 12}`
+const testDTHjson = `{"Min":1,"Max":99,"TimePeriod":1.5,"Percentage":12}`
 
 var one int64 = 1
 var ninenine int64 = 99
@@ -30,5 +30,16 @@ func TestDurationThresholdSerialize(t *testing.T) {
 	}
 	if !reflect.DeepEqual(dt, testDTH) {
 		t.Fatalf("test duration theshold values are not equal: %v vs %v", dt, testDTH)
+	}
+
+	// test marshalling
+	data, err := json.Marshal(testDTH)
+	if err != nil {
+		t.Fatalf("could not marshal test duration threshold: %s", err)
+	}
+
+	str := string(data)
+	if str != testDTHjson {
+		t.Fatalf("%s does not equal to  %s", str, testDTHjson)
 	}
 }
