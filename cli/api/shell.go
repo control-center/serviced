@@ -8,18 +8,55 @@ import (
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/shell"
 	"github.com/zenoss/serviced/utils"
 )
 
 // ShellConfig is the deserialized object from the command-line
 type ShellConfig struct {
-	ServiceID string
-	Command   string
-	Args      []string
-	SaveAs    string
-	IsTTY     bool
-	Mount	  []string
+	ServiceID        string
+	Command          string
+	Args             []string
+	SaveAs           string
+	IsTTY            bool
+	Mounts           []string
+	ServicedEndpoint string
+}
+
+// getServiceBindMounts retrieves a service's bindmounts
+func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]string, error) {
+	client, err := node.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return nil, err
+	}
+	defer client.Close()
+
+	var bindmounts map[string]string
+	err = client.GetServiceBindMounts(serviceID, &bindmounts)
+	if err != nil {
+		glog.Errorf("Error getting service %s's bindmounts, error: %s", serviceID, err)
+		return nil, err
+	}
+
+	glog.V(1).Infof("getServiceBindMounts: service id=%s: %s", serviceID, bindmounts)
+	return bindmounts, nil
+}
+
+func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) ([]string, error) {
+	bindmounts, err := getServiceBindMounts(lbClientPort, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	mounts := defaultMounts
+	for hostPath, containerPath := range bindmounts {
+		bind := hostPath + "," + containerPath
+		mounts = append(mounts, bind)
+	}
+
+	return mounts, nil
 }
 
 // StartShell runs a command for a given service
@@ -32,6 +69,11 @@ func (a *api) StartShell(config ShellConfig) error {
 	if err != nil {
 		return err
 	}
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
+	if err != nil {
+		return err
+	}
+
 	command := []string{config.Command}
 	command = append(command, config.Args...)
 
@@ -39,7 +81,7 @@ func (a *api) StartShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Mount:     config.Mount,
+		Mount:     mounts,
 		Command:   strings.Join(command, " "),
 	}
 
@@ -89,6 +131,10 @@ func (a *api) RunShell(config ShellConfig) error {
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
+	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
+	if err != nil {
+		return err
+	}
 
 	quotedArgs := []string{}
 	for _, arg := range config.Args {
@@ -100,7 +146,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
-		Mount:     config.Mount,
+		Mount:     mounts,
 		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
 	}
 

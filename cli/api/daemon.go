@@ -341,11 +341,8 @@ func (d *daemon) initiateAgent() error {
 			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
 			glog.V(0).Info("Shutting down due to interrupt")
-			if err := hostAgent.Shutdown(); err != nil {
-				glog.V(1).Infof("Agent shutdown with error: %v", err)
-			} else {
-				glog.Info("Agent shutdown")
-			}
+			hostAgent.Shutdown()
+			glog.Info("Agent shutdown")
 			isvcs.Mgr.Stop()
 			os.Exit(0)
 		}()
@@ -367,7 +364,6 @@ func (d *daemon) initiateAgent() error {
 	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
-
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}

@@ -212,3 +212,32 @@ func (a *HostAgent) GetZkInfo(foo string, zkInfo *ZkInfo) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetZkInfo(): %+v", zkInfo)
 	return nil
 }
+
+// GetServiceBindMounts returns the service bindmounts
+func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+
+	var tenantID string
+	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
+		return err
+	}
+
+	var service service.Service
+	if err := a.GetService(serviceID, &service); err != nil {
+		return err
+	}
+
+	response := map[string]string{}
+	for _, volume := range service.Volumes {
+		resourcePath, err := a.setupVolume(tenantID, &service, volume)
+		if err != nil {
+			return err
+		}
+
+		glog.V(4).Infof("retrieved bindmount resourcePath:%s containerPath:%s", resourcePath, volume.ContainerPath)
+		response[resourcePath] = volume.ContainerPath
+	}
+	*bindmounts = response
+
+	return nil
+}
