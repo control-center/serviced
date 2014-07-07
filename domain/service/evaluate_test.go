@@ -4,9 +4,7 @@
 
 package service
 
-import (
-	"testing"
-)
+import "testing"
 
 type roundTest struct {
 	value    float64

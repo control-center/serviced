@@ -10,20 +10,20 @@
 package elasticsearch
 
 import (
+	"fmt"
+	"strconv"
+	"sync"
+
 	"github.com/mattbaird/elastigo/api"
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/dfs"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
-
-	"fmt"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
-	"strconv"
-	"sync"
 )
 
 const (
@@ -44,13 +44,23 @@ type ControlPlaneDao struct {
 	//needed while we move things over
 	facade         *facade.Facade
 	dockerRegistry string
-	backupLock sync.RWMutex
-	restoreLock sync.RWMutex
+	backupLock     sync.RWMutex
+	restoreLock    sync.RWMutex
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
 	return func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *svc, nil
+	}
+}
+
+func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildService {
+	return func(svcID, childName string) (service.Service, error) {
+		svc, err := f.FindChildService(ctx, svcID, childName)
 		if err != nil {
 			return service.Service{}, err
 		}
@@ -70,7 +80,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		return fmt.Errorf("missing command")
 	}
 
-	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade)); err != nil {
+	if err := svc.EvaluateActionsTemplate(serviceGetter(ctx, this.facade), childFinder(ctx, this.facade), request.Running.InstanceID); err != nil {
 		return err
 	}
 
