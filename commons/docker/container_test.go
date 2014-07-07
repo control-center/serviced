@@ -1,19 +1,65 @@
 package docker
 
 import (
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
-func TestOnContainerStart(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
+func TestContainerCommit(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
+				Cmd:   []string{"TestContainerCommit"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+
+	sc := make(chan struct{})
+
+	ctr.OnEvent(Start, func(id string) {
+		sc <- struct{}{}
+	})
+
+	err = ctr.Start(30*time.Second, nil)
+	if err != nil {
+		t.Fatal("can't start container: ", err)
+	}
+
+	select {
+	case <-sc:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for event")
+	}
+
+	_, err = ctr.Commit("testcontainer/commit")
+	if err != nil {
+		t.Fatal("can't commit: ", err)
+	}
+
+	ctr.Kill()
+	ctr.Delete(true)
+
+	cmd := []string{"docker", "rmi", "testcontainer/commit"}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+}
+
+func TestOnContainerStart(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
 				Cmd:   []string{"TestOnContainerStart"},
 			},
 		},
@@ -42,12 +88,15 @@ func TestOnContainerStart(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
+	if !ctr.IsRunning() {
+		t.Fatal("expected container to be running")
+	}
+
 	ctr.Kill()
 	ctr.Delete(true)
 }
 
 func TestOnContainerCreated(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cs := make(chan string)
 
 	OnContainerCreated(Wildcard, func(id string) {
@@ -57,7 +106,7 @@ func TestOnContainerCreated(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestOnContainerCreated"},
 			},
 		},
@@ -80,11 +129,10 @@ func TestOnContainerCreated(t *testing.T) {
 }
 
 func TestOnContainerStop(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestOnContainerStop"},
 			},
 		},
@@ -117,11 +165,10 @@ func TestOnContainerStop(t *testing.T) {
 }
 
 func TestCancelOnEvent(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestCancelOnEvent"},
 			},
 		},
@@ -159,11 +206,10 @@ func TestCancelOnEvent(t *testing.T) {
 }
 
 func TestRestartContainer(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestRestartContainer"},
 			},
 		},
@@ -205,11 +251,10 @@ func TestRestartContainer(t *testing.T) {
 }
 
 func TestListContainers(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestListContainers"},
 			},
 		},
@@ -260,11 +305,10 @@ func TestListContainers(t *testing.T) {
 }
 
 func TestWaitForContainer(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestWaitForContainer"},
 			},
 		},
@@ -303,11 +347,10 @@ func TestWaitForContainer(t *testing.T) {
 }
 
 func TestInspectContainer(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestInspectContainer"},
 			},
 		},
@@ -355,11 +398,10 @@ func TestInspectContainer(t *testing.T) {
 }
 
 func TestRepeatedStart(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestRepeatedStart"},
 			},
 		},
@@ -397,11 +439,10 @@ func TestRepeatedStart(t *testing.T) {
 }
 
 func TestNewContainerTimeout(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestNewContainerTimeout"},
 			},
 		},
@@ -414,13 +455,12 @@ func TestNewContainerTimeout(t *testing.T) {
 	}
 }
 
-func TestNewContainerOnCreated(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
+func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
-				Cmd:   []string{"TestNewContainerOnCreated"},
+				Image: "base:latest",
+				Cmd:   []string{"TestNewContainerOnCreatedAndStartedAction"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -440,17 +480,16 @@ func TestNewContainerOnCreated(t *testing.T) {
 	var ctr *Container
 	ctrCreated := make(chan struct{})
 	go func() {
-		glog.V(4).Infof("calling NewContainer")
 		var err error
+
 		ctr, err = NewContainer(cd, true, 300*time.Second, ca, sa)
 		if err != nil {
 			t.Fatal("can't create container: ", err)
 		}
-		glog.V(4).Infof("returned from NewContainer: %+v", *ctr)
+
 		ctrCreated <- struct{}{}
 	}()
 
-	glog.V(4).Infof("waiting for create action")
 	select {
 	case <-cc:
 		break
@@ -458,7 +497,6 @@ func TestNewContainerOnCreated(t *testing.T) {
 		t.Fatal("timed out waiting for create action execution")
 	}
 
-	glog.V(4).Infof("waiting for start action")
 	select {
 	case <-sc:
 		break
@@ -466,7 +504,98 @@ func TestNewContainerOnCreated(t *testing.T) {
 		t.Fatal("timed out waiting for start action execution")
 	}
 
-	glog.V(4).Infof("received both create action and start action")
+	select {
+	case <-ctrCreated:
+		ctr.Kill()
+		ctr.Delete(true)
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for NewContainer to return a ctr")
+	}
+}
+
+func TestNewContainerOnCreatedAction(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"TestNewContainerOnCreatedAction"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	cc := make(chan struct{})
+
+	ca := func(id string) {
+		cc <- struct{}{}
+	}
+
+	var ctr *Container
+	ctrCreated := make(chan struct{})
+	go func() {
+		var err error
+		ctr, err = NewContainer(cd, false, 300*time.Second, ca, nil)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+		ctrCreated <- struct{}{}
+	}()
+
+	select {
+	case <-cc:
+		break
+	case <-time.After(360 * time.Second):
+		t.Fatal("timed out waiting for create action execution")
+	}
+
+	select {
+	case <-ctrCreated:
+		ctr.Kill()
+		ctr.Delete(true)
+		break
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for NewContainer to return a ctr")
+	}
+}
+
+func TestNewContainerOnStartedAction(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"TestNewContainerOnStartedAction"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	sc := make(chan struct{})
+
+	sa := func(id string) {
+		sc <- struct{}{}
+	}
+
+	var ctr *Container
+	ctrCreated := make(chan struct{})
+	go func() {
+		var err error
+
+		ctr, err = NewContainer(cd, true, 300*time.Second, nil, sa)
+		if err != nil {
+			t.Fatal("can't create container: ", err)
+		}
+
+		ctrCreated <- struct{}{}
+	}()
+
+	select {
+	case <-sc:
+		break
+	case <-time.After(360 * time.Second):
+		t.Fatal("timed out waiting for create action execution")
+	}
+
 	select {
 	case <-ctrCreated:
 		ctr.Kill()
@@ -478,11 +607,10 @@ func TestNewContainerOnCreated(t *testing.T) {
 }
 
 func TestFindContainer(t *testing.T) {
-	t.Skip("docker seems to hang on certain machines because of these tests")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base",
+				Image: "base:latest",
 				Cmd:   []string{"TestFindContainer"},
 			},
 		},
@@ -516,5 +644,45 @@ func TestFindContainer(t *testing.T) {
 
 	if _, err = FindContainer(cid); err == nil {
 		t.Fatal("should not have found container: ", cid)
+	}
+}
+
+// TODO: add some additional Export tests, e.g., bogus path, insufficient permissions, etc.
+func TestContainerExport(t *testing.T) {
+	cd := &ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Image: "base:latest",
+				Cmd:   []string{"TestContainerExport"},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create container: ", err)
+	}
+	defer ctrone.Delete(true)
+
+	ctrtwo, err := NewContainer(cd, false, 300*time.Second, nil, nil)
+	if err != nil {
+		t.Fatal("can't create second container: ", err)
+	}
+	defer ctrtwo.Delete(true)
+
+	cf, err := ioutil.TempFile("/tmp", "containertest")
+	if err != nil {
+		t.Fatal("can't create temp file for export: ", err)
+	}
+
+	err = ctrone.Export(cf)
+	if err != nil {
+		t.Fatal("can't export container: ", err)
+	}
+
+	err = os.Remove(cf.Name())
+	if err != nil {
+		t.Fatalf("can't remove %s: %v", cf.Name(), err)
 	}
 }
