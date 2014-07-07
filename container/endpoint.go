@@ -33,6 +33,13 @@ var (
 	ErrInvalidImportedEndpoints = errors.New("container: invalid imported endpoints")
 )
 
+// Functions for evaluating port/virtualAddress templates
+var funcmap = template.FuncMap{
+	"plus": func(a, b int) int {
+		return a + b
+	},
+}
+
 type export struct {
 	endpoint     *dao.ApplicationEndpoint
 	vhosts       []string
@@ -239,10 +246,6 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 	return result, nil
 }
 
-func plus(a, b int) int {
-	return a + b
-}
-
 // buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
 func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (*dao.ApplicationEndpoint, error) {
 	var ae dao.ApplicationEndpoint
@@ -252,9 +255,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.Protocol = endpoint.Protocol
 	ae.ContainerIP = state.PrivateIP
 	if endpoint.PortTemplate != "" {
-		funcmap := template.FuncMap{
-			"plus": plus,
-		}
+		// Evaluate the PortTemplate field and use it for the port
 		t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
 		b := bytes.Buffer{}
 		err := t.Execute(&b, state)
@@ -267,6 +268,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 			}
 		}
 	} else {
+		// No dynamic port, just use the specified PortNumber
 		ae.ContainerPort = endpoint.PortNumber
 	}
 	ae.HostIP = state.HostIP
@@ -479,7 +481,8 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
-	// Populate a map represnting the exports in this container, so we don't conflict
+	// Build a list of ports exported by this container, so we can check for
+	// conflicts when we do imports later.
 	exported := map[uint16]struct{}{}
 	for _, explist := range c.exportedEndpoints {
 		for _, exp := range explist {
@@ -487,7 +490,8 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 		}
 	}
 
-	// Populate a map representing the proxies that are to be created, again with instanceID as the key
+	// Populate a map representing the proxies that are to be created, again
+	// with instanceID as the key
 	proxyKeys := map[int]string{}
 	if purpose == "import" {
 		// We're doing a normal, load-balanced endpoint import
@@ -499,7 +503,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
 			if _, conflict := exported[containerPort]; conflict {
-				glog.Infof("Skipping import at port %d because it conflicts with a port exported by this container", containerPort)
+				glog.Warningf("Skipping import at port %d because it conflicts with a port exported by this container", containerPort)
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
@@ -526,9 +530,6 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 			}
 			proxies[proxyKey] = prxy
 
-			funcmap := template.FuncMap{
-				"plus": plus,
-			}
 			for _, vaddr := range []string{importVirtualAddress, endpoint.VirtualAddress} {
 				// Evaluate virtual address template
 				t := template.Must(template.New(endpoint.Application).Funcs(funcmap).Parse(vaddr))
