@@ -171,22 +171,18 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host) {
 	return hosts
 }
 
-func registerHost(conn client.Connection, host *host.Host) error {
+func registerHost(conn client.Connection, host *host.Host) (string, error) {
 	if host == nil || host.ID == "" {
-		return ErrHostInvalid
+		return "", ErrHostInvalid
 	}
 
 	// verify that a listener has been initialized
 	if exists, err := conn.Exists(hostpath(host.ID)); err != nil {
-		return err
+		return "", err
 	} else if !exists {
-		return ErrHostNotInitialized
+		return "", ErrHostNotInitialized
 	}
 
 	// create the ephemeral host
-	if _, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host}); err != nil {
-		return err
-	}
-
-	return nil
+	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
 }

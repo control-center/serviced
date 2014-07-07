@@ -25,6 +25,7 @@ import (
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -781,49 +782,37 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
-	shutdown := make(chan interface{})
+	host, err := a.facade.GetHost(a.context, a.hostID)
+	if err != nil {
+		glog.Errorf("Could not get host %s: %s", a.hostID, err)
+		return
+	}
 
-	for {
-		// create a wrapping function so that client.Close() can be handled via defer
-		keepGoing := func() bool {
-			connc := make(chan coordclient.Connection)
-			var conn coordclient.Connection
-			done := make(chan struct{}, 1)
-
-			defer func() {
-				done <- struct{}{}
-			}()
-
-			go func() {
-				for {
-					c, err := a.zkClient.GetConnection()
-					if err == nil {
-						connc <- c
-						return
-					}
-
-					// exit when our parent exits
-					select {
-					case <-done:
-						return
-					case <-time.After(time.Second):
-					}
-				}
-				close(connc)
-			}()
-
-			select {
-			case errc := <-a.closing:
-				glog.Info("Received shutdown notice")
-				close(shutdown)
-				a.zkClient.Close()
-				errc <- errors.New("unable to connect to zookeeper")
-				return false
-
-			case conn = <-connc:
-				glog.Info("Got a connected client")
+	connc := make(chan coordclient.Connection)
+	go func() {
+		for {
+			c, err := a.zkClient.GetConnection()
+			if err == nil {
+				connc <- c
+				return
 			}
 
+			select {
+			case <-a.closing:
+				return
+			case <-time.After(time.Second):
+			}
+		}
+	}()
+
+	var hsListener *zkservice.HostStateListener
+	for {
+		// create a wrapping function so that client.Close() can be handled via defer
+		func() {
+			shutdown := make(chan interface{})
+			defer close(shutdown)
+			conn := <-connc
+			glog.Info("Got a connected client")
 			defer conn.Close()
 
 			// watch virtual IP zookeeper nodes
@@ -833,10 +822,19 @@ func (a *HostAgent) start() {
 			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
 			go actionListener.Listen(shutdown)
 
-			return a.processChildrenAndWait(conn)
+			if hsListener == nil {
+				hsListener = zkservice.NewHostStateListener(conn, a, host)
+			} else {
+				hsListener.SetConnection(conn)
+			}
+
+			hsListener.Listen(a.closing)
 		}()
-		if !keepGoing {
+
+		select {
+		case <-a.closing:
 			break
+		default:
 		}
 	}
 }
