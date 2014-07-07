@@ -58,7 +58,7 @@ var startup_testcases = []struct {
 				Filename:    "{{.Name}}test.conf",
 				Owner:       "",
 				Permissions: "0700",
-				Content:     "\n# SAMPLE config file for {{.Name}}\n\n",
+				Content:     "\n# SAMPLE config file for {{.Name}} {{.InstanceID}}\n\n",
 			},
 		},
 		Snapshot: servicedefinition.SnapshotCommands{
@@ -235,9 +235,10 @@ func (s *S) TestEvaluateLogConfigTemplate(t *C) {
 func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
 	err := createSvcs(s.store, s.ctx)
 	t.Assert(err, IsNil)
+	var instanceID = 5
 
 	testcase := startup_testcases[0]
-	testcase.service.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, 0)
+	testcase.service.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
 
 	if len(testcase.service.ConfigFiles) != 1 {
 		t.Errorf("Was expecting 1 ConfigFile, found %d", len(testcase.service.ConfigFiles))
@@ -246,7 +247,7 @@ func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
 		if configFile.Filename != key {
 			t.Errorf("Was expecting configFile.Filename to be %s instead it was %s", key, configFile.Filename)
 		}
-		if !strings.Contains(configFile.Content, testcase.service.Name) {
+		if !strings.Contains(configFile.Content, fmt.Sprintf("%s %d", testcase.service.Name, instanceID)) {
 			t.Errorf("Was expecting configFile.Content to include the service name instead it was %s", configFile.Content)
 		}
 	}
