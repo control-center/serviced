@@ -174,6 +174,7 @@ func (sc *ServiceConfig) watchVhosts() error {
 	}*/
 	// CLARK TODO
 	//for _, aPool := range allPools {
+	// vhosts are at the root level (not pool aware)
 	poolBasedConn, err := zzk.GetPoolBasedConnection("")
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)

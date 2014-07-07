@@ -103,7 +103,8 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 	}
 	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
 
-	// CLARK TODO make root connection from zkdao
+	// CLARK TODO make root connection from zkdao FIXME,
+	// endpoints are created at the root level (not pool aware)
 	rootBasePath := ""
 	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, rootBasePath, nil)
 	if err != nil {

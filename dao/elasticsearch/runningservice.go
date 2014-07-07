@@ -13,7 +13,11 @@ import (
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, services *[]*dao.RunningService) error {
-	poolID := "default" // CLARK TODO FIX ME ?????
+	// CLARK TODO FIX ME ?????
+	poolID := "default"
+	/*if request.hasKey(PoolID) {
+		poolID = request.PoolID
+	}*/
 	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
