@@ -251,13 +251,6 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 	}
 }
 
-// GetApplicationInstances simply returns the number of instances per
-// application imported by the given service.  This is for a very specific
-// purpose (support of the `numinstances` template function) and should be
-// reworked to be more generally useful, but that would involve a considerable
-// refactoring of this code which would be inadvisable at this late stage.
-type GetApplicationInstances func(svcID, app string) (int, error)
-
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
