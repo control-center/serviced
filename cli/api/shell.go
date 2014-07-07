@@ -19,6 +19,7 @@ type ShellConfig struct {
 	Args      []string
 	SaveAs    string
 	IsTTY     bool
+	Mount	  []string
 }
 
 // StartShell runs a command for a given service
@@ -38,6 +39,7 @@ func (a *api) StartShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
+		Mount:     config.Mount,
 		Command:   strings.Join(command, " "),
 	}
 
@@ -81,7 +83,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		return s, err
 	}
 	if err := svc.EvaluateRunsTemplate(getSvc); err != nil {
-		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.Id, svc.Runs, err)
+		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
 	command, ok := svc.Runs[config.Command]
 	if !ok {
@@ -98,6 +100,7 @@ func (a *api) RunShell(config ShellConfig) error {
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
+		Mount:     config.Mount,
 		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
 	}
 

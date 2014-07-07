@@ -2,8 +2,6 @@ package web
 
 import (
 	"github.com/zenoss/serviced/domain"
-
-	"fmt"
 )
 
 //profile defines meta-data for the host/pool resource's metrics and graphs
@@ -11,7 +9,9 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
-	profile = domain.MonitorProfile{
+	zeroInt64 int64 = 0
+
+	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//CPU
 			domain.MetricConfig{
@@ -19,11 +19,14 @@ var (
 				Name:        "CPU Usage",
 				Description: "CPU Statistics",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "cpu.system", Name: "CPU System"},
 					domain.Metric{ID: "cpu.user", Name: "CPU User"},
+					domain.Metric{ID: "cpu.nice", Name: "CPU Nice"},
+					domain.Metric{ID: "cpu.system", Name: "CPU System"},
 					domain.Metric{ID: "cpu.idle", Name: "CPU Idle"},
 					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait"},
-					domain.Metric{ID: "cpu.nice", Name: "CPU Nice"},
+					domain.Metric{ID: "cpu.irq", Name: "IRQ"},
+					domain.Metric{ID: "cpu.softirq", Name: "Soft IRQ"},
+					domain.Metric{ID: "cpu.steal", Name: "CPU Steal"},
 				},
 			},
 			//Memory
@@ -36,7 +39,8 @@ var (
 					domain.Metric{ID: "memory.cached", Name: "Memory Cache"},
 					domain.Metric{ID: "memory.free", Name: "Memory Free"},
 					domain.Metric{ID: "memory.total", Name: "Total Memory"},
-					domain.Metric{ID: "memory.used", Name: "Used Memory"},
+					domain.Metric{ID: "memory.actualfree", Name: "Actual Free Memory"},
+					domain.Metric{ID: "memory.actualused", Name: "Actual Used Memory"},
 					domain.Metric{ID: "swap.total", Name: "Total Swap"},
 					domain.Metric{ID: "swap.free", Name: "Free Swap"},
 				},
@@ -61,6 +65,23 @@ var (
 				},
 			},
 		},
+		ThresholdConfigs: []domain.ThresholdConfig{
+			domain.ThresholdConfig{
+				ID:           "swap.empty",
+				Name:         "Swap empty",
+				Description:  "Alert when swap reaches zero",
+				MetricSource: "memory",
+				DataPoints:   []string{"memory.swap", "memory.free"},
+				Type:         "MinMax",
+				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
+				EventTags: map[string]interface{}{
+					"Severity":    1,
+					"Resolution":  "Increase swap or memory",
+					"Explanation": "Ran out of all available memory space",
+					"EventClass":  "/Memory",
+				},
+			},
+		},
 	}
 )
 
@@ -69,16 +90,17 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
-				ID:         "ofd",
-				Aggregator: "avg",
-				Color:      "#aec7e8",
-				Fill:       false,
-				Format:     "%6.2f",
-				Legend:     "Serviced Open File Descriptors",
-				Metric:     "Serviced.OpenFileDescriptors",
-				Name:       "Serviced Open File Descriptors",
-				Rate:       false,
-				Type:       "line",
+				ID:           "ofd",
+				Aggregator:   "avg",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%6.2f",
+				Legend:       "Serviced Open File Descriptors",
+				Metric:       "Serviced.OpenFileDescriptors",
+				MetricSource: "files",
+				Name:         "Serviced Open File Descriptors",
+				Rate:         false,
+				Type:         "line",
 			},
 		},
 		ID:     "serviced.ofd",
@@ -92,7 +114,6 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		},
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of serviced's total open file descriptors over time",
 	}
@@ -128,7 +149,6 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		YAxisLabel:  "Faults / Min",
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of major memory page faults over time",
 	}
@@ -140,31 +160,94 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#aec7e8",
-				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
+				Color:        "#729ed7",
 				Fill:         false,
 				Format:       "%6.2f",
-				ID:           "system",
-				Legend:       "CPU (System)",
-				Metric:       "cpu.system",
+				ID:           "nice",
+				Legend:       "Nice",
+				Metric:       "cpu.nice",
 				MetricSource: "cpu",
-				Name:         "CPU (System)",
+				Name:         "Nice",
 				Rate:         true,
-				Type:         "line",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#98df8a",
-				Expression:   fmt.Sprintf("rpn:%d,/,100,*,60,/", totalCores),
-				ID:           "user",
+				Color:        "#aee8cf",
 				Fill:         false,
 				Format:       "%6.2f",
-				Legend:       "CPU (User)",
+				ID:           "user",
+				Legend:       "User",
 				Metric:       "cpu.user",
 				MetricSource: "cpu",
-				Name:         "CPU (User)",
+				Name:         "User",
 				Rate:         true,
-				Type:         "line",
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#eaf0f9",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "idle",
+				Legend:       "Idle",
+				Metric:       "cpu.idle",
+				MetricSource: "cpu",
+				Name:         "Idle",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#d7729e",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "system",
+				Legend:       "System",
+				Metric:       "cpu.system",
+				MetricSource: "cpu",
+				Name:         "System",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#e8aec7",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "iowait",
+				Legend:       "IOWait",
+				Metric:       "cpu.iowait",
+				MetricSource: "cpu",
+				Name:         "IOWait",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#e8cfae",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "irq",
+				Legend:       "IRQ",
+				Metric:       "cpu.irq",
+				MetricSource: "cpu",
+				Name:         "IRQ",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#ff0000",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "steal",
+				Legend:       "Steal",
+				Metric:       "cpu.steal",
+				MetricSource: "cpu",
+				Name:         "Steal",
+				Rate:         true,
+				Type:         "area",
 			},
 		},
 		ID:     "cpu.usage",
@@ -172,15 +255,13 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		Footer: false,
 		Format: "%d",
 		MinY:   &zero,
-		MaxY:   &onehundred,
 		Range: &domain.GraphConfigRange{
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
 		YAxisLabel:  "% Used",
 		ReturnSet:   "EXACT",
-		Type:        "line",
-		DownSample:  "1m-avg",
+		Type:        "area",
 		Tags:        tags,
 		Description: "Graph of system and user cpu usage over time",
 	}
@@ -193,28 +274,54 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			domain.DataPoint{
 				Aggregator:   "avg",
 				Expression:   "rpn:1024,/,1024,/,1024,/",
-				Color:        "#aec7e8",
+				Color:        "#e8aec7",
 				Fill:         true,
 				Format:       "%6.2f",
 				Legend:       "Used",
-				Metric:       "memory.used",
+				Metric:       "memory.actualused",
 				MetricSource: "memory",
-				Name:         "RSS",
+				Name:         "Used",
 				Type:         "area",
 				ID:           "used",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
 				Expression:   "rpn:1024,/,1024,/,1024,/",
-				Color:        "#98df8a",
+				Color:        "#b2aee8",
 				Fill:         true,
 				Format:       "%6.2f",
-				Legend:       "Cache",
+				Legend:       "Cached",
+				Metric:       "memory.cached",
+				MetricSource: "memory",
+				Name:         "Cached",
+				Type:         "area",
+				ID:           "cached",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#aec7e8",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Buffers",
+				Metric:       "memory.buffers",
+				MetricSource: "memory",
+				Name:         "Buffers",
+				Type:         "area",
+				ID:           "buffers",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Expression:   "rpn:1024,/,1024,/,1024,/",
+				Color:        "#aee4e8",
+				Fill:         true,
+				Format:       "%6.2f",
+				Legend:       "Free",
 				Metric:       "memory.free",
 				MetricSource: "memory",
 				Name:         "Free",
-				ID:           "Memory",
 				Type:         "area",
+				ID:           "free",
 			},
 		},
 		ID:     "memory.usage",
@@ -229,37 +336,8 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		},
 		YAxisLabel:  "GB",
 		ReturnSet:   "EXACT",
-		Type:        "line",
-		DownSample:  "1m-avg",
+		Type:        "area",
 		Tags:        tags,
-		Description: "Graph of memory free vs used over time",
+		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
 	}
-}
-
-//newProfile builds a MonitoringProfile without graphs
-func newProfile(tags map[string][]string) (domain.MonitorProfile, error) {
-	p := domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(profile.MetricConfigs)),
-	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		return p, err
-	}
-
-	//add metrics to profile
-	for i := range profile.MetricConfigs {
-		metricConfig := &profile.MetricConfigs[i]
-		for j := range metricConfig.Metrics {
-			metric := &metricConfig.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTags(tags)
-		}
-
-		config, err := build.Config(metricConfig.ID, metricConfig.Name, metricConfig.Description, "1h-ago")
-		if err != nil {
-			return p, err
-		}
-		p.MetricConfigs[i] = *config
-	}
-	return p, nil
 }

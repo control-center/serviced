@@ -87,6 +87,10 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 		if err != nil {
 			return err
 		}
+		if myHost == nil {
+			glog.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
+			return fmt.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
+		}
 		poolBasedConnection, err := zzk.GetPoolBasedConnection(myHost.PoolID)
 		if err != nil {
 			return err

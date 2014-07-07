@@ -12,6 +12,7 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/utils"
+	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -61,7 +62,7 @@ func SyncVirtualIPs(conn coordclient.Connection, virtualIPs []pool.VirtualIP) er
 	// add nodes into zookeeper if the corresponding virtual IP is new to the model
 	for _, virtualIP := range virtualIPs {
 		currentVirtualIPNodePath := virtualIPsPath(virtualIP.IP)
-		exists, err := conn.Exists(currentVirtualIPNodePath)
+		exists, err := zkutils.PathExists(conn, currentVirtualIPNodePath)
 		if err != nil {
 			glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, currentVirtualIPNodePath)
 			return err
@@ -344,7 +345,7 @@ func setSubtract(a []string, b []string) []string {
 
 func createNode(conn coordclient.Connection, path string) error {
 	// Make the path if it doesn't exist
-	if exists, err := conn.Exists(path); err != nil && err != coordclient.ErrNoNode {
+	if exists, err := zkutils.PathExists(conn, path); err != nil && err != coordclient.ErrNoNode {
 		return fmt.Errorf("Error checking path %s: %s", path, err)
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

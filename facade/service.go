@@ -32,11 +32,11 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
-	_, err := store.Get(ctx, svc.Id)
+	_, err := store.Get(ctx, svc.ID)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		return err
 	} else if err == nil {
-		return fmt.Errorf("error adding service; %v already exists", svc.Id)
+		return fmt.Errorf("error adding service; %v already exists", svc.ID)
 	}
 
 	err = store.Put(ctx, &svc)
@@ -44,7 +44,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 		glog.V(2).Infof("Facade.AddService: %+v", err)
 		return err
 	}
-	glog.V(2).Infof("Facade.AddService: id %+v", svc.Id)
+	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
 
 	return updateService(&svc)
 }
@@ -79,9 +79,9 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
 
 	err = f.walkServices(ctx, id, func(svc *service.Service) error {
-		err := store.Delete(ctx, svc.Id)
+		err := store.Delete(ctx, svc.ID)
 		if err != nil {
-			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
+			glog.Errorf("Error removing service %s	 %s ", svc.ID, err)
 		}
 		return err
 	})
@@ -252,7 +252,7 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 		//start f service
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
-		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.Id, err)
+		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.ID, err)
 		if err != nil {
 			return err
 		}
@@ -367,7 +367,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	visitor := func(myService *service.Service) error {
 		// if f service is in need of an IP address, assign it an IP address
 		for _, endpoint := range myService.Endpoints {
-			needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, myService.Id, endpoint)
+			needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, myService.ID, endpoint)
 			if err != nil {
 				return err
 			}
@@ -389,7 +389,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
-				assignment.ServiceID = myService.Id
+				assignment.ServiceID = myService.ID
 				assignment.EndpointName = endpoint.Name
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
@@ -451,7 +451,7 @@ func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) 
 		return f.getService(ctx, id)
 	}
 
-	tenantID, err := f.GetTenantID(ctx, svc.Id)
+	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -507,8 +507,8 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 	glog.V(2).Infof(" getServiceTree = %s", serviceId)
 	servicesMap := make(map[string]*treenode)
 	for _, svc := range *servicesList {
-		servicesMap[svc.Id] = &treenode{
-			svc.Id,
+		servicesMap[svc.ID] = &treenode{
+			svc.ID,
 			svc.ParentServiceID,
 			[]*treenode{},
 		}
@@ -517,7 +517,7 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 	// second time through builds our tree
 	root := treenode{"root", "", []*treenode{}}
 	for _, svc := range *servicesList {
-		node := servicesMap[svc.Id]
+		node := servicesMap[svc.ID]
 		parent, found := servicesMap[svc.ParentServiceID]
 		// no parent means f node belongs to root
 		if !found {
@@ -538,13 +538,13 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range svc.Endpoints {
-		needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, svc.Id, endpoint)
+		needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, svc.ID, endpoint)
 		if err != nil {
 			return err
 		}
 
 		if needsAnAddressAssignment {
-			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
+			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.ID, addressAssignmentId)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}
@@ -595,12 +595,12 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []*service.Service)
 }
 
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	glog.V(3).Infof("fillServiceConfigs for %s", svc.Id)
+	glog.V(3).Infof("fillServiceConfigs for %s", svc.ID)
 	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
 	if err != nil {
 		return err
 	}
-	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
+	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.ID, tenantID, servicePath)
 
 	configStore := serviceconfigfile.NewStore()
 	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
@@ -624,7 +624,7 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 }
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
-	addrs, err := f.getAddressAssignments(ctx, svc.Id)
+	addrs, err := f.getAddressAssignments(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
@@ -642,21 +642,22 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 
 // updateService internal method to use when service has been validated
 func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
-	id := strings.TrimSpace(svc.Id)
+	id := strings.TrimSpace(svc.ID)
 	if id == "" {
-		return errors.New("empty Service.Id not allowed")
+		return errors.New("empty Service.ID not allowed")
 	}
-	svc.Id = id
+	svc.ID = id
 	//add assignment info to service so it is availble in zk
 	f.fillServiceAddr(ctx, svc)
 
 	svcStore := f.serviceStore
 
-	//Deal with Service Config Files
-	oldSvc, err := svcStore.Get(ctx, svc.Id)
+	oldSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
+
+	//Deal with Service Config Files
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	svc.OriginalConfigs = oldSvc.OriginalConfigs
 
@@ -732,7 +733,7 @@ func removeService(svc *service.Service) error {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
 	}
-	return zzk.RemoveService(poolBasedConn, svc.Id)
+	return zzk.RemoveService(poolBasedConn, svc.ID)
 }
 
 func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
@@ -744,7 +745,7 @@ func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, se
 	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
 }
 
-/*func RemoveHost(hostID string) error {
+func RemoveHost(hostID string) error {
 	poolID := "default"
 	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // CLARK TODO FIXME ?????
 	if err != nil {
@@ -752,7 +753,7 @@ func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, se
 		return err
 	}
 	return zzk.RemoveHost(poolBasedConn, hostID)
-}*/
+}
 
 func lookUpTenant(svcID string) (string, bool) {
 	tenanIDMutex.RLock()
@@ -780,7 +781,7 @@ func getTenantID(svcID string, gs service.GetService) (string, error) {
 		return "", err
 	}
 	visitedIDs := make([]string, 0)
-	visitedIDs = append(visitedIDs, svc.Id)
+	visitedIDs = append(visitedIDs, svc.ID)
 	for svc.ParentServiceID != "" {
 		if tID, found := lookUpTenant(svc.ParentServiceID); found {
 			return tID, nil
@@ -789,11 +790,11 @@ func getTenantID(svcID string, gs service.GetService) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		visitedIDs = append(visitedIDs, svc.Id)
+		visitedIDs = append(visitedIDs, svc.ID)
 	}
 
-	updateTenants(svc.Id, visitedIDs...)
-	return svc.Id, nil
+	updateTenants(svc.ID, visitedIDs...)
+	return svc.ID, nil
 }
 
 var (

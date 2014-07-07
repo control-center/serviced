@@ -19,7 +19,7 @@ function LoginControl($scope, $http, $location, authService) {
                 // Ensure that the auth service knows that we are logged in
                 authService.login(true, $scope.username);
                 // Redirect to main page
-                $location.path('/entry');
+                $location.path('/apps');
             }).
             error(function(data, status) {
                 console.log('Login failed');

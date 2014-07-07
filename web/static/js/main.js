@@ -12,7 +12,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify']).
+angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/entry', {
@@ -59,6 +59,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
             }).
+            when('/isvcs', {
+                templateUrl: '/static/partials/view-isvcs.html',
+                controller: IsvcsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -104,7 +108,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 html: true,
                 content: attrs.popover
             });
-        }
+        };
     }).
     factory('resourcesService', ResourcesService).
     factory('authService', AuthService).
@@ -142,7 +146,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
     filter('toGB', function(){
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
-        }
+        };
     }).
     directive('scroll', function($rootScope, $window, $timeout) {
         return {
@@ -228,7 +232,7 @@ function ResourcesService($http, $location, $notification) {
                 cached_services_map = {};
                 // Map by id
                 data.map(function(svc) {
-                    cached_services_map[svc.Id] = svc;
+                    cached_services_map[svc.ID] = svc;
                 });
                 data.map(function(svc) {
                     if (svc.ParentServiceID !== '') {
@@ -273,7 +277,7 @@ function ResourcesService($http, $location, $notification) {
         $http.get('/pools').
             success(function(data, status) {
                 console.log('Retrieved list of pools');
-                cached_pools = data
+                cached_pools = data;
                 callback(data);
             }).
             error(function(data, status) {
@@ -330,7 +334,7 @@ function ResourcesService($http, $location, $notification) {
         assign_ip: function(serviceID, ip, callback) {
           var url = '/services/' + serviceID + "/ip";
           if (ip != null) {
-            url = url + "/" + ip
+            url = url + "/" + ip;
           }
           $http.put(url).
               success(function(data, status) {
@@ -452,7 +456,7 @@ function ResourcesService($http, $location, $notification) {
          * add a virtual host,
          */
         add_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
             var payload = JSON.stringify( object);
             $http.put(ep, payload).
@@ -473,7 +477,7 @@ function ResourcesService($http, $location, $notification) {
          * Remove a virtual host
          */
         delete_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost
+            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
             $http.delete(ep).
                 success(function(data, status) {
                     $notification.create("", 'Removed virtual host: ' + ep + JSON.stringify(data)).success();
@@ -601,7 +605,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Add result passed to callback on success.
          */
         add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
-            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface})
+            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
             console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
@@ -1166,7 +1170,7 @@ function StatsService($http, $location, $notification) {
                     callback(status);
                 });
         }
-    }
+    };
 }
 
 /*
@@ -1186,7 +1190,7 @@ function flattenTree(depth, current, sortFunction) {
         current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]))
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
     }
     return retVal;
 }
@@ -1205,8 +1209,8 @@ function aggregateVhosts( service) {
       if (endpoint.VHosts) {
         for ( var j in endpoint.VHosts) {
           var name = endpoint.VHosts[j];
-          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
-          vhosts.push( vhost)
+          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.ID};
+          vhosts.push( vhost);
         }
       }
     }
@@ -1233,13 +1237,13 @@ function aggregateAddressAssigments( service, api) {
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
           'Port': endpoint.AddressConfig.Port,
-          'ServiceID': service.Id,
+          'ServiceID': service.ID,
           'ServiceName': service.Name
-        }
+        };
         api.get_host( assignment.HostID, function(data) {
-          assignment.HostName = data.Name
+          assignment.HostName = data.Name;
         })
-        assignments.push( assignment)
+        assignments.push( assignment);
       }
     }
   }
@@ -1259,7 +1263,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceID:service.Id,
+          ServiceID:service.ID,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
@@ -1312,7 +1316,6 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
                 iconClass = "glyphicon glyphicon-question-sign";
                 break;
             }
-            updateRunning(svc);
 
             svc.deploymentClass = depClass;
             svc.deploymentIcon = iconClass;
@@ -1325,7 +1328,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
             // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
                 $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
-                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1
+                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1;
                 });
             }
 
@@ -1336,7 +1339,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
                 if ($scope.vhosts.options.length > 0) {
                   $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
                 }
-                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService)
+                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService);
             }
         }
         if (extraCallback) {
@@ -1410,7 +1413,9 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     });
 }
 
-function toggleRunning(app, status, servicesService) {
+function toggleRunning(app, status, servicesService, serviceId) {
+    serviceId = serviceId || app.ID;
+
     var newState = -1;
     switch(status) {
         case 'start': newState = 1; break;
@@ -1422,25 +1427,9 @@ function toggleRunning(app, status, servicesService) {
         return;
     }
 
-    // recursively updates the text of the status button, this
-    // is so that when stopping takes a long time you can see that
-    // something is happening. This doesn't update the color
-    function updateAppText(app, text, notRunningText) {
-        app.runningText = text;
-        app.notRunningText = notRunningText;
-        if (!app.children) {
-            return;
-        }
-        for (var i=0; i<app.children.length;i++) {
-            updateAppText(app.children[i], text, notRunningText);
-        }
-    }
-
-    // updates the color and the running/non-running text of the
-    // status buttons
+    // recursively set service's children to its desired state
     function updateApp(app) {
         var i, child;
-        updateRunning(app);
         if (app.children && app.children.length) {
             for (i=0; i<app.children.length;i++) {
                 app.children[i].DesiredState = app.DesiredState;
@@ -1450,44 +1439,19 @@ function toggleRunning(app, status, servicesService) {
     }
 
     // stop service
-    if ((newState == 0) || (newState == -1)) {
+    if ((newState === 0) || (newState === -1)) {
         app.DesiredState = newState;
-        servicesService.stop_service(app.Id, function() {
+        servicesService.stop_service(serviceId, function() {
             updateApp(app);
         });
-        updateAppText(app, "stopping...", "ctl_running_blank");
     }
 
     // start service
-    if ((newState == 1) || (newState == -1)) {
+    if ((newState === 1) || (newState === -1)) {
         app.DesiredState = newState;
-        servicesService.start_service(app.Id, function() {
+        servicesService.start_service(serviceId, function() {
             updateApp(app);
         });
-        updateAppText(app, "ctl_running_blank", "starting...");
-    }
-}
-
-function updateRunning(app) {
-    if (app.DesiredState === 1) {
-        app.runningText = "ctl_running_started";
-        app.notRunningText = "ctl_running_blank"; // &nbsp
-        app.runningClass = "btn btn-success active";
-        app.notRunningClass = "btn btn-default off";
-    } else if (app.DesiredState === -1) {
-        app.runningText = "ctl_running_restarting";
-        app.notRunningText = "ctl_running_blank"; // &nbsp
-        app.runningClass = "btn btn-info active";
-        app.notRunningClass = "btn btn-default off";
-    } else {
-        app.runningText = "ctl_running_blank"; // &nbsp
-        app.notRunningText = "ctl_running_stopped";
-        app.runningClass = "btn btn-default off";
-        app.notRunningClass = "btn btn-danger active";
-    }
-    if (app.Deployment !== "successful") {
-        app.runningClass += " disabled";
-        app.notRunningClass += " disabled";
     }
 }
 
@@ -1539,7 +1503,6 @@ function refreshRunningForHost($scope, resourcesService, hostId) {
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
-            updateRunning(runningServices[i]);
         }
     });
 }
@@ -1555,7 +1518,6 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
             runningServices[i].Deployment = 'successful'; // TODO: Replace
-            updateRunning(runningServices[i]);
         }
 
         if (extracallback) {
@@ -1647,7 +1609,7 @@ function buildTable(sort, headers) {
 
 function indentClass(depth) {
     return 'indent' + (depth -1);
-};
+}
 
 function toggleCollapse(child, collapsed) {
     child.parentCollapsed = collapsed;

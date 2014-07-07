@@ -1,28 +1,13 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+    <h3>{{services.current.Name}}</h3>
+
     <div class="details">
       <div class="details-form">
         <div class="vertical-info">
           <label for="app_data_name">{{'label_service_name'|translate}}</label>
           <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
-        </div>
-
-        <div class="vertical-info">
-          <label for="app_data_status">{{'label_service_status'|translate}}</label>
-
-          <div id="app_data_status" class="toggle btn-group" data-toggle="buttons">
-            <label ng-class="services.current.runningClass" ng-click="clickRunning(services.current, 'start', servicesService)">
-              <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="1" />
-              {{services.current.runningText|translate}}
-            </label>
-            
-            <label ng-class="services.current.notRunningClass" ng-click="clickRunning(services.current, 'stop', servicesService)">
-              <input type="radio" name="running{{$index}}" 
-                     ng-model="services.current.Running" value="stopped" />
-              {{services.current.notRunningText|translate}}
-            </label>
-          </div>
-        </div>
+        </div>        
 
         <div class="vertical-info">
           <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
@@ -41,6 +26,15 @@
           <input type="text" id="app_data_image" class="image"
                  ng-model="services.current.ImageID"></input>
         </div>
+
+        <div class="vertical-info">
+          <label>{{'running_tbl_actions'|translate}}</label>
+          <div>
+            <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+            <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+          </div>
+        </div>
+
       </div>
       <div class="details-actions">	    
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
@@ -59,7 +53,7 @@
           </button>
       </span>
   </div>
-	<table class="table table-striped table-bordered table-hover" id="vhosts_data">
+	<table class="table table-striped" id="vhosts_data">
 		<thead>
 			<tr>
 				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
@@ -69,19 +63,19 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr ng-repeat="vhost in vhosts.data track by $index | orderBy:vhosts.sort" class="link">			
+			<tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
 				<td>{{vhost.Name}}</td>
 				<td>{{vhost.Application}}</td>
 				<td>{{vhost.ServiceEndpoint}}</td>
-				<td><a href="{{vhost_url(vhost.Name)}}" target="_blank">{{vhost_url(vhost.Name)}}</a></td>
-				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link" ng-disabled="vhosts.data.length <= 1">{{'label_delete'|translate}}</button></td>
+				<td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
+				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
 			</tr>
 		</tbody>
 	</table>
 
 	<!-- IP Assignments -->
 	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
-	<table class="table table-striped table-bordered table-hover" id="ips_data">
+	<table class="table table-striped" id="ips_data">
 		<thead>
 			<tr>
 				<th ng-repeat="header in ips.headers">{{header.name|translate}}
@@ -91,7 +85,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr ng-repeat="ip in ips.data track by $index | orderBy:ips.sort" class="link">
+			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
 				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
 				<td>{{ip.EndpointName}}</td>
 				<td>{{ip.AssignmentType}}</td>
@@ -99,20 +93,20 @@
 				<td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
 				<td>{{ip.IPAddr}}</td>
 				<td>{{ip.Port}}</td>
-				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link">{{'label_assign'|translate}}</button> </td>
+				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
 			</tr>
 		</tbody>
 	</table>
 
 	<!-- Config Files -->
 	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
-	<table class="table table-striped table-bordered table-hover" >
+	<table class="table table-striped" >
       <thead>
         <tr>
-          <th>Path</th>
-          <th>Owner</th>
-          <th>Perms</th>
-          <th>Actions</th>
+          <th>{{'path'|translate}}</th>
+          <th>{{'owner'|translate}}</th>
+          <th>{{'permissions'|translate}}</th>
+          <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
@@ -121,7 +115,7 @@
           <td>{{ configFile.Owner }}</td>
           <td>{{ configFile.Permissions }}</td>
           <td>
-            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link">Edit</button>
+            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
           </td>
         </tr>
       </tbody>
@@ -129,40 +123,34 @@
 	
     <!-- This table has sub service definitions -->
 	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
-    <table class="table table-striped table-bordered table-hover" ng-show="services.subservices.length > 0">
+    <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
-          <th ng-repeat="header in services.headers">{{header.name|translate}}</th>
+          <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
+          <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
+          <th style="width: 40px;">{{'label_service_status'|translate}}</th>
+          <th style="width: 700px;">{{'label_service_startup'|translate}}</th>
+          <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.subservices">
-          <td ng-click="click_app(app.Id)" class="link" style="white-space: nowrap; width:200px">
-            <span ng-class="indent(app.zendepth)">&nbsp;</span>{{app.Name}}</td>
-          <td width="130" style="text-align: center">
-            <div class="toggle btn-group" data-toggle="buttons">
-              <label ng-class="app.runningClass" ng-click="clickRunning(app, 'start', servicesService)">
-                <input type="radio" name="running{{$index}}" 
-                       ng-model="app.Running" value="1">
-                {{app.runningText|translate}}
-              </label>
-              
-              <label ng-class="app.notRunningClass" ng-click="clickRunning(app, 'stop', servicesService)">
-                <input type="radio" name="running{{$index}}" 
-                       ng-model="app.Running" value="stopped">
-                {{app.notRunningText|translate}}
-              </label>
-            </div>
+        <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
+          <td ng-click="click_app(app.ID)" class="link">
+            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
           </td>
-          <td style="text-align: center; width:60px">
-            <span data-toggle="tooltip" data-placement="top" title="" id="health-tooltip-{{app.Id}}">
-              <div ng-if="app.children == undefined">
-                <img src="/static/img/greyball.png" id="health-{{app.Id}}">
+          <td style="text-align:center;">
+            <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
+              <div ng-if="app.children === undefined">
+                <i class="healthIcon" ng-class="app.healthIconClass"></i>
               </div>
             </span>
           </td>
           <td>
             <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
+          </td>
+          <td>
+            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
           </td>
         </tr>
       </tbody>
@@ -171,7 +159,7 @@
 
     <!-- This table has running instances -->
 	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
-    <table class="table table-striped table-bordered table-hover" ng-show="running.data.length > 0">
+    <table class="table table-striped" ng-show="running.data.length > 0">
       <thead>
         <tr>
           <th>{{'running_tbl_instance_id'|translate}}</th>
@@ -188,15 +176,14 @@
           <td>{{app.hostName}}</td>
           <td>{{app.DockerID}}</td>
           <td>
-            <button ng-click="viewLog(app)" class="btn btn-link">{{'action_view_log'|translate}}</button>
-            |
-            <button ng-click="killRunning(app)" class="btn btn-link">{{'action_restart'|translate}}</button>
+            <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
+            <button ng-click="killRunning(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
           </td>
         </tr>
       </tbody>
     </table>
 	<h3>{{'scheduled_tasks'|translate}}</h3>
-    <table class="table tabl-striped table-bordered table-hover">
+    <table class="table tabl-striped">
         <thead>
             <tr>
                 <th>{{'task_schedule'|translate}}</th>

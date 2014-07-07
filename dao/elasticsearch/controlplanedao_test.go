@@ -9,7 +9,6 @@ package elasticsearch
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -78,12 +77,19 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 
 	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
-	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	zClient, err := coordclient.New("zookeeper", dsn, "", nil)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
-	zkDAO := zzk.NewZkDao(zclient)
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync", "localhost:5000", zkDAO)
+
+	zzk.InitializeGlobals(zClient)
+
+	dt.zkConn, err = zzk.GetPoolBasedConnection("")
+	if err != nil {
+		c.Fatalf("could not get zk connection %v", err)
+	}
+
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", "localhost:5000")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -112,11 +118,6 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	if err := createSystemUser(dt.Dao); err != nil {
 		c.Fatalf("could not create systemuser:", err)
 	}
-
-	dt.zkConn, err = dt.Dao.zclient.GetConnection()
-	if err != nil {
-		c.Fatalf("could not get zk connection %v", err)
-	}
 }
 
 //TearDownSuite stops all isvcs
@@ -133,7 +134,7 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 		t.Fail()
 	}
 
-	svc.Id = "default"
+	svc.ID = "default"
 	svc.Name = "default"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
@@ -154,7 +155,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	dt.Dao.RemoveService("default", &unused)
 
 	svc, _ := service.NewService()
-	svc.Id = "default"
+	svc.ID = "default"
 	svc.Name = "default"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
@@ -181,7 +182,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 }
 func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc, _ := service.NewService()
-	svc.Id = "default"
+	svc.ID = "default"
 	svc.Name = "default"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
@@ -200,7 +201,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 
 	//test update conf file works
 	svc, _ = service.NewService()
-	svc.Id = "default_conf"
+	svc.ID = "default_conf"
 	svc.Name = "default"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
@@ -224,7 +225,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
 
 	//now delete service and re-add, it should have previous modified config file
-	err = dt.Dao.RemoveService(svc.Id, &unused)
+	err = dt.Dao.RemoveService(svc.ID, &unused)
 	t.Assert(err, IsNil)
 	err = dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -244,7 +245,7 @@ func (dt *DaoTest) TestDao_GetService(t *C) {
 	t.Assert(err, IsNil)
 
 	var result service.Service
-	err = dt.Dao.GetService(svc.Id, &result)
+	err = dt.Dao.GetService(svc.ID, &result)
 	t.Assert(err, IsNil)
 	//XXX the time.Time types fail comparison despite being equal...
 	//	  as far as I can tell this is a limitation with Go
@@ -257,7 +258,7 @@ func (dt *DaoTest) TestDao_GetService(t *C) {
 
 func (dt *DaoTest) TestDao_GetServices(t *C) {
 	svc, _ := service.NewService()
-	svc.Id = "default"
+	svc.ID = "default"
 	svc.Name = "name"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
@@ -283,7 +284,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 
 func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	svc := service.Service{
-		Id:             "ParentServiceID",
+		ID:             "ParentServiceID",
 		Name:           "ParentService",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
@@ -298,7 +299,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		UpdatedAt:      time.Now(),
 	}
 	childService1 := service.Service{
-		Id:              "childService1",
+		ID:              "childService1",
 		Name:            "childservice1",
 		Launch:          "auto",
 		PoolID:          "default",
@@ -306,7 +307,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		ParentServiceID: "ParentServiceID",
 	}
 	childService2 := service.Service{
-		Id:              "childService2",
+		ID:              "childService2",
 		Name:            "childservice2",
 		Launch:          "auto",
 		PoolID:          "default",
@@ -353,14 +354,14 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()
-	s0.Id = "0"
+	s0.ID = "0"
 	s0.Name = "name"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.DesiredState = service.SVCStop
 
 	s01, _ := service.NewService()
-	s01.Id = "01"
+	s01.ID = "01"
 	s01.Name = "name"
 	s01.PoolID = "default"
 	s01.Launch = "auto"
@@ -368,7 +369,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s01.DesiredState = service.SVCStop
 
 	s011, _ := service.NewService()
-	s011.Id = "011"
+	s011.ID = "011"
 	s011.Name = "name"
 	s011.PoolID = "default"
 	s011.Launch = "auto"
@@ -376,7 +377,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s011.DesiredState = service.SVCStop
 
 	s02, _ := service.NewService()
-	s02.Id = "02"
+	s02.ID = "02"
 	s02.Name = "name"
 	s02.PoolID = "default"
 	s02.Launch = "auto"
@@ -435,17 +436,17 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	s0.Name = "name"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
-	s0.Id = "0"
+	s0.ID = "0"
 
 	s01, _ := service.NewService()
-	s01.Id = "01"
+	s01.ID = "01"
 	s01.ParentServiceID = "0"
 	s01.Name = "name"
 	s01.PoolID = "default"
 	s01.Launch = "auto"
 
 	s011, _ := service.NewService()
-	s011.Id = "011"
+	s011.ID = "011"
 	s011.ParentServiceID = "01"
 	s011.Name = "name"
 	s011.PoolID = "default"
@@ -515,7 +516,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 
 	testService := service.Service{
-		Id:     "assignIPsServiceID",
+		ID:     "assignIPsServiceID",
 		Name:   "testsvc",
 		Launch: "auto",
 		PoolID: assignIPsPool.ID,
@@ -540,14 +541,14 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	if err != nil {
 		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
 	}
-	assignmentRequest := dao.AssignmentRequest{testService.Id, "", true}
+	assignmentRequest := dao.AssignmentRequest{testService.ID, "", true}
 	err = dt.Dao.AssignIPs(assignmentRequest, nil)
 	if err != nil {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
 	assignments := []*addressassignment.AddressAssignment{}
-	err = dt.Dao.GetServiceAddressAssignments(testService.Id, &assignments)
+	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
 	}
@@ -729,63 +730,6 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestDao_SnapshotRequest(t *C) {
-	t.Skip("TODO: fix this test")
-
-	glog.V(0).Infof("TestDao_SnapshotRequest started")
-	defer glog.V(0).Infof("TestDao_SnapshotRequest finished")
-
-	dsn := coordzk.DSN{
-		Servers: []string{"127.0.0.1:2181"},
-		Timeout: time.Second * 10,
-	}
-	cclient, _ := coordclient.New("zookeeper", dsn.String(), "", nil)
-	zkDao := zzk.NewZkDao(cclient)
-
-	srExpected := dao.SnapshotRequest{
-		Id:            "request13",
-		ServiceID:     "12345",
-		SnapshotLabel: "foo",
-		SnapshotError: "bar",
-	}
-	if err := zkDao.AddSnapshotRequest(&srExpected); err != nil {
-		t.Fatalf("Failure adding snapshot request %+v with error: %s", srExpected, err)
-	}
-	glog.V(0).Infof("adding duplicate snapshot request - expecting failure on next line like: node already exists")
-	if err := zkDao.AddSnapshotRequest(&srExpected); err == nil {
-		t.Fatalf("Should have seen failure adding duplicate snapshot request %+v", srExpected)
-	}
-
-	srResult := dao.SnapshotRequest{}
-	if err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
-		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
-	}
-	if !reflect.DeepEqual(srExpected, srResult) {
-		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
-	}
-
-	srExpected.ServiceID = "67890"
-	srExpected.SnapshotLabel = "bin"
-	srExpected.SnapshotError = "baz"
-	if err := zkDao.UpdateSnapshotRequest(&srExpected); err != nil {
-		t.Fatalf("Failure updating snapshot request %+v with error: %s", srResult, err)
-	}
-
-	if err := zkDao.LoadSnapshotRequest(srExpected.Id, &srResult); err != nil {
-		t.Fatalf("Failure loading snapshot request %+v with error: %s", srResult, err)
-	}
-	if !reflect.DeepEqual(srExpected, srResult) {
-		t.Fatalf("Failure comparing snapshot request expected:%+v result:%+v", srExpected, srResult)
-	}
-
-	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err != nil {
-		t.Fatalf("Failure removing snapshot request %+v with error: %s", srExpected, err)
-	}
-	if err := zkDao.RemoveSnapshotRequest(srExpected.Id); err == nil {
-		t.Fatalf("Failure removing non-existant snapshot request expected %+v", srExpected)
-	}
-}
-
 func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	t.Skip("TODO: fix this test")
 	// this is technically not a unit test since it depends on the leader
@@ -799,33 +743,33 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	time.Sleep(2 * time.Second) // wait for Leader to start watching for snapshot requests
 
 	service := service.Service{}
-	service.Id = "service-without-quiesce"
-	dt.Dao.RemoveService(service.Id, &unused)
+	service.ID = "service-without-quiesce"
+	dt.Dao.RemoveService(service.ID, &unused)
 	// snapshot should work for services without Snapshot Pause/Resume
 	err := dt.Dao.AddService(service, &id)
 	if err != nil {
 		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
-	service.Id = "service1-quiesce"
-	dt.Dao.RemoveService(service.Id, &unused)
-	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
-	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
+	service.ID = "service1-quiesce"
+	dt.Dao.RemoveService(service.ID, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.ID)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.ID)
 	err = dt.Dao.AddService(service, &id)
 	if err != nil {
 		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
-	service.Id = "service2-quiesce"
-	dt.Dao.RemoveService(service.Id, &unused)
-	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.Id)
-	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.Id)
+	service.ID = "service2-quiesce"
+	dt.Dao.RemoveService(service.ID, &unused)
+	service.Snapshot.Pause = fmt.Sprintf("STATE=paused echo %s quiesce $STATE", service.ID)
+	service.Snapshot.Resume = fmt.Sprintf("STATE=resumed echo %s quiesce $STATE", service.ID)
 	err = dt.Dao.AddService(service, &id)
 	if err != nil {
 		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
-	err = dt.Dao.Snapshot(service.Id, &id)
+	err = dt.Dao.Snapshot(service.ID, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
@@ -834,7 +778,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	}
 	glog.V(0).Infof("successfully created 1st snapshot with label:%s", id)
 
-	err = dt.Dao.Snapshot(service.Id, &id)
+	err = dt.Dao.Snapshot(service.ID, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}

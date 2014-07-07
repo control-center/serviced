@@ -82,7 +82,7 @@ func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
 
 	var services []*service.Service
 	for i, s := range allServices {
-		if s.Name == name || s.Id == name {
+		if s.Name == name || s.ID == name {
 			services = append(services, allServices[i])
 		}
 	}
@@ -169,7 +169,7 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 		return nil, err
 	}
 
-	return a.GetService(s.Id)
+	return a.GetService(s.ID)
 }
 
 // StartService starts a service

@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
 	"fmt"
@@ -17,9 +18,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-
 	zookeeper.EnsureZkFatjar()
-	basePath := "/basePath"
+	basePath := ""
 	tc, err := zklib.StartTestCluster(1)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
@@ -35,9 +35,11 @@ func TestClient(t *testing.T) {
 		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
-	zclient, err := client.New("zookeeper", dsn, basePath, nil)
+	zClient, err := client.New("zookeeper", dsn, basePath, nil)
 
-	conn, err := zclient.GetConnection()
+	zzk.InitializeGlobals(zClient)
+
+	conn, err := zzk.GetPoolBasedConnection("")
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}
@@ -53,7 +55,7 @@ func TestClient(t *testing.T) {
 		t.Fatalf("could not create tempdir: %s", err)
 	}
 	defer os.RemoveAll(dir)
-	c, err := NewClient(h, zclient, dir)
+	c, err := NewClient(h, dir)
 	if err != nil {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}

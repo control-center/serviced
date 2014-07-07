@@ -246,7 +246,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 			close(req.errchan)
 			req.respchan <- ctr
 		case req := <-cmds.Kill:
-			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGINT})
+			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGKILL})
 			if err != nil {
 				req.errchan <- err
 				continue

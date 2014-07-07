@@ -22,7 +22,7 @@ func context() func(s Service) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := json.Unmarshal([]byte(s.Context), &ctx)
 		if err != nil {
-			glog.Errorf("Error unmarshal service context Id=%s: %s -> %s", s.Id, s.Context, err)
+			glog.Errorf("Error unmarshal service context ID=%s: %s -> %s", s.ID, s.Context, err)
 		}
 		return ctx, err
 	}
@@ -118,7 +118,7 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService) (err error) {
 // EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
 // ConfigFile on the service.
 func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
-	glog.V(3).Infof("Evaluating Config Files for %s", service.Id)
+	glog.V(3).Infof("Evaluating Config Files for %s", service.ID)
 	for key, configFile := range service.ConfigFiles {
 		glog.V(3).Infof("Evaluating Config File: %v", key)
 		// Filename

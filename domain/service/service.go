@@ -26,7 +26,7 @@ const (
 
 // Service A Service that can run in serviced.
 type Service struct {
-	Id                string
+	ID                string
 	Name              string
 	Context           string
 	Startup           string
@@ -36,6 +36,7 @@ type Service struct {
 	ConfigFiles       map[string]servicedefinition.ConfigFile
 	Instances         int
 	InstanceLimits    domain.MinMax
+	ChangeOptions     []string
 	ImageID           string
 	PoolID            string
 	DesiredState      int
@@ -71,7 +72,7 @@ type ServiceEndpoint struct {
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = utils.NewUUID36()
+	s.ID, err = utils.NewUUID36()
 	return s, err
 }
 
@@ -109,7 +110,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	now := time.Now()
 
 	svc := Service{}
-	svc.Id = svcuuid
+	svc.ID = svcuuid
 	svc.Name = sd.Name
 	svc.Context = string(ctx)
 	svc.Startup = sd.Command
@@ -117,6 +118,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
+	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID
 	svc.PoolID = poolID
 	svc.DesiredState = desiredState
@@ -145,29 +147,14 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		svc.Endpoints = append(svc.Endpoints, ServiceEndpoint{EndpointDefinition: ep})
 	}
 
-	svc.MonitoringProfile = domain.MonitorProfile{
-		MetricConfigs: make([]domain.MetricConfig, len(sd.Metrics)),
+	tags := map[string][]string{
+		"controlplane_service_id": []string{svc.ID},
 	}
-
-	build, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	profile, err := sd.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
 		return nil, err
 	}
-
-	for i := range sd.Metrics {
-		metricGroup := &sd.Metrics[i]
-		for j := range metricGroup.Metrics {
-			metric := metricGroup.Metrics[j]
-			build.Metric(metric.ID, metric.Name).SetTag("controlplane_service_id", svc.Id)
-		}
-
-		config, err := build.Config(metricGroup.ID, metricGroup.Name, metricGroup.Description, "1h-ago")
-		if err != nil {
-			return nil, err
-		}
-
-		svc.MonitoringProfile.MetricConfigs[i] = *config
-	}
+	svc.MonitoringProfile = *profile
 
 	return &svc, nil
 }
@@ -325,7 +312,7 @@ func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment 
 
 //Equals are they the same
 func (s *Service) Equals(b *Service) bool {
-	if s.Id != b.Id {
+	if s.ID != b.ID {
 		return false
 	}
 	if s.Name != b.Name {
