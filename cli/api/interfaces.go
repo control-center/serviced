@@ -40,7 +40,7 @@ type API interface {
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(RemoveServiceConfig) error
 	UpdateService(io.Reader) (*service.Service, error)
-	StartService(string)  error
+	StartService(string) error
 	StopService(string) error
 	AssignIP(IPConfig) error
 
@@ -72,6 +72,9 @@ type API interface {
 	// Backup & Restore
 	Backup(string) (string, error)
 	Restore(string) error
+
+	// Docker
+	Squash(imageName, downToLayer, newName, tempDir string) (string, error)
 
 	// Logs
 	ExportLogs(serviceIds []string, to, from, outfile string) error
