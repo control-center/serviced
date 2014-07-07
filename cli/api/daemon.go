@@ -390,7 +390,7 @@ func (d *daemon) initZKDAO(zkClient *coordclient.Client) *zzk.ZkDao {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, options.DockerRegistry, d.zkDAO)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.zclient, options.VarPath, options.VFS, d.zkDAO)
 }
 
 func (d *daemon) initWeb() {

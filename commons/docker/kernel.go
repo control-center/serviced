@@ -2,17 +2,24 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"os"
-	"syscall"
+	"regexp"
 	"time"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/commons"
 )
 
 const (
 	dockerep = "unix:///var/run/docker.sock"
 	snr      = "SERVICED_NOREGISTRY"
 	Wildcard = "*"
+)
+
+const (
+	pullop = iota
+	pushop
 )
 
 var noregistry bool
@@ -38,6 +45,15 @@ type cancelactionreq struct {
 	}
 }
 
+type commitreq struct {
+	request
+	args struct {
+		containerID string
+		imageID     *commons.ImageID
+	}
+	respchan chan *Image
+}
+
 type createreq struct {
 	request
 	args struct {
@@ -55,6 +71,34 @@ type deletereq struct {
 	args struct {
 		removeOptions dockerclient.RemoveContainerOptions
 	}
+}
+
+type delimgreq struct {
+	request
+	args struct {
+		repotag string
+	}
+}
+
+type exportreq struct {
+	request
+	args struct {
+		id      string
+		outfile io.Writer
+	}
+}
+
+type impimgreq struct {
+	request
+	args struct {
+		repotag  string
+		filename string
+	}
+}
+
+type imglistreq struct {
+	request
+	respchan chan []*Image
 }
 
 type inspectreq struct {
@@ -93,6 +137,18 @@ type onstopreq struct {
 	}
 }
 
+type pushpullreq struct {
+	request
+	args struct {
+		op       int
+		uuid     string
+		reponame string
+		registry string
+		tag      string
+	}
+	respchan chan *Image
+}
+
 type restartreq struct {
 	request
 	args struct {
@@ -118,6 +174,18 @@ type stopreq struct {
 	}
 }
 
+type tagimgreq struct {
+	request
+	args struct {
+		uuid     string
+		name     string
+		repo     string
+		registry string
+		tag      string
+	}
+	respchan chan *Image
+}
+
 type waitreq struct {
 	request
 	args struct {
@@ -130,30 +198,44 @@ var (
 	cmds = struct {
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
+		Commit          chan commitreq
 		Create          chan createreq
 		Delete          chan deletereq
+		DeleteImage     chan delimgreq
+		Export          chan exportreq
+		ImageImport     chan impimgreq
+		ImageList       chan imglistreq
 		Inspect         chan inspectreq
 		Kill            chan killreq
 		List            chan listreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
+		PullImage       chan pushpullreq
 		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
+		TagImage        chan tagimgreq
 		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
+		make(chan commitreq),
 		make(chan createreq),
 		make(chan deletereq),
+		make(chan delimgreq),
+		make(chan exportreq),
+		make(chan impimgreq),
+		make(chan imglistreq),
 		make(chan inspectreq),
 		make(chan killreq),
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
+		make(chan pushpullreq),
 		make(chan restartreq),
 		make(chan startreq),
 		make(chan stopreq),
+		make(chan tagimgreq),
 		make(chan waitreq),
 	}
 	dockerevents = []string{
@@ -200,8 +282,13 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	co := make(chan createreq)
 	go createq(ci, co)
 
-	go scheduler(dc, so, co, done)
+	ppi := make(chan pushpullreq)
+	ppo := make(chan pushpullreq)
+	go pushpullq(ppi, ppo)
 
+	go scheduler(dc, so, co, ppo, done)
+
+KernelLoop:
 	for {
 		select {
 		case req := <-cmds.AddAction:
@@ -228,6 +315,20 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 
 			delete(eventactions[event], req.args.id)
 			close(req.errchan)
+		case req := <-cmds.Commit:
+			// TODO: this may need to be shifted to the scheduler if commits take too long
+			opts := dockerclient.CommitContainerOptions{
+				Container:  req.args.containerID,
+				Repository: req.args.imageID.BaseName(),
+			}
+			img, err := dc.CommitContainer(opts)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+			req.respchan <- &Image{img.ID, *req.args.imageID}
 		case req := <-cmds.Create:
 			ci <- req
 		case req := <-cmds.Delete:
@@ -237,6 +338,77 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
+		case req := <-cmds.DeleteImage:
+			err := dc.RemoveImage(req.args.repotag)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
+		case req := <-cmds.Export:
+			// TODO: this may need to be shifted to the scheduler, exporting takes some time
+			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+		case req := <-cmds.ImageImport:
+			// TODO: this may need to be shifted to the scheduler, importing takes some time
+			f, err := os.Open(req.args.filename)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+			defer f.Close()
+
+			iid, err := commons.ParseImageID(req.args.repotag)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			opts := dockerclient.ImportImageOptions{
+				Repository:  iid.BaseName(),
+				Source:      "-",
+				InputStream: f,
+				Tag:         iid.Tag,
+			}
+
+			if err = dc.ImportImage(opts); err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+		case req := <-cmds.ImageList:
+			imgs, err := dc.ListImages(false)
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			re := regexp.MustCompile("<none>:<none>")
+
+			resp := []*Image{}
+			for _, img := range imgs {
+				for _, repotag := range img.RepoTags {
+					if len(re.FindString(repotag)) > 0 {
+						continue
+					}
+
+					iid, err := commons.ParseImageID(repotag)
+					if err != nil {
+						req.errchan <- err
+						continue KernelLoop
+					}
+					resp = append(resp, &Image{img.ID, *iid})
+				}
+			}
+
+			close(req.errchan)
+			req.respchan <- resp
 		case req := <-cmds.Inspect:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -276,6 +448,8 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				go action(req.args.id)
 			}
 			close(req.errchan)
+		case req := <-cmds.PullImage:
+			ppi <- req
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
 			err := dc.RestartContainer(req.args.id, req.args.timeout)
@@ -306,6 +480,36 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
+		case req := <-cmds.TagImage:
+			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			if !noregistry {
+				ppi <- pushpullreq{
+					request{req.errchan},
+					struct {
+						op       int
+						uuid     string
+						reponame string
+						registry string
+						tag      string
+					}{pushop, req.args.uuid, req.args.repo, req.args.registry, req.args.tag},
+					req.respchan,
+				}
+				continue
+			}
+
+			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			close(req.errchan)
+			req.respchan <- &Image{req.args.uuid, *iid}
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
 				rc, err := dc.WaitContainer(req.args.id)
@@ -323,9 +527,9 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	}
 }
 
-// scheduler handles creating and starting up containers. Container creation can take a long time so
-// the scheduler runs in its own goroutine and pulls requests off of the create and start queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done chan struct{}) {
+// scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
+// the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done chan struct{}) {
 	em, err := dc.MonitorEvents()
 	if err != nil {
 		panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -334,25 +538,28 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 	for {
 		select {
 		case req := <-crc:
-			ctr, err := dc.CreateContainer(*req.args.containerOptions)
-			switch {
-			case err == dockerclient.ErrNoSuchImage:
-				if pullerr := dc.PullImage(dockerclient.PullImageOptions{
-					Repository:   req.args.containerOptions.Config.Image,
-					OutputStream: os.NewFile(uintptr(syscall.Stdout), "/def/stdout"),
-				}, dockerclient.AuthConfiguration{}); pullerr != nil {
-					req.errchan <- err
-					continue
-				}
-
-				ctr, err = dc.CreateContainer(*req.args.containerOptions)
-				if err != nil {
-					req.errchan <- err
-					continue
-				}
-			case err != nil:
+			// always pull the image to make sure we have the latest version
+			iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
+			if err != nil {
 				req.errchan <- err
 				continue
+			}
+
+			err = dc.PullImage(
+				dockerclient.PullImageOptions{
+					Repository: iid.BaseName(),
+					Registry:   iid.Registry(),
+					Tag:        iid.Tag,
+				},
+				dockerclient.AuthConfiguration{})
+			if err != nil {
+				req.errchan <- err
+				continue
+			}
+
+			ctr, err := dc.CreateContainer(*req.args.containerOptions)
+			if err != nil {
+				req.errchan <- err
 			}
 
 			if req.args.createaction != nil {
@@ -403,6 +610,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {
 				req.errchan <- err
+				continue
 			}
 
 			if req.args.action != nil {
@@ -410,6 +618,44 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 			}
 
 			close(req.errchan)
+		case req := <-pprc:
+			switch req.args.op {
+			case pullop:
+				opts := dockerclient.PullImageOptions{
+					Repository: req.args.reponame,
+					Registry:   req.args.registry,
+					Tag:        req.args.tag,
+				}
+
+				err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
+				if err != nil {
+					req.errchan <- err
+					continue
+				}
+
+				close(req.errchan)
+			case pushop:
+				opts := dockerclient.PushImageOptions{
+					Name:     req.args.reponame,
+					Registry: req.args.registry,
+					Tag:      req.args.tag,
+				}
+
+				err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+				if err != nil {
+					req.errchan <- err
+					continue
+				}
+
+				iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.reponame, req.args.tag))
+				if err != nil {
+					req.errchan <- err
+					continue
+				}
+
+				close(req.errchan)
+				req.respchan <- &Image{req.args.uuid, *iid}
+			}
 		case <-done:
 			return
 		}
@@ -491,6 +737,49 @@ restart:
 					next <- v
 				}
 				pending = []createreq{}
+			}
+		case next <- pending[0]:
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
+}
+
+// pushpullq implements an inifinite buffered channel of pushpull requests. Requests are added via the
+// in channel and received on the next channel.
+func pushpullq(in <-chan pushpullreq, next chan<- pushpullreq) {
+	defer close(next)
+
+	pending := []pushpullreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > 8 {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []pushpullreq{}
 			}
 		case next <- pending[0]:
 			pending = pending[1:]

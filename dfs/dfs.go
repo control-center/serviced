@@ -2,7 +2,6 @@ package dfs
 
 import (
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
@@ -18,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -46,30 +44,15 @@ var runServiceCommand = func(state *servicestate.ServiceState, command string) (
 
 type DistributedFileSystem struct {
 	sync.Mutex
-	client         dao.ControlPlane
-	dockerClient   *dockerclient.Client
-	dockerRegistry *docker.DockerRegistry
-	facade         *facade.Facade
+	client dao.ControlPlane
+	facade *facade.Facade
 }
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
-func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, dockerRegistry string) (*DistributedFileSystem, error) {
-	dockerClient, err := dockerclient.NewClient(DOCKER_ENDPOINT)
-	if err != nil {
-		glog.V(2).Infof("snapshot.NewDockerClient client=%+v err=%s", client, err)
-		return nil, err
-	}
-	registry, err := docker.NewDockerRegistry(dockerRegistry)
-	if err != nil {
-		glog.V(2).Infof("unable to use docker registry %s: %s", dockerRegistry, err)
-		return nil, err
-	}
-
+func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade) (*DistributedFileSystem, error) {
 	return &DistributedFileSystem{
-		client:         client,
-		dockerClient:   dockerClient,
-		dockerRegistry: registry,
-		facade:         facade,
+		client: client,
+		facade: facade,
 	}, nil
 }
 
@@ -232,10 +215,14 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 		return err
 	} else {
 		for _, image := range images {
-			repo := image.Repository + ":" + timestamp
-			if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, repo); err != nil {
+			ssid := image.ID
+			ssid.Tag = timestamp
+			ssimg, err := docker.FindImage(ssid.String(), false)
+			if err != nil {
 				glog.Errorf("unable to untag image: %s (%s)", image.ID, err)
+				continue
 			}
+			ssimg.Delete()
 		}
 	}
 
@@ -263,10 +250,13 @@ func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
 		return err
 	}
 	for _, image := range images {
-		if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, image.Repository); err != nil {
-			glog.Errorf("error trying to delete image %s, err=%s", image.Repository, err)
+		img, err := docker.FindImage(image.ID.String(), false)
+		if err != nil {
+			glog.Errorf("error trying to delete image %s, err=%s", image.ID, err)
 			err = errors.New("error(s) while removing service images")
+			continue
 		}
+		img.Delete()
 	}
 	if err != nil {
 		glog.V(2).Infof("DistibutedFileSystem.DeleteSnapshots tenantId=%s err=%s", tenantId, err)
@@ -282,11 +272,13 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	defer d.Unlock()
 
 	// Get the container, and verify that it is not running
-	container, err := d.dockerClient.InspectContainer(dockerId)
+	container, err := docker.FindContainer(dockerId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
-	} else if container.State.Running {
+	}
+
+	if container.IsRunning() {
 		err := errors.New("cannot commit a running container")
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
@@ -301,16 +293,17 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	tenantId := imageId.User
 
 	// Verify the image exists and has the latest tag
-	var image *dockerclient.APIImages
 	images, err := d.findImages(tenantId, DOCKER_LATEST)
 	glog.V(2).Infof("DistributedFileSystem.Commit found %d matching images: id=%s", len(images), tenantId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
 	}
+
+	var image *docker.Image
 	for _, i := range images {
-		if i.ID == container.Image {
-			image = &i
+		if i.UUID == container.Image {
+			image = i
 			break
 		}
 	}
@@ -322,11 +315,7 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 	}
 
 	// Commit the container to the image and tag
-	options := dockerclient.CommitContainerOptions{
-		Container:  container.ID,
-		Repository: image.Repository,
-	}
-	if _, err := docker.CommitContainer(*d.dockerRegistry, d.dockerClient, options); err != nil {
+	if _, err := container.Commit(image.ID.BaseName()); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return "", err
 	}
@@ -497,28 +486,21 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	return nil
 }
 
-func (d *DistributedFileSystem) findImages(id, tag string) (images []dockerclient.APIImages, err error) {
-	if all, err := docker.ListImages(*d.dockerRegistry, d.dockerClient); err != nil {
-		return images, err
-	} else {
-		for _, image := range all {
-			for _, repotag := range image.RepoTags {
-				imageId, err := commons.ParseImageID(repotag)
-				if err != nil {
-					continue
-				}
-				if imageId.Tag == tag && imageId.User == id {
-					repo := strings.TrimSuffix(repotag, ":"+tag)
-					image.Repository = repo
-					image.Tag = tag
-					images = append(images, image)
-					break
-				}
-			}
+func (d *DistributedFileSystem) findImages(id, tag string) ([]*docker.Image, error) {
+	result := []*docker.Image{}
+
+	images, err := docker.Images()
+	if err != nil {
+		return result, err
+	}
+
+	for _, image := range images {
+		if image.ID.Tag == tag && image.ID.User == id {
+			result = append(result, image)
 		}
 	}
 
-	return
+	return result, nil
 }
 
 func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
@@ -527,36 +509,27 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 		return err
 	}
 
-	for i, image := range images {
-		options := dockerclient.TagImageOptions{
-			Repo: image.Repository,
-			Tag:  newtag,
-		}
-
-		oldRepo := fmt.Sprintf("%s:%s", image.Repository, oldtag)
-		glog.V(2).Infof("Adding tag to image %s: %+v", oldRepo, options)
-		if err := docker.TagImage(*d.dockerRegistry, d.dockerClient, oldRepo, options); err != nil {
-			glog.Errorf("error while adding tags, rolling back...")
-			for j := 0; j < i; j++ {
-				repotag := images[j].Repository + ":" + newtag
-				if err := docker.RemoveImage(*d.dockerRegistry, d.dockerClient, repotag); err != nil {
-					glog.Errorf("cannot untag image %s: (%s)", repotag, err)
+	tagged := []*docker.Image{}
+	for _, image := range images {
+		ti, err := image.Tag(fmt.Sprintf("%s:%s", image.ID.BaseName(), newtag))
+		if err != nil {
+			glog.Errorf("error (%v) while adding tags, rolling back ...", err)
+			for _, taggedimg := range tagged {
+				if delerr := taggedimg.Delete(); delerr != nil {
+					glog.Errorf("cannont untag image %s: %v", taggedimg.ID, delerr)
 				}
 			}
-
 			return err
 		}
+
+		tagged = append(tagged, ti)
 	}
 
 	return nil
 }
 
-var osCreate = func(name string) (io.WriteCloser, error) {
-	return os.Create(name)
-}
-
 var writeJsonToFile = func(v interface{}, filename string) (err error) {
-	file, e := osCreate(filename)
+	file, e := os.Create(filename)
 	if e != nil {
 		glog.Errorf("Could not create file %s: %v", filename, e)
 		return e
@@ -577,12 +550,8 @@ var writeJsonToFile = func(v interface{}, filename string) (err error) {
 	return nil
 }
 
-var osOpen = func(name string) (io.ReadCloser, error) {
-	return os.Open(name)
-}
-
 var readJsonFromFile = func(v interface{}, filename string) error {
-	file, e := osOpen(filename)
+	file, e := os.Open(filename)
 	if e != nil {
 		glog.Errorf("Could not open file %s: %v", filename, e)
 		return e
