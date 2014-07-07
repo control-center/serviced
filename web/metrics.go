@@ -9,6 +9,8 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
+	zeroInt64 int64 = 0
+
 	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//CPU
@@ -63,6 +65,23 @@ var (
 				},
 			},
 		},
+		ThresholdConfigs: []domain.ThresholdConfig{
+			domain.ThresholdConfig{
+				ID:           "swap.empty",
+				Name:         "Swap empty",
+				Description:  "Alert when swap reaches zero",
+				MetricSource: "memory",
+				DataPoints:   []string{"memory.swap", "memory.free"},
+				Type:         "MinMax",
+				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
+				EventTags: map[string]interface{}{
+					"Severity":    1,
+					"Resolution":  "Increase swap or memory",
+					"Explanation": "Ran out of all available memory space",
+					"EventClass":  "/Memory",
+				},
+			},
+		},
 	}
 )
 
@@ -95,7 +114,6 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		},
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of serviced's total open file descriptors over time",
 	}
@@ -131,7 +149,6 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		YAxisLabel:  "Faults / Min",
 		ReturnSet:   "EXACT",
 		Type:        "line",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of major memory page faults over time",
 	}
@@ -245,7 +262,6 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		YAxisLabel:  "% Used",
 		ReturnSet:   "EXACT",
 		Type:        "area",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of system and user cpu usage over time",
 	}
@@ -321,7 +337,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		YAxisLabel:  "GB",
 		ReturnSet:   "EXACT",
 		Type:        "area",
-		DownSample:  "1m-avg",
 		Tags:        tags,
 		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
 	}

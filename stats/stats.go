@@ -151,18 +151,18 @@ func (sr StatsReporter) updateHostStats() {
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
 	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
-}
-
-// Updates the default registry.
-func (sr StatsReporter) updateStats() {
-	// Stats for host.
-	sr.updateHostStats()
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
+}
+
+// Updates the default registry.
+func (sr StatsReporter) updateStats() {
+	// Stats for host.
+	sr.updateHostStats()
 	// Stats for the containers.
 	var running []*dao.RunningService
 	sr.zkDAO.GetRunningServicesForHost(sr.hostID, &running)

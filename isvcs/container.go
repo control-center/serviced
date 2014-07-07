@@ -10,18 +10,24 @@
 package isvcs
 
 import (
+	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons/circular"
+	"github.com/zenoss/serviced/stats/cgroup"
 	"github.com/zenoss/serviced/utils"
 
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -108,6 +114,7 @@ func (c *Container) loop() {
 
 	var exitChan chan error
 	var cmd *exec.Cmd
+	statsExitChan := make(chan bool)
 
 	for {
 		select {
@@ -115,6 +122,7 @@ func (c *Container) loop() {
 			switch req.op {
 			case containerOpStop:
 				glog.Infof("containerOpStop(): %s", c.Name)
+				statsExitChan <- true
 				if exitChan == nil {
 					req.response <- ErrNotRunning
 					continue
@@ -126,7 +134,6 @@ func (c *Container) loop() {
 				c.stop()              // stop the container if it's not already stopped
 				c.rm()                // remove the container if it's not already gone
 				req.response <- nil
-
 			case containerOpStart:
 				glog.Infof("containerOpStart(): %s", c.Name)
 				if cmd != nil {
@@ -141,13 +148,95 @@ func (c *Container) loop() {
 				} else {
 					req.response <- nil
 				}
-
+				go c.doStats(statsExitChan)
 			}
 		case exitErr := <-exitChan:
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
 			c.stop()                // stop the container, if it's not stoppped
 			c.rm()                  // remove it if it was not already removed
 			cmd, exitChan = c.run() // run the actual container
+		}
+	}
+}
+
+type containerStat struct {
+	Metric    string            `json:"metric"`
+	Value     string            `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Tags      map[string]string `json:"tags"`
+}
+
+// doStats
+func (c *Container) doStats(exitChan chan bool) {
+	registry := metrics.NewRegistry()
+	id := ""
+	tc := time.Tick(10 * time.Second)
+	for {
+		select {
+		case _ = <-exitChan:
+			return
+		case t := <-tc:
+			if id == "" {
+				ids, err := c.getMatchingContainersIds()
+				if err != nil {
+					glog.Warningf("Error collecting isvc container IDs.")
+				}
+				if len(*ids) < 1 {
+					break
+				}
+				id = (*ids)[0]
+			}
+			if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + id + "/cpuacct.stat"); err != nil {
+				glog.Warningf("Couldn't read CpuacctStat:", err)
+				id = ""
+				break
+			} else {
+				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
+				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
+			}
+			if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + id + "/memory.stat"); err != nil {
+				glog.Warningf("Couldn't read MemoryStat:", err)
+				id = ""
+				break
+			} else {
+				metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", registry).Update(memoryStat.Pgfault)
+				metrics.GetOrRegisterGauge("MemoryStat.totalrss", registry).Update(memoryStat.TotalRss)
+				metrics.GetOrRegisterGauge("MemoryStat.cache", registry).Update(memoryStat.Cache)
+			}
+			// Gather the stats.
+			stats := []containerStat{}
+			registry.Each(func(name string, i interface{}) {
+				if metric, ok := i.(metrics.Gauge); ok {
+					tagmap := make(map[string]string)
+					tagmap["isvcname"] = c.Name
+					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+				}
+				if metricf64, ok := i.(metrics.GaugeFloat64); ok {
+					tagmap := make(map[string]string)
+					tagmap["isvcname"] = c.Name
+					stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+				}
+			})
+			// Post the stats.
+			data, err := json.Marshal(stats)
+			if err != nil {
+				glog.Warningf("Error marshalling isvc stats json.")
+				break
+			}
+			req, err := http.NewRequest("POST", "http://127.0.0.1:4242/api/put", bytes.NewBuffer(data))
+			if err != nil {
+				glog.Warningf("Error creating isvc stats request.")
+				break
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				glog.Warningf("Error making isvc stats request.")
+				break
+			}
+			if strings.Contains(resp.Status, "204 No Content") == false {
+				glog.Warningf("Couldn't post stats:", resp.Status)
+				break
+			}
 		}
 	}
 }

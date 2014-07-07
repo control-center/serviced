@@ -9,9 +9,9 @@ import "reflect"
 
 //MonitorProfile describes metrics, thresholds and graphs to monitor an object's performance
 type MonitorProfile struct {
-	MetricConfigs []MetricConfig //metrics for domain object
-	GraphConfigs  []GraphConfig  //graphs for a domain object
-	//TODO Thresholds
+	MetricConfigs    []MetricConfig    //metrics for domain object
+	GraphConfigs     []GraphConfig     //graphs for a domain object
+	ThresholdConfigs []ThresholdConfig //thresholds for a domain object
 }
 
 //Equals equality test for MonitorProfile
@@ -22,8 +22,9 @@ func (profile *MonitorProfile) Equals(that *MonitorProfile) bool {
 //ReBuild metrics, graphs and thresholds with the new parameters
 func (profile *MonitorProfile) ReBuild(timeSpan string, tags map[string][]string) (*MonitorProfile, error) {
 	newProfile := MonitorProfile{
-		MetricConfigs: make([]MetricConfig, len(profile.MetricConfigs)),
-		GraphConfigs:  make([]GraphConfig, len(profile.GraphConfigs)),
+		MetricConfigs:    make([]MetricConfig, len(profile.MetricConfigs)),
+		GraphConfigs:     make([]GraphConfig, len(profile.GraphConfigs)),
+		ThresholdConfigs: make([]ThresholdConfig, len(profile.ThresholdConfigs)),
 	}
 
 	build, err := NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
@@ -51,6 +52,11 @@ func (profile *MonitorProfile) ReBuild(timeSpan string, tags map[string][]string
 	for i := range profile.GraphConfigs {
 		newProfile.GraphConfigs[i] = profile.GraphConfigs[i]
 		newProfile.GraphConfigs[i].Tags = tags
+	}
+
+	//rebuild thresholds
+	for i := range profile.ThresholdConfigs {
+		newProfile.ThresholdConfigs[i] = profile.ThresholdConfigs[i]
 	}
 
 	return &newProfile, nil

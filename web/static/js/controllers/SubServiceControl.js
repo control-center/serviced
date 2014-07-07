@@ -146,7 +146,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.clickRunning = function(app, status, servicesService){
         toggleRunning(app, status, servicesService);
-        $serviceHealth.update(app.Id);
+        $serviceHealth.update(app.ID);
     };
 
     $scope.viewConfig = function(service) {
@@ -169,22 +169,22 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
-        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.Id, function(log) {
+        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
             $scope.editService.log = log.Detail;
             $('#viewLog').modal('show');
         });
     };
 
     $scope.snapshotService = function(service) {
-        resourcesService.snapshot_service(service.Id, function(label) {
+        resourcesService.snapshot_service(service.ID, function(label) {
             console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
             // TODO: add the snapshot label to some partial view in the UI
         });
     };
 
     $scope.updateService = function() {
-        resourcesService.update_service($scope.services.current.Id, $scope.services.current, function() {
-            console.log('Updated %s', $scope.services.current.Id);
+        resourcesService.update_service($scope.services.current.ID, $scope.services.current, function() {
+            console.log('Updated %s', $scope.services.current.ID);
             var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
             lastCrumb.label = $scope.services.current.Name;
         });
@@ -218,7 +218,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 if (i == lineage.length - 1) {
                     crumb.itemClass = 'active';
                 } else {
-                    crumb.url = '#/services/' + lineage[i].Id;
+                    crumb.url = '#/services/' + lineage[i].ID;
                 }
                 $scope.breadcrumbs.push(crumb);
             }
@@ -250,7 +250,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     });
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostID, app.Id, function() {
+        resourcesService.kill_running(app.HostID, app.ID, function() {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
                 wait.running = true;
                 mashHostsToInstances();
