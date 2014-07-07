@@ -5,7 +5,11 @@
 // Package domain defines the threshold configurations in a monitoring profile
 package domain
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+	"time"
+)
 
 // ThresholdConfig defines all meta-data for a threshold on a metric with in a monitoring profile
 type ThresholdConfig struct {
@@ -29,10 +33,42 @@ type MinMaxThreshold struct {
 
 // DurationThreshold tiggers events when a percentage of min/max thresholds are breached in a given time perion
 type DurationThreshold struct {
-	Min        *int64 //min threshold value, null for no min
-	Max        *int64 //max threshold value, null for no max
-	TimePeriod string //provide a time period using time operators like day, hours, minutes, or just the number of seconds. An example period: 4 hours 5 minutes
-	Percentage int    //Percentage of violations to trigger an event: a number from 0 (any violation triggers an event) to 100 (all values must violate the threshold)
+	Min        *int64        //min threshold value, null for no min
+	Max        *int64        //max threshold value, null for no max
+	TimePeriod time.Duration //a timePeriod (window) that triggers the threshold
+	Percentage int           //Percentage of violations to trigger an event: a number from 0 (any violation triggers an event) to 100 (all values must violate the threshold)
+}
+
+type jsonDurationThreshold struct {
+	Min        *int64  //min threshold value, null for no min
+	Max        *int64  //max threshold value, null for no max
+	TimePeriod float64 //a timePeriod (window) that triggers the threshold
+	Percentage int     //Percentage of violations to trigger an event: a number from 0 (any violation triggers an event) to 100 (all values must violate the threshold)
+}
+
+func (t DurationThreshold) MarshalJSON() ([]byte, error) {
+	// in json, the TimePeriod is represented in seconds
+	timePeriod := float64(t.TimePeriod) / 1000000000.0
+	return json.Marshal(jsonDurationThreshold{
+		Min:        t.Min,
+		Max:        t.Max,
+		TimePeriod: timePeriod,
+		Percentage: t.Percentage,
+	})
+}
+
+func (t *DurationThreshold) UnmarshalJSON(data []byte) error {
+	var temp jsonDurationThreshold
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	// interval in js is in seconds, convert to nanoseconds, then duration
+	timePeriod := time.Duration(temp.TimePeriod * 1000000000.0)
+	t.Min = temp.Min
+	t.Max = temp.Max
+	t.TimePeriod = timePeriod
+	t.Percentage = temp.Percentage
+	return nil
 }
 
 //HoltWintersThreshold adds the ability to fire threshold events when a device exceeds cyclical predicted values
