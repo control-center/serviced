@@ -40,16 +40,20 @@ type DurationThreshold struct {
 }
 
 type jsonDurationThreshold struct {
-	DurationThreshold
-	TimePeriod float64
+	Min        *int64  //min threshold value, null for no min
+	Max        *int64  //max threshold value, null for no max
+	TimePeriod float64 //a timePeriod (window) that triggers the threshold
+	Percentage int     //Percentage of violations to trigger an event: a number from 0 (any violation triggers an event) to 100 (all values must violate the threshold)
 }
 
 func (t *DurationThreshold) MarshalJSON() ([]byte, error) {
 	// in json, the TimePeriod is represented in seconds
 	timePeriod := float64(t.TimePeriod) / 1000000000.0
 	return json.Marshal(jsonDurationThreshold{
-		DurationThreshold: *t,
-		TimePeriod:        timePeriod,
+		Min:        t.Min,
+		Max:        t.Max,
+		TimePeriod: timePeriod,
+		Percentage: t.Percentage,
 	})
 }
 
@@ -58,9 +62,12 @@ func (t *DurationThreshold) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
-	t = &temp.DurationThreshold
 	// interval in js is in seconds, convert to nanoseconds, then duration
-	t.TimePeriod = time.Duration(temp.TimePeriod * 1000000000.0)
+	timePeriod := time.Duration(temp.TimePeriod * 1000000000.0)
+	t.Min = temp.Min
+	t.Max = temp.Max
+	t.TimePeriod = timePeriod
+	t.Percentage = temp.Percentage
 	return nil
 }
 
