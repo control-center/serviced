@@ -84,7 +84,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 
 	zzk.InitializeGlobalCoordClient(zClient)
 
-	dt.zkConn, err = zzk.GetPoolBasedConnection("")
+	dt.zkConn, err = zzk.GetBasePathConnection("/")
 	if err != nil {
 		c.Fatalf("could not get zk connection %v", err)
 	}
