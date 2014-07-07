@@ -179,7 +179,7 @@ func ParseImageID(iid string) (*ImageID, error) {
 			switch {
 			case unicode.IsDigit(rune):
 				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsLetter(rune), rune == dash:
+			case unicode.IsLetter(rune), rune == dash, rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 				result.Repo = scanned[0]
 				scanned = []string{}
