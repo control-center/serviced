@@ -15,8 +15,9 @@ const (
 )
 
 var (
-	ErrHostNotInitialized = errors.New("host not initialized")
-	ErrHostInvalid        = errors.New("invalid host")
+	ErrHostNotInitialized   = errors.New("host not initialized")
+	ErrHostInvalid          = errors.New("invalid host")
+	ErrHostRegistryShutdown = errors.New("host registry shut down")
 )
 
 func hostregpath(nodes ...string) string {
@@ -43,9 +44,10 @@ func (node *HostNode) SetVersion(version interface{}) {
 // HostRegistryListener watches ephemeral nodes on /registry/hosts and provides
 // information about available hosts
 type HostRegistryListener struct {
-	conn    client.Connection
-	hostmap map[string]*host.Host
-	alertC  chan<- bool // for testing only
+	conn     client.Connection
+	hostmap  map[string]*host.Host
+	shutdown <-chan interface{}
+	alertC   chan<- bool // for testing only
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
@@ -59,6 +61,12 @@ func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
 // Listen listens for changes to /registry/hosts and updates the host list
 // accordingly
 func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
+	if l.shutdown != nil {
+		glog.Error("Multiple listeners found!")
+		return
+	}
+	l.shutdown = shutdown
+
 	// create the path
 	regpath := hostregpath()
 	if exists, err := zkutils.PathExists(l.conn, regpath); err != nil {
@@ -164,11 +172,41 @@ func (l *HostRegistryListener) alert() {
 }
 
 // GetHosts returns all of the registered hosts
-func (l *HostRegistryListener) GetHosts() (hosts []*host.Host) {
-	for _, host := range l.hostmap {
-		hosts = append(hosts, host)
+func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
+	var (
+		ehosts []string
+		eventW <-chan client.Event
+	)
+
+	// wait if no hosts are registered
+	for {
+		ehosts, eventW, err = l.conn.ChildrenW(hostregpath())
+		if err != nil {
+			return nil, err
+		}
+
+		if len(ehosts) == 0 {
+			select {
+			case <-eventW:
+				// pass
+			case <-l.shutdown:
+				return nil, ErrHostRegistryShutdown
+			}
+		} else {
+			break
+		}
 	}
-	return hosts
+
+	hosts = make([]*host.Host, len(ehosts))
+	for i, ehostID := range ehosts {
+		var host host.Host
+		if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
+			return nil, err
+		}
+		hosts[i] = &host
+	}
+
+	return hosts, nil
 }
 
 func registerHost(conn client.Connection, host *host.Host) (string, error) {
