@@ -60,9 +60,9 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	if count := len(listener.hostmap); count != 1 {
 		t.Errorf("Found %d hosts; expected 1 host", count)
 	} else {
-		for _, h := range listener.hostmap {
-			if h.ID != host.ID {
-				t.Errorf("MISMATCH: expected %s host id; actual", host.ID, h.ID)
+		for _, hostID := range listener.hostmap {
+			if hostID != host.ID {
+				t.Errorf("MISMATCH: expected %s host id; actual", host.ID, hostID)
 			}
 		}
 	}
@@ -131,10 +131,10 @@ func TestHostRegistryListener_sync(t *testing.T) {
 			t.Errorf("MISMATCH: Expected %d mapped nodes; Actual: %d", len(nodes), len(listener.hostmap))
 		}
 		for _, n := range sync {
-			if host := listener.hostmap[n]; host == nil {
+			if hostID, ok := listener.hostmap[n]; !ok {
 				t.Errorf("HOST %s (%v) not found", n, hosts[n])
-			} else if host.ID != hosts[n].ID {
-				t.Errorf("MISMATCH: Expected host %s from %s; Actual: %s", hosts[n].ID, n, host.ID)
+			} else if hostID != hosts[n].ID {
+				t.Errorf("MISMATCH: Expected host %s from %s; Actual: %s", hosts[n].ID, n, hostID)
 			}
 		}
 	}
@@ -147,7 +147,7 @@ func TestHostRegistryListener_register(t *testing.T) {
 	host := &host.Host{ID: "test-host-1"}
 
 	// no running listener
-	if err := listener.register("test-ehost-1", host); err != ErrHostNotInitialized {
+	if err := listener.register("test-ehost-1", host.ID); err != ErrHostNotInitialized {
 		t.Errorf("Expected error: '%s'; Actual error: '%s'", ErrHostNotInitialized, err)
 	}
 
@@ -155,13 +155,13 @@ func TestHostRegistryListener_register(t *testing.T) {
 	if err := conn.CreateDir(hostpath(host.ID)); err != nil {
 		t.Fatalf("Could not create host node %s: %s", host.ID, err)
 	}
-	if err := listener.register("test-ehost-1", host); err != nil {
+	if err := listener.register("test-ehost-1", host.ID); err != nil {
 		t.Errorf("Could not register host node %s: %s", "test-ehost-1", err)
 	}
-	if h, ok := listener.hostmap["test-ehost-1"]; !ok || h == nil {
+	if hostID, ok := listener.hostmap["test-ehost-1"]; !ok || hostID == "" {
 		t.Errorf("Host %s not found", "test-ehost-1")
-	} else if h.ID != host.ID {
-		t.Errorf("MISMATCH: expected %s; actual %s", host.ID, h.ID)
+	} else if hostID != host.ID {
+		t.Errorf("MISMATCH: expected %s; actual %s", host.ID, hostID)
 	}
 }
 
@@ -196,7 +196,7 @@ func TestHostRegistryListener_unregister(t *testing.T) {
 	}
 
 	// register the ephemeral node
-	if err := listener.register("test-ehost-1", host); err != nil {
+	if err := listener.register("test-ehost-1", host.ID); err != nil {
 		t.Fatalf("Could not register node: %s", err)
 	}
 

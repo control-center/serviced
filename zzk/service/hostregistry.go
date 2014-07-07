@@ -45,7 +45,7 @@ func (node *HostNode) SetVersion(version interface{}) {
 // information about available hosts
 type HostRegistryListener struct {
 	conn     client.Connection
-	hostmap  map[string]*host.Host
+	hostmap  map[string]string
 	shutdown <-chan interface{}
 	alertC   chan<- bool // for testing only
 }
@@ -54,7 +54,7 @@ type HostRegistryListener struct {
 func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
 	return &HostRegistryListener{
 		conn:    conn,
-		hostmap: make(map[string]*host.Host),
+		hostmap: make(map[string]string),
 	}
 }
 
@@ -96,20 +96,19 @@ func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
 }
 
 func (l *HostRegistryListener) sync(ehosts []string) {
-	unsynced := make(map[string]*host.Host)
+	unsynced := make(map[string]string)
 	for _, id := range ehosts {
 		var node HostNode
 		if err := l.conn.Get(hostregpath(id), &node); err != nil {
 			glog.Error("Error trying to get host registry information for node ", id)
 			return
 		}
-		unsynced[id] = node.Host
+		unsynced[id] = node.Host.ID
 	}
 
 	for id, _ := range l.hostmap {
-		if host, ok := unsynced[id]; ok {
+		if _, ok := unsynced[id]; ok {
 			delete(unsynced, id)
-			l.hostmap[id] = host
 		} else {
 			if err := l.unregister(id); err != nil {
 				glog.Warningf("Could not unregister %s: %s", id, err)
@@ -117,22 +116,22 @@ func (l *HostRegistryListener) sync(ehosts []string) {
 		}
 	}
 
-	for id, host := range unsynced {
-		if err := l.register(id, host); err != nil {
-			glog.Warningf("Could not register host %s (%s): %s", host.ID, id, err)
+	for id, hostID := range unsynced {
+		if err := l.register(id, hostID); err != nil {
+			glog.Warningf("Could not register host %s (%s): %s", hostID, id, err)
 		}
 	}
 }
 
-func (l *HostRegistryListener) register(id string, host *host.Host) error {
+func (l *HostRegistryListener) register(id string, hostID string) error {
 	// verify that there is a running listener for that host
-	if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
 		return err
 	} else if !exists {
 		return ErrHostNotInitialized
 	}
 
-	l.hostmap[id] = host
+	l.hostmap[id] = hostID
 	l.alert()
 	return nil
 }
@@ -144,19 +143,19 @@ func (l *HostRegistryListener) unregister(id string) error {
 	}()
 
 	// remove all the instances running on that host
-	host := l.hostmap[id]
-	if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+	hostID := l.hostmap[id]
+	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
 		return err
 	} else if !exists {
 		return nil
 	}
 
-	ssids, err := l.conn.Children(hostpath(host.ID))
+	ssids, err := l.conn.Children(hostpath(hostID))
 	if err != nil {
 		return err
 	}
 	for _, ssid := range ssids {
-		if err := removeInstance(l.conn, host.ID, ssid); err != nil {
+		if err := removeInstance(l.conn, hostID, ssid); err != nil {
 			return err
 		}
 	}
