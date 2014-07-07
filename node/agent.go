@@ -18,6 +18,7 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
 	"github.com/zenoss/serviced/facade"
@@ -773,26 +774,14 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	hcfg.Binds = []string{}
 
 	for _, volume := range service.Volumes {
-		sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
+		resourcePath, err := a.setupVolume(tenantID, service, volume)
 		if err != nil {
-			glog.Fatalf("Could not create subvolume: %s", err)
-		} else {
-			glog.V(2).Infof("Volume for service Name:%s ID:%s", service.Name, service.ID)
-
-			resourcePath := path.Join(sv.Path(), volume.ResourcePath)
-			glog.V(2).Infof("FullResourcePath: %s", resourcePath)
-			if err = os.MkdirAll(resourcePath, 0770); err != nil {
-				glog.Fatalf("Could not create resource path: %s, %s", resourcePath, err)
-			}
-
-			if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
-				glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
-			}
-
-			binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
-			cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-			hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
+			glog.Fatalf("%s", err)
 		}
+
+		binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
+		cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
+		hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
 	}
 
 	dir, binary, err := ExecPath()
@@ -913,6 +902,27 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 	}
 
 	return cfg, hcfg, nil
+}
+
+// setupVolume
+func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
+	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
+	sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
+	if err != nil {
+		return "", fmt.Errorf("Could not create subvolume: %s", err)
+	}
+
+	resourcePath := path.Join(sv.Path(), volume.ResourcePath)
+	if err = os.MkdirAll(resourcePath, 0770); err != nil {
+		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
+	}
+
+	if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
+	}
+
+	glog.V(4).Infof("resourcePath: %s  containerPath: %s", resourcePath, volume.ContainerPath)
+	return resourcePath, nil
 }
 
 // main loop of the HostAgent
