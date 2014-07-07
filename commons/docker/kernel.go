@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"time"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -287,6 +288,7 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 
 	go scheduler(dc, so, co, ppo, done)
 
+KernelLoop:
 	for {
 		select {
 		case req := <-cmds.AddAction:
@@ -387,13 +389,19 @@ func kernel(dc *dockerclient.Client, done chan struct{}) error {
 				continue
 			}
 
+			re := regexp.MustCompile("<none>:<none>")
+
 			resp := []*Image{}
 			for _, img := range imgs {
 				for _, repotag := range img.RepoTags {
+					if len(re.FindString(repotag)) > 0 {
+						continue
+					}
+
 					iid, err := commons.ParseImageID(repotag)
 					if err != nil {
 						req.errchan <- err
-						continue
+						continue KernelLoop
 					}
 					resp = append(resp, &Image{img.ID, *iid})
 				}
