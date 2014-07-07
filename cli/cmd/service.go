@@ -632,9 +632,9 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "DOCKERID")
+	matches.printrow("NAME", "SERVICEID", "INSTANCE", "DOCKERID")
 	for _, row := range states {
-		matches.printrow(row.Name, row.ServiceID, row.DockerID)
+		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.DockerID)
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
