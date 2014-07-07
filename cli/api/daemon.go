@@ -191,11 +191,10 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
 		return err
 	}
-	glog.Warningf("Calling nfs.NewServer...")
+
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
-		glog.Warningf("Calling storage.NewServer...")
 		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zClient)
 		if err != nil {
 			return err
