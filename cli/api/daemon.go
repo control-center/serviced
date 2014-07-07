@@ -319,12 +319,7 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 		<-signalChan
 		glog.V(0).Info("Shutting down due to interrupt")
-		err = hostAgent.Shutdown()
-		if err != nil {
-			glog.V(1).Infof("Agent shutdown with error: %v", err)
-		} else {
-			glog.Info("Agent shutdown")
-		}
+		hostAgent.Shutdown()
 		isvcs.Mgr.Stop()
 		os.Exit(0)
 	}()
