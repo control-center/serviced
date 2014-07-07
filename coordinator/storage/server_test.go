@@ -77,10 +77,12 @@ func TestServer(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.50"
+	h.PoolID = "default"
 
 	hc1 := host.New()
 	hc1.ID = "nodeID_client1"
 	hc1.IPAddr = "192.168.1.100"
+	hc1.PoolID = "default"
 
 	mockNfsDriver := &mockNfsDriverT{
 		exportPath: "/exports",
@@ -92,11 +94,9 @@ func TestServer(t *testing.T) {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
 	defer s.Close()
-	glog.Infof("2 ********** clients: %v", mockNfsDriver.clients)
 
 	// give it some time
-	time.Sleep(time.Second * 15)
-	glog.Infof("3 ********** clients: %v", mockNfsDriver.clients)
+	time.Sleep(time.Second * 5)
 
 	if !mockNfsDriver.syncCalled {
 		t.Fatalf("sync() should have been called by now")
