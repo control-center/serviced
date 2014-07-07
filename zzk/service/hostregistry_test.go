@@ -57,10 +57,14 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	// Verify that the host exists
 	t.Log("Verifying host was added")
 	<-alert
-	if hosts := listener.GetHosts(); len(hosts) != 1 {
-		t.Errorf("Found %d hosts; expected 1 host", len(hosts))
-	} else if hosts[0].ID != host.ID {
-		t.Errorf("MISMATCH: expected %s host id; actual", host.ID, hosts[0].ID)
+	if count := len(listener.hostmap); count != 1 {
+		t.Errorf("Found %d hosts; expected 1 host", count)
+	} else {
+		for _, h := range listener.hostmap {
+			if h.ID != host.ID {
+				t.Errorf("MISMATCH: expected %s host id; actual", host.ID, h.ID)
+			}
+		}
 	}
 
 	// Remove the host "ephemeral" node (host network goes down :( )
@@ -73,8 +77,8 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	// Verify the service states were removed
 	t.Log("Verifying host removed")
 	<-alert
-	if hosts := listener.GetHosts(); len(hosts) != 0 {
-		t.Errorf("Hosts were not removed: %v", hosts)
+	if count := len(listener.hostmap); count != 0 {
+		t.Errorf("Hosts were not removed: %v", listener.hostmap)
 	}
 
 	for _, state := range states {
