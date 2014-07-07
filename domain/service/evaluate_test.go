@@ -4,11 +4,7 @@
 
 package service
 
-import (
-	"testing"
-
-	"github.com/zenoss/serviced/domain/servicedefinition"
-)
+import "testing"
 
 type roundTest struct {
 	value    float64
@@ -32,24 +28,4 @@ func TestRound(t *testing.T) {
 			t.Fail()
 		}
 	}
-}
-
-func TestConfigFiles(t *testing.T) {
-	s := &Service{
-		Volumes: []servicedefinition.Volume{
-			servicedefinition.Volume{
-				ResourcePath: "/path/to/x-{{ plus 1 .InstanceID}}",
-			},
-		},
-	}
-	gs := func(serviceID string) (Service, error) {
-		return *s, nil
-	}
-	instanceID := 3
-	s.EvaluateVolumesTemplate(gs, instanceID)
-	if s.Volumes[0].ResourcePath != "/path/to/x-4" {
-		t.Logf("Not equal: %s vs. %s", s.Volumes[0].ResourcePath, "/path/to/x-4")
-		t.Fail()
-	}
-
 }
