@@ -264,7 +264,7 @@ func getFreeInstanceIDs(conn coordclient.Connection, svc *service.Service, n int
 		ids    []int
 	)
 	// Look up existing instances
-	err := zzk.GetServiceStates(conn, &states, svc.Id)
+	err := zzk.GetServiceStates(conn, &states, svc.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -322,11 +322,11 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	for i := 0; i < numToKill; i++ {
-		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].Id)
+		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].Id)
+		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
 		if err != nil {
-			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].Id)
+			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
 		}
 	}
 }

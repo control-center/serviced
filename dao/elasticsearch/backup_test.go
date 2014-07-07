@@ -267,8 +267,8 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		t.Fatalf("Failure getting services: %s", e)
 	}
 	for _, service := range services {
-		if e := dt.Dao.RemoveService(service.Id, &unused); e != nil {
-			t.Fatalf("Failure removing service (%s): %s", service.Id, e)
+		if e := dt.Dao.RemoveService(service.ID, &unused); e != nil {
+			t.Fatalf("Failure removing service (%s): %s", service.ID, e)
 		}
 	}
 
@@ -295,7 +295,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	}
 
 	svc := service.Service{
-		Id:             "testservice", //FIXME: Can't snapshot with a "_" in it.
+		ID:             "testservice", //FIXME: Can't snapshot with a "_" in it.
 		Name:           "test_service",
 		Startup:        "echo",
 		Instances:      0,
@@ -383,8 +383,8 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	if len(services) != 1 {
 		t.Fatalf("Expected just one service. Found %d", len(services))
 	}
-	if services[0].Id != serviceId {
-		t.Fatalf("Expecting service %s, but found %s", serviceId, services[0].Id)
+	if services[0].ID != serviceId {
+		t.Fatalf("Expecting service %s, but found %s", serviceId, services[0].ID)
 	}
 
 	// Check: find the old template, and no new templates
@@ -473,8 +473,8 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	if len(services) != 1 {
 		t.Fatalf("Expected just one service. Found %d", len(services))
 	}
-	if services[0].Id != serviceId {
-		t.Fatalf("Expecting service %s, but found %s", serviceId, services[0].Id)
+	if services[0].ID != serviceId {
+		t.Fatalf("Expecting service %s, but found %s", serviceId, services[0].ID)
 	}
 
 	// Check: find the old template, and no new templates

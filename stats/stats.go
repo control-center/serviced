@@ -121,6 +121,13 @@ func (sr StatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("cpu.system", sr.hostRegistry).Update(int64(stat.Cpu.System()))
 	metrics.GetOrRegisterGauge("cpu.idle", sr.hostRegistry).Update(int64(stat.Cpu.Idle()))
 	metrics.GetOrRegisterGauge("cpu.iowait", sr.hostRegistry).Update(int64(stat.Cpu.Iowait()))
+	metrics.GetOrRegisterGauge("cpu.irq", sr.hostRegistry).Update(int64(stat.Cpu.Irq()))
+	metrics.GetOrRegisterGauge("cpu.softirq", sr.hostRegistry).Update(int64(stat.Cpu.Softirq()))
+	var steal int64
+	if stat.Cpu.StealSupported() {
+		steal = int64(stat.Cpu.Steal())
+	}
+	metrics.GetOrRegisterGauge("cpu.steal", sr.hostRegistry).Update(steal)
 
 	meminfo, err := linux.ReadMeminfo()
 	if err != nil {
@@ -144,18 +151,18 @@ func (sr StatsReporter) updateHostStats() {
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
 	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
-}
-
-// Updates the default registry.
-func (sr StatsReporter) updateStats() {
-	// Stats for host.
-	sr.updateHostStats()
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.V(3).Info("Couldn't get open file descriptor count", err)
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
+}
+
+// Updates the default registry.
+func (sr StatsReporter) updateStats() {
+	// Stats for host.
+	sr.updateHostStats()
 	// Stats for the containers.
 	var running []*dao.RunningService
 	sr.zkDAO.GetRunningServicesForHost(sr.hostID, &running)

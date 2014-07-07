@@ -14,7 +14,7 @@ var (
 {
   "servicetemplatewrapper" : {
     "properties" : {
-      "Id" : {
+      "ID" : {
         "type"  : "string",
         "index" : "not_analyzed"
       },

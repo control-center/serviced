@@ -59,6 +59,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
             }).
+            when('/isvcs', {
+                templateUrl: '/static/partials/view-isvcs.html',
+                controller: IsvcsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -228,7 +232,7 @@ function ResourcesService($http, $location, $notification) {
                 cached_services_map = {};
                 // Map by id
                 data.map(function(svc) {
-                    cached_services_map[svc.Id] = svc;
+                    cached_services_map[svc.ID] = svc;
                 });
                 data.map(function(svc) {
                     if (svc.ParentServiceID !== '') {
@@ -1410,7 +1414,7 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, serviceId) {
-    serviceId = serviceId || app.Id;
+    serviceId = serviceId || app.ID;
 
     var newState = -1;
     switch(status) {

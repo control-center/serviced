@@ -15,7 +15,7 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
-	*serviceId = svc.Id
+	*serviceId = svc.ID
 	return nil
 }
 
