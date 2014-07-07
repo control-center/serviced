@@ -96,6 +96,13 @@ func getZkDSN(zookeepers []string) string {
 	return dsn.String()
 }
 
+// funcmap provides template functions for evaluating PortTemplate
+var funcmap = template.FuncMap{
+	"plus": func(a, b int) int {
+		return a + b
+	},
+}
+
 type AgentOptions struct {
 	Master               string
 	UIPort               string
@@ -709,10 +716,6 @@ func (a *HostAgent) startService(conn coordclient.Connection, procFinished chan<
 	return true, nil
 }
 
-func plus(a, b int) int {
-	return a + b
-}
-
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
@@ -744,9 +747,6 @@ func configureContainer(a *HostAgent, client *ControlClient, conn coordclient.Co
 
 	if svc.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
-		funcmap := template.FuncMap{
-			"plus": plus,
-		}
 		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				var port uint16
