@@ -21,6 +21,13 @@ import (
 	"github.com/zenoss/serviced/utils"
 )
 
+// Function map for evaluating PortTemplate fields
+var funcmap = template.FuncMap{
+	"plus": func(a, b int) int {
+		return a + b
+	},
+}
+
 // An instantiation of a Service.
 type ServiceState struct {
 	ID          string
@@ -39,10 +46,6 @@ type ServiceState struct {
 	InstanceID int
 }
 
-func plus(a, b int) int {
-	return a + b
-}
-
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
@@ -52,9 +55,6 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
-		funcmap := template.FuncMap{
-			"plus": plus,
-		}
 		for j, ep := range serviceState.Endpoints {
 			if ep.PortTemplate != "" {
 				t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(ep.PortTemplate))
@@ -75,9 +75,6 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
-	funcmap := template.FuncMap{
-		"plus": plus,
-	}
 	for _, ep := range ss.Endpoints {
 
 		if ep.Purpose == "export" {
