@@ -46,6 +46,19 @@ type ServiceState struct {
 	InstanceID int
 }
 
+func (ss *ServiceState) evalPortTemplate(portTemplate string) (int, error) {
+	t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(portTemplate))
+	b := bytes.Buffer{}
+	if err := t.Execute(&b, ss); err != nil {
+		return 0, err
+	}
+	i, err := strconv.Atoi(b.String())
+	if err != nil {
+		return 0, err
+	}
+	return i, nil
+}
+
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
@@ -57,15 +70,11 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.Endpoints = service.Endpoints
 		for j, ep := range serviceState.Endpoints {
 			if ep.PortTemplate != "" {
-				t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(ep.PortTemplate))
-				b := bytes.Buffer{}
-				err := t.Execute(&b, serviceState)
-				if err == nil {
-					i, err := strconv.Atoi(b.String())
-					if err == nil {
-						ep.PortNumber = uint16(i)
-					}
+				port, err := serviceState.evalPortTemplate(ep.PortTemplate)
+				if err != nil {
+					return nil, err
 				}
+				ep.PortNumber = uint16(port)
 				serviceState.Endpoints[j] = ep
 			}
 		}
@@ -80,17 +89,12 @@ func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (ho
 		if ep.Purpose == "export" {
 			if applicationRegex.MatchString(ep.Application) {
 				if ep.PortTemplate != "" {
-					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(ep.PortTemplate))
-					b := bytes.Buffer{}
-					err := t.Execute(&b, ss)
-					if err == nil {
-						i, err := strconv.Atoi(b.String())
-						if err != nil {
-							glog.Errorf("%+v", err)
-						} else {
-							ep.PortNumber = uint16(i)
-						}
+					port, err := ss.evalPortTemplate(ep.PortTemplate)
+					if err != nil {
+						glog.Errorf("%+v", err)
+						break
 					}
+					ep.PortNumber = uint16(port)
 				}
 				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
 
