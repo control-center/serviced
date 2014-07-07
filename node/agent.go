@@ -24,6 +24,7 @@ import (
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/zzk"
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
@@ -129,6 +130,10 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 		return nil, err
 	}
 	agent.zkClient = zkClient
+
+	zkdao := zzk.NewZkDao(zkClient)
+	agent.facade = facade.New(zkdao, agent.dockerRegistry)
+	agent.context = datastore.Get()
 
 	agent.closing = make(chan interface{})
 	hostID, err := utils.HostID()
@@ -558,6 +563,12 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 		return fmt.Errorf("start timed out")
 	}
 
+	ctr, err = getDockerState(ctr.ID)
+	if err != nil {
+		glog.Errorf("Problem getting service state for %s: %v", serviceState.ID, err)
+		return err
+	}
+
 	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
 	updateInstance(serviceState, ctr)
 	go a.waitInstance(dc, done, service, serviceState)
@@ -782,55 +793,55 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
-	host, err := a.facade.GetHost(a.context, a.hostID)
-	if err != nil {
-		glog.Errorf("Could not get host %s: %s", a.hostID, err)
-		return
-	}
-
-	connc := make(chan coordclient.Connection)
-	go func() {
-		for {
-			c, err := a.zkClient.GetConnection()
-			if err == nil {
-				connc <- c
-				return
-			}
-
-			select {
-			case <-a.closing:
-				return
-			case <-time.After(time.Second):
-			}
-		}
-	}()
-
 	var hsListener *zkservice.HostStateListener
 	for {
-		// create a wrapping function so that client.Close() can be handled via defer
-		func() {
-			shutdown := make(chan interface{})
-			defer close(shutdown)
-			conn := <-connc
-			glog.Info("Got a connected client")
-			defer conn.Close()
+		host, err := a.facade.GetHost(a.context, a.hostID)
+		if err != nil {
+			glog.Errorf("Could not get host %s: %s", a.hostID, err)
+			return
+		}
 
-			// watch virtual IP zookeeper nodes
-			go virtualips.WatchVirtualIPs(conn)
+		if host != nil {
+			connc := make(chan coordclient.Connection)
+			go func() {
+				for {
+					c, err := a.zkClient.GetConnection()
+					if err == nil {
+						connc <- c
+						return
+					}
 
-			// watch docker action nodes
-			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-			go actionListener.Listen(shutdown)
+					select {
+					case <-a.closing:
+						return
+					case <-time.After(time.Second):
+					}
+				}
+			}()
 
-			if hsListener == nil {
-				hsListener = zkservice.NewHostStateListener(conn, a, host)
-			} else {
-				hsListener.SetConnection(conn)
-			}
+			// create a wrapping function so that client.Close() can be handled via defer
+			func() {
+				shutdown := make(chan interface{})
+				defer close(shutdown)
+				conn := <-connc
+				glog.Info("Got a connected client")
+				defer conn.Close()
 
-			hsListener.Listen(a.closing)
-		}()
+				// watch virtual IP zookeeper nodes
+				go virtualips.WatchVirtualIPs(conn)
 
+				// watch docker action nodes
+				actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+				go actionListener.Listen(shutdown)
+
+				if hsListener == nil {
+					hsListener = zkservice.NewHostStateListener(conn, a, host)
+				} else if err := hsListener.Reset(conn, host); err != nil {
+					glog.Warningf("Could not reset host: ", err)
+				}
+				hsListener.Listen(a.closing)
+			}()
+		}
 		select {
 		case <-a.closing:
 			break

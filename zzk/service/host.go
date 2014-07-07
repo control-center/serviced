@@ -312,8 +312,13 @@ func (l *HostStateListener) unregister() {
 	}
 }
 
-func (l *HostStateListener) SetConnection(conn client.Connection) {
+func (l *HostStateListener) Reset(conn client.Connection, host *host.Host) error {
 	l.conn = conn
+	l.host = host
+	if err := l.conn.Set(l.regpath, &HostNode{Host: host}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
