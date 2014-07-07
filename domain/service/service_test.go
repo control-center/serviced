@@ -128,7 +128,8 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 					},
 				},
 			},
-			GraphConfigs: []domain.GraphConfig{},
+			GraphConfigs:     []domain.GraphConfig{},
+			ThresholdConfigs: []domain.ThresholdConfig{},
 		},
 	}
 

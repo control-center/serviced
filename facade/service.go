@@ -686,11 +686,12 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 
 	svcStore := f.serviceStore
 
-	//Deal with Service Config Files
 	oldSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
+
+	//Deal with Service Config Files
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	svc.OriginalConfigs = oldSvc.OriginalConfigs
 

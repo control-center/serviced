@@ -56,6 +56,8 @@ func TestReBuild(t *testing.T) {
 				Tags: tags,
 			},
 		},
+		ThresholdConfigs: []ThresholdConfig {
+    },
 	}
 
 	if !newProfile.Equals(expectedProfile) {
