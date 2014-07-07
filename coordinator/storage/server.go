@@ -56,8 +56,7 @@ func (s *Server) loop() {
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
 
-	glog.Infof(" +++++++++++++++++++ s.host.PoolID: %v", s.host.PoolID)
-	conn, err := zzk.GetPoolBasedConnection(s.host.PoolID)
+	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(s.host.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", s.host.PoolID, err)
 	}

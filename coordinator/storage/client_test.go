@@ -37,9 +37,9 @@ func TestClient(t *testing.T) {
 	dsn := string(dsnBytes)
 	zClient, err := client.New("zookeeper", dsn, basePath, nil)
 
-	zzk.InitializeGlobals(zClient)
+	zzk.InitializeGlobalCoordClient(zClient)
 
-	conn, err := zzk.GetPoolBasedConnection("")
+	conn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}

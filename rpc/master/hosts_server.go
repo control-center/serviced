@@ -17,7 +17,7 @@ func (s *Server) GetHost(hostID string, reply *host.Host) error {
 		return err
 	}
 	if response == nil {
-		return errors.New("WHY host not found")
+		return errors.New("hosts_server.go host not found")
 	}
 	*reply = *response
 	return nil

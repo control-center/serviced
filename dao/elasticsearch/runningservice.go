@@ -10,21 +10,36 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/zzk"
+
+	"fmt"
 )
 
-func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, services *[]*dao.RunningService) error {
-	// CLARK TODO FIX ME ?????
-	poolID := "default"
-	/*if request.hasKey(PoolID) {
-		poolID = request.PoolID
-	}*/
-	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
+func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]*dao.RunningService) error {
+	allPools, err := this.facade.GetResourcePools(datastore.Get())
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
+		glog.Error("runningservice.go failed to get resource pool")
 		return err
+	} else if allPools == nil || len(allPools) == 0 {
+		return fmt.Errorf("no resource pools found")
 	}
 
-	return zzk.GetAllRunningServices(poolBasedConn, services)
+	for _, aPool := range allPools {
+		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))
+		if err != nil {
+			glog.Error("runningservice.go Failed to get connection based on pool: %v", aPool.ID)
+			return err
+		}
+
+		singlePoolRunningServices := []*dao.RunningService{}
+		if err := zzk.GetAllRunningServices(poolBasedConn, &singlePoolRunningServices); err != nil {
+			glog.Errorf("Failed GetAllRunningServices: %v", err)
+			return err
+		}
+
+		*allRunningServices = append(*allRunningServices, singlePoolRunningServices...)
+	}
+
+	return nil
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *[]*dao.RunningService) error {
@@ -34,7 +49,7 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myHost.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
 		return err
@@ -50,7 +65,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, serv
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -68,7 +83,7 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err

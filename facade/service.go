@@ -719,7 +719,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 }
 
 func updateService(svc *service.Service) error {
-	poolBasedConn, err := zzk.GetPoolBasedConnection(svc.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
@@ -728,7 +728,7 @@ func updateService(svc *service.Service) error {
 }
 
 func removeService(svc *service.Service) error {
-	poolBasedConn, err := zzk.GetPoolBasedConnection(svc.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
@@ -737,22 +737,12 @@ func removeService(svc *service.Service) error {
 }
 
 func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
-	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
 	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
-}
-
-func RemoveHost(hostID string) error {
-	poolID := "default"
-	poolBasedConn, err := zzk.GetPoolBasedConnection(poolID) // CLARK TODO FIXME ?????
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
-		return err
-	}
-	return zzk.RemoveHost(poolBasedConn, hostID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

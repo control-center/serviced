@@ -5,8 +5,11 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+
+	"time"
 )
 
 type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event, string)
@@ -76,26 +79,23 @@ func (s *scheduler) loop() {
 		s.shutdown <- err
 	}()
 
-	allPools, err := s.facade.GetResourcePools(datastore.Get())
-	if err != nil {
-		glog.Error(err)
-		return
-	} else if allPools == nil || len(allPools) == 0 {
-		glog.Error("no resource pools found")
-		return
-	}
-
-	// CLARK TODO
-	// instead of looping through the pools, add a watch on /pools ... start/stop schedulers per pool
-	for _, aPool := range allPools {
-		// TODO: Support non default pools
-		// Currently, only the default pool gets a leader
-		if aPool.ID != "default" {
-			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
+	var allPools []*pool.ResourcePool
+	for {
+		allPools, err = s.facade.GetResourcePools(datastore.Get())
+		if err != nil {
+			glog.Errorf("scheduler.go failed to get resource pools: %v", err)
+			time.Sleep(time.Second * 5)
+			continue
+		} else if allPools == nil || len(allPools) == 0 {
+			glog.Error("no resource pools found")
+			time.Sleep(time.Second * 5)
 			continue
 		}
+		break
+	}
 
-		poolBasedConn, err := zzk.GetPoolBasedConnection(aPool.ID)
+	for _, aPool := range allPools {
+		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))
 		if err != nil {
 			glog.Error(err)
 			return
@@ -113,7 +113,7 @@ func (s *scheduler) loop() {
 			leader.ReleaseLead()
 		}()
 
-		glog.Infof(" ********** Creating a leader for pool: %v --- %+v", aPool.ID, poolBasedConn)
+		glog.Infof(" Creating a leader for pool: %v --- %+v", aPool.ID, poolBasedConn)
 		s.zkleaderFunc(s.facade, s.cpDao, poolBasedConn, events, aPool.ID)
 	}
 }

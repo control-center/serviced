@@ -23,21 +23,17 @@ const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
 var zClient *coordclient.Client
 var poolBasedConnections = make(map[string]coordclient.Connection)
 
-func InitializeGlobals(myZClient *coordclient.Client) {
+func InitializeGlobalCoordClient(myZClient *coordclient.Client) {
 	zClient = myZClient
 }
 
-// GetPoolBasedConnection returns a connection based on the poolID provided
-// if poolID is "", return root connection
-func GetPoolBasedConnection(poolID string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
-	glog.Infof(" ***** PoolID provided: %v", poolID)
-	var basePath string
-	if poolID == "" {
-		basePath = "/"
-	} else {
-		glog.Infof("   Getting connection based on pool: %v", poolID)
-		basePath = "/pools/" + poolID
-	}
+// GeneratePoolPath is used to convert a pool ID to /pools/POOLID
+func GeneratePoolPath(poolID string) string {
+	return "/pools/" + poolID
+}
+
+// GetBasePathConnection returns a connection based on the basePath provided
+func GetBasePathConnection(basePath string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
 	if _, ok := poolBasedConnections[basePath]; ok {
 		return poolBasedConnections[basePath], nil
 	}

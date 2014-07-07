@@ -15,14 +15,13 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
@@ -73,9 +72,7 @@ type HostAgent struct {
 	closing              chan interface{}
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string // the docker registry to use
-	facade               *facade.Facade
-	context              datastore.Context
+	dockerRegistry       string           // the docker registry to use
 	periodicTasks        chan interface{} // signal for periodic tasks to stop
 	maxContainerAge      time.Duration    // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string           // subnet for virtual addresses
@@ -131,9 +128,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 		return nil, err
 	}
 	agent.zkClient = zkClient
-
-	agent.facade = facade.New(agent.dockerRegistry)
-	agent.context = datastore.Get()
 
 	agent.closing = make(chan interface{})
 	hostID, err := utils.HostID()
@@ -202,7 +196,6 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 	case err != nil && strings.HasPrefix(err.Error(), "no container"):
 		glog.Warningf("Error retrieving container state: %s", serviceState.ID)
 		return err
-
 	}
 
 	dc, err := dockerclient.NewClient(dockerEndpoint)
@@ -801,17 +794,24 @@ func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
 	var hsListener *zkservice.HostStateListener
 	for {
-		host, err := a.facade.GetHost(a.context, a.hostID)
+		rpcMaster, err := master.NewClient(a.master)
+		if err != nil {
+			glog.Errorf("Failed to get RPC master: %v", err)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+		myHost, err := rpcMaster.GetHost(a.hostID)
 		if err != nil {
 			glog.Errorf("Could not get host %s: %s", a.hostID, err)
-			return
+			time.Sleep(time.Second * 5)
+			continue
 		}
 
-		if host != nil {
+		if myHost != nil {
 			connc := make(chan coordclient.Connection)
 			go func() {
 				for {
-					c, err := zzk.GetPoolBasedConnection("default") // CLARK TODO ... FIXME ... ?????
+					c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
 					if err == nil {
 						connc <- c
 						return
@@ -842,8 +842,8 @@ func (a *HostAgent) start() {
 				go actionListener.Listen(shutdown)
 
 				if hsListener == nil {
-					hsListener = zkservice.NewHostStateListener(conn, a, host)
-				} else if err := hsListener.Reset(conn, host); err != nil {
+					hsListener = zkservice.NewHostStateListener(conn, a, myHost)
+				} else if err := hsListener.Reset(conn, myHost); err != nil {
 					glog.Warningf("Could not reset host: ", err)
 				}
 				hsListener.Listen(a.closing)

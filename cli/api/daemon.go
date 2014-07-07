@@ -154,7 +154,7 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobals(zClient)
+	zzk.InitializeGlobalCoordClient(zClient)
 
 	d.facade = d.initFacade()
 
@@ -179,7 +179,9 @@ func (d *daemon) startMaster() error {
 		panic(err)
 	}
 
-	thisHost, err := host.Build(agentIP, "default") //CLARK TODO "unknown"
+	// This is storage related
+	// TODO FIXME, should this be pool based? If so, how do we know the pool at this point?
+	thisHost, err := host.Build(agentIP, "default")
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -301,9 +303,9 @@ func (d *daemon) initiateAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobals(zClient)
+		zzk.InitializeGlobalCoordClient(zClient)
 
-		poolBasedConn, err := zzk.GetPoolBasedConnection(poolID)
+		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}

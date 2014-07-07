@@ -103,7 +103,6 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 	}
 	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
 
-	// CLARK TODO make root connection from zkdao FIXME,
 	// endpoints are created at the root level (not pool aware)
 	rootBasePath := ""
 	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, rootBasePath, nil)
@@ -112,12 +111,12 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	zzk.InitializeGlobals(zClient)
+	zzk.InitializeGlobalCoordClient(zClient)
 
 	// get zookeeper connection
-	conn, err := zzk.GetPoolBasedConnection(service.PoolID)
+	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
-		return fmt.Errorf("endpoint.go getEndpoints zzk.GetPoolBasedConnection failed: %v", err)
+		return fmt.Errorf("endpoint.go getEndpoints zzk.GetBasePathConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
@@ -275,7 +274,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
-	zkConn, err := zzk.GetPoolBasedConnection(c.zkInfo.PoolID)
+	zkConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.zkInfo.PoolID))
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
@@ -483,8 +482,7 @@ func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) 
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() {
-	// get zookeeper connection to /
-	conn, err := zzk.GetPoolBasedConnection("")
+	conn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
 		return
 	}

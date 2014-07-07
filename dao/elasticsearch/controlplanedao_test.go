@@ -82,7 +82,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
 
-	zzk.InitializeGlobals(zClient)
+	zzk.InitializeGlobalCoordClient(zClient)
 
 	dt.zkConn, err = zzk.GetPoolBasedConnection("")
 	if err != nil {

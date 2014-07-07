@@ -60,7 +60,7 @@ func TestServer(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error getting zk client")
 	}
-	zzk.InitializeGlobals(zClient)
+	zzk.InitializeGlobalCoordClient(zClient)
 
 	defer func(orig func(string, string) error) {
 		nfsMount = orig

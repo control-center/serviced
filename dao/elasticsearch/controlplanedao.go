@@ -82,7 +82,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		Command:  command,
 	}
 
-	conn, err := zzk.GetPoolBasedConnection(svc.PoolID)
+	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}

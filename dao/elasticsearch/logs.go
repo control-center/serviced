@@ -22,7 +22,7 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -62,7 +62,7 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err

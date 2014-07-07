@@ -22,7 +22,7 @@ func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, se
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -40,7 +40,7 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -59,7 +59,7 @@ func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, ser
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -78,7 +78,7 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myService.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -94,7 +94,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetPoolBasedConnection(myHost.PoolID)
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
 		return err

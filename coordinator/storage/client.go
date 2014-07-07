@@ -80,7 +80,7 @@ func (c *Client) loop() {
 		}
 		err = nil
 		if leader == nil {
-			conn, err = zzk.GetPoolBasedConnection(c.host.PoolID)
+			conn, err = zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.host.PoolID))
 			if err != nil {
 				continue
 			}

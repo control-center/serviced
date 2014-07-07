@@ -161,21 +161,8 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 func (sc *ServiceConfig) watchVhosts() error {
 	glog.Info("watchVhosts starting")
 
-	/*mc, err := sc.getMasterClient()
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting master client: %v", err)
-		return err
-	}
-
-	allPools, err := mc.GetResourcePools()
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting resource pools: %v", err)
-		return err
-	}*/
-	// CLARK TODO
-	//for _, aPool := range allPools {
 	// vhosts are at the root level (not pool aware)
-	poolBasedConn, err := zzk.GetPoolBasedConnection("")
+	poolBasedConn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
 		return err
