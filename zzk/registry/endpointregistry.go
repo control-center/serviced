@@ -86,6 +86,7 @@ type EndpointRegistry struct {
 }
 
 // CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
+// This is created in the leader, most other calls will just get that one
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
 	if exists, err := utils.PathExists(conn, path); err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/registry"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
 )
@@ -80,6 +81,8 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 				snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
 				go snapshotListener.Listen(shutdown)
 				leader.watchServices()
+
+				registry.CreateEndpointRegistry(conn)
 				return nil
 			}()
 		}
