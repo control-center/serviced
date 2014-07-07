@@ -170,9 +170,9 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 		return client.ErrNoNode
 	}
 	for {
-		glog.V(0).Infof("watching children at path: %s", path)
+		glog.V(1).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
-		glog.V(0).Infof("child watch for path %s returned: %#v", path, nodeIDs)
+		glog.V(1).Infof("child watch for path %s returned: %#v", path, nodeIDs)
 		if err != nil {
 			glog.Errorf("Could not watch %s: %s", path, err)
 			defer errorHandler(path, err)
@@ -182,13 +182,13 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 		//This blocks until a change happens under the key
 		select {
 		case ev := <-event:
-			glog.V(0).Infof("watch event %+v at path: %s", ev, path)
+			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
-			glog.V(0).Infof("watch cancel at path: %s", path)
+			glog.V(1).Infof("watch cancel at path: %s", path)
 			return nil
 		}
 	}
-	glog.V(0).Infof("no longer watching children at path: %s", path)
+	glog.V(1).Infof("no longer watching children at path: %s", path)
 	return nil
 }
 
