@@ -5,16 +5,16 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
-
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
 	"time"
+
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/utils"
 )
 
 // Desired states of services.
@@ -165,7 +165,7 @@ func (s *Service) GetServiceImports() []ServiceEndpoint {
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
-			if ep.Purpose == "import" {
+			if ep.Purpose == "import" || ep.Purpose == "import_all" {
 				result = append(result, ep)
 			}
 		}

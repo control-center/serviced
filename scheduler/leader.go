@@ -16,6 +16,7 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/registry"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
@@ -77,6 +78,8 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 					glog.V(0).Info("Processing leader duties")
 					// passthru
 				}
+
+				registry.CreateEndpointRegistry(conn)
 
 				// creates a listener for snapshots with a function call to take snapshots
 				// and return the label and error message
