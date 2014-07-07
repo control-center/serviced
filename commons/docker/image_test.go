@@ -1,12 +1,14 @@
 package docker
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -28,59 +30,66 @@ func TestImageAPI(t *testing.T) {
 }
 
 type ImageTestSuite struct {
-	regid string
+	regowner bool
+	regid    string
 }
 
 var _ = Suite(&ImageTestSuite{})
 
 func (s *ImageTestSuite) SetUpSuite(c *C) {
-	cmd := []string{"docker", "run", "-d", "-p", "5000:5000", "registry"}
-	regid, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
-	if err != nil {
-		panic("can't start registry")
-	}
-
-	s.regid = strings.Trim(string(regid), "\n")
-
-	regup := make(chan struct{})
-	timeout := make(chan struct{})
-
-	go func(timeout, regup chan struct{}) {
-	WaitForRegistryConnection:
-		for {
-			select {
-			case <-timeout:
-				panic("start registry timed out: can't connect")
-			default:
-				if _, err := net.Dial("tcp", ":5000"); err != nil {
-					time.Sleep(1 * time.Second)
-					continue WaitForRegistryConnection
-				}
-				break WaitForRegistryConnection
-			}
+	regid, ok := isRegistryRunning(c)
+	if ok {
+		s.regid = regid
+	} else {
+		cmd := []string{"docker", "run", "-d", "-p", "5000:5000", "registry"}
+		regid, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+		if err != nil {
+			panic("can't start registry")
 		}
 
-	WaitForRegistryPing:
-		for {
-			select {
-			case <-timeout:
-				panic("start registry timed out: can't ping it")
-			default:
-				_, err := http.Get("http://localhost:5000/v1/_ping")
-				if err != nil {
-					time.Sleep(1 * time.Second)
-					continue WaitForRegistryPing
-				}
-				regup <- struct{}{}
-			}
-		}
-	}(timeout, regup)
+		s.regid = strings.Trim(string(regid), "\n")
+		s.regowner = true
 
-	select {
-	case <-time.After(60 * time.Second):
-		timeout <- struct{}{}
-	case <-regup:
-		break
+		regup := make(chan struct{})
+		timeout := make(chan struct{})
+
+		go func(timeout, regup chan struct{}) {
+		WaitForRegistryConnection:
+			for {
+				select {
+				case <-timeout:
+					panic("start registry timed out: can't connect")
+				default:
+					if _, err := net.Dial("tcp", ":5000"); err != nil {
+						time.Sleep(1 * time.Second)
+						continue WaitForRegistryConnection
+					}
+					break WaitForRegistryConnection
+				}
+			}
+
+		WaitForRegistryPing:
+			for {
+				select {
+				case <-timeout:
+					panic("start registry timed out: can't ping it")
+				default:
+					_, err := http.Get("http://localhost:5000/v1/_ping")
+					if err != nil {
+						time.Sleep(1 * time.Second)
+						continue WaitForRegistryPing
+					}
+					regup <- struct{}{}
+				}
+			}
+		}(timeout, regup)
+
+		select {
+		case <-time.After(60 * time.Second):
+			timeout <- struct{}{}
+		case <-regup:
+			break
+		}
 	}
 
 	exportcmd := exec.Command("docker", "export", s.regid)
@@ -106,9 +115,13 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 }
 
 func (s *ImageTestSuite) TearDownSuite(c *C) {
-	cmd := []string{"docker", "kill", s.regid}
-	if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
-		panic("can't kill the registry")
+	var cmd []string
+
+	if s.regowner {
+		cmd = []string{"docker", "kill", s.regid}
+		if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
+			panic("can't kill the registry")
+		}
 	}
 
 	cmd = []string{"docker", "rm", s.regid}
@@ -244,4 +257,38 @@ func (s *ImageTestSuite) TestImportImage(c *C) {
 	if err != nil {
 		c.Errorf("can't find imported image (%s): %v", imptag, err)
 	}
+}
+
+func isRegistryRunning(c *C) (string, bool) {
+	var regid string
+	var result bool
+
+	dockerps := exec.Command("docker", "ps")
+	stdout, err := dockerps.StdoutPipe()
+	if err != nil {
+		c.Fatal("can't redirect docker ps stdout: ", err)
+	}
+
+	if err = dockerps.Start(); err != nil {
+		c.Fatal("can't start docker ps command: ", err)
+	}
+
+	re := regexp.MustCompile("registry")
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		l := scanner.Text()
+		if len(re.FindString(strings.ToLower(l))) > 0 {
+			fs := strings.Fields(l)
+			regid = fs[0]
+			result = true
+			goto WaitForCompletion
+		}
+	}
+
+WaitForCompletion:
+	if err = dockerps.Wait(); err != nil {
+		c.Fatal("waiting for docker ps completion failed: ", err)
+	}
+	return regid, result
 }
