@@ -499,6 +499,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
 			if _, conflict := exported[containerPort]; conflict {
+				glog.Infof("Skipping import at port %d because it conflicts with a port exported by this container", containerPort)
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)

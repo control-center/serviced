@@ -457,7 +457,6 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 			}
 			ss.PortMapping[string(k)] = pm
 		}
-		glog.Infof("PortMapping: %+v", ss.PortMapping)
 		sState = ss
 	}); err != nil {
 		glog.Warningf("Unable to update service state %s: %v", serviceState.ID, err)
@@ -532,7 +531,6 @@ func (a *HostAgent) waitForProcessToDie(dc *dockerclient.Client, conn coordclien
 						}
 						ss.PortMapping[string(k)] = pm
 					}
-					glog.Infof("PortMapping: %+v", ss.PortMapping)
 					sState = ss
 				}); err != nil {
 					glog.Warningf("Unable to update service state %s: %v", serviceState.ID, err)
