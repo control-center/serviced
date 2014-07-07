@@ -149,6 +149,13 @@ func removeNode(conn client.Connection, path string) error {
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
+	lock_path := r.getPath("endpoint_lock")
+	lock := conn.NewLock(lock_path)
+	if err := lock.Lock(); err != nil {
+		glog.Errorf("Unable to lock on %s: %+v", lock_path, err)
+		return err
+	}
+	defer lock.Unlock()
 	if exists, err := utils.PathExists(conn, path); err != nil {
 		return err
 	} else if !exists {
