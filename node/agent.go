@@ -10,8 +10,23 @@ package node
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"text/template"
+	"time"
 
 	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
+
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
@@ -30,22 +45,6 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
-
-	dockerclient "github.com/zenoss/go-dockerclient"
-
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"text/template"
-	"time"
 )
 
 /*

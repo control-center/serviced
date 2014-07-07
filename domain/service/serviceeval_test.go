@@ -10,15 +10,16 @@
 package service
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	. "gopkg.in/check.v1"
-
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
+	. "gopkg.in/check.v1"
+
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 var startup_testcases = []struct {

@@ -1,14 +1,6 @@
 package web
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/servicedversion"
-
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,6 +8,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/servicedversion"
 )
 
 var empty interface{}

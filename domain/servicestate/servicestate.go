@@ -6,10 +6,6 @@ package servicestate
 
 import (
 	"bytes"
-
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain/service"
-
 	"fmt"
 	"regexp"
 	"strconv"
@@ -17,7 +13,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/zenoss/glog"
+
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/utils"
 )
 

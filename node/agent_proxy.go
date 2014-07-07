@@ -11,14 +11,14 @@
 package node
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-
 	"errors"
 	"strconv"
 	"strings"
 
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/service"
 )
 

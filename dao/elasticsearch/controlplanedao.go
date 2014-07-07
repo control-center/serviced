@@ -10,21 +10,20 @@
 package elasticsearch
 
 import (
-	"github.com/mattbaird/elastigo/api"
-	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/dfs"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/zzk"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
-
 	"fmt"
 	"strconv"
 	"sync"
 
+	"github.com/mattbaird/elastigo/api"
+	"github.com/zenoss/glog"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/dfs"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/zzk"
+	zkdocker "github.com/zenoss/serviced/zzk/docker"
 )
 
 const (

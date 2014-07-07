@@ -2,16 +2,6 @@ package container
 
 import (
 	"bytes"
-
-	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/registry"
-
 	"errors"
 	"fmt"
 	"net"
@@ -22,6 +12,15 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/zenoss/glog"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/registry"
 )
 
 var (

@@ -5,16 +5,6 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/serviceconfigfile"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/zzk"
-
 	"errors"
 	"fmt"
 	"math/rand"
@@ -24,7 +14,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 )
 
 var zkAPI func(zkDao *zzk.ZkDao) zkfuncs = getZKAPI
