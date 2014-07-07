@@ -61,11 +61,9 @@ func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
 // Listen listens for changes to /registry/hosts and updates the host list
 // accordingly
 func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
-	if l.shutdown != nil {
-		glog.Error("Multiple listeners found!")
-		return
-	}
-	l.shutdown = shutdown
+	_shutdown := make(chan interface{})
+	l.shutdown = _shutdown
+	defer close(_shutdown)
 
 	// create the path
 	regpath := hostregpath()
