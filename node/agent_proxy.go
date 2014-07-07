@@ -11,14 +11,15 @@
 package node
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -58,15 +59,15 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetService(serviceId string, response *service.Service) (err error) {
+func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
+		return nil
 	}
 	defer controlClient.Close()
 
-	err = controlClient.GetService(serviceId, response)
+	err = controlClient.GetService(serviceID, response)
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,41 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		return svc, err
 	}
 
-	return response.Evaluate(getSvc)
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, 0)
+}
+
+func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return nil
+	}
+	defer controlClient.Close()
+
+	err = controlClient.GetService(req.ServiceID, response)
+	if err != nil {
+		return err
+	}
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, req.InstanceID)
 }
 
 // Call the master's to retrieve its tenant id

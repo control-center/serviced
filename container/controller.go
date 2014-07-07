@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -98,7 +99,7 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-func getService(lbClientPort string, serviceID string) (*service.Service, error) {
+func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, error) {
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
@@ -106,15 +107,16 @@ func getService(lbClientPort string, serviceID string) (*service.Service, error)
 	}
 	defer client.Close()
 
-	var service service.Service
-	err = client.GetService(serviceID, &service)
+	var svc service.Service
+	err = client.GetServiceInstance(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
 		return nil, err
 	}
 
-	glog.V(1).Infof("getService: service id=%s: %+v", serviceID, service)
-	return &service, nil
+	glog.V(1).Infof("getService: service id=%s: %+v", serviceID, svc)
+	return &svc, nil
 }
 
 // getServiceTenantID retrieves a service's tenantID
@@ -207,9 +209,9 @@ func writeConfFile(config servicedefinition.ConfigFile) error {
 }
 
 // setupConfigFiles sets up config files
-func setupConfigFiles(service *service.Service) error {
+func setupConfigFiles(svc *service.Service) error {
 	// write out config files
-	for _, config := range service.ConfigFiles {
+	for _, config := range svc.ConfigFiles {
 		err := writeConfFile(config)
 		if err != nil {
 			return err
@@ -248,8 +250,14 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	// get service
-	service, err := getService(options.ServicedEndpoint, options.Service.ID)
+	instanceID, err := strconv.Atoi(options.Service.InstanceID)
 	if err != nil {
+		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
+		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
+	}
+	service, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
+	if err != nil {
+		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
@@ -582,6 +590,8 @@ func (c *Controller) handleControlCenterImports() {
 	}
 	endpoints = tmp
 
+	cc_endpoint_purpose := "import" // Punting on control plane dynamic imports for now
+
 	for key, endpointList := range endpoints {
 		// ignore endpoints that are not special controlplane imports
 		ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
@@ -590,10 +600,14 @@ func (c *Controller) handleControlCenterImports() {
 		}
 
 		// set proxy addresses
-		setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress)
+		c.setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress, cc_endpoint_purpose)
 
 		// add/replace entries in importedEndpoints
-		setImportedEndpoint(&c.importedEndpoints, c.tenantID, endpointList[0].Application, endpointList[0].VirtualAddress)
+		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)
+		setImportedEndpoint(&c.importedEndpoints, c.tenantID,
+			endpointList[0].Application, instanceIDStr,
+			endpointList[0].VirtualAddress, cc_endpoint_purpose,
+			endpointList[0].ContainerPort)
 
 		// TODO: agent needs to register controlplane and controlplane_consumer
 		//       but don't do that here in the container code

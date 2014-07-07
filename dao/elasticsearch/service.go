@@ -56,6 +56,16 @@ func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]
 }
 
 //
+func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
+	if svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName); err == nil {
+		*service = *svc
+		return nil
+	} else {
+		return err
+	}
+}
+
+//
 func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, services *[]*service.Service) error {
 	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
 		*services = svcs

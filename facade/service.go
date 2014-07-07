@@ -5,7 +5,17 @@
 package facade
 
 import (
+	"errors"
+	"fmt"
+	"math/rand"
+	"reflect"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/zenoss/glog"
+
 	"github.com/zenoss/serviced/commons"
 	//coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -13,18 +23,9 @@ import (
 	"github.com/zenoss/serviced/domain/addressassignment"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
-
-	"errors"
-	"fmt"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"math/rand"
-	"reflect"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 // AddService adds a service; return error if service already exists
@@ -219,6 +220,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 					ep.ContainerIP = ss.PrivateIP
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
+					ep.InstanceID = ss.InstanceID
 
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
 					if _, exists := result[key]; !exists {
@@ -236,6 +238,37 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		glog.V(2).Infof("Return for %s is %+v", serviceId, result)
 	}
 	return result, nil
+}
+
+// foundchild is an error used exclusively to short-circuit the service walking
+// when an appropriate child has been found
+type foundchild bool
+
+// Satisfy the error interface
+func (f foundchild) Error() string {
+	return ""
+}
+
+// FindChildService walks services below the service specified by serviceId, checking to see
+// if childName matches the service's name. If so, it returns it.
+func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
+	var child *service.Service
+
+	visitor := func(svc *service.Service) error {
+		if svc.Name == childName {
+			child = svc
+			// Short-circuit the rest of the walk
+			return foundchild(true)
+		}
+		return nil
+	}
+	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+		// If err is a foundchild we're just short-circuiting; otherwise it's a real err, pass it on
+		if _, ok := err.(foundchild); !ok {
+			return nil, err
+		}
+	}
+	return child, nil
 }
 
 // start the provided service

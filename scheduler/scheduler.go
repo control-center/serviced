@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/registry"
 
 	"time"
 )
@@ -93,6 +94,13 @@ func (s *scheduler) loop() {
 		}
 		break
 	}
+
+	rootConn, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		glog.Error(err)
+		return
+	}
+	registry.CreateEndpointRegistry(rootConn)
 
 	for _, aPool := range allPools {
 		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))

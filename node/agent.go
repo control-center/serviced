@@ -9,7 +9,24 @@
 package node
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"text/template"
+	"time"
+
 	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
+
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
@@ -28,21 +45,6 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
-
-	dockerclient "github.com/zenoss/go-dockerclient"
-
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 /*
@@ -89,7 +91,12 @@ func getZkDSN(zookeepers []string) string {
 	return dsn.String()
 }
 
-// assert that this implemenents the Agent interface
+// funcmap provides template functions for evaluating PortTemplate
+var funcmap = template.FuncMap{
+	"plus": func(a, b int) int {
+		return a + b
+	},
+}
 
 type AgentOptions struct {
 	Master               string
@@ -165,13 +172,19 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
-func injectContext(s *service.Service, cp dao.ControlPlane) error {
+func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp dao.ControlPlane) error {
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := cp.GetService(svcID, &svc)
 		return svc, err
 	}
-	return s.Evaluate(getSvc)
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := cp.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return s.Evaluate(getSvc, findChild, svcState.InstanceID)
 }
 
 // Shutdown stops the agent
@@ -569,16 +582,16 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
 func configureContainer(a *HostAgent, client *ControlClient,
-	service *service.Service, serviceState *servicestate.ServiceState,
+	svc *service.Service, serviceState *servicestate.ServiceState,
 	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	err := client.GetTenantId(service.ID, &tenantID)
+	err := client.GetTenantId(svc.ID, &tenantID)
 	if err != nil {
-		glog.Errorf("Failed getting tenantID for service: %s, %s", service.ID, err)
+		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
 	}
 
 	// get the system user
@@ -590,22 +603,37 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
-	cfg.Image = service.ImageID
+	cfg.Image = svc.ImageID
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
-	if service.Endpoints != nil {
-		glog.V(1).Info("Endpoints for service: ", service.Endpoints)
-		for _, endpoint := range service.Endpoints {
+	if svc.Endpoints != nil {
+		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
+		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
+				var port uint16
+				port = endpoint.PortNumber
+				if endpoint.PortTemplate != "" {
+					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
+					b := bytes.Buffer{}
+					err := t.Execute(&b, serviceState)
+					if err == nil {
+						j, err := strconv.Atoi(b.String())
+						if err != nil {
+							glog.Errorf("%+v", err)
+						} else if j > 0 {
+							port = uint16(j)
+						}
+					}
+				}
 				var p string
 				switch endpoint.Protocol {
 				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
+					p = fmt.Sprintf("%d/%s", port, "udp")
 				default:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
+					p = fmt.Sprintf("%d/%s", port, "tcp")
 				}
 				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
 				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
@@ -613,9 +641,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		}
 	}
 
-	if len(tenantID) == 0 && len(service.Volumes) > 0 {
+	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
-		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.ID, service.ID)
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.ID, svc.ID)
 	}
 
 	// Make sure the image exists locally.
@@ -629,16 +657,21 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		glog.Errorf("can't create docker client: %v", err)
 		return nil, nil, err
 	}
-	if _, err = docker.InspectImage(*registry, dc, service.ImageID); err != nil {
-		glog.Errorf("can't inspect docker image %s: %s", service.ImageID, err)
+	if _, err = docker.InspectImage(*registry, dc, svc.ImageID); err != nil {
+		glog.Errorf("can't inspect docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
 	}
 
 	cfg.Volumes = make(map[string]struct{})
 	hcfg.Binds = []string{}
 
-	for _, volume := range service.Volumes {
-		resourcePath, err := a.setupVolume(tenantID, service, volume)
+	if err := injectContext(svc, serviceState, client); err != nil {
+		glog.Errorf("Error injecting context: %s", err)
+		return nil, nil, err
+	}
+
+	for _, volume := range svc.Volumes {
+		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
 			glog.Fatalf("%s", err)
 		}
@@ -657,13 +690,8 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	cfg.Volumes[strings.Split(volumeBinding, ":")[1]] = struct{}{}
 	hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(volumeBinding))
 
-	if err := injectContext(service, client); err != nil {
-		glog.Errorf("Error injecting context: %s", err)
-		return nil, nil, err
-	}
-
 	// bind mount everything we need for logstash-forwarder
-	if len(service.LogConfigs) != 0 {
+	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
 		binding := fmt.Sprintf("%s:%s", logstashPath, LOGSTASH_CONTAINER_DIRECTORY)
@@ -673,7 +701,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// add arguments to mount requested directory (if requested)
-	glog.V(2).Infof("Checking Mount options for service %#v", service)
+	glog.V(2).Infof("Checking Mount options for service %#v", svc)
 	for _, bindMountString := range a.mount {
 		glog.V(2).Infof("bindmount is  %#v", bindMountString)
 		splitMount := strings.Split(bindMountString, ",")
@@ -704,9 +732,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
 					continue
 				}
-				svcImageID, err := commons.ParseImageID(service.ImageID)
+				svcImageID, err := commons.ParseImageID(svc.ImageID)
 				if err != nil {
-					glog.Errorf("error parsing service imageid %v; %v", service.ImageID, err)
+					glog.Errorf("error parsing service imageid %v; %v", svc.ImageID, err)
 					continue
 				}
 				glog.V(2).Infof("mount checking %#v and %#v ", imageID, svcImageID)
@@ -738,7 +766,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
-		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", service.ImageID))
+		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
@@ -749,19 +777,19 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// Add hostname if set
-	if service.Hostname != "" {
-		cfg.Hostname = service.Hostname
+	if svc.Hostname != "" {
+		cfg.Hostname = svc.Hostname
 	}
 
 	cfg.Cmd = append([]string{},
 		fmt.Sprintf("/serviced/%s", binary),
 		"service",
 		"proxy",
-		service.ID,
+		svc.ID,
 		strconv.Itoa(serviceState.InstanceID),
-		service.Startup)
+		svc.Startup)
 
-	if service.Privileged {
+	if svc.Privileged {
 		hcfg.Privileged = true
 	}
 

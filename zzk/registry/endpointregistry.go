@@ -33,13 +33,14 @@
 package registry
 
 import (
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/zzk/utils"
+	"path"
 
 	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/validation"
-	"path"
+	"github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -85,6 +86,7 @@ type EndpointRegistry struct {
 }
 
 // CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
+// This is created in the leader, most other calls will just get that one
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
 	if exists, err := utils.PathExists(conn, path); err != nil {
