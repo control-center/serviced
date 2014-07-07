@@ -146,116 +146,116 @@ func (s *ImageTestSuite) TearDownSuite(c *C) {
 func (s *ImageTestSuite) TestFindImage(c *C) {
 	_, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Errorf("can't find %s: %v", rawbase, err)
+		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 }
 
 func (s *ImageTestSuite) TestFindNonexistentImage(c *C) {
 	_, err := FindImage(bogusimage, false)
 	if err == nil {
-		c.Errorf("should not be able to find %s", bogusimage)
+		c.Fatalf("should not be able to find %s", bogusimage)
 	}
 }
 
 func (s *ImageTestSuite) TestTagImage(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Errorf("can't find %s: %v ", rawbase, err)
+		c.Fatalf("can't find %s: %v ", rawbase, err)
 	}
 
 	ti, err := img.Tag(basetag)
 	if err != nil {
-		c.Error("can't tag %s as %s: %v", rawbase, basetag, err)
+		c.Fatalf("can't tag %s as %s: %v", rawbase, basetag, err)
 	}
 
 	_, err = FindImage(ti.ID.String(), false)
 	if err != nil {
-		c.Error("can't find %s: %v", ti.ID, err)
+		c.Fatalf("can't find %s: %v", ti.ID, err)
 	}
 }
 
 func (s *ImageTestSuite) TestDoubleTagImage(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Errorf("can't find %s: %v", rawbase, err)
+		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
 	bt, err := img.Tag(basetag)
 	if err != nil {
-		c.Errorf("can't tag %s as %s: %v", rawbase, basetag, err)
+		c.Fatalf("can't tag %s as %s: %v", rawbase, basetag, err)
 	}
 
 	st, err := img.Tag(snaptag)
 	if err != nil {
-		c.Errorf("can't tag %s as %s: %v", bt.ID.String(), snaptag, err)
+		c.Fatalf("can't tag %s as %s: %v", bt.ID.String(), snaptag, err)
 	}
 
 	_, err = FindImage(st.ID.String(), false)
 	if err != nil {
-		c.Errorf("can't find %s: %v", snaptag, err)
+		c.Fatalf("can't find %s: %v", snaptag, err)
 	}
 }
 
 func (s *ImageTestSuite) TestDeleteImage(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Errorf("can't find %s: %v", rawbase, err)
+		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
 	ti, err := img.Tag(victim)
 	if err != nil {
-		c.Errorf("can't tag %s as %s: %v", rawbase, victim, err)
+		c.Fatalf("can't tag %s as %s: %v", rawbase, victim, err)
 	}
 
 	if err = ti.Delete(); err != nil {
-		c.Errorf("can't delete %s: %v", ti.ID.String(), err)
+		c.Fatalf("can't delete %s: %v", ti.ID.String(), err)
 	}
 
 	img, err = FindImage(ti.ID.String(), false)
 	if img != nil {
-		c.Error("should not have found: ", ti.ID.String())
+		c.Fatal("should not have found: ", ti.ID.String())
 	}
 }
 
 func (s *ImageTestSuite) TestFindThruLocalRepository(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
-		c.Error("can't find %s: %v", rawbase, err)
+		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
 	ti, err := img.Tag(basetag)
 	if err != nil {
-		c.Errorf("can't tag %s as %s: %v", rawbase, basetag, err)
+		c.Fatalf("can't tag %s as %s: %v", rawbase, basetag, err)
 	}
 
 	if err = ti.Delete(); err != nil {
-		c.Errorf("can't delete %s: %v", ti.ID.String(), err)
+		c.Fatalf("can't delete %s: %v", ti.ID.String(), err)
 	}
 
 	_, err = FindImage(basetag, false)
 	if err == nil {
-		c.Errorf("%s should not be in the repo", basetag)
+		c.Fatalf("%s should not be in the repo", basetag)
 	}
 
 	_, err = FindImage(basetag, true)
 	if err != nil {
-		c.Errorf("can't find %s in local registry: %v", basetag, err)
+		c.Fatalf("can't find %s in local registry: %v", basetag, err)
 	}
 }
 
 func (s *ImageTestSuite) TestImportImage(c *C) {
 	_, err := FindImage(imptag, false)
 	if err == nil {
-		c.Errorf("%s should not be in the repo", imptag)
+		c.Fatalf("%s should not be in the repo", imptag)
 	}
 
 	if err = ImportImage(imptag, "/tmp/regexp.tar"); err != nil {
-		c.Errorf("can't import %s: %v", imptag, err)
+		c.Fatalf("can't import %s: %v", imptag, err)
 	}
 
 	_, err = FindImage(imptag, false)
 	if err != nil {
-		c.Errorf("can't find imported image (%s): %v", imptag, err)
+		c.Fatalf("can't find imported image (%s): %v", imptag, err)
 	}
 }
 
