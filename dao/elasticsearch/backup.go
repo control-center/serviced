@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -34,7 +33,7 @@ var backupError chan string = nil
 var restoreOutput chan string = nil
 var restoreError chan string = nil
 
-var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
+func commandAsRoot(name string, arg ...string) (*exec.Cmd, error) {
 	user, e := user.Current()
 	if e != nil {
 		return nil, e
@@ -50,7 +49,7 @@ var commandAsRoot = func(name string, arg ...string) (*exec.Cmd, error) {
 	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
 }
 
-var writeDirectoryToTgz = func(src, filename string) error {
+func writeDirectoryToTgz(src, filename string) error {
 	//FIXME: Tar file should put all contents below a sub-directory (rather than directly in current directory).
 	cmd, e := commandAsRoot("tar", "-czf", filename, "-C", src, ".")
 	if e != nil {
@@ -63,19 +62,19 @@ var writeDirectoryToTgz = func(src, filename string) error {
 	return nil
 }
 
-var writeDirectoryFromTgz = func(dest, filename string) (err error) {
-	if _, e := osStat(dest); e != nil {
+func writeDirectoryFromTgz(dest, filename string) (err error) {
+	if _, e := os.Stat(dest); e != nil {
 		if !os.IsNotExist(e) {
 			glog.Errorf("Could not stat %s: %v", dest, e)
 			return e
 		}
-		if e := osMkdirAll(dest, os.ModeDir|0755); e != nil {
+		if e := os.MkdirAll(dest, os.ModeDir|0755); e != nil {
 			glog.Errorf("Could not find nor create %s: %v", dest, e)
 			return e
 		}
 		defer func() {
 			if err != nil {
-				if e := osRemoveAll(dest); e != nil {
+				if e := os.RemoveAll(dest); e != nil {
 					glog.Errorf("Could not remove %s: %v", dest, e)
 				}
 			}
@@ -92,8 +91,8 @@ var writeDirectoryFromTgz = func(dest, filename string) (err error) {
 	return nil
 }
 
-var writeJSONToFile = func(v interface{}, filename string) (err error) {
-	file, e := osCreate(filename)
+func writeJSONToFile(v interface{}, filename string) (err error) {
+	file, e := os.Create(filename)
 	if e != nil {
 		glog.Errorf("Could not create file %s: %v", filename, e)
 		return e
@@ -114,8 +113,8 @@ var writeJSONToFile = func(v interface{}, filename string) (err error) {
 	return nil
 }
 
-var readJSONFromFile = func(v interface{}, filename string) error {
-	file, e := osOpen(filename)
+func readJSONFromFile(v interface{}, filename string) error {
+	file, e := os.Open(filename)
 	if e != nil {
 		glog.Errorf("Could not open file %s: %v", filename, e)
 		return e
@@ -129,56 +128,54 @@ var readJSONFromFile = func(v interface{}, filename string) error {
 	return nil
 }
 
-var getDockerImageNameIds = func(registry *docker.DockerRegistry, client *dockerclient.Client) (map[string]string, error) {
-	images, e := docker.ListImages(*registry, client)
+func getDockerImageNameIds() (map[string]string, error) {
+	images, e := docker.Images()
 	if e != nil {
 		return nil, e
 	}
 	result := make(map[string]string)
 	for _, image := range images {
-		result[image.ID] = image.ID
-		for _, repotag := range image.RepoTags {
-			repo, tag := repoAndTag(repotag)
-			if tag == "" || tag == "latest" {
-				result[repo] = image.ID
-			} else {
-				result[repotag] = image.ID
-			}
+		result[image.UUID] = image.UUID
+		switch image.ID.Tag {
+		case "", "latest":
+			result[image.ID.BaseName()] = image.UUID
+		default:
+			result[image.ID.String()] = image.UUID
 		}
 	}
 	return result, nil
 }
 
-var exportDockerImageToFile = func(registry *docker.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
-	file, e := osCreate(filename)
-	if e != nil {
-		glog.Errorf("Could not create file %s: %v", filename, e)
-		return e
+func exportDockerImageToFile(imageID, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		glog.Errorf("Could not create file %s: %v", filename, err)
+		return err
 	}
 
 	// Close (and perhaps delete) file on the way out
 	defer func() {
 		if e := file.Close(); e != nil {
 			glog.Errorf("Error while closing file %s: %v", filename, e)
-			if err == nil {
-				err = e
-			}
 		}
 		if err != nil && file != nil {
-			if e := osRemoveAll(filename); e != nil {
+			if e := os.RemoveAll(filename); e != nil {
 				glog.Errorf("Error while removing file %s: %v", filename, e)
 			}
 		}
 	}()
 
-	createOpts := dockerclient.CreateContainerOptions{
-		Config: &dockerclient.Config{
-			Cmd:   []string{"echo ''"},
-			Image: imageID,
+	cd := &docker.ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Config: &dockerclient.Config{
+				Cmd:   []string{"echo ''"},
+				Image: imageID,
+			},
 		},
+		dockerclient.HostConfig{},
 	}
 
-	container, e := docker.CreateContainer(*registry, client, createOpts)
+	container, e := docker.NewContainer(cd, false, 600*time.Second, nil, nil)
 	if e != nil {
 		glog.Errorf("Could not create container from image %s: %v", imageID, e)
 		return e
@@ -188,32 +185,23 @@ var exportDockerImageToFile = func(registry *docker.DockerRegistry, client *dock
 
 	// Remove container on the way out
 	defer func() {
-		removeOpts := dockerclient.RemoveContainerOptions{ID: container.ID}
-		if e := client.RemoveContainer(removeOpts); e != nil {
+		if e := container.Kill(); e != nil {
 			glog.Errorf("Could not remove container %s: %v", container.ID, e)
-			if err == nil {
-				err = e
-			}
 		} else {
 			glog.Infof("Removed container %s", container.ID)
 		}
 	}()
 
-	exportOpts := dockerclient.ExportContainerOptions{
-		ID:           container.ID,
-		OutputStream: file,
-	}
-
-	if e = client.ExportContainer(exportOpts); e != nil {
-		glog.Errorf("Could not export container %s: %v", container.ID, e)
-		return e
+	if err = container.Export(file); err != nil {
+		glog.Errorf("Could not export container %s: %v", container.ID, err)
+		return err
 	}
 
 	glog.Infof("Exported container %s (based on image %s) to %s", container.ID, imageID, filename)
 	return nil
 }
 
-var repoAndTag = func(imageID string) (string, string) {
+func repoAndTag(imageID string) (string, string) {
 	i := strings.LastIndex(imageID, ":")
 	if i < 0 {
 		return imageID, ""
@@ -225,31 +213,19 @@ var repoAndTag = func(imageID string) (string, string) {
 	return imageID[:i], tag
 }
 
-var importDockerImageFromFile = func(registry *docker.DockerRegistry, client *dockerclient.Client, imageID, filename string) (err error) {
-	file, e := os.Open(filename)
-	if e != nil {
-		return e
-	}
-	defer file.Close()
-	repo, tag := repoAndTag(imageID)
-	importOpts := dockerclient.ImportImageOptions{
-		Repository:  repo,
-		Source:      "-",
-		InputStream: file,
-		Tag:         tag,
-	}
-	if e = docker.ImportImage(*registry, client, importOpts); e != nil {
-		return e
+func importDockerImageFromFile(imageID, filename string) error {
+	if err := docker.ImportImage(imageID, filename); err != nil {
+		return err
 	}
 	return nil
 }
 
-var utcNow = func() time.Time {
+func utcNow() time.Time {
 	return time.Now().UTC()
 }
 
 // Find all docker images referenced by a template or service
-var dockerImageSet = func(templates map[string]*servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
+func dockerImageSet(templates map[string]*servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
 	imageSet := make(map[string]bool)
 	var visit func(*[]servicedefinition.ServiceDefinition)
 	visit = func(defs *[]servicedefinition.ServiceDefinition) {
@@ -347,20 +323,20 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	backupPath := func(relPath ...string) string {
 		return filepath.Join(append([]string{backupsDirectory, backupName}, relPath...)...)
 	}
-	if e := osMkdirAll(backupPath("images"), os.ModeDir|0755); e != nil {
+	if e := os.MkdirAll(backupPath("images"), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
 		backupError <- e.Error()
 		return e
 	}
 	defer func() {
-		if e := osRemoveAll(backupPath()); e != nil {
+		if e := os.RemoveAll(backupPath()); e != nil {
 			glog.Errorf("Could not remove %s: %v", backupPath(), e)
 			if err == nil {
 				err = e
 			}
 		}
 	}()
-	if e := osMkdirAll(backupPath("snapshots"), os.ModeDir|0755); e != nil {
+	if e := os.MkdirAll(backupPath("snapshots"), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", backupPath(), e)
 		backupError <- e.Error()
 		return e
@@ -387,22 +363,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Export each of the referenced docker images
-	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
-	if e != nil {
-		glog.Errorf("Could not connect to docker: %v", e)
-		backupError <- e.Error()
-		return e
-	}
-	// Note: client does not need to be .Close()'d
-
-	registry, e := docker.NewDockerRegistry(cp.dockerRegistry)
-	if e != nil {
-		glog.Errorf("Could not attain docker registry: %v", e)
-		backupError <- e.Error()
-		return e
-	}
-
-	imageNameIds, e := getDockerImageNameIds(registry, client)
+	imageNameIds, e := getDockerImageNameIds()
 	if e != nil {
 		glog.Errorf("Could not get image tags from docker: %v", e)
 		backupError <- e.Error()
@@ -433,7 +394,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	for imageID, imageTags := range imageIDTags {
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
 		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageID)
-		if e := exportDockerImageToFile(registry, client, imageID, filename); e != nil {
+		if e := exportDockerImageToFile(imageID, filename); e != nil {
 			if e == dockerclient.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageID)
 			} else {
@@ -515,7 +476,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	return nil
 }
 
-var getSnapshotPath = func(vfs, poolId, serviceID, snapshotID string) (string, error) {
+func getSnapshotPath(vfs, poolId, serviceID, snapshotID string) (string, error) {
 	volume, e := getSubvolume(vfs, poolId, serviceID)
 	if e != nil {
 		return "", e
@@ -594,20 +555,20 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		return filepath.Join(append([]string{varPath(), "restore"}, relPath...)...)
 	}
 
-	if e := osRemoveAll(restorePath()); e != nil {
+	if e := os.RemoveAll(restorePath()); e != nil {
 		glog.Errorf("Could not remove %s: %v", restorePath(), e)
 		restoreError <- e.Error()
 		return e
 	}
 
-	if e := osMkdirAll(restorePath(), os.ModeDir|0755); e != nil {
+	if e := os.MkdirAll(restorePath(), os.ModeDir|0755); e != nil {
 		glog.Errorf("Could not find nor create %s: %v", restorePath(), e)
 		restoreError <- e.Error()
 		return e
 	}
 
 	defer func() {
-		if e := osRemoveAll(restorePath()); e != nil {
+		if e := os.RemoveAll(restorePath()); e != nil {
 			glog.Errorf("Could not remove %s: %v", restorePath(), e)
 			if err == nil {
 				err = e
@@ -646,25 +607,12 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	}
 
 	// Restore the docker images ...
-	client, e := dockerclient.NewClient(DOCKER_ENDPOINT)
-	// Note: client does not need to be .Close()'d
-	if e != nil {
-		glog.Errorf("Could not connect to docker: %v", e)
-		restoreError <- e.Error()
-		return e
-	}
-	registry, e := docker.NewDockerRegistry(cp.dockerRegistry)
-	if e != nil {
-		glog.Errorf("Could not attain docker registry: %v", e)
-		restoreError <- e.Error()
-		return e
-	}
 	for i, imageNameWithTags := range imagesNameTags {
 		imageID := imageNameWithTags[0]
 		imageTags := imageNameWithTags[1:]
 		imageName := "imported:" + imageID
 		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
-		image, e := docker.InspectImage(*registry, client, imageID)
+		image, e := docker.FindImage(imageID, false)
 		if e != nil {
 			if e != dockerclient.ErrNoSuchImage {
 				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageID, e)
@@ -672,35 +620,34 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 				return e
 			}
 			filename := restorePath("images", fmt.Sprintf("%d.tar", i))
-			if e := importDockerImageFromFile(registry, client, imageName, filename); e != nil {
+			if e := importDockerImageFromFile(imageName, filename); e != nil {
 				glog.Errorf("Could not import docker image %s (%+v) from file %s: %v", imageID, imageTags, filename, e)
 				restoreError <- e.Error()
 				return e
 			}
-			image, e = docker.InspectImage(*registry, client, imageName)
+			image, e = docker.FindImage(imageName, false)
 			if e != nil {
 				glog.Errorf("Could not find imported docker image %s (%+v): %v", imageName, imageTags, e)
 				restoreError <- e.Error()
 				return e
 			}
-		} else {
-			if e := client.TagImage(imageID, dockerclient.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
-				glog.Errorf("Found image %s already exists, but could not tag it: %s", imageID, e)
-				restoreError <- e.Error()
-				return e
-			}
+		}
+
+		//		if e := client.TagImage(imageID, dockerclient.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
+		if _, e := image.Tag(imageID); e != nil {
+			glog.Errorf("Found image %s already exists, but could not tag it: %s", imageID, e)
+			restoreError <- e.Error()
+			return e
 		}
 
 		for _, imageTag := range imageTags {
-			repo, tag := repoAndTag(imageTag)
-			options := dockerclient.TagImageOptions{
-				Repo:  repo,
-				Tag:   tag,
-				Force: true,
+			img, e := docker.FindImage(imageName, false)
+			if e != nil {
+				return e
 			}
-			if e := docker.TagImage(*registry, client, imageName, options); e != nil {
-				glog.Errorf("Could not tag image %s (%s) options: %+v: %v", image.ID, imageName, options, e)
-				restoreError <- e.Error()
+
+			_, e = img.Tag(imageTag)
+			if e != nil {
 				return e
 			}
 		}
@@ -780,7 +727,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	return nil
 }
 
-var readDirFileNames = func(dirname string) ([]string, error) {
+func readDirFileNames(dirname string) ([]string, error) {
 	files, e := ioutil.ReadDir(dirname)
 	result := make([]string, len(files))
 	if e != nil {
@@ -790,24 +737,4 @@ var readDirFileNames = func(dirname string) ([]string, error) {
 		result[i] = file.Name()
 	}
 	return result, nil
-}
-
-var osOpen = func(name string) (io.ReadCloser, error) {
-	return os.Open(name)
-}
-
-var osCreate = func(name string) (io.WriteCloser, error) {
-	return os.Create(name)
-}
-
-var osStat = func(name string) (os.FileInfo, error) {
-	return os.Stat(name)
-}
-
-var osMkdirAll = func(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-var osRemoveAll = func(path string) error {
-	return os.RemoveAll(path)
 }

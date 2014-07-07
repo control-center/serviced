@@ -19,19 +19,11 @@ type ShellConfig struct {
 	Args      []string
 	SaveAs    string
 	IsTTY     bool
-	Mount	  []string
+	Mount     []string
 }
 
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
-	dockerClient, err := a.connectDocker()
-	if err != nil {
-		return err
-	}
-	dockerRegistry, err := a.connectDockerRegistry()
-	if err != nil {
-		return err
-	}
 	command := []string{config.Command}
 	command = append(command, config.Args...)
 
@@ -44,7 +36,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
+	cmd, err := shell.StartDocker(&cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -60,14 +52,6 @@ func (a *api) StartShell(config ShellConfig) error {
 // RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig) error {
 	client, err := a.connectDAO()
-	if err != nil {
-		return err
-	}
-	dockerClient, err := a.connectDocker()
-	if err != nil {
-		return err
-	}
-	dockerRegistry, err := a.connectDockerRegistry()
 	if err != nil {
 		return err
 	}
@@ -105,7 +89,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(dockerRegistry, dockerClient, &cfg, options.Endpoint)
+	cmd, err := shell.StartDocker(&cfg, options.Endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
