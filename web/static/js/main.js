@@ -249,7 +249,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve services')).error();
+                $notification.create("",'Unable to retrieve services').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -265,7 +265,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve app templates')).error();
+                $notification.create("",'Unable to retrieve app templates').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -282,7 +282,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve list of pools')).error();
+                $notification.create("",'Unable to retrieve list of pools').error();
                 if (status === 401) {
                     unauthorized($location);
                 }

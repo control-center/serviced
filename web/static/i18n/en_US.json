@@ -43,6 +43,7 @@
     "hosts": "Hosts",
     "pools": "Pools",
     "pool": "Pool",
+    "application": "Application",
 
     "breadcrumb_deployed": "Deployed Apps",
     "breadcrumb_home": "Home",
@@ -150,7 +151,7 @@
     "label_service_startup": "Startup Command",
     "label_service_status": "Status",
     "label_step": "Step",
-    "label_step_deploy": "Start / Go",
+    "label_step_deploy": "Deploy Applications",
     "label_step_select_app": "Select Applications",
     "label_step_select_hosts": "Select Hosts",
     "label_step_select_pool": "Select Resource Pool",

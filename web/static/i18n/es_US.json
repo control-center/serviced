@@ -36,6 +36,8 @@
     "start": "Comienzo",
     "stop": "Deténgase",
 
+    "application": "Aplicaci\u00f3n",
+
     "breadcrumb_deployed": "Aplicaciones Instaladas",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Servidores",
