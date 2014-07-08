@@ -47,7 +47,7 @@ func TestClient(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
-	h.PoolID = "default"
+	h.PoolID = "default1"
 	defer func(old func(string, os.FileMode) error) {
 		mkdirAll = old
 	}(mkdirAll)
@@ -61,9 +61,9 @@ func TestClient(t *testing.T) {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}
 	defer c.Close()
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 
-	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
+	nodePath := fmt.Sprintf("/pools/%v/storage/clients/%s", h.PoolID, h.IPAddr)
 	glog.Infof("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {
 		t.Fatalf("did not expect error checking for existence of %s: %s", nodePath, err)
