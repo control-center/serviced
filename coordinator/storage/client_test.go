@@ -47,6 +47,7 @@ func TestClient(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
+	h.PoolID = "default"
 	defer func(old func(string, os.FileMode) error) {
 		mkdirAll = old
 	}(mkdirAll)
