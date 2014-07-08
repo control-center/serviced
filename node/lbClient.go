@@ -81,9 +81,9 @@ func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) 
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
-	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
+	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", req, healthChecks)
 }
 
 // GetHostID returns the agent's host id

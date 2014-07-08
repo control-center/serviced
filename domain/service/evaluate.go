@@ -176,6 +176,32 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildS
 	return
 }
 
+// EvaluatePrereqsTemplate parses and evals the Script field for each Prereq.
+func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	glog.V(3).Infof("Evaluating Prereq scripts for %s:%d", service.ID, instanceID)
+	for i, prereq := range service.Prereqs {
+		result := service.evaluateTemplate(gs, fc, instanceID, prereq.Script)
+		if result != "" {
+			prereq.Script = result
+			service.Prereqs[i] = prereq
+		}
+	}
+	return
+}
+
+// EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
+func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	glog.V(3).Infof("Evaluating HealthCheck scripts for %s:%d", service.ID, instanceID)
+	for key, healthcheck := range service.HealthChecks {
+		result := service.evaluateTemplate(gs, fc, instanceID, healthcheck.Script)
+		if result != "" {
+			healthcheck.Script = result
+			service.HealthChecks[key] = healthcheck
+		}
+	}
+	return
+}
+
 func percentScale(x uint64, percentage float64) uint64 {
 	return uint64(round(float64(x) * percentage))
 }
@@ -284,6 +310,14 @@ func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, 
 		return err
 	}
 	if err := service.EvaluateVolumesTemplate(getSvc, findChild, instanceID); err != nil {
+		glog.Errorf("%+v", err)
+		return err
+	}
+	if err := service.EvaluatePrereqsTemplate(getSvc, findChild, instanceID); err != nil {
+		glog.Errorf("%+v", err)
+		return err
+	}
+	if err := service.EvaluateHealthCheckTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
