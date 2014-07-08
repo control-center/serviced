@@ -834,7 +834,8 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
 	var hsListener *zkservice.HostStateListener
-	for {
+	closed := false
+	for (!closed){
 		host, err := a.facade.GetHost(a.context, a.hostID)
 		if err != nil {
 			glog.Errorf("Could not get host %s: %s", a.hostID, err)
@@ -884,6 +885,8 @@ func (a *HostAgent) start() {
 		}
 		select {
 		case <-a.closing:
+		        glog.V(4)Info("HostAgentLoop closing...")
+			closed = true
 			break
 		case <-time.After(time.Second * 5):
 		}
