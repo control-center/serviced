@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth) {
+function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -64,7 +64,29 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     $scope.modalAddVHost = function() {
-        $('#addVHost').modal('show');
+        $modalService.createModal("add-vhost", $scope, {
+            title: "add_vhost",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Add",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.addVHost();
+                            // NOTE: should wait for response from
+                            // addVHost function before closing
+                            this.close();
+                        }
+                    }
+                }
+            ],
+            validate: function(){
+                // TODO - actually validate
+                return true;
+            }
+        });
     };
 
     $scope.addVHost = function() {
@@ -164,14 +186,47 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.editConfig = function(service, config) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = config;
-        $('#editConfig').modal('show');
+        $modalService.createModal("edit-config", $scope, {
+            title: "title_edit_config - "+ $scope.editService.config,
+            bigModal: true,
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Save",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.updateService();
+                            // NOTE: should wait for response from
+                            // updateService function before closing
+                            this.close();
+                        }
+                    }
+                }
+            ],
+            validate: function(){
+                // TODO - actually validate
+                return true;
+            }
+        });
     };
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
             $scope.editService.log = log.Detail;
-            $('#viewLog').modal('show');
+            $modalService.createModal("view-log", $scope, {
+                title: "title_log",
+                bigModal: true,
+                actions: [
+                    {
+                        role: "cancel",
+                        classes: "btn-default",
+                        label: "Close"
+                    }
+                ]
+            });
         });
     };
 

@@ -915,13 +915,23 @@ rect {
 /* notifications */
 
 .notification {
-    margin-bottom: 15px;
+    box-sizing: border-box;
+    position: fixed;
+    top: 72px;
+    /* this positioning and width is overridden by js */
+    left: calc(50% - 450px);
+    width: 900px;
+    padding: 20px;
 }
+
 .notification > *{
     vertical-align: middle;
 }
 .notification .close {
-    margin-top: 4px;
+    position: absolute;
+    padding: 15px;
+    top: 7px;
+    right: 0;
 }
 
 /* notification icons */
@@ -930,15 +940,13 @@ rect {
     top: -1px;
 }
 
-/* backup info notification */
-.notification {
-    clear: both;
-    padding: 15px;
-}
-
 .notification .title{
     font-size: 1.3em;
     font-weight: bold;
+}
+
+.notification .message {
+    padding-left: 10px;
 }
 
 .notification.bg-info .dialogIcon {
