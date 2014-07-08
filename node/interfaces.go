@@ -82,6 +82,11 @@ type ServiceInstanceRequest struct {
 	InstanceID int
 }
 
+type HealthCheckRequest struct {
+	ServiceID  string
+	InstanceID int
+}
+
 // The API for a service proxy.
 type LoadBalancer interface {
 	// SendLogMessage allows the proxy to send messages/logs to the master (to be displayed on the serviced master)
@@ -99,7 +104,7 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	GetHealthCheck(serviceId string, healthCheck *map[string]domain.HealthCheck) error
+	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]domain.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
