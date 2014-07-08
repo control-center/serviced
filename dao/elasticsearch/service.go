@@ -15,7 +15,7 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
-	*serviceId = svc.Id
+	*serviceId = svc.ID
 	return nil
 }
 
@@ -49,6 +49,16 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*service.Service) error {
 	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
 		*services = svcs
+		return nil
+	} else {
+		return err
+	}
+}
+
+//
+func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
+	if svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName); err == nil {
+		*service = *svc
 		return nil
 	} else {
 		return err

@@ -59,6 +59,10 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
             }).
+            when('/isvcs', {
+                templateUrl: '/static/partials/view-isvcs.html',
+                controller: IsvcsControl
+            }).
             otherwise({redirectTo: '/entry'});
     }]).
     config(['$translateProvider', function($translateProvider) {
@@ -228,7 +232,7 @@ function ResourcesService($http, $location, $notification) {
                 cached_services_map = {};
                 // Map by id
                 data.map(function(svc) {
-                    cached_services_map[svc.Id] = svc;
+                    cached_services_map[svc.ID] = svc;
                 });
                 data.map(function(svc) {
                     if (svc.ParentServiceID !== '') {
@@ -245,7 +249,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve services')).error();
+                $notification.create("",'Unable to retrieve services').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -261,7 +265,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve app templates')).error();
+                $notification.create("",'Unable to retrieve app templates').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -278,7 +282,7 @@ function ResourcesService($http, $location, $notification) {
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",('Unable to retrieve list of pools')).error();
+                $notification.create("",'Unable to retrieve list of pools').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -1205,7 +1209,7 @@ function aggregateVhosts( service) {
       if (endpoint.VHosts) {
         for ( var j in endpoint.VHosts) {
           var name = endpoint.VHosts[j];
-          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
+          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.ID};
           vhosts.push( vhost);
         }
       }
@@ -1233,7 +1237,7 @@ function aggregateAddressAssigments( service, api) {
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
           'Port': endpoint.AddressConfig.Port,
-          'ServiceID': service.Id,
+          'ServiceID': service.ID,
           'ServiceName': service.Name
         };
         api.get_host( assignment.HostID, function(data) {
@@ -1259,7 +1263,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceID:service.Id,
+          ServiceID:service.ID,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
@@ -1410,7 +1414,7 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, serviceId) {
-    serviceId = serviceId || app.Id;
+    serviceId = serviceId || app.ID;
 
     var newState = -1;
     switch(status) {

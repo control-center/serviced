@@ -5,21 +5,31 @@
 package servicestate
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain/service"
-
+	"bytes"
 	"fmt"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/utils"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
+
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/utils"
 )
+
+// Function map for evaluating PortTemplate fields
+var funcmap = template.FuncMap{
+	"plus": func(a, b int) int {
+		return a + b
+	},
+}
 
 // An instantiation of a Service.
 type ServiceState struct {
-	Id          string
+	ID          string
 	ServiceID   string
 	HostID      string
 	DockerID    string
@@ -35,15 +45,38 @@ type ServiceState struct {
 	InstanceID int
 }
 
+func (ss *ServiceState) evalPortTemplate(portTemplate string) (int, error) {
+	t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(portTemplate))
+	b := bytes.Buffer{}
+	if err := t.Execute(&b, ss); err != nil {
+		return 0, err
+	}
+	i, err := strconv.Atoi(b.String())
+	if err != nil {
+		return 0, err
+	}
+	return i, nil
+}
+
 //A new service instance (ServiceState)
 func BuildFromService(service *service.Service, hostId string) (serviceState *ServiceState, err error) {
 	serviceState = &ServiceState{}
-	serviceState.Id, err = utils.NewUUID36()
+	serviceState.ID, err = utils.NewUUID36()
 	if err == nil {
-		serviceState.ServiceID = service.Id
+		serviceState.ServiceID = service.ID
 		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
 		serviceState.Endpoints = service.Endpoints
+		for j, ep := range serviceState.Endpoints {
+			if ep.PortTemplate != "" {
+				port, err := serviceState.evalPortTemplate(ep.PortTemplate)
+				if err != nil {
+					return nil, err
+				}
+				ep.PortNumber = uint16(port)
+				serviceState.Endpoints[j] = ep
+			}
+		}
 	}
 	return serviceState, err
 }
@@ -51,8 +84,17 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 // Retrieve service container port info.
 func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (hostPort, containerPort uint16, protocol string, match bool) {
 	for _, ep := range ss.Endpoints {
+
 		if ep.Purpose == "export" {
 			if applicationRegex.MatchString(ep.Application) {
+				if ep.PortTemplate != "" {
+					port, err := ss.evalPortTemplate(ep.PortTemplate)
+					if err != nil {
+						glog.Errorf("%+v", err)
+						break
+					}
+					ep.PortNumber = uint16(port)
+				}
 				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
 
 				external := ss.PortMapping[portS]

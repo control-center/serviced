@@ -54,8 +54,8 @@ type GraphConfig struct {
 	MinY        *int                `json:"miny"`
 	MaxY        *int                `json:"maxy"`
 	YAxisLabel  string              `json:"yAxisLabel"`
-	TimeZone    string              `json:"timezone"`
-	DownSample  string              `json:"downsample"`
+	TimeZone    string              `json:"timezone,omitempty"`
+	DownSample  string              `json:"downsample,omitempty"`
 	Description string              `json:"description"`
 	Range       *GraphConfigRange   `json:"range"`
 	DataPoints  []DataPoint         `json:"datapoints"`

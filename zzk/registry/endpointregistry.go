@@ -20,7 +20,7 @@
 //
 //         /<endpoint key>                      "tenantID_localhost_zenhubXMLRpc"
 //             /<hostID_containerID:zenhub>
-//                 |--<ApplicationEndpoint>         {tcp/8781}
+//                 |--<ApplicationEndpoint>         {tcp/8081}
 //
 //         /<endpoint key>                      "tenantID_zodb_mysql"
 //             /<hostID_containerID:mysql>
@@ -33,12 +33,14 @@
 package registry
 
 import (
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
+	"path"
 
 	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/validation"
-	"path"
+	"github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -84,9 +86,10 @@ type EndpointRegistry struct {
 }
 
 // CreateEndpointRegistry creates the endpoint registry and returns the EndpointRegistry type
+// This is created in the leader, most other calls will just get that one
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if exists, err := pathExists(conn, path); err != nil {
+	if exists, err := utils.PathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

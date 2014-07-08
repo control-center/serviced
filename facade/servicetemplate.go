@@ -144,19 +144,23 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		svc, err := f.GetService(ctx, svcID)
 		return *svc, err
 	}
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc, err := f.FindChildService(ctx, svcID, childName)
+		return *svc, err
+	}
 
-	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+	//for each endpoint, evaluate its Application
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		return err
 	}
 
-	//for each endpoint, evaluate it's Application
-	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+	//for each endpoint, evaluate its Application
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		return err
 	}
 
 	if parentServiceID == "" {
-		*tenantId = svc.Id
+		*tenantId = svc.ID
 	}
 
 	// Using the tenant id, tag the base image with the tenantID
@@ -205,7 +209,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		return err
 	}
 
-	return f.deployServiceDefinitions(ctx, sd.Services, pool, svc.Id, exportedVolumes, deploymentId, tenantId)
+	return f.deployServiceDefinitions(ctx, sd.Services, pool, svc.ID, exportedVolumes, deploymentId, tenantId)
 }
 
 func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {

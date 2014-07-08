@@ -39,7 +39,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
-        resourcesService.get_service_state_logs(running.ServiceID, running.Id, function(log) {
+        resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
             $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
             $('#viewLog').modal('show');
         });
@@ -49,12 +49,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.click_app = function(instance) {
         $location.path('/services/' + instance.ServiceID);
-    };
-
-    $scope.killRunning = function(running) {
-        resourcesService.kill_running(running.HostID, running.Id, function() {
-            refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
-        });
     };
 
     $scope.updateHost = function(){
@@ -97,7 +91,4 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             }
         }
     };
-
-    // Ensure we have a list of pools and update when the list is ready
-    refreshPools($scope, resourcesService, false);
 }

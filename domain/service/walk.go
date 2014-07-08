@@ -13,6 +13,9 @@ type GetChildServices func(parentID string) ([]*Service, error)
 //GetService return a service, return error if not found
 type GetService func(serviceID string) (Service, error)
 
+//FindChildService finds a child service with a given name, error if not found
+type FindChildService func(parentID, childName string) (Service, error)
+
 //Walk traverses the service hierarchy and calls the supplied Visit function on each service
 func Walk(serviceID string, visitFn Visit, getService GetService, getChildren GetChildServices) error {
 	//get the original service
@@ -32,7 +35,7 @@ func Walk(serviceID string, visitFn Visit, getService GetService, getChildren Ge
 		return err
 	}
 	for _, svc := range subServices {
-		err = Walk(svc.Id, visitFn, getService, getChildren)
+		err = Walk(svc.ID, visitFn, getService, getChildren)
 		if err != nil {
 			return err
 		}

@@ -77,7 +77,7 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		}
 		serviceMap := make(map[string]*service.Service)
 		for _, service := range services {
-			serviceMap[service.Id] = service
+			serviceMap[service.ID] = service
 		}
 		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
 		for _, serviceID := range serviceIds {
@@ -88,8 +88,8 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 			for {
 				found := false
 				for _, serviceID := range serviceIds {
-					if srvc.Id == serviceID {
-						serviceIDMap[service.Id] = true
+					if srvc.ID == serviceID {
+						serviceIDMap[service.ID] = true
 						found = true
 						break
 					}

@@ -115,8 +115,9 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceShell,
 				Flags: []cli.Flag{
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
-					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
@@ -128,6 +129,7 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "attach",
@@ -167,7 +169,7 @@ func (c *ServicedCli) services() (data []string) {
 
 	data = make([]string, len(svcs))
 	for i, s := range svcs {
-		data[i] = s.Id
+		data[i] = s.ID
 	}
 
 	return
@@ -309,7 +311,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 				id[1] = id[1][:7] + "..."
 				imageID = strings.Join(id, "/")
 			}
-			return append(row, s.Name, s.Id, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
+			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
 		})
 		tableService.flush()
 	}
@@ -338,7 +340,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
-		fmt.Println(service.Id)
+		fmt.Println(service.ID)
 	}
 }
 
@@ -389,7 +391,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	name := fmt.Sprintf("serviced_service_edit_%s", service.Id)
+	name := fmt.Sprintf("serviced_service_edit_%s", service.ID)
 	reader, err := openEditor(jsonService, name, ctx.String("editor"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -401,7 +403,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
 	} else {
-		fmt.Println(service.Id)
+		fmt.Println(service.ID)
 	}
 }
 
@@ -531,9 +533,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 	var (
 		serviceID, command string
-		argv, mount        []string
-		saveAs             string
-		isTTY              bool
+		argv               []string
 	)
 
 	serviceID = args[0]
@@ -541,17 +541,15 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(args) > 2 {
 		argv = args[2:]
 	}
-	saveAs = ctx.GlobalString("saveas")
-	isTTY = ctx.GlobalBool("interactive")
-	mount = ctx.GlobalStringSlice("mount")
 
 	config := api.ShellConfig{
-		ServiceID: serviceID,
-		Command:   command,
-		Args:      argv,
-		SaveAs:    saveAs,
-		IsTTY:     isTTY,
-		Mount:	   mount,
+		ServiceID:        serviceID,
+		Command:          command,
+		Args:             argv,
+		SaveAs:           ctx.GlobalString("saveas"),
+		IsTTY:            ctx.GlobalBool("interactive"),
+		Mounts:           ctx.GlobalStringSlice("mount"),
+		ServicedEndpoint: ctx.GlobalString("endpoint"),
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -578,9 +576,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 
 	var (
 		serviceID, command string
-		argv, mount        []string
-		saveAs             string
-		isTTY              bool
+		argv               []string
 	)
 
 	serviceID = args[0]
@@ -588,17 +584,15 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(args) > 2 {
 		argv = args[2:]
 	}
-	saveAs = node.GetLabel(serviceID)
-	isTTY = ctx.GlobalBool("interactive")
-	mount = ctx.GlobalStringSlice("mount")
 
 	config := api.ShellConfig{
-		ServiceID: serviceID,
-		Command:   command,
-		Args:      argv,
-		SaveAs:    saveAs,
-		IsTTY:     isTTY,
-		Mount:	   mount,
+		ServiceID:        serviceID,
+		Command:          command,
+		Args:             argv,
+		SaveAs:           node.GetLabel(serviceID),
+		IsTTY:            ctx.GlobalBool("interactive"),
+		Mounts:           ctx.GlobalStringSlice("mount"),
+		ServicedEndpoint: ctx.GlobalString("endpoint"),
 	}
 
 	if err := c.driver.RunShell(config); err != nil {
@@ -621,7 +615,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		}
 
 		switch keyword {
-		case rs.ServiceID, rs.Name, rs.Id, rs.DockerID:
+		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
@@ -638,9 +632,9 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "DOCKERID")
+	matches.printrow("NAME", "SERVICEID", "INSTANCE", "DOCKERID")
 	for _, row := range states {
-		matches.printrow(row.Name, row.ServiceID, row.DockerID)
+		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.DockerID)
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")

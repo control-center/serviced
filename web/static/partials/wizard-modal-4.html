@@ -1,6 +1,6 @@
 <p>
   <span ng-repeat="template in selectedTemplates()">
-      <span ng-hide="$first">, </span>
+      <span ng-hide="$last">, </span>
       <span ng-show="$last && !$first">{{'content_wizard_configured_and'|translate}} </span>
       {{template.Name}}
       <span ng-show="$last && !$first"> {{'content_wizard_possession_multi'|translate}}</span>
@@ -9,16 +9,9 @@
   {{'content_wizard_configured_is_config'|translate}} '{{install.selected.pool}}'.
 </p>
 
-<div ng-class="install.deploymentIdFormDiv()">
-    <label for="deploymentId" class="control-label">
-        {{'deployed_tbl_deployment_id'|translate}}
-    </label>
-    <input ng-model="install.deploymentId" name="deploymentId" id="deploymentId" placeholder="{{'placeholder_deployment_id' | translate}}" />
-</div>
-
 <div>
-    <label for="install.startNow" class="control-label">
-        <input type="checkbox" ng-model="install.startNow" name="startNow" id="startNow" />
-        {{'content_wizard_start_now'|translate}}
-    </label>
+    <label for="deploymentId" class="control-label">{{'deployed_tbl_deployment_id'|translate}}</label>
+
+    <input class="form-control" type="text" ng-model="install.deploymentId" name="deploymentId"
+           id="deploymentId" placeholder="{{'placeholder_deployment_id' | translate}}" />
 </div>

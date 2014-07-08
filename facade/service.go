@@ -5,25 +5,26 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/serviceconfigfile"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/zzk"
-
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/servicedefinition"
 	"math/rand"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/commons"
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/serviceconfigfile"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 )
 
 var zkAPI func(zkDao *zzk.ZkDao) zkfuncs = getZKAPI
@@ -33,11 +34,11 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
-	_, err := store.Get(ctx, svc.Id)
+	_, err := store.Get(ctx, svc.ID)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		return err
 	} else if err == nil {
-		return fmt.Errorf("error adding service; %v already exists", svc.Id)
+		return fmt.Errorf("error adding service; %v already exists", svc.ID)
 	}
 
 	err = store.Put(ctx, &svc)
@@ -45,7 +46,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 		glog.V(2).Infof("Facade.AddService: %+v", err)
 		return err
 	}
-	glog.V(2).Infof("Facade.AddService: id %+v", svc.Id)
+	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
 
 	return zkAPI(f.zkDao).updateService(&svc)
 }
@@ -68,7 +69,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
 	err := f.walkServices(ctx, id, func(svc *service.Service) error {
-		zkAPI(f.zkDao).removeService(svc.Id)
+		zkAPI(f.zkDao).removeService(svc.ID)
 		return nil
 	})
 
@@ -80,9 +81,9 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
 
 	err = f.walkServices(ctx, id, func(svc *service.Service) error {
-		err := store.Delete(ctx, svc.Id)
+		err := store.Delete(ctx, svc.ID)
 		if err != nil {
-			glog.Errorf("Error removing service %s	 %s ", svc.Id, err)
+			glog.Errorf("Error removing service %s	 %s ", svc.ID, err)
 		}
 		return err
 	})
@@ -220,6 +221,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 					ep.ContainerIP = ss.PrivateIP
 					ep.Protocol = protocol
 					ep.VirtualAddress = endpoint.VirtualAddress
+					ep.InstanceID = ss.InstanceID
 
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
 					if _, exists := result[key]; !exists {
@@ -239,6 +241,37 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 	return result, nil
 }
 
+// foundchild is an error used exclusively to short-circuit the service walking
+// when an appropriate child has been found
+type foundchild bool
+
+// Satisfy the error interface
+func (f foundchild) Error() string {
+	return ""
+}
+
+// FindChildService walks services below the service specified by serviceId, checking to see
+// if childName matches the service's name. If so, it returns it.
+func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
+	var child *service.Service
+
+	visitor := func(svc *service.Service) error {
+		if svc.Name == childName {
+			child = svc
+			// Short-circuit the rest of the walk
+			return foundchild(true)
+		}
+		return nil
+	}
+	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+		// If err is a foundchild we're just short-circuiting; otherwise it's a real err, pass it on
+		if _, ok := err.(foundchild); !ok {
+			return nil, err
+		}
+	}
+	return child, nil
+}
+
 // start the provided service
 func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	glog.V(4).Infof("Facade.StartService %s", serviceId)
@@ -253,7 +286,7 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 		//start f service
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
-		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.Id, err)
+		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.ID, err)
 		if err != nil {
 			return err
 		}
@@ -368,7 +401,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	visitor := func(myService *service.Service) error {
 		// if f service is in need of an IP address, assign it an IP address
 		for _, endpoint := range myService.Endpoints {
-			needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, myService.Id, endpoint)
+			needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, myService.ID, endpoint)
 			if err != nil {
 				return err
 			}
@@ -390,7 +423,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 				assignment.PoolID = myService.PoolID
 				assignment.IPAddr = assignmentRequest.IPAddress
 				assignment.Port = endpoint.AddressConfig.Port
-				assignment.ServiceID = myService.Id
+				assignment.ServiceID = myService.ID
 				assignment.EndpointName = endpoint.Name
 				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
@@ -452,7 +485,7 @@ func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) 
 		return f.getService(ctx, id)
 	}
 
-	tenantID, err := f.GetTenantID(ctx, svc.Id)
+	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -508,8 +541,8 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 	glog.V(2).Infof(" getServiceTree = %s", serviceId)
 	servicesMap := make(map[string]*treenode)
 	for _, svc := range *servicesList {
-		servicesMap[svc.Id] = &treenode{
-			svc.Id,
+		servicesMap[svc.ID] = &treenode{
+			svc.ID,
 			svc.ParentServiceID,
 			[]*treenode{},
 		}
@@ -518,7 +551,7 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 	// second time through builds our tree
 	root := treenode{"root", "", []*treenode{}}
 	for _, svc := range *servicesList {
-		node := servicesMap[svc.Id]
+		node := servicesMap[svc.ID]
 		parent, found := servicesMap[svc.ParentServiceID]
 		// no parent means f node belongs to root
 		if !found {
@@ -539,13 +572,13 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Servi
 func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range svc.Endpoints {
-		needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, svc.Id, endpoint)
+		needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, svc.ID, endpoint)
 		if err != nil {
 			return err
 		}
 
 		if needsAnAddressAssignment {
-			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.Id, addressAssignmentId)
+			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.ID, addressAssignmentId)
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}
@@ -596,12 +629,12 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []*service.Service)
 }
 
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	glog.V(3).Infof("fillServiceConfigs for %s", svc.Id)
+	glog.V(3).Infof("fillServiceConfigs for %s", svc.ID)
 	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
 	if err != nil {
 		return err
 	}
-	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.Id, tenantID, servicePath)
+	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.ID, tenantID, servicePath)
 
 	configStore := serviceconfigfile.NewStore()
 	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
@@ -625,7 +658,7 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 }
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
-	addrs, err := f.getAddressAssignments(ctx, svc.Id)
+	addrs, err := f.getAddressAssignments(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
@@ -643,21 +676,22 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 
 // updateService internal method to use when service has been validated
 func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
-	id := strings.TrimSpace(svc.Id)
+	id := strings.TrimSpace(svc.ID)
 	if id == "" {
-		return errors.New("empty Service.Id not allowed")
+		return errors.New("empty Service.ID not allowed")
 	}
-	svc.Id = id
+	svc.ID = id
 	//add assignment info to service so it is availble in zk
 	f.fillServiceAddr(ctx, svc)
 
 	svcStore := f.serviceStore
 
-	//Deal with Service Config Files
-	oldSvc, err := svcStore.Get(ctx, svc.Id)
+	oldSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
+
+	//Deal with Service Config Files
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	svc.OriginalConfigs = oldSvc.OriginalConfigs
 
@@ -774,7 +808,7 @@ func getTenantID(svcID string, gs service.GetService) (string, error) {
 		return "", err
 	}
 	visitedIDs := make([]string, 0)
-	visitedIDs = append(visitedIDs, svc.Id)
+	visitedIDs = append(visitedIDs, svc.ID)
 	for svc.ParentServiceID != "" {
 		if tID, found := lookUpTenant(svc.ParentServiceID); found {
 			return tID, nil
@@ -783,11 +817,11 @@ func getTenantID(svcID string, gs service.GetService) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		visitedIDs = append(visitedIDs, svc.Id)
+		visitedIDs = append(visitedIDs, svc.ID)
 	}
 
-	updateTenants(svc.Id, visitedIDs...)
-	return svc.Id, nil
+	updateTenants(svc.ID, visitedIDs...)
+	return svc.ID, nil
 }
 
 var (

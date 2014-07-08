@@ -1,12 +1,66 @@
-function DeployWizard($scope, resourcesService) {
+function DeployWizard($scope, $notification, $translate, resourcesService) {
+    var step = 0;
+    var nextClicked = false;
     $scope.name='wizard';
 
-    var validTemplateSelected = function() {
-        return $scope.selectedTemplates().length > 0;
+    var  validTemplateSelected = function() {
+        if($scope.selectedTemplates().length <= 0){
+            showError($translate("label_wizard_select_app"));
+            return false;
+        }
+
+        return true;
     };
 
     var validDeploymentID = function() {
-        return $scope.install.deploymentId != undefined && $scope.install.deploymentId != "";
+        if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
+            showError($translate("label_wizard_select_app"));
+            return false;
+        }
+
+        return true;
+    };
+
+    var resetStepPage = function() {
+        step = 0;
+        $scope.step_page = $scope.steps[step].content;
+
+        $scope.install = {
+            selected: {
+                pool: 'default'
+            },
+            templateSelected: function(template) {
+                if (template.depends) {
+                    $scope.install.selected[template.depends] = true;
+                }
+            },
+            templateDisabled: function(template) {
+                if (template.disabledBy) {
+                    return $scope.install.selected[template.disabledBy];
+                }
+                return false;
+            }
+        };
+
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            var templates = [];
+            for (var key in templatesMap) {
+                var template = templatesMap[key];
+                template.Id = key;
+                templates[templates.length] = template;
+            }
+            $scope.install.templateData = templates;
+        });
+    };
+
+    var showError = function(message){
+        $("#deployWizardNotifications").html(message);
+        $("#deployWizardNotifications").removeClass("hide");
+    }
+
+    var resetError = function(){
+        $("#deployWizardNotifications").html("");
+        $("#deployWizardNotifications").addClass("hide");
     }
 
     $scope.steps = [
@@ -40,26 +94,8 @@ function DeployWizard($scope, resourcesService) {
                 return $scope.install.selected[template.disabledBy];
             }
             return false;
-        },
-        templateSelectedFormDiv: function() {
-            return (!nextClicked || validTemplateSelected())?
-                '':'has-error';
-        },
-        deploymentIdFormDiv: function() {
-            return (!nextClicked || validDeploymentID()) ? '':'has-error';
         }
     };
-    var nextClicked = false;
-
-    resourcesService.get_app_templates(false, function(templatesMap) {
-        var templates = [];
-        for (var key in templatesMap) {
-            var template = templatesMap[key];
-            template.Id = key;
-            templates[templates.length] = template;
-        }
-        $scope.install.templateData = templates;
-    });
 
     $scope.selectedTemplates = function() {
         var templates = [];
@@ -82,12 +118,6 @@ function DeployWizard($scope, resourcesService) {
         return ret;
     }
 
-    var step = 0;
-    var resetStepPage = function() {
-        step = 0;
-        $scope.step_page = $scope.steps[step].content;
-    };
-
     $scope.addHostStart = function() {
         $scope.newHost = {};
         $scope.step_page = '/static/partials/wizard-modal-addhost.html';
@@ -95,7 +125,7 @@ function DeployWizard($scope, resourcesService) {
 
     $scope.addHostCancel = function() {
         $scope.step_page = $scope.steps[step].content;
-    }
+    };
 
     $scope.addHostFinish = function() {
         $scope.newHost.Name = $scope.newHost.IPAddr;
@@ -133,16 +163,20 @@ function DeployWizard($scope, resourcesService) {
 
     $scope.wizard_next = function() {
         nextClicked = true;
+
         if ($scope.step_page !== $scope.steps[step].content) {
             $scope.step_page = $scope.steps[step].content;
             return;
         }
+
         if ($scope.steps[step].validate) {
             if (!$scope.steps[step].validate()) {
                 return;
             }
         }
+
         step += 1;
+        resetError();
         $scope.step_page = $scope.steps[step].content;
         nextClicked = false;
     };
@@ -150,6 +184,7 @@ function DeployWizard($scope, resourcesService) {
     $scope.wizard_previous = function() {
         step -= 1;
         $scope.step_page = $scope.steps[step].content;
+        resetError();
     };
 
     $scope.wizard_finish = function() {
@@ -157,11 +192,10 @@ function DeployWizard($scope, resourcesService) {
         closeModal = function(){
             $('#addApp').modal('hide');
             $("#deploy-save-button").removeAttr("disabled");
+            $("#deploy-save-button").removeClass('active');
             resetStepPage();
-        }
-
-        $("#deploy-save-button").toggleClass('active');
-        $("#deploy-save-button").attr("disabled", "disabled");
+            resetError();
+        };
 
         nextClicked = true;
         if ($scope.steps[step].validate) {
@@ -169,6 +203,9 @@ function DeployWizard($scope, resourcesService) {
                 return;
             }
         }
+
+        $("#deploy-save-button").toggleClass('active');
+        $("#deploy-save-button").attr("disabled", "disabled");
 
         var selected = $scope.selectedTemplates();
         var f = true;
@@ -190,42 +227,34 @@ function DeployWizard($scope, resourcesService) {
                 DeploymentID: $scope.install.deploymentId
             }, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
+                    debugger;
                     //start the service if requested
                     if($scope.install.startNow){
                         for(var i=0; i < $scope.services.data.length; ++i){
-                            if (result.Detail == $scope.services.data[i].Id){
+                            if (result.Detail == $scope.services.data[i].ID){
                                 toggleRunning($scope.services.data[i], "start", resourcesService);
                             }
                         }
                     }
+
+                    closeModal();
                 });
-
-                closeModal();
-            }, closeModal
-            );
+            }, closeModal);
         }
-
-        $scope.services.deployed = {
-            name: dName,
-            multi: (selected.length > 1),
-            class: "deployed alert alert-success",
-            show: true,
-            deployment: "ready"
-        };
 
         nextClicked = false;
     };
 
-    $scope.detected_hosts = [
-        { Name: 'Hostname A', IPAddr: '192.168.34.1', Id: 'A071BF1' },
-        { Name: 'Hostname B', IPAddr: '192.168.34.25', Id: 'B770DAD' },
-        { Name: 'Hostname C', IPAddr: '192.168.33.99', Id: 'CCD090B' },
-        { Name: 'Hostname D', IPAddr: '192.168.33.129', Id: 'DCDD3F0' }
-    ];
+    $scope.wizard_deploy_start = function(){
+        $scope.install.startNow = true;
+        $scope.wizard_finish();
+    };
+
+    $scope.detected_hosts = [];
+
     $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
 
-    resetStepPage();
 
-    // Get a list of pools (cached is OK)
+    resetStepPage();
     refreshPools($scope, resourcesService, true);
 }

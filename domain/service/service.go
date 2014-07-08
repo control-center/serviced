@@ -5,16 +5,16 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
-
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
 	"time"
+
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/utils"
 )
 
 // Desired states of services.
@@ -26,7 +26,7 @@ const (
 
 // Service A Service that can run in serviced.
 type Service struct {
-	Id                string
+	ID                string
 	Name              string
 	Context           string
 	Startup           string
@@ -36,6 +36,7 @@ type Service struct {
 	ConfigFiles       map[string]servicedefinition.ConfigFile
 	Instances         int
 	InstanceLimits    domain.MinMax
+	ChangeOptions     []string
 	ImageID           string
 	PoolID            string
 	DesiredState      int
@@ -71,7 +72,7 @@ type ServiceEndpoint struct {
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
-	s.Id, err = utils.NewUUID36()
+	s.ID, err = utils.NewUUID36()
 	return s, err
 }
 
@@ -109,7 +110,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	now := time.Now()
 
 	svc := Service{}
-	svc.Id = svcuuid
+	svc.ID = svcuuid
 	svc.Name = sd.Name
 	svc.Context = string(ctx)
 	svc.Startup = sd.Command
@@ -117,6 +118,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
+	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID
 	svc.PoolID = poolID
 	svc.DesiredState = desiredState
@@ -146,7 +148,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	}
 
 	tags := map[string][]string{
-		"controlplane_service_id": []string{svc.Id},
+		"controlplane_service_id": []string{svc.ID},
 	}
 	profile, err := sd.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
@@ -163,7 +165,7 @@ func (s *Service) GetServiceImports() []ServiceEndpoint {
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
-			if ep.Purpose == "import" {
+			if ep.Purpose == "import" || ep.Purpose == "import_all" {
 				result = append(result, ep)
 			}
 		}
@@ -310,7 +312,7 @@ func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment 
 
 //Equals are they the same
 func (s *Service) Equals(b *Service) bool {
-	if s.Id != b.Id {
+	if s.ID != b.ID {
 		return false
 	}
 	if s.Name != b.Name {

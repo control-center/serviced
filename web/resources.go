@@ -1,14 +1,6 @@
 package web
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/servicedversion"
-
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,6 +8,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/servicedversion"
 )
 
 var empty interface{}
@@ -264,7 +265,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	for _, service := range allServices {
-		if service.Id == sid {
+		if service.ID == sid {
 			w.WriteJson(&service)
 			return
 		}
@@ -313,7 +314,12 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		err := client.GetService(svcID, &svc)
 		return svc, err
 	}
-	if err = svc.EvaluateEndpointTemplates(getSvc); err != nil {
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
 		restServerError(w)
 		return
