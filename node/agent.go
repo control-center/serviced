@@ -885,7 +885,7 @@ func (a *HostAgent) start() {
 		select {
 		case <-a.closing:
 			break
-		default:
+		case <-time.After(time.Second * 5):
 		}
 	}
 }
