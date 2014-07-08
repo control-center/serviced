@@ -14,7 +14,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     var validDeploymentID = function() {
         if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
-            showError($translate("label_wizard_select_app"));
+            showError($translate("label_wizard_deployment_id"));
             return false;
         }
 
@@ -54,7 +54,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
     };
 
     var showError = function(message){
-        $("#deployWizardNotifications").html(message);
+        $("#deployWizardNotificationsContent").html(message);
         $("#deployWizardNotifications").removeClass("hide");
     }
 
@@ -227,7 +227,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 DeploymentID: $scope.install.deploymentId
             }, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
-                    debugger;
                     //start the service if requested
                     if($scope.install.startNow){
                         for(var i=0; i < $scope.services.data.length; ++i){

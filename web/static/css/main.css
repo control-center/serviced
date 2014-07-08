@@ -1083,3 +1083,7 @@ input.ng-invalid:focus.ng-dirty:focus{
 .error{
     color: #9C1200;
 }
+
+.btn-link:hover{
+    color: #4F83D1;
+}
