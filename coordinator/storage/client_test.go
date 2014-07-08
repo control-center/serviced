@@ -60,7 +60,7 @@ func TestClient(t *testing.T) {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}
 	defer c.Close()
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 10)
 
 	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
 	glog.Infof("about to check for %s", nodePath)
