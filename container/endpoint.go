@@ -448,7 +448,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 			}
 			endpoints[ii] = &endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
-				glog.Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				glog.V(2).Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
 				endpoints[ii].ContainerPort = ep.port
 			} else {
 				glog.Infof("not overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
