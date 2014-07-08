@@ -46,6 +46,7 @@ import (
 	zkdocker "github.com/zenoss/serviced/zzk/docker"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
+	"sync"
 )
 
 /*
@@ -258,6 +259,7 @@ func reapContainers(client *dockerclient.Client, maxAge time.Duration) error {
 			lastErr = err
 			glog.Errorf("Could not remove container %s: %s", container.ID, err)
 		}
+
 	}
 	return lastErr
 }
@@ -835,7 +837,7 @@ func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
 	var hsListener *zkservice.HostStateListener
 	closed := false
-	for (!closed){
+	for !closed {
 		host, err := a.facade.GetHost(a.context, a.hostID)
 		if err != nil {
 			glog.Errorf("Could not get host %s: %s", a.hostID, err)
@@ -862,30 +864,50 @@ func (a *HostAgent) start() {
 
 			// create a wrapping function so that client.Close() can be handled via defer
 			func() {
-				shutdown := make(chan interface{})
-				defer close(shutdown)
 				conn := <-connc
 				glog.Info("Got a connected client")
-				defer conn.Close()
+				defer func(){
+					glog.Info("Closing ZK connection")
+					conn.Close()
+				}()
+
+				var wg sync.WaitGroup
 
 				// watch virtual IP zookeeper nodes
-				go virtualips.WatchVirtualIPs(conn)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					virtualips.WatchVirtualIPs(conn, a.closing)
+				}()
 
 				// watch docker action nodes
-				actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-				go actionListener.Listen(shutdown)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+					actionListener.Listen(a.closing)
+				}()
 
 				if hsListener == nil {
 					hsListener = zkservice.NewHostStateListener(conn, a, host)
 				} else if err := hsListener.Reset(conn, host); err != nil {
 					glog.Warningf("Could not reset host: ", err)
 				}
-				hsListener.Listen(a.closing)
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					hsListener.Listen(a.closing)
+				}()
+
+				glog.Info("Agent waiting for go routines")
+				wg.Wait()
+				glog.Info("All Agent routines exited")
 			}()
 		}
 		select {
 		case <-a.closing:
-		        glog.V(4)Info("HostAgentLoop closing...")
+			glog.V(4).Info("HostAgentLoop closing...")
 			closed = true
 			break
 		case <-time.After(time.Second * 5):
