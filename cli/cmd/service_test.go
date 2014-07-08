@@ -460,6 +460,10 @@ func ExampleServicedCLI_CmdServiceEdit() {
 }
 
 func ExampleServicedCLI_CmdServiceEdit_usage() {
+	// In the output, under OPTIONS, if you see a 'vim' or 'emacs',
+	// it is because you have the following
+	// environment vairable set: GIT_EDITOR
+	// echo $GIT_EDITOR
 	InitServiceAPITest("serviced", "service", "edit")
 
 	// Output:
@@ -475,7 +479,7 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 	//    serviced service edit SERVICEID
 	//
 	// OPTIONS:
-	//    --editor, -e 'vim'	Editor used to update the service definition
+	//    --editor, -e 	Editor used to update the service definition
 }
 
 func ExampleServicedCLI_CmdServiceEdit_fail() {
