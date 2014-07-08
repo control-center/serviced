@@ -65,7 +65,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.modalAddVHost = function() {
         $modalService.createModal("add-vhost", $scope, {
-            title: "Add Virtual Host",
+            title: "add_vhost",
             actions: [
                 {
                     role: "cancel"

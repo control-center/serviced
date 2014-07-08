@@ -51,7 +51,7 @@
 				// inject user provided template into modal template
 				var modalTemplate = $interpolate(defaultModalTemplate)({
 					template: template,
-					title: config.title,
+					title: $translate(config.title),
 					bigModal: config.bigModal ? "big" : ""
 				});
 
@@ -61,7 +61,6 @@
 				$modalFooter = this.$el.find(".modal-footer");
 
 				// create action buttons
-				// TODO - force `ok` on far right and `cancel` on far left
 				config.actions.forEach(function(action){
 
 					// if this action has a role on it, merge role defaults
@@ -71,7 +70,9 @@
 						}
 					}
 
-					// TODO - translate labels
+					// translate button label
+					action.label = $translate(action.label);
+
 					var $butt = $($interpolate(actionButtonTemplate)(action));
 					$butt.on("click", action.action.bind(this));
 					$modalFooter.append($butt);
@@ -110,7 +111,10 @@
 
 
 
-			var modalsPath = "/static/partials/";
+			var modalsPath = "/static/partials/",
+				// keep track of existing modals so that they can be
+				// close/destroyed when a new one is created
+				modals = [];
 
 			/**
 			 * Fetches modal template and caches it in $templateCache.
@@ -136,6 +140,12 @@
 				fetchModalTemplate(templateName).then(function(res){
 					var modal = new Modal(res.data, model, config);
 					modal.show();
+
+					// immediately destroy any existing modals
+					modals.forEach(function(momo){
+						momo.destroy();
+					});
+					modals.push(modal);
 				});
 			}
 
