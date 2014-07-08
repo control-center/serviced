@@ -39,6 +39,11 @@ type AttachRequest struct {
 	Args    []string
 }
 
+type FindChildRequest struct {
+	ServiceID string
+	ChildName string
+}
+
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
 
@@ -65,6 +70,9 @@ type ControlPlane interface {
 
 	// Get a list of services from serviced
 	GetServices(request EntityRequest, services *[]*service.Service) error
+
+	// Find a child service with the given name
+	FindChildService(request FindChildRequest, service *service.Service) error
 
 	// Get services with the given tag(s)
 	GetTaggedServices(request EntityRequest, services *[]*service.Service) error

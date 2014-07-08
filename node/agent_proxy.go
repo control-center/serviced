@@ -11,14 +11,15 @@
 package node
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-
 	"errors"
-	"github.com/zenoss/serviced/domain/service"
 	"strconv"
 	"strings"
+
+	"github.com/zenoss/glog"
+
+	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -53,15 +54,15 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetService(serviceId string, response *service.Service) (err error) {
+func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
+		return nil
 	}
 	defer controlClient.Close()
 
-	err = controlClient.GetService(serviceId, response)
+	err = controlClient.GetService(serviceID, response)
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,41 @@ func (a *HostAgent) GetService(serviceId string, response *service.Service) (err
 		return svc, err
 	}
 
-	return response.Evaluate(getSvc)
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, 0)
+}
+
+func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+	controlClient, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start ControlPlane client %v", err)
+		return nil
+	}
+	defer controlClient.Close()
+
+	err = controlClient.GetService(req.ServiceID, response)
+	if err != nil {
+		return err
+	}
+
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+
+	return response.Evaluate(getSvc, findChild, req.InstanceID)
 }
 
 // Call the master's to retrieve its tenant id
@@ -100,7 +135,7 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
@@ -110,10 +145,22 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	defer controlClient.Close()
 
 	var svc service.Service
-	err = controlClient.GetService(serviceId, &svc)
+	err = controlClient.GetService(req.ServiceID, &svc)
 	if err != nil {
 		return err
 	}
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
 	*healthChecks = svc.HealthChecks
 	return nil
 }
@@ -204,5 +251,34 @@ func (a *HostAgent) GetZkDSN(string, dsn *string) error {
 	localDSN := a.zkClient.ConnectionString()
 	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
 	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
+	return nil
+}
+
+// GetServiceBindMounts returns the service bindmounts
+func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
+	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+
+	var tenantID string
+	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
+		return err
+	}
+
+	var service service.Service
+	if err := a.GetService(serviceID, &service); err != nil {
+		return err
+	}
+
+	response := map[string]string{}
+	for _, volume := range service.Volumes {
+		resourcePath, err := a.setupVolume(tenantID, &service, volume)
+		if err != nil {
+			return err
+		}
+
+		glog.V(4).Infof("retrieved bindmount resourcePath:%s containerPath:%s", resourcePath, volume.ContainerPath)
+		response[resourcePath] = volume.ContainerPath
+	}
+	*bindmounts = response
+
 	return nil
 }

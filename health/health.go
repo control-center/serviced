@@ -3,9 +3,9 @@ package health
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/node"
 	"sync"
 	"time"
 )
@@ -36,11 +36,14 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	lock.Lock()
 	defer lock.Unlock()
 
-	// TODO: this does not handle updated service definitions properly
 	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
 		// healthStatuses[serviceID]
 		serviceStatus = make(map[string]*healthStatus)
+		healthStatuses[serviceID] = serviceStatus
+	}
+	thisStatus, ok := serviceStatus[name]
+	if !ok {
 		var service service.Service
 		err := d.GetService(serviceID, &service)
 		if err != nil {
@@ -53,11 +56,10 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}
 			}
 		}
-		healthStatuses[serviceID] = serviceStatus
 	}
-	thisStatus, ok := serviceStatus[name]
+	thisStatus, ok = serviceStatus[name]
 	if !ok {
-		glog.Warning("ignoring health status, not found in cached structure: %s %s %", serviceID, name, passed)
+		glog.Warningf("ignoring health status, not found in service: %s %s %s", serviceID, name, passed)
 		return
 	}
 	thisStatus.Status = passed

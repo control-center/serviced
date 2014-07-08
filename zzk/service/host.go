@@ -64,6 +64,7 @@ type HostStateListener struct {
 	conn    client.Connection
 	handler HostStateHandler
 	host    *host.Host
+	regpath string // path to the registered node
 }
 
 // NewHostListener instantiates a HostListener object
@@ -107,9 +108,8 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 	}()
 
 	// Register the host
-	if err := registerHost(l.conn, l.host); err != nil {
+	if err := l.register(); err != nil {
 		glog.Errorf("Could not register host %s: %s", l.host.ID, err)
-		return
 	}
 
 	// Monitor the instances
@@ -135,6 +135,7 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 			glog.V(2).Info("Cleaning up %s", ssid)
 			delete(processing, ssid)
 		case <-shutdown:
+			l.unregister()
 			return
 		}
 	}
@@ -290,6 +291,31 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 	}
 	<-done
 	return removeInstance(l.conn, state.HostID, state.ID)
+}
+
+func (l *HostStateListener) register() (err error) {
+	if l.regpath != "" {
+		if ok, err := zkutils.PathExists(l.conn, l.regpath); err != nil {
+			return err
+		} else if ok {
+			return nil
+		}
+	}
+
+	l.regpath, err = registerHost(l.conn, l.host)
+	return err
+}
+
+func (l *HostStateListener) unregister() {
+	if err := l.conn.Delete(l.regpath); err != nil {
+		glog.Warning("Could not unregister host ", l.host.ID)
+	}
+}
+
+func (l *HostStateListener) Reset(conn client.Connection, host *host.Host) error {
+	l.conn = conn
+	l.host = host
+	return l.conn.Set(l.regpath, &HostNode{Host: host})
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
