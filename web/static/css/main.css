@@ -914,14 +914,22 @@ rect {
 
 /* notifications */
 
-.notification {
-    box-sizing: border-box;
+/* this is the main notification holder */
+#notifications {
     position: fixed;
     top: 72px;
-    /* this positioning and width is overridden by js */
-    left: calc(50% - 450px);
-    width: 900px;
+}
+#loginNotifications {
+    width: 671px;
+    margin: auto;
+}
+
+.notification {
     padding: 20px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .notification > *{

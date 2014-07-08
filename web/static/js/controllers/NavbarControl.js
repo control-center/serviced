@@ -11,10 +11,10 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     });
     $rootScope.markRead = function(message){
         $notification.markRead(message);
-    }
+    };
     $rootScope.clearMessages = function(){
         $notification.clearAll();
-    }
+    };
 
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
@@ -78,5 +78,14 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
             return '/static/help/' + $scope.user.language + '/' + helpMap[$route.current.templateUrl];
         }
     };
+
+    // resize / reposition notification holder
+    var navWidth = $(".navbar-zen").outerWidth(),
+        windowWidth = $(window).width();
+
+    $("#notifications").css({
+        "width": navWidth + "px",
+        "left": (windowWidth * 0.5) - (navWidth * 0.5)
+    });
 
 }

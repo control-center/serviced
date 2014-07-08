@@ -1,4 +1,5 @@
 /* global: $ */
+/* jshint multistr: true */
 
 (function() {
     'use strict';
@@ -19,13 +20,20 @@
      factory('$notification', ['$rootScope', '$templateCache', '$translate', function ($rootScope, $templateCache, $translate) {
         var notificationFactory;
 
+        var notificationTemplate = '<div class="bg-info notification" style="display:none;">\
+            <span class="dialogIcon glyphicon glyphicon-info-sign"></span>\
+            <span class="title"></span>\
+            <span class="message"></span>\
+            <button type="button" class="close" aria-hidden="true" style="display:none;">&times;</button>\
+        </div>';
+
         /**
          * Notification
          * Creates a notification. Great for parties!
          */
         function Notification(id, title, msg, $attachPoint){
             this.id = id;
-            this.$el = $($templateCache.get("notification.html"));
+            this.$el = $(notificationTemplate);
             this.$message = this.$el.find(".message");
             this.$title = this.$el.find(".title");
             this.title = title;
@@ -123,15 +131,6 @@
             },
 
             show: function(autoclose){
-                var navWidth = $(".navbar-zen").outerWidth(),
-                    windowWidth = $(window).width();
-
-                // size and position based on nav width
-                this.$el.css({
-                    "width": navWidth + "px",
-                    "left": (windowWidth * 0.5) - (navWidth * 0.5)
-                });
-
                 this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
@@ -182,6 +181,7 @@
                     $attachPoint = $("#notifications");
                 }
                 var notification = new Notification(++this.lastId, title, msg, $attachPoint);
+
                 return notification;
             },
 

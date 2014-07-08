@@ -28,7 +28,7 @@
       </thead>
       <tbody>
         <tr ng-repeat="app in services.data | orderBy:services.sort">		  
-          <td ng-click="click_app(app.ID)">{{app.Name}}</td>
+          <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
           <td ng-class="app.deploymentClass"> <span ng-class="app.deploymentIcon"></span> {{app.Deployment}} </td>
           <td>{{app.DeploymentID}}</td>
           <td>{{app.PoolID}}</td>

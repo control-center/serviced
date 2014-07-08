@@ -114,6 +114,7 @@
 			var modalsPath = "/static/partials/",
 				// keep track of existing modals so that they can be
 				// close/destroyed when a new one is created
+				// TODO - remove modals from this list when they are hidden
 				modals = [];
 
 			/**
@@ -145,7 +146,7 @@
 					modals.forEach(function(momo){
 						momo.destroy();
 					});
-					modals.push(modal);
+					modals = [modal];
 				});
 			}
 
