@@ -1,4 +1,4 @@
-function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService) {
+function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -19,7 +19,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
         { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
         { id: 'Actions', name: 'pools_tbl_actions'}
-    ])
+    ]);
 
     $scope.click_pool = function(id) {
         $location.path('/pools/' + id);
@@ -35,7 +35,26 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     // Function for opening add pool modal
     $scope.modalAddPool = function() {
         $scope.newPool = {};
-        $('#addPool').modal('show');
+        $modalService.create({
+            templateUrl: "add-pool.html",
+            model: $scope,
+            title: "title_add_pool",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "btn_add",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.add_pool();
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     // Function for adding new pools - through modal

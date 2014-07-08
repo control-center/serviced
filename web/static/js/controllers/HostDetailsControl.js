@@ -65,6 +65,9 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         }
     });
 
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, false);
+
     statsService.is_collecting(function(status) {
         if (status == 200) {
             $scope.collectingStats = true;

@@ -1,4 +1,4 @@
-function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -36,13 +36,31 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
             $scope.pools.add_virtual_ip = {};
             refreshPools($scope, resourcesService, false);
         });
-        $('#poolAddVirtualIp').modal('hide');
     };
 
     // Open the virtual ip modal
     $scope.modalAddVirtualIp = function(pool) {
         $scope.pools.add_virtual_ip = {'PoolID': pool.ID, 'IP':"", 'Netmask':"", 'BindInterface':""};
-        $('#poolAddVirtualIp').modal('show');
+        $modalService.create({
+            templateUrl: "pool-add-virtualip.html",
+            model: $scope,
+            title: "title_add_virtual_ip",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "btn_add",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.AddVirtualIp(pool);
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     // Ensure we have a list of pools

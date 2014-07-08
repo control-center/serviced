@@ -11,57 +11,6 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         { label: 'breadcrumb_hosts_map', itemClass: 'active' }
     ];
 
-    $scope.addSubpool = function(poolID) {
-        $scope.newPool.ParentId = poolID;
-        $('#addPool').modal('show');
-    };
-    $scope.delSubpool = function(poolID) {
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
-        });
-    };
-    $scope.newPool = {};
-    $scope.newHost = {};
-
-    var clearLastStyle = function() {
-        var lastPool = $scope.pools.mapped[$scope.selectedPool];
-        if (lastPool) {
-            lastPool.current = false;
-        }
-    };
-
-    $scope.clearSelectedPool = function() {
-        clearLastStyle();
-        $scope.selectedPool = null;
-        var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
-        $scope.hosts.filteredCount = $scope.hosts.all.length;
-        selectNewRoot(root);
-    };
-
-    var countFromPool = function(e) {
-        if (e.isHost) return 1;
-        if (e.children === undefined) return 0;
-
-        var count = 0;
-        for (var i=0; i < e.children.length; i++) {
-            count += countFromPool(e.children[i]);
-        }
-        return count;
-    };
-
-    $scope.clickPool = function(poolID) {
-        var topPool = $scope.pools.mapped[poolID];
-        if (!topPool || $scope.selectedPool === poolID) {
-            $scope.clearSelectedPool();
-            return;
-        }
-        clearLastStyle();
-        topPool.current = true;
-
-        $scope.selectedPool = poolID;
-        $scope.hosts.filteredCount = countFromPool(topPool);
-        selectNewRoot(topPool);
-    };
     var width = 857;
     var height = 567;
 
@@ -76,7 +25,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     var hostText = function(h) {
         return h.isHost? h.Name : null;
-    }
+    };
 
     var color = d3.scale.category20c();
     var treemap = d3.layout.treemap()
@@ -110,7 +59,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     var selectNewValue = function(valFunc) {
         var node = d3.select("#hostmap").
             selectAll(".node").
-            data(treemap.value(valFunc).nodes)
+            data(treemap.value(valFunc).nodes);
         node.enter().
             append("div").
             attr("class", "node");
@@ -126,7 +75,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         var node = d3.select("#hostmap").
             datum(newroot).
             selectAll(".node").
-            data(treemap.nodes)
+            data(treemap.nodes);
 
         node.enter().
             append("div").
@@ -155,7 +104,7 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         hostsAddedToPools = true;
         for(var key in $scope.hosts.mapped) {
             var host = $scope.hosts.mapped[key];
-            var pool = $scope.pools.mapped[host.poolID];
+            var pool = $scope.pools.mapped[host.PoolID];
             if (pool.children === undefined) {
                 pool.children = [];
             }

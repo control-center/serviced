@@ -1,36 +1,42 @@
-    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
-      <h3 class="pull-left">
-        {{'hosts'|translate}}
-      </h3>
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<h3 class="pull-left">
+  {{'hosts'|translate}}
+</h3>
 
-      <div class="control-buttons pull-right">
-        <span class="add-control">
-          <button class="btn-link" ng-click="modalAddHost()">
-            <span class="glyphicon glyphicon-plus-sign"></span>
-            {{'host'|translate}}
-          </button>
-        </span>
-      </div>
-      <table class="table table-striped side-flush" id="hosts_data">
-        <thead>
-          <tr>
-            <th>{{'label_host_id' | translate}}</th>
-            <th>{{'label_pool_name'| translate}}</th>
-            <th>{{'label_host_memory' | translate}}</th>
-            <th>{{'label_host_cores' | translate}}</th>
-            <th>{{'label_host_kernel_version' | translate}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr ng-repeat="host in hosts.filtered">
-            <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
-            <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
-            <td>{{host.Memory | toGB}}</td>
-            <td>{{host.Cores}}</td>
-            <td>{{host.KernelVersion}}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div ng-include="'/static/partials/resource-actions.html'"></div>
+<div class="control-buttons pull-right">
 
+  <span class="add-control">
+      <a href="/#/hostsmap" class="btn-link">
+          <span class="glyphicon glyphicon-eye-open"></span>
+          {{'nav_hosts_map'|translate}}
+      </a>
+  </span>
+
+  <span class="add-control">
+    <button class="btn-link" ng-click="modalAddHost()">
+      <span class="glyphicon glyphicon-plus-sign"></span>
+      {{'host'|translate}}
+    </button>
+  </span>
+
+</div>
+<table class="table table-striped side-flush" id="hosts_data">
+  <thead>
+    <tr>
+      <th>{{'label_host_id' | translate}}</th>
+      <th>{{'label_pool_name'| translate}}</th>
+      <th>{{'label_host_memory' | translate}}</th>
+      <th>{{'label_host_cores' | translate}}</th>
+      <th>{{'label_host_kernel_version' | translate}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-repeat="host in hosts.filtered">
+      <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
+      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
+      <td>{{host.Memory | toGB}}</td>
+      <td>{{host.Cores}}</td>
+      <td>{{host.KernelVersion}}</td>
+    </tr>
+  </tbody>
+</table>

@@ -79,7 +79,7 @@
 				}.bind(this));
 
 				// setup/default validation function
-				this.validateFn = config.validate || function(){};
+				this.validateFn = config.validate || function(){ return true; };
 
 				// listen for hide event and completely remove modal
 				// after it is hidden
@@ -122,36 +122,48 @@
 			 * returns a promise for the http request
 			 */
 			function fetchModalTemplate(name){
-				var url = modalsPath + name + ".html";
+				var url = modalsPath + name;
 				return $http.get(url, {cache: $templateCache});
 			}
 
 			/**
-			 * creates a modal and attaches to the DOM
-			 * @param  {string} templateName  name of the template to use for the modal
-			 *                                it is fetched from a url defined in modalService
-			 * @param  {object} model  model to bind to template
+			 * fetches modal template and passes it along to be attached
+			 * to the DOM
 			 */
-			function createModal(templateName, model, config){
+			function create(config){
 
 				config = config || {};
+				// TODO - default config object
+				config.actions = config.actions || [];
 				
-				model = model || {};
+				var model = config.model || {};
 
-				fetchModalTemplate(templateName).then(function(res){
-					var modal = new Modal(res.data, model, config);
-					modal.show();
+				// if the template was provided, use that
+				if(config.template){
+					_create(config.template, model, config);
 
-					// immediately destroy any existing modals
-					modals.forEach(function(momo){
-						momo.destroy();
+				// otherwise, request the template
+				// TODO - pop a modal with load spinner?
+				} else {
+					fetchModalTemplate(config.templateUrl).then(function(res){
+						_create(res.data, model, config);
 					});
-					modals = [modal];
+				}
+			}
+
+			function _create(template, model, config){
+				var modal = new Modal(template, model, config);
+				modal.show();
+
+				// immediately destroy any existing modals
+				modals.forEach(function(momo){
+					momo.destroy();
 				});
+				modals = [modal];
 			}
 
 			return {
-				createModal: createModal
+				create: create
 			};
 
 		}

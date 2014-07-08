@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "apps";
@@ -41,17 +41,37 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             vhosts.push( vhosts_definitions[i].Name);
         }
         return vhosts;
-    }
+    };
 
     // given a vhost, return a url to it
     $scope.vhost_url = function( vhost) {
-        var port = location.port == "" ? "" : ":"+location.port;
+        var port = location.port === "" ? "" : ":"+location.port;
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
-    }
+    };
 
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
-        $('#removeApp').modal('show');
+        $modalService.create({
+            template: $translate("warning_remove_service"),
+            model: $scope,
+            title: "title_remove_service",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Remove Service",
+                    classes: "btn-danger",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.remove_service();
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     $scope.remove_service = function() {

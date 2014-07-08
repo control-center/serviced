@@ -64,7 +64,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     $scope.modalAddVHost = function() {
-        $modalService.createModal("add-vhost", $scope, {
+        $modalService.create({
+            templateUrl: "add-vhost.html",
+            model: $scope,
             title: "add_vhost",
             actions: [
                 {
@@ -147,7 +149,27 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         }
 
         $scope.ips.assign.options = options;
-        $('#assignIP').modal('show');
+
+        $modalService.create({
+            templateUrl: "assign-ip.html",
+            model: $scope,
+            title: "title_assign_ip",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "btn_submit",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.AssignIP();
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
       });
     };
 
@@ -186,7 +208,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.editConfig = function(service, config) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = config;
-        $modalService.createModal("edit-config", $scope, {
+        $modalService.create({
+            templateUrl: "edit-config.html",
+            model: $scope,
             title: "title_edit_config - "+ $scope.editService.config,
             bigModal: true,
             actions: [
@@ -216,7 +240,9 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
             $scope.editService.log = log.Detail;
-            $modalService.createModal("view-log", $scope, {
+            $modalService.create({
+                templateUrl: "view-log.html",
+                model: $scope,
                 title: "title_log",
                 bigModal: true,
                 actions: [
@@ -338,7 +364,27 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             });
         };
         $scope.showAddService = function() {
-            $('#addService').modal('show');
+            // $('#addService').modal('show');
+            $modalService.create({
+                templateUrl: "add-service.html",
+                model: $scope,
+                title: "title_add_service",
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        label: "btn_add",
+                        action: function(){
+                            if(this.validate()){
+                                $scope.add_service();
+                                // NOTE: should wait for success before closing
+                                this.close();
+                            }
+                        }
+                    }
+                ]
+            });
         };
         $scope.deleteService = function() {
             var parent = $scope.services.current.ParentServiceID;

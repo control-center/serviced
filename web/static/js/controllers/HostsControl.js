@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService){
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -10,9 +10,33 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     ];
 
     $scope.itemClass = itemClass;
-    $scope.indent = indentClass;                                                      $
+    $scope.indent = indentClass;
     $scope.newHost = {};
-                                                                                                       $
+
+    $scope.modalAddHost = function() {
+        // $('#addHost').modal('show');
+        $modalService.create({
+            templateUrl: "add-host.html",
+            model: $scope,
+            title: "title_add_host",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Add Host",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.add_host();
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
+    };
+    
     $scope.add_host = function() {
         resourcesService.add_host($scope.newHost, function(data) {
             // After adding, refresh our list
@@ -22,10 +46,6 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         $scope.newHost = {
             poolID: $scope.params.poolID
         };
-    };
-
-    $scope.modalAddHost = function() {
-        $('#addHost').modal('show');
     };
 
     $scope.clickHost = function(hostId) {

@@ -1,4 +1,4 @@
-function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService) {
+function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, $modalService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
 
@@ -57,8 +57,14 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     };
 
     $scope.modalUserDetails = function() {
-        $('#userDetails').modal('show');
+        $modalService.create({
+            templateUrl: "user-details.html",
+            model: $scope,
+            title: "title_user_details",
+            bigModal: true
+        });
     };
+
     updateLanguage($scope, $cookies, $translate);
 
     var helpMap = {
