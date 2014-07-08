@@ -37,6 +37,7 @@ type ApplicationEndpoint struct {
 	ContainerIP    string
 	Protocol       string
 	VirtualAddress string
+	InstanceID     int
 }
 
 // A request to deploy a service template

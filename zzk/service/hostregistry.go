@@ -16,6 +16,7 @@ const (
 
 var (
 	ErrHostNotInitialized = errors.New("host not initialized")
+	ErrHostInvalid        = errors.New("invalid host")
 )
 
 func hostregpath(nodes ...string) string {
@@ -162,9 +163,26 @@ func (l *HostRegistryListener) alert() {
 	}
 }
 
+// GetHosts returns all of the registered hosts
 func (l *HostRegistryListener) GetHosts() (hosts []*host.Host) {
 	for _, host := range l.hostmap {
 		hosts = append(hosts, host)
 	}
 	return hosts
+}
+
+func registerHost(conn client.Connection, host *host.Host) (string, error) {
+	if host == nil || host.ID == "" {
+		return "", ErrHostInvalid
+	}
+
+	// verify that a listener has been initialized
+	if exists, err := conn.Exists(hostpath(host.ID)); err != nil {
+		return "", err
+	} else if !exists {
+		return "", ErrHostNotInitialized
+	}
+
+	// create the ephemeral host
+	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
 }

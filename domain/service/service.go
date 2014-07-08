@@ -5,16 +5,16 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
-
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/domain/addressassignment"
 	"strings"
 	"time"
+
+	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/zenoss/serviced/utils"
 )
 
 // Desired states of services.
@@ -36,6 +36,7 @@ type Service struct {
 	ConfigFiles       map[string]servicedefinition.ConfigFile
 	Instances         int
 	InstanceLimits    domain.MinMax
+	ChangeOptions     []string
 	ImageID           string
 	PoolID            string
 	DesiredState      int
@@ -117,6 +118,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Tags = sd.Tags
 	svc.Instances = sd.Instances.Min
 	svc.InstanceLimits = sd.Instances
+	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID
 	svc.PoolID = poolID
 	svc.DesiredState = desiredState
@@ -163,7 +165,7 @@ func (s *Service) GetServiceImports() []ServiceEndpoint {
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
-			if ep.Purpose == "import" {
+			if ep.Purpose == "import" || ep.Purpose == "import_all" {
 				result = append(result, ep)
 			}
 		}

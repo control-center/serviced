@@ -14,7 +14,9 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/facade"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
+	"github.com/zenoss/serviced/zzk/registry"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
 )
@@ -79,6 +81,8 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 				snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
 				go snapshotListener.Listen(shutdown)
 				leader.watchServices()
+
+				registry.CreateEndpointRegistry(conn)
 				return nil
 			}()
 		}
@@ -226,10 +230,28 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 }
 
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
-	//	var err error
 	// pick services instances to start
-	if len(serviceStates) < service.Instances {
-		instancesToStart := service.Instances - len(serviceStates)
+	instancesToKill := 0
+	instancesToStart := 0
+	if len(serviceStates) != service.Instances && utils.StringInSlice("restartAllOnInstanceChanged", service.ChangeOptions) {
+		instancesToKill = len(serviceStates)
+		instancesToStart = service.Instances
+		glog.V(2).Infof("Service %s requests restartAllOnInstanceChanged. Killing %d instances then starting %d.",
+			service.ID, instancesToKill, instancesToStart)
+	} else if len(serviceStates) < service.Instances {
+		instancesToStart = service.Instances - len(serviceStates)
+	} else if len(serviceStates) > service.Instances {
+		instancesToKill = len(serviceStates) - service.Instances
+	}
+
+	if instancesToKill > 0 {
+		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
+		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
+	} else if instancesToStart > 0 {
+		//Note: This must not be a separate 'if' statement. Since killing instances is an asynchronous operation,
+		//	 	multple zk updates come through this method. This causes a race condition and runaway instance
+		//	 	creation, unless we wait until we no longer have to kill any containers, before starting up any
+		//	 	new ones.
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
 		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
 		if err != nil {
@@ -238,18 +260,15 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 		}
 		if len(hosts) == 0 {
 			glog.Warningf("Pool %s has no hosts", service.PoolID)
-			return nil
+		} else {
+			err = l.startServiceInstances(service, hosts, instancesToStart)
+			if err != nil {
+				glog.Errorf("Leader unable to start %d instances of service %s: %v", instancesToStart, service.ID, err)
+				return err
+			}
 		}
-
-		return l.startServiceInstances(service, hosts, instancesToStart)
-
-	} else if len(serviceStates) > service.Instances {
-		instancesToKill := len(serviceStates) - service.Instances
-		glog.V(2).Infof("updateServiceInstances wants to kill %d instances", instancesToKill)
-		shutdownServiceInstances(l.conn, serviceStates, instancesToKill)
 	}
 	return nil
-
 }
 
 // getFreeInstanceIDs looks up running instances of this service and returns n
@@ -320,13 +339,17 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 }
 
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
-	glog.V(1).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
-	for i := 0; i < numToKill; i++ {
-		glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
-		serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-		err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
-		if err != nil {
-			glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
+	glog.V(2).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
+	maxId := len(serviceStates) - numToKill - 1
+	for i := 0; i < len(serviceStates); i++ {
+		// Kill all instances with an ID > maxId - leaving instances with IDs [0 - Instances-1] running
+		if serviceStates[i].InstanceID > maxId {
+			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
+			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
+			err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
+			if err != nil {
+				glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
+			}
 		}
 	}
 }

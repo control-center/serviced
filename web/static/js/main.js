@@ -1209,7 +1209,7 @@ function aggregateVhosts( service) {
       if (endpoint.VHosts) {
         for ( var j in endpoint.VHosts) {
           var name = endpoint.VHosts[j];
-          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.Id};
+          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.ID};
           vhosts.push( vhost);
         }
       }
@@ -1237,7 +1237,7 @@ function aggregateAddressAssigments( service, api) {
           'PoolID': endpoint.AddressAssignment.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
           'Port': endpoint.AddressConfig.Port,
-          'ServiceID': service.Id,
+          'ServiceID': service.ID,
           'ServiceName': service.Name
         };
         api.get_host( assignment.HostID, function(data) {
@@ -1263,7 +1263,7 @@ function aggregateVhostOptions( service) {
       var endpoint = service.Endpoints[i];
       if (endpoint.VHosts) {
         var option = {
-          ServiceID:service.Id,
+          ServiceID:service.ID,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };

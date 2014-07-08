@@ -20,6 +20,7 @@ type ServiceDefinition struct {
 	Tags              []string               // Searchable service tags
 	ImageID           string                 // Docker image hosting the service
 	Instances         domain.MinMax          // Constraints on the number of instances
+	ChangeOptions     []string               // Control options for what happens when a running service is changed
 	Launch            string                 // Must be "AUTO", the default, or "MANUAL"
 	HostPolicy        HostPolicy             // Policy for starting up instances
 	Hostname          string                 // Optional hostname which should be set on run
@@ -54,6 +55,7 @@ type EndpointDefinition struct {
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
+	PortTemplate        string // A template which, if specified, is used to calculate the port number
 	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
 	Application         string
 	ApplicationTemplate string

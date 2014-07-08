@@ -38,12 +38,12 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         for (var key in $scope.services.mapped) {
             var service = $scope.services.mapped[key];
             states[states.length] = {
-                id: service.Id,
+                id: service.ID,
                 value: { label: service.Name}
             };
 
-            if(!nodeClasses[service.Id]){
-                nodeClasses[service.Id] = 'service notrunning';
+            if(!nodeClasses[service.ID]){
+                nodeClasses[service.ID] = 'service notrunning';
             }
 
             if (service.ParentServiceID !== '') {
