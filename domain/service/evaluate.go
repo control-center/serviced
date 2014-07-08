@@ -189,7 +189,7 @@ func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildServi
 	return
 }
 
-// EvaluateHealthCheckTemplate parses and evals the Script field for each Prereq.
+// EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
 func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	glog.V(3).Infof("Evaluating HealthCheck scripts for %s:%d", service.ID, instanceID)
 	for key, healthcheck := range service.HealthChecks {
