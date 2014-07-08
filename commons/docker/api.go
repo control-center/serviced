@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 )
@@ -235,7 +236,7 @@ func (c *Container) Kill() error {
 }
 
 // Inspect returns information about the container specified by id.
-func (c Container) Inspect() (*dockerclient.Container, error) {
+func (c *Container) Inspect() (*dockerclient.Container, error) {
 	ec := make(chan error)
 	rc := make(chan *dockerclient.Container)
 
@@ -253,7 +254,9 @@ func (c Container) Inspect() (*dockerclient.Container, error) {
 	case err, ok := <-ec:
 		switch {
 		case !ok:
-			return <-rc, nil
+			dcc := <-rc
+			c.Container = dcc
+			return dcc, nil
 		default:
 			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
@@ -311,6 +314,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 	}
 
 	ec := make(chan error)
+	rc := make(chan *dockerclient.Container)
 
 	cmds.Start <- startreq{
 		request{ec},
@@ -319,6 +323,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 			hostConfig *dockerclient.HostConfig
 			action     ContainerActionFunc
 		}{c.ID, &c.HostConfig, onstart},
+		rc,
 	}
 
 	select {
@@ -329,6 +334,8 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 	case err, ok := <-ec:
 		switch {
 		case !ok:
+			dcc := <-rc
+			c.Container = dcc
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
@@ -462,6 +469,7 @@ func ImportImage(repotag, filename string) error {
 // FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {
+	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull {
 		err := pullImage(repotag)
 		if err != nil {
@@ -586,8 +594,18 @@ func lookupImage(repotag string) (*Image, error) {
 		return nil, err
 	}
 
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(iid.Tag) == 0 {
+		repotag = repotag + ":latest"
+	}
+
 	for _, img := range imgs {
 		if img.ID.String() == repotag {
+			glog.V(1).Info("found: ", repotag)
 			return img, nil
 		}
 	}

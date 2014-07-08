@@ -23,6 +23,7 @@ const (
 	imptag     = "testimageapi/imported:latest"
 	snaptag    = "localhost:5000/testimageapi/busybox:snapshot"
 	victim     = "localhost:5000/testimageapi/busybox:victim"
+	bareimg    = "localhost:5000/testimageapi/busyb"
 )
 
 func TestImageAPI(t *testing.T) {
@@ -139,6 +140,9 @@ func (s *ImageTestSuite) TearDownSuite(c *C) {
 	cmd = []string{"docker", "rmi", rawbase}
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
+	cmd = []string{"docker", "rmi", bareimg}
+	exec.Command(cmd[0], cmd[1:]...).Run()
+
 	cmd = []string{"rm", "/tmp/regexp.tar"}
 	exec.Command(cmd[0], cmd[1:]...).Run()
 }
@@ -193,6 +197,23 @@ func (s *ImageTestSuite) TestDoubleTagImage(c *C) {
 	_, err = FindImage(st.ID.String(), false)
 	if err != nil {
 		c.Fatalf("can't find %s: %v", snaptag, err)
+	}
+}
+
+func (s *ImageTestSuite) TestBareTag(c *C) {
+	img, err := FindImage(rawbase, true)
+	if err != nil {
+		c.Fatalf("can't find %s: %v", rawbase, err)
+	}
+
+	bi, err := img.Tag(bareimg)
+	if err != nil {
+		c.Fatalf("can't tag %s as %s: %v", rawbase, bareimg, err)
+	}
+
+	_, err = FindImage(bi.ID.String(), false)
+	if err != nil {
+		c.Fatalf("can't find %s: %v", bi.ID, err)
 	}
 }
 

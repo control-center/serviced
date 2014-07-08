@@ -169,7 +169,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 		_, err = docker.FindImage(name, false)
 		if err != nil {
-			if err != dockerclient.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
+			if err != docker.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
 				return err
 			}

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/zenoss/serviced/commons"
 )
@@ -164,6 +165,7 @@ type startreq struct {
 		hostConfig *dockerclient.HostConfig
 		action     ContainerActionFunc
 	}
+	respchan chan *dockerclient.Container
 }
 
 type stopreq struct {
@@ -304,6 +306,8 @@ KernelLoop:
 			}
 
 			eventactions[event][req.args.id] = req.args.action
+
+			glog.V(1).Info("added action for: ", event)
 			close(req.errchan)
 		case req := <-cmds.CancelAction:
 			event := req.args.event
@@ -314,6 +318,8 @@ KernelLoop:
 			}
 
 			delete(eventactions[event], req.args.id)
+
+			glog.V(1).Info("removed action for: ", event)
 			close(req.errchan)
 		case req := <-cmds.Commit:
 			// TODO: this may need to be shifted to the scheduler if commits take too long
@@ -321,8 +327,12 @@ KernelLoop:
 				Container:  req.args.containerID,
 				Repository: req.args.imageID.BaseName(),
 			}
+
+			glog.V(1).Infof("commit container %s (%#v)", req.args.containerID, opts)
+
 			img, err := dc.CommitContainer(opts)
 			if err != nil {
+				glog.V(1).Infof("unable to commit container %s: %v", req.args.containerID, err)
 				req.errchan <- err
 				continue
 			}
@@ -332,23 +342,29 @@ KernelLoop:
 		case req := <-cmds.Create:
 			ci <- req
 		case req := <-cmds.Delete:
+			glog.V(1).Infof("removing container %#v", req.args.removeOptions)
 			err := dc.RemoveContainer(req.args.removeOptions)
 			if err != nil {
+				glog.V(1).Infof("unable to remove %#v: %v", req.args.removeOptions, err)
 				req.errchan <- err
 				continue
 			}
 			close(req.errchan)
 		case req := <-cmds.DeleteImage:
+			glog.V(1).Info("removing image: ", req.args.repotag)
 			err := dc.RemoveImage(req.args.repotag)
 			if err != nil {
+				glog.V(1).Infof("unable to remove %s: %v", req.args.repotag, err)
 				req.errchan <- err
 				continue
 			}
 			close(req.errchan)
 		case req := <-cmds.Export:
 			// TODO: this may need to be shifted to the scheduler, exporting takes some time
+			glog.V(1).Info("exporting container: ", req.args.id)
 			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
 			if err != nil {
+				glog.V(1).Infof("unable to export container %s: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
@@ -356,6 +372,7 @@ KernelLoop:
 			close(req.errchan)
 		case req := <-cmds.ImageImport:
 			// TODO: this may need to be shifted to the scheduler, importing takes some time
+			glog.V(1).Infof("importing image %s from %s", req.args.repotag, req.args.filename)
 			f, err := os.Open(req.args.filename)
 			if err != nil {
 				req.errchan <- err
@@ -377,14 +394,17 @@ KernelLoop:
 			}
 
 			if err = dc.ImportImage(opts); err != nil {
+				glog.V(1).Infof("unable to import %s: %v", req.args.repotag, err)
 				req.errchan <- err
 				continue
 			}
 
 			close(req.errchan)
 		case req := <-cmds.ImageList:
+			glog.V(1).Info("retrieving image list")
 			imgs, err := dc.ListImages(false)
 			if err != nil {
+				glog.V(1).Infof("unable to retrieve image list: ", err)
 				req.errchan <- err
 				continue
 			}
@@ -407,26 +427,34 @@ KernelLoop:
 				}
 			}
 
+			glog.V(1).Infof("retrieved image list: %+v", resp)
+
 			close(req.errchan)
 			req.respchan <- resp
 		case req := <-cmds.Inspect:
+			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
+				glog.V(1).Infof("unable to inspect container %s: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
 			close(req.errchan)
 			req.respchan <- ctr
 		case req := <-cmds.Kill:
+			glog.V(1).Info("killing container: ", req.args.id)
 			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGKILL})
 			if err != nil {
+				glog.V(1).Infof("unable to kill container %s: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
 			close(req.errchan)
 		case req := <-cmds.List:
+			glog.V(1).Info("retrieving list of containers")
 			apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
 			if err != nil {
+				glog.V(1).Infof("unable to retrieve list of containers: %v", err)
 				req.errchan <- err
 				continue
 			}
@@ -438,13 +466,16 @@ KernelLoop:
 				}
 				resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
 			}
+			glog.V(1).Infof("retreived list of containers: %+v", resp)
 			close(req.errchan)
 			req.respchan <- resp
 		case req := <-cmds.OnEvent:
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
+				glog.V(1).Info("executing wildcard action for event: ", req.args.event)
 				go wcaction(req.args.id)
 			}
 			if action, ok := eventactions[req.args.event][req.args.id]; ok {
+				glog.V(1).Infof("executing action for %s on %s", req.args.event, req.args.id)
 				go action(req.args.id)
 			}
 			close(req.errchan)
@@ -452,8 +483,10 @@ KernelLoop:
 			ppi <- req
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
+			glog.V(1).Info("restarting container: ", req.args.id)
 			err := dc.RestartContainer(req.args.id, req.args.timeout)
 			if err != nil {
+				glog.V(1).Infof("unable to restart container %s: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
@@ -462,6 +495,7 @@ KernelLoop:
 			// check to see if the container is already running
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
+				glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
@@ -474,15 +508,19 @@ KernelLoop:
 			// schedule the start only if the container is not running
 			si <- req
 		case req := <-cmds.Stop:
+			glog.V(1).Info("stopping container: ", req.args.id)
 			err := dc.StopContainer(req.args.id, req.args.timeout)
 			if err != nil {
+				glog.V(1).Infof("unable to stop container %s: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
 			close(req.errchan)
 		case req := <-cmds.TagImage:
+			glog.V(1).Infof("tagging image %s as: %s", req.args.repo, req.args.tag)
 			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
 			if err != nil {
+				glog.V(1).Infof("unable to tag image %s: %v", req.args.repo, err)
 				req.errchan <- err
 				continue
 			}
@@ -509,11 +547,14 @@ KernelLoop:
 			}
 
 			close(req.errchan)
+			glog.V(1).Infof("image %s tagged: %+v", &Image{req.args.uuid, *iid})
 			req.respchan <- &Image{req.args.uuid, *iid}
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
+				glog.V(1).Infof("waiting for container %s to finish", req.args.id)
 				rc, err := dc.WaitContainer(req.args.id)
 				if err != nil {
+					glog.V(1).Infof("wait for container %s failed: %v", req.args.id, err)
 					req.errchan <- err
 				}
 				close(req.errchan)
@@ -545,20 +586,26 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				continue
 			}
 
-			err = dc.PullImage(
-				dockerclient.PullImageOptions{
-					Repository: iid.BaseName(),
-					Registry:   iid.Registry(),
-					Tag:        iid.Tag,
-				},
-				dockerclient.AuthConfiguration{})
-			if err != nil {
-				req.errchan <- err
-				continue
+			if !noregistry {
+				glog.V(1).Infof("pulling image %s prior to creating a container from it", iid.String())
+				err = dc.PullImage(
+					dockerclient.PullImageOptions{
+						Repository: iid.BaseName(),
+						Registry:   iid.Registry(),
+						Tag:        iid.Tag,
+					},
+					dockerclient.AuthConfiguration{})
+				if err != nil {
+					glog.V(0).Infof("unable to pull image %s: %v", iid.String(), err)
+					req.errchan <- err
+					continue
+				}
 			}
 
+			glog.V(1).Infof("creating container: %#v", *req.args.containerOptions)
 			ctr, err := dc.CreateContainer(*req.args.containerOptions)
 			if err != nil {
+				glog.V(1).Infof("container creation failed %#v: %v", *req.args.containerOptions, err)
 				req.errchan <- err
 			}
 
@@ -583,14 +630,25 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					return nil
 				})
 
+				glog.V(1).Infof("post creation start of %s: %+v", ctr.ID, req.args.hostConfig)
 				err = dc.StartContainer(ctr.ID, req.args.hostConfig)
 				if err != nil {
+					glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
+					req.errchan <- err
+					continue
+				}
+
+				glog.V(1).Infof("update container %s state post start", ctr.ID)
+				ctr, err = dc.InspectContainer(ctr.ID)
+				if err != nil {
+					glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
 					req.errchan <- err
 					continue
 				}
 
 				select {
 				case <-sc:
+					glog.V(2).Infof("container %s is started", ctr.ID)
 				case <-time.After(60 * time.Second):
 					req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
 					continue
@@ -607,8 +665,18 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				break
 			}
 		case req := <-src:
+			glog.V(1).Infof("starting container %s: %+v", req.args.id, req.args.hostConfig)
 			err := dc.StartContainer(req.args.id, req.args.hostConfig)
 			if err != nil {
+				glog.V(1).Infof("unable to start %s: %v", req.args.id, err)
+				req.errchan <- err
+				continue
+			}
+
+			glog.V(1).Infof("update container %s state post start", req.args.id)
+			ctr, err := dc.InspectContainer(req.args.id)
+			if err != nil {
+				glog.V(1).Infof("failed to update container %s state post start: %v", req.args.id, err)
 				req.errchan <- err
 				continue
 			}
@@ -618,9 +686,18 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 			}
 
 			close(req.errchan)
+
+			// don't hang around forever waiting for the caller to get the result
+			select {
+			case req.respchan <- ctr:
+				break
+			case <-time.After(10 * time.Millisecond):
+				break
+			}
 		case req := <-pprc:
 			switch req.args.op {
 			case pullop:
+				glog.V(1).Info("pulling image: ", req.args.reponame)
 				opts := dockerclient.PullImageOptions{
 					Repository: req.args.reponame,
 					Registry:   req.args.registry,
@@ -629,12 +706,14 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 				err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
 				if err != nil {
+					glog.V(1).Infof("failed to pull %s: %v", req.args.reponame, err)
 					req.errchan <- err
 					continue
 				}
 
 				close(req.errchan)
 			case pushop:
+				glog.V(1).Info("pushing image: ", req.args.reponame)
 				opts := dockerclient.PushImageOptions{
 					Name:     req.args.reponame,
 					Registry: req.args.registry,
@@ -643,6 +722,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 				err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 				if err != nil {
+					glog.V(1).Infof("failed to push %s: %v", req.args.reponame, err)
 					req.errchan <- err
 					continue
 				}
@@ -654,6 +734,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				close(req.errchan)
+				glog.V(1).Infof("pushed %#v", &Image{req.args.uuid, *iid})
 				req.respchan <- &Image{req.args.uuid, *iid}
 			}
 		case <-done:

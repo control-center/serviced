@@ -498,7 +498,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 	glog.V(3).Infof(">>> CreateContainerOptions:\n%s", string(cjson))
 
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
-	glog.V(2).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
+	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
 	cd := &docker.ContainerDefinition{
 		dockerclient.CreateContainerOptions{Name: serviceState.ID, Config: config},
