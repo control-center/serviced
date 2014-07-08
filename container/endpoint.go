@@ -293,7 +293,7 @@ func setImportedEndpoint(importedEndpoints *map[string]importedEndpoint, tenantI
 	ie.port = port
 	key := registry.TenantEndpointKey(tenantID, endpointID)
 	(*importedEndpoints)[key] = ie
-	glog.V(2).Infof("  cached imported endpoint[%s]: %+v", key, ie)
+	glog.Infof("  cached imported endpoint[%s]: %+v", key, ie)
 }
 
 func (c *Controller) getMatchingEndpoint(id string) *importedEndpoint {
@@ -446,7 +446,12 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
 			}
 			endpoints[ii] = &endpointNode.ApplicationEndpoint
-			endpoints[ii].ContainerPort = ep.port
+			if ep.port != 0 {
+				glog.V(2).Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				endpoints[ii].ContainerPort = ep.port
+			} else {
+				glog.Infof("not overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+			}
 		}
 
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)

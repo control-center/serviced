@@ -140,7 +140,7 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
@@ -150,10 +150,22 @@ func (a *HostAgent) GetHealthCheck(serviceId string, healthChecks *map[string]do
 	defer controlClient.Close()
 
 	var svc service.Service
-	err = controlClient.GetService(serviceId, &svc)
+	err = controlClient.GetService(req.ServiceID, &svc)
 	if err != nil {
 		return err
 	}
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.GetService(svcID, &svc)
+		return svc, err
+	}
+
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
 	*healthChecks = svc.HealthChecks
 	return nil
 }

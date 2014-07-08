@@ -20,7 +20,7 @@
 //
 //         /<endpoint key>                      "tenantID_localhost_zenhubXMLRpc"
 //             /<hostID_containerID:zenhub>
-//                 |--<ApplicationEndpoint>         {tcp/8781}
+//                 |--<ApplicationEndpoint>         {tcp/8081}
 //
 //         /<endpoint key>                      "tenantID_zodb_mysql"
 //             /<hostID_containerID:mysql>

@@ -16,16 +16,18 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
 )
 
 type leader struct {
-	facade  *facade.Facade
-	dao     dao.ControlPlane
-	conn    coordclient.Connection
-	context datastore.Context
-	poolID  string
+	facade       *facade.Facade
+	dao          dao.ControlPlane
+	conn         coordclient.Connection
+	context      datastore.Context
+	poolID       string
+	hostRegistry *zkservice.HostRegistryListener
 }
 
 // Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
@@ -37,11 +39,13 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 
-	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID}
+	hostRegistry := zkservice.NewHostRegistryListener(conn)
+	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
 	for {
 		shutdown := make(chan interface{})
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
+			close(shutdown)
 			break
 		}
 
@@ -62,6 +66,10 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 			snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
 			go snapshotListener.Listen(shutdown)
 			leader.watchServices()
+
+			// starts a listener for the host registry
+			go hostRegistry.Listen(shutdown)
+
 			return nil
 		}()
 	}
@@ -80,6 +88,7 @@ func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 	return label, err
 }
 
+// TODO: Move me into the zzk
 func (l *leader) watchServices() {
 	conn := l.conn
 	processing := make(map[string]chan int)
@@ -140,6 +149,7 @@ func (l *leader) watchServices() {
 	}
 }
 
+// TODO: Move me into zzk
 func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID string) {
 	conn := l.conn
 	defer func() {
@@ -207,6 +217,7 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 	}
 }
 
+// TODO: move me into zzk
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
 	// pick services instances to start
 	instancesToKill := 0
@@ -231,7 +242,7 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 		//	 	creation, unless we wait until we no longer have to kill any containers, before starting up any
 		//	 	new ones.
 		glog.V(2).Infof("updateServiceInstances wants to start %d instances", instancesToStart)
-		hosts, err := l.facade.FindHostsInPool(l.context, service.PoolID)
+		hosts, err := l.hostRegistry.GetHosts()
 		if err != nil {
 			glog.Errorf("Leader unable to acquire hosts for pool %s: %v", service.PoolID, err)
 			return err
@@ -249,6 +260,7 @@ func (l *leader) updateServiceInstances(service *service.Service, serviceStates 
 	return nil
 }
 
+// TODO: move me into zzk
 // getFreeInstanceIDs looks up running instances of this service and returns n
 // unused instance ids.
 // Note: getFreeInstanceIDs does NOT validate that instance ids do not exceed
@@ -279,6 +291,8 @@ func getFreeInstanceIDs(conn coordclient.Connection, svc *service.Service, n int
 	}
 	return ids, nil
 }
+
+// TODO: move me into zzk
 func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host, numToStart int) error {
 	glog.V(1).Infof("Starting %d instances, choosing from %d hosts", numToStart, len(hosts))
 
@@ -316,6 +330,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 	return nil
 }
 
+// TODO: move me into zzk
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(2).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	maxId := len(serviceStates) - numToKill - 1

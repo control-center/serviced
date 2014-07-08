@@ -470,6 +470,7 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 	for _ = range time.Tick(1 * time.Second) {
 		failedAny := false
 		for _, script := range c.prereqs {
+			glog.Infof("Running command: %s", script.Script)
 			cmd := exec.Command("sh", "-c", script.Script)
 			err := cmd.Run()
 			if err != nil {
@@ -498,7 +499,14 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	}
 	defer client.Close()
 	var healthChecks map[string]domain.HealthCheck
-	err = client.GetHealthCheck(c.options.Service.ID, &healthChecks)
+
+	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
+	if err != nil {
+		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
+		return nil
+	}
+	err = client.GetHealthCheck(node.HealthCheckRequest{
+		c.options.Service.ID, instanceID}, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
 		return nil
@@ -506,6 +514,7 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	for key, mapping := range healthChecks {
 		glog.Infof("Kicking off health check %s.", key)
 		exitChannels[key] = make(chan bool)
+		glog.Infof("Setting up health check: %s", mapping.Script)
 		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
 	}
 	return exitChannels
