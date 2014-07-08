@@ -9,6 +9,7 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"runtime"
 	"text/template"
 )
 
@@ -280,44 +281,53 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
-func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) error {
-	if err := service.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
+func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
+	if err = service.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateLogConfigTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateLogConfigTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateConfigFilesTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateConfigFilesTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateStartupTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateStartupTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateRunsTemplate(getSvc, findChild); err != nil {
+	if err = service.EvaluateRunsTemplate(getSvc, findChild); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateActionsTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateActionsTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateHostnameTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateHostnameTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateVolumesTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateVolumesTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluatePrereqsTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluatePrereqsTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err := service.EvaluateHealthCheckTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateHealthCheckTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}

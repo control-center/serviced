@@ -348,3 +348,17 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 		t.Errorf("Not expecting a match")
 	}
 }
+
+func (s *S) TestIllegalTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+
+	svc := Service{
+		Startup: "{{}",
+	}
+
+	err = svc.Evaluate(s.getSVC, s.findChild, 0)
+	if err == nil {
+		t.Errorf("Expecting error for invalid startup template")
+	}
+}
