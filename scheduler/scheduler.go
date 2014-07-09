@@ -110,7 +110,7 @@ func (s *scheduler) loop() {
 		}
 
 		hostNode := hostNodeT{HostID: s.instance_id}
-		leader := poolBasedConn.NewLeader("/scheduler", &hostNode)
+		leader := poolBasedConn.NewLeader(zzk.SCHEDULER_PATH, &hostNode)
 		events, err := leader.TakeLead()
 		if err != nil {
 			glog.Error("could not take lead: ", err)

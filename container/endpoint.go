@@ -339,7 +339,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
-	zkConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.zkInfo.PoolID))
+	zkConn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
