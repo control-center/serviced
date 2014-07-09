@@ -51,19 +51,19 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/api",
-			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/cluster",
-			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/core",
-			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/search",
-			"Rev": "041b88c1fcf6489a5721ede24378ce1253b9159d"
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
