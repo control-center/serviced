@@ -21,22 +21,22 @@ SUBPRODUCT    = subproduct
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot_$(NAME)
 
-ifneq ("$(BUILD_NUMBER)", "")
-PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
-else
+ifeq "$(BUILD_NUMBER)" ""
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
+else
+PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
 endif
 
-ifneq ("$(FROMVERSION)", "")
-DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
-else
+ifeq "$(FROMVERSION)" ""
 DEB_PKG_VERSION=$(PKG_VERSION)
+else
+DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
 endif
 
-ifneq ("$(SUBPRODUCT)", "")
-FULL_NAME=$(NAME)-$(SUBPRODUCT)
-else
+ifeq "$(SUBPRODUCT)" ""
 FULL_NAME=$(NAME)
+else
+FULL_NAME=$(NAME)-$(SUBPRODUCT)
 endif
 
 define DESCRIPTION
@@ -120,7 +120,7 @@ deb: stage_deb
 		-d serviced \
 		-t deb \
 		-a noarch \
-		-C pkgroot \
+		-C $(PKGROOT) \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
 		--deb-user root \
@@ -136,7 +136,7 @@ rpm: stage_rpm
 		-d serviced \
 		-t rpm \
 		-a noarch \
-		-C pkgroot \
+		-C $(PKGROOT) \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
