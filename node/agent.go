@@ -32,14 +32,15 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
+	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
-	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
@@ -63,7 +64,6 @@ const (
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
-	poolID               string
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
 	hostID               string               // the hostID of the current host
@@ -76,11 +76,15 @@ type HostAgent struct {
 	closing              chan interface{}
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string           // the docker registry to use
+	dockerRegistry       string // the docker registry to use
+	facade               *facade.Facade
+	context              datastore.Context
 	periodicTasks        chan interface{} // signal for periodic tasks to stop
 	maxContainerAge      time.Duration    // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string           // subnet for virtual addresses
 }
+
+// assert that this implemenents the Agent interface
 
 func getZkDSN(zookeepers []string) string {
 	if len(zookeepers) == 0 {
@@ -101,7 +105,6 @@ var funcmap = template.FuncMap{
 }
 
 type AgentOptions struct {
-	PoolID               string
 	Master               string
 	UIPort               string
 	DockerDNS            []string
@@ -120,7 +123,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.dockerRegistry = options.DockerRegistry
-	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
 	agent.dockerDNS = options.DockerDNS
@@ -838,6 +840,7 @@ func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
+    for{
 	connc := make(chan coordclient.Connection)
 	go func() {
 		for {
@@ -882,6 +885,7 @@ func (a *HostAgent) start() {
 		return
 	default:
 		// this will not spin infinitely
+	}
 	}
 }
 
