@@ -315,6 +315,27 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 
 // register waits for the leader to initialize the host
 func (l *HostStateListener) register(shutdown <-chan interface{}) (string, error) {
+	// wait for /hosts
+	for {
+		exists, err := zkutils.PathExists(l.conn, hostpath())
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			break
+		}
+		_, event, err := l.conn.ChildrenW("/")
+		if err != nil {
+			return "", err
+		}
+		select {
+		case <-event:
+		case <-shutdown:
+			return "", ErrShutdown
+		}
+	}
+
+	// wait for /hosts/HOSTID
 	for {
 		exists, err := zkutils.PathExists(l.conn, hostpath(l.hostID))
 		if err != nil {
