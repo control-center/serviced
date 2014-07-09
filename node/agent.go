@@ -878,6 +878,7 @@ func (a *HostAgent) start() {
 				go func() {
 					defer wg.Done()
 					virtualips.WatchVirtualIPs(conn, a.closing)
+					glog.Info("virtual IP watch is done")
 				}()
 
 				// watch docker action nodes
@@ -886,6 +887,7 @@ func (a *HostAgent) start() {
 					defer wg.Done()
 					actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
 					actionListener.Listen(a.closing)
+					glog.Info("action listener is done")
 				}()
 
 				if hsListener == nil {
@@ -898,6 +900,7 @@ func (a *HostAgent) start() {
 				go func() {
 					defer wg.Done()
 					hsListener.Listen(a.closing)
+					glog.Info("host listener is done")
 				}()
 
 				glog.Info("Agent waiting for go routines")

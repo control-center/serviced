@@ -460,7 +460,7 @@ func ExampleServicedCLI_CmdServiceEdit() {
 }
 
 // Ian says: I can't make this test pass
-func _ExampleServicedCLI_CmdServiceEdit_usage() {
+func ExampleServicedCLI_CmdServiceEdit_usage() {
 	InitServiceAPITest("serviced", "service", "edit")
 
 	// Output:
