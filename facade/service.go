@@ -761,6 +761,8 @@ type zkfuncs interface {
 	removeService(svcID string) error
 	getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
 	RemoveHost(hostID string) error
+	RegisterHost(hostID string) error
+	UnregisterHost(hostID string) error
 }
 
 type zkf struct {
@@ -776,6 +778,14 @@ func (z *zkf) removeService(id string) error {
 }
 func (z *zkf) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	return z.zkDao.GetServiceStates(serviceStates, serviceIds...)
+}
+
+func (z *zkf) RegisterHost(hostID string) error {
+	return z.zkDao.RegisterHost(hostID)
+}
+
+func (z *zkf) UnregisterHost(hostID string) error {
+	return z.zkDao.UnregisterHost(hostID)
 }
 
 func (z *zkf) RemoveHost(hostID string) error {
