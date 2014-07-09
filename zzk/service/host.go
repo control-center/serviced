@@ -284,7 +284,7 @@ func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
-	return removeInstance(l.conn, state.HostID, state.ID)
+	return removeInstance(l.conn, state)
 }
 
 func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
@@ -292,7 +292,7 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 		return err
 	}
 	<-done
-	return removeInstance(l.conn, state.HostID, state.ID)
+	return removeInstance(l.conn, state)
 }
 
 func (l *HostStateListener) register() (err error) {
@@ -348,16 +348,11 @@ func updateInstance(conn client.Connection, state *servicestate.ServiceState) er
 	return conn.Set(servicepath(state.ServiceID, state.ID), &ServiceStateNode{ServiceState: state})
 }
 
-func removeInstance(conn client.Connection, hostID, ssID string) error {
-	var hs HostState
-	if err := conn.Get(hostpath(hostID, ssID), &hs); err != nil {
-		return err
-	} else if err := conn.Delete(hostpath(hostID, ssID)); err != nil {
-		return err
-	} else if err := conn.Delete(servicepath(hs.ServiceID, hs.ServiceStateID)); err != nil {
-		return err
+func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {
+	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
+		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
 	}
-	return nil
+	return conn.Delete(servicepath(state.ServiceID, state.ID))
 }
 
 func StopServiceInstance(conn client.Connection, hostID, stateID string) error {

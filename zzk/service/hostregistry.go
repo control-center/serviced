@@ -148,11 +148,20 @@ func (l *HostRegistryListener) unregister(id string) error {
 		return err
 	} else if !exists {
 		return nil
-	} else if err := l.conn.Delete(hostpath(hostID)); err != nil {
+	}
+
+	stateIDs, err := l.conn.Children(hostpath(hostID))
+	if err != nil {
 		return err
 	}
 
-	return nil
+	for _, ssID := range stateIDs {
+		if err := l.conn.Delete(hostpath(hostID, ssID)); err != nil {
+			return err
+		}
+	}
+
+	return l.conn.Delete(hostpath(hostID))
 }
 
 func (l *HostRegistryListener) alert() {

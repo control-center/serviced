@@ -281,7 +281,7 @@ func TestHostStateListener_listenHostState_AttachAndDelete(t *testing.T) {
 
 	// Remove the instance and verify stopped
 	<-time.After(3 * time.Second)
-	removeInstance(conn, state.HostID, state.ID)
+	removeInstance(conn, state)
 	if ssID := <-done; ssID != state.ID {
 		t.Errorf("MISMATCH: instances do not match! (%s != %s)", state.ID, ssID)
 	} else if exists, err := zkutils.PathExists(conn, spath); err != nil {
