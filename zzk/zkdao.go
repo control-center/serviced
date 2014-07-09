@@ -10,7 +10,6 @@ import (
 
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"time"
 )
 
@@ -39,7 +38,6 @@ func GetBasePathConnection(basePath string) (coordclient.Connection, error) { //
 	}
 
 	if zClient == nil {
-		debug.PrintStack()
 		glog.Errorf("zkdao zClient has not been initialized!")
 	}
 
@@ -298,7 +296,6 @@ func LoadService(conn coordclient.Connection, serviceId string, s *service.Servi
 	err := conn.Get(ServicePath(serviceId), &sn)
 	if err != nil {
 		glog.Errorf("Unable to retrieve service %s: %v", serviceId, err)
-		debug.PrintStack()
 		return err
 	}
 	*s = *sn.Service
