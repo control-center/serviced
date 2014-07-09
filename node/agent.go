@@ -879,7 +879,7 @@ func (a *HostAgent) start() {
 		}()
 		select {
 		case <-a.closing:
-			break
+			return
 		default:
 			// this will not spin infinitely
 		}

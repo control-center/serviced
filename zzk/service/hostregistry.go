@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicestate"
 	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
@@ -143,7 +144,7 @@ func (l *HostRegistryListener) unregister(id string) error {
 	}()
 
 	// remove all the instances running on that host
-	return UnregisterHost(l.conn, l.hostmap[id])
+	return unregisterHost(l.conn, l.hostmap[id])
 }
 
 func (l *HostRegistryListener) alert() {
@@ -204,6 +205,33 @@ func registerHost(conn client.Connection, host *host.Host) (string, error) {
 
 	// create the ephemeral host
 	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+}
+
+func unregisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	stateIDs, err := conn.Children(hostpath(hostID))
+	if err != nil {
+		return err
+	}
+
+	for _, stateID := range stateIDs {
+		var hs HostState
+		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
+			continue
+		}
+		var state servicestate.ServiceState
+		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
+			continue
+		}
+		removeInstance(conn, &state)
+	}
+
+	return conn.Delete(hostpath(hostID))
 }
 
 func RegisterHost(conn client.Connection, hostID string) error {
