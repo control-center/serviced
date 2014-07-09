@@ -109,12 +109,14 @@ test_started() {
         docker ps --no-trunc |grep 'proxy $id'
         status=$?
         if [ "$status" != "0" ]; then
-            echo "Unable to find service {Name:$name ID:$id} in docker ps"
-            #echo "Output of ${SERVICED} service list:"
-            #${SERVICED} service list
-            #echo
-            #echo "Output of docker ps --no-trunc | grep -v isvcs:"
-            #docker ps --no-trunc | grep -v isvcs
+            echo "Unable to find service {Name:$name ID:$id} container in docker ps"
+            if [[ 1 = $TRY_COUNTDOWN ]]; then
+                echo "Output of ${SERVICED} service list:"
+                ${SERVICED} service list
+                echo
+                echo "Output of docker ps --no-trunc | grep -v isvcs:"
+                docker ps --no-trunc | grep -v isvcs
+            fi
             return 1
         fi
     done
@@ -163,6 +165,7 @@ retry() {
     COMMAND="$@"
     DURATION=0
     until [ ${DURATION} -ge ${TIMEOUT} ]; do
+        TRY_COUNTDOWN=$[${TIMEOUT} - ${DURATION}]
         ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
         DURATION=$[$DURATION+1]
         sleep 1
@@ -183,7 +186,7 @@ add_host                   && succeed "Added host successfully"                 
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
 start_service              && succeed "Started service"                          || fail "Unable to start service"
-retry 10 test_started      && succeed "Service started"                          || fail "Unable to start services"
+retry 10 test_started      && succeed "Service containers started"               || fail "Unable to see service containers"
 
 retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
 retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
