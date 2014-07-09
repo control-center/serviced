@@ -51,11 +51,23 @@ type HostRegistryListener struct {
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
-	return &HostRegistryListener{
-		conn:    conn,
-		hostmap: make(map[string]string),
+func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
+	return new(HostRegistryListener).init(conn)
+}
+
+func (l *HostRegistryListener) init(conn client.Connection) (*HostRegistryListener, error) {
+	regpath := hostregpath()
+	if exists, err := zkutils.PathExists(conn, regpath); err != nil {
+		glog.Errorf("Error checking path %s: %s", regpath, err)
+		return nil, err
+	} else if exists {
+		// pass
+	} else if conn.CreateDir(regpath); err != nil {
+		glog.Errorf("Error creating path %s: %s", regpath, err)
+		return nil, err
 	}
+
+	return &HostRegistryListener{conn: conn, hostmap: make(map[string]string)}, nil
 }
 
 // Listen listens for changes to /registry/hosts and updates the host list
@@ -65,20 +77,8 @@ func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
 	l.shutdown = _shutdown
 	defer close(_shutdown)
 
-	// create the path
-	regpath := hostregpath()
-	if exists, err := zkutils.PathExists(l.conn, regpath); err != nil {
-		glog.Errorf("Error checking path %s: %s", regpath, err)
-		return
-	} else if exists {
-		//pass
-	} else if l.conn.CreateDir(regpath); err != nil {
-		glog.Errorf("Error creating path %s: %s", regpath, err)
-		return
-	}
-
 	for {
-		ehosts, event, err := l.conn.ChildrenW(regpath)
+		ehosts, event, err := l.conn.ChildrenW(hostregpath())
 		if err != nil {
 			glog.Errorf("Could not watch host registry: %s", err)
 			return
@@ -148,17 +148,10 @@ func (l *HostRegistryListener) unregister(id string) error {
 		return err
 	} else if !exists {
 		return nil
-	}
-
-	ssids, err := l.conn.Children(hostpath(hostID))
-	if err != nil {
+	} else if err := l.conn.Delete(hostpath(hostID)); err != nil {
 		return err
 	}
-	for _, ssid := range ssids {
-		if err := removeInstance(l.conn, hostID, ssid); err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 

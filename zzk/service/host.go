@@ -102,9 +102,6 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 		for len(processing) > 0 {
 			delete(processing, <-done)
 		}
-		if err := l.conn.Delete(hpath); err != nil {
-			glog.Warningf("Could not clean up host %s: %s", l.host.ID, err)
-		}
 	}()
 
 	// Register the host
@@ -130,6 +127,11 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 
 		select {
 		case e := <-event:
+			if e.Type == client.EventNodeDeleted {
+				glog.Infof("Host has been removed from pool, shutting down listener")
+				l.unregister()
+				return
+			}
 			glog.V(2).Infof("Received event: %v", e)
 		case ssid := <-done:
 			glog.V(2).Info("Cleaning up %s", ssid)
