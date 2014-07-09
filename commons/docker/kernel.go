@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	dockerep = "unix:///var/run/docker.sock"
-	snr      = "SERVICED_NOREGISTRY"
-	Wildcard = "*"
+	dockerep         = "unix:///var/run/docker.sock"
+	snr              = "SERVICED_NOREGISTRY"
+	maxStartAttempts = 24
+	Wildcard         = "*"
 )
 
 const (
@@ -677,6 +678,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					}
 
 					glog.V(0).Infof("======= wait for %s to start =======", ctr.ID)
+					attempts := 0
 
 				WaitForContainerStart:
 					for {
@@ -701,14 +703,18 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 								return
 							}
 
-							if !ctr.State.Running {
+							switch {
+							case !ctr.State.Running && attempts > maxStartAttempts:
 								glog.V(0).Infof("timed out starting container")
 								req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
+								return
+							case !ctr.State.Running:
+								attempts = attempts + 1
 								continue WaitForContainerStart
+							default:
+								glog.V(0).Infof("container %s is running", ctr.ID)
+								break WaitForContainerStart
 							}
-
-							glog.V(0).Infof("container %s is running", ctr.ID)
-							break WaitForContainerStart
 						}
 					}
 				}
