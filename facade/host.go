@@ -54,8 +54,8 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
 
-	if err == nil {
-		err = zkAPI(f.zkDao).RegisterHost(entity.ID)
+	if err = zkAPI(f).RegisterHost(entity); err != nil {
+		return err
 	}
 
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
@@ -87,7 +87,15 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
 	if err == nil {
-		err = zkAPI(f.zkDao).UnregisterHost(hostID)
+		myHost, err := f.GetHost(ctx, hostID)
+		if err != nil {
+			return err
+		}
+		if myHost == nil {
+			glog.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
+			return fmt.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
+		}
+		err = zkAPI(f).UnregisterHost(myHost)
 	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err

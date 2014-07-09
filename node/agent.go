@@ -32,15 +32,14 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/proxy"
+	"github.com/zenoss/serviced/rpc/master"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/volume"
 	"github.com/zenoss/serviced/zzk"
@@ -64,6 +63,7 @@ const (
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
+	poolID               string
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
 	hostID               string               // the hostID of the current host
@@ -76,15 +76,11 @@ type HostAgent struct {
 	closing              chan interface{}
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string // the docker registry to use
-	facade               *facade.Facade
-	context              datastore.Context
+	dockerRegistry       string           // the docker registry to use
 	periodicTasks        chan interface{} // signal for periodic tasks to stop
 	maxContainerAge      time.Duration    // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string           // subnet for virtual addresses
 }
-
-// assert that this implemenents the Agent interface
 
 func getZkDSN(zookeepers []string) string {
 	if len(zookeepers) == 0 {
@@ -105,6 +101,7 @@ var funcmap = template.FuncMap{
 }
 
 type AgentOptions struct {
+	PoolID               string
 	Master               string
 	UIPort               string
 	DockerDNS            []string
@@ -123,6 +120,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.dockerRegistry = options.DockerRegistry
+	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
 	agent.dockerDNS = options.DockerDNS
@@ -141,10 +139,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 		return nil, err
 	}
 	agent.zkClient = zkClient
-
-	zkdao := zzk.NewZkDao(zkClient)
-	agent.facade = facade.New(zkdao, agent.dockerRegistry)
-	agent.context = datastore.Get()
 
 	agent.closing = make(chan interface{})
 	hostID, err := utils.HostID()
@@ -183,7 +177,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 // Use the Context field of the given template to fill in all the templates in
 // the Command fields of the template's ServiceDefinitions
 func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp dao.ControlPlane) error {
-
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := cp.GetService(svcID, &svc)
@@ -208,7 +201,6 @@ func (a *HostAgent) Shutdown() {
 
 // AttachService attempts to attach to a running container
 func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
-
 	// get docker status
 	containerState, err := getDockerState(serviceState.DockerID)
 	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
@@ -263,7 +255,6 @@ func reapContainers(client *dockerclient.Client, maxAge time.Duration) error {
 }
 
 func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
-
 	for {
 		select {
 		case <-time.After(interval):
@@ -847,7 +838,17 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 }
 
 func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
-	return a.facade.GetHost(a.context, hostID)
+	rpcMaster, err := master.NewClient(a.master)
+	if err != nil {
+		glog.Errorf("Failed to get RPC master: %v", err)
+		return nil, err
+	}
+	myHost, err := rpcMaster.GetHost(hostID)
+	if err != nil {
+		glog.Errorf("Could not get host %s: %s", hostID, err)
+		return nil, err
+	}
+	return myHost, nil
 }
 
 // main loop of the HostAgent
@@ -857,7 +858,7 @@ func (a *HostAgent) start() {
 		connc := make(chan coordclient.Connection)
 		go func() {
 			for {
-				c, err := a.zkClient.GetConnection()
+				c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
 				if err == nil {
 					connc <- c
 					return

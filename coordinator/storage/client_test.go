@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
 	"fmt"
@@ -17,9 +18,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-
 	zookeeper.EnsureZkFatjar()
-	basePath := "/basePath"
+	basePath := ""
 	tc, err := zklib.StartTestCluster(1)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
@@ -35,9 +35,11 @@ func TestClient(t *testing.T) {
 		t.Fatal("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
-	zclient, err := client.New("zookeeper", dsn, basePath, nil)
+	zClient, err := client.New("zookeeper", dsn, basePath, nil)
 
-	conn, err := zclient.GetConnection()
+	zzk.InitializeGlobalCoordClient(zClient)
+
+	conn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}
@@ -45,6 +47,7 @@ func TestClient(t *testing.T) {
 	h := host.New()
 	h.ID = "nodeID"
 	h.IPAddr = "192.168.1.5"
+	h.PoolID = "default1"
 	defer func(old func(string, os.FileMode) error) {
 		mkdirAll = old
 	}(mkdirAll)
@@ -53,14 +56,16 @@ func TestClient(t *testing.T) {
 		t.Fatalf("could not create tempdir: %s", err)
 	}
 	defer os.RemoveAll(dir)
-	c, err := NewClient(h, zclient, dir)
+	c, err := NewClient(h, dir)
 	if err != nil {
 		t.Fatalf("unexpected error creating client: %s", err)
 	}
 	defer c.Close()
 	time.Sleep(time.Second * 5)
 
-	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
+	// the connection client is added under the h's poolID, but this connection is based by root,
+	// therefore, we need to check that the client was added under the pool from root
+	nodePath := fmt.Sprintf("/pools/%v/storage/clients/%s", h.PoolID, h.IPAddr)
 	glog.Infof("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {
 		t.Fatalf("did not expect error checking for existence of %s: %s", nodePath, err)
