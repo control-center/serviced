@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/domain/servicestate"
 	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
@@ -15,9 +16,9 @@ const (
 )
 
 var (
-	ErrHostNotInitialized   = errors.New("host not initialized")
-	ErrHostInvalid          = errors.New("invalid host")
-	ErrHostRegistryShutdown = errors.New("host registry shut down")
+	ErrHostNotInitialized = errors.New("host not initialized")
+	ErrHostInvalid        = errors.New("invalid host")
+	ErrShutdown           = errors.New("listener shut down")
 )
 
 func hostregpath(nodes ...string) string {
@@ -51,11 +52,23 @@ type HostRegistryListener struct {
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
-	return &HostRegistryListener{
-		conn:    conn,
-		hostmap: make(map[string]string),
+func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
+	return new(HostRegistryListener).init(conn)
+}
+
+func (l *HostRegistryListener) init(conn client.Connection) (*HostRegistryListener, error) {
+	regpath := hostregpath()
+	if exists, err := zkutils.PathExists(conn, regpath); err != nil {
+		glog.Errorf("Error checking path %s: %s", regpath, err)
+		return nil, err
+	} else if exists {
+		// pass
+	} else if conn.CreateDir(regpath); err != nil {
+		glog.Errorf("Error creating path %s: %s", regpath, err)
+		return nil, err
 	}
+
+	return &HostRegistryListener{conn: conn, hostmap: make(map[string]string)}, nil
 }
 
 // Listen listens for changes to /registry/hosts and updates the host list
@@ -65,20 +78,8 @@ func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
 	l.shutdown = _shutdown
 	defer close(_shutdown)
 
-	// create the path
-	regpath := hostregpath()
-	if exists, err := zkutils.PathExists(l.conn, regpath); err != nil {
-		glog.Errorf("Error checking path %s: %s", regpath, err)
-		return
-	} else if exists {
-		//pass
-	} else if l.conn.CreateDir(regpath); err != nil {
-		glog.Errorf("Error creating path %s: %s", regpath, err)
-		return
-	}
-
 	for {
-		ehosts, event, err := l.conn.ChildrenW(regpath)
+		ehosts, event, err := l.conn.ChildrenW(hostregpath())
 		if err != nil {
 			glog.Errorf("Could not watch host registry: %s", err)
 			return
@@ -143,23 +144,7 @@ func (l *HostRegistryListener) unregister(id string) error {
 	}()
 
 	// remove all the instances running on that host
-	hostID := l.hostmap[id]
-	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
-		return err
-	} else if !exists {
-		return nil
-	}
-
-	ssids, err := l.conn.Children(hostpath(hostID))
-	if err != nil {
-		return err
-	}
-	for _, ssid := range ssids {
-		if err := removeInstance(l.conn, hostID, ssid); err != nil {
-			return err
-		}
-	}
-	return nil
+	return unregisterHost(l.conn, l.hostmap[id])
 }
 
 func (l *HostRegistryListener) alert() {
@@ -187,7 +172,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			case <-eventW:
 				// pass
 			case <-l.shutdown:
-				return nil, ErrHostRegistryShutdown
+				return nil, ErrShutdown
 			}
 		} else {
 			break
@@ -220,4 +205,51 @@ func registerHost(conn client.Connection, host *host.Host) (string, error) {
 
 	// create the ephemeral host
 	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+}
+
+func unregisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	stateIDs, err := conn.Children(hostpath(hostID))
+	if err != nil {
+		return err
+	}
+
+	for _, stateID := range stateIDs {
+		var hs HostState
+		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
+			continue
+		}
+		var state servicestate.ServiceState
+		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
+			continue
+		}
+		removeInstance(conn, &state)
+	}
+
+	return conn.Delete(hostpath(hostID))
+}
+
+func RegisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if exists {
+		return nil
+	}
+
+	return conn.CreateDir(hostpath(hostID))
+}
+
+func UnregisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	return conn.Delete(hostpath(hostID))
 }
