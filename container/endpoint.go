@@ -115,7 +115,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 // getEndpoints builds exportedEndpoints and importedEndpoints
 func (c *Controller) getEndpoints(service *service.Service) error {
 	var err error
-	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
+	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Invalid zk info: %v", err)
 		return err //ErrInvalidZkInfo

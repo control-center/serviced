@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
@@ -26,7 +25,6 @@ import (
 type ServiceConfig struct {
 	bindPort    string
 	agentPort   string
-	zkClient    *coordclient.Client
 	stats       bool
 	hostaliases []string
 	muxTLS      bool
@@ -36,11 +34,10 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.Client, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
-		zkClient:    zkClient,
 		stats:       stats,
 		hostaliases: []string{},
 		muxTLS:      muxTLS,

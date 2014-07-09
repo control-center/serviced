@@ -16,20 +16,18 @@ import (
 type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event, string)
 
 type scheduler struct {
-	zkClient     *coordclient.Client // client from which connections can be created from
-	cpDao        dao.ControlPlane    // ControlPlane interface
-	cluster_path string              // path to the cluster node
-	instance_id  string              // unique id for this node instance
-	closing      chan chan error     // Sending a value on this channel notifies the schduler to shut down
-	shutdown     chan error          // A error is placed on this channel when the scheduler shuts down
-	started      bool                // is the loop running
-	zkleaderFunc leaderFunc          // multiple implementations of leader function possible
+	cpDao        dao.ControlPlane // ControlPlane interface
+	cluster_path string           // path to the cluster node
+	instance_id  string           // unique id for this node instance
+	closing      chan chan error  // Sending a value on this channel notifies the schduler to shut down
+	shutdown     chan error       // A error is placed on this channel when the scheduler shuts down
+	started      bool             // is the loop running
+	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
 	facade       *facade.Facade
 }
 
-func NewScheduler(cluster_path string, zkClient *coordclient.Client, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (s *scheduler, shutdown <-chan error) {
+func NewScheduler(cluster_path string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (s *scheduler, shutdown <-chan error) {
 	s = &scheduler{
-		zkClient:     zkClient,
 		cpDao:        cpDao,
 		cluster_path: cluster_path,
 		instance_id:  instance_id,

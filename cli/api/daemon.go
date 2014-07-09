@@ -181,7 +181,6 @@ func (d *daemon) startMaster() error {
 	}
 
 	// This is storage related
-	// TODO FIXME, should this be pool based? If so, how do we know the pool at this point?
 	thisHost, err := host.Build(agentIP, d.masterPoolID)
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
@@ -280,13 +279,13 @@ func (d *daemon) startAgent() error {
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
 				glog.Errorf("master.NewClient failed: %v", err)
-				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
+				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
 				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
-				time.Sleep(time.Duration(sleepRetry) * 1000 * time.Millisecond)
+				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			poolID = myHost.PoolID
@@ -431,7 +430,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, d.zClient, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
 	go cpserver.Serve()
 }
@@ -442,7 +441,7 @@ func (d *daemon) startScheduler() {
 func (d *daemon) runScheduler() {
 	for {
 		func() {
-			sched, shutdown := scheduler.NewScheduler("", d.zClient, d.hostID, d.cpDao, d.facade)
+			sched, shutdown := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
 			sched.Start()
 			select {
 			case <-shutdown:
