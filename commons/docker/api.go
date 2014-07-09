@@ -70,11 +70,11 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		rc,
 	}
 
-	glog.V(0).Info("sent create container request: ", *cd)
+	glog.V(2).Info("sent create container request: ", *cd)
 
 	select {
 	case <-time.After(timeout):
-		glog.V(0).Infof("create container request timedout (%+v)", *cd)
+		glog.V(2).Infof("create container request timedout (%+v)", *cd)
 		return nil, ErrRequestTimeout
 	case <-done:
 		return nil, ErrKernelShutdown

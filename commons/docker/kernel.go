@@ -599,7 +599,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				if !noregistry {
-					glog.V(0).Infof("pulling image %s prior to creating a container from it", iid.String())
+					glog.V(2).Infof("pulling image %s prior to creating a container from it", iid.String())
 					err = dc.PullImage(
 						dockerclient.PullImageOptions{
 							Repository: iid.BaseName(),
@@ -608,14 +608,14 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						},
 						dockerclient.AuthConfiguration{})
 					if err != nil {
-						glog.V(0).Infof("unable to pull image %s: %v", iid.String(), err)
+						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
 						req.errchan <- err
 						return
 						// continue
 					}
 				}
 
-				glog.V(0).Infof("creating container: %#v", *req.args.containerOptions)
+				glog.V(2).Infof("creating container: %#v", *req.args.containerOptions)
 				ctr, err := dc.CreateContainer(*req.args.containerOptions)
 				switch {
 				case err == dockerclient.ErrNoSuchImage:
@@ -627,23 +627,23 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						},
 						dockerclient.AuthConfiguration{})
 					if pullerr != nil {
-						glog.V(0).Infof("unable to pull image %s: %v", iid.String(), err)
+						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
 						req.errchan <- err
 						return
 					}
 					ctr, err = dc.CreateContainer(*req.args.containerOptions)
 					if err != nil {
-						glog.V(0).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
+						glog.V(2).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
 						req.errchan <- err
 						return
 					}
 				case err != nil:
-					glog.V(0).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
+					glog.V(2).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
 					req.errchan <- err
 					return
 				}
 
-				glog.V(0).Infof("created container: %+v", *ctr)
+				glog.V(2).Infof("created container: %+v", *ctr)
 
 				if req.args.createaction != nil {
 					req.args.createaction(ctr.ID)
@@ -663,12 +663,12 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						if req.args.startaction != nil {
 							req.args.startaction(ctr.ID)
 						}
-						glog.V(0).Infof("handling event: %+v for %s", e, ctr.ID)
+						glog.V(2).Infof("handling event: %+v for %s", e, ctr.ID)
 						sc <- struct{}{}
 						return nil
 					})
 
-					glog.V(0).Infof("post creation start of %s: %+v", ctr.ID, req.args.hostConfig)
+					glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, req.args.hostConfig)
 					err = dc.StartContainer(ctr.ID, req.args.hostConfig)
 					if err != nil {
 						glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
@@ -677,14 +677,14 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						// continue
 					}
 
-					glog.V(0).Infof("======= wait for %s to start =======", ctr.ID)
+					glog.V(2).Infof("======= wait for %s to start =======", ctr.ID)
 					attempts := 0
 
 				WaitForContainerStart:
 					for {
 						select {
 						case <-sc:
-							glog.V(0).Infof("update container %s state post start", ctr.ID)
+							glog.V(2).Infof("update container %s state post start", ctr.ID)
 							ctr, err = dc.InspectContainer(ctr.ID)
 							if err != nil {
 								glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
@@ -693,42 +693,42 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 								// continue
 							}
 
-							glog.V(0).Infof("container %s is started", ctr.ID)
+							glog.V(2).Infof("container %s is started", ctr.ID)
 							break WaitForContainerStart
 						case <-time.After(5 * time.Second):
 							ctr, err = dc.InspectContainer(ctr.ID)
 							if err != nil {
-								glog.V(0).Infof("can't inspect container %s: %v", ctr.ID, err)
+								glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
 								req.errchan <- err
 								return
 							}
 
 							switch {
 							case !ctr.State.Running && attempts > maxStartAttempts:
-								glog.V(0).Infof("timed out starting container")
+								glog.V(2).Infof("timed out starting container")
 								req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
 								return
 							case !ctr.State.Running:
 								attempts = attempts + 1
 								continue WaitForContainerStart
 							default:
-								glog.V(0).Infof("container %s is running", ctr.ID)
+								glog.V(2).Infof("container %s is running", ctr.ID)
 								break WaitForContainerStart
 							}
 						}
 					}
 				}
 
-				glog.V(0).Infof("success. closing errchan")
+				glog.V(2).Infof("success. closing errchan")
 				close(req.errchan)
 
 				// don't hang around forever waiting for the caller to get the result
 				select {
 				case req.respchan <- ctr:
-					glog.V(0).Infof("sent %s to caller", ctr)
+					glog.V(2).Infof("sent %s to caller", ctr)
 					break
 				case <-time.After(100 * time.Millisecond):
-					glog.V(0).Infof("timed out waiting for call to get result")
+					glog.V(2).Infof("timed out waiting for call to get result")
 					break
 				}
 			}(req, dc)
@@ -739,19 +739,19 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 			}
 
 			go func(req startreq, dc *dockerclient.Client) {
-				glog.V(0).Infof("starting container %s: %+v", req.args.id, req.args.hostConfig)
+				glog.V(2).Infof("starting container %s: %+v", req.args.id, req.args.hostConfig)
 				err := dc.StartContainer(req.args.id, req.args.hostConfig)
 				if err != nil {
-					glog.V(0).Infof("unable to start %s: %v", req.args.id, err)
+					glog.V(2).Infof("unable to start %s: %v", req.args.id, err)
 					req.errchan <- err
 					return
 					// continue
 				}
 
-				glog.V(0).Infof("update container %s state post start", req.args.id)
+				glog.V(2).Infof("update container %s state post start", req.args.id)
 				ctr, err := dc.InspectContainer(req.args.id)
 				if err != nil {
-					glog.V(0).Infof("failed to update container %s state post start: %v", req.args.id, err)
+					glog.V(2).Infof("failed to update container %s state post start: %v", req.args.id, err)
 					req.errchan <- err
 					return
 					// continue
@@ -780,7 +780,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(0).Info("pulling image: ", req.args.reponame)
+					glog.V(2).Info("pulling image: ", req.args.reponame)
 					opts := dockerclient.PullImageOptions{
 						Repository: req.args.reponame,
 						Registry:   req.args.registry,
@@ -789,7 +789,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 					err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
 					if err != nil {
-						glog.V(0).Infof("failed to pull %s: %v", req.args.reponame, err)
+						glog.V(2).Infof("failed to pull %s: %v", req.args.reponame, err)
 						req.errchan <- err
 						return
 						// continue
@@ -804,7 +804,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(0).Info("pushing image: ", req.args.reponame)
+					glog.V(2).Info("pushing image: ", req.args.reponame)
 					opts := dockerclient.PushImageOptions{
 						Name:     req.args.reponame,
 						Registry: req.args.registry,
@@ -813,7 +813,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 					err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 					if err != nil {
-						glog.V(0).Infof("failed to push %s: %v", req.args.reponame, err)
+						glog.V(2).Infof("failed to push %s: %v", req.args.reponame, err)
 						req.errchan <- err
 						return
 						// continue
@@ -827,7 +827,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					}
 
 					close(req.errchan)
-					glog.V(0).Infof("pushed %+v", &Image{req.args.uuid, *iid})
+					glog.V(2).Infof("pushed %+v", &Image{req.args.uuid, *iid})
 					req.respchan <- &Image{req.args.uuid, *iid}
 				}(req, dc)
 			}
@@ -852,7 +852,7 @@ restart:
 				break
 			}
 
-			glog.V(0).Infof("received first start request: %+v", v)
+			glog.V(2).Infof("received first start request: %+v", v)
 			pending = append(pending, v)
 		}
 
@@ -862,7 +862,7 @@ restart:
 				break restart
 			}
 
-			glog.V(0).Infof("received start request %+v", v)
+			glog.V(2).Infof("received start request %+v", v)
 			pending = append(pending, v)
 
 			// don't let a burst of requests starve the outgoing channel
@@ -873,7 +873,7 @@ restart:
 				pending = []startreq{}
 			}
 		case next <- pending[0]:
-			glog.V(0).Infof("delivered start request %+v", pending[0])
+			glog.V(2).Infof("delivered start request %+v", pending[0])
 			pending = pending[1:]
 		}
 	}
@@ -898,7 +898,7 @@ restart:
 				break
 			}
 
-			glog.V(0).Infof("received first create request: %+v", v)
+			glog.V(2).Infof("received first create request: %+v", v)
 			pending = append(pending, v)
 		}
 
@@ -908,7 +908,7 @@ restart:
 				break restart
 			}
 
-			glog.V(0).Infof("received create request: %+v", v)
+			glog.V(2).Infof("received create request: %+v", v)
 			pending = append(pending, v)
 
 			// don't let a burst of requests starve the outgoing channel
@@ -919,7 +919,7 @@ restart:
 				pending = []createreq{}
 			}
 		case next <- pending[0]:
-			glog.V(0).Infof("delivered create request: %+v", pending[0])
+			glog.V(2).Infof("delivered create request: %+v", pending[0])
 			pending = pending[1:]
 		}
 	}
@@ -999,7 +999,7 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 }
 
 func eventToKernel(e dockerclient.Event) error {
-	glog.V(0).Infof("sending %+v to kernel", e)
+	glog.V(2).Infof("sending %+v to kernel", e)
 	ec := make(chan error)
 
 	cmds.OnEvent <- oneventreq{
