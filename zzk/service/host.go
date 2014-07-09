@@ -238,7 +238,7 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 
 		s.Terminated = time.Now()
 		if err := updateInstance(l.conn, &s); err != nil {
-			glog.Errorf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
+			glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
 			return
 		}
 	}(servicepath(state.ServiceID, state.ID))

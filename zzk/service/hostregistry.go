@@ -223,16 +223,5 @@ func UnregisterHost(conn client.Connection, hostID string) error {
 		return nil
 	}
 
-	stateIDs, err := conn.Children(hostpath(hostID))
-	if err != nil {
-		return err
-	}
-
-	for _, ssID := range stateIDs {
-		if err := conn.Delete(hostpath(hostID, ssID)); err != nil {
-			return err
-		}
-	}
-
 	return conn.Delete(hostpath(hostID))
 }
