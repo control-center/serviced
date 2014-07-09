@@ -590,13 +590,14 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
 				}
 
-				if !noregistry {
-					iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
-					if err != nil {
-						req.errchan <- err
-						// continue
-					}
+				iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
+				if err != nil {
+					req.errchan <- err
+					return
+					// continue
+				}
 
+				if !noregistry {
 					glog.V(0).Infof("pulling image %s prior to creating a container from it", iid.String())
 					err = dc.PullImage(
 						dockerclient.PullImageOptions{
@@ -608,16 +609,40 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					if err != nil {
 						glog.V(0).Infof("unable to pull image %s: %v", iid.String(), err)
 						req.errchan <- err
+						return
 						// continue
 					}
 				}
 
 				glog.V(0).Infof("creating container: %#v", *req.args.containerOptions)
 				ctr, err := dc.CreateContainer(*req.args.containerOptions)
-				if err != nil {
-					glog.V(0).Infof("container creation failed %#v: %v", *req.args.containerOptions, err)
+				switch {
+				case err == dockerclient.ErrNoSuchImage:
+					pullerr := dc.PullImage(
+						dockerclient.PullImageOptions{
+							Repository: iid.BaseName(),
+							Registry:   iid.Registry(),
+							Tag:        iid.Tag,
+						},
+						dockerclient.AuthConfiguration{})
+					if pullerr != nil {
+						glog.V(0).Infof("unable to pull image %s: %v", iid.String(), err)
+						req.errchan <- err
+						return
+					}
+					ctr, err = dc.CreateContainer(*req.args.containerOptions)
+					if err != nil {
+						glog.V(0).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
+						req.errchan <- err
+						return
+					}
+				case err != nil:
+					glog.V(0).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
 					req.errchan <- err
+					return
 				}
+
+				glog.V(0).Infof("created container: %+v", *ctr)
 
 				if req.args.createaction != nil {
 					req.args.createaction(ctr.ID)
@@ -627,6 +652,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					ss, err := em.Subscribe(ctr.ID)
 					if err != nil {
 						req.errchan <- err
+						return
 						// continue
 					}
 
@@ -646,6 +672,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					if err != nil {
 						glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
 						req.errchan <- err
+						return
 						// continue
 					}
 
@@ -658,6 +685,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						if err != nil {
 							glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
 							req.errchan <- err
+							return
 							// continue
 						}
 
@@ -696,6 +724,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				if err != nil {
 					glog.V(0).Infof("unable to start %s: %v", req.args.id, err)
 					req.errchan <- err
+					return
 					// continue
 				}
 
@@ -704,6 +733,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				if err != nil {
 					glog.V(0).Infof("failed to update container %s state post start: %v", req.args.id, err)
 					req.errchan <- err
+					return
 					// continue
 				}
 
@@ -741,6 +771,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					if err != nil {
 						glog.V(0).Infof("failed to pull %s: %v", req.args.reponame, err)
 						req.errchan <- err
+						return
 						// continue
 					}
 
@@ -764,12 +795,14 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					if err != nil {
 						glog.V(0).Infof("failed to push %s: %v", req.args.reponame, err)
 						req.errchan <- err
+						return
 						// continue
 					}
 
 					iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.reponame, req.args.tag))
 					if err != nil {
 						req.errchan <- err
+						return
 						// continue
 					}
 
