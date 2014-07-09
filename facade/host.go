@@ -8,8 +8,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
-	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"fmt"
 	"time"
@@ -56,13 +54,8 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
 
-	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(entity.PoolID))
-	if err != nil {
+	if err = zkAPI(f).RegisterHost(entity); err != nil {
 		return err
-	}
-
-	if err == nil {
-		err = zkservice.RegisterHost(poolBasedConnection, entity.ID)
 	}
 
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
@@ -102,11 +95,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 			glog.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
 			return fmt.Errorf("facade/host.go RemoveHost Attempted to retrieve host for host ID: %v (returned nil)", hostID)
 		}
-		poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
-		if err != nil {
-			return err
-		}
-		err = zkservice.UnregisterHost(poolBasedConnection, hostID)
+		err = zkAPI(f).UnregisterHost(myHost)
 	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err
