@@ -14,7 +14,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/stats/cgroup"
 	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"bytes"
 	"encoding/json"
@@ -165,8 +165,9 @@ func (sr StatsReporter) updateStats() {
 	sr.updateHostStats()
 	// Stats for the containers.
 	var running []*dao.RunningService
-	if err := zzk.GetRunningServicesForHost(sr.conn, sr.hostID, &running); err != nil {
-		glog.Errorf("stats updateStats: zzk.GetRunningServicesForHost failed: %v", err)
+	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)
+	if err != nil {
+		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
 	for _, rs := range running {
 		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)

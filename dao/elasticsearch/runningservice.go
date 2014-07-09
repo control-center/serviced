@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"fmt"
 )
@@ -31,7 +32,8 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 		}
 
 		singlePoolRunningServices := []*dao.RunningService{}
-		if err := zzk.GetAllRunningServices(poolBasedConn, &singlePoolRunningServices); err != nil {
+		singlePoolRunningServices, err = zkservice.LoadRunningServices(poolBasedConn)
+		if err != nil {
 			glog.Errorf("Failed GetAllRunningServices: %v", err)
 			return err
 		}
@@ -42,10 +44,10 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *[]*dao.RunningService) error {
-	myHost, err := this.facade.GetHost(datastore.Get(), hostId)
+func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]*dao.RunningService) error {
+	myHost, err := this.facade.GetHost(datastore.Get(), hostID)
 	if err != nil {
-		glog.Errorf("Unable to get host %v: %v", hostId, err)
+		glog.Errorf("Unable to get host %v: %v", hostID, err)
 		return err
 	}
 
@@ -55,13 +57,17 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostId string, services *
 		return err
 	}
 
-	return zzk.GetRunningServicesForHost(poolBasedConn, hostId, services)
+	*services, err = zkservice.LoadRunningServicesByHost(poolBasedConn, hostID)
+	if err != nil {
+		glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v host: %v) failed: %v", poolBasedConn, hostID, err)
+	}
+	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, services *[]*dao.RunningService) error {
-	myService, err := this.facade.GetService(datastore.Get(), serviceId)
+func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]*dao.RunningService) error {
+	myService, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceId, err)
+		glog.Errorf("Unable to get service %v: %v", serviceID, err)
 		return err
 	}
 
@@ -71,7 +77,13 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceId string, serv
 		return err
 	}
 
-	return zzk.GetRunningServicesForService(poolBasedConn, serviceId, services)
+	*services, err = zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
+	if err != nil {
+		glog.Errorf("LoadRunningServicesByService failed (conn: %+v serviceID: %v): %v", poolBasedConn, serviceID, err)
+		return err
+	}
+
+	return nil
 }
 
 func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
@@ -89,5 +101,11 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		return err
 	}
 
-	return zzk.GetRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID, running)
+	running, err = zkservice.LoadRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID)
+	if err != nil {
+		glog.Errorf("zkservice.LoadRunningService failed (conn: %+v serviceID: %v): %v", poolBasedConn, request.ServiceID, err)
+		return err
+	}
+
+	return nil
 }

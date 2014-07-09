@@ -3,7 +3,6 @@ package zzk
 import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	zkservice "github.com/zenoss/serviced/zzk/service"
@@ -51,13 +50,6 @@ func GetBasePathConnection(basePath string) (coordclient.Connection, error) { //
 	poolBasedConnections[basePath] = myNewConnection
 
 	return myNewConnection, nil
-}
-
-// Communicates to the agent that this service instance should stop
-func TerminateHostService(conn coordclient.Connection, hostId string, serviceStateId string) error {
-	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *zkservice.HostState) {
-		hss.DesiredState = service.SVCStop
-	})
 }
 
 func ResetServiceState(conn coordclient.Connection, serviceId string, serviceStateId string) error {
@@ -146,39 +138,6 @@ func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestat
 		}
 	}
 	return nil
-}
-
-func GetRunningService(conn coordclient.Connection, serviceId string, serviceStateId string, running *dao.RunningService) error {
-	rs, err := zkservice.LoadRunningService(conn, serviceId, serviceStateId)
-	if err != nil {
-		return err
-	}
-
-	*running = *rs
-	return nil
-}
-
-//FIXME no one calls this...
-/*func RemoveHost(conn coordclient.Connection, hostId string) error {
-	return conn.Delete(HostPath(hostId))
-}*/
-
-func GetRunningServicesForHost(conn coordclient.Connection, hostId string, running *[]*dao.RunningService) error {
-	var err error
-	*running, err = zkservice.LoadRunningServicesByHost(conn, hostId)
-	return err
-}
-
-func GetRunningServicesForService(conn coordclient.Connection, serviceId string, running *[]*dao.RunningService) error {
-	var err error
-	*running, err = zkservice.LoadRunningServicesByService(conn, serviceId)
-	return err
-}
-
-func GetAllRunningServices(conn coordclient.Connection, running *[]*dao.RunningService) error {
-	var err error
-	*running, err = zkservice.LoadRunningServices(conn)
-	return err
 }
 
 func HostPath(hostId string) string {

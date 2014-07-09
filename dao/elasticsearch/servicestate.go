@@ -11,6 +11,7 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 )
 
 func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *servicestate.ServiceState) error {
@@ -100,5 +101,10 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 		return err
 	}
 
-	return zzk.TerminateHostService(poolBasedConn, request.HostID, request.ServiceStateID)
+	if err := zkservice.StopServiceInstance(poolBasedConn, request.HostID, request.ServiceStateID); err != nil {
+		glog.Errorf("zkservice.StopServiceInstance failed (conn: %+v hostID: %v serviceStateID: %v): %v", poolBasedConn, request.HostID, request.ServiceStateID, err)
+		return err
+	}
+
+	return nil
 }

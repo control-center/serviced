@@ -335,7 +335,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 	return nil
 }
 
-// TODO: move me into zzk
+// TODO: move me into zzk?
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(2).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	maxId := len(serviceStates) - numToKill - 1
@@ -344,8 +344,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 		if serviceStates[i].InstanceID > maxId {
 			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-			err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
-			if err != nil {
+			if err := zkservice.StopServiceInstance(conn, serviceStates[i].HostID, serviceStates[i].ID); err != nil {
 				glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
 			}
 		}
