@@ -205,6 +205,24 @@ func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, r
 	return nil
 }
 
+func (zkdao *ZkDao) RegisterHost(hostID string) error {
+	conn, err := zkdao.client.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return zkservice.RegisterHost(conn, hostID)
+}
+
+func (zkdao *ZkDao) UnregisterHost(hostID string) error {
+	conn, err := zkdao.client.GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return zkservice.UnregisterHost(conn, hostID)
+}
+
 func (zkdao *ZkDao) RemoveHost(hostId string) error {
 	conn, err := zkdao.client.GetConnection()
 	if err != nil {
