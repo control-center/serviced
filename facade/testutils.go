@@ -69,3 +69,11 @@ func (z *zkMock) getSvcStates(serviceStates *[]*servicestate.ServiceState, servi
 func (z *zkMock) RemoveHost(hostID string) error {
 	return nil
 }
+
+func (z *zkMock) RegisterHost(hostID string) error {
+	return nil
+}
+
+func (z *zkMock) UnregisterHost(hostID string) error {
+	return nil
+}
