@@ -662,10 +662,12 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						}
 
 						glog.V(0).Infof("container %s is started", ctr.ID)
-					case <-time.After(60 * time.Second):
-						glog.V(0).Infof("timed out starting container")
-						req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
-						// continue
+						/*
+							case <-time.After(60 * time.Second):
+								glog.V(0).Infof("timed out starting container")
+								req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
+								// continue
+						*/
 					}
 				}
 
