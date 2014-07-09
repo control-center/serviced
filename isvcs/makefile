@@ -14,7 +14,6 @@ UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := quay.io/zenossinc/isvcs_build
 REPO               := quay.io/zenossinc/isvcs
-REPO_IS_PRIVATE     = 1
 TAG                := v10
 REPO_DIR           := images
 EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
@@ -46,11 +45,7 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: isvcs_repo
 buildgo:
 	go build
 
-ifeq "$(REPO_IS_PRIVATE)" "1"
-build_repo: | $(DOCKERCFG)
-else
 build_repo:
-endif
 	[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \
 		|| docker pull $(BUILD_REPO) \
 		|| docker build -t $(BUILD_REPO) build_img
@@ -75,11 +70,7 @@ $(REPO_DIR):
 
 isvcs_repo: docker_list_cmd = docker images $(REPO) 2>/dev/null | sed 's/ \{1,\}/\|/g' | cut -d'|' -f2 | grep ^$(TAG)$$
 isvcs_repo: docker_pull_cmd = docker pull $(REPO):$(TAG)
-ifeq "$(REPO_IS_PRIVATE)" "1"
-isvcs_repo: | $(REPO_DIR) $(DOCKERCFG)
-else
-isvcs_repo: $(REPO_DIR) 
-endif
+isvcs_repo: | $(REPO_DIR) 
 	@echo "$(docker_list_cmd)" ;\
 	found_image_locally=$$(eval "$(docker_list_cmd)") ;\
 	if [ -z "$${found_image_locally}" ]; then\
@@ -139,14 +130,3 @@ clean:
 
 mrclean: clean
 	docker rmi $(BUILD_REPO) >/dev/null 2>&1 || exit 0
-
-$(DOCKERCFG):
-	@echo
-	@echo "This build currently has dependencies upon private docker repositories:"
-	@echo
-	@echo "    $(REPO)"
-	@echo "    $(BUILD_REPO)"
-	@echo 
-	@echo "Please 'docker login' with suitable credentials."
-	@echo
-	@exit 1
