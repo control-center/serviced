@@ -10,7 +10,7 @@
 package isvcs
 
 import (
-	"github.com/mattbaird/elastigo/cluster"
+	"github.com/zenoss/elastigo/cluster"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
 
