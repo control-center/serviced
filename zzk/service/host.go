@@ -95,12 +95,12 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 	// Housekeeping
 	defer func() {
 		glog.Infof("Agent receieved interrupt")
-		if err := l.conn.Delete(regpath); err != nil {
-			glog.Warning("Could not unregister host %s: %s", l.hostID, err)
-		}
 		close(_shutdown)
 		for len(processing) > 0 {
 			delete(processing, <-done)
+		}
+		if err := l.conn.Delete(regpath); err != nil {
+			glog.Warning("Could not unregister host %s: %s", l.hostID, err)
 		}
 	}()
 

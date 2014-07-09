@@ -20,12 +20,16 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/serviceconfigfile"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 )
+
+var zkAPI func(f *Facade) zkfuncs = getZKAPI
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
@@ -46,7 +50,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
 
-	return updateService(&svc)
+	return zkAPI(f).updateService(&svc)
 }
 
 //
@@ -67,7 +71,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
 	err := f.walkServices(ctx, id, func(svc *service.Service) error {
-		removeService(svc)
+		zkAPI(f).removeService(svc)
 		return nil
 	})
 
@@ -182,7 +186,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		//build 'OR' query to grab all service states with in "service" tree
 		relatedServiceIDs := walkTree(topService)
 		var states []*servicestate.ServiceState
-		err = getSvcStates(myService.PoolID, &states, relatedServiceIDs...)
+		err = zkAPI(f).getSvcStates(myService.PoolID, &states, relatedServiceIDs...)
 		if err != nil {
 			return result, err
 		}
@@ -747,10 +751,27 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	if err := svcStore.Put(ctx, svc); err != nil {
 		return err
 	}
-	return updateService(svc)
+
+	return zkAPI(f).updateService(svc)
 }
 
-func updateService(svc *service.Service) error {
+func getZKAPI(f *Facade) zkfuncs {
+	return &zkf{f}
+}
+
+type zkfuncs interface {
+	updateService(svc *service.Service) error
+	removeService(svc *service.Service) error
+	getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
+	RegisterHost(h *host.Host) error
+	UnregisterHost(h *host.Host) error
+}
+
+type zkf struct {
+	f *Facade
+}
+
+func (z *zkf) updateService(svc *service.Service) error {
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
@@ -759,7 +780,7 @@ func updateService(svc *service.Service) error {
 	return zzk.UpdateService(poolBasedConn, svc)
 }
 
-func removeService(svc *service.Service) error {
+func (z *zkf) removeService(svc *service.Service) error {
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
@@ -767,14 +788,30 @@ func removeService(svc *service.Service) error {
 	}
 	return zzk.RemoveService(poolBasedConn, svc.ID)
 }
-
-func getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
 	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
+}
+
+func (z *zkf) RegisterHost(h *host.Host) error {
+	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(h.PoolID))
+	if err != nil {
+		return err
+	}
+
+	return zkservice.RegisterHost(poolBasedConnection, h.ID)
+}
+
+func (z *zkf) UnregisterHost(h *host.Host) error {
+	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(h.PoolID))
+	if err != nil {
+		return err
+	}
+	return zkservice.UnregisterHost(poolBasedConnection, h.ID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {
