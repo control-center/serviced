@@ -179,7 +179,6 @@ func (sc *ServiceConfig) watchVhosts() error {
 		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
 		glog.Warning("watchVhosts ended")
 	}()
-	//}
 
 	return nil
 }

@@ -12,10 +12,8 @@ import (
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/serviceconfigfile"
-	//"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/user"
-	//"github.com/zenoss/serviced/zzk"
 	gocheck "gopkg.in/check.v1"
 )
 

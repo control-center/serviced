@@ -112,7 +112,7 @@ func (d *daemon) run() error {
 		}
 	}
 	if options.Agent {
-		if err = d.initiateAgent(); err != nil {
+		if err = d.startAgent(); err != nil {
 			glog.Fatalf("%v", err)
 		}
 	}
@@ -170,8 +170,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	d.initWeb() // rpc must be
-
+	d.initWeb()
 	d.startScheduler()
 
 	agentIP, err := utils.GetIPAddress()
@@ -247,7 +246,7 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
-func (d *daemon) initiateAgent() error {
+func (d *daemon) startAgent() error {
 	muxListener, err := createMuxListener()
 	if err != nil {
 		return err

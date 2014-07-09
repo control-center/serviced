@@ -69,7 +69,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 		return zkInfo, err
 	}
 
-	glog.V(1).Infof("GetZkInfo: %s", zkInfo)
+	glog.V(1).Infof("GetZkInfo: %+v", zkInfo)
 	return zkInfo, nil
 }
 
@@ -135,7 +135,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 	// get zookeeper connection
 	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
-		return fmt.Errorf("endpoint.go getEndpoints zzk.GetBasePathConnection failed: %v", err)
+		return fmt.Errorf("getEndpoints zzk.GetBasePathConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
@@ -163,7 +163,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		// get service state
 		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
 		if err != nil {
-			return fmt.Errorf("endpoint.go getEndpoints getServiceState failed: %v", err)
+			return fmt.Errorf("getEndpoints getServiceState failed: %v", err)
 		}
 		c.dockerID = sstate.DockerID
 
@@ -333,7 +333,7 @@ func (c *Controller) watchRemotePorts() {
 	}
 
 	var err error
-	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint) // TODO check on this
+	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Invalid zk info: %v", err)
 		return

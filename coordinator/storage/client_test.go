@@ -63,6 +63,8 @@ func TestClient(t *testing.T) {
 	defer c.Close()
 	time.Sleep(time.Second * 5)
 
+	// the connection client is added under the h's poolID, but this connection is based by root,
+	// therefore, we need to check that the client was added under the pool from root
 	nodePath := fmt.Sprintf("/pools/%v/storage/clients/%s", h.PoolID, h.IPAddr)
 	glog.Infof("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {

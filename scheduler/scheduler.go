@@ -110,7 +110,7 @@ func (s *scheduler) loop() {
 		}
 
 		hostNode := hostNodeT{HostID: s.instance_id}
-		leader := poolBasedConn.NewLeader("/pools/"+aPool.ID+"/scheduler", &hostNode)
+		leader := poolBasedConn.NewLeader("/scheduler", &hostNode)
 		events, err := leader.TakeLead()
 		if err != nil {
 			glog.Error("could not take lead: ", err)
