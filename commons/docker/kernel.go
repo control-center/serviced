@@ -678,24 +678,38 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 					glog.V(0).Infof("======= wait for %s to start =======", ctr.ID)
 
-					select {
-					case <-sc:
-						glog.V(0).Infof("update container %s state post start", ctr.ID)
-						ctr, err = dc.InspectContainer(ctr.ID)
-						if err != nil {
-							glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
-							req.errchan <- err
-							return
-							// continue
-						}
+				WaitForContainerStart:
+					for {
+						select {
+						case <-sc:
+							glog.V(0).Infof("update container %s state post start", ctr.ID)
+							ctr, err = dc.InspectContainer(ctr.ID)
+							if err != nil {
+								glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
+								req.errchan <- err
+								return
+								// continue
+							}
 
-						glog.V(0).Infof("container %s is started", ctr.ID)
-						/*
-							case <-time.After(60 * time.Second):
+							glog.V(0).Infof("container %s is started", ctr.ID)
+							break WaitForContainerStart
+						case <-time.After(5 * time.Second):
+							ctr, err = dc.InspectContainer(ctr.ID)
+							if err != nil {
+								glog.V(0).Infof("can't inspect container %s: %v", ctr.ID, err)
+								req.errchan <- err
+								return
+							}
+
+							if !ctr.State.Running {
 								glog.V(0).Infof("timed out starting container")
 								req.errchan <- fmt.Errorf("timed out starting container: %s", ctr.ID)
-								// continue
-						*/
+								continue WaitForContainerStart
+							}
+
+							glog.V(0).Infof("container %s is running", ctr.ID)
+							break WaitForContainerStart
+						}
 					}
 				}
 
@@ -979,6 +993,7 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 }
 
 func eventToKernel(e dockerclient.Event) error {
+	glog.V(0).Infof("sending %+v to kernel", e)
 	ec := make(chan error)
 
 	cmds.OnEvent <- oneventreq{
