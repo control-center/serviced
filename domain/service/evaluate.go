@@ -48,6 +48,15 @@ func context() func(s *runtimeContext) (map[string]interface{}, error) {
 
 // EvaluateActionsTemplate parses and evaluates the Actions string of a service.
 func (service *Service) EvaluateActionsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for key, value := range service.Actions {
 		result := service.evaluateTemplate(gs, fc, instanceID, value)
 		if result != "" {
@@ -59,6 +68,15 @@ func (service *Service) EvaluateActionsTemplate(gs GetService, fc FindChildServi
 
 // EvaluateHostnameTemplate parses and evaluates the Hostname string of a service.
 func (service *Service) EvaluateHostnameTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	result := service.evaluateTemplate(gs, fc, instanceID, service.Hostname)
 	service.Hostname = result
 	return
@@ -67,6 +85,15 @@ func (service *Service) EvaluateHostnameTemplate(gs GetService, fc FindChildServ
 // EvaluateVolumesTemplate parses and evaluates the ResourcePath string in
 // volumes of a service
 func (service *Service) EvaluateVolumesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for i, vol := range service.Volumes {
 		result := service.evaluateTemplate(gs, fc, instanceID, vol.ResourcePath)
 		if result != "" {
@@ -79,6 +106,14 @@ func (service *Service) EvaluateVolumesTemplate(gs GetService, fc FindChildServi
 
 // EvaluateStartupTemplate parses and evaluates the StartUp string of a service.
 func (service *Service) EvaluateStartupTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
 
 	result := service.evaluateTemplate(gs, fc, instanceID, service.Startup)
 	if result != "" {
@@ -90,6 +125,15 @@ func (service *Service) EvaluateStartupTemplate(gs GetService, fc FindChildServi
 
 // EvaluateRunsTemplate parses and evaluates the Runs string of a service.
 func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for key, value := range service.Runs {
 		result := service.evaluateTemplate(gs, fc, 0, value)
 		if result != "" {
@@ -133,6 +177,15 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 // EvaluateLogConfigTemplate parses and evals the Path, Type and all the values for the tags of the log
 // configs. This happens for each LogConfig on the service.
 func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	// evaluate the template for the LogConfig as well as the tags
 	for i, logConfig := range service.LogConfigs {
 		// Path
@@ -161,6 +214,15 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildSer
 // ConfigFile on the service.
 func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	glog.V(3).Infof("Evaluating Config Files for %s:%d", service.ID, instanceID)
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for key, configFile := range service.ConfigFiles {
 		// Filename
 		result := service.evaluateTemplate(gs, fc, instanceID, configFile.Filename)
@@ -180,6 +242,15 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildS
 // EvaluatePrereqsTemplate parses and evals the Script field for each Prereq.
 func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	glog.V(3).Infof("Evaluating Prereq scripts for %s:%d", service.ID, instanceID)
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for i, prereq := range service.Prereqs {
 		result := service.evaluateTemplate(gs, fc, instanceID, prereq.Script)
 		if result != "" {
@@ -193,6 +264,15 @@ func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildServi
 // EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
 func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	glog.V(3).Infof("Evaluating HealthCheck scripts for %s:%d", service.ID, instanceID)
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	for key, healthcheck := range service.HealthChecks {
 		result := service.evaluateTemplate(gs, fc, instanceID, healthcheck.Script)
 		if result != "" {
@@ -236,6 +316,15 @@ func round(value float64) int64 {
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildService) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+			err = r.(error)
+		}
+	}()
+
 	functions := template.FuncMap{
 		"parent":       parent(gs),
 		"child":        child(fc),
@@ -282,15 +371,6 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
 func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
-			}
-			err = r.(error)
-		}
-	}()
-
 	if err = service.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		glog.Errorf("%+v", err)
 		return err
