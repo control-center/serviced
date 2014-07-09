@@ -218,10 +218,9 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 		glog.V(1).Infof("Container does not appear to be running: %s", serviceState.ID)
 		return errors.New("Container not running for " + serviceState.ID)
 
-	case err != nil && strings.HasPrefix(err.Error(), "no container"):
+	case err != nil:
 		glog.Warningf("Error retrieving container state: %s", serviceState.ID)
 		return err
-
 	}
 
 	dc, err := dockerclient.NewClient(dockerEndpoint)
