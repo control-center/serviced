@@ -220,7 +220,6 @@ install_DIRS += $(_DESTDIR)$(prefix)/bin
 install_DIRS += $(_DESTDIR)$(prefix)/share/web
 install_DIRS += $(_DESTDIR)$(prefix)/share/shell
 install_DIRS += $(_DESTDIR)$(prefix)/isvcs
-install_DIRS += $(_DESTDIR)$(prefix)/templates
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 
@@ -381,7 +380,7 @@ install: $(install_TARGETS)
 PKGS = deb rpm
 .PHONY: pkgs
 pkgs:
-	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) $(PKGS)
+	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) $(PKGS)
 
 .PHONY: docker_buildandpackage
 docker_buildandpackage: docker_ok
@@ -398,6 +397,7 @@ docker_buildandpackage: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build make \
 		IN_DOCKER=1 \
+		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
 		GOPATH=$(docker_GOPATH) \
 		BUILD_NUMBER=$(BUILD_NUMBER) \
 		RELEASE_PHASE=$(RELEASE_PHASE) \
