@@ -18,23 +18,24 @@ RELEASE_PHASE ?=
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot
+INSTALL_TEMLATES = 1
 
-ifneq ("$(BUILD_NUMBER)", "")
-PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
-else
+ifeq "$(BUILD_NUMBER)" ""
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
+else
+PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
 endif
 
-ifneq ("$(FROMVERSION)", "")
-DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
-else
+ifeq "$(FROMVERSION)" ""
 DEB_PKG_VERSION=$(PKG_VERSION)
+else
+DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
 endif
 
-ifneq ("$(SUBPRODUCT)", "")
-FULL_NAME=$(NAME)-$(SUBPRODUCT)
-else
+ifeq "$(SUBPRODUCT)" ""
 FULL_NAME=$(NAME)
+else
+FULL_NAME=$(NAME)-$(SUBPRODUCT)
 endif
 
 define DESCRIPTION
@@ -105,11 +106,11 @@ build:
 
 stage_deb: build
 	make clean_dirs clean_dirs=$(PKGROOT)
-	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=deb
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=deb INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
 
 stage_rpm: build
 	make clean_dirs clean_dirs=$(PKGROOT)
-	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
 
 # Make a DEB
 # net-tools provides ifconfig, needed for VIPs
@@ -125,7 +126,7 @@ deb: stage_deb
 		-d 'docker-smuggle >= 2.24' \
 		-t deb \
 		-a x86_64 \
-		-C pkgroot \
+		-C $(PKGROOT) \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
 		--deb-user root \
@@ -140,7 +141,7 @@ rpm: stage_rpm
 		-s dir \
 		-t rpm \
 		-a x86_64 \
-		-C pkgroot \
+		-C $(PKGROOT) \
 		-m $(MAINTAINER) \
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
