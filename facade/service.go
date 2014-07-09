@@ -17,7 +17,6 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/zenoss/serviced/commons"
-	//coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/addressassignment"

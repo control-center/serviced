@@ -9,6 +9,7 @@ import (
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/zzk"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"fmt"
 	"time"
@@ -54,6 +55,16 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		entity.UpdatedAt = now
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
+
+	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(entity.PoolID))
+	if err != nil {
+		return err
+	}
+
+	if err == nil {
+		err = zkservice.RegisterHost(poolBasedConnection, entity.ID)
+	}
+
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	return err
 
@@ -95,7 +106,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 		if err != nil {
 			return err
 		}
-		err = zzk.RemoveHost(poolBasedConnection, hostID)
+		err = zkservice.UnregisterHost(poolBasedConnection, hostID)
 	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err

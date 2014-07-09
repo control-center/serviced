@@ -54,6 +54,7 @@ func (node *HostState) SetVersion(version interface{}) {
 
 // HostHandler is the handler for running the HostListener
 type HostStateHandler interface {
+	GetHost(string) (*host.Host, error)
 	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
@@ -63,16 +64,15 @@ type HostStateHandler interface {
 type HostStateListener struct {
 	conn    client.Connection
 	handler HostStateHandler
-	host    *host.Host
-	regpath string // path to the registered node
+	hostID  string
 }
 
 // NewHostListener instantiates a HostListener object
-func NewHostStateListener(conn client.Connection, handler HostStateHandler, host *host.Host) *HostStateListener {
+func NewHostStateListener(conn client.Connection, handler HostStateHandler, hostID string) *HostStateListener {
 	return &HostStateListener{
 		conn:    conn,
 		handler: handler,
-		host:    host,
+		hostID:  hostID,
 	}
 }
 
@@ -80,43 +80,36 @@ func NewHostStateListener(conn client.Connection, handler HostStateHandler, host
 // started, updated, or removed
 func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 	var (
+		_shutdown  = make(chan interface{})
 		done       = make(chan string)
 		processing = make(map[string]interface{})
 	)
 
-	// Make the path
-	hpath := hostpath(l.host.ID)
-	if exists, err := zkutils.PathExists(l.conn, hpath); err != nil {
-		glog.Errorf("Unable to look up host path %s on zookeeper: %s", l.host.ID, err)
-		return
-	} else if exists {
-		// pass
-	} else if err := l.conn.CreateDir(hpath); err != nil {
-		glog.Errorf("Unable to create host path %s: %s", hpath, err)
+	// Register the host
+	regpath, err := l.register(shutdown)
+	if err != nil {
+		glog.Errorf("Could not register host %s: %s", l.hostID, err)
 		return
 	}
 
 	// Housekeeping
 	defer func() {
 		glog.Infof("Agent receieved interrupt")
+		if err := l.conn.Delete(regpath); err != nil {
+			glog.Warning("Could not unregister host %s: %s", l.hostID, err)
+		}
+		close(_shutdown)
 		for len(processing) > 0 {
 			delete(processing, <-done)
 		}
-		if err := l.conn.Delete(hpath); err != nil {
-			glog.Warningf("Could not clean up host %s: %s", l.host.ID, err)
-		}
 	}()
 
-	// Register the host
-	if err := l.register(); err != nil {
-		glog.Errorf("Could not register host %s: %s", l.host.ID, err)
-	}
-
 	// Monitor the instances
+	hpath := hostpath(l.hostID)
 	for {
 		stateIDs, event, err := l.conn.ChildrenW(hpath)
 		if err != nil {
-			glog.Errorf("Could not watch for states on host %s: %s", l.host.ID, err)
+			glog.Errorf("Could not watch for states on host %s: %s", l.hostID, err)
 			return
 		}
 
@@ -124,18 +117,21 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 			if _, ok := processing[ssid]; !ok {
 				glog.V(1).Info("Spawning a listener for %s", ssid)
 				processing[ssid] = nil
-				go l.listenHostState(shutdown, done, ssid)
+				go l.listenHostState(_shutdown, done, ssid)
 			}
 		}
 
 		select {
 		case e := <-event:
+			if e.Type == client.EventNodeDeleted {
+				glog.Infof("Host has been removed from pool, shutting down listener")
+				return
+			}
 			glog.V(2).Infof("Received event: %v", e)
 		case ssid := <-done:
 			glog.V(2).Info("Cleaning up %s", ssid)
 			delete(processing, ssid)
 		case <-shutdown:
-			l.unregister()
 			return
 		}
 	}
@@ -148,7 +144,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 	}()
 
 	var processDone <-chan interface{}
-	hpath := hostpath(l.host.ID, ssID)
+	hpath := hostpath(l.hostID, ssID)
 	for {
 		var hs HostState
 		event, err := l.conn.GetW(hpath, &hs)
@@ -242,7 +238,7 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 
 		s.Terminated = time.Now()
 		if err := updateInstance(l.conn, &s); err != nil {
-			glog.Errorf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
+			glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
 			return
 		}
 	}(servicepath(state.ServiceID, state.ID))
@@ -282,7 +278,7 @@ func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error
 	if err := l.handler.StopService(state); err != nil {
 		return err
 	}
-	return removeInstance(l.conn, state.HostID, state.ID)
+	return removeInstance(l.conn, state)
 }
 
 func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
@@ -290,32 +286,7 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 		return err
 	}
 	<-done
-	return removeInstance(l.conn, state.HostID, state.ID)
-}
-
-func (l *HostStateListener) register() (err error) {
-	if l.regpath != "" {
-		if ok, err := zkutils.PathExists(l.conn, l.regpath); err != nil {
-			return err
-		} else if ok {
-			return nil
-		}
-	}
-
-	l.regpath, err = registerHost(l.conn, l.host)
-	return err
-}
-
-func (l *HostStateListener) unregister() {
-	if err := l.conn.Delete(l.regpath); err != nil {
-		glog.Warning("Could not unregister host ", l.host.ID)
-	}
-}
-
-func (l *HostStateListener) Reset(conn client.Connection, host *host.Host) error {
-	l.conn = conn
-	l.host = host
-	return l.conn.Set(l.regpath, &HostNode{Host: host})
+	return removeInstance(l.conn, state)
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
@@ -342,20 +313,64 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 	return nil
 }
 
+// register waits for the leader to initialize the host
+func (l *HostStateListener) register(shutdown <-chan interface{}) (string, error) {
+	// wait for /hosts
+	for {
+		exists, err := zkutils.PathExists(l.conn, hostpath())
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			break
+		}
+		_, event, err := l.conn.ChildrenW("/")
+		if err != nil {
+			return "", err
+		}
+		select {
+		case <-event:
+		case <-shutdown:
+			return "", ErrShutdown
+		}
+	}
+
+	// wait for /hosts/HOSTID
+	for {
+		exists, err := zkutils.PathExists(l.conn, hostpath(l.hostID))
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			break
+		}
+		_, event, err := l.conn.ChildrenW(hostpath())
+		if err != nil {
+			return "", err
+		}
+		select {
+		case <-event:
+		case <-shutdown:
+			return "", ErrShutdown
+		}
+	}
+
+	host, err := l.handler.GetHost(l.hostID)
+	if err != nil {
+		return "", err
+	}
+	return registerHost(l.conn, host)
+}
+
 func updateInstance(conn client.Connection, state *servicestate.ServiceState) error {
 	return conn.Set(servicepath(state.ServiceID, state.ID), &ServiceStateNode{ServiceState: state})
 }
 
-func removeInstance(conn client.Connection, hostID, ssID string) error {
-	var hs HostState
-	if err := conn.Get(hostpath(hostID, ssID), &hs); err != nil {
-		return err
-	} else if err := conn.Delete(hostpath(hostID, ssID)); err != nil {
-		return err
-	} else if err := conn.Delete(servicepath(hs.ServiceID, hs.ServiceStateID)); err != nil {
-		return err
+func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {
+	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
+		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
 	}
-	return nil
+	return conn.Delete(servicepath(state.ServiceID, state.ID))
 }
 
 func StopServiceInstance(conn client.Connection, hostID, stateID string) error {

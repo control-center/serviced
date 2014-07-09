@@ -33,6 +33,7 @@ import (
 	coordzk "github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
@@ -62,6 +63,7 @@ const (
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
+	poolID               string
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
 	hostID               string               // the hostID of the current host
@@ -99,6 +101,7 @@ var funcmap = template.FuncMap{
 }
 
 type AgentOptions struct {
+	PoolID               string
 	Master               string
 	UIPort               string
 	DockerDNS            []string
@@ -117,6 +120,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
 	agent.dockerRegistry = options.DockerRegistry
+	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
 	agent.dockerDNS = options.DockerDNS
@@ -206,7 +210,7 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 		glog.V(1).Infof("Container does not appear to be running: %s", serviceState.ID)
 		return errors.New("Container not running for " + serviceState.ID)
 
-	case err != nil && strings.HasPrefix(err.Error(), "no container"):
+	case err != nil:
 		glog.Warningf("Error retrieving container state: %s", serviceState.ID)
 		return err
 	}
@@ -817,71 +821,67 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 	return resourcePath, nil
 }
 
+func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
+	rpcMaster, err := master.NewClient(a.master)
+	if err != nil {
+		glog.Errorf("Failed to get RPC master: %v", err)
+		return nil, err
+	}
+	myHost, err := rpcMaster.GetHost(hostID)
+	if err != nil {
+		glog.Errorf("Could not get host %s: %s", hostID, err)
+		return nil, err
+	}
+	return myHost, nil
+}
+
 // main loop of the HostAgent
 func (a *HostAgent) start() {
 	glog.Info("Starting HostAgent")
-	var hsListener *zkservice.HostStateListener
-	for {
-		rpcMaster, err := master.NewClient(a.master)
-		if err != nil {
-			glog.Errorf("Failed to get RPC master: %v", err)
-			time.Sleep(time.Second * 5)
-			continue
+	connc := make(chan coordclient.Connection)
+	go func() {
+		for {
+			c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
+			if err == nil {
+				connc <- c
+				return
+			}
+
+			select {
+			case <-a.closing:
+				return
+			case <-time.After(time.Second):
+			}
 		}
-		myHost, err := rpcMaster.GetHost(a.hostID)
-		if err != nil {
-			glog.Errorf("Could not get host %s: %s", a.hostID, err)
-			time.Sleep(time.Second * 5)
-			continue
-		}
+	}()
 
-		if myHost != nil {
-			connc := make(chan coordclient.Connection)
-			go func() {
-				for {
-					c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
-					if err == nil {
-						connc <- c
-						return
-					}
+	// create a wrapping function so that client.Close() can be handled via defer
+	func() {
+		shutdown := make(chan interface{})
+		defer close(shutdown)
+		conn := <-connc
+		glog.Info("Got a connected client")
+		defer conn.Close()
 
-					select {
-					case <-a.closing:
-						return
-					case <-time.After(time.Second):
-					}
-				}
-			}()
+		// watch virtual IP zookeeper nodes
+		go virtualips.WatchVirtualIPs(conn)
 
-			// create a wrapping function so that client.Close() can be handled via defer
-			func() {
-				shutdown := make(chan interface{})
-				defer close(shutdown)
-				conn := <-connc
+		// watch docker action nodes
+		actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+		go actionListener.Listen(shutdown)
 
-				glog.Info("Got a connected client")
-				defer conn.Close()
-
-				// watch virtual IP zookeeper nodes
-				go virtualips.WatchVirtualIPs(conn)
-
-				// watch docker action nodes
-				actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-				go actionListener.Listen(shutdown)
-
-				if hsListener == nil {
-					hsListener = zkservice.NewHostStateListener(conn, a, myHost)
-				} else if err := hsListener.Reset(conn, myHost); err != nil {
-					glog.Warningf("Could not reset host: ", err)
-				}
-				hsListener.Listen(a.closing)
-			}()
-		}
-		select {
-		case <-a.closing:
-			break
-		case <-time.After(time.Second * 5):
-		}
+		hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+		// this blocks until
+		// 1) has a connection
+		// 2) its node is registered
+		// 3) receieves signal to shutdown or breaks
+		hsListener.Listen(a.closing)
+	}()
+	select {
+	case <-a.closing:
+		break
+	default:
+		// this will not spin infinitely
 	}
 }
 

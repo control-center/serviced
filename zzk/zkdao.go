@@ -158,9 +158,10 @@ func GetRunningService(conn coordclient.Connection, serviceId string, serviceSta
 	return nil
 }
 
-func RemoveHost(conn coordclient.Connection, hostId string) error {
+//FIXME no one calls this...
+/*func RemoveHost(conn coordclient.Connection, hostId string) error {
 	return conn.Delete(HostPath(hostId))
-}
+}*/
 
 func GetRunningServicesForHost(conn coordclient.Connection, hostId string, running *[]*dao.RunningService) error {
 	var err error

@@ -315,6 +315,7 @@ func (d *daemon) startAgent() error {
 		nfsClient.Wait()
 
 		agentOptions := node.AgentOptions{
+			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
 			UIPort:               options.UIPort,
 			DockerDNS:            options.DockerDNS,
