@@ -102,6 +102,25 @@ start_service() {
     return 0
 }
 
+test_started() {
+    for line in $(${SERVICED} service list | tr -cd '\000-\177' | awk '/s[12]/{print $1 ":" $2}'); do
+        name=$(echo $line | cut -f1 -d:)
+        id=$(echo $line | cut -f2 -d:)
+        docker ps --no-trunc |grep 'proxy $id'
+        status=$?
+        if [ "$status" != "0" ]; then
+            echo "Unable to find service {Name:$name ID:$id} in docker ps"
+            #echo "Output of ${SERVICED} service list:"
+            #${SERVICED} service list
+            #echo
+            #echo "Output of docker ps --no-trunc | grep -v isvcs:"
+            #docker ps --no-trunc | grep -v isvcs
+            return 1
+        fi
+    done
+    return 0
+}
+
 test_vhost() {
     wget --no-check-certificate -qO- https://websvc.${HOSTNAME} &>/dev/null || return 1
     return 0
@@ -120,6 +139,14 @@ test_config() {
 test_dir_config() {
     [ "$(wget --no-check-certificate -qO- https://websvc.${HOSTNAME}/etc/bar.txt)" == "baz" ] || return 1
     return 0
+}
+
+test_attached() {
+    varx=$(${SERVICED} service attach s1 whoami)
+    if [[ "$varx" == "root" ]]; then
+        return 0
+    fi
+    return 1
 }
 
 test_port_mapped() {
@@ -156,10 +183,14 @@ add_host                   && succeed "Added host successfully"                 
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
 start_service              && succeed "Started service"                          || fail "Unable to start service"
+retry 10 test_started      && succeed "Service started"                          || fail "Unable to start services"
+
 retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
 retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
 retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
-retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Either unable to attach to container or endpoint was not imported"
+
+retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
+retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
 
 # "trap cleanup EXIT", above, will handle cleanup
