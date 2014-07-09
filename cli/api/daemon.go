@@ -65,12 +65,14 @@ type daemon struct {
 	hostID           string
 	zClient          *coordclient.Client
 	storageHandler   *storage.Server
+	masterPoolID     string
 }
 
-func newDaemon(servicedEndpoint string, staticIPs []string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
+		masterPoolID:     masterPoolID,
 	}
 	return d, nil
 }
@@ -180,7 +182,7 @@ func (d *daemon) startMaster() error {
 
 	// This is storage related
 	// TODO FIXME, should this be pool based? If so, how do we know the pool at this point?
-	thisHost, err := host.Build(agentIP, "default")
+	thisHost, err := host.Build(agentIP, d.masterPoolID)
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
