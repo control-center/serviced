@@ -145,7 +145,7 @@ func (conn *TestConnection) Delete(p string) error {
 
 	children, _ := conn.Children(p)
 	for _, c := range children {
-		if err := conn.Delete(c); err != nil {
+		if err := conn.Delete(path.Join(p, c)); err != nil {
 			return err
 		}
 	}
