@@ -349,16 +349,115 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 	}
 }
 
-func (s *S) TestIllegalTemplate(t *C) {
+func (s *S) TestIllegalTemplates(t *C) {
 	err := createSvcs(s.store, s.ctx)
 	t.Assert(err, IsNil)
 
-	svc := Service{
-		Startup: "{{}",
+	illegal_services := []Service{
+		//endpoint
+		Service{
+			Endpoints: []ServiceEndpoint{
+				ServiceEndpoint{
+					EndpointDefinition: servicedefinition.EndpointDefinition{
+						Application: "{{illegal_endpoint}}",
+					},
+				},
+			},
+		},
+		//log config - path
+		Service{
+			LogConfigs: []servicedefinition.LogConfig{
+				servicedefinition.LogConfig{
+					Path: "{{illegal_logconfig_path}}",
+				},
+			},
+		},
+		//log config - type
+		Service{
+			LogConfigs: []servicedefinition.LogConfig{
+				servicedefinition.LogConfig{
+					Type: "{{illegal_logconfig_type}}",
+				},
+			},
+		},
+		//log config - value
+		Service{
+			LogConfigs: []servicedefinition.LogConfig{
+				servicedefinition.LogConfig{
+					LogTags: []servicedefinition.LogTag{
+						servicedefinition.LogTag{
+							Value: "{{illegal_logconfig_logtag_value}}",
+						},
+					},
+				},
+			},
+		},
+		//config files - filename
+		Service{
+			ConfigFiles: map[string]servicedefinition.ConfigFile{
+				"Zenosstest.conf": servicedefinition.ConfigFile{
+					Filename: "{{illegal_configfile_filename}}",
+				},
+			},
+		},
+		//config files - content
+		Service{
+			ConfigFiles: map[string]servicedefinition.ConfigFile{
+				"Zenosstest.conf": servicedefinition.ConfigFile{
+					Content: "{{illegal_configfile_content}}",
+				},
+			},
+		},
+		//startup
+		Service{
+			Startup: "{{illegal_startup}}",
+		},
+		//runs
+		Service{
+			Runs: map[string]string{
+				"script": "{{illegal_runs}}",
+			},
+		},
+		//actions
+		Service{
+			Actions: map[string]string{
+				"action": "{{illegal_actions}}",
+			},
+		},
+		//hostname
+		Service{
+			Hostname: "{{illegal_hostname}}",
+		},
+		//volumes
+		Service{
+			Volumes: []servicedefinition.Volume{
+				servicedefinition.Volume{
+					ResourcePath: "{{illegal_volume_resourcepath}}",
+				},
+			},
+		},
+		//prereqs
+		Service{
+			Prereqs: []domain.Prereq{
+				domain.Prereq{
+					Script: "{{illegal_prereq_script}}",
+				},
+			},
+		},
+		//health check
+		Service{
+			HealthChecks: map[string]domain.HealthCheck{
+				"check": domain.HealthCheck{
+					Script: "{{illegal_healthcheck_script}}",
+				},
+			},
+		},
 	}
 
-	err = svc.Evaluate(s.getSVC, s.findChild, 0)
-	if err == nil {
-		t.Errorf("Expecting error for invalid startup template")
+	for _, svc := range illegal_services {
+		err = svc.Evaluate(s.getSVC, s.findChild, 0)
+		if err == nil {
+			t.Errorf("Expecting error for invalid template: %+v", svc)
+		}
 	}
 }
