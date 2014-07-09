@@ -15,9 +15,9 @@ const (
 )
 
 var (
-	ErrHostNotInitialized   = errors.New("host not initialized")
-	ErrHostInvalid          = errors.New("invalid host")
-	ErrHostRegistryShutdown = errors.New("host registry shut down")
+	ErrHostNotInitialized = errors.New("host not initialized")
+	ErrHostInvalid        = errors.New("invalid host")
+	ErrShutdown           = errors.New("listener shut down")
 )
 
 func hostregpath(nodes ...string) string {
@@ -143,25 +143,7 @@ func (l *HostRegistryListener) unregister(id string) error {
 	}()
 
 	// remove all the instances running on that host
-	hostID := l.hostmap[id]
-	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
-		return err
-	} else if !exists {
-		return nil
-	}
-
-	stateIDs, err := l.conn.Children(hostpath(hostID))
-	if err != nil {
-		return err
-	}
-
-	for _, ssID := range stateIDs {
-		if err := l.conn.Delete(hostpath(hostID, ssID)); err != nil {
-			return err
-		}
-	}
-
-	return l.conn.Delete(hostpath(hostID))
+	return UnregisterHost(l.conn, l.hostmap[id])
 }
 
 func (l *HostRegistryListener) alert() {
@@ -189,7 +171,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			case <-eventW:
 				// pass
 			case <-l.shutdown:
-				return nil, ErrHostRegistryShutdown
+				return nil, ErrShutdown
 			}
 		} else {
 			break
@@ -222,4 +204,35 @@ func registerHost(conn client.Connection, host *host.Host) (string, error) {
 
 	// create the ephemeral host
 	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+}
+
+func RegisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if exists {
+		return nil
+	}
+
+	return conn.CreateDir(hostpath(hostID))
+}
+
+func UnregisterHost(conn client.Connection, hostID string) error {
+	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	stateIDs, err := conn.Children(hostpath(hostID))
+	if err != nil {
+		return err
+	}
+
+	for _, ssID := range stateIDs {
+		if err := conn.Delete(hostpath(hostID, ssID)); err != nil {
+			return err
+		}
+	}
+
+	return conn.Delete(hostpath(hostID))
 }

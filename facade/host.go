@@ -53,6 +53,11 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		entity.UpdatedAt = now
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
+
+	if err == nil {
+		err = f.zkDao.RegisterHost(entity.ID)
+	}
+
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	return err
 
@@ -82,7 +87,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
 		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	}
 	if err == nil {
-		err = zkAPI(f.zkDao).RemoveHost(hostID)
+		err = f.zkDao.UnregisterHost(hostID)
 	}
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	return err
