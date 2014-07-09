@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/shell"
@@ -108,7 +109,14 @@ func (a *api) RunShell(config ShellConfig) error {
 		err := client.GetService(svcID, &s)
 		return s, err
 	}
-	if err := svc.EvaluateRunsTemplate(getSvc); err != nil {
+
+	findChild := func(svcID, childName string) (service.Service, error) {
+		s := service.Service{}
+		err := client.FindChildService(dao.FindChildRequest{svcID, childName}, &s)
+		return s, err
+	}
+
+	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
 		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
 	command, ok := svc.Runs[config.Command]

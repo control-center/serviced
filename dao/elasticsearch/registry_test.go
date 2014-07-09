@@ -51,6 +51,7 @@ func (dt *DaoTest) TestDao_VhostRegistrySet(t *C) {
 	t.Assert(vep, Equals, *newVep)
 
 	//test double add
+	glog.Infof("%+v", vep)
 	path, err = vr.SetItem(dt.zkConn, "testKey", vep)
 	t.Assert(err, IsNil)
 }

@@ -49,6 +49,12 @@ func (a *LBClient) GetService(serviceId string, service *service.Service) error 
 	return a.rpcClient.Call("ControlPlaneAgent.GetService", serviceId, service)
 }
 
+// GetServiceInstance returns a service for the given service id request.
+func (a *LBClient) GetServiceInstance(req ServiceInstanceRequest, service *service.Service) error {
+	glog.V(0).Infof("ControlPlaneAgent.GetServiceInstance()")
+	return a.rpcClient.Call("ControlPlaneAgent.GetServiceInstance", req, service)
+}
+
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
 func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetProxySnapshotQuiece()")
@@ -75,9 +81,9 @@ func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) 
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(serviceId string, healthChecks *map[string]domain.HealthCheck) error {
+func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
-	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", serviceId, healthChecks)
+	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", req, healthChecks)
 }
 
 // GetHostID returns the agent's host id
