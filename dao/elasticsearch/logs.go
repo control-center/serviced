@@ -7,31 +7,18 @@ package elasticsearch
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/rpc/agent"
-	"github.com/zenoss/serviced/zzk"
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {
 	glog.V(3).Info("ControlPlaneDao.GetServiceLogs serviceID=", serviceID)
-
-	var myService service.Service
-	if err := this.GetService(serviceID, &myService); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetServiceLogs service=%+v err=%s", serviceID, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
-		return err
-	}
-
 	var serviceStates []*servicestate.ServiceState
-	if err := zzk.GetServiceStates(poolBasedConn, &serviceStates, serviceID); err != nil {
+	if err := this.GetServiceStates(serviceID, &serviceStates); err != nil {
+		glog.Errorf("ControlPlaneDao.GetServiceLogs failed: %v", err)
 		return err
 	}
+
 	if len(serviceStates) == 0 {
 		glog.V(1).Info("Unable to find any running services for service:", serviceID)
 		return nil
@@ -56,22 +43,8 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 }
 
 func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
-	var myService service.Service
-	if err := this.GetService(request.ServiceID, &myService); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetServiceLogs service=%+v err=%s", request.ServiceID, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
-		return err
-	}
-
-	/* TODO: This command does not support logs on other hosts */
-	glog.V(3).Info("ControlPlaneDao.GetServiceStateLogs id=", request)
 	var serviceState servicestate.ServiceState
-	if err := zzk.GetServiceState(poolBasedConn, &serviceState, request.ServiceID, request.ServiceStateID); err != nil {
+	if err := this.GetServiceState(request, &serviceState); err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceState, err)
 		return err
 	}
