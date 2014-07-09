@@ -713,6 +713,13 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		glog.V(1).Infof("added logstash bind mount: %s", binding)
 	}
 
+	// specify temporary volume paths for docker to create
+	tmpVolumes := []string{"/tmp"}
+	for _, path := range tmpVolumes {
+		cfg.Volumes[path] = struct{}{}
+		glog.V(0).Infof("added temporary docker container path: %s", path)
+	}
+
 	// add arguments to mount requested directory (if requested)
 	glog.V(2).Infof("Checking Mount options for service %#v", svc)
 	for _, bindMountString := range a.mount {
