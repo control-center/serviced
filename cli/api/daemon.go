@@ -131,7 +131,19 @@ func (d *daemon) run() error {
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
-	return http.Serve(l, nil) // start the server
+	go func() {
+		// start the server
+		http.Serve(l, nil)
+	}()
+
+	signalChan := make(chan os.Signal, 10)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	<-signalChan
+	glog.V(0).Info("Shutting down due to interrupt")
+	hostAgent.Shutdown()
+	isvcs.Mgr.Stop()
+	os.Exit(0)
+
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
@@ -313,16 +325,6 @@ func (d *daemon) startAgent() (hostAgent *node.HostAgent, err error) {
 	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
-
-	go func() {
-		signalChan := make(chan os.Signal, 10)
-		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-		<-signalChan
-		glog.V(0).Info("Shutting down due to interrupt")
-		hostAgent.Shutdown()
-		isvcs.Mgr.Stop()
-		os.Exit(0)
-	}()
 
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.

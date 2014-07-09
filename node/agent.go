@@ -866,7 +866,7 @@ func (a *HostAgent) start() {
 			func() {
 				conn := <-connc
 				glog.Info("Got a connected client")
-				defer func(){
+				defer func() {
 					glog.Info("Closing ZK connection")
 					conn.Close()
 				}()
@@ -903,6 +903,7 @@ func (a *HostAgent) start() {
 				glog.Info("Agent waiting for go routines")
 				wg.Wait()
 				glog.Info("All Agent routines exited")
+
 			}()
 		}
 		select {
