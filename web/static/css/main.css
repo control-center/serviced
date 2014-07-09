@@ -278,7 +278,7 @@ table .btn,
         width: 1024px;
     }
     .big textarea {
-        width: 960px;
+        width: 100%;
         min-height: 600px
     }
 }
@@ -881,6 +881,19 @@ rect {
 /* bootstrap override */
 .bg-primary{
     background-color: #6b6b6b;
+}
+
+.btn-link {
+    font-weight: bold;
+    color: #325385;
+}
+.btn-link:hover {
+    color: #4F83D1;
+}
+
+.btn-danger {
+    background-color: #9C1200;
+    border-color: #9C1200;
 }
 
 .table > thead > tr > th,

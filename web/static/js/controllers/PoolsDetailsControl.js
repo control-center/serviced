@@ -24,9 +24,30 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Pool view action - delete
     $scope.clickRemoveVirtualIp = function(ip) {
         console.log( "Removing pool's virtual ip address: ", ip);
-        resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-            refreshPools($scope, resourcesService, false);
+
+        $modalService.create({
+            template: "This will remove Virtual IP <strong>"+ ip.IP +"</strong>. This cannot be undone.",
+            model: $scope,
+            title: "Remove Virtual IP",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Remove Virtual IP",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
+                            refreshPools($scope, resourcesService, false);
+                        });
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
         });
+        
+        
     };
 
     // Add Virtual Ip Modal - Add button action

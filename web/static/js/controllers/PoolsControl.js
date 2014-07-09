@@ -27,8 +27,26 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function to remove a pool
     $scope.clickRemovePool = function(poolID) {
-        resourcesService.remove_pool(poolID, function(data) {
-            refreshPools($scope, resourcesService, false);
+        $modalService.create({
+            template: "This will remove Pool <strong>"+ poolID +"</strong>. This cannot be undone.",
+            model: $scope,
+            title: "Remove Pool",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Remove Pool",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.remove_pool(poolID, function(data) {
+                            refreshPools($scope, resourcesService, false);
+                        });
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
         });
     };
 
@@ -41,7 +59,11 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
             title: "title_add_pool",
             actions: [
                 {
-                    role: "cancel"
+                    role: "cancel",
+                    action: function(){
+                        $scope.newPool = {};
+                        this.close();
+                    }
                 },{
                     role: "ok",
                     label: "btn_add",

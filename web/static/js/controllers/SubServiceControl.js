@@ -70,7 +70,11 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             title: "add_vhost",
             actions: [
                 {
-                    role: "cancel"
+                    role: "cancel",
+                    action: function(){
+                        $scope.vhosts.add = {};
+                        this.close();
+                    }
                 },{
                     role: "ok",
                     label: "Add",
@@ -200,8 +204,26 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     };
 
     $scope.clickRemoveVirtualHost = function(vhost) {
-        resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
-            refreshServices($scope, resourcesService, false);
+        $modalService.create({
+            template: "This will remove Virtual Host <strong>"+ vhost.Name +"</strong>. This cannot be undone.",
+            model: $scope,
+            title: "Remove Virtual Host",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Remove Virtual Host",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
+                            refreshServices($scope, resourcesService, false);
+                        });
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
         });
     };
 

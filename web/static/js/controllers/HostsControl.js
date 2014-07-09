@@ -21,7 +21,11 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
             title: "title_add_host",
             actions: [
                 {
-                    role: "cancel"
+                    role: "cancel",
+                    action: function(){
+                        $scope.newHost = {};
+                        this.close();
+                    }
                 },{
                     role: "ok",
                     label: "Add Host",

@@ -1,4 +1,4 @@
-function BackupRestoreControl($scope, $routeParams, $notification, $translate, resourcesService, authService) {
+function BackupRestoreControl($scope, $routeParams, $notification, $translate, resourcesService, authService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "backuprestore";
@@ -18,24 +18,53 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
         ERROR = $translate("error");
 
     $scope.createBackup = function(){
+        $modalService.create({
+            template: "The backup process may take a while.",
+            model: $scope,
+            title: "Create Backup",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Create Backup",
+                    action: function(){
+                        var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
 
-        var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
-
-        resourcesService.create_backup(function(data){
-            setTimeout(function(){
-                getBackupStatus(notification);
-            }, 1);
+                        resourcesService.create_backup(function(data){
+                            setTimeout(function(){
+                                getBackupStatus(notification);
+                            }, 1);
+                        });
+                    }
+                }
+            ]
         });
     };
 
     $scope.restoreBackup = function(filename){
+        $modalService.create({
+            template: "The restore process cannot be reversed.",
+            model: $scope,
+            title: "Restore",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "Restore",
+                    classes: "btn-danger",
+                    action: function(){
+                        var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);
 
-        var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);
-
-        resourcesService.restore_backup(filename, function(data){
-            setTimeout(function(){
-                getRestoreStatus(notification);
-            }, 1);
+                        resourcesService.restore_backup(filename, function(data){
+                            setTimeout(function(){
+                                getRestoreStatus(notification);
+                            }, 1);
+                        });
+                    }
+                }
+            ]
         });
     };
 
