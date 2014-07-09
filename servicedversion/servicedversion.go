@@ -9,4 +9,6 @@
 
 package servicedversion
 
-var Version = "0.0.1a"
+var Version string
+var Gitcommit string
+

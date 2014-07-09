@@ -7,6 +7,15 @@
 #
 ################################################################################
 
+VERSION := $(shell cat ./VERSION)
+GITCOMMIT := $(shell git rev-parse --short HEAD)
+
+# TODO: how do i mark it dirty
+#if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+#                GITCOMMIT="$GITCOMMIT-dirty"
+#        fi
+
+
 #---------------------#
 # Macros              #
 #---------------------#
@@ -139,7 +148,7 @@ $(GOSRC)/$(godep_SRC):
 
 .PHONY: go
 go: 
-	go build
+	go build -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -165,13 +174,13 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build
-	go install
+	go build -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
+	go install -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go install
+	go install -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
