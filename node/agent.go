@@ -617,6 +617,10 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	for _, volume := range svc.Volumes {
+		if volume.Type != "" && volume.Type != "dfs" {
+			continue
+		}
+
 		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
 			glog.Fatalf("%s", err)
@@ -648,6 +652,11 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
+	for _, volume := range svc.Volumes {
+		if volume.Type == "tmp" {
+			tmpVolumes = append(tmpVolumes, volume.ContainerPath)
+		}
+	}
 	for _, path := range tmpVolumes {
 		cfg.Volumes[path] = struct{}{}
 		glog.V(0).Infof("added temporary docker container path: %s", path)

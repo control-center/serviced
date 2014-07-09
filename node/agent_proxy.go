@@ -270,6 +270,10 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 
 	response := map[string]string{}
 	for _, volume := range service.Volumes {
+		if volume.Type != "" && volume.Type != "dfs" {
+			continue
+		}
+
 		resourcePath, err := a.setupVolume(tenantID, &service, volume)
 		if err != nil {
 			return err
