@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/mattbaird/elastigo/api"
+	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
