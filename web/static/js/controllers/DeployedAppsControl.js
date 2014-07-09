@@ -95,7 +95,28 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.clickRunning = toggleRunning;
+    // $scope.clickRunning = toggleRunning;
+    $scope.clickRunning = function(app, status, servicesService){
+        var displayStatus = status.slice(0,1).toUpperCase() + status.slice(1);
+
+        $modalService.create({
+            template: "This will "+ status +" all child services.",
+            model: $scope,
+            title: displayStatus +" Services",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: displayStatus +" Services",
+                    action: function(){
+                        toggleRunning(app, status, servicesService);
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
 
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, false);
