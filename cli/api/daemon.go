@@ -290,6 +290,18 @@ func (d *daemon) startAgent() error {
 			}
 			poolID = myHost.PoolID
 			glog.Infof(" My PoolID: %v", poolID)
+			//send updated host info
+			updatedHost, err := host.UpdateHostInfo(*myHost)
+			if err != nil {
+				glog.Infof("Could not send updated host information: %v", err)
+				break
+			}
+			err = masterClient.UpdateHost(updatedHost)
+			if err != nil {
+				glog.Warningf("Could not update host information: %v", err)
+				break
+			}
+			glog.V(2).Infof("Sent updated host info %#v", updatedHost)
 			break
 		}
 
