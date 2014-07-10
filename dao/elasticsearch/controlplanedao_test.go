@@ -89,7 +89,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("could not get zk connection %v", err)
 	}
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", "localhost:5000")
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {

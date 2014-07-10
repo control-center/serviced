@@ -213,6 +213,14 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	{
+		"ubuntu:13.10",
+		&ImageID{
+			Repo: "ubuntu",
+			Tag:  "13.10",
+		},
+		"",
+	},
 }
 
 func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
