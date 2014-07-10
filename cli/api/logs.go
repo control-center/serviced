@@ -234,17 +234,17 @@ type logMultiLine struct {
 
 type compactLogLine struct {
 	Timestamp int64 //nanoseconds since the epoch, truncated at the minute to hide jitter
-	Offset    int64
+	Offset    uint64
 	Message   string
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
 
-// convertOffsets converts a list of strings into a list of int64s
-func convertOffsets(offsets []string) ([]int64, error) {
-	result := make([]int64, len(offsets))
+// convertOffsets converts a list of strings into a list of uint64s
+func convertOffsets(offsets []string) ([]uint64, error) {
+	result := make([]uint64, len(offsets))
 	for i, offsetString := range offsets {
-		offset, e := strconv.ParseInt(offsetString, 10, 64)
+		offset, e := strconv.ParseUint(offsetString, 10, 64)
 		if e != nil {
 			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, offsetString, offsets, e)
 		}
@@ -254,8 +254,8 @@ func convertOffsets(offsets []string) ([]int64, error) {
 	return result, nil
 }
 
-// int64sAreSorted returns true if input values are sorted in increasing order - mimics sort.IntsAreSorted()
-func int64sAreSorted(values []int64) bool {
+// uint64sAreSorted returns true if input values are sorted in increasing order - mimics sort.IntsAreSorted()
+func uint64sAreSorted(values []uint64) bool {
 	if len(values) == 0 {
 		return true
 	}
@@ -270,9 +270,9 @@ func int64sAreSorted(values []int64) bool {
 	return true
 }
 
-// getMinValue returns the minimum value in an array of int64
-func getMinValue(values []int64) int64 {
-	result := int64(math.MaxInt64)
+// getMinValue returns the minimum value in an array of uint64
+func getMinValue(values []uint64) uint64 {
+	result := uint64(math.MaxUint64)
 	for _, value := range values {
 		if value < result {
 			result = value
@@ -283,11 +283,14 @@ func getMinValue(values []int64) int64 {
 
 // generateOffsets uses the minimum offset in the array as a base returns an array of offsets where
 // each offset is the base + index
-func generateOffsets(offsets []int64) []int64 {
-	result := make([]int64, len(offsets))
+func generateOffsets(messages []string, offsets []uint64) []uint64 {
+	result := make([]uint64, len(messages))
 	minOffset := getMinValue(offsets)
-	for i, _ := range offsets {
-		result[i] = minOffset + int64(i)
+	if minOffset == uint64(math.MaxUint64) {
+		minOffset = 0
+	}
+	for i, _ := range result {
+		result[i] = minOffset + uint64(i)
 	}
 	return result
 }
@@ -297,7 +300,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
 	if e := json.Unmarshal(source, &line); e == nil {
-		offset, e := strconv.ParseInt(line.Offset, 10, 64)
+		offset, e := strconv.ParseUint(line.Offset, 10, 64)
 		if e != nil {
 			return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
 		}
@@ -315,7 +318,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
 
-	// build offsets - list of int64
+	// build offsets - list of uint64
 	offsets, e := convertOffsets(multiLine.Offset)
 	if e != nil {
 		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
@@ -327,20 +330,21 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
-			lastOffset := int64(len(messages[numLines-2])) + offsets[numLines-1]
+			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-1]
 			offsets = append(offsets, lastOffset)
 		}
 	} else if len(offsets) > len(messages) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
 	} else if len(offsets) < len(messages) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
-		return multiLine.Host, multiLine.File, nil, nil
+		offsets = generateOffsets(messages, offsets)
+		glog.Warningf("new offsets: %v", offsets)
 	}
 
 	// deal with offsets that are not sorted in increasing order
-	if !int64sAreSorted(offsets) {
+	if !uint64sAreSorted(offsets) {
 		glog.Warningf("offsets are not sorted: %s", offsets)
-		offsets := generateOffsets(offsets)
+		offsets = generateOffsets(messages, offsets)
 		glog.Warningf("new offsets: %v", offsets)
 	}
 
