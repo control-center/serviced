@@ -7,6 +7,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
+	"github.com/zenoss/serviced/domain/servicestate"
 	template "github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/facade"
 )
@@ -35,6 +36,7 @@ type API interface {
 
 	// Services
 	GetServices() ([]*service.Service, error)
+	GetServiceStates(string) ([]*servicestate.ServiceState, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]*service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
