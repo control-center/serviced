@@ -7,8 +7,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	elastigo "github.com/mattbaird/elastigo/api"
-	"github.com/mattbaird/elastigo/core"
+	elastigo "github.com/zenoss/elastigo/api"
+	"github.com/zenoss/elastigo/core"
 	"github.com/zenoss/serviced/domain/service"
 	"io/ioutil"
 	"os"

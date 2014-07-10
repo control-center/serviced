@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
@@ -26,7 +25,6 @@ import (
 type ServiceConfig struct {
 	bindPort    string
 	agentPort   string
-	zkClient    *coordclient.Client
 	stats       bool
 	hostaliases []string
 	muxTLS      bool
@@ -36,11 +34,10 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.Client, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
-		zkClient:    zkClient,
 		stats:       stats,
 		hostaliases: []string{},
 		muxTLS:      muxTLS,
@@ -54,7 +51,7 @@ func NewServiceConfig(bindPort string, agentPort string, zkClient *coordclient.C
 
 // Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
-// Virutal host routing to zenoss web based services is done by the vhosthandler function.
+// Virtual host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve() {
 
 	//start getting vhost endpoints
@@ -207,6 +204,17 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	return c, err
 }
 
+func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
+	glog.Info("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
+	c, err := master.NewClient(sc.agentPort)
+	if err != nil {
+		glog.Errorf("Could not create a control plane client to %v: %v", sc.agentPort, err)
+		return nil, err
+	}
+	glog.Info("end getMasterClient")
+	return c, nil
+}
+
 func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		if !check(w, r) {
@@ -247,9 +255,9 @@ func newRequestContext(sc *ServiceConfig) *requestContext {
 
 func (ctx *requestContext) getMasterClient() (*master.Client, error) {
 	if ctx.master == nil {
-		c, err := master.NewClient(ctx.sc.agentPort)
+		c, err := ctx.sc.getMasterClient()
 		if err != nil {
-			glog.Errorf("Could not create a control plane client to %v: %v", ctx.sc.agentPort, err)
+			glog.Errorf("Could not create a control plane client: %v", err)
 			return nil, err
 		}
 		ctx.master = c

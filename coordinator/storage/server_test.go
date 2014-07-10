@@ -7,6 +7,8 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/serviced/domain/host"
+	"github.com/zenoss/serviced/utils"
+	"github.com/zenoss/serviced/zzk"
 
 	"encoding/json"
 	"fmt"
@@ -38,7 +40,7 @@ func (m *mockNfsDriverT) Sync() error {
 
 func TestServer(t *testing.T) {
 	zookeeper.EnsureZkFatjar()
-	basePath := "/basePath"
+	basePath := ""
 	tc, err := zklib.StartTestCluster(1)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
@@ -55,10 +57,11 @@ func TestServer(t *testing.T) {
 	}
 	dsn := string(dsnBytes)
 
-	zclient, err := client.New("zookeeper", dsn, basePath, nil)
+	zClient, err := client.New("zookeeper", dsn, basePath, nil)
 	if err != nil {
 		t.Fatal("unexpected error getting zk client")
 	}
+	zzk.InitializeGlobalCoordClient(zClient)
 
 	defer func(orig func(string, string) error) {
 		nfsMount = orig
@@ -72,20 +75,30 @@ func TestServer(t *testing.T) {
 		return nil
 	}
 
-	h := host.New()
-	h.ID = "nodeID"
-	h.IPAddr = "192.168.1.5"
+	// creating a UUID in order to make a unique poolID
+	// the poolID is somehow being saved on the filesystem (zookeeper config somewhere?)
+	// making the poolID unique on every run will ensure it is stateless
+	uuid, err := utils.NewUUID()
+	if err != nil {
+		t.Fatal("New UUID could not be created")
+	}
 
-	hc1 := host.New()
-	hc1.ID = "nodeID_client1"
-	hc1.IPAddr = "192.168.1.10"
+	hostServer := host.New()
+	hostServer.ID = "nodeID"
+	hostServer.IPAddr = "192.168.1.50"
+	hostServer.PoolID = uuid
+
+	hostClient1 := host.New()
+	hostClient1.ID = "nodeID_client1"
+	hostClient1.IPAddr = "192.168.1.100"
+	hostClient1.PoolID = uuid
 
 	mockNfsDriver := &mockNfsDriverT{
 		exportPath: "/exports",
 		exportName: "serviced_var",
 	}
 
-	s, err := NewServer(mockNfsDriver, h, zclient)
+	s, err := NewServer(mockNfsDriver, hostServer, zClient)
 	if err != nil {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
@@ -98,7 +111,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("sync() should have been called by now")
 	}
 	if len(mockNfsDriver.clients) != 0 {
-		t.Fatalf("there should be no clients yet")
+		t.Fatalf("Expected number of clients: 0 --- Found: %v (%v)", len(mockNfsDriver.clients), mockNfsDriver.clients)
 	}
 	mockNfsDriver.syncCalled = false
 	tmpVar, err := ioutil.TempDir("", "serviced_var")
@@ -106,7 +119,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("could not create tempdir: %s", err)
 	}
 	defer os.RemoveAll(tmpVar)
-	c1, err := NewClient(hc1, zclient, tmpVar)
+	c1, err := NewClient(hostClient1, tmpVar)
 	if err != nil {
 		t.Fatalf("could not create client: %s", err)
 	}
@@ -119,11 +132,11 @@ func TestServer(t *testing.T) {
 	if len(mockNfsDriver.clients) != 1 {
 		t.Fatalf("expecting 1 client, got %d", len(mockNfsDriver.clients))
 	}
-	if mockNfsDriver.clients[0] != hc1.IPAddr {
-		t.Fatalf("expecting '%s', got '%s'", h.IPAddr, mockNfsDriver.clients[0])
+	if mockNfsDriver.clients[0] != hostClient1.IPAddr {
+		t.Fatalf("expecting '%s', got '%s'", hostServer.IPAddr, mockNfsDriver.clients[0])
 	}
 
-	shareName := fmt.Sprintf("%s:%s", h.IPAddr, mockNfsDriver.ExportPath())
+	shareName := fmt.Sprintf("%s:%s", hostServer.IPAddr, mockNfsDriver.ExportPath())
 	if remote != shareName {
 		t.Fatalf("remote should be %s, not %s", remote, shareName)
 	}

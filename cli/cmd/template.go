@@ -53,7 +53,7 @@ func (c *ServicedCli) initTemplate() {
 				Action:      c.cmdTemplateCompile,
 				Flags: []cli.Flag{
 					cli.GenericFlag{
-						"map", &api.ImageMap{}, "Map a given image name to another (e.g. -map zenoss/zenoss5x:quay.io/zenoss-core:alpha2)"},
+						"map", &api.ImageMap{}, "Map a given image name to another (e.g. -map zenoss/zenoss5x:latest,quay.io/zenoss-core:alpha2)"},
 				},
 			},
 		},

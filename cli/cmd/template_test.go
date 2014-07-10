@@ -315,7 +315,7 @@ func ExampleServicedCLI_CmdTemplateCompile_usage() {
 	//    serviced template compile PATH
 	//
 	// OPTIONS:
-	//    --map 	`-map option -map option` Map a given image name to another (e.g. -map zenoss/zenoss5x:quay.io/zenoss-core:alpha2)
+	//    --map 	`-map option -map option` Map a given image name to another (e.g. -map zenoss/zenoss5x:latest,quay.io/zenoss-core:alpha2)
 }
 
 func ExampleServicedCLI_CmdTemplateCompile_fail() {

@@ -6,7 +6,7 @@ package addressassignment
 
 import (
 	"fmt"
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
 )
 

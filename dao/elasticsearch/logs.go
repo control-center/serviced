@@ -11,15 +11,16 @@ import (
 	"github.com/zenoss/serviced/rpc/agent"
 )
 
-func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
-	glog.V(3).Info("ControlPlaneDao.GetServiceLogs id=", id)
+func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {
+	glog.V(3).Info("ControlPlaneDao.GetServiceLogs serviceID=", serviceID)
 	var serviceStates []*servicestate.ServiceState
-	err := this.zkDao.GetServiceStates(&serviceStates, id)
-	if err != nil {
+	if err := this.GetServiceStates(serviceID, &serviceStates); err != nil {
+		glog.Errorf("ControlPlaneDao.GetServiceLogs failed: %v", err)
 		return err
 	}
+
 	if len(serviceStates) == 0 {
-		glog.V(1).Info("Unable to find any running services for ", id)
+		glog.V(1).Info("Unable to find any running services for service:", serviceID)
 		return nil
 	}
 
@@ -42,11 +43,8 @@ func (this *ControlPlaneDao) GetServiceLogs(id string, logs *string) error {
 }
 
 func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
-	/* TODO: This command does not support logs on other hosts */
-	glog.V(3).Info("ControlPlaneDao.GetServiceStateLogs id=", request)
 	var serviceState servicestate.ServiceState
-	err := this.zkDao.GetServiceState(&serviceState, request.ServiceID, request.ServiceStateID)
-	if err != nil {
+	if err := this.GetServiceState(request, &serviceState); err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceState, err)
 		return err
 	}

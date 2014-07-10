@@ -8,6 +8,13 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
+    $scope.visualization = zenoss.visualization;
+    $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
+    $scope.visualization.urlPath = '/metrics/static/performance/query/';
+    $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
+    $scope.visualization.debug = false;
+
+
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {
@@ -422,4 +429,24 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             });
         };
     }
+
+    // XXX prevent the graphs from being drawn multiple times
+    //     by angular's processing engine
+    $scope.drawn = {};
+
+    //index: graph index for div id selection
+    //graph: the graph to display
+    $scope.viz = function(index, graph) {
+        var id = $scope.services.current.ID+'-graph-'+index
+        if (!$scope.drawn[id]) {
+            if (window.zenoss === undefined) {
+                return "Not collecting stats, graphs unavailable";
+            } else {
+                graph.timezone = jstz.determine().name()
+                zenoss.visualization.chart.create(id, graph);
+                $scope.drawn[id] = true;
+            }
+        }
+    };
+
 }
