@@ -278,13 +278,13 @@ func (d *daemon) startAgent() error {
 			glog.Infof("Trying to discover my pool...")
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
-				glog.Errorf("master.NewClient failed: %v", err)
+				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
-				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
+				glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
