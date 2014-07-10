@@ -194,6 +194,9 @@ var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
 /* end constants */
 
+// set verbosity of console.logs
+var DEBUG = false;
+
 function addChildren(allowed, parent) {
     allowed[parent.Id] = true;
     if (parent.children) {
@@ -227,7 +230,7 @@ function ResourcesService($http, $location, $notification) {
     var _get_services_tree = function(callback) {
         $http.get('/services').
             success(function(data, status) {
-                console.log('Retrieved list of services');
+                if(DEBUG) console.log('Retrieved list of services');
                 cached_services = [];
                 cached_services_map = {};
                 // Map by id
@@ -259,7 +262,7 @@ function ResourcesService($http, $location, $notification) {
     var _get_app_templates = function(callback) {
         $http.get('/templates').
             success(function(data, status) {
-                console.log('Retrieved list of app templates');
+                if(DEBUG) console.log('Retrieved list of app templates');
                 cached_app_templates = data;
                 callback(data);
             }).
@@ -276,7 +279,7 @@ function ResourcesService($http, $location, $notification) {
     var _get_pools = function(callback) {
         $http.get('/pools').
             success(function(data, status) {
-                console.log('Retrieved list of pools');
+                if(DEBUG) console.log('Retrieved list of pools');
                 cached_pools = data;
                 callback(data);
             }).
@@ -292,7 +295,7 @@ function ResourcesService($http, $location, $notification) {
     var _get_hosts_for_pool = function(poolID, callback) {
         $http.get('/pools/' + poolID + '/hosts').
             success(function(data, status) {
-                console.log('Retrieved hosts for pool %s', poolID);
+                if(DEBUG) console.log('Retrieved hosts for pool %s', poolID);
                 cached_hosts_for_pool[poolID] = data;
                 callback(data);
             }).
@@ -308,7 +311,7 @@ function ResourcesService($http, $location, $notification) {
     var _get_hosts = function(callback) {
         $http.get('/hosts').
             success(function(data, status) {
-                console.log('Retrieved host details');
+                if(DEBUG) console.log('Retrieved host details');
                 cached_hosts = data;
                 callback(data);
             }).
@@ -362,7 +365,7 @@ function ResourcesService($http, $location, $notification) {
          */
         get_pools: function(cacheOk, callback) {
             if (cacheOk && cached_pools) {
-                console.log('Using cached pools');
+                if(DEBUG) console.log('Using cached pools');
                 callback(cached_pools);
             } else {
                 _get_pools(callback);
@@ -377,7 +380,7 @@ function ResourcesService($http, $location, $notification) {
         get_pool: function(poolID, callback) {
             $http.get('/pools/' + poolID).
                 success(function(data, status) {
-                    console.log('Retrieved %s for %s', data, poolID);
+                    if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -398,7 +401,7 @@ function ResourcesService($http, $location, $notification) {
         get_pool_ips: function(poolID, callback) {
             $http.get('/pools/' + poolID + "/ips").
                 success(function(data, status) {
-                    console.log('Retrieved %s for %s', data, poolID);
+                    if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -419,7 +422,7 @@ function ResourcesService($http, $location, $notification) {
         get_running_services_for_service: function(serviceId, callback) {
             $http.get('/services/' + serviceId + '/running').
                 success(function(data, status) {
-                    console.log('Retrieved running services for %s', serviceId);
+                    if(DEBUG) console.log('Retrieved running services for %s', serviceId);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -440,7 +443,7 @@ function ResourcesService($http, $location, $notification) {
         get_vhosts: function(callback) {
             $http.get('/vhosts').
                 success(function(data, status) {
-                    console.log('Retrieved list of virtual hosts');
+                    if(DEBUG) console.log('Retrieved list of virtual hosts');
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -501,7 +504,7 @@ function ResourcesService($http, $location, $notification) {
         get_running_services_for_host: function(hostId, callback) {
             $http.get('/hosts/' + hostId + '/running').
                 success(function(data, status) {
-                    console.log('Retrieved running services for %s', hostId);
+                    if(DEBUG) console.log('Retrieved running services for %s', hostId);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -540,7 +543,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Add result passed to callback on success.
          */
         add_pool: function(pool, callback) {
-            console.log('Adding detail: %s', JSON.stringify(pool));
+            if(DEBUG) console.log('Adding detail: %s', JSON.stringify(pool));
             $http.post('/pools/add', pool).
                 success(function(data, status) {
                     $notification.create("", 'Added new pool').success();
@@ -606,7 +609,7 @@ function ResourcesService($http, $location, $notification) {
          */
         add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
             var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
-            console.log('Adding pool virtual ip: %s', payload);
+            if(DEBUG) console.log('Adding pool virtual ip: %s', payload);
             $http.put('/pools/' + pool + '/virtualip', payload).
                 success(function(data, status) {
                     $notification.create("", 'Added new pool virtual ip').success();
@@ -628,7 +631,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Add result passed to callback on success.
          */
         remove_pool_virtual_ip: function(pool, ip, callback) {
-            console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
+            if(DEBUG) console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
             $http.delete('/pools/' + pool + '/virtualip/' + ip).
                 success(function(data, status) {
                     $notification.create("", 'Removed pool virtual ip').success();
@@ -652,7 +655,7 @@ function ResourcesService($http, $location, $notification) {
         kill_running: function(hostId, serviceStateId, callback) {
             $http.delete('/hosts/' + hostId + '/' + serviceStateId).
                 success(function(data, status) {
-                    console.log('Terminated %s', serviceStateId);
+                    if(DEBUG) console.log('Terminated %s', serviceStateId);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -674,7 +677,7 @@ function ResourcesService($http, $location, $notification) {
          */
         get_hosts: function(cacheOk, callback) {
             if (cacheOk && cached_hosts) {
-                console.log('Using cached hosts');
+                if(DEBUG) console.log('Using cached hosts');
                 callback(cached_hosts);
             } else {
                 _get_hosts(callback);
@@ -689,7 +692,7 @@ function ResourcesService($http, $location, $notification) {
         get_host: function(hostID, callback) {
             $http.get('/hosts/' + hostID).
                 success(function(data, status) {
-                    console.log('Retrieved %s for %s', data, hostID);
+                    if(DEBUG) console.log('Retrieved %s for %s', data, hostID);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -796,7 +799,7 @@ function ResourcesService($http, $location, $notification) {
          */
         get_services: function(cacheOk, callback) {
             if (cacheOk && cached_services && cached_services_map) {
-                console.log('Using cached services');
+                if(DEBUG) console.log('Using cached services');
                 callback(cached_services, cached_services_map);
             } else {
                 _get_services_tree(callback);
@@ -853,7 +856,7 @@ function ResourcesService($http, $location, $notification) {
          */
         get_app_templates: function(cacheOk, callback) {
             if (cacheOk && cached_app_templates) {
-                console.log('Using cached app templates');
+                if(DEBUG) console.log('Using cached app templates');
                 callback(cached_app_templates);
             } else {
                 _get_app_templates(callback);
@@ -867,7 +870,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Response passed to callback on success.
          */
         add_service: function(service, callback) {
-            console.log('Adding detail: %s', JSON.stringify(service));
+            if(DEBUG) console.log('Adding detail: %s', JSON.stringify(service));
             $http.post('/services/add', service).
                 success(function(data, status) {
                     $notification.create("", 'Added new service').success();
@@ -1059,7 +1062,7 @@ function ResourcesService($http, $location, $notification) {
         get_backup_files: function(callback){
             $http.get('/backup/list').
                 success(function(data, status) {
-                    console.log('Retrieved list of backup files.');
+                    if(DEBUG) console.log('Retrieved list of backup files.');
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -1076,7 +1079,7 @@ function ResourcesService($http, $location, $notification) {
 
             $http.get('/backup/status').
                 success(function(data, status) {
-                    console.log('Retrieved status of backup.');
+                    if(DEBUG) console.log('Retrieved status of backup.');
                     successCallback(data);
                 }).
                 error(function(data, status) {
@@ -1093,7 +1096,7 @@ function ResourcesService($http, $location, $notification) {
             
             $http.get('/backup/restore/status').
                 success(function(data, status) {
-                    console.log('Retrieved status of restore.');
+                    if(DEBUG) console.log('Retrieved status of restore.');
                     successCallback(data);
                 }).
                 error(function(data, status) {
@@ -1161,7 +1164,7 @@ function StatsService($http, $location, $notification) {
         is_collecting: function(callback) {
             $http.get('/stats').
                 success(function(data, status) {
-                    console.log('serviced is collecting stats');
+                    if(DEBUG) console.log('serviced is collecting stats');
                     callback(status);
                 }).
                 error(function(data, status) {
@@ -1285,7 +1288,7 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
     if ($scope.services === undefined) {
         $scope.services = {};
     }
-    console.log('refresh services called');
+    if(DEBUG) console.log('refresh services called');
     servicesService.get_services(cacheOk, function(topServices, mappedServices) {
         $scope.services.data = topServices;
         $scope.services.mapped = mappedServices;
@@ -1369,7 +1372,7 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
-    console.log('Refreshing pools');
+    if(DEBUG) console.log('Refreshing pools');
     resourcesService.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
@@ -1423,7 +1426,7 @@ function toggleRunning(app, status, servicesService, serviceId) {
         case 'restart': newState = -1; break;
     }
     if (newState === app.DesiredState) {
-        console.log('Same status. Ignoring click');
+        if(DEBUG) console.log('Same status. Ignoring click');
         return;
     }
 
@@ -1570,17 +1573,17 @@ function next_url(data) {
 
 function set_order(order, table) {
     // Reset the icon for the last order
-    console.log('Resetting ' + table.sort + ' to down.');
+    if(DEBUG) console.log('Resetting ' + table.sort + ' to down.');
     table.sort_icons[table.sort] = 'glyphicon-chevron-down';
 
     if (table.sort === order) {
         table.sort = "-" + order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-        console.log('Sorting by -' + order);
+        if(DEBUG) console.log('Sorting by -' + order);
     } else {
         table.sort = order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-        console.log('Sorting ' + table +' by ' + order);
+        if(DEBUG) console.log('Sorting ' + table +' by ' + order);
     }
 }
 
