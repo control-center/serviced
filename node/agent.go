@@ -594,7 +594,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// Make sure the image exists locally.
-	if _, err = docker.FindImage(svc.ImageID, false); err != nil {
+	if _, err = docker.FindImage(svc.ImageID, true); err != nil {
 		glog.Errorf("can't find docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
 	}
