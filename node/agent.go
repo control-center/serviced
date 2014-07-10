@@ -835,6 +835,7 @@ func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
 		glog.Errorf("Failed to get RPC master: %v", err)
 		return nil, err
 	}
+	defer rpcMaster.Close()
 	myHost, err := rpcMaster.GetHost(hostID)
 	if err != nil {
 		glog.Errorf("Could not get host %s: %s", hostID, err)
@@ -848,7 +849,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	glog.Info("Starting HostAgent")
 
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		glog.Info("reapOldContainersLoop starting")
@@ -873,9 +873,9 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 			}
 		}
 	}()
-
 	var conn coordclient.Connection
 
+	//handle shutdown if we are waiting fo a zk connection
 	select {
 	case conn = <-connc:
 		break
@@ -888,34 +888,28 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}
 	glog.Info("Got a connected client")
 	defer conn.Close()
+	
+			// watch virtual IP zookeeper nodes
+			virtualIPListener := virtualips.NewVirtualIPListener(conn)
 
-	// watch virtual IP zookeeper nodes
+			// watch docker action nodes
+			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+
+			// watch the host state nodes
+			// this blocks until
+			// 1) has a connection
+			// 2) its node is registered
+			// 3) receieves signal to shutdown or breaks
+			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+
 	wg.Add(1)
 	go func() {
-		virtualips.WatchVirtualIPs(conn, shutdown)
-		glog.Info("WatchVirtualIPs shutdown")
-		wg.Done()
-	}()
-	// watch docker action nodes
-	actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-	wg.Add(1)
-	go func() {
-		actionListener.Listen(shutdown)
-		glog.Info("ActionListener shutdown")
-		wg.Done()
+	
+			zzk.Start(a.closing, hsListener, virtualIPListener, actionListener)
+	
+    wg.Done()
 	}()
 
-	hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
-	// this blocks until
-	// 1) has a connection
-	// 2) its node is registered
-	// 3) receieves signal to shutdown or breaks
-	wg.Add(1)
-	go func() {
-		hsListener.Listen(shutdown)
-		glog.Info("HostStateListener shutdown")
-		wg.Done()
-	}()
 	//wait for everythint to be done
 	wg.Wait()
 	glog.Info("HostAgent Done")

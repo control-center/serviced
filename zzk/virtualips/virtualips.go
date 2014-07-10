@@ -102,6 +102,26 @@ func SyncVirtualIPs(conn coordclient.Connection, virtualIPs []pool.VirtualIP) er
 	return nil
 }
 
+// TODO: need to build out this listener and write appropriate tests, but that
+// will take a long time, so I am putting this wrapper here as a placeholder
+// to mess with later
+
+// VirtualIPListener is the listener object for watching the zk object for
+// virtual IP nodes
+type VirtualIPListener struct {
+	conn coordclient.Connection
+}
+
+// NewVirtualIPListener instantiates a new VirtualIPListener object
+func NewVirtualIPListener(conn coordclient.Connection) *VirtualIPListener {
+	return &VirtualIPListener{conn}
+}
+
+// Listen observes changes on the VirtualIP zk node
+func (l *VirtualIPListener) Listen(shutdown <-chan interface{}) {
+	WatchVirtualIPs(l.conn, shutdown)
+}
+
 /*
 WatchVirtualIPs monitors the virtual IP nodes in zookeeper, the "leader" agent (the agent that has a lock on the virtual IP),
    binds the virtual IP to the bind address specified by the virtual IP on itself

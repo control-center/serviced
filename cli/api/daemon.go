@@ -311,11 +311,11 @@ func (d *daemon) startAgent() error {
 			var myHost *host.Host
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
-				glog.Errorf("master.NewClient failed: %v", err)
+				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
 			} else {
 				myHost, err = masterClient.GetHost(myHostID)
 				if err != nil {
-					glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
+					glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
 				}
 			}
 			if err != nil {
