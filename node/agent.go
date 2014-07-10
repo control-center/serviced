@@ -875,18 +875,16 @@ func (a *HostAgent) start() {
 
 		// create a wrapping function so that client.Close() can be handled via defer
 		func() {
-			shutdown := make(chan interface{})
-			defer close(shutdown)
 			conn := <-connc
 			glog.Info("Got a connected client")
 			defer conn.Close()
 
 			// watch virtual IP zookeeper nodes
-			go virtualips.WatchVirtualIPs(conn)
+			go virtualips.WatchVirtualIPs(conn, a.closing)
 
 			// watch docker action nodes
 			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-			go actionListener.Listen(shutdown)
+			go actionListener.Listen(a.closing)
 
 			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
 			// this blocks until

@@ -66,6 +66,7 @@ type daemon struct {
 	zClient          *coordclient.Client
 	storageHandler   *storage.Server
 	masterPoolID     string
+	hostAgent        *node.HostAgent
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
@@ -131,10 +132,13 @@ func (d *daemon) run() error {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 	glog.V(0).Info("Shutting down due to interrupt")
-	hostAgent.Shutdown()
-	isvcs.Mgr.Stop()
-	os.Exit(0)
-
+	if d.hostAgent != nil {
+		d.hostAgent.Shutdown()
+	}
+	if options.Master {
+		isvcs.Mgr.Stop()
+	}
+	return nil
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
@@ -355,7 +359,7 @@ func (d *daemon) startAgent() error {
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
-
+		d.hostAgent = hostAgent
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
@@ -393,7 +397,6 @@ func (d *daemon) startAgent() error {
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
 	}
-
 
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
