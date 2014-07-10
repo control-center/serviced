@@ -299,7 +299,9 @@ func (d *daemon) startAgent() error {
 			err = masterClient.UpdateHost(updatedHost)
 			if err != nil {
 				glog.Warningf("Could not update host information: %v", err)
+				break
 			}
+			glog.V(2).Infof("Sent updated host info %#v", updatedHost)
 			break
 		}
 
