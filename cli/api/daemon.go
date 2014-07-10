@@ -351,6 +351,16 @@ func (d *daemon) startAgent() error {
 		}
 
 		go func() {
+			if options.ReportStats {
+				statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+				statsduration := time.Duration(options.StatsPeriod) * time.Second
+				glog.V(1).Infoln("Staring container statistics reporter")
+				statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
+				if err != nil {
+					glog.Errorf("Error kicking off stats reporter %v", err)
+				}
+				defer statsReporter.Close()
+			}
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
@@ -361,17 +371,6 @@ func (d *daemon) startAgent() error {
 			os.Exit(0)
 		}()
 
-		if options.ReportStats {
-			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-			statsduration := time.Duration(options.StatsPeriod) * time.Second
-			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
-			if err != nil {
-				glog.Errorf("Error kicking off stats reporter %v", err)
-			} else {
-				defer statsReporter.Close()
-			}
-		}
 	}()
 
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
