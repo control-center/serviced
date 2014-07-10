@@ -189,9 +189,14 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 	for host, logfileIndex := range fileIndex {
 		for logfile, i := range logfileIndex {
 			filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", i))
-			cmd := exec.Command("sort", filename, "-o", filename)
+			tmpfilename := filepath.Join(tempdir, fmt.Sprintf("%03d.log.tmp", i))
+			cmd := exec.Command("sort", filename, "-uo", tmpfilename)
 			if output, e := cmd.CombinedOutput(); e != nil {
 				return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
+			}
+			cmd = exec.Command("mv", tmpfilename, filename)
+			if output, e := cmd.CombinedOutput(); e != nil {
+				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
 			}
 			cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
 			if output, e := cmd.CombinedOutput(); e != nil {
