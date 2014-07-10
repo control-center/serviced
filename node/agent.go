@@ -201,29 +201,37 @@ func (a *HostAgent) Shutdown() {
 
 // AttachService attempts to attach to a running container
 func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
-	// get docker status
-	containerState, err := getDockerState(serviceState.DockerID)
-	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
-
-	switch {
-	case err == nil && !containerState.State.Running:
-		glog.V(1).Infof("Container does not appear to be running: %s", serviceState.ID)
-		return errors.New("Container not running for " + serviceState.ID)
-
-	case err != nil:
-		glog.Warningf("Error retrieving container state: %s", serviceState.ID)
-		return err
-	}
-
 	dc, err := dockerclient.NewClient(dockerEndpoint)
 	if err != nil {
 		glog.Errorf("can't create docker client: %v", err)
 		return err
 	}
 
-	updateInstance(serviceState, containerState)
-	go a.waitInstance(dc, done, service, serviceState)
-	return nil
+	for i := 0; i < 5; i++ {
+		// get docker status
+		containerState, err := getDockerState(serviceState.DockerID)
+		glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
+
+		switch {
+		case err == nil && !containerState.State.Running:
+			glog.V(1).Infof("Container does not appear to be running: %s", serviceState.ID)
+			return errors.New("Container not running for " + serviceState.ID)
+
+		case err != nil && strings.HasPrefix(err.Error(), "no container"):
+			glog.Warningf("Error retrieving container state: %s", serviceState.ID)
+			return err
+
+		}
+
+		if containerState == nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		updateInstance(serviceState, containerState)
+		go a.waitInstance(dc, done, service, serviceState)
+		return nil
+	}
+	return fmt.Errorf("could not update container state")
 }
 
 // StopService terminates a particular service instance (serviceState) on the localhost.

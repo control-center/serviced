@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
@@ -13,6 +14,8 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/node"
 )
+
+var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
 
 // Initializer for serviced service subcommands
 func (c *ServicedCli) initService() {
@@ -39,6 +42,11 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 				},
+			}, {
+				Name:        "status",
+				Usage:       "Displays the status of deployed services",
+				Description: "serviced service status",
+				Action:      c.cmdServiceStatus,
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
@@ -264,6 +272,49 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 		// TODO: get a list of the docker images
 	}
 	fmt.Println(strings.Join(output, "\n"))
+}
+
+// serviced service status
+func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
+	services, err := c.driver.GetServices()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else if services == nil || len(services) == 0 {
+		fmt.Fprintln(os.Stderr, "no services found")
+		return
+	}
+	for _, svc := range services {
+
+		states, err := c.driver.GetServiceStates(svc.ID)
+		if err != nil {
+			fmt.Printf("error : %s\n", err)
+			return
+		}
+		if states != nil {
+			for _, state := range states {
+				if state.Started.Before(unstartedTime) {
+					fmt.Printf("%s %s %d starting\n", svc.ID, svc.Name, state.InstanceID)
+
+				} else {
+					if svc.DesiredState == 0 {
+						fmt.Printf("%s %s %d stopping %s %s\n", svc.ID, svc.Name, state.InstanceID, time.Since(state.Started), state.Started)
+					} else {
+						fmt.Printf("%s %s %d started %s %s\n", svc.ID, svc.Name, state.InstanceID, time.Since(state.Started), state.Started)
+					}
+				}
+				for hcName, hc := range svc.HealthChecks {
+					fmt.Printf("%s=>%s\n", hcName, hc)
+				}
+			}
+		} else {
+			if svc.DesiredState == 0 {
+				fmt.Printf("%s stopped\n", svc.ID)
+			} else {
+				fmt.Printf("%s scheduling\n", svc.ID)
+			}
+		}
+	}
 }
 
 // serviced service list [--verbose, -v] [SERVICEID]
