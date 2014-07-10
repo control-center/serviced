@@ -152,6 +152,7 @@ test_attached() {
 }
 
 test_port_mapped() {
+    echo "${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt"
     varx=`${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt 2>/dev/null | tr -d '\r'| grep -v "^$" | tail -1`
     if [[ "$varx" == "baz" ]]; then
         return 0

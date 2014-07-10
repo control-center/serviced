@@ -79,6 +79,7 @@ type Volume struct {
 	Permission    string //Resource Path permissions, eg what you pass to chmod
 	ResourcePath  string //Resource Pool Path, shared across all hosts in a resource pool
 	ContainerPath string //Container bind-mount path
+	Type          string //Path use, i.e. "dfs" or "tmp"
 }
 
 // ConfigFile config file for a service

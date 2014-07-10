@@ -5,7 +5,7 @@
 package service
 
 import (
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 

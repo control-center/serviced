@@ -46,7 +46,6 @@ func (c ControllerOptions) toContainerControllerOptions() container.ControllerOp
 
 // Start a service proxy
 func (a *api) StartProxy(cfg ControllerOptions) error {
-
 	c, err := container.NewController(cfg.toContainerControllerOptions())
 	if err != nil {
 		return err

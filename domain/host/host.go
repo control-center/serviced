@@ -115,10 +115,22 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	host.IPs = hostIPs
 	*host = *host
 
-	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
+	return host, nil
+}
+
+//UpdateHostInfo returns a new host with updated hardware and software info. Does not update poor or IP information
+func UpdateHostInfo(h Host) (Host, error) {
+	currentHost, err := currentHost(h.IPAddr, h.PoolID)
 	if err != nil {
-		return nil, err
+		return Host{}, err
 	}
 
-	return host, nil
+	//update the passed in *copy* so we don't have to deal with new non hardware fields later on
+	h.Memory = currentHost.Memory
+	h.Cores = currentHost.Cores
+	h.KernelRelease = currentHost.KernelRelease
+	h.KernelVersion = currentHost.KernelVersion
+	h.PrivateNetwork = currentHost.PrivateNetwork
+
+	return h, nil
 }

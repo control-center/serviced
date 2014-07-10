@@ -5,7 +5,7 @@
 package pool
 
 import (
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 )
