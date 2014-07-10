@@ -106,7 +106,7 @@ test_started() {
     for line in $(${SERVICED} service list | tr -cd '\000-\177' | awk '/s[12]/{print $1 ":" $2}'); do
         name=$(echo $line | cut -f1 -d:)
         id=$(echo $line | cut -f2 -d:)
-        docker ps --no-trunc |grep 'proxy $id'
+        docker ps --no-trunc | grep "proxy $id" &>/dev/null
         status=$?
         if [ "$status" != "0" ]; then
             echo "Unable to find service {Name:$name ID:$id} container in docker ps"
