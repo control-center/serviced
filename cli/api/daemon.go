@@ -366,17 +366,6 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 		}
 
-		go func() {
-			signalChan := make(chan os.Signal, 10)
-			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-			<-signalChan
-			glog.V(0).Info("Shutting down due to interrupt")
-			hostAgent.Shutdown()
-			glog.Info("Agent shutdown")
-			isvcs.Mgr.Stop()
-			os.Exit(0)
-		}()
-
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
