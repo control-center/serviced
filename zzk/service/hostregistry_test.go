@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+	"path"
 	"testing"
 	"time"
 
@@ -14,205 +16,290 @@ import (
 func TestHostRegistryListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-
-	listener := NewHostRegistryListener(conn)
-	alert := make(chan bool)
-	shutdown := make(chan interface{})
-	listener.alertC = alert
-	go listener.Listen(shutdown)
-
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry listener: %s", err)
 	}
+
+	var (
+		shutdown = make(chan interface{})
+		wait     = make(chan interface{})
+	)
+	go func() {
+		listener.Listen(shutdown)
+		close(wait)
+	}()
+
+	// Create services
+	numServices := 5
+	var svcs []*service.Service
+	for i := 0; i < numServices; i++ {
+		svc := &service.Service{ID: fmt.Sprintf("test-service-%d", i)}
+		if err := UpdateService(conn, svc); err != nil {
+			t.Fatalf("Could not add service %s: %s", svc.ID, err)
+		}
+		svcs = append(svcs, svc)
+	}
+
+	// Register hosts
+	t.Log("Registering hosts")
+	numHosts := 5
+	hosts := make(map[string]*host.Host)
+	for i := 0; i < numHosts; i++ {
+		host := &host.Host{ID: fmt.Sprintf("test-host-%d", i)}
+		if err := RegisterHost(conn, host.ID); err != nil {
+			t.Fatalf("Could not register host %s: %s", host.ID, err)
+		}
+		ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+		t.Log("Ephemeral node: ", ehostpath)
+		if err != nil {
+			t.Fatalf("Could not register host %s: %s", host.ID, err)
+		}
+		hosts[ehostpath] = host
+	}
+
+	// Add service states
+	t.Log("Adding service states")
+	var states []*servicestate.ServiceState
+	for _, host := range hosts {
+		for _, svc := range svcs {
+			state, err := servicestate.BuildFromService(svc, host.ID)
+			if err != nil {
+				t.Fatalf("Could not create service state: %s", err)
+			}
+			if err := addInstance(conn, state); err != nil {
+				t.Fatalf("Could not add service state %s: %s", state.ID, err)
+			}
+			if _, err := LoadRunningService(conn, state.ServiceID, state.ID); err != nil {
+				t.Fatalf("Could not get running service: %s", state.ID)
+			}
+			states = append(states, state)
+		}
+	}
+
+	// Delete hosts
+	deleteHosts := 2
+	deletedHosts := make(map[string]interface{})
+	for ehostpath, host := range hosts {
+		<-time.After(time.Second)
+		t.Log("Removing host: ", host.ID)
+		if err := conn.Delete(ehostpath); err != nil {
+			t.Fatalf("Could not delete ephemeral node %s: %s", ehostpath, err)
+		}
+		deletedHosts[host.ID] = nil
+		deleteHosts--
+		if deleteHosts == 0 {
+			break
+		}
+	}
+
+	// Shutdown
+	<-time.After(time.Second)
+	close(shutdown)
+	<-wait
+	for _, state := range states {
+		if _, ok := deletedHosts[state.HostID]; ok {
+			// verify the state has been removed
+			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+			} else if exists {
+				t.Errorf("Failed to delete host node %s", state.ID)
+			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+			} else if exists {
+				t.Errorf("Failed to delete service node %s", state.ID)
+			}
+		} else {
+			// verify the state has been preserved
+			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+			} else if !exists {
+				t.Errorf("Deleted host node %s", state.ID)
+			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+			} else if !exists {
+				t.Errorf("Deleted service node %s", state.ID)
+			}
+		}
+	}
+}
+
+func TestHostRegistryListener_listenHost(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry listener: %s", err)
+	}
+
+	// Register the host
+	host := &host.Host{ID: "test-host-1"}
+	if err := RegisterHost(conn, host.ID); err != nil {
+		t.Fatalf("Could not register host %s: %s", host.ID, err)
+	}
+
+	// Create the ephemeral host
+	ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+	if err != nil {
+		t.Fatalf("Could not create ephemeral host")
+	}
+	ehostID := path.Base(ehostpath)
+
+	var (
+		shutdown = make(chan interface{})
+		done     = make(chan string)
+	)
+	listener.shutdown = shutdown
+	go listener.listenHost(done, ehostID)
+
+	// add some service instances
+	t.Log("Creating some service instances")
+	svc := &service.Service{ID: "test-service-1"}
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
-
-	// Create a host
-	host := &host.Host{ID: "test-host-1"}
-
-	// Add some instances
-	t.Log("Setting up data")
 	var states []*servicestate.ServiceState
 	for i := 0; i < 3; i++ {
-		// Create a service instance
 		state, err := servicestate.BuildFromService(svc, host.ID)
 		if err != nil {
-			t.Fatalf("Could not generate instance from service %s", svc.ID)
-		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
+			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
+		}
+		if err := addInstance(conn, state); err != nil {
+			t.Fatalf("Could not add service state %s: %s", state.ID, err)
 		}
 		states = append(states, state)
 	}
 
-	// Create the host "ephemeral" node (for the sake of unit tests, it doesn't really have to be ephemeral)
-	<-time.After(1 * time.Second)
-	t.Log("Adding ephemeral host")
-	if err := conn.Create(hostregpath(host.ID), &HostNode{Host: host}); err != nil {
-		t.Fatalf("Could not add host %s: %s", host.ID, err)
+	// shutdown listener
+	<-time.After(time.Second)
+	t.Log("Shutting down listener")
+	close(shutdown)
+	if id := <-done; id != ehostID {
+		t.Errorf("Expected eHost %s; Actual %s", ehostID, id)
 	}
 
-	// Verify that the host exists
-	t.Log("Verifying host was added")
-	<-alert
-	if count := len(listener.hostmap); count != 1 {
-		t.Errorf("Found %d hosts; expected 1 host", count)
-	} else {
-		for _, hostID := range listener.hostmap {
-			if hostID != host.ID {
-				t.Errorf("MISMATCH: expected %s host id; actual", host.ID, hostID)
-			}
-		}
-	}
-
-	// Remove the host "ephemeral" node (host network goes down :( )
-	<-time.After(1 * time.Second)
-	t.Log("Removing ephemeral host")
-	if err := conn.Delete(hostregpath(host.ID)); err != nil {
-		t.Fatalf("Could not remove host %s: %s", host.ID, err)
-	}
-
-	// Verify the service states were removed
-	t.Log("Verifying host removed")
-	<-alert
-	if count := len(listener.hostmap); count != 0 {
-		t.Errorf("Hosts were not removed: %v", listener.hostmap)
-	}
-
+	// verify none of the service states were removed
 	for _, state := range states {
 		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-			t.Fatalf("Could not check existance of host state %s: %s", state.ID, err)
-		} else if exists {
-			t.Fatal("State still exists for host state ", state.ID)
+			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+		} else if !exists {
+			t.Errorf("Deleted host node %s", state.ID)
 		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-			t.Fatalf("Could not check existance of service state %s: %s", state.ID, err)
+			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+		} else if !exists {
+			t.Errorf("Deleted service node %s", state.ID)
+		}
+	}
+
+	shutdown = make(chan interface{})
+	listener.shutdown = shutdown
+	go listener.listenHost(done, ehostID)
+
+	// remove the ephemeral node
+	<-time.After(time.Second)
+	t.Log("Removing the ephemeral node: ", ehostpath)
+	if err := conn.Delete(ehostpath); err != nil {
+		t.Fatalf("Error trying to remove node %s: %s", ehostpath, err)
+	}
+	if id := <-done; id != ehostID {
+		t.Errorf("Expected eHost %s; Actual %s", ehostID, id)
+	}
+
+	// verify that all of the service states were removed
+	for _, state := range states {
+		// verify the state has been removed
+		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
 		} else if exists {
-			t.Fatal("State still exists for service state ", state.ID)
+			t.Errorf("Failed to delete host node %s", state.ID)
+		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+		} else if exists {
+			t.Errorf("Failed to delete service node %s", state.ID)
 		}
-	}
-
-	// Shutdown!
-	close(shutdown)
-}
-
-func TestHostRegistryListener_sync(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
-
-	// Add some hosts
-	hosts := map[string]*host.Host{
-		"ehost-1": &host.Host{ID: "test-host-1"},
-		"ehost-2": &host.Host{ID: "test-host-2"},
-		"ehost-3": &host.Host{ID: "test-host-3"},
-		"ehost-4": &host.Host{ID: "test-host-4"},
-	}
-
-	for ehost, host := range hosts {
-		if err := conn.CreateDir(hostpath(host.ID)); err != nil {
-			t.Fatalf("Could not create host node %s: %s", host.ID, err)
-		}
-		if err := conn.Create(hostregpath(ehost), &HostNode{Host: host}); err != nil {
-			t.Fatalf("Could not add host %s to registry %s: %s", host.ID, ehost, err)
-		}
-	}
-
-	nodes := [][]string{
-		{"ehost-1", "ehost-2", "ehost-3"},
-		{"ehost-1", "ehost-3"},
-		{"ehost-3", "ehost-4"},
-	}
-
-	for _, sync := range nodes {
-		listener.sync(sync)
-		if len(sync) != len(listener.hostmap) {
-			t.Errorf("MISMATCH: Expected %d mapped nodes; Actual: %d", len(nodes), len(listener.hostmap))
-		}
-		for _, n := range sync {
-			if hostID, ok := listener.hostmap[n]; !ok {
-				t.Errorf("HOST %s (%v) not found", n, hosts[n])
-			} else if hostID != hosts[n].ID {
-				t.Errorf("MISMATCH: Expected host %s from %s; Actual: %s", hosts[n].ID, n, hostID)
-			}
-		}
-	}
-}
-
-func TestHostRegistryListener_register(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
-	host := &host.Host{ID: "test-host-1"}
-
-	// no running listener
-	if err := listener.register("test-ehost-1", host.ID); err != ErrHostNotInitialized {
-		t.Errorf("Expected error: '%s'; Actual error: '%s'", ErrHostNotInitialized, err)
-	}
-
-	// success
-	if err := conn.CreateDir(hostpath(host.ID)); err != nil {
-		t.Fatalf("Could not create host node %s: %s", host.ID, err)
-	}
-	if err := listener.register("test-ehost-1", host.ID); err != nil {
-		t.Errorf("Could not register host node %s: %s", "test-ehost-1", err)
-	}
-	if hostID, ok := listener.hostmap["test-ehost-1"]; !ok || hostID == "" {
-		t.Errorf("Host %s not found", "test-ehost-1")
-	} else if hostID != host.ID {
-		t.Errorf("MISMATCH: expected %s; actual %s", host.ID, hostID)
 	}
 }
 
 func TestHostRegistryListener_unregister(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
-
-	// Create the host
-	host := &host.Host{ID: "test-host-1"}
-
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry listener: %s", err)
 	}
+
+	host1 := &host.Host{ID: "test-host-1"}
+	host2 := &host.Host{ID: "test-host-2"}
+
+	// add some service instances
+	t.Log("Creating some service instances")
+	svc := &service.Service{ID: "test-service-1"}
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
-
-	// Add some instances
 	var states []*servicestate.ServiceState
 	for i := 0; i < 3; i++ {
-		// Create a service instance
-		state, err := servicestate.BuildFromService(svc, host.ID)
+		state, err := servicestate.BuildFromService(svc, host1.ID)
 		if err != nil {
-			t.Fatalf("Could not generate instance from service %s: %s", svc.ID, err)
-		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s: %s", state.ID, state.ServiceID, err)
+			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
+		}
+		if err := addInstance(conn, state); err != nil {
+			t.Fatalf("Could not add service instance %s: %s", state.ID, err)
+		}
+		states = append(states, state)
+	}
+	for i := 0; i < 2; i++ {
+		state, err := servicestate.BuildFromService(svc, host2.ID)
+		if err != nil {
+			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
+		}
+		if err := addInstance(conn, state); err != nil {
+			t.Fatalf("Could not add service instance %s: %s", state.ID, err)
 		}
 		states = append(states, state)
 	}
 
-	// register the ephemeral node
-	if err := listener.register("test-ehost-1", host.ID); err != nil {
-		t.Fatalf("Could not register node: %s", err)
+	// unregister the host instances
+	t.Log("Unregistering service instances for ", host1.ID)
+	listener.unregister(host1.ID)
+	var saved, removed int
+	for _, state := range states {
+		if state.HostID == host1.ID {
+			// verify the state has been removed
+			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+			} else if exists {
+				t.Errorf("Failed to delete host node %s", state.ID)
+			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+			} else if exists {
+				t.Errorf("Failed to delete service node %s", state.ID)
+			} else {
+				removed++
+			}
+		} else {
+			// verify the state has been preserved
+			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+			} else if !exists {
+				t.Errorf("Deleted host node %s", state.ID)
+			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+			} else if !exists {
+				t.Errorf("Deleted service node %s", state.ID)
+			} else {
+				saved++
+			}
+		}
 	}
 
-	// unregister the ephemeral node
-	if err := listener.unregister("test-ehost-1"); err != nil {
-		t.Errorf("Could not unregister node: %s", err)
+	if saved != 2 {
+		t.Errorf("Some service states were not saved")
 	}
+	if removed != 3 {
+		t.Errorf("Some service states were not removed")
+	}
+}
 
-	if _, ok := listener.hostmap["test-ehost-1"]; ok {
-		t.Errorf("Did not remove node from host map")
-	}
-
-	// verify the children were removed
-	if ssids, err := conn.Children(hostpath(host.ID)); err != nil {
-		t.Fatalf("Errror looking up children on host path: %s", err)
-	} else if count := len(ssids); count > 0 {
-		t.Errorf("Some instances still left behind: %d", count)
-	}
+func TestHostRegistryListener_GetHosts(t *testing.T) {
 }

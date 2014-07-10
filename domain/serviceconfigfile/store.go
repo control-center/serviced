@@ -5,7 +5,7 @@
 package serviceconfigfile
 
 import (
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/serviced/datastore"
 )
 

@@ -7,13 +7,14 @@ package web
 import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
 
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/zenoss/serviced/coordinator/client"
 	"io"
 	"net"
 	"net/http"
@@ -60,7 +61,6 @@ func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
 		epPort:    vep.ContainerPort,
 		privateIP: vep.ContainerIP,
 	}
-
 }
 
 func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
@@ -127,21 +127,8 @@ func (sc *ServiceConfig) syncVhosts() {
 	go sc.watchVhosts()
 }
 
-func (sc *ServiceConfig) watchVhosts() error {
-	glog.Info("watchVhosts starting...")
-	conn, err := sc.zkClient.GetConnection()
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting zk connection: %v", err)
-		return err
-	}
-
-	vhostRegistry, err := registry.VHostRegistry(conn)
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
-		return err
-	}
-
-	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry) registry.ProcessChildrenFunc {
+	return func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
@@ -169,10 +156,29 @@ func (sc *ServiceConfig) watchVhosts() error {
 			}
 		}
 	}
+}
+
+func (sc *ServiceConfig) watchVhosts() error {
+	glog.Info("watchVhosts starting")
+
+	// vhosts are at the root level (not pool aware)
+	poolBasedConn, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
+		return err
+	}
+
+	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
+	if err != nil {
+		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
+		return err
+	}
 
 	cancelChan := make(chan bool)
-	vhostRegistry.WatchRegistry(conn, cancelChan, processVhosts, vhostWatchError)
-	glog.Warning("watchVhosts ended")
+	go func() {
+		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
+		glog.Warning("watchVhosts ended")
+	}()
 
 	return nil
 }
@@ -205,7 +211,6 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 
 func vhostWatchError(path string, err error) {
 	glog.Warningf("processing vhostWatchError on %s: %v", path, err)
-
 }
 
 // Lookup the appropriate virtual host and forward the request to it.
@@ -244,7 +249,6 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 	rp.ServeHTTP(w, r)
 	return
-
 }
 
 var reverseProxies map[string]*httputil.ReverseProxy

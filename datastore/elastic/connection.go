@@ -5,10 +5,10 @@
 package elastic
 
 import (
-	"github.com/mattbaird/elastigo/api"
-	"github.com/mattbaird/elastigo/core"
-	"github.com/mattbaird/elastigo/indices"
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/api"
+	"github.com/zenoss/elastigo/core"
+	"github.com/zenoss/elastigo/indices"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 

@@ -3,12 +3,12 @@ package zzk
 import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -18,53 +18,44 @@ const SCHEDULER_PATH = "/scheduler"
 const SNAPSHOT_PATH = "/snapshots"
 const SNAPSHOT_REQUEST_PATH = "/snapshots/requests"
 
-type ZkDao struct {
-	client *coordclient.Client
+var zClient *coordclient.Client
+var poolBasedConnections = make(map[string]coordclient.Connection)
+
+func InitializeGlobalCoordClient(myZClient *coordclient.Client) {
+	zClient = myZClient
 }
 
-func NewZkDao(client *coordclient.Client) *ZkDao {
-	return &ZkDao{
-		client: client,
+// GeneratePoolPath is used to convert a pool ID to /pools/POOLID
+func GeneratePoolPath(poolID string) string {
+	return "/pools/" + poolID
+}
+
+// GetBasePathConnection returns a connection based on the basePath provided
+func GetBasePathConnection(basePath string) (coordclient.Connection, error) { // TODO figure out how/when to Close connections
+	if _, ok := poolBasedConnections[basePath]; ok {
+		return poolBasedConnections[basePath], nil
 	}
-}
 
-type ZkConn struct {
-	Conn coordclient.Connection
-}
+	if zClient == nil {
+		glog.Errorf("zkdao zClient has not been initialized!")
+	}
 
-// Communicates to the agent that this service instance should stop
-func TerminateHostService(conn coordclient.Connection, hostId string, serviceStateId string) error {
-	return loadAndUpdateHss(conn, hostId, serviceStateId, func(hss *zkservice.HostState) {
-		hss.DesiredState = service.SVCStop
-	})
+	myNewConnection, err := zClient.GetCustomConnection(basePath)
+	if err != nil {
+		glog.Errorf("Failed to obtain a connection to %v: %v", basePath, err)
+		return nil, err
+	}
+
+	// save off the new connection to the map
+	poolBasedConnections[basePath] = myNewConnection
+
+	return myNewConnection, nil
 }
 
 func ResetServiceState(conn coordclient.Connection, serviceId string, serviceStateId string) error {
 	return LoadAndUpdateServiceState(conn, serviceId, serviceStateId, func(ss *servicestate.ServiceState) {
 		ss.Terminated = time.Now()
 	})
-}
-
-// Communicates to the agent that this service instance should stop
-func (zkdao *ZkDao) TerminateHostService(hostId string, serviceStateId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		glog.Errorf("Unable to connect to zookeeper: %v", err)
-		return err
-	}
-	defer conn.Close()
-
-	return TerminateHostService(conn, hostId, serviceStateId)
-}
-
-func (zkdao *ZkDao) AddService(service *service.Service) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddService(conn, service)
 }
 
 func AddService(conn coordclient.Connection, service *service.Service) error {
@@ -80,16 +71,6 @@ func AddService(conn coordclient.Connection, service *service.Service) error {
 
 	glog.V(2).Infof("Successfully created %s", servicePath)
 	return nil
-}
-
-func (zkdao *ZkDao) AddServiceState(state *servicestate.ServiceState) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return AddServiceState(conn, state)
 }
 
 func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
@@ -112,15 +93,10 @@ func AddServiceState(conn coordclient.Connection, state *servicestate.ServiceSta
 	return nil
 }
 
-func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func UpdateServiceState(conn coordclient.Connection, state *servicestate.ServiceState) error {
 	serviceStatePath := ServiceStatePath(state.ServiceID, state.ID)
 	ssn := zkservice.ServiceStateNode{}
+
 	if err := conn.Get(serviceStatePath, &ssn); err != nil {
 		return err
 	}
@@ -128,13 +104,7 @@ func (zkdao *ZkDao) UpdateServiceState(state *servicestate.ServiceState) error {
 	return conn.Set(serviceStatePath, &ssn)
 }
 
-func (zkdao *ZkDao) UpdateService(service *service.Service) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func UpdateService(conn coordclient.Connection, service *service.Service) error {
 	servicePath := ServicePath(service.ID)
 
 	sn := zkservice.ServiceNode{}
@@ -150,15 +120,6 @@ func (zkdao *ZkDao) UpdateService(service *service.Service) error {
 	return conn.Set(servicePath, &sn)
 }
 
-func (zkdao *ZkDao) GetServiceState(serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	return GetServiceState(conn, serviceState, serviceId, serviceStateId)
-}
-
 func GetServiceState(conn coordclient.Connection, serviceState *servicestate.ServiceState, serviceId string, serviceStateId string) error {
 	serviceStateNode := zkservice.ServiceStateNode{}
 	err := conn.Get(ServiceStatePath(serviceId, serviceStateId), &serviceStateNode)
@@ -169,16 +130,6 @@ func GetServiceState(conn coordclient.Connection, serviceState *servicestate.Ser
 	return nil
 }
 
-func (zkdao *ZkDao) GetServiceStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return GetServiceStates(conn, serviceStates, serviceIds...)
-}
-
 func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	for _, serviceId := range serviceIds {
 		err := appendServiceStates(conn, serviceId, serviceStates)
@@ -187,69 +138,6 @@ func GetServiceStates(conn coordclient.Connection, serviceStates *[]*servicestat
 		}
 	}
 	return nil
-}
-
-func (zkdao *ZkDao) GetRunningService(serviceId string, serviceStateId string, running *dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	rs, err := zkservice.LoadRunningService(conn, serviceId, serviceStateId)
-	if err != nil {
-		return err
-	}
-
-	*running = *rs
-	return nil
-}
-
-func (zkdao *ZkDao) RemoveHost(hostId string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	err = conn.Delete(HostPath(hostId))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (zkdao *ZkDao) GetRunningServicesForHost(hostId string, running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	*running, err = zkservice.LoadRunningServicesByHost(conn, hostId)
-	return err
-}
-
-func (zkdao *ZkDao) GetRunningServicesForService(serviceId string, running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	*running, err = zkservice.LoadRunningServicesByService(conn, serviceId)
-	return err
-}
-
-func (zkdao *ZkDao) GetAllRunningServices(running *[]*dao.RunningService) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	*running, err = zkservice.LoadRunningServices(conn)
-	return err
 }
 
 func HostPath(hostId string) string {
@@ -268,19 +156,9 @@ func HostServiceStatePath(hostId string, serviceStateId string) string {
 	return HOSTS_PATH + "/" + hostId + "/" + serviceStateId
 }
 
-func (zkdao *ZkDao) RemoveService(id string) error {
-	conn, err := zkdao.client.GetConnection()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	return RemoveService(conn, id)
-}
-
 func RemoveService(conn coordclient.Connection, id string) error {
-	glog.V(2).Infof("zkdao.RemoveService: %s - begin", id)
-	defer glog.V(2).Infof("zkdao.RemoveService: %s - complete", id)
+	glog.V(2).Infof("RemoveService: %s - begin", id)
+	defer glog.V(2).Infof("RemoveService: %s - complete", id)
 
 	servicePath := ServicePath(id)
 
@@ -411,7 +289,7 @@ func appendServiceStates(conn coordclient.Connection, serviceId string, serviceS
 	servicePath := ServicePath(serviceId)
 	childNodes, err := conn.Children(servicePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("zkdao.appendServiceStates failed to get the children of %v: %v", servicePath, err)
 	}
 	_ss := make([]*servicestate.ServiceState, len(childNodes))
 	for i, childId := range childNodes {

@@ -5,7 +5,7 @@
 package elastic
 
 import (
-	"github.com/mattbaird/elastigo/api"
+	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 

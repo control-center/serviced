@@ -53,6 +53,11 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		entity.UpdatedAt = now
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
+
+	if err = zkAPI(f).RegisterHost(entity); err != nil {
+		return err
+	}
+
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	return err
 
@@ -74,17 +79,25 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 }
 
 // RemoveHost removes a Host from serviced
-func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) error {
+func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	ec := newEventCtx()
-	err := f.beforeEvent(beforeHostDelete, ec, hostID)
-	if err == nil {
-		err = f.hostStore.Delete(ctx, host.HostKey(hostID))
-	}
-	if err == nil {
-		err = zkAPI(f.zkDao).RemoveHost(hostID)
-	}
+
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
+	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
+		return err
+	}
+
+	var _host *host.Host
+	if _host, err = f.GetHost(ctx, hostID); err != nil {
+		return err
+	} else if _host == nil {
+		return nil
+	} else if err = zkAPI(f).UnregisterHost(_host); err != nil {
+		return err
+	}
+
+	err = f.hostStore.Delete(ctx, host.HostKey(hostID))
 	return err
 }
 
