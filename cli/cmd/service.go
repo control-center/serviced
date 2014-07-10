@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+//	"text/tabwriter"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -13,6 +14,7 @@ import (
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/node"
+	"github.com/zenoss/serviced/domain/host"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
@@ -274,6 +276,7 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 	fmt.Println(strings.Join(output, "\n"))
 }
 
+
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	services, err := c.driver.GetServices()
@@ -284,37 +287,122 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "no services found")
 		return
 	}
-	for _, svc := range services {
 
+	hosts, err := c.driver.GetHosts()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	hostmap := make(map[string]*host.Host)
+	for _, host := range hosts {
+		hostmap[host.ID] = host
+	}
+
+	lines := make(map[string]map[string]string)
+	now := time.Now().Truncate(time.Second)
+	for _, svc := range services {
 		states, err := c.driver.GetServiceStates(svc.ID)
 		if err != nil {
 			fmt.Printf("error : %s\n", err)
 			return
 		}
-		if states != nil {
-			for _, state := range states {
-				if state.Started.Before(unstartedTime) {
-					fmt.Printf("%s %s %d starting\n", svc.ID, svc.Name, state.InstanceID)
-
-				} else {
-					if svc.DesiredState == 0 {
-						fmt.Printf("%s %s %d stopping %s %s\n", svc.ID, svc.Name, state.InstanceID, time.Since(state.Started), state.Started)
-					} else {
-						fmt.Printf("%s %s %d started %s %s\n", svc.ID, svc.Name, state.InstanceID, time.Since(state.Started), state.Started)
+		if states != nil && len(states) > 0 {
+			if svc.Instances > 1 {
+				lines[svc.ID] = map[string]string{
+					"ID": svc.ID,
+					"ServiceID": svc.ID,
+					"Name": svc.Name,
+					"ParentID": svc.ParentServiceID,
+					"Hostname": "",
+					"DockerID": "",
+				}
+				for _, state := range states {
+					iid := fmt.Sprintf("%s_%d", svc.ID , state.InstanceID)
+					started := fmt.Sprintf("%s", now.Sub(state.Started.Truncate(time.Second)))
+					if state.Started.Before(unstartedTime) {
+						started = "starting"
+					}
+					lines[iid] = map[string]string{
+						"ID": iid,
+						"ServiceID": svc.ID,
+						"Name": fmt.Sprintf("%s_%d", svc.Name, state.InstanceID),
+						"Started": started,
+						"ParentID": svc.ID,
+						"Hostname": hostmap[state.HostID].Name,
+						"DockerID": fmt.Sprintf("%.80s", state.DockerID),
 					}
 				}
-				for hcName, hc := range svc.HealthChecks {
-					fmt.Printf("%s=>%s\n", hcName, hc)
+			} else {
+				state := states[0]
+				started := fmt.Sprintf("%s", now.Sub(state.Started.Truncate(time.Second)))
+				if state.Started.Before(unstartedTime) {
+					started = "starting"
+				}
+				lines[svc.ID] = map[string]string{
+					"ID": svc.ID,
+					"ServiceID": svc.ID,
+					"Name": svc.Name,
+					"Started": started,
+					"ParentID": svc.ParentServiceID,
+					"Hostname": hostmap[state.HostID].Name,
+					"DockerID": fmt.Sprintf("%.80s", state.DockerID),
 				}
 			}
 		} else {
 			if svc.DesiredState == 0 {
-				fmt.Printf("%s stopped\n", svc.ID)
+				lines[svc.ID] = map[string]string{
+					"ID": svc.ID,
+					"ServiceID": svc.ID,
+					"Name": svc.Name,
+					"Started": "stopped",
+					"ParentID": svc.ParentServiceID,
+					"Hostname": "",
+					"DockerID": "",
+				}
 			} else {
-				fmt.Printf("%s scheduling\n", svc.ID)
+				started := ""
+				if svc.Startup != "" && svc.Instances != 0 {
+					started = "scheduling"
+				}
+				lines[svc.ID] = map[string]string{
+					"ID": svc.ID,
+					"ServiceID": svc.ID,
+					"Name": svc.Name,
+					"Started": started,
+					"ParentID": svc.ParentServiceID,
+					"Hostname": "",
+					"DockerID": "",
+				}
 			}
 		}
 	}
+	childMap := make(map[string][]string)
+	top := make([]string, 0)
+	for _, line := range lines {
+		children := make([]string,0)
+		for _, cline := range lines {
+			if cline["ParentID"] == line["ID"] {
+				children = append(children, cline["ID"])
+			}
+		}
+		if len(children) > 0 {
+			childMap[line["ID"]] = children
+		}
+		if line["ParentID"] == "" {
+			top = append(top, line["ID"])
+		}
+	}
+	childMap[""] = top
+        tableService := newtable(0, 8, 2)
+        tableService.printrow("NAME", "ID", "STATUS", "HOST", "DOCKER_ID")
+        tableService.formattree(childMap, "", func(id string) (row []interface{}) {
+                        s := lines[id]
+                        return append(row, s["Name"], s["ID"], s["Started"], s["Hostname"], s["DockerID"])
+        }, func(row []interface{}) string {
+		return strings.ToLower(row[1].(string))
+	})
+        tableService.flush()
+	return
 }
 
 // serviced service list [--verbose, -v] [SERVICEID]
@@ -352,6 +440,9 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		servicemap := api.NewServiceMap(services)
 		tableService := newtable(0, 8, 2)
 		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
+		for key, children := range servicemap.Tree() {
+			fmt.Printf("%s => %v\n", key, children)
+		}
 		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
 			s := servicemap.Get(id)
 			// truncate the image ID
@@ -363,7 +454,9 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 				imageID = strings.Join(id, "/")
 			}
 			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
-		})
+		},  func(row []interface{}) string {
+                	return row[1].(string)
+        	})
 		tableService.flush()
 	}
 }
