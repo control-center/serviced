@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"os"
 
@@ -10,9 +11,11 @@ import (
 
 var Version string
 var Gitcommit string
+var Gitbranch string
 
 func main() {
 	servicedversion.Version = Version
 	servicedversion.Gitcommit = Gitcommit
+	servicedversion.Gitbranch = Gitbranch
 	cmd.New(api.New()).Run(os.Args)
 }

@@ -8,13 +8,10 @@
 ################################################################################
 
 VERSION := $(shell cat ./VERSION)
-GITCOMMIT := $(shell git rev-parse --short HEAD)
+GITCOMMIT := $(shell ./gitstatus.sh)
+GITBRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-# TODO: how do i mark it dirty
-#if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-#                GITCOMMIT="$GITCOMMIT-dirty"
-#        fi
-
+LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT) -X main.Gitbranch $(GITBRANCH)"
 
 #---------------------#
 # Macros              #
@@ -148,7 +145,7 @@ $(GOSRC)/$(godep_SRC):
 
 .PHONY: go
 go: 
-	go build -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
+	go build ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -174,13 +171,13 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
-	go install -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
+	go build ${LDFLAGS}
+	go install ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go install -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT)"
+	go install ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
