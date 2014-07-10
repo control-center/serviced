@@ -7,9 +7,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	elastigo "github.com/zenoss/elastigo/api"
-	"github.com/zenoss/elastigo/core"
-	"github.com/zenoss/serviced/domain/service"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -19,6 +16,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	elastigo "github.com/mattbaird/elastigo/api"
+	"github.com/mattbaird/elastigo/core"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/domain/service"
 )
 
 // ExportLogs exports logs from ElasticSearch.
@@ -213,7 +215,7 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 	return nil
 }
 
-type logLine struct {
+type logSingleLine struct {
 	Host      string    `json:"host"`
 	File      string    `json:"file"`
 	Timestamp time.Time `json:"@timestamp"`
@@ -237,10 +239,24 @@ type compactLogLine struct {
 
 var newline = regexp.MustCompile("\\r?\\n")
 
+// convertOffsets converts a list of strings into a list of int64s
+func convertOffsets(offsets []string) ([]int64, error) {
+	result := make([]int64, len(offsets))
+	for i, offsetString := range offsets {
+		offset, e := strconv.ParseInt(offsetString, 10, 64)
+		if e != nil {
+			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, offsetString, offsets, e)
+		}
+		result[i] = offset
+	}
+
+	return result, nil
+}
+
 // return: host, file, lines, error
 func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
-
-	var line logLine
+	// attempt to unmarshal into singleLine
+	var line logSingleLine
 	if e := json.Unmarshal(source, &line); e == nil {
 		offset, e := strconv.ParseInt(line.Offset, 10, 64)
 		if e != nil {
@@ -253,21 +269,39 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 		}
 		return line.Host, line.File, []compactLogLine{compactLine}, nil
 	}
+
+	// attempt to unmarshal into multiLine
 	var multiLine logMultiLine
 	if e := json.Unmarshal(source, &multiLine); e != nil {
 		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
-	messages := newline.Split(multiLine.Message, -1)
-	if len(messages) != len(multiLine.Offset) {
-		return "", "", nil, fmt.Errorf("offsets do not correspond with lines: %s", source)
+
+	// build offsets - list of int64
+	offsets, e := convertOffsets(multiLine.Offset)
+	if e != nil {
+		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
+
+	// verify number of lines in message against number of offsets
+	messages := newline.Split(multiLine.Message, -1)
+	if len(offsets)+1 == len(messages) {
+		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(offsets), source)
+		numLines := len(messages)
+		if numLines > 1 {
+			lastOffset := int64(len(messages[numLines-2])) + offsets[numLines-1]
+			offsets = append(offsets, lastOffset)
+		}
+	} else if len(offsets) > len(messages) {
+		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+	} else if len(offsets) < len(messages) {
+		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+		return multiLine.Host, multiLine.File, nil, nil
+	}
+
+	// build compactLines
 	timestamp := truncateToMinute(multiLine.Timestamp.UnixNano())
 	compactLines := make([]compactLogLine, len(messages))
-	for i, offsetString := range multiLine.Offset {
-		offset, e := strconv.ParseInt(offsetString, 10, 64)
-		if e != nil {
-			return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", offsetString, source, e)
-		}
+	for i, offset := range offsets {
 		compactLines = append(compactLines, compactLogLine{
 			Timestamp: timestamp,
 			Offset:    offset,
