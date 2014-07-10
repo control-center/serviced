@@ -32,10 +32,9 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
                         var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
 
                         resourcesService.create_backup(function(data){
-                            setTimeout(function(){
-                                getBackupStatus(notification);
-                            }, 1);
+                            getBackupStatus(notification);
                         });
+                        this.close();
                     }
                 }
             ]
@@ -58,10 +57,9 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
                         var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);
 
                         resourcesService.restore_backup(filename, function(data){
-                            setTimeout(function(){
-                                getRestoreStatus(notification);
-                            }, 1);
+                            getRestoreStatus(notification);
                         });
+                        this.close();
                     }
                 }
             ]

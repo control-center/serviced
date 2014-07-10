@@ -95,9 +95,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    // $scope.clickRunning = toggleRunning;
     $scope.clickRunning = function(app, status, servicesService){
-        var displayStatus = status.slice(0,1).toUpperCase() + status.slice(1);
+        var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
             template: "This will "+ status +" all child services.",
@@ -153,5 +152,9 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             });
         };
         $scope.secondarynav.push({ label: 'btn_add_service', modal: '#addService' });
+    }
+
+    function capitalizeFirst(str){
+        return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 }
