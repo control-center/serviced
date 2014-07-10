@@ -46,6 +46,7 @@ type Options struct {
 	CPUProfile           string // write cpu profile to file
 	MaxContainerAge      int    // max container age in seconds
 	VirtualAddressSubnet string
+	MasterPoolID         string
 }
 
 // LoadOptions overwrites the existing server options
@@ -87,7 +88,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.StaticIPs)
+	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID)
 	if err != nil {
 		return err
 	}

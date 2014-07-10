@@ -8,7 +8,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 )
 
-//GetHost gets the host for the give hostID or nil
+//GetHost gets the host for the given hostID or nil
 func (c *Client) GetHost(hostID string) (*host.Host, error) {
 	response := host.New()
 	if err := c.call("GetHost", hostID, response); err != nil {

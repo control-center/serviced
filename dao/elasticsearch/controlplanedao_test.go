@@ -77,12 +77,19 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 
 	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
-	zclient, err := coordclient.New("zookeeper", dsn, "", nil)
+	zClient, err := coordclient.New("zookeeper", dsn, "", nil)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
-	zkDAO := zzk.NewZkDao(zclient)
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, zclient, "/tmp", "rsync", zkDAO)
+
+	zzk.InitializeGlobalCoordClient(zClient)
+
+	dt.zkConn, err = zzk.GetBasePathConnection("/")
+	if err != nil {
+		c.Fatalf("could not get zk connection %v", err)
+	}
+
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync")
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -110,11 +117,6 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	// create the account credentials
 	if err := createSystemUser(dt.Dao); err != nil {
 		c.Fatalf("could not create systemuser:", err)
-	}
-
-	dt.zkConn, err = dt.Dao.zclient.GetConnection()
-	if err != nil {
-		c.Fatalf("could not get zk connection %v", err)
 	}
 }
 

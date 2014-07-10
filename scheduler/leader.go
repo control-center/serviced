@@ -16,7 +16,6 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/registry"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
@@ -35,68 +34,49 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string) {
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 
-	allPools, err := facade.GetResourcePools(datastore.Get())
+	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
 	if err != nil {
-		glog.Error(err)
-		return
-	} else if allPools == nil || len(allPools) == 0 {
-		glog.Error("no resource pools found")
+		glog.Errorf("Could not initialize registry listener for pool %s", poolID)
 		return
 	}
 
-	for _, aPool := range allPools {
-		// TODO: Support non default pools
-		// Currently, only the default pool gets a leader
-		if aPool.ID != "default" {
-			glog.Warningf("Non default pool: %v (not currently supported)", aPool.ID)
-			continue
+	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
+	for {
+		shutdown := make(chan interface{})
+		if shutdownmode {
+			glog.V(1).Info("Shutdown mode encountered.")
+			close(shutdown)
+			break
 		}
 
-		hostRegistry, err := zkservice.NewHostRegistryListener(conn)
-		if err != nil {
-			glog.Errorf("Could not initialize registry listener for pool %s", aPool.ID)
-			return
-		}
-
-		leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: aPool.ID, hostRegistry: hostRegistry}
-		for {
-			shutdown := make(chan interface{})
-			if shutdownmode {
-				glog.V(1).Info("Shutdown mode encountered.")
-				close(shutdown)
-				break
-			}
-			time.Sleep(time.Second)
-			func() error {
-				select {
-				case evt := <-zkEvent:
-					// shut this thing down
-					shutdownmode = true
-					glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-					return nil
-				default:
-					glog.V(0).Info("Processing leader duties")
-					// passthru
-				}
-
-				registry.CreateEndpointRegistry(conn)
-
-				// creates a listener for snapshots with a function call to take snapshots
-				// and return the label and error message
-				snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
-				go snapshotListener.Listen(shutdown)
-				leader.watchServices()
-
-				// starts a listener for the host registry
-				go hostRegistry.Listen(shutdown)
+		time.Sleep(time.Second)
+		func() error {
+			select {
+			case evt := <-zkEvent:
+				// shut this thing down
+				shutdownmode = true
+				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
 				return nil
-			}()
-		}
+			default:
+				glog.V(0).Info("Processing leader duties")
+				// passthru
+			}
+			// creates a listener for snapshots with a function call to take snapshots
+			// and return the label and error message
+			snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+			go snapshotListener.Listen(shutdown)
+			leader.watchServices()
+
+			// starts a listener for the host registry
+			go hostRegistry.Listen(shutdown)
+
+			return nil
+		}()
 	}
 }
 
@@ -355,7 +335,7 @@ func (l *leader) startServiceInstances(svc *service.Service, hosts []*host.Host,
 	return nil
 }
 
-// TODO: move me into zzk
+// TODO: move me into zzk?
 func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*servicestate.ServiceState, numToKill int) {
 	glog.V(2).Infof("Stopping %d instances from %d total", numToKill, len(serviceStates))
 	maxId := len(serviceStates) - numToKill - 1
@@ -364,8 +344,7 @@ func shutdownServiceInstances(conn coordclient.Connection, serviceStates []*serv
 		if serviceStates[i].InstanceID > maxId {
 			glog.V(2).Infof("Killing host service state %s:%s\n", serviceStates[i].HostID, serviceStates[i].ID)
 			serviceStates[i].Terminated = time.Date(2, time.January, 1, 0, 0, 0, 0, time.UTC)
-			err := zzk.TerminateHostService(conn, serviceStates[i].HostID, serviceStates[i].ID)
-			if err != nil {
+			if err := zkservice.StopServiceInstance(conn, serviceStates[i].HostID, serviceStates[i].ID); err != nil {
 				glog.Warningf("%s:%s wouldn't die", serviceStates[i].HostID, serviceStates[i].ID)
 			}
 		}
