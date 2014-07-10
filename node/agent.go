@@ -849,6 +849,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	glog.Info("Starting HostAgent")
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go func() {
 		glog.Info("reapOldContainersLoop starting")
@@ -873,6 +874,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 			}
 		}
 	}()
+
 	var conn coordclient.Connection
 
 	//handle shutdown if we are waiting fo a zk connection
@@ -888,26 +890,25 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}
 	glog.Info("Got a connected client")
 	defer conn.Close()
-	
-			// watch virtual IP zookeeper nodes
-			virtualIPListener := virtualips.NewVirtualIPListener(conn)
 
-			// watch docker action nodes
-			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+	// watch virtual IP zookeeper nodes
+	virtualIPListener := virtualips.NewVirtualIPListener(conn)
 
-			// watch the host state nodes
-			// this blocks until
-			// 1) has a connection
-			// 2) its node is registered
-			// 3) receieves signal to shutdown or breaks
-			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+	// watch docker action nodes
+	actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+
+	// watch the host state nodes
+	// this blocks until
+	// 1) has a connection
+	// 2) its node is registered
+	// 3) receieves signal to shutdown or breaks
+	hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
 
 	wg.Add(1)
 	go func() {
-	
-			zzk.Start(a.closing, hsListener, virtualIPListener, actionListener)
-	
-    wg.Done()
+		defer wg.Done()
+		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
+		glog.Infof("Host Agent Listeners are done")
 	}()
 
 	//wait for everythint to be done
