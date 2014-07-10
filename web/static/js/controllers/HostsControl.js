@@ -14,11 +14,10 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.newHost = {};
 
     $scope.modalAddHost = function() {
-        // $('#addHost').modal('show');
         $modalService.create({
             templateUrl: "add-host.html",
             model: $scope,
-            title: "title_add_host",
+            title: "add_host",
             actions: [
                 {
                     role: "cancel",
@@ -28,7 +27,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
                     }
                 },{
                     role: "ok",
-                    label: "Add Host",
+                    label: "add_host",
                     action: function(){
                         if(this.validate()){
                             $scope.add_host();

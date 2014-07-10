@@ -19,15 +19,15 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
     $scope.createBackup = function(){
         $modalService.create({
-            template: "The backup process may take a while.",
+            template: $translate("confirm_start_backup"),
             model: $scope,
-            title: "Create Backup",
+            title: "backup_create",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Create Backup",
+                    label: "backup_create",
                     action: function(){
                         var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
 
@@ -43,15 +43,15 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
     $scope.restoreBackup = function(filename){
         $modalService.create({
-            template: "The restore process cannot be reversed.",
+            template: $translate("confirm_start_restore"),
             model: $scope,
-            title: "Restore",
+            title: "restore",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Restore",
+                    label: "restore",
                     classes: "btn-danger",
                     action: function(){
                         var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);

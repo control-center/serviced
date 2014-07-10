@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService) {
+function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -74,7 +74,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $modalService.create({
             templateUrl: "add-vhost.html",
             model: $scope,
-            title: "add_vhost",
+            title: "add_virtual_host",
             actions: [
                 {
                     role: "cancel",
@@ -84,7 +84,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                     }
                 },{
                     role: "ok",
-                    label: "Add",
+                    label: "add_virtual_host",
                     action: function(){
                         if(this.validate()){
                             $scope.addVHost();
@@ -164,13 +164,13 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $modalService.create({
             templateUrl: "assign-ip.html",
             model: $scope,
-            title: "title_assign_ip",
+            title: "assign_ip",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "btn_submit",
+                    label: "assign_ip",
                     action: function(){
                         if(this.validate()){
                             $scope.AssignIP();
@@ -207,20 +207,40 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = 'TODO: Implement';
-        $('#editConfig').modal('show');
-    };
-
-    $scope.clickRemoveVirtualHost = function(vhost) {
         $modalService.create({
-            template: "This will remove Virtual Host <strong>"+ vhost.Name +"</strong>. This cannot be undone.",
+            templateUrl: "edit-config.html",
             model: $scope,
-            title: "Remove Virtual Host",
+            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            bigModal: true,
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Remove Virtual Host",
+                    label: "save",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.updateService();
+                            // NOTE: should wait for response before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
+    };
+
+    $scope.clickRemoveVirtualHost = function(vhost) {
+        $modalService.create({
+            template: $translate("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
+            model: $scope,
+            title: "remove_virtual_host",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "remove_virtual_host",
                     classes: "btn-danger",
                     action: function(){
                         resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
@@ -240,14 +260,14 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: "title_edit_config - "+ $scope.editService.config,
+            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Save",
+                    label: "save",
                     action: function(){
                         if(this.validate()){
                             $scope.updateService();
@@ -268,7 +288,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
-            $scope.editService.log = log.Detail;
+            $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
             $modalService.create({
                 templateUrl: "view-log.html",
                 model: $scope,
@@ -278,7 +298,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                     {
                         role: "cancel",
                         classes: "btn-default",
-                        label: "Close"
+                        label: "close"
                     }
                 ]
             });
@@ -393,17 +413,16 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             });
         };
         $scope.showAddService = function() {
-            // $('#addService').modal('show');
             $modalService.create({
                 templateUrl: "add-service.html",
                 model: $scope,
-                title: "title_add_service",
+                title: "add_service",
                 actions: [
                     {
                         role: "cancel"
                     },{
                         role: "ok",
-                        label: "btn_add",
+                        label: "add_service",
                         action: function(){
                             if(this.validate()){
                                 $scope.add_service();

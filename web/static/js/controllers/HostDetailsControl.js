@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -34,14 +34,46 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
         $scope.editService.config = 'TODO: Implement';
-        $('#editConfig').modal('show');
+        $modalService.create({
+            templateUrl: "edit-config.html",
+            model: $scope,
+            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            bigModal: true,
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "save",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.updateService();
+                            // NOTE: should wait for response before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
             $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
-            $('#viewLog').modal('show');
+            $modalService.create({
+                templateUrl: "view-log.html",
+                model: $scope,
+                title: "title_log",
+                bigModal: true,
+                actions: [
+                    {
+                        role: "cancel",
+                        classes: "btn-default",
+                        label: "close"
+                    }
+                ]
+            });
         });
     };
 

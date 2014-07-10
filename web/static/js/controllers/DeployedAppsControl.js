@@ -54,13 +54,13 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         $modalService.create({
             template: $translate("warning_remove_service"),
             model: $scope,
-            title: "title_remove_service",
+            title: "remove_service",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Remove Service",
+                    label: "remove_service",
                     classes: "btn-danger",
                     action: function(){
                         if(this.validate()){
@@ -99,7 +99,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
-            template: "This will "+ status +" all child services.",
+            template: $translate("confirm_"+ status +"_app"),
             model: $scope,
             title: displayStatus +" Services",
             actions: [

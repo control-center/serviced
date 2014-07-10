@@ -1,4 +1,4 @@
-function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService) {
+function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -28,15 +28,15 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     // Function to remove a pool
     $scope.clickRemovePool = function(poolID) {
         $modalService.create({
-            template: "This will remove Pool <strong>"+ poolID +"</strong>. This cannot be undone.",
+            template: $translate("confirm_remove_pool") + "<strong>"+ poolID +"</strong>",
             model: $scope,
-            title: "Remove Pool",
+            title: "remove_pool",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Remove Pool",
+                    label: "remove_pool",
                     classes: "btn-danger",
                     action: function(){
                         resourcesService.remove_pool(poolID, function(data) {
@@ -56,7 +56,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
         $modalService.create({
             templateUrl: "add-pool.html",
             model: $scope,
-            title: "title_add_pool",
+            title: "add_pool",
             actions: [
                 {
                     role: "cancel",
@@ -66,7 +66,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
                     }
                 },{
                     role: "ok",
-                    label: "btn_add",
+                    label: "add_pool",
                     action: function(){
                         if(this.validate()){
                             $scope.add_pool();

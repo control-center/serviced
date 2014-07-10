@@ -1,4 +1,4 @@
-function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -26,15 +26,15 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         console.log( "Removing pool's virtual ip address: ", ip);
 
         $modalService.create({
-            template: "This will remove Virtual IP <strong>"+ ip.IP +"</strong>. This cannot be undone.",
+            template: $translate("confirm_remove_virtual_ip") + " <strong>"+ ip.IP +"</strong>",
             model: $scope,
-            title: "Remove Virtual IP",
+            title: "remove_virtual_ip",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "Remove Virtual IP",
+                    label: "remove_virtual_ip",
                     classes: "btn-danger",
                     action: function(){
                         resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
@@ -65,13 +65,13 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         $modalService.create({
             templateUrl: "pool-add-virtualip.html",
             model: $scope,
-            title: "title_add_virtual_ip",
+            title: "add_virtual_ip",
             actions: [
                 {
                     role: "cancel"
                 },{
                     role: "ok",
-                    label: "btn_add",
+                    label: "add_virtual_ip",
                     action: function(){
                         if(this.validate()){
                             $scope.AddVirtualIp(pool);
