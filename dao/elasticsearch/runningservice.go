@@ -49,6 +49,8 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 	if err != nil {
 		glog.Errorf("Unable to get host %v: %v", hostID, err)
 		return err
+	} else if myHost == nil {
+		return nil
 	}
 
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
@@ -60,7 +62,9 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 	*services, err = zkservice.LoadRunningServicesByHost(poolBasedConn, hostID)
 	if err != nil {
 		glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v host: %v) failed: %v", poolBasedConn, hostID, err)
+		return err
 	}
+
 	return nil
 }
 
