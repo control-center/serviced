@@ -9,14 +9,14 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
+	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/utils"
 	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
-	zkVirtualIPs           = "/VirtualIPs"
+	zkVirtualIPs           = "/virtualIPs"
 	virtualInterfacePrefix = ":zvip"
 )
 
@@ -51,7 +51,7 @@ SyncVirtualIPs is responsible for monitoring the virtual IPs in the model
  if a new virtual IP is added, create a zookeeper node corresponding to the new virtual IP
  if a virtual IP is removed, remove the zookeeper node corresponding to that virtual IP
 */
-func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
+func SyncVirtualIPs(conn coordclient.Connection, virtualIPs []pool.VirtualIP) error {
 	glog.V(10).Infof("    start SyncVirtualIPs: VirtualIPs: %v", virtualIPs)
 	defer glog.V(10).Info("    end SyncVirtualIPs")
 
@@ -106,7 +106,7 @@ func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
 WatchVirtualIPs monitors the virtual IP nodes in zookeeper, the "leader" agent (the agent that has a lock on the virtual IP),
    binds the virtual IP to the bind address specified by the virtual IP on itself
 */
-func WatchVirtualIPs(conn client.Connection, shutdown <-chan interface{}) {
+func WatchVirtualIPs(conn coordclient.Connection) {
 	glog.Info("Watching all virtual IPs (will kick off a go routine per virtual IP)")
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
@@ -133,7 +133,7 @@ func WatchVirtualIPs(conn client.Connection, shutdown <-chan interface{}) {
 
 	var oldVirtualIPNodeIDs []string
 	var currentVirtualIPNodeIDs []string // these are virtual IP addresses
-	var virtualIPsNodeEvent <-chan client.Event
+	var virtualIPsNodeEvent <-chan coordclient.Event
 	var err error
 
 	virtualInterfaceIndex := 0
@@ -232,7 +232,7 @@ func (v *virtualIPNode) SetVersion(version interface{}) { v.version = version }
 /*
 GetVirtualIPHostID is used to figure out which host a virtual IP is configureds
 */
-func GetVirtualIPHostID(conn client.Connection, virtualIPAddress string, hostID *string) error {
+func GetVirtualIPHostID(conn coordclient.Connection, virtualIPAddress string, hostID *string) error {
 	myVirtualIP := pool.VirtualIP{PoolID: "", IP: "", Netmask: "", BindInterface: ""}
 	vipNode := virtualIPNode{HostID: "", VirtualIP: myVirtualIP}
 	if err := conn.Get(virtualIPsPath(virtualIPAddress), &vipNode); err != nil {
@@ -253,7 +253,7 @@ func GetVirtualIPHostID(conn client.Connection, virtualIPAddress string, hostID 
 watchVirtualIP is invoked per virtual IP. It attempts to acquire a lock on the virtual IP.
 If the lock is acquired, then virtual IP is realized on the agent.
 */
-func watchVirtualIP(request <-chan int, done chan <- string, watchingVirtualIP pool.VirtualIP, conn client.Connection, virtualInterfaceIndex int, hostID string) {
+func watchVirtualIP(request <-chan int, done chan<- string, watchingVirtualIP pool.VirtualIP, conn client.Connection, virtualInterfaceIndex int, hostID string) {
 	glog.V(2).Infof(" ### Started watchingVirtualIP: %v", watchingVirtualIP.IP)
 
 	// try to lock
@@ -312,7 +312,7 @@ func watchVirtualIP(request <-chan int, done chan <- string, watchingVirtualIP p
 	}
 }
 
-func determineVirtualIPAddressesOnMe(conn client.Connection, currentVirtualIPNodeIDs []string, hostID string) []string {
+func determineVirtualIPAddressesOnMe(conn coordclient.Connection, currentVirtualIPNodeIDs []string, hostID string) []string {
 	virtualIPsToRefresh := []string{}
 
 	for _, virtualIPAddress := range currentVirtualIPNodeIDs {
@@ -349,9 +349,9 @@ func setSubtract(a []string, b []string) []string {
 	return difference
 }
 
-func createNode(conn client.Connection, path string) error {
+func createNode(conn coordclient.Connection, path string) error {
 	// Make the path if it doesn't exist
-	if exists, err := zkutils.PathExists(conn, path); err != nil && err != client.ErrNoNode {
+	if exists, err := zkutils.PathExists(conn, path); err != nil && err != coordclient.ErrNoNode {
 		return fmt.Errorf("Error checking path %s: %s", path, err)
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

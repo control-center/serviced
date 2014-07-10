@@ -15,7 +15,10 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatal("Could not create listener: %s", err)
+	}
 	alert := make(chan bool)
 	shutdown := make(chan interface{})
 	listener.alertC = alert
@@ -86,10 +89,6 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 			t.Fatalf("Could not check existance of host state %s: %s", state.ID, err)
 		} else if exists {
 			t.Fatal("State still exists for host state ", state.ID)
-		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-			t.Fatalf("Could not check existance of service state %s: %s", state.ID, err)
-		} else if exists {
-			t.Fatal("State still exists for service state ", state.ID)
 		}
 	}
 
@@ -100,7 +99,10 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 func TestHostRegistryListener_sync(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatal("Could not create listener: %s", err)
+	}
 
 	// Add some hosts
 	hosts := map[string]*host.Host{
@@ -143,7 +145,10 @@ func TestHostRegistryListener_sync(t *testing.T) {
 func TestHostRegistryListener_register(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatal("Could not create listener: %s", err)
+	}
 	host := &host.Host{ID: "test-host-1"}
 
 	// no running listener
@@ -168,7 +173,10 @@ func TestHostRegistryListener_register(t *testing.T) {
 func TestHostRegistryListener_unregister(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatal("Could not create listener: %s", err)
+	}
 
 	// Create the host
 	host := &host.Host{ID: "test-host-1"}

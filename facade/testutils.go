@@ -15,7 +15,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/zzk"
 	gocheck "gopkg.in/check.v1"
 )
 
@@ -44,11 +43,11 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
 	ft.CTX = datastore.Get()
-	//empty zkdao will not work but tests shouldn't call this anyway.
-	ft.Facade = New(&zzk.ZkDao{}, "localhost:5000")
+
+	ft.Facade = New("localhost:5000")
 
 	//mock out ZK calls to no ops
-	zkAPI = func(zkdao *zzk.ZkDao) zkfuncs { return &zkMock{} }
+	zkAPI = func(f *Facade) zkfuncs { return &zkMock{} }
 }
 
 type zkMock struct {
@@ -58,14 +57,18 @@ func (z *zkMock) updateService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) removeService(id string) error {
+func (z *zkMock) removeService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) getSvcStates(serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+func (z *zkMock) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
 	return nil
 }
 
-func (z *zkMock) RemoveHost(hostID string) error {
+func (z *zkMock) RegisterHost(h *host.Host) error {
+	return nil
+}
+
+func (z *zkMock) UnregisterHost(h *host.Host) error {
 	return nil
 }

@@ -202,6 +202,18 @@
         </tbody>
         </table>
 
+    <!-- Graphs -->
+    <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0">
+      <h3>{{'graphs'|translate}}</h3>
+        <table class="table table-striped table-bordered side-flush">
+          <tr ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
+            <td>
+              <div>{{graph.name}}</div>
+              <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+            </td>
+          </tr>
+        </table>
+    </div>
 
     <div ng-include="'/static/partials/edit-config.html'"></div>
     <div ng-include="'/static/partials/view-log.html'"></div>

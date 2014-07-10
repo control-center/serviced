@@ -5,7 +5,7 @@
 package elastic_test
 
 import (
-	"github.com/mattbaird/elastigo/search"
+	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/datastore"
 	. "github.com/zenoss/serviced/datastore/elastic"
