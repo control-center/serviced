@@ -473,7 +473,7 @@ func ImportImage(repotag, filename string) error {
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
-	if pull {
+	if pull && !noregistry {
 		err := pullImage(repotag)
 		if err != nil {
 			return nil, err
