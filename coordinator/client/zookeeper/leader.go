@@ -92,6 +92,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	path := ""
 	for i := 0; i < 3; i++ {
 		if l.c.conn == nil {
+			// TODO: race condition exists
 			return nil, fmt.Errorf("connection lost")
 		}
 		path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, data, zklib.WorldACL(zklib.PermAll))
@@ -103,6 +104,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 			for _, p := range parts[1:] {
 				pth += "/" + p
 				if l.c.conn == nil {
+					// TODO: race condition exists
 					return nil, fmt.Errorf("connection lost")
 				}
 				_, err := l.c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
@@ -189,6 +191,7 @@ func (l *Leader) ReleaseLead() error {
 		return ErrNotLocked
 	}
 	if l.c.conn == nil {
+		// TODO: race condition exists
 		return fmt.Errorf("lost connection")
 	}
 	if err := l.c.conn.Delete(l.lockPath, -1); err != nil {
