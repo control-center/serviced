@@ -49,6 +49,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -67,6 +68,8 @@ type daemon struct {
 	storageHandler   *storage.Server
 	masterPoolID     string
 	hostAgent        *node.HostAgent
+	shutdown         chan interface{}
+	waitGroup        *sync.WaitGroup
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
@@ -74,6 +77,8 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
 		masterPoolID:     masterPoolID,
+		shutdown:         make(chan interface{}),
+		waitGroup:        &sync.WaitGroup{},
 	}
 	return d, nil
 }
@@ -126,17 +131,29 @@ func (d *daemon) run() error {
 	go func() {
 		// start the server
 		http.Serve(l, nil)
+		glog.Infof("http server done")
 	}()
 
 	signalChan := make(chan os.Signal, 10)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 	glog.V(0).Info("Shutting down due to interrupt")
-	if d.hostAgent != nil {
-		d.hostAgent.Shutdown()
-	}
-	if options.Master {
-		isvcs.Mgr.Stop()
+	close(d.shutdown)
+
+	doneWaiting := make(chan struct{})
+	go func() {
+		glog.Info("Waiting for wait group")
+		d.waitGroup.Wait()
+		glog.Info("wait group is done")
+		close(doneWaiting)
+	}()
+
+	select {
+	case <-doneWaiting:
+		glog.Info("Shutdown")
+	case <-time.After(300 * time.Second):
+		glog.Info("Timed out waiting for shutdown")
+		//Return error???
 	}
 	return nil
 }
@@ -287,22 +304,27 @@ func (d *daemon) startAgent() error {
 		return fmt.Errorf("HostID failed: %v", err)
 	}
 
-	sleepRetry := 5
 	go func() {
 		var poolID string
 		for {
 			glog.Infof("Trying to discover my pool...")
+			var myHost *host.Host
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
 				glog.Errorf("master.NewClient failed: %v", err)
-				time.Sleep(time.Duration(sleepRetry) * time.Second)
-				continue
+			} else {
+				myHost, err = masterClient.GetHost(myHostID)
+				if err != nil {
+					glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
+				}
 			}
-			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
-				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
-				time.Sleep(time.Duration(sleepRetry) * time.Second)
-				continue
+				select {
+				case <-d.shutdown:
+					return
+				case <-time.After(5 * time.Second):
+					continue
+				}
 			}
 			poolID = myHost.PoolID
 			glog.Infof(" My PoolID: %v", poolID)
@@ -360,6 +382,14 @@ func (d *daemon) startAgent() error {
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
 		d.hostAgent = hostAgent
+		d.waitGroup.Add(1)
+
+		go func() {
+			hostAgent.Start(d.shutdown)
+			glog.Info("Host Agent has shutdown")
+			d.waitGroup.Done()
+		}()
+
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
 		if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
@@ -437,6 +467,16 @@ func (d *daemon) initFacade() *facade.Facade {
 }
 
 func (d *daemon) initISVCS() error {
+	go func() {
+		select {
+		case <-d.shutdown:
+			glog.Infof("Shutting down isvcs")
+			isvcs.Mgr.Stop()
+			glog.Infof("isvcs shut down")
+			d.waitGroup.Done()
+		}
+	}()
+	d.waitGroup.Add(1)
 	return isvcs.Mgr.Start()
 }
 
@@ -449,7 +489,7 @@ func (d *daemon) initWeb() {
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
 	go cpserver.ServeUI()
-	go cpserver.Serve()
+	go cpserver.Serve(d.shutdown)
 }
 func (d *daemon) startScheduler() {
 	go d.runScheduler()
@@ -457,12 +497,16 @@ func (d *daemon) startScheduler() {
 
 func (d *daemon) runScheduler() {
 	for {
-		func() {
-			sched, shutdown := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
-			sched.Start()
-			select {
-			case <-shutdown:
-			}
-		}()
+		sched, schedShutdown := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		sched.Start()
+		select {
+		case <-d.shutdown:
+			glog.Info("Shutting down scheduler")
+			sched.Stop()
+			glog.Info("Scheduler stopped")
+			return
+		case <-schedShutdown:
+			break
+		}
 	}
 }
