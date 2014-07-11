@@ -28,6 +28,25 @@ func init() {
 		ID:              "isvc-elasticsearch",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -40,7 +59,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -53,7 +72,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -64,7 +83,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -79,7 +98,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -93,7 +112,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -105,6 +124,25 @@ func init() {
 		ID:              "isvc-zookeeper",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -117,7 +155,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -130,7 +168,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -141,7 +179,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -156,7 +194,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -170,7 +208,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -182,6 +220,25 @@ func init() {
 		ID:              "isvc-logstash",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -194,7 +251,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -207,7 +264,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -218,7 +275,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -233,7 +290,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -247,7 +304,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -259,6 +316,25 @@ func init() {
 		ID:              "isvc-opentsdb",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -271,7 +347,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -284,7 +360,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -295,7 +371,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -310,7 +386,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -324,7 +400,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -336,6 +412,25 @@ func init() {
 		ID:              "isvc-celery",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -348,7 +443,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -361,7 +456,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -372,7 +467,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -387,7 +482,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -401,7 +496,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -413,6 +508,25 @@ func init() {
 		ID:              "isvc-dockerRegistry",
 		ParentServiceID: "isvc-internalservices",
 		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "MemoryStat.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
 					Footer: false,
@@ -425,7 +539,7 @@ func init() {
 					},
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -438,7 +552,7 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -449,7 +563,7 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
@@ -464,7 +578,7 @@ func init() {
 					},
 					YAxisLabel: "GB",
 					ReturnSet:  "EXACT",
-					Type:       "line",
+					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
 					DownSample: "1m-avg",
 					DataPoints: []domain.DataPoint{
@@ -478,7 +592,7 @@ func init() {
 							Metric:     "MemoryStat.totalrss",
 							Name:       "Memory Usage",
 							Rate:       false,
-							Type:       "line",
+							Type:       "area",
 						},
 					},
 				},
