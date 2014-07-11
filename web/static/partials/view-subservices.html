@@ -2,7 +2,7 @@
 
     <h3>{{services.current.Name}}</h3>
 
-    <div class="details">
+    <div class="details" ng-if="services.current.ID.indexOf('isvc-') == -1">
       <div class="details-form">
         <div class="vertical-info">
           <label for="app_data_name">{{'label_service_name'|translate}}</label>
@@ -27,12 +27,10 @@
                  ng-model="services.current.ImageID"></input>
         </div>
 
-        <div class="vertical-info">
-          <label>{{'running_tbl_actions'|translate}}</label>
-          <div>
-            <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-            <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-          </div>
+        <label>{{'running_tbl_actions'|translate}}</label>
+        <div>
+          <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+          <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
         </div>
 
       </div>
@@ -44,82 +42,88 @@
     </div>
 
 	<!-- Virtual Host Names -->
-	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
-  <div class="control-buttons pull-right">
-      <span class="add-control">
-          <button class="btn-link" ng-click="modalAddVHost()">
-              <span class="glyphicon glyphicon-plus-sign"></span>
-              {{'modal_add_vhost'|translate}}
-          </button>
-      </span>
+  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+    <div class="control-buttons pull-right">
+        <span class="add-control">
+            <button class="btn-link" ng-click="modalAddVHost()">
+                <span class="glyphicon glyphicon-plus-sign"></span>
+                {{'modal_add_vhost'|translate}}
+            </button>
+        </span>
+    </div>
+  	<table class="table table-striped" id="vhosts_data">
+  		<thead>
+  			<tr>
+  				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
+  					<button ng-click="vhosts.set_order(header.id, vhosts)" 
+  									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+  				</th>
+  			</tr>
+  		</thead>
+  		<tbody>
+  			<tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
+  				<td>{{vhost.Name}}</td>
+  				<td>{{vhost.Application}}</td>
+  				<td>{{vhost.ServiceEndpoint}}</td>
+  				<td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
+  				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
+  			</tr>
+  		</tbody>
+  	</table>
   </div>
-	<table class="table table-striped" id="vhosts_data">
-		<thead>
-			<tr>
-				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
-					<button ng-click="vhosts.set_order(header.id, vhosts)" 
-									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
-				</th>
-			</tr>
-		</thead>
-		<tbody>
-			<tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
-				<td>{{vhost.Name}}</td>
-				<td>{{vhost.Application}}</td>
-				<td>{{vhost.ServiceEndpoint}}</td>
-				<td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
-				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
-			</tr>
-		</tbody>
-	</table>
 
 	<!-- IP Assignments -->
-	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
-	<table class="table table-striped" id="ips_data">
-		<thead>
-			<tr>
-				<th ng-repeat="header in ips.headers">{{header.name|translate}}
-					<button ng-click="ips.set_order(header.id, ips)" 
-									ng-class="ips.get_order_class(header.id, ips)"></button>
-				</th>
-			</tr>
-		</thead>
-		<tbody>
-			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
-				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
-				<td>{{ip.EndpointName}}</td>
-				<td>{{ip.AssignmentType}}</td>
-				<td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
-				<td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
-				<td>{{ip.IPAddr}}</td>
-				<td>{{ip.Port}}</td>
-				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
-			</tr>
-		</tbody>
-	</table>
+  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+  	<table class="table table-striped" id="ips_data">
+  		<thead>
+  			<tr>
+  				<th ng-repeat="header in ips.headers">{{header.name|translate}}
+  					<button ng-click="ips.set_order(header.id, ips)" 
+  									ng-class="ips.get_order_class(header.id, ips)"></button>
+  				</th>
+  			</tr>
+  		</thead>
+  		<tbody>
+  			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
+  				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
+  				<td>{{ip.EndpointName}}</td>
+  				<td>{{ip.AssignmentType}}</td>
+  				<td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
+  				<td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
+  				<td>{{ip.IPAddr}}</td>
+  				<td>{{ip.Port}}</td>
+  				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
+  			</tr>
+  		</tbody>
+  	</table>
+  </div>
 
 	<!-- Config Files -->
-	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
-	<table class="table table-striped" >
-      <thead>
-        <tr>
-          <th>{{'path'|translate}}</th>
-          <th>{{'owner'|translate}}</th>
-          <th>{{'permissions'|translate}}</th>
-          <th>{{'running_tbl_actions'|translate}}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="configFile in services.current.ConfigFiles">
-          <td>{{ configFile.Filename }}</td>
-          <td>{{ configFile.Owner }}</td>
-          <td>{{ configFile.Permissions }}</td>
-          <td>
-            <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
+  	<table class="table table-striped" >
+        <thead>
+          <tr>
+            <th>{{'path'|translate}}</th>
+            <th>{{'owner'|translate}}</th>
+            <th>{{'permissions'|translate}}</th>
+            <th>{{'running_tbl_actions'|translate}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="configFile in services.current.ConfigFiles">
+            <td>{{ configFile.Filename }}</td>
+            <td>{{ configFile.Owner }}</td>
+            <td>{{ configFile.Permissions }}</td>
+            <td>
+              <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+  </div>
 	
     <!-- This table has sub service definitions -->
 	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
@@ -148,9 +152,11 @@
           <td>
             <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
           </td>
-          <td>
-            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+          <td >
+            <div ng-if="app.ID.indexOf('isvc-') == -1">
+              <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+              <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -182,25 +188,27 @@
         </tr>
       </tbody>
     </table>
-	<h3>{{'scheduled_tasks'|translate}}</h3>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>{{'task_schedule'|translate}}</th>
-				<th>{{'task_command' |translate}}</th>
-				<th>{{'task_last_run'|translate}}</th>
-				<th>{{'task_run_count'|translate}}</th>                
-            </tr>
-        </thead>
-        <tbody>
-        <tr ng-repeat="task in services.current.Tasks">
-            <td style="font-family:monospace">{{ task.Schedule }}</td>
-            <td>{{ task.Command }}</td>
-            <td>{{ task.LastRunAt }}</td>
-            <td>{{ task.TotalRunCount }}</td>
-        </tr>          
-        </tbody>
-    </table>
+  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  	<h3>{{'scheduled_tasks'|translate}}</h3>
+      <table class="table table-striped">
+          <thead>
+              <tr>
+                  <th>{{'task_schedule'|translate}}</th>
+  				<th>{{'task_command' |translate}}</th>
+  				<th>{{'task_last_run'|translate}}</th>
+  				<th>{{'task_run_count'|translate}}</th>                
+              </tr>
+          </thead>
+          <tbody>
+          <tr ng-repeat="task in services.current.Tasks">
+              <td style="font-family:monospace">{{ task.Schedule }}</td>
+              <td>{{ task.Command }}</td>
+              <td>{{ task.LastRunAt }}</td>
+              <td>{{ task.TotalRunCount }}</td>
+          </tr>          
+          </tbody>
+      </table>
+  </div>
 
     <!-- Graphs -->
     <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0">

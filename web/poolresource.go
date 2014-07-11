@@ -256,9 +256,9 @@ func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, clien
 
 	//add graphs to profile
 	profile.GraphConfigs = make([]domain.GraphConfig, 3)
-	profile.GraphConfigs[0] = newMajorPageFaultGraph(tags)
-	profile.GraphConfigs[1] = newCpuConfigGraph(tags, totalCores)
-	profile.GraphConfigs[2] = newRSSConfigGraph(tags, totalMemory)
+	profile.GraphConfigs[0] = newCpuConfigGraph(tags, totalCores)
+	profile.GraphConfigs[1] = newRSSConfigGraph(tags, totalMemory)
+	profile.GraphConfigs[2] = newMajorPageFaultGraph(tags)
 
 	pool.MonitoringProfile = *profile
 	return nil

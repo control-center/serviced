@@ -22,7 +22,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "datapoints": [{
                 "aggregator": "avg",
                 "color": "#aec7e8",
-                // "expression": "rpn:" + host.Cores + ",/,100,*,60,/",
                 "fill": false,
                 "format": "%6.2f",
                 "id": "system",
@@ -35,7 +34,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             }, {
                 "aggregator": "avg",
                 "color": "#98df8a",
-                // "expression": "rpn:" + host.Cores + ",/,100,*,60,/",
                 "fill": false,
                 "format": "%6.2f",
                 "id": "user",
