@@ -46,65 +46,27 @@ func RemoveAllVirtualIPs() error {
 	return nil
 }
 
-/*
-SyncVirtualIPs is responsible for monitoring the virtual IPs in the model
- if a new virtual IP is added, create a zookeeper node corresponding to the new virtual IP
- if a virtual IP is removed, remove the zookeeper node corresponding to that virtual IP
-*/
-func SyncVirtualIPs(conn coordclient.Connection, virtualIPs []pool.VirtualIP) error {
-	glog.V(10).Infof("    start SyncVirtualIPs: VirtualIPs: %v", virtualIPs)
-	defer glog.V(10).Info("    end SyncVirtualIPs")
-
-	if err := createNode(conn, virtualIPsPath()); err != nil {
-		return err
-	}
-
-	// add nodes into zookeeper if the corresponding virtual IP is new to the model
-	for _, virtualIP := range virtualIPs {
-		currentVirtualIPNodePath := virtualIPsPath(virtualIP.IP)
-		exists, err := zkutils.PathExists(conn, currentVirtualIPNodePath)
-		if err != nil {
-			glog.Errorf("conn.Exists failed: %v (attempting to check %v)", err, currentVirtualIPNodePath)
-			return err
-		}
-		if !exists {
-			// creating node in zookeeper for this virtual IP
-			// the HostID is not yet known as the virtual IP is not on a host yet
-			vipNode := virtualIPNode{HostID: "", VirtualIP: virtualIP}
-			conn.Create(currentVirtualIPNodePath, &vipNode)
-			glog.Infof("Syncing virtual IPs... Created %v in zookeeper", currentVirtualIPNodePath)
-		}
-	}
-
-	// remove nodes from zookeeper if the corresponding virtual IP has been removed from the model
-	children, err := conn.Children(virtualIPsPath())
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		removedVirtualIP := true
-		for _, virtualIP := range virtualIPs {
-			if child == virtualIP.IP {
-				removedVirtualIP = false
-				break
-			}
-		}
-		if removedVirtualIP {
-			// remove virtual IP from zookeeper
-			nodeToDeletePath := virtualIPsPath(child)
-			if err := conn.Delete(nodeToDeletePath); err != nil {
-				glog.Errorf("conn.Delete failed:%v (attempting to delete %v))", err, nodeToDeletePath)
-				return err
-			}
-			glog.Infof("Syncing virtual IPs... Removed %v from zookeeper", nodeToDeletePath)
-		}
-	}
-	return nil
-}
-
 // TODO: need to build out this listener and write appropriate tests, but that
 // will take a long time, so I am putting this wrapper here as a placeholder
 // to mess with later
+
+const (
+	zkVirtualIP = "/virtualIPs"
+)
+
+func vippath(nodes ...string) string {
+	p := append([]string{zkVirtualIP}, nodes...)
+	return path.Join(p...)
+}
+
+type VirtualIPNode struct {
+	HostID    string
+	VirtualIP *pool.VirtualIP
+	version   interface{}
+}
+
+func (node *VirtualIPNode) Version() interface{}           { return node.version }
+func (node *VirtualIPNode) SetVersion(version interface{}) { node.version = version }
 
 // VirtualIPListener is the listener object for watching the zk object for
 // virtual IP nodes
@@ -120,6 +82,14 @@ func NewVirtualIPListener(conn coordclient.Connection) *VirtualIPListener {
 // Listen observes changes on the VirtualIP zk node
 func (l *VirtualIPListener) Listen(shutdown <-chan interface{}) {
 	WatchVirtualIPs(l.conn, shutdown)
+}
+
+func AddVirtualIP(conn coordclient.Connection, virtualIP *pool.VirtualIP) error {
+	return conn.Create(vippath(virtualIP.IP), &VirtualIPNode{VirtualIP: virtualIP})
+}
+
+func RemoveVirtualIP(conn coordclient.Connection, ip string) error {
+	return conn.Delete(vippath(ip))
 }
 
 /*
