@@ -238,7 +238,7 @@ func (d *daemon) startMaster() error {
 			return err
 		}
 		d.waitGroup.Add(1)
-		go func(){
+		go func() {
 			defer d.waitGroup.Done()
 			<-d.shutdown
 			glog.Infof("Shuttding down storage handler")
@@ -395,8 +395,8 @@ func (d *daemon) startAgent() error {
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
 		d.hostAgent = hostAgent
-		d.waitGroup.Add(1)
 
+		d.waitGroup.Add(1)
 		go func() {
 			hostAgent.Start(d.shutdown)
 			glog.Info("Host Agent has shutdown")
@@ -483,16 +483,21 @@ func (d *daemon) initFacade() *facade.Facade {
 }
 
 func (d *daemon) initISVCS() error {
+	if err := isvcs.Mgr.Start(); err != nil {
+		return err
+	}
+
+	d.waitGroup.Add(1)
 	go func() {
+		defer d.waitGroup.Done()
 		<-d.shutdown
+		//give other things some time to close before killing ZK etc...
+		time.Sleep(3 * time.Second)
 		glog.Infof("Shutting down isvcs")
 		isvcs.Mgr.Stop()
 		glog.Infof("isvcs shut down")
-		d.waitGroup.Done()
-
 	}()
-	d.waitGroup.Add(1)
-	return isvcs.Mgr.Start()
+
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
