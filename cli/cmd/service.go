@@ -301,7 +301,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	for _, svc := range services {
 		states, err := c.driver.GetServiceStates(svc.ID)
 		if err != nil {
-			fmt.Printf("error : %s\n", err)
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		if states != nil && len(states) > 0 {
