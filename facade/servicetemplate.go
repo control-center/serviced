@@ -24,7 +24,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/utils"
 )
 
 type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
@@ -35,11 +34,17 @@ var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
-	uuid, err := utils.NewUUID36()
+	hash, err := serviceTemplate.Hash()
 	if err != nil {
 		return "", err
 	}
-	serviceTemplate.ID = uuid
+	serviceTemplate.ID = hash
+
+	if st, _ := f.templateStore.Get(ctx, hash); st != nil {
+		// This id already exists in the system
+		glog.Infof("Not replacing existing template %s", hash)
+		return hash, nil
+	}
 
 	if err = f.templateStore.Put(ctx, serviceTemplate); err != nil {
 		return "", err
@@ -47,7 +52,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 
 	// this takes a while so don't block the main thread
 	go LogstashContainerReloader(ctx, f)
-	return uuid, err
+	return hash, err
 }
 
 //UpdateServiceTemplate updates a service template
