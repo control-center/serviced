@@ -20,7 +20,7 @@ import (
 var Mgr *Manager
 
 const (
-	IMAGE_REPO = "quay.io/zenossinc/isvcs"
+	IMAGE_REPO = "zenoss/serviced-isvcs"
 	IMAGE_TAG  = "v10"
 )
 
