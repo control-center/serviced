@@ -37,12 +37,6 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 		return nil, err
 	}
 
-        // get embedded host information
-        host.ServiceD.Version = servicedversion.Version
-        host.ServiceD.Gitbranch = servicedversion.Gitbranch
-        host.ServiceD.Gitcommit = servicedversion.Gitcommit
-        host.ServiceD.Date = servicedversion.Date
-
 	if ip != "" {
 		if !ipExists(ip) {
 			return nil, fmt.Errorf("requested IP %v is not available on host", ip)
