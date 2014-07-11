@@ -26,6 +26,8 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	fmt.Printf("Version:   %s\n", servicedversion.Version)
 	fmt.Printf("Gitcommit: %s\n", servicedversion.Gitcommit)
 	fmt.Printf("Gitbranch: %s\n", servicedversion.Gitbranch)
+	fmt.Printf("Giturl:    %s\n", servicedversion.Giturl)
 	fmt.Printf("Date:      %s\n", servicedversion.Date)
+	fmt.Printf("Buildtag:  %s\n", servicedversion.Buildtag)
 }
 
