@@ -92,6 +92,7 @@ func (sr StatsReporter) Close() {
 // the data to the TSDB. Stops when close signal is received on closeChannel.
 func (sr StatsReporter) report(d time.Duration) {
 	tc := time.Tick(d)
+	glog.Infof("collecting internal metrics at %s intervals", d)
 	for {
 		select {
 		case _ = <-sr.closeChannel:
@@ -99,7 +100,7 @@ func (sr StatsReporter) report(d time.Duration) {
 			sr.closeChannel <- true
 			return
 		case t := <-tc:
-			glog.V(3).Info("Reporting container stats at:", t)
+			glog.V(1).Info("Reporting container stats at:", t)
 			sr.updateStats()
 			stats := sr.gatherStats(t)
 			err := sr.post(stats)
@@ -153,7 +154,7 @@ func (sr StatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
-		glog.V(3).Info("Couldn't get open file descriptor count", err)
+		glog.Warningf("Couldn't get open file descriptor count", err)
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
@@ -172,13 +173,13 @@ func (sr StatsReporter) updateStats() {
 	for _, rs := range running {
 		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
-			glog.V(3).Info("Couldn't read CpuacctStat:", err)
+			glog.Warningf("Couldn't read CpuacctStat:", err)
 		} else {
 			metrics.GetOrRegisterGauge("CpuacctStat.system", containerRegistry).Update(cpuacctStat.System)
 			metrics.GetOrRegisterGauge("CpuacctStat.user", containerRegistry).Update(cpuacctStat.User)
 		}
 		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
-			glog.V(3).Info("Couldn't read MemoryStat:", err)
+			glog.Warningf("Couldn't read MemoryStat:", err)
 		} else {
 			metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
 			metrics.GetOrRegisterGauge("MemoryStat.totalrss", containerRegistry).Update(memoryStat.TotalRss)
@@ -225,19 +226,19 @@ func (sr StatsReporter) post(stats []containerStat) error {
 	payload := map[string][]containerStat{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		glog.V(3).Info("Couldn't marshal stats: ", err)
+		glog.Warningf("Couldn't marshal stats: ", err)
 		return err
 	}
 	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(data))
 	if err != nil {
-		glog.V(3).Info("Couldn't create stats request: ", err)
+		glog.Warningf("Couldn't create stats request: ", err)
 		return err
 	}
 	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
 	statsreq.Header["Content-Type"] = []string{"application/json"}
 	resp, reqerr := http.DefaultClient.Do(statsreq)
 	if reqerr != nil {
-		glog.V(3).Info("Couldn't post stats: ", reqerr)
+		glog.Warningf("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
 	if strings.Contains(resp.Status, "200 OK") == false {
