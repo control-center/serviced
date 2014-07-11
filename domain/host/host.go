@@ -12,6 +12,7 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/servicedversion"
 )
 
 //Host that runs the control plane agent.
@@ -28,6 +29,12 @@ type Host struct {
 	IPs               []HostIPResource // The static IP resources available on the host
 	KernelVersion     string
 	KernelRelease     string
+	ServiceD struct {
+		Version string
+		Date string
+		Gitcommit string
+		Gitbranch string
+	}
 	MonitoringProfile domain.MonitorProfile
 }
 
@@ -67,6 +74,9 @@ func (a *Host) Equals(b *Host) bool {
 		return false
 	}
 	if a.UpdatedAt.Unix() != b.UpdatedAt.Unix() {
+		return false
+	}
+	if a.ServiceD != b.ServiceD {
 		return false
 	}
 	if !a.MonitoringProfile.Equals(&b.MonitoringProfile) {
@@ -113,6 +123,13 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 		return nil, err
 	}
 	host.IPs = hostIPs
+
+	// get ebedded host information
+	host.ServiceD.Version = servicedversion.Version
+	host.ServiceD.Gitbranch = servicedversion.Gitbranch
+	host.ServiceD.Gitcommit = servicedversion.Gitcommit
+	host.ServiceD.Date = servicedversion.Date
+
 	*host = *host
 
 	return host, nil
@@ -131,6 +148,7 @@ func UpdateHostInfo(h Host) (Host, error) {
 	h.KernelRelease = currentHost.KernelRelease
 	h.KernelVersion = currentHost.KernelVersion
 	h.PrivateNetwork = currentHost.PrivateNetwork
+	h.ServiceD = currentHost.ServiceD
 
 	return h, nil
 }

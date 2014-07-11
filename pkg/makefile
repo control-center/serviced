@@ -13,7 +13,7 @@
 
 NAME          ?= serviced
 FROMVERSION   ?= 0.3.70
-VERSION       ?= 1.0.0
+VERSION       ?= $(shell cat ../VERSION)
 RELEASE_PHASE ?=
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
