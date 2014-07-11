@@ -330,13 +330,13 @@ table .btn,
 table .glyphicon {
 }
 .sort.active {
-    color: white;
+    color: white !important;
 }
 .sort:hover {
-    color: #DDD;
+    color: #DDD !important;
 }
 .sort {
-    color: #8197B8;
+    color: #8197B8 !important;
 }
 .form-signin {
     max-width: 330px;
