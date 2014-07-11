@@ -4,9 +4,8 @@ function LanguageControl($scope, $cookies, $translate) {
         console.log('User clicked %s', $scope.user.language);
         $cookies.Language = $scope.user.language;
         updateLanguage($scope, $cookies, $translate);
-        $('#userDetails').modal('hide');
     };
     $scope.getLanguageClass = function(language) {
         return ($scope.user.language === language)? 'btn btn-primary active' : 'btn btn-primary';
-    }
+    };
 }

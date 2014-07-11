@@ -1,4 +1,4 @@
-function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService) {
+function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, $modalService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
 
@@ -11,10 +11,10 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     });
     $rootScope.markRead = function(message){
         $notification.markRead(message);
-    }
+    };
     $rootScope.clearMessages = function(){
         $notification.clearAll();
-    }
+    };
 
     $scope.navlinks = [
         { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
@@ -57,8 +57,14 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     };
 
     $scope.modalUserDetails = function() {
-        $('#userDetails').modal('show');
+        $modalService.create({
+            templateUrl: "user-details.html",
+            model: $scope,
+            title: "title_user_details",
+            bigModal: true
+        });
     };
+
     updateLanguage($scope, $cookies, $translate);
 
     var helpMap = {
@@ -78,5 +84,14 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
             return '/static/help/' + $scope.user.language + '/' + helpMap[$route.current.templateUrl];
         }
     };
+
+    // resize / reposition notification holder
+    var navWidth = $(".navbar-zen").outerWidth(),
+        windowWidth = $(window).width();
+
+    $("#notifications").css({
+        "width": navWidth + "px",
+        "left": (windowWidth * 0.5) - (navWidth * 0.5)
+    });
 
 }

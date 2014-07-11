@@ -143,12 +143,12 @@ function CeleryLogControl($scope, authService) {
     $scope.pageLeft = function() {
         $scope.page--;
         $scope.buildPage();
-    }
+    };
 
     $scope.pageRight = function() {
         $scope.page++;
         $scope.buildPage();
-    }
+    };
 
     $scope.click_jobid = function(jobid) {
         $scope.client.search($scope.jobQuery(jobid, 0)).then(function(count) {
@@ -170,10 +170,22 @@ function CeleryLogControl($scope, authService) {
                     }
                 }
                 $scope.$apply();
-                $('#jobs-log-modal').modal('show');
+                $modalService.create({
+                    templateUrl: "view-celery-log.html",
+                    model: $scope,
+                    title: "title_log",
+                    bigModal: true,
+                    actions: [
+                        {
+                            role: "cancel",
+                            classes: "btn-default",
+                            label: "close"
+                        }
+                    ]
+                });
             });
         });
-    }
+    };
 
     $scope.buildPage();
 
