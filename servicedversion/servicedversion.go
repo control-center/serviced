@@ -13,4 +13,5 @@ var Version string
 var Date string
 var Gitbranch string
 var Gitcommit string
-
+var Giturl string
+var Buildtag string

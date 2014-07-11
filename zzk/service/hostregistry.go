@@ -185,28 +185,29 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			return nil, err
 		}
 
-		if len(ehosts) == 0 {
-			select {
-			case <-eventW:
-				// pass
-			case <-l.shutdown:
-				return nil, ErrShutdown
+		for _, ehostID := range ehosts {
+			var host host.Host
+			if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
+				return nil, err
 			}
-		} else {
-			break
+			if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+				return nil, err
+			} else if exists {
+				hosts = append(hosts, &host)
+			}
+		}
+
+		if len(hosts) > 0 {
+			return hosts, nil
+		}
+
+		select {
+		case <-eventW:
+			// pass
+		case <-l.shutdown:
+			return nil, ErrShutdown
 		}
 	}
-
-	hosts = make([]*host.Host, len(ehosts))
-	for i, ehostID := range ehosts {
-		var host host.Host
-		if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
-			return nil, err
-		}
-		hosts[i] = &host
-	}
-
-	return hosts, nil
 }
 
 func RegisterHost(conn client.Connection, hostID string) error {

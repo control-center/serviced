@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -11,11 +12,11 @@ import (
 
 const (
 	dockerep = "unix:///var/run/docker.sock"
-	snr      = "SERVICED_NOREGISTRY"
+	snr      = "SERVICED_REGISTRY"
 	Wildcard = "*"
 )
 
-var noregistry bool
+var useRegistry = false
 
 type request struct {
 	errchan chan error
@@ -174,8 +175,13 @@ var (
 // init starts up the kernel loop that is responsible for handling all the API calls
 // in a goroutine.
 func init() {
-	if os.Getenv(snr) != "" {
-		noregistry = true
+	trues := []string{"1", "true", "t", "yes"}
+	if v := strings.ToLower(os.Getenv(snr)); v != "" {
+		for _, t := range trues {
+			if v == t {
+				useRegistry = true
+			}
+		}
 	}
 
 	client, err := dockerclient.NewClient(dockerep)

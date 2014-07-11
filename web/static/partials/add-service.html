@@ -1,36 +1,29 @@
-<div class="modal fade" id="addService" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
-        <h4 class="modal-title">{{'title_add_service'|translate}}</h4>
-      </div>
-      <div class="modal-body">
+<div class="form-group">
+  <label for="new_service_name">{{'label_service_name'|translate}}:</label>
+  <input class="form-control" id="new_service_name" type="text" placeholder="{{'placeholder_service_name'|translate}}" ng-model="newService.Name" />
+</div>
 
-        <label for="new_service_name">{{'label_service_name'|translate}}:</label>
-        <input class="form-control" id="new_service_name" type="text" placeholder="{{'placeholder_service_name'|translate}}" ng-model="newService.Name" />
+<div class="form-group">
+  <label for="new_service_parent_service">{{'label_service_parent'|translate}}:</label>
+  <input class="form-control" id="new_service_parent_service" type="text" placeholder="{{'placeholder_service_parent'|translate}}" ng-model="newService.ParentServiceID" />
+</div>
 
-        <label for="new_service_parent_service">{{'label_service_parent'|translate}}:</label>
-        <input class="form-control" id="new_service_parent_service" type="text" placeholder="{{'placeholder_service_parent'|translate}}" ng-model="newService.ParentServiceID" />
+<div class="form-group">
+  <label for="new_service_image">{{'label_service_image'|translate}}:</label>
+  <input class="form-control" id="new_service_image" type="text" placeholder="{{'placeholder_service_image'|translate}}" ng-model="newService.ImageID" />
+</div>
 
-        <label for="new_service_image">{{'label_service_image'|translate}}:</label>
-        <input class="form-control" id="new_service_image" type="text" placeholder="{{'placeholder_service_image'|translate}}" ng-model="newService.ImageID" />
+<div class="form-group">
+  <label for="new_service_description">{{'label_service_description'|translate}}:</label>
+  <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="newService.Description"></textarea>
+</div>
 
-        <label for="new_service_description">{{'label_service_description'|translate}}:</label>
-        <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="newService.Description"></textarea>
+<div class="form-group">
+  <label for="new_service_pool">{{'label_service_pool'|translate}}:</label>
+  <input class="form-control" id="new_service_pool" type="text" placeholder="{{'placeholder_service_pool'|translate}}" ng-model="newService.PoolID" />
+</div>
 
-        <label for="new_service_pool">{{'label_service_pool'|translate}}:</label>
-        <input class="form-control" id="new_service_pool" type="text" placeholder="{{'placeholder_service_pool'|translate}}" ng-model="newService.PoolID" />
-
-        <label for="new_service_startup">{{'label_service_startup'|translate}}:</label>
-        <input class="form-control" id="new_service_startup" type="text" placeholder="{{'placeholder_service_startup'|translate}}" ng-model="newService.Startup" />
-
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">{{'btn_cancel'|translate}}</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="add_service()">{{'btn_add'|translate}}</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-
+<div class="form-group">
+  <label for="new_service_startup">{{'label_service_startup'|translate}}:</label>
+  <input class="form-control" id="new_service_startup" type="text" placeholder="{{'placeholder_service_startup'|translate}}" ng-model="newService.Startup" />
+</div>
