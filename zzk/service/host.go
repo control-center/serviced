@@ -94,7 +94,7 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 
 	// Housekeeping
 	defer func() {
-		glog.Infof("Agent receieved interrupt")
+		glog.Info("HostStateListener receieved interrupt")
 		close(_shutdown)
 		for len(processing) > 0 {
 			delete(processing, <-done)
@@ -214,11 +214,16 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 				return
 			}
 		case <-shutdown:
-			glog.V(2).Infof("Host instance %s receieved signal to shutdown", hs.ServiceStateID)
+			glog.V(0).Infof("Service %s Host instance %s receieved signal to shutdown", hs.ServiceID, hs.ServiceStateID)
 			if processDone != nil {
+				glog.V(0).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				l.detachInstance(processDone, &state)
+
 			} else {
+				glog.V(0).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				l.stopInstance(&state)
+				glog.V(0).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
+
 			}
 			return
 		}
