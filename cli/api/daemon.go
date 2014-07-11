@@ -376,6 +376,12 @@ func (d *daemon) startAgent() error {
 		if err != nil {
 			glog.Fatalf("could not create an NFS client: %s", err)
 		}
+
+		go func(){
+			<-d.shutdown
+			glog.Infof("shutting down storage client")
+			nfsClient.Close()
+		}()
 		nfsClient.Wait()
 
 		agentOptions := node.AgentOptions{
