@@ -440,7 +440,7 @@ func (d *daemon) initISVCS() error {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS)
 }
 
 func (d *daemon) initWeb() {
