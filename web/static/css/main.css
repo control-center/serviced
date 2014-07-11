@@ -1102,6 +1102,34 @@ rect {
     stroke-dasharray: 2,2;
 }
 
+/* hide x axis */
+.nv-axis.nv-x .tick{
+    opacity: 0 !important;
+}
+
+/* hide y axis label */
+.nv-axis.nv-y .nv-axislabel{
+    fill: transparent;
+}
+
+.zenchart {
+    margin-left: -50px;
+}
+
+.zenchartContainer {
+    width: calc(50% - 20px);
+    margin: 10px 20px 10px 0;
+    float: left;
+    padding: 10px;
+    box-shadow: rgba(0,0,0,.3) 0 1px 3px;
+    border: solid #EEE 1px;
+}
+.zenchartContainer h4{
+    margin: 0;
+}
+
+
+
 input.ng-invalid.ng-dirty{
     border-color: #9C1200 !important;
 }
