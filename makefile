@@ -8,10 +8,11 @@
 ################################################################################
 
 VERSION := $(shell cat ./VERSION)
+DATE := '$(shell date -u)'
 GITCOMMIT := $(shell ./gitstatus.sh)
 GITBRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT) -X main.Gitbranch $(GITBRANCH)"
+LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT) -X main.Gitbranch $(GITBRANCH) -X main.Date $(DATE)"
 
 #---------------------#
 # Macros              #

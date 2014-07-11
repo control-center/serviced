@@ -10,11 +10,13 @@ import (
 )
 
 var Version string
+var Date string
 var Gitcommit string
 var Gitbranch string
 
 func main() {
 	servicedversion.Version = Version
+	servicedversion.Date = Date
 	servicedversion.Gitcommit = Gitcommit
 	servicedversion.Gitbranch = Gitbranch
 	cmd.New(api.New()).Run(os.Args)
