@@ -404,7 +404,10 @@ func (d *daemon) startAgent() error {
 			if err != nil {
 				glog.Errorf("Error kicking off stats reporter %v", err)
 			} else {
-				defer statsReporter.Close()
+				go func() {
+					defer statsReporter.Close()
+					<-d.shutdown
+				}()
 			}
 		}
 	}()
