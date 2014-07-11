@@ -202,10 +202,10 @@ func buildHostMonitoringProfile(host *host.Host) error {
 
 	//add graphs to profile
 	profile.GraphConfigs = make([]domain.GraphConfig, 4)
-	profile.GraphConfigs[0] = newOpenFileDescriptorsGraph(tags)
-	profile.GraphConfigs[1] = newMajorPageFaultGraph(tags)
-	profile.GraphConfigs[2] = newCpuConfigGraph(tags, host.Cores)
-	profile.GraphConfigs[3] = newRSSConfigGraph(tags, host.Memory)
+	profile.GraphConfigs[0] = newCpuConfigGraph(tags, host.Cores)
+	profile.GraphConfigs[1] = newRSSConfigGraph(tags, host.Memory)
+	profile.GraphConfigs[2] = newOpenFileDescriptorsGraph(tags)
+	profile.GraphConfigs[3] = newMajorPageFaultGraph(tags)
 
 	host.MonitoringProfile = *profile
 	return nil
