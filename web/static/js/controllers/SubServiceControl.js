@@ -300,7 +300,11 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                         classes: "btn-default",
                         label: "close"
                     }
-                ]
+                ],
+                onShow: function(){
+                    var textarea = this.$el.find("textarea");
+                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                }
             });
         });
     };

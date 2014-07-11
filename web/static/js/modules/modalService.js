@@ -132,6 +132,7 @@
                 config = config || {};
                 // TODO - default config object
                 config.actions = config.actions || [];
+                config.onShow = config.onShow || function(){};
                 
                 var model = config.model || {};
 
@@ -157,6 +158,9 @@
                     momo.destroy();
                 });
                 modals = [modal];
+
+                // perform onShow function after modal is visible
+                modal.$el.one("shown.bs.modal.", config.onShow.bind(modal));
             }
 
             return {

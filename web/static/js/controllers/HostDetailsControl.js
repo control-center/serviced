@@ -72,7 +72,11 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                         classes: "btn-default",
                         label: "close"
                     }
-                ]
+                ],
+                onShow: function(){
+                    var textarea = this.$el.find("textarea");
+                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                }
             });
         });
     };
