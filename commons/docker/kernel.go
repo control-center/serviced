@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/zenoss/glog"
@@ -14,7 +15,7 @@ import (
 
 const (
 	dockerep         = "unix:///var/run/docker.sock"
-	snr              = "SERVICED_NOREGISTRY"
+	sdr              = "SERVICED_REGISTRY"
 	maxStartAttempts = 24
 	Wildcard         = "*"
 )
@@ -24,7 +25,7 @@ const (
 	pushop
 )
 
-var noregistry bool
+var useRegistry = false
 
 type request struct {
 	errchan chan error
@@ -259,8 +260,13 @@ var (
 // init starts up the kernel loop that is responsible for handling all the API calls
 // in a goroutine.
 func init() {
-	if os.Getenv(snr) != "" {
-		noregistry = true
+	trues := []string{"1", "true", "t", "yes"}
+	if v := strings.ToLower(os.Getenv(sdr)); v != "" {
+		for _, t := range trues {
+			if v == t {
+				useRegistry = true
+			}
+		}
 	}
 
 	client, err := dockerclient.NewClient(dockerep)
@@ -526,7 +532,7 @@ KernelLoop:
 				continue
 			}
 
-			if !noregistry {
+			if useRegistry {
 				ppi <- pushpullreq{
 					request{req.errchan},
 					struct {
@@ -595,10 +601,9 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				if err != nil {
 					req.errchan <- err
 					return
-					// continue
 				}
 
-				if !noregistry {
+				if useRegistry {
 					glog.V(2).Infof("pulling image %s prior to creating a container from it", iid.String())
 					err = dc.PullImage(
 						dockerclient.PullImageOptions{
@@ -611,7 +616,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
 						req.errchan <- err
 						return
-						// continue
 					}
 				}
 
@@ -654,7 +658,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					if err != nil {
 						req.errchan <- err
 						return
-						// continue
 					}
 
 					sc := make(chan struct{})
@@ -674,7 +677,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
 						req.errchan <- err
 						return
-						// continue
 					}
 
 					glog.V(2).Infof("======= wait for %s to start =======", ctr.ID)
@@ -690,7 +692,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 								glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
 								req.errchan <- err
 								return
-								// continue
 							}
 
 							glog.V(2).Infof("container %s is started", ctr.ID)
@@ -745,7 +746,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					glog.V(2).Infof("unable to start %s: %v", req.args.id, err)
 					req.errchan <- err
 					return
-					// continue
 				}
 
 				glog.V(2).Infof("update container %s state post start", req.args.id)
@@ -754,7 +754,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					glog.V(2).Infof("failed to update container %s state post start: %v", req.args.id, err)
 					req.errchan <- err
 					return
-					// continue
 				}
 
 				if req.args.action != nil {
@@ -792,7 +791,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						glog.V(2).Infof("failed to pull %s: %v", req.args.reponame, err)
 						req.errchan <- err
 						return
-						// continue
 					}
 
 					close(req.errchan)
@@ -816,14 +814,12 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						glog.V(2).Infof("failed to push %s: %v", req.args.reponame, err)
 						req.errchan <- err
 						return
-						// continue
 					}
 
 					iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.reponame, req.args.tag))
 					if err != nil {
 						req.errchan <- err
 						return
-						// continue
 					}
 
 					close(req.errchan)

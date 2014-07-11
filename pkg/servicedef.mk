@@ -15,7 +15,7 @@ THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_
 
 NAME          = servicedef
 FROMVERSION   = 0.3.70
-VERSION       = 1.0.0
+VERSION       := $(shell cat ../VERSION)
 RELEASE_PHASE = 
 SUBPRODUCT    = subproduct
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
