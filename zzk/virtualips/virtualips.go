@@ -126,7 +126,7 @@ func (l *VirtualIPListener) Listen(shutdown <-chan interface{}) {
 WatchVirtualIPs monitors the virtual IP nodes in zookeeper, the "leader" agent (the agent that has a lock on the virtual IP),
    binds the virtual IP to the bind address specified by the virtual IP on itself
 */
-func WatchVirtualIPs(conn coordclient.Connection, shutdown <-chan  interface{}) {
+func WatchVirtualIPs(conn coordclient.Connection, shutdown <-chan interface{}) {
 	glog.Info("Watching all virtual IPs (will kick off a go routine per virtual IP)")
 	processing := make(map[string]chan int)
 	sDone := make(chan string)

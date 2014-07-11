@@ -74,11 +74,9 @@ type HostAgent struct {
 	vfs             string               // driver for container volumes
 	currentServices map[string]*exec.Cmd // the current running services
 	mux             *proxy.TCPMux
-	//	closing         chan interface{}
 	proxyRegistry  proxy.ProxyRegistry
 	zkClient       *coordclient.Client
 	dockerRegistry string // the docker registry to use
-	//	periodicTasks        chan interface{} // signal for periodic tasks to stop
 	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string        // subnet for virtual addresses
 }
@@ -141,7 +139,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	}
 	agent.zkClient = zkClient
 
-	//	agent.closing = make(chan interface{})
 	hostID, err := utils.HostID()
 	if err != nil {
 		panic("Could not get hostid")

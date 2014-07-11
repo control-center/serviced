@@ -52,7 +52,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 // Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the vhosthandler function.
-func (sc *ServiceConfig) Serve(shutdown <-chan(interface {})) {
+func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
