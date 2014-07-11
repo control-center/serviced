@@ -944,6 +944,7 @@ rect {
     position: absolute;
     top: 0;
     left: 0;
+    box-shadow: rgba(0,0,0,0.4) 0 3px 1px;
 }
 
 .notification > *{
