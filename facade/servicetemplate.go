@@ -106,10 +106,6 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 	return result
 }
 
-func dockerPull(img string) error {
-	return nil
-}
-
 func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 	wg := sync.WaitGroup{}
 	for _, img := range getImageIDs(template.Services...) {
