@@ -5,10 +5,12 @@
 package servicetemplate
 
 import (
-	"github.com/zenoss/serviced/domain/servicedefinition"
-
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"reflect"
+
+	"github.com/zenoss/serviced/domain/servicedefinition"
 )
 
 // ServiceTemplate type to hold service definitions
@@ -38,6 +40,15 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 		return false
 	}
 	return true
+}
+
+func (a *ServiceTemplate) Hash() (string, error) {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return "", err
+	}
+	hash := md5.Sum(data)
+	return fmt.Sprintf("%x", hash), nil
 }
 
 //FromJSON creates a ServiceTemplate from the json string

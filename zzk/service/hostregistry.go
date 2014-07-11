@@ -7,7 +7,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/servicestate"
 	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
@@ -16,9 +15,8 @@ const (
 )
 
 var (
-	ErrHostNotInitialized = errors.New("host not initialized")
-	ErrHostInvalid        = errors.New("invalid host")
-	ErrShutdown           = errors.New("listener shut down")
+	ErrHostInvalid = errors.New("invalid host")
+	ErrShutdown    = errors.New("listener shut down")
 )
 
 func hostregpath(nodes ...string) string {
@@ -46,9 +44,7 @@ func (node *HostNode) SetVersion(version interface{}) {
 // information about available hosts
 type HostRegistryListener struct {
 	conn     client.Connection
-	hostmap  map[string]string
 	shutdown <-chan interface{}
-	alertC   chan<- bool // for testing only
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
@@ -68,89 +64,111 @@ func (l *HostRegistryListener) init(conn client.Connection) (*HostRegistryListen
 		return nil, err
 	}
 
-	return &HostRegistryListener{conn: conn, hostmap: make(map[string]string)}, nil
+	return &HostRegistryListener{conn: conn}, nil
 }
 
 // Listen listens for changes to /registry/hosts and updates the host list
 // accordingly
 func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
-	_shutdown := make(chan interface{})
+	var (
+		_shutdown  = make(chan interface{})
+		done       = make(chan string)
+		processing = make(map[string]interface{})
+	)
 	l.shutdown = _shutdown
-	defer close(_shutdown)
+
+	defer func() {
+		glog.Infof("Host registry receieved interrupt")
+		close(_shutdown)
+		for len(processing) > 0 {
+			delete(processing, <-done)
+		}
+	}()
 
 	for {
-		ehosts, event, err := l.conn.ChildrenW(hostregpath())
+		ehostIDs, event, err := l.conn.ChildrenW(hostregpath())
 		if err != nil {
 			glog.Errorf("Could not watch host registry: %s", err)
 			return
 		}
 
-		l.sync(ehosts)
-		select {
-		case <-event:
-			glog.V(2).Info("Received host registry event: ", event)
-		case <-shutdown:
-			glog.V(2).Info("Host registry received signal to shutdown")
-			return
-		}
-	}
-}
-
-func (l *HostRegistryListener) sync(ehosts []string) {
-	unsynced := make(map[string]string)
-	for _, id := range ehosts {
-		var node HostNode
-		if err := l.conn.Get(hostregpath(id), &node); err != nil {
-			glog.Error("Error trying to get host registry information for node ", id)
-			return
-		}
-		unsynced[id] = node.Host.ID
-	}
-
-	for id, _ := range l.hostmap {
-		if _, ok := unsynced[id]; ok {
-			delete(unsynced, id)
-		} else {
-			if err := l.unregister(id); err != nil {
-				glog.Warningf("Could not unregister %s: %s", id, err)
+		for _, ehostID := range ehostIDs {
+			if _, ok := processing[ehostID]; !ok {
+				glog.V(1).Info("Spawning a listener for ephemeral host ", ehostID)
+				processing[ehostID] = nil
+				go l.listenHost(done, ehostID)
 			}
 		}
-	}
 
-	for id, hostID := range unsynced {
-		if err := l.register(id, hostID); err != nil {
-			glog.Warningf("Could not register host %s (%s): %s", hostID, id, err)
+		select {
+		case e := <-event:
+			if e.Type == client.EventNodeDeleted {
+				glog.Infof("Host registry is no longer available, shutting down")
+				return
+			}
+			glog.V(2).Infof("Receieved event: %v", e)
+		case ehostID := <-done:
+			glog.V(2).Infof("Cleaning up %s", ehostID)
+			delete(processing, ehostID)
+		case <-shutdown:
+			return
 		}
 	}
 }
 
-func (l *HostRegistryListener) register(id string, hostID string) error {
-	// verify that there is a running listener for that host
-	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
-		return err
-	} else if !exists {
-		return ErrHostNotInitialized
-	}
-
-	l.hostmap[id] = hostID
-	l.alert()
-	return nil
-}
-
-func (l *HostRegistryListener) unregister(id string) error {
+func (l *HostRegistryListener) listenHost(done chan<- string, ehostID string) {
 	defer func() {
-		delete(l.hostmap, id)
-		l.alert()
+		glog.V(2).Info("Shutting down listener for ephemeral host: ", ehostID)
+		done <- ehostID
 	}()
 
-	// remove all the instances running on that host
-	return unregisterHost(l.conn, l.hostmap[id])
+	hpath := hostregpath(ehostID)
+	for {
+		var host host.Host
+		event, err := l.conn.GetW(hpath, &HostNode{Host: &host})
+		if err != nil {
+			glog.Errorf("Could not load ephemeral node %s: %s", ehostID, err)
+			return
+		}
+
+		select {
+		case e := <-event:
+			if e.Type == client.EventNodeDeleted {
+				glog.V(1).Info("Unregistering host: ", host.ID)
+				l.unregister(host.ID)
+				return
+			}
+			glog.V(2).Infof("Receieved event: ", e)
+		case <-l.shutdown:
+			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, ehostID)
+			return
+		}
+	}
 }
 
-func (l *HostRegistryListener) alert() {
-	if l.alertC != nil {
-		l.alertC <- true
+func (l *HostRegistryListener) unregister(hostID string) {
+	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
+		glog.Errorf("Unable to check path for host %s: %s", hostID, err)
+		return
+	} else if !exists {
+		return
 	}
+
+	rss, err := LoadRunningServicesByHost(l.conn, hostID)
+	if err != nil {
+		glog.Errorf("Unable to get the running services for host %s: %s", hostID, err)
+		return
+	}
+
+	for _, rs := range rss {
+		if err := l.conn.Delete(hostpath(rs.HostID, rs.ID)); err != nil {
+			glog.Warningf("Could not delete service instance %s on host %s", rs.ID, rs.HostID)
+		}
+		if err := l.conn.Delete(servicepath(rs.ServiceID, rs.ID)); err != nil {
+			glog.Warningf("Could not delete service instance %s for service %s", rs.ID, rs.ServiceID)
+		}
+	}
+	return
 }
 
 // GetHosts returns all of the registered hosts
@@ -167,71 +185,29 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			return nil, err
 		}
 
-		if len(ehosts) == 0 {
-			select {
-			case <-eventW:
-				// pass
-			case <-l.shutdown:
-				return nil, ErrShutdown
+		for _, ehostID := range ehosts {
+			var host host.Host
+			if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
+				return nil, err
 			}
-		} else {
-			break
+			if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+				return nil, err
+			} else if exists {
+				hosts = append(hosts, &host)
+			}
+		}
+
+		if len(hosts) > 0 {
+			return hosts, nil
+		}
+
+		select {
+		case <-eventW:
+			// pass
+		case <-l.shutdown:
+			return nil, ErrShutdown
 		}
 	}
-
-	hosts = make([]*host.Host, len(ehosts))
-	for i, ehostID := range ehosts {
-		var host host.Host
-		if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
-			return nil, err
-		}
-		hosts[i] = &host
-	}
-
-	return hosts, nil
-}
-
-func registerHost(conn client.Connection, host *host.Host) (string, error) {
-	if host == nil || host.ID == "" {
-		return "", ErrHostInvalid
-	}
-
-	// verify that a listener has been initialized
-	if exists, err := conn.Exists(hostpath(host.ID)); err != nil {
-		return "", err
-	} else if !exists {
-		return "", ErrHostNotInitialized
-	}
-
-	// create the ephemeral host
-	return conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
-}
-
-func unregisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
-		return err
-	} else if !exists {
-		return nil
-	}
-
-	stateIDs, err := conn.Children(hostpath(hostID))
-	if err != nil {
-		return err
-	}
-
-	for _, stateID := range stateIDs {
-		var hs HostState
-		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
-			continue
-		}
-		var state servicestate.ServiceState
-		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
-			continue
-		}
-		removeInstance(conn, &state)
-	}
-
-	return conn.Delete(hostpath(hostID))
 }
 
 func RegisterHost(conn client.Connection, hostID string) error {

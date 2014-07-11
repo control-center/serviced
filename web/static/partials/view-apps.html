@@ -12,7 +12,7 @@
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddApp()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
-                {{'modal_add_app'|translate}}
+                {{'application'|translate}}
             </button>
         </span>
     </div>
@@ -27,8 +27,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" class="link">		  
-          <td ng-click="click_app(app.ID)">{{app.Name}}</td>
+        <tr ng-repeat="app in services.data | orderBy:services.sort">		  
+          <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
           <td ng-class="app.deploymentClass"> <span ng-class="app.deploymentIcon"></span> {{app.Deployment}} </td>
           <td>{{app.DeploymentID}}</td>
           <td>{{app.PoolID}}</td>
@@ -43,5 +43,3 @@
       </tbody>
     </table>
     <div ng-include="'/static/partials/wizard-modal.html'"></div>
-    <div ng-include="'/static/partials/add-service.html'"></div>
-	<div ng-include="'/static/partials/remove-service.html'"></div>
