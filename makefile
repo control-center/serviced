@@ -9,10 +9,17 @@
 
 VERSION := $(shell cat ./VERSION)
 DATE := '$(shell date -u)'
-GITCOMMIT := $(shell ./gitstatus.sh)
-GITBRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT) -X main.Gitbranch $(GITBRANCH) -X main.Date $(DATE)"
+# GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
+# assume it will get set because the above can cause network traffic on every run
+GIT_COMMIT ?= $(shell ./gitstatus.sh)
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
+
+# jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
+BUILD_TAG ?= 0
+
+
+LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Giturl '$(GIT_URL)' -X main.Gitcommit $(GIT_COMMIT) -X main.Gitbranch $(GIT_BRANCH) -X main.Date $(DATE) -X main.Buildtag $(BUILD_TAG)"
 
 #---------------------#
 # Macros              #
