@@ -7,7 +7,6 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/rpc/agent"
@@ -130,10 +129,6 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 		}
 	}
 	return a.docker, nil
-}
-
-func (a *api) connectDockerRegistry() (*docker.DockerRegistry, error) {
-	return docker.NewDockerRegistry(options.DockerRegistry)
 }
 
 // DEPRECATED: Opens a connection to the DAO if not already connected
