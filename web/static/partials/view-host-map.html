@@ -1,19 +1,9 @@
-    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<h3 class="pull-left">
+  {{'nav_hosts_map'|translate}}
+</h3>
 
-    <div class="col-xs-6 col-sm-3 flow sidebar-nav" role="navigation" ng-include="'/static/partials/resource-pool-nav.html'"></div>
+<button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">{{'nav_by_ram'|translate}}</button>
+<button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">{{'nav_by_cpu'|translate}}</button>
 
-    <div class="col-xs-12 col-sm-9 side-flush">
-      <div class="top-bar">
-        <div class="search-control pull-right">
-          <label ng-show="selectedPool" class="alert alert-info"><button type="button" class="close" ng-click="clearSelectedPool()">x</button>Filtering for '{{selectedPool}}'</label>
-
-          <button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">{{'nav_by_ram'|translate}}</button>
-          <button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">{{'nav_by_cpu'|translate}}</button>
-        </div>
-        <a class="nav-link" href="#/hosts">{{'nav_hosts_list'|translate}}</a>
-        <label class="active">{{'nav_hosts_map'|translate}}</label>
-      </div>
-      <div id="hostmap" class="treemap"></div>
-    </div>
-    <div ng-include="'/static/partials/resource-actions.html'"></div>
-    
+<div id="hostmap" class="treemap"></div>

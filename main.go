@@ -10,12 +10,19 @@ import (
 )
 
 var Version string
+var Date string
 var Gitcommit string
 var Gitbranch string
+var Giturl string
+var Buildtag string
+
 
 func main() {
 	servicedversion.Version = Version
+	servicedversion.Date = Date
 	servicedversion.Gitcommit = Gitcommit
 	servicedversion.Gitbranch = Gitbranch
+	servicedversion.Giturl = Giturl
+	servicedversion.Buildtag = Buildtag
 	cmd.New(api.New()).Run(os.Args)
 }

@@ -112,6 +112,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 	}
 
+	c.initVersion()
 	c.initPool()
 	c.initHost()
 	c.initTemplate()

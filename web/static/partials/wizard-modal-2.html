@@ -1,7 +1,5 @@
   <p>{{'content_wizard_select_apps'|translate}}</p>
-  <div ng-class="install.templateSelectedFormDiv()">
-
-    <label class="control-label">{{'label_wizard_select_app'|translate}}</label>
+  <div>
     <table class="table table-striped">
         <tr>
             <th>&nbsp;</th>
@@ -19,5 +17,10 @@
             <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
         </tr>
     </table>
+
+    <div id="deployWizardNotifications" class="error hide">
+        <span class="dialogIcon glyphicon glyphicon-remove-sign"></span>
+        <span id="deployWizardNotificationsContent"></span>
+    </div>
   </div>
 

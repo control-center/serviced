@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -34,14 +34,46 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.viewConfig = function(running) {
         $scope.editService = $.extend({}, running);
         $scope.editService.config = 'TODO: Implement';
-        $('#editConfig').modal('show');
+        $modalService.create({
+            templateUrl: "edit-config.html",
+            model: $scope,
+            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            bigModal: true,
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "save",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.updateService();
+                            // NOTE: should wait for response before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
-            $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
-            $('#viewLog').modal('show');
+            $scope.editService.log = log.Detail;
+            $modalService.create({
+                templateUrl: "view-log.html",
+                model: $scope,
+                title: "title_log",
+                bigModal: true,
+                actions: [
+                    {
+                        role: "cancel",
+                        classes: "btn-default",
+                        label: "close"
+                    }
+                ]
+            });
         });
     };
 
@@ -51,12 +83,22 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         $location.path('/services/' + instance.ServiceID);
     };
 
+    $scope.updateHost = function(){
+        var modifiedHost = $.extend({}, $scope.hosts.current);
+        resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
+            refreshHosts($scope, resourcesService, false);
+        });
+    };
+
     refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
     refreshHosts($scope, resourcesService, true, function() {
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
     });
+
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, false);
 
     statsService.is_collecting(function(status) {
         if (status == 200) {
@@ -73,12 +115,12 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
-        var id = $scope.hosts.current.ID+'-graph-'+index
+        var id = $scope.hosts.current.ID+'-graph-'+index;
         if (!$scope.drawn[id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;
             }
