@@ -5,10 +5,18 @@
 package facade
 
 import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
+
 	dutils "github.com/dotcloud/docker/utils"
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
-	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -16,12 +24,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/utils"
-
-	"errors"
-	"fmt"
-	"regexp"
-	"strings"
 )
 
 type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
@@ -32,11 +34,17 @@ var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
-	uuid, err := utils.NewUUID36()
+	hash, err := serviceTemplate.Hash()
 	if err != nil {
 		return "", err
 	}
-	serviceTemplate.ID = uuid
+	serviceTemplate.ID = hash
+
+	if st, _ := f.templateStore.Get(ctx, hash); st != nil {
+		// This id already exists in the system
+		glog.Infof("Not replacing existing template %s", hash)
+		return hash, nil
+	}
 
 	if err = f.templateStore.Put(ctx, serviceTemplate); err != nil {
 		return "", err
@@ -44,7 +52,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 
 	// this takes a while so don't block the main thread
 	go LogstashContainerReloader(ctx, f)
-	return uuid, err
+	return hash, err
 }
 
 //UpdateServiceTemplate updates a service template
@@ -85,6 +93,47 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]*service
 	return templateMap, nil
 }
 
+func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
+	set := map[string]struct{}{}
+	for _, sd := range sds {
+		for _, img := range getImageIDs(sd.Services...) {
+			set[img] = struct{}{}
+		}
+		if sd.ImageID != "" {
+			set[sd.ImageID] = struct{}{}
+		}
+	}
+	result := []string{}
+	for img, _ := range set {
+		result = append(result, img)
+	}
+	return result
+}
+
+func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
+	for _, img := range getImageIDs(template.Services...) {
+		imageID, err := commons.ParseImageID(img)
+		if err != nil {
+			return err
+		}
+		tag := imageID.Tag
+		if tag == "" {
+			tag = "latest"
+		}
+		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
+		glog.Infof("Pulling image %s", image)
+		// Using a subprocess instead of dockerclient in order to take
+		// advantage of Docker's auth and the default registry logic
+		cmd := exec.Command("docker", "pull", image)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			glog.Warningf("Unable to pull image %s", image)
+		}
+	}
+	return nil
+}
+
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
 	template, err := f.templateStore.Get(ctx, templateID)
@@ -100,6 +149,11 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 	if pool == nil {
 		return "", fmt.Errorf("poolid %s not found", poolID)
+	}
+
+	if err := pullTemplateImages(template); err != nil {
+		glog.Errorf("Unable to pull one or more images")
+		return "", err
 	}
 
 	volumes := make(map[string]string)
@@ -170,34 +224,21 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
 			return err
 		}
-		dc, err := getDockerClient()
+
+		_, err = docker.FindImage(name, false)
 		if err != nil {
-			glog.Errorf("unable to start docker client")
-			return err
-		}
-		registry, err := docker.NewDockerRegistry(f.dockerRegistry)
-		if err != nil {
-			glog.Errorf("unable to use docker registry: %s", err)
-			return err
-		}
-		_, err = docker.InspectImage(*registry, dc, name)
-		if err != nil {
-			if err != dockerclient.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
+			if err != docker.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
 				return err
 			}
-			image, err := docker.InspectImage(*registry, dc, svc.ImageID)
+			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
 				return msg
 			}
-			options := dockerclient.TagImageOptions{
-				Repo:  name,
-				Force: true,
-			}
-			if err := docker.TagImage(*registry, dc, svc.ImageID, options); err != nil {
-				glog.Errorf("could not tag image: %s options: %+v", image.ID, options)
+			if _, err := image.Tag(name); err != nil {
+				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
 				return err
 			}
 		}
@@ -219,18 +260,8 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 		getSubServiceImageIDs(imageIds, svc)
 	}
 
-	dockerclient, err := dockerclient.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("unable to start docker client")
-		return err
-	}
-	registry, err := docker.NewDockerRegistry(f.dockerRegistry)
-	if err != nil {
-		glog.Errorf("unable to use docker registry: %s", err)
-		return err
-	}
 	for imageId, _ := range imageIds {
-		_, err := docker.InspectImage(*registry, dockerclient, imageId)
+		_, err := docker.FindImage(imageId, false)
 		if err != nil {
 			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
 			glog.Error(err.Error())

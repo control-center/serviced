@@ -1,6 +1,8 @@
-'use strict';
+/* global: $ */
+/* jshint multistr: true */
 
 (function() {
+    'use strict';
 
     /**
      * @ngdoc overview
@@ -18,14 +20,21 @@
      factory('$notification', ['$rootScope', '$templateCache', '$translate', function ($rootScope, $templateCache, $translate) {
         var notificationFactory;
 
+        var notificationTemplate = '<div class="bg-info notification" style="display:none;">\
+            <span class="dialogIcon glyphicon glyphicon-info-sign"></span>\
+            <span class="title"></span>\
+            <span class="message"></span>\
+            <button type="button" class="close" aria-hidden="true" style="display:none;">&times;</button>\
+        </div>';
+
         /**
          * Notification
          * Creates a notification. Great for parties!
          */
         function Notification(id, title, msg, $attachPoint){
             this.id = id;
-            this.$el = $($templateCache.get("notification.html"));
-            this.$status = this.$el.find(".notification");
+            this.$el = $(notificationTemplate);
+            this.$message = this.$el.find(".message");
             this.$title = this.$el.find(".title");
             this.title = title;
             this.msg = msg;
@@ -110,7 +119,7 @@
             // updates the status message (the smaller text)
             updateStatus: function(msg){
                 this.msg = msg || "";
-                this.$status.html(this.msg);
+                this.$message.html(this.msg);
                 return this;
             },
 
@@ -133,7 +142,8 @@
 
                 return this;
             }
-        }
+        };
+
 
         function NotificationFactory(){
             this.$storage = JSON.parse(localStorage.getItem('messages')) || [];
@@ -148,17 +158,37 @@
                     }
                 }.bind(this));
             }
-        };
+        }
 
+        /**
+         * Notification Factory
+         * interface for creating, storing, and updating notifications
+         */
         NotificationFactory.prototype = {
             constructor: NotificationFactory,
 
-            create: function(title, msg){
-                var notification = new Notification(++this.lastId, title, msg, $("#notifications"));
+            /**
+             * create a new notification. Loads of fun!
+             * @param  {string} title  notification title. treated as plain text
+             * @param  {string} msg  notification message. treated as HTML
+             * @param  {jQueryObject} $attachPoint  jQuery DOM element to attach notification to
+             *                                      defaults to `#notification` element
+             * @return {Notification}  returns the Notification object
+             */
+            create: function(title, msg, $attachPoint){
+                // if no valid attachPoint is provided, default to #notifications
+                if(!$attachPoint || !$attachPoint.length){
+                    $attachPoint = $("#notifications");
+                }
+                var notification = new Notification(++this.lastId, title, msg, $attachPoint);
+
                 return notification;
             },
 
-            // TODO: Rewrite this as an event listener and add emit to Notification.onClose()
+            /**
+             * marks provided notification read and updates local data store
+             * @param  {Notification} notification  the Notification object to mark read
+             */
             markRead: function(notification){
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
@@ -170,8 +200,12 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * stores provided notification
+             * @param  {Notification} notification  the Notification object to store
+             */
             store: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
                 if(this.$storage.unshift(storable) > 10){
                     this.$storage.pop();
@@ -181,8 +215,12 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * updates stored notification (by id) with the provided notification
+             * @param  {Notification} notification  the Notification object to update
+             */
             update: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg}
+                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
@@ -194,14 +232,17 @@
                 $rootScope.$broadcast("messageUpdate");
             },
 
+            /**
+             * gets all stored messages as well as number of unread messages
+             * @return {object}  object containing `unreadCount` - the number of unread messages,
+             *                          and `messages` - an array of stored notifications.
+             */
             getMessages: function(){
-                var unreadCount = 0;
+                var unreadCount;
 
-                this.$storage.forEach(function(el, idx){
-                    if(!el.read){
-                        ++unreadCount;
-                    }
-                });
+                unreadCount = this.$storage.reduce(function(acc, el){
+                    return !el.read ? acc+1 : acc;
+                }, 0);
 
                 return {
                     unreadCount: unreadCount,
@@ -209,6 +250,9 @@
                 };
             },
 
+            /**
+             * removes all stored Notifications (read and unread)
+             */
             clearAll: function(){
                 this.$storage = [];
                 localStorage.clear();

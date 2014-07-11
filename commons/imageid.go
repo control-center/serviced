@@ -179,7 +179,7 @@ func ParseImageID(iid string) (*ImageID, error) {
 			switch {
 			case unicode.IsDigit(rune):
 				tokbuf = append(tokbuf, byte(rune))
-			case unicode.IsLetter(rune), rune == dash:
+			case unicode.IsLetter(rune), rune == dash, rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 				result.Repo = scanned[0]
 				scanned = []string{}
@@ -248,6 +248,23 @@ func (iid ImageID) BaseName() string {
 	}
 
 	s = append(s, iid.Repo)
+
+	return strings.Join(s, "")
+}
+
+// Registry returns registry component of the ImageID as a string with the form: hostname:port
+func (iid ImageID) Registry() string {
+	s := []string{}
+
+	if len(iid.Host) == 0 {
+		return ""
+	}
+
+	s = append(s, iid.Host)
+
+	if iid.Port != 0 {
+		s = append(s, ":", strconv.Itoa(iid.Port))
+	}
 
 	return strings.Join(s, "")
 }

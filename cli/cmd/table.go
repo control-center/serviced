@@ -106,17 +106,34 @@ func (tbl *table) dedent() {
 	tbl.paragraph = tbl.paragraph[:len(tbl.paragraph)-1]
 }
 
+type nodeAndKey struct {
+	id  string
+	key string
+}
+
+type nodeByKey []nodeAndKey
+
+func (n nodeByKey) Len() int           { return len(n) }
+func (n nodeByKey) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n nodeByKey) Less(i, j int) bool { return n[i].key < n[j].key }
+
 // formattree formats the tree for printing
-func (tbl *table) formattree(tree map[string][]string, root string, getrow func(string) []interface{}) {
+func (tbl *table) formattree(tree map[string][]string, root string, getrow func(string) []interface{}, sortkey func(row []interface{}) string) {
 	tmap := treemap(tree)
 
 	var next func(string)
 	next = func(root string) {
-		for i, node := range tmap[root] {
+		var nodes []nodeAndKey
+		for _, node := range tmap[root] {
+			row := getrow(node)
+			nodes = append(nodes, nodeAndKey{id: node, key: sortkey(row)})
+		}
+		sort.Sort(nodeByKey(nodes))
+		for i, node := range nodes {
 			tbl.lastrow = i+1 >= len(tmap[root])
-			tbl.printtreerow(getrow(node)...)
+			tbl.printtreerow(getrow(node.key)...)
 			tbl.indent()
-			next(node)
+			next(node.key)
 			tbl.dedent()
 		}
 	}

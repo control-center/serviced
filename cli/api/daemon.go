@@ -40,8 +40,10 @@ import (
 	"github.com/zenoss/serviced/zzk"
 
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -49,6 +51,8 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -174,6 +178,7 @@ func (d *daemon) startMaster() error {
 
 	d.initWeb()
 	d.startScheduler()
+	d.addTemplates()
 
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {
@@ -278,13 +283,13 @@ func (d *daemon) startAgent() error {
 			glog.Infof("Trying to discover my pool...")
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
-				glog.Errorf("master.NewClient failed: %v", err)
+				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
-				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
+				glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
@@ -351,6 +356,16 @@ func (d *daemon) startAgent() error {
 		}
 
 		go func() {
+			if options.ReportStats {
+				statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+				statsduration := time.Duration(options.StatsPeriod) * time.Second
+				glog.V(1).Infoln("Staring container statistics reporter")
+				statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
+				if err != nil {
+					glog.Errorf("Error kicking off stats reporter %v", err)
+				}
+				defer statsReporter.Close()
+			}
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
@@ -361,17 +376,6 @@ func (d *daemon) startAgent() error {
 			os.Exit(0)
 		}()
 
-		if options.ReportStats {
-			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-			statsduration := time.Duration(options.StatsPeriod) * time.Second
-			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
-			if err != nil {
-				glog.Errorf("Error kicking off stats reporter %v", err)
-			} else {
-				defer statsReporter.Close()
-			}
-		}
 	}()
 
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
@@ -436,7 +440,7 @@ func (d *daemon) initISVCS() error {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS)
 }
 
 func (d *daemon) initWeb() {
@@ -448,6 +452,42 @@ func (d *daemon) initWeb() {
 }
 func (d *daemon) startScheduler() {
 	go d.runScheduler()
+}
+
+func (d *daemon) addTemplates() {
+	root := utils.LocalDir("templates")
+	glog.V(1).Infof("Adding templates from %s", root)
+	// Don't block startup for this. It's merely a convenience.
+	go func() {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info == nil || !strings.HasSuffix(info.Name(), ".json") {
+				return nil
+			}
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			var reader io.ReadCloser
+			if reader, err = os.Open(path); err != nil {
+				glog.Warningf("Unable to open template %s", path)
+				return nil
+			}
+			defer reader.Close()
+			st := servicetemplate.ServiceTemplate{}
+			if err := json.NewDecoder(reader).Decode(&st); err != nil {
+				glog.Warningf("Unable to parse template file %s", path)
+				return nil
+			}
+			glog.V(1).Infof("Adding service template %s", path)
+			d.facade.AddServiceTemplate(d.dsContext, st)
+			return nil
+		})
+		if err != nil {
+			glog.Warningf("Not loading templates from %s: %s", root, err)
+		}
+	}()
 }
 
 func (d *daemon) runScheduler() {

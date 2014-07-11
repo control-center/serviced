@@ -188,10 +188,9 @@
         </tr>
       </tbody>
     </table>
-
   <div ng-if="services.current.ID.indexOf('isvc-') == -1">
   	<h3>{{'scheduled_tasks'|translate}}</h3>
-      <table class="table tabl-striped">
+      <table class="table table-striped">
           <thead>
               <tr>
                   <th>{{'task_schedule'|translate}}</th>
@@ -208,7 +207,7 @@
               <td>{{ task.TotalRunCount }}</td>
           </tr>          
           </tbody>
-          </table>
+      </table>
   </div>
 
     <!-- Graphs -->
@@ -223,9 +222,3 @@
           </tr>
         </table>
     </div>
-
-    <div ng-include="'/static/partials/edit-config.html'"></div>
-    <div ng-include="'/static/partials/view-log.html'"></div>
-    <div ng-include="'/static/partials/add-service.html'"></div>
-    <div ng-include="'/static/partials/add-vhost.html'"></div>
-    <div ng-include="'/static/partials/assign-ip.html'"></div>

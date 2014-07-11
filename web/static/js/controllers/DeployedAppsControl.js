@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "apps";
@@ -41,17 +41,37 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             vhosts.push( vhosts_definitions[i].Name);
         }
         return vhosts;
-    }
+    };
 
     // given a vhost, return a url to it
     $scope.vhost_url = function( vhost) {
-        var port = location.port == "" ? "" : ":"+location.port;
+        var port = location.port === "" ? "" : ":"+location.port;
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
-    }
+    };
 
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
-        $('#removeApp').modal('show');
+        $modalService.create({
+            template: $translate("warning_remove_service"),
+            model: $scope,
+            title: "remove_service",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "remove_service",
+                    classes: "btn-danger",
+                    action: function(){
+                        if(this.validate()){
+                            $scope.remove_service();
+                            // NOTE: should wait for success before closing
+                            this.close();
+                        }
+                    }
+                }
+            ]
+        });
     };
 
     $scope.remove_service = function() {
@@ -75,7 +95,27 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.clickRunning = toggleRunning;
+    $scope.clickRunning = function(app, status, servicesService){
+        var displayStatus = capitalizeFirst(status);
+
+        $modalService.create({
+            template: $translate("confirm_"+ status +"_app"),
+            model: $scope,
+            title: displayStatus +" Services",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: displayStatus +" Services",
+                    action: function(){
+                        toggleRunning(app, status, servicesService);
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
 
     // Get a list of deployed apps
     refreshServices($scope, resourcesService, false);
@@ -112,5 +152,9 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             });
         };
         $scope.secondarynav.push({ label: 'btn_add_service', modal: '#addService' });
+    }
+
+    function capitalizeFirst(str){
+        return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 }
