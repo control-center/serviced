@@ -139,7 +139,7 @@ func TagImage(registry DockerRegistry, client *dockerclient.Client, name string,
 	}
 
 	// Dev short circuit for ZEN-11996
-	if noregistry {
+	if !useRegistry {
 		return nil
 	}
 
