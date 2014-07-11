@@ -497,7 +497,7 @@ func (d *daemon) initISVCS() error {
 		isvcs.Mgr.Stop()
 		glog.Infof("isvcs shut down")
 	}()
-
+	return nil
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
