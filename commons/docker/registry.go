@@ -174,7 +174,7 @@ func (dr *DockerRegistry) RemoveRemoteImageTag(repoTag string) error {
 
 func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client, name string) error {
 	// Dev short circuit for ZEN-11996
-	if noregistry {
+	if !useRegistry {
 		return nil
 	}
 
@@ -197,7 +197,7 @@ func pullImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 
 func pushImageToRegistry(registry DockerRegistry, client *dockerclient.Client, name string, force bool) error {
 	// Dev short circuit for ZEN-11996
-	if noregistry {
+	if !useRegistry {
 		return nil
 	}
 
@@ -281,7 +281,7 @@ func syncImageFromRegistry(registry DockerRegistry, client *dockerclient.Client,
 	}
 
 	// Dev short circuit for ZEN-11996
-	if noregistry {
+	if !useRegistry {
 		return image, err
 	}
 
