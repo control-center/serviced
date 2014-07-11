@@ -24,7 +24,6 @@ type Store struct {
 
 // Put adds or updates a ServiceTemplate
 func (s *Store) Put(ctx datastore.Context, st ServiceTemplate) error {
-
 	if err := st.ValidEntity(); err != nil {
 		return fmt.Errorf("error validating template: %v", err)
 	}
