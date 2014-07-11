@@ -30,6 +30,11 @@ type ServiceLogInfo struct {
 	Message   string
 }
 
+type ZkInfo struct {
+	ZkDSN  string
+	PoolID string
+}
+
 func (a *HostAgent) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) (err error) {
 	glog.Infof("Service: %v message: %v", serviceLogInfo.ServiceID, serviceLogInfo.Message)
 	return nil
@@ -240,17 +245,18 @@ func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, en
 }
 
 // GetHostID returns the agent's host id
-func (a *HostAgent) GetHostID(string, hostID *string) error {
+func (a *HostAgent) GetHostID(_ string, hostID *string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
 	*hostID = a.hostID
 	return nil
 }
 
-// GetZkDSN returns the agent's zookeeper connection string
-func (a *HostAgent) GetZkDSN(string, dsn *string) error {
+// GetZkInfo returns the agent's zookeeper connection string and its poolID
+func (a *HostAgent) GetZkInfo(_ string, zkInfo *ZkInfo) error {
 	localDSN := a.zkClient.ConnectionString()
-	*dsn = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
-	glog.V(4).Infof("ControlPlaneAgent.GetZkDSN(): %s", *dsn)
+	zkInfo.ZkDSN = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
+	zkInfo.PoolID = a.poolID
+	glog.V(4).Infof("ControlPlaneAgent.GetZkInfo(): %+v", zkInfo)
 	return nil
 }
 

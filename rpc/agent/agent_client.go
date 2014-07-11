@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/domain/host"
 
 	"net/rpc"
@@ -20,6 +21,7 @@ type Client struct {
 func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr
+	glog.V(4).Infof("Agent connecting to %s", addr)
 	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
 	s.rpcClient = rpcClient
 	return s, err

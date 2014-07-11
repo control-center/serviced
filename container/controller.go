@@ -85,8 +85,7 @@ type Controller struct {
 	logforwarderExited chan error
 	closing            chan chan error
 	prereqs            []domain.Prereq
-	zkDSN              string
-	cclient            *coordclient.Client
+	zkInfo             node.ZkInfo
 	zkConn             coordclient.Connection
 	exportedEndpoints  map[string][]export
 	importedEndpoints  map[string]importedEndpoint

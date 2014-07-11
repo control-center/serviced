@@ -59,7 +59,7 @@ func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 }
 
 func (ft *FacadeTest) TestRenameImageID(t *C) {
-	imageId, err := renameImageID("localhost:5000", "quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X") 
+	imageId, err := renameImageID("localhost:5000", "quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
 	if err != nil {
 		t.Errorf("unexpected failure renamingImageID: %s", err)
 		t.FailNow()

@@ -6,8 +6,10 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/volume"
+	"github.com/zenoss/serviced/zzk"
 	zkSnapshot "github.com/zenoss/serviced/zzk/snapshot"
 
 	"errors"
@@ -54,12 +56,17 @@ func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error
 
 // Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
 func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
-	conn, err := this.zclient.GetConnection()
+	myService, err := this.facade.GetService(datastore.Get(), serviceID)
+	if err != nil {
+		glog.Errorf("Unable to get service %v: %v", serviceID, err)
+		return err
+	}
+
+	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
 	}
-	defer conn.Close()
 
 	if err := zkSnapshot.Send(conn, serviceID); err != nil {
 		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)

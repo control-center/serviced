@@ -10,7 +10,20 @@ import (
 	"errors"
 )
 
-// GetHosts  Returns all Hosts
+// GetHost gets the host
+func (s *Server) GetHost(hostID string, reply *host.Host) error {
+	response, err := s.f.GetHost(s.context(), hostID)
+	if err != nil {
+		return err
+	}
+	if response == nil {
+		return errors.New("hosts_server.go host not found")
+	}
+	*reply = *response
+	return nil
+}
+
+// GetHosts returns all Hosts
 func (s *Server) GetHosts(empty struct{}, hostReply *[]*host.Host) error {
 	hosts, err := s.f.GetHosts(s.context())
 	if err != nil {
@@ -28,19 +41,6 @@ func (s *Server) AddHost(host host.Host, _ *struct{}) error {
 // UpdateHost updates the host
 func (s *Server) UpdateHost(host host.Host, _ *struct{}) error {
 	return s.f.UpdateHost(s.context(), &host)
-}
-
-// GetHost gets the host
-func (s *Server) GetHost(hostID string, reply *host.Host) error {
-	response, err := s.f.GetHost(s.context(), hostID)
-	if err != nil {
-		return err
-	}
-	if response == nil {
-		return errors.New("host not found")
-	}
-	*reply = *response
-	return nil
 }
 
 // RemoveHost removes the host

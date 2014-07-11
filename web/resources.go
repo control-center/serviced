@@ -308,7 +308,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 
-	//for each endpoint, evaluate it's Application
+	//for each endpoint, evaluate it's EndpointTemplates
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := client.GetService(svcID, &svc)
@@ -329,6 +329,14 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	err = client.AddService(*svc, &serviceID)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
+		restServerError(w)
+		return
+	}
+
+	//automatically assign virtual ips to new service
+	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
+	if err := client.AssignIPs(request, nil); err != nil {
+		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w)
 		return
 	}
