@@ -295,8 +295,6 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.Vir
 	if err := zkAPI(f).AddVirtualIP(&requestedVirtualIP); err != nil {
 		return err
 	}
-
-	// TODO: Create the virtual ip node in zookeeper here
 	return nil
 }
 
@@ -326,7 +324,6 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.
 	}
 
 	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v (does not exist)", requestedVirtualIP.IP)
-	// TODO: Remove the virtual ip node in zookeeper here
 	return errors.New(errMsg)
 }
 
