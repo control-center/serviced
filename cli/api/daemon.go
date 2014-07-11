@@ -243,7 +243,7 @@ func (d *daemon) startMaster() error {
 			<-d.shutdown
 			glog.Infof("Shuttding down storage handler")
 			d.storageHandler.Close()
-		}
+		}()
 	}
 
 	return nil
