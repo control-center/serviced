@@ -60,7 +60,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
-            $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
+            $scope.editService.log = log.Detail;
             $modalService.create({
                 templateUrl: "view-log.html",
                 model: $scope,

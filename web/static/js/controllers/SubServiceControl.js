@@ -288,7 +288,7 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
         resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
-            $scope.editService.log = log.Detail.replace(/\n/g, "\n\n");
+            $scope.editService.log = log.Detail;
             $modalService.create({
                 templateUrl: "view-log.html",
                 model: $scope,
