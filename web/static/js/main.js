@@ -1243,9 +1243,11 @@ function aggregateAddressAssigments( service, api) {
           'ServiceID': service.ID,
           'ServiceName': service.Name
         };
-        api.get_host( assignment.HostID, function(data) {
-          assignment.HostName = data.Name;
-        })
+        if (assignment.HostID !== "") {
+          api.get_host( assignment.HostID, function(data) {
+            assignment.HostName = data.Name;
+          })
+        }
         assignments.push( assignment);
       }
     }

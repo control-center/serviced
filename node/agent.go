@@ -843,6 +843,7 @@ func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
 		glog.Errorf("Failed to get RPC master: %v", err)
 		return nil, err
 	}
+	defer rpcMaster.Close()
 	myHost, err := rpcMaster.GetHost(hostID)
 	if err != nil {
 		glog.Errorf("Could not get host %s: %s", hostID, err)
@@ -873,27 +874,23 @@ func (a *HostAgent) start() {
 		}()
 
 		// create a wrapping function so that client.Close() can be handled via defer
-		func() {
-			shutdown := make(chan interface{})
-			defer close(shutdown)
-			conn := <-connc
+		func(conn coordclient.Connection) {
 			glog.Info("Got a connected client")
-			defer conn.Close()
-
 			// watch virtual IP zookeeper nodes
-			go virtualips.WatchVirtualIPs(conn)
+			virtualIPListener := virtualips.NewVirtualIPListener(conn)
 
 			// watch docker action nodes
 			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-			go actionListener.Listen(shutdown)
 
-			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+			// watch the host state nodes
 			// this blocks until
 			// 1) has a connection
 			// 2) its node is registered
 			// 3) receieves signal to shutdown or breaks
-			hsListener.Listen(a.closing)
-		}()
+			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+
+			zzk.Start(a.closing, hsListener, virtualIPListener, actionListener)
+		}(<-connc)
 		select {
 		case <-a.closing:
 			return

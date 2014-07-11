@@ -8,6 +8,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/utils"
+	"github.com/zenoss/serviced/servicedversion"
 
 	"fmt"
 	"net"
@@ -55,6 +56,14 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	host.ID = hostidStr
 	host.Cores = cpus
 	host.Memory = memory
+
+        // get embedded host information
+        host.ServiceD.Version = servicedversion.Version
+        host.ServiceD.Gitbranch = servicedversion.Gitbranch
+        host.ServiceD.Gitcommit = servicedversion.Gitcommit
+        host.ServiceD.Giturl = servicedversion.Giturl
+        host.ServiceD.Date = servicedversion.Date
+        host.ServiceD.Buildtag = servicedversion.Buildtag
 
 	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
 	if err != nil {

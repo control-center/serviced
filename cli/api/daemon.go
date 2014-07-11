@@ -278,18 +278,30 @@ func (d *daemon) startAgent() error {
 			glog.Infof("Trying to discover my pool...")
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
-				glog.Errorf("master.NewClient failed: %v", err)
+				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			myHost, err := masterClient.GetHost(myHostID)
 			if err != nil {
-				glog.Errorf("masterClient.GetHost (%v) failed: %v", myHostID, err)
+				glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
 				time.Sleep(time.Duration(sleepRetry) * time.Second)
 				continue
 			}
 			poolID = myHost.PoolID
 			glog.Infof(" My PoolID: %v", poolID)
+			//send updated host info
+			updatedHost, err := host.UpdateHostInfo(*myHost)
+			if err != nil {
+				glog.Infof("Could not send updated host information: %v", err)
+				break
+			}
+			err = masterClient.UpdateHost(updatedHost)
+			if err != nil {
+				glog.Warningf("Could not update host information: %v", err)
+				break
+			}
+			glog.V(2).Infof("Sent updated host info %#v", updatedHost)
 			break
 		}
 
@@ -339,6 +351,16 @@ func (d *daemon) startAgent() error {
 		}
 
 		go func() {
+			if options.ReportStats {
+				statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+				statsduration := time.Duration(options.StatsPeriod) * time.Second
+				glog.V(1).Infoln("Staring container statistics reporter")
+				statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
+				if err != nil {
+					glog.Errorf("Error kicking off stats reporter %v", err)
+				}
+				defer statsReporter.Close()
+			}
 			signalChan := make(chan os.Signal, 10)
 			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			<-signalChan
@@ -349,17 +371,6 @@ func (d *daemon) startAgent() error {
 			os.Exit(0)
 		}()
 
-		if options.ReportStats {
-			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-			statsduration := time.Duration(options.StatsPeriod) * time.Second
-			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
-			if err != nil {
-				glog.Errorf("Error kicking off stats reporter %v", err)
-			} else {
-				defer statsReporter.Close()
-			}
-		}
 	}()
 
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))

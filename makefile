@@ -7,6 +7,20 @@
 #
 ################################################################################
 
+VERSION := $(shell cat ./VERSION)
+DATE := '$(shell date -u)'
+
+# GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
+# assume it will get set because the above can cause network traffic on every run
+GIT_COMMIT ?= $(shell ./gitstatus.sh)
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
+
+# jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
+BUILD_TAG ?= 0
+
+
+LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Giturl '$(GIT_URL)' -X main.Gitcommit $(GIT_COMMIT) -X main.Gitbranch $(GIT_BRANCH) -X main.Date $(DATE) -X main.Buildtag $(BUILD_TAG)"
+
 #---------------------#
 # Macros              #
 #---------------------#
@@ -139,7 +153,7 @@ $(GOSRC)/$(godep_SRC):
 
 .PHONY: go
 go: 
-	go build
+	go build ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -165,13 +179,13 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build
-	go install
+	go build ${LDFLAGS}
+	go install ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go install
+	go install ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp

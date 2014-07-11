@@ -5,10 +5,18 @@
 package facade
 
 import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
+
 	dutils "github.com/dotcloud/docker/utils"
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
-	"github.com/zenoss/glog"
+	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
@@ -17,11 +25,6 @@ import (
 	"github.com/zenoss/serviced/domain/servicetemplate"
 	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/utils"
-
-	"errors"
-	"fmt"
-	"regexp"
-	"strings"
 )
 
 type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
@@ -85,6 +88,47 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]*service
 	return templateMap, nil
 }
 
+func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
+	set := map[string]struct{}{}
+	for _, sd := range sds {
+		for _, img := range getImageIDs(sd.Services...) {
+			set[img] = struct{}{}
+		}
+		if sd.ImageID != "" {
+			set[sd.ImageID] = struct{}{}
+		}
+	}
+	result := []string{}
+	for img, _ := range set {
+		result = append(result, img)
+	}
+	return result
+}
+
+func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
+	for _, img := range getImageIDs(template.Services...) {
+		imageID, err := commons.ParseImageID(img)
+		if err != nil {
+			return err
+		}
+		tag := imageID.Tag
+		if tag == "" {
+			tag = "latest"
+		}
+		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
+		glog.Infof("Pulling image %s", image)
+		// Using a subprocess instead of dockerclient in order to take
+		// advantage of Docker's auth and the default registry logic
+		cmd := exec.Command("docker", "pull", image)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			glog.Warningf("Unable to pull image %s", image)
+		}
+	}
+	return nil
+}
+
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
 	template, err := f.templateStore.Get(ctx, templateID)
@@ -100,6 +144,11 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 	if pool == nil {
 		return "", fmt.Errorf("poolid %s not found", poolID)
+	}
+
+	if err := pullTemplateImages(template); err != nil {
+		glog.Errorf("Unable to pull one or more images")
+		return "", err
 	}
 
 	volumes := make(map[string]string)
