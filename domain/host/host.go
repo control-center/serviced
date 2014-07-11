@@ -34,6 +34,8 @@ type Host struct {
 		Date string
 		Gitcommit string
 		Gitbranch string
+		Giturl string
+		Buildtag string
 	}
 	MonitoringProfile domain.MonitorProfile
 }
@@ -128,7 +130,9 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 	host.ServiceD.Version = servicedversion.Version
 	host.ServiceD.Gitbranch = servicedversion.Gitbranch
 	host.ServiceD.Gitcommit = servicedversion.Gitcommit
+	host.ServiceD.Giturl = servicedversion.Giturl
 	host.ServiceD.Date = servicedversion.Date
+	host.ServiceD.Buildtag = servicedversion.Buildtag
 
 	*host = *host
 
