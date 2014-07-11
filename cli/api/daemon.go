@@ -237,6 +237,13 @@ func (d *daemon) startMaster() error {
 		if err != nil {
 			return err
 		}
+		d.waitGroup.Add(1)
+		go func(){
+			defer d.waitGroup.Done()
+			<-d.shutdown
+			glog.Infof("Shuttding down storage handler")
+			d.storageHandler.Close()
+		}
 	}
 
 	return nil
