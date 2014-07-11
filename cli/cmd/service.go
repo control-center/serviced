@@ -438,9 +438,6 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		servicemap := api.NewServiceMap(services)
 		tableService := newtable(0, 8, 2)
 		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-		for key, children := range servicemap.Tree() {
-			fmt.Printf("%s => %v\n", key, children)
-		}
 		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
 			s := servicemap.Get(id)
 			// truncate the image ID
