@@ -319,6 +319,7 @@ func (d *daemon) startAgent() error {
 				}
 			}
 			if err != nil {
+				//wait to try getting pool again or for shutdow, whichever comes first
 				select {
 				case <-d.shutdown:
 					return
@@ -471,13 +472,12 @@ func (d *daemon) initFacade() *facade.Facade {
 
 func (d *daemon) initISVCS() error {
 	go func() {
-		select {
-		case <-d.shutdown:
-			glog.Infof("Shutting down isvcs")
-			isvcs.Mgr.Stop()
-			glog.Infof("isvcs shut down")
-			d.waitGroup.Done()
-		}
+		<-d.shutdown
+		glog.Infof("Shutting down isvcs")
+		isvcs.Mgr.Stop()
+		glog.Infof("isvcs shut down")
+		d.waitGroup.Done()
+
 	}()
 	d.waitGroup.Add(1)
 	return isvcs.Mgr.Start()
