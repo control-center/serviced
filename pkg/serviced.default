@@ -1,0 +1,2 @@
+# Need to set $HOME so Docker client can find .dockercfg
+export HOME=/root
