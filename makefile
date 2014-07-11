@@ -7,6 +7,12 @@
 #
 ################################################################################
 
+VERSION := $(shell cat ./VERSION)
+GITCOMMIT := $(shell ./gitstatus.sh)
+GITBRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+
+LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Gitcommit $(GITCOMMIT) -X main.Gitbranch $(GITBRANCH)"
+
 #---------------------#
 # Macros              #
 #---------------------#
@@ -139,7 +145,7 @@ $(GOSRC)/$(godep_SRC):
 
 .PHONY: go
 go: 
-	go build
+	go build ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -165,13 +171,13 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build
-	go install
+	go build ${LDFLAGS}
+	go install ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go install
+	go install ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp

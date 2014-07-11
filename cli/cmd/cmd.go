@@ -58,7 +58,7 @@ func New(driver api.API) *ServicedCli {
 
 	c.app.Name = "serviced"
 	c.app.Usage = "A container-based management system"
-	c.app.Version = servicedversion.Version
+	c.app.Version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
 	staticIps := cli.StringSlice{}
