@@ -78,7 +78,7 @@ var (
 					"Severity":    1,
 					"Resolution":  "Increase swap or memory",
 					"Explanation": "Ran out of all available memory space",
-					"EventClass":  "/Memory",
+					"EventClass":  "/Perf/Memory",
 				},
 			},
 		},
