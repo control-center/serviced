@@ -7,7 +7,7 @@ import (
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServiceID            string   // The uuid of the service to launch
-	InstanceID           string   // The service state instance id
+	InstanceID           int      // The service state instance id
 	Command              []string // The command to launch
 	MuxPort              int      // the TCP port for the remote mux
 	Mux                  bool     // True if a remote mux is used

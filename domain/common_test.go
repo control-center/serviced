@@ -10,12 +10,12 @@ import (
 	"time"
 )
 
-const testHcJSON = `{"Script":"foo","Interval":1.5}`
+const testHcJSON = `{"Type":"health","Script":"foo","Interval":1.5,"FailureSeverity":4}`
 
-var testHc = HealthCheck{Script: "foo", Interval: time.Millisecond * 1500}
+var testHc = StatusCheck{Type: "health", Script: "foo", FailureSeverity: 4, Interval: time.Millisecond * 1500}
 
-func TestHealthCheck(t *testing.T) {
-	var hc HealthCheck
+func TestStatusCheck(t *testing.T) {
+	var hc StatusCheck
 	if err := json.Unmarshal([]byte(testHcJSON), &hc); err != nil {
 		t.Fatalf("Could not unmarshal test health check: %s", err)
 	}

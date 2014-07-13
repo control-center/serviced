@@ -181,6 +181,15 @@ func hostLinks(hostID string) []link {
 	}
 }
 
+func eventsLinks(eventID string) []link {
+	eventURI := fmt.Sprintf("/events/%s", eventID)
+	return []link{
+		link{retrievelink, "GET", eventURI},
+		link{createlink, "POST", "/events/add"},
+		link{deletelink, "DELETE", eventURI},
+	}
+}
+
 /*
  * Provide a list of pool related API calls
  */

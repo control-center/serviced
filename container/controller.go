@@ -6,6 +6,7 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/event"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/node"
@@ -50,7 +51,7 @@ type ControllerOptions struct {
 	ServicedEndpoint string
 	Service          struct {
 		ID          string   // The uuid of the service to launch
-		InstanceID  string   // The running instance ID
+		InstanceID  int      // The running instance ID
 		Autorestart bool     // Controller will restart the service if it exits
 		Command     []string // The command to launch
 	}
@@ -80,6 +81,7 @@ type Controller struct {
 	hostID             string
 	tenantID           string
 	dockerID           string
+	service            *service.Service
 	metricForwarder    *MetricForwarder
 	logforwarder       *subprocess.Instance
 	logforwarderExited chan error
@@ -250,17 +252,13 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	// get service
-	instanceID, err := strconv.Atoi(options.Service.InstanceID)
-	if err != nil {
-		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
-		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
-	}
-	service, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
+	service, err := getService(options.ServicedEndpoint, options.Service.ID, options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+	c.service = service
 
 	// create config files
 	if err := setupConfigFiles(service); err != nil {
@@ -321,7 +319,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		metricRedirect += "?controlplane_tenant_id=" + c.tenantID
 		metricRedirect += "&controlplane_service_id=" + options.Service.ID
 		metricRedirect += "&controlplane_host_id=" + c.hostID
-		metricRedirect += "&controlplane_instance_id=" + options.Service.InstanceID
+		metricRedirect += "&controlplane_instance_id=" + strconv.Itoa(options.Service.InstanceID)
 
 		//build and serve the container metric forwarder
 		forwarder, err := NewMetricForwarder(options.Metric.Address, metricRedirect)
@@ -412,7 +410,7 @@ func (c *Controller) Run() (err error) {
 	c.handleControlCenterImports()
 	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed)
-	healthExits := c.kickOffHealthChecks()
+	healthExits := c.kickOffStatusChecks()
 	doRegisterEndpoints := true
 	for {
 		select {
@@ -490,73 +488,73 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
 	return nil
 }
 
-func (c *Controller) kickOffHealthChecks() map[string]chan bool {
+func (c *Controller) kickOffStatusChecks() map[string]chan bool {
 	exitChannels := make(map[string]chan bool)
-	client, err := node.NewLBClient(c.options.ServicedEndpoint)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return nil
-	}
-	defer client.Close()
-	var healthChecks map[string]domain.HealthCheck
 
-	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
-	if err != nil {
-		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
-		return nil
-	}
-	err = client.GetHealthCheck(node.HealthCheckRequest{
-		c.options.Service.ID, instanceID}, &healthChecks)
-	if err != nil {
-		glog.Errorf("Error getting health checks: %s", err)
-		return nil
-	}
-	for key, mapping := range healthChecks {
-		glog.Infof("Kicking off health check %s.", key)
-		exitChannels[key] = make(chan bool)
-		glog.Infof("Setting up health check: %s", mapping.Script)
-		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
+	for name, statusCheck := range c.service.StatusChecks {
+		glog.Infof("Kicking off health check %s.", name)
+		exitChannels[name] = make(chan bool)
+		glog.Infof("Setting up health check: %s", statusCheck.Script)
+		go c.handleStatusCheck(statusCheck, exitChannels[name])
 	}
 	return exitChannels
 }
 
-func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+func (c *Controller) handleStatusCheck(statusCheck domain.StatusCheck, exitChannel chan bool) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
 	}
 	defer client.Close()
-	scriptFile, err := ioutil.TempFile("", name)
+	scriptFile, err := ioutil.TempFile("", statusCheck.Name)
 	if err != nil {
-		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
+		glog.Errorf("Error creating temporary file for health check %s: %s", statusCheck.Name, err)
 		return
 	}
 	defer scriptFile.Close()
 	defer os.Remove(scriptFile.Name())
-	err = ioutil.WriteFile(scriptFile.Name(), []byte(script), os.FileMode(0777))
+	err = ioutil.WriteFile(scriptFile.Name(), []byte(statusCheck.Script), os.FileMode(0777))
 	if err != nil {
-		glog.Errorf("Error writing script for health check %s: %s", name, err)
+		glog.Errorf("Error writing script for health check %s: %s", statusCheck.Name, err)
 		return
 	}
 	scriptFile.Close()
 	err = os.Chmod(scriptFile.Name(), os.FileMode(0777))
 	if err != nil {
-		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
+		glog.Errorf("Error setting script executable for health check %s: %s", statusCheck.Name, err)
 		return
 	}
 	var unused int
+	class := "/status/health/" + statusCheck.Name
+	ID := fmt.Sprintf("%s|%d|%s", c.options.Service.ID, c.options.Service.InstanceID, class)
 	for {
 		select {
-		case <-time.After(interval):
+		case <-time.After(statusCheck.Interval):
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			err = cmd.Run()
 			if err == nil {
-				glog.V(4).Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
+				glog.V(4).Infof("Health check %s succeeded.", statusCheck.Name)
+				client.SendEvent(
+					event.Event{
+						ID:                ID,
+						ServiceID:         c.options.Service.ID,
+						ServiceInstanceID: c.options.Service.InstanceID,
+						Class:             class,
+						FirstTime:         time.Now(),
+						Severity:          0,
+					}, &unused)
 			} else {
-				glog.Warningf("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+				glog.Warningf("Health check %s failed.", statusCheck.Name)
+				_ = client.SendEvent(
+					event.Event{
+						ID:                ID,
+						ServiceID:         c.options.Service.ID,
+						ServiceInstanceID: c.options.Service.InstanceID,
+						Class:             class,
+						FirstTime:         time.Now(),
+						Severity:          statusCheck.FailureSeverity,
+					}, &unused)
 			}
 		case <-exitChannel:
 			return

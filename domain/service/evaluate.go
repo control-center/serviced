@@ -230,17 +230,17 @@ func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildServi
 	return
 }
 
-// EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
-func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
-	glog.V(3).Infof("Evaluating HealthCheck scripts for %s:%d", service.ID, instanceID)
-	for key, healthcheck := range service.HealthChecks {
-		err, result := service.evaluateTemplate(gs, fc, instanceID, healthcheck.Script)
+// EvaluateStatusCheckTemplate parses and evals the Script field for each StatusCheck.
+func (service *Service) EvaluateStatusCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	glog.V(3).Infof("Evaluating StatusCheck scripts for %s:%d", service.ID, instanceID)
+	for key, statuscheck := range service.StatusChecks {
+		err, result := service.evaluateTemplate(gs, fc, instanceID, statuscheck.Script)
 		if err != nil {
 			return err
 		}
 		if result != "" {
-			healthcheck.Script = result
-			service.HealthChecks[key] = healthcheck
+			statuscheck.Script = result
+			service.StatusChecks[key] = statuscheck
 		}
 	}
 	return
@@ -354,7 +354,7 @@ func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, 
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err = service.EvaluateHealthCheckTemplate(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateStatusCheckTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}

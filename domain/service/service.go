@@ -58,7 +58,7 @@ type Service struct {
 	RAMCommitment     uint64
 	CPUCommitment     uint64
 	Actions           map[string]string
-	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
+	StatusChecks      map[string]domain.StatusCheck // status checks for this service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile
 }
@@ -139,7 +139,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
 	svc.Actions = sd.Actions
-	svc.HealthChecks = sd.HealthChecks
+	svc.StatusChecks = sd.StatusChecks
 	svc.Prereqs = sd.Prereqs
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)

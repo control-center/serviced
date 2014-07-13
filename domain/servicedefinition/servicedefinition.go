@@ -38,7 +38,7 @@ type ServiceDefinition struct {
 	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
 	Runs              map[string]string             // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
-	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
+	StatusChecks      map[string]domain.StatusCheck // Status checks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
 }

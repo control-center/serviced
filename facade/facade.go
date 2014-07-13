@@ -5,6 +5,7 @@
 package facade
 
 import (
+	"github.com/zenoss/serviced/domain/event"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/domain/service"
@@ -28,5 +29,6 @@ type Facade struct {
 	poolStore      *pool.Store
 	templateStore  *servicetemplate.Store
 	serviceStore   *service.Store
+	eventStore     *event.Store
 	dockerRegistry string
 }

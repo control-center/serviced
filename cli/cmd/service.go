@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -617,7 +618,7 @@ func sendLogMessage(lbClientPort string, serviceLogInfo node.ServiceLogInfo) err
 // serviced service proxy SERVICE_ID INSTANCEID COMMAND
 func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	if len(ctx.Args()) < 3 {
-		fmt.Printf("Incorrect Usage.\n\n")
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		return nil
 	}
 
@@ -627,6 +628,12 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	}
 
 	args := ctx.Args()
+	instanceID, err := strconv.Atoi(args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "serviced instance id must be an interger: %s\n", err)
+		return err
+	}
+
 	options := api.ControllerOptions{
 		MuxPort:              ctx.GlobalInt("muxport"),
 		Mux:                  ctx.GlobalBool("mux"),
@@ -641,7 +648,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		LogstashConfig:       ctx.GlobalString("forwarder-config"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		ServiceID:            args[0],
-		InstanceID:           args[1],
+		InstanceID:           instanceID,
 		Command:              args[2:],
 	}
 

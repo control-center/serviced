@@ -31,8 +31,8 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	w.WriteJson(&packet)
 }
 
-// RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane) {
+// RegisterStatusCheck updates the healthStatus and healthTime structures with a health check result.
+func RegisterStatusCheck(serviceID string, name string, passed string, d dao.ControlPlane) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -50,7 +50,7 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 			glog.Errorf("Unable to acquire services.")
 			return
 		}
-		for iname, icheck := range service.HealthChecks {
+		for iname, icheck := range service.StatusChecks {
 			_, ok = serviceStatus[iname]
 			if !ok {
 				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}

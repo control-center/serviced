@@ -16,6 +16,7 @@ import (
 
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/event"
 	"github.com/zenoss/serviced/domain/service"
 )
 
@@ -82,7 +83,7 @@ type ServiceInstanceRequest struct {
 	InstanceID int
 }
 
-type HealthCheckRequest struct {
+type StatusCheckRequest struct {
 	ServiceID  string
 	InstanceID int
 }
@@ -104,9 +105,8 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]domain.HealthCheck) error
-
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+	// SendEvent sends a system event
+	SendEvent(evt event.Event, unused *int) error
 
 	// GetService retrieves a service object with templates evaluated.
 	GetService(serviceId string, response *service.Service) error

@@ -18,7 +18,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
+	"github.com/zenoss/serviced/domain/event"
 	"github.com/zenoss/serviced/domain/service"
 )
 
@@ -139,47 +139,15 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+// SendEvent sends a system event.
+func (a *HostAgent) SendEvent(evt event.Event, unused *int) error {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
 		return err
 	}
 	defer controlClient.Close()
-
-	var svc service.Service
-	err = controlClient.GetService(req.ServiceID, &svc)
-	if err != nil {
-		return err
-	}
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
-	*healthChecks = svc.HealthChecks
-	return nil
-}
-
-// LogHealthCheck proxies RegisterHealthCheck.
-func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-	err = controlClient.LogHealthCheck(result, unused)
-	return err
+	return controlClient.SendEvent(evt, unused)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
