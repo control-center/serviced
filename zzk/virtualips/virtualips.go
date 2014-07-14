@@ -201,6 +201,10 @@ func WatchVirtualIPs(conn coordclient.Connection, shutdown <-chan interface{}) {
 		case evt := <-virtualIPsNodeEvent:
 			glog.Infof("%v event: %v", virtualIPsPath(), evt)
 		case <-shutdown:
+			for vip, ch := range processing {
+				glog.Infof("Shuttingdown VIP %v", vip)
+				close(ch)
+			}
 			return
 		}
 	}
@@ -280,7 +284,7 @@ func watchVirtualIP(request <-chan int, done chan<- string, watchingVirtualIP po
 				glog.Infof("Virtual IP address: %v has been configured on %v", virtualIPsPath(watchingVirtualIP.IP), hostID)
 			}
 
-		// agent stopping
+			// agent stopping
 		case _, open := <-request:
 			if !open {
 				// closed

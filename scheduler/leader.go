@@ -16,6 +16,7 @@ import (
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
+	"sync"
 )
 
 type leader struct {
@@ -31,7 +32,7 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string, shutdown <-chan interface{}) {
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
@@ -43,32 +44,72 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	}
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
+	var wg sync.WaitGroup
 	for {
-		shutdown := make(chan interface{})
+		done := make(chan interface{})
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
-			close(shutdown)
+			close(done)
 			break
 		}
 
 		time.Sleep(time.Second)
-		func() error {
-			select {
-			case evt := <-zkEvent:
-				// shut this thing down
-				shutdownmode = true
-				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-				return nil
-			default:
-				glog.V(0).Info("Processing leader duties")
-				// passthru
-			}
-
-			snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
-			serviceListener := zkservice.NewServiceListener(conn, &leader)
-			zzk.Start(shutdown, serviceListener, snapshotListener, hostRegistry)
-			return nil
+		select {
+		case evt := <-zkEvent:
+			// shut this thing down
+			shutdownmode = true
+			glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
+			return
+		default:
+			glog.V(0).Info("Processing leader duties")
+			// passthru
+		}
+		// creates a listener for snapshots with a function call to take snapshots
+		// and return the label and error message
+		snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+		wg.Add(1)
+		go func() {
+			glog.Info("snapshotListener starting")
+			snapshotListener.Listen(done)
+			glog.Info("snapshotListener stopped")
+			wg.Done()
 		}()
+
+		// starts a listener for the host registry
+		wg.Add(1)
+		go func() {
+			glog.Info("starting host registry ")
+			hostRegistry.Listen(done)
+			glog.Info("host registry stopped")
+			wg.Done()
+		}()
+
+		wg.Add(1)
+		go func() {
+			glog.Info("leader watch services starting")
+			leader.watchServices(done)
+			glog.Info("leader watch services  stopped")
+			wg.Done()
+		}()
+
+		wait := make(chan struct{})
+		go func() {
+			defer close(wait)
+			wg.Wait()
+			glog.Info("leader routines done")
+		}()
+		select {
+		case <-wait:
+			break
+		case <-shutdown:
+			glog.Infof("closing leader")
+			close(done)
+			select {
+			case <-wait:
+			}
+			return
+		}
+
 	}
 }
 

@@ -133,6 +133,8 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 		}()
 	}
 	Listen(shutdown, master)
+	glog.Infof("shutdown finished for %#v", master)
 	close(_shutdown)
 	wg.Wait()
+	glog.Info("all listeners stopped")
 }
