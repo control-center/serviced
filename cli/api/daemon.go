@@ -155,7 +155,7 @@ func (d *daemon) run() error {
 	select {
 	case <-doneWaiting:
 		glog.Info("Shutdown")
-	case <-time.After(300 * time.Second):
+	case <-time.After(60 * time.Second):
 		glog.Info("Timed out waiting for shutdown")
 		//Return error???
 	}

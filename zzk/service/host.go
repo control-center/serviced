@@ -221,7 +221,7 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 				select {
 				case <-processDone:
 					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				case <-time.After(15 * time.Second):
+				case <-time.After(45 * time.Second):
 					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				}
 
