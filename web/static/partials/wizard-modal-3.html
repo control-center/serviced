@@ -5,8 +5,8 @@
         <th>&nbsp;</th>
         <th>{{"label_pool_name"|translate}}</th>
         <th>{{"label_pool_description"|translate}}</th>
-        <th>{{"label_pool_memory_capacity"|translate}}</th>
-        <th>{{"label_pool_core_capacity"|translate}}</th>
+        <th>{{"memory_capacity"|translate}}</th>
+        <th>{{"core_capacity"|translate}}</th>
     </tr>
     <tr ng-repeat="pool in pools.data | orderBy:'ID'">
         <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>

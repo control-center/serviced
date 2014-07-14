@@ -21,7 +21,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     refreshHosts($scope, resourcesService, true);
 
     $scope.running = buildTable('Name', [
-        { id: 'Name', name: 'running_tbl_running' },
+        { id: 'Name', name: 'label_service' },
         { id: 'StartedAt', name: 'running_tbl_start' },
         { id: 'View', name: 'running_tbl_actions' }
     ]);

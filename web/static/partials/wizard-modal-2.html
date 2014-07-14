@@ -4,8 +4,8 @@
         <tr>
             <th>&nbsp;</th>
             <th>{{"label_app_name"|translate}}</th>
-            <th>{{"label_app_ram_commitment"|translate}}</th>
-            <th>{{"label_app_cpu_commitment"|translate}}</th>
+            <th>{{"memory_required"|translate}}</th>
+            <th>{{"cores_required"|translate}}</th>
         </tr>
         <tr ng-repeat="template in install.templateData | orderBy: 'Name'" ng-class="install.templateClass(template)">
             <td><input type="checkbox"

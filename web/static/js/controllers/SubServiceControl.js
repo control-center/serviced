@@ -43,12 +43,10 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.ips = buildTable('ServiceID', [
         { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
-        { id: 'EndpointName', name: 'tbl_virtual_ip_application'},
         { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
         { id: 'HostName', name: 'tbl_virtual_ip_host'},
         { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
         { id: 'IPAddr', name: 'tbl_virtual_ip'},
-        { id: 'Port', name: 'tbl_virtual_ip_port'},
         { id: 'Actions', name: 'tbl_virtual_ip_actions'}
     ]);
 
