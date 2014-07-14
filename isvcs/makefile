@@ -14,7 +14,7 @@ UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := zenoss/isvcs_build
 REPO               := zenoss/serviced-isvcs
-TAG                := v10
+TAG                := v11
 REPO_DIR           := images
 EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname).tar.gz)
@@ -89,14 +89,10 @@ isvcs_repo: | $(REPO_DIR)
 		else \
 			found_image_locally=$$(eval "$(docker_list_cmd)");\
 			if [ -z "$${found_image_locally}" ]; then\
-				echo ;\
-				echo "Error: Unable to find this image locally: $(REPO):$(TAG)." ;\
-				echo "    $(docker_list_cmd)" ;\
-				echo ;\
-				echo "Please investigate.  You may need to build $(REPO):$(TAG)" ;\
-				echo ;\
-				found_image_locally=$(shell $(docker_list_cmd));\
-				exit 1 ;\
+				if [ -z "$$(docker images $(REPO) 2>/dev/null | awk {'print $$2'} | grep $(TAG))" ]; then \
+					$(MAKE) $(COMPONENT_ARCHIVES); \
+					docker build -t $(REPO):$(TAG) $(BUILD_DIR); \
+				fi; \
 			else \
 				echo "$(REPO):$(TAG) found locally." ;\
 			fi ;\
@@ -104,20 +100,6 @@ isvcs_repo: | $(REPO_DIR)
 	else \
 		echo "$(REPO):$(TAG) found locally." ;\
 	fi
-
-# TODO: fixme
-#
-# This fu for building isvcs_repo from scratch did not work for me.
-# Getting: '/bin/sh: 1: git: not found' even though we apt-get it 
-# in the build/Dockerfile.
-#
-# I'm decoupling it from the isvcs_repo rule until it can get some
-# attention.
-#
-#if [ -z "$$(docker images $(REPO) 2>/dev/null | awk {'print $$2'} | grep $(TAG))" ]; then \
-#	echo "$(MAKE) $(COMPONENT_ARCHIVES)"; \
-#	echo "docker build -t $(REPO):$(TAG) $(BUILD_DIR)"; \
-#fi
 
 $(BUILD_DIR)/%.tar.gz: build_repo
 	docker run --rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
