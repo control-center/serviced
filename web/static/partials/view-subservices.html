@@ -155,27 +155,17 @@
             <span class="note" ng-show="app.runningHosts.length > 1">&nbsp;(+{{app.runningHosts.length -1}} {{'more' | translate}})</span>
           </td>
           <td>
-            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
+            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}">
           </td>
           <td >
             <div ng-if="app.ID.indexOf('isvc-') == -1">
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
             </div>
-          </span>
-        </td>
-        <td>
-          <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
-        </td>
-        <td >
-          <div ng-if="app.ID.indexOf('isvc-') == -1">
-            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
-          </div>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
   <!-- This table has running instances -->
 	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
