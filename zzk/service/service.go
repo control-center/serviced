@@ -113,9 +113,10 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 				l.stop(rss)
 				return
 			}
-			glog.V(4).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+			glog.V(0).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
 		case <-shutdown:
 			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
+			l.stop(rss)
 			return
 		}
 	}

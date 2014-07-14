@@ -23,9 +23,10 @@ func NewTestConnection() *TestConnection {
 
 func (conn *TestConnection) init() *TestConnection {
 	conn = &TestConnection{
-		nodes:   map[string][]byte{"/": nil},
+		nodes:   make(map[string][]byte),
 		watches: make(map[string][]chan<- Event),
 	}
+	conn.nodes["/"] = nil
 	return conn
 }
 
@@ -42,7 +43,7 @@ func (conn *TestConnection) updatewatch(p string, eventtype EventType) {
 		}
 	}
 
-	parent := path.Dir(p) + "/"
+	parent := path.Dir(p)
 	if watches := conn.watches[parent]; watches != nil && len(watches) > 0 {
 		delete(conn.watches, parent)
 		for _, watch := range watches {
@@ -106,7 +107,7 @@ func (conn *TestConnection) Create(p string, node Node) error {
 
 	data, err := json.Marshal(node)
 	if err != nil {
-		conn.nodes[p] = data
+		return err
 	}
 	conn.nodes[p] = data
 	return nil
