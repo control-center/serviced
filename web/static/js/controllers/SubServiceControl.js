@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
+function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -43,12 +43,10 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
 
     $scope.ips = buildTable('ServiceID', [
         { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
-        { id: 'EndpointName', name: 'tbl_virtual_ip_application'},
         { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
         { id: 'HostName', name: 'tbl_virtual_ip_host'},
         { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
         { id: 'IPAddr', name: 'tbl_virtual_ip'},
-        { id: 'Port', name: 'tbl_virtual_ip_port'},
         { id: 'Actions', name: 'tbl_virtual_ip_actions'}
     ]);
 
@@ -357,6 +355,8 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
+
+        loadSubServiceHosts();
         $serviceHealth.update();
     });
 
@@ -374,10 +374,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
+
     refreshHosts($scope, resourcesService, true, function() {
         wait.hosts = true;
         mashHostsToInstances();
     });
+
     refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
         wait.running = true;
         mashHostsToInstances();
@@ -460,16 +462,43 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
-        var id = $scope.services.current.ID+'-graph-'+index
+        var id = $scope.services.current.ID+'-graph-'+index;
         if (!$scope.drawn[id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;
             }
         }
     };
 
+    function loadSubServiceHosts(){
+        // to pull host data for running services, we need to make seperate "running" requests for each subservice
+        // and add the host data to the subservice. We do this synchronously using promises here.
+
+        var runningServiceDeferred = $q.defer();
+        var runningServicePromise = runningServiceDeferred.promise;
+        var ctr = 0;
+        for(idx in $scope.services.subservices){
+            (function(ctr){
+                runningServicePromise.then(function(){
+                    var deferred = $q.defer();
+                    resourcesService.get_running_services_for_service($scope.services.subservices[ctr].ID, function(runningServices) {
+                        $scope.services.subservices[ctr].runningHosts = [];
+
+                        for (var i in runningServices) {
+                            var instance = runningServices[i];
+                            $scope.services.subservices[ctr].runningHosts.push({"ID": instance.HostID, "HostName": $scope.hosts.mapped[instance.HostID].Name});
+                        }
+
+                        deferred.resolve();
+                    });
+                });
+            }(idx));
+        }
+
+        runningServiceDeferred.resolve();
+    }
 }

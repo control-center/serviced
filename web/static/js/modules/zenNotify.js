@@ -59,8 +59,9 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                notificationFactory.store(this);
-                this.show();
+                if(notificationFactory.store(this)){
+                    this.show();
+                }
                 return this;
             },
 
@@ -74,8 +75,9 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                notificationFactory.store(this);
-                this.show();
+                if(notificationFactory.store(this)){
+                    this.show();
+                }
                 return this;
             },
 
@@ -85,8 +87,9 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                notificationFactory.store(this);
-                this.show();
+                if(notificationFactory.store(this)){
+                    this.show();
+                }
                 return this;
             },
 
@@ -100,8 +103,9 @@
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                notificationFactory.store(this);
-                this.show(false);
+                if(notificationFactory.store(this)){
+                    this.show(false);
+                }
                 return this;
             },
 
@@ -207,12 +211,27 @@
             store: function(notification){
                 var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
 
-                if(this.$storage.unshift(storable) > 10){
-                    this.$storage.pop();
+                // de-dup messages
+                var lastMessage = this.$storage[0];
+                if(!lastMessage){
+                    lastMessage = {id: 9999, read: false, date: new Date(), title: "", msg: ""};
                 }
+                var lastMessageTime = new Date(lastMessage.date).getTime();
+                var now = new Date().getTime();
 
-                localStorage.setItem('messages', JSON.stringify(this.$storage));
-                $rootScope.$broadcast("messageUpdate");
+                // Duplicate message is the same message within 5 seconds of the last message
+                if(notification.msg != lastMessage.msg ||
+                    now - lastMessageTime > 5000){
+                    if(this.$storage.unshift(storable) > 20){
+                        this.$storage.pop();
+                    }
+
+                    localStorage.setItem('messages', JSON.stringify(this.$storage));
+                    $rootScope.$broadcast("messageUpdate");
+                    return true;
+                }else{
+                    return false;
+                }
             },
 
             /**

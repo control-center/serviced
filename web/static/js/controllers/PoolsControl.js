@@ -14,10 +14,10 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     $scope.pools = buildTable('ID', [
         { id: 'ID', name: 'pools_tbl_id'},
         { id: 'Priority', name: 'pools_tbl_priority'},
-        { id: 'CoreCapacity', name: 'pools_tbl_core_capacity'},
+        { id: 'CoreCapacity', name: 'core_capacity'},
         { id: 'MemoryCapacity', name: 'memory_usage'},
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
-        { id: 'UpdatedAt', name: 'pools_tbl_updated_at'},
+        { id: 'UpdatedAt', name: 'updated_at'},
         { id: 'Actions', name: 'pools_tbl_actions'}
     ]);
 

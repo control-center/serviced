@@ -14,12 +14,12 @@
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_core_limit">{{'label_pool_core_capacity'|translate}}</label>
+      <label for="pool_data_core_limit">{{'core_capacity'|translate}}</label>
       <div id="pool_data_core_limit">{{pools.current.CoreCapacity}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_memory_limit">{{'label_pool_memory_capacity'|translate}}</label>
+      <label for="pool_data_memory_limit">{{'memory_capacity'|translate}}</label>
       <div id="pool_data_memory_limit">{{pools.current.MemoryCapacity | toGB}}</div>
     </div>
 
@@ -29,7 +29,7 @@
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_updated_at">{{'label_pool_updated_at'|translate}}</label>
+      <label for="pool_data_updated_at">{{'updated_at'|translate}}</label>
       <div id="pool_data_updated_at">{{pools.current.UpdatedAt | date : 'medium'}}</div>
     </div>
   </div>
