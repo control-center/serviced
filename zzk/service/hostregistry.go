@@ -49,7 +49,7 @@ type HostRegistryListener struct {
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
+func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
 	return &HostRegistryListener{conn, make(chan interface{})}
 }
 
@@ -69,7 +69,7 @@ func (l *HostRegistryListener) Done() { close(l.shutdown) }
 func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {
 	for {
 		var host host.Host
-		event, err := l.conn.GetW(l.GetPath(eHostID, &HostNode{Host: &host}))
+		event, err := l.conn.GetW(l.GetPath(eHostID), &HostNode{Host: &host})
 		if err != nil {
 			glog.Errorf("Could not load ephemeral node %s: %s", eHostID, err)
 			return
@@ -84,7 +84,7 @@ func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string
 			}
 			glog.V(2).Infof("Receieved event: ", e)
 		case <-l.shutdown:
-			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, ehostID)
+			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, eHostID)
 			return
 		}
 	}
@@ -117,16 +117,12 @@ func (l *HostRegistryListener) unregister(hostID string) {
 
 // GetHosts returns all of the registered hosts
 func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
-	var (
-		ehosts []string
-	)
-
 	if err := zzk.Ready(l.shutdown, l.conn, l.GetPath()); err != nil {
 		return nil, err
 	}
 
 	for {
-		ehosts, eventW, err = l.conn.ChildrenW(hostregpath())
+		ehosts, eventW, err := l.conn.ChildrenW(hostregpath())
 		if err != nil {
 			return nil, err
 		}
