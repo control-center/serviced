@@ -64,19 +64,19 @@ const (
 
 // HostAgent is an instance of the control plane Agent.
 type HostAgent struct {
-	poolID          string
-	master          string               // the connection string to the master agent
-	uiport          string               // the port to the ui (legacy was port 8787, now default 443)
-	hostID          string               // the hostID of the current host
-	dockerDNS       []string             // docker dns addresses
-	varPath         string               // directory to store serviced	 data
-	mount           []string             // each element is in the form: dockerImage,hostPath,containerPath
-	vfs             string               // driver for container volumes
-	currentServices map[string]*exec.Cmd // the current running services
-	mux             *proxy.TCPMux
-	proxyRegistry  proxy.ProxyRegistry
-	zkClient       *coordclient.Client
-	dockerRegistry string // the docker registry to use
+	poolID               string
+	master               string               // the connection string to the master agent
+	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
+	hostID               string               // the hostID of the current host
+	dockerDNS            []string             // docker dns addresses
+	varPath              string               // directory to store serviced	 data
+	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
+	vfs                  string               // driver for container volumes
+	currentServices      map[string]*exec.Cmd // the current running services
+	mux                  *proxy.TCPMux
+	proxyRegistry        proxy.ProxyRegistry
+	zkClient             *coordclient.Client
+	dockerRegistry       string        // the docker registry to use
 	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string        // subnet for virtual addresses
 }
@@ -127,7 +127,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.mount = options.Mount
 	agent.vfs = options.VFS
 	agent.mux = options.Mux
-	//	agent.periodicTasks = make(chan interface{})
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 
