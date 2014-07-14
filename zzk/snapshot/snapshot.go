@@ -58,7 +58,6 @@ func (l *SnapshotListener) Ready() (err error) { return }
 func (l *SnapshotListener) Done() { return }
 
 func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) {
-
 	for {
 		var snapshot Snapshot
 		event, err := l.conn.GetW(l.GetPath(serviceID), &snapshot)
