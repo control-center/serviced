@@ -88,12 +88,10 @@
   		<tbody>
   			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
   				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
-  				<td>{{ip.EndpointName}}</td>
   				<td>{{ip.AssignmentType}}</td>
   				<td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
   				<td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
-  				<td>{{ip.IPAddr}}</td>
-  				<td>{{ip.Port}}</td>
+  				<td>{{ip.IPAddr}}:{{ip.Port}}</td>
   				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
   			</tr>
   		</tbody>
