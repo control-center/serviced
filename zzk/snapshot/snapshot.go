@@ -49,14 +49,20 @@ func NewSnapshotListener(conn client.Connection, handler SnapshotHandler) *Snaps
 	return &SnapshotListener{conn, handler}
 }
 
+// GetConnection implements zzk.Listener
 func (l *SnapshotListener) GetConnection() client.Connection { return l.conn }
 
+// GetPath implements zzk.Listener
 func (l *SnapshotListener) GetPath(nodes ...string) string { return snapshotPath(nodes...) }
 
+// Ready implements zzk.Ready
 func (l *SnapshotListener) Ready() (err error) { return }
 
+// Done implements zzk.Done
 func (l *SnapshotListener) Done() { return }
 
+// Spawn takes a snapshot of a service and waits for the node to be deleted.  If
+// the node is not removed, then no action is performed.
 func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
 		var snapshot Snapshot

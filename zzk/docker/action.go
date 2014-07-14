@@ -49,18 +49,18 @@ func NewActionListener(conn client.Connection, handler ActionHandler, hostID str
 	return &ActionListener{conn, handler, hostID}
 }
 
-// GetConnection implements zzk.GetConnection
+// GetConnection implements zzk.Listener
 func (l *ActionListener) GetConnection() client.Connection { return l.conn }
 
-// GetPath implements zzk.GetPath
+// GetPath implements zzk.Listener
 func (l *ActionListener) GetPath(nodes ...string) string {
 	return actionPath(append([]string{l.hostID}, nodes...)...)
 }
 
-// Ready implements zzk.Ready
+// Ready implements zzk.Listener
 func (l *ActionListener) Ready() (err error) { return }
 
-// Done implements zzk.Done
+// Done implements zzk.Listener
 func (l *ActionListener) Done() { return }
 
 // Spawn attaches to a container and performs the requested action

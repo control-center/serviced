@@ -168,7 +168,7 @@ func (conn *TestConnection) ChildrenW(p string) ([]string, <-chan Event, error) 
 		return nil, nil, err
 	}
 
-	return children, conn.addwatch(p + "/"), nil
+	return children, conn.addwatch(p), nil
 }
 
 // Children implements Connection.Children

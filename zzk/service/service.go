@@ -53,74 +53,39 @@ func (node *ServiceStateNode) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = version }
 
+// ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
 	SelectHost(*service.Service) (*host.Host, error)
 }
 
+// ServiceListener is the listener for /services
 type ServiceListener struct {
 	conn    client.Connection
 	handler ServiceHandler
 }
 
+// NewServiceListener instantiates a new ServiceListener
 func NewServiceListener(conn client.Connection, handler ServiceHandler) *ServiceListener {
 	return &ServiceListener{conn, handler}
 }
 
-func (l *ServiceListener) Listen(shutdown <-chan interface{}) {
-	var (
-		_shutdown  = make(chan interface{})
-		done       = make(chan string)
-		processing = make(map[string]interface{})
-	)
+// GetConnection implements zzk.Listener
+func (l *ServiceListener) GetConnection() client.Connection { return l.conn }
 
-	defer func() {
-		glog.Infof("Service listener received interrupt")
-		close(_shutdown)
-		for len(processing) > 0 {
-			delete(processing, <-done)
-		}
-	}()
+// GetPath implements zzk.Listener
+func (l *ServiceListener) GetPath(nodes ...string) string { return servicepath(nodes...) }
 
-	for {
-		serviceIDs, event, err := l.conn.ChildrenW(servicepath())
-		if err != nil {
-			glog.Errorf("Could not watch services: %s", err)
-			return
-		}
+// Ready implements zzk.Listener
+func (l *ServiceListener) Ready() (err error) { return }
 
-		for _, serviceID := range serviceIDs {
-			if _, ok := processing[serviceID]; !ok {
-				glog.V(1).Infof("Spawning a listener for service %s", serviceID)
-				processing[serviceID] = nil
-				go l.listenService(_shutdown, done, serviceID)
-			}
-		}
+// Done implements zzk.Listener
+func (l *ServiceListener) Done() { return }
 
-		select {
-		case e := <-event:
-			if e.Type == client.EventNodeDeleted {
-				return
-			}
-			glog.Infof("Received event: %v", e)
-		case serviceID := <-done:
-			glog.V(2).Infof("Cleaning up %s", serviceID)
-			delete(processing, serviceID)
-		case <-shutdown:
-			return
-		}
-	}
-}
-
-func (l *ServiceListener) listenService(shutdown <-chan interface{}, done chan<- string, serviceID string) {
-	defer func() {
-		glog.V(2).Infof("Shutting down listener for service %s", serviceID)
-		done <- serviceID
-	}()
-
-	spath := servicepath(serviceID)
+// Spawn watches a service and syncs the number of running instances
+func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
 		var svc service.Service
-		event, err := l.conn.GetW(spath, &ServiceNode{Service: &svc})
+		event, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
 			return
@@ -144,11 +109,11 @@ func (l *ServiceListener) listenService(shutdown <-chan interface{}, done chan<-
 		select {
 		case e := <-event:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(0).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
+				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+			glog.V(4).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
 		case <-shutdown:
 			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
 			return
@@ -208,7 +173,7 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 	}
 }
 
-// UpdateService updates a service node if it exists, otherwise it creates it
+// UpdateService updates a service node if it exists, otherwise creates it
 func UpdateService(conn client.Connection, svc *service.Service) error {
 	if svc.ID == "" {
 		return fmt.Errorf("service id required")
