@@ -237,7 +237,6 @@
             // TODO - dont touch dom!
             var $el = $("tr[data-id='"+ service.ID +"'] .healthIcon");
             if($el.length > 0){
-                console.log(service);
                 $el.on("webkitAnimationEnd", function(){
                     // if zoom is in the class list, remove it
                     if(~service.healthIconClass.indexOf("zoom")){

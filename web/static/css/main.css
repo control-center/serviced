@@ -1144,3 +1144,9 @@ input.ng-invalid:focus.ng-dirty:focus{
 .modal-footer{
     margin-top: 0px;
 }
+
+.note{
+    color: #666666;
+    font-size: .7em;
+    font-weight: bold;
+}

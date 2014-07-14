@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
+function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -355,6 +355,29 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
                 $scope.breadcrumbs.push(crumb);
             }
         }
+
+        var runningServiceDeferred = $q.defer();
+        var runningServicePromise = runningServiceDeferred.promise;
+        var ctr = 0;
+        for(idx in $scope.services.subservices){
+            (function(ctr){
+                runningServicePromise.then(function(){
+                    var deferred = $q.defer();
+                    resourcesService.get_running_services_for_service($scope.services.subservices[ctr].ID, function(runningServices) {
+                        $scope.services.subservices[ctr].runningHosts = [];
+
+                        for (var i in runningServices) {
+                            var instance = runningServices[i];
+                            $scope.services.subservices[ctr].runningHosts.push({"ID": instance.HostID, "HostName": $scope.hosts.mapped[instance.HostID].Name});
+                        }
+
+                        deferred.resolve();
+                    });
+                });
+            }(idx));
+        }
+
+        runningServiceDeferred.resolve();
         $serviceHealth.update();
     });
 
@@ -372,10 +395,12 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
             instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
         }
     };
+
     refreshHosts($scope, resourcesService, true, function() {
         wait.hosts = true;
         mashHostsToInstances();
     });
+
     refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
         wait.running = true;
         mashHostsToInstances();
@@ -458,16 +483,32 @@ function SubServiceControl($scope, $routeParams, $location, $interval, resources
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
-        var id = $scope.services.current.ID+'-graph-'+index
+        var id = $scope.services.current.ID+'-graph-'+index;
         if (!$scope.drawn[id]) {
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;
             }
         }
     };
 
+    $scope.getRunningHostName = function(service) {
+        if(service.DesiredState === 1){
+            var promise = new Promise(function(){
+                resourcesService.get_running_services_for_service(service.ID, function(runningServices) {
+                    console.log(runningServices);
+                    resolve("All done");
+                });
+            });
+
+            promise.then(function(result){
+                alert(result);
+            });
+        }
+
+        return "";
+    };
 }

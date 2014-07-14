@@ -133,7 +133,8 @@
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
           <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
           <th style="width: 40px;">{{'label_service_status'|translate}}</th>
-          <th style="width: 700px;">{{'label_service_startup'|translate}}</th>
+          <th style="width: 200px;">{{'host'|translate}}</th>
+          <th style="width: 500px;">{{'label_service_startup'|translate}}</th>
           <th>{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
@@ -148,6 +149,10 @@
                 <i class="healthIcon" ng-class="app.healthIconClass"></i>
               </div>
             </span>
+          </td>
+          <td>
+            <a ng-click="click_host(app.runningHosts[0].ID)" class="link">{{app.runningHosts[0].HostName}}</a>
+            <span class="note" ng-show="app.runningHosts.length > 1">&nbsp;(+{{app.runningHosts.length -1}} {{'more' | translate}})</span>
           </td>
           <td>
             <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>

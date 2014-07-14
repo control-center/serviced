@@ -200,6 +200,7 @@
     "modal_add_pool": "Add Resource Pool",
     "modal_add_virtual_ip": "Add Virtual IP",
     "modal_assign_ip": "Assign IP",
+    "more": "more",
     "msg_filtering": "Filtering for",
     "nav_apps": "Applications",
     "nav_by_cpu": "By CPU",
