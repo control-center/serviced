@@ -12,7 +12,7 @@ import (
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/pool"
 	"github.com/zenoss/serviced/utils"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	"github.com/zenoss/serviced/zzk"
 )
 
 const (
@@ -341,7 +341,7 @@ func setSubtract(a []string, b []string) []string {
 
 func createNode(conn coordclient.Connection, path string) error {
 	// Make the path if it doesn't exist
-	if exists, err := zkutils.PathExists(conn, path); err != nil && err != coordclient.ErrNoNode {
+	if exists, err := zzk.PathExists(conn, path); err != nil && err != coordclient.ErrNoNode {
 		return fmt.Errorf("Error checking path %s: %s", path, err)
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {
