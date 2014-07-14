@@ -100,6 +100,9 @@ table > thead.light {
 
 .table {
     margin-bottom: 30px;
+    /* tables usually have headings and/or actions
+        which are floated and must be cleared */
+    clear: both;
 }
 
 .table-bordered > thead > tr > th {
