@@ -190,9 +190,6 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 	}
 
-	shutdown := make(chan interface{})
-	done := make(chan string)
-	go listener.listenHostState(shutdown, done, state.ID)
 
 	t.Log("Stop the instance and verify restart")
 	var s servicestate.ServiceState
@@ -201,6 +198,10 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not add watch to %s: %s", spath, err)
 	}
+
+	shutdown := make(chan interface{})
+	done := make(chan string)
+	go listener.listenHostState(shutdown, done, state.ID)
 
 	// get the start time and stop the service
 	<-eventC
