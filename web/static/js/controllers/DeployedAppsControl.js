@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, authService, $modalService, $translate) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "apps";
@@ -19,7 +19,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     $scope.services = buildTable('poolID', [
         { id: 'Name', name: 'deployed_tbl_name'},
-        { id: 'Deployment', name: 'deployed_tbl_deployment'},
+        { id: 'Health', name: 'health_check'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
         { id: 'poolID', name: 'deployed_tbl_pool'},
         { id: 'VirtualHost', name: 'vhost_names'}
@@ -27,6 +27,10 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
+    };
+
+    $scope.click_pool = function(id) {
+        $location.path('/pools/' + id);
     };
 
     $scope.modalAddApp = function() {
@@ -118,7 +122,9 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     // Get a list of deployed apps
-    refreshServices($scope, resourcesService, false);
+    refreshServices($scope, resourcesService, false, function(){
+        $serviceHealth.update();
+    });
 
     var setupNewService = function() {
         $scope.newService = {

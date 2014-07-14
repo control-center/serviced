@@ -27,13 +27,18 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort">		  
+        <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.ID}}">
           <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
-          <td ng-class="app.deploymentClass"> <span ng-class="app.deploymentIcon"></span> {{app.Deployment}} </td>
-          <td>{{app.DeploymentID}}</td>
-          <td>{{app.PoolID}}</td>
-          <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a></p></td>
+          <td style="text-align:center;">
+            <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
+              <div>
+                  <i class="healthIcon" ng-class="app.healthIconClass"></i>
+              </div>
+            </span>
           </td>
+          <td>{{app.DeploymentID}}</td>
+          <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
+          <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a></p></td>
 		      <td>
             <div ng-if="app.ID.indexOf('isvc-') == -1">
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
