@@ -125,7 +125,7 @@
       </table>
   </div>
 	
-    <!-- This table has sub service definitions -->
+  <!-- This table has sub service definitions -->
 	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
@@ -162,37 +162,47 @@
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
             </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </span>
+        </td>
+        <td>
+          <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}"></input>
+        </td>
+        <td >
+          <div ng-if="app.ID.indexOf('isvc-') == -1">
+            <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+            <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
-
-    <!-- This table has running instances -->
+  <!-- This table has running instances -->
 	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
-    <table class="table table-striped" ng-show="running.data.length > 0">
-      <thead>
-        <tr>
-          <th>{{'running_tbl_instance_id'|translate}}</th>
-          <th>{{'label_service_name'|translate}}</th>
-		  <th>{{'host'|translate}}</th>
-		  <th>{{'running_tbl_docker_id'|translate}}</th>
-		  <th>{{'running_tbl_actions'|translate}}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="app in running.data | orderBy:running.sort">
-          <td>{{app.InstanceID}}</td>
-          <td>{{app.Name}}</td>
-          <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
-          <td>{{app.DockerID}}</td>
-          <td>
-            <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
-            <button ng-click="killRunning(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <table class="table table-striped" ng-show="running.data.length > 0">
+    <thead>
+      <tr>
+        <th>{{'running_tbl_instance_id'|translate}}</th>
+        <th>{{'label_service_name'|translate}}</th>
+	  <th>{{'host'|translate}}</th>
+	  <th>{{'running_tbl_docker_id'|translate}}</th>
+	  <th>{{'running_tbl_actions'|translate}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="app in running.data | orderBy:running.sort">
+        <td>{{app.InstanceID}}</td>
+        <td>{{app.Name}}</td>
+        <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
+        <td>{{app.DockerID}}</td>
+        <td>
+          <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
+          <button ng-click="killRunning(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  
   <div ng-if="services.current.ID.indexOf('isvc-') == -1">
   	<h3>{{'scheduled_tasks'|translate}}</h3>
       <table class="table table-striped">
@@ -215,15 +225,16 @@
       </table>
   </div>
 
-    <!-- Graphs -->
-    <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0">
-      <h3>{{'graphs'|translate}}</h3>
-        <table class="table table-striped table-bordered side-flush">
-          <tr ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
-            <td>
-              <div>{{graph.name}}</div>
-              <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
-            </td>
-          </tr>
-        </table>
+  <!-- Graphs -->
+  <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0">
+    <h3>{{'graphs'|translate}}</h3>
+    <div class="graphsContainer" style="margin-bottom: 20px;">
+      <div ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
+        <div class="zenchartContainer">
+          <h4>{{graph.name}}</h4>
+          <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+        </div>
+      </div>
+      <br style="clear: both;">
     </div>
+  </div>
