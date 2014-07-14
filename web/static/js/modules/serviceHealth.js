@@ -79,10 +79,11 @@
                 passingAny, failingAny, unknownAny, downAny, status,
                 missedIntervals, tooltipMessage;
 
-            for (var ServiceId in healths) {
+            for (var ServiceId in services) {
 
                 service = services[ServiceId];
                 runningService = findInArray("ServiceID", running, ServiceId);
+                healthCheck = healths[ServiceId];
 
                 if(!service){
                     return;
@@ -97,9 +98,7 @@
                     startTime = 0;
                 }
 
-                healthCheck = healths[ServiceId];
-
-                service.healthTooltipTitle = "";
+                services[ServiceId].healthTooltipTitle = "";
 
                 passingAny = false;
                 failingAny = false;
@@ -173,6 +172,11 @@
                     } else if(passingAny && !unknownAny){
                         status = "good";
                         tooltipMessage = $translate("passing_health_checks");
+
+                    // TODO: This needs to be more representative of the health of a meta-service's children
+                    } else {
+                        status = "good";
+                        tooltipMessage = $translate("passing_health_checks");
                     }
 
                 // the following conditions are relevant when the service
@@ -213,8 +217,7 @@
 
             // if the status has changed since last tick, or
             // it was and is still unknown, notify user
-            if(service.healthStatus !== status ||
-                service.healthStatus === "unknown" && status === "unknown"){
+            if(service.healthStatus !== status || service.healthStatus === "unknown" && status === "unknown"){
                 bounceStatus(service);
             }
 
@@ -227,19 +230,23 @@
         function setStatus(service, status){
             service.healthIconClass = ["glyphicon", STATUS_STYLES[status]];
         }
+
         function bounceStatus(service){
             service.healthIconClass.push("zoom");
 
             // TODO - dont touch dom!
             var $el = $("tr[data-id='"+ service.ID +"'] .healthIcon");
-            $el.on("webkitAnimationEnd", function(){
-                // if zoom is in the class list, remove it
-                if(~service.healthIconClass.indexOf("zoom")){
-                    service.healthIconClass.splice(service.healthIconClass.indexOf("zoom"), 1);
-                }
-                // clean up animation end listener
-                $el.off("webkitAnimationEnd");
-            });
+            if($el.length > 0){
+                console.log(service);
+                $el.on("webkitAnimationEnd", function(){
+                    // if zoom is in the class list, remove it
+                    if(~service.healthIconClass.indexOf("zoom")){
+                        service.healthIconClass.splice(service.healthIconClass.indexOf("zoom"), 1);
+                    }
+                    // clean up animation end listener
+                    $el.off("webkitAnimationEnd");
+                });
+            }
         }
 
         return {

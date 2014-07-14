@@ -181,7 +181,7 @@
         <tr ng-repeat="app in running.data | orderBy:running.sort">
           <td>{{app.InstanceID}}</td>
           <td>{{app.Name}}</td>
-          <td>{{app.hostName}}</td>
+          <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
           <td>{{app.DockerID}}</td>
           <td>
             <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
