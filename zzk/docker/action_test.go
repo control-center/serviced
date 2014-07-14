@@ -31,57 +31,37 @@ func (handler *TestActionHandler) AttachAndRun(dockerID string, command []string
 	return nil, fmt.Errorf("action not found")
 }
 
-func TestActionListener_Listen(t *testing.T) {
+func TestActionListener_Spawn(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := &TestActionHandler{
 		ResultMap: map[string]ActionResult{
-			"success": ActionResult{2 * time.Second, []byte("success"), nil},
+			"success": ActionResult{time.Second, []byte("success"), nil},
 			"failure": ActionResult{time.Second, []byte("message failure"), fmt.Errorf("failure")},
 		},
 	}
-
-	t.Log("Start actions and shutdown")
-	shutdown := make(chan interface{})
-	done := make(chan interface{})
-
 	listener := NewActionListener(conn, handler, "test-host-1")
-	go func() {
-		listener.Listen(shutdown)
-		close(done)
-	}()
 
 	// send actions
+	t.Logf("Sending successful command")
 	success, err := SendAction(conn, &Action{
 		HostID:   listener.hostID,
 		DockerID: "success",
 		Command:  []string{"do", "some", "command"},
 	})
 	if err != nil {
-		t.Fatal("Could not send success action")
+		t.Fatalf("Could not send success action")
 	}
-	successW, err := conn.GetW(actionPath(listener.hostID, success), &Action{})
-	if err != nil {
-		t.Fatal("Failed creating watch for success action: ", err)
-	}
+	listener.Spawn(make(<-chan interface{}), success)
 
+	t.Logf("Sending failure command")
 	failure, err := SendAction(conn, &Action{
 		HostID:   listener.hostID,
 		DockerID: "failure",
 		Command:  []string{"do", "some", "bad", "command"},
 	})
 	if err != nil {
-		t.Fatalf("Could not send fail action")
+		t.Fatalf("Could not send failure action")
 	}
-	failureW, err := conn.GetW(actionPath(listener.hostID, failure), &Action{})
-	if err != nil {
-		t.Fatal("Failed creating watch for failure action: ", err)
-	}
-
-	// wait for actions to complete and shutdown
-	<-successW
-	<-failureW
-	close(shutdown)
-	<-done
-
+	listener.Spawn(make(<-chan interface{}), failure)
 }
