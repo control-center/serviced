@@ -8,7 +8,6 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/zzk"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -91,7 +90,7 @@ func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string
 }
 
 func (l *HostRegistryListener) unregister(hostID string) {
-	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(l.conn, hostpath(hostID)); err != nil {
 		glog.Errorf("Unable to check path for host %s: %s", hostID, err)
 		return
 	} else if !exists {
@@ -132,7 +131,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
 				return nil, err
 			}
-			if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+			if exists, err := zzk.PathExists(l.conn, hostpath(host.ID)); err != nil {
 				return nil, err
 			} else if exists {
 				hosts = append(hosts, &host)
@@ -154,7 +153,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 }
 
 func RegisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 		return err
 	} else if exists {
 		return nil
@@ -164,7 +163,7 @@ func RegisterHost(conn client.Connection, hostID string) error {
 }
 
 func UnregisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 		return err
 	} else if !exists {
 		return nil

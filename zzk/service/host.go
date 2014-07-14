@@ -10,7 +10,6 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -62,9 +61,10 @@ type HostStateHandler interface {
 
 // HostStateListener is the listener for monitoring service instances
 type HostStateListener struct {
-	conn    client.Connection
-	handler HostStateHandler
-	hostID  string
+	conn     client.Connection
+	handler  HostStateHandler
+	hostID   string
+	registry string
 }
 
 // NewHostListener instantiates a HostListener object
@@ -76,80 +76,43 @@ func NewHostStateListener(conn client.Connection, handler HostStateHandler, host
 	}
 }
 
-// Listen starts the HostListener by monitoring when new service instances are
-// started, updated, or removed
-func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
-	var (
-		_shutdown  = make(chan interface{})
-		done       = make(chan string)
-		processing = make(map[string]interface{})
-	)
+// GetConnection implements zzk.Listener
+func (l *HostStateListener) GetConnection() client.Connection { return l.conn }
 
-	// Register the host
-	regpath, err := l.register(shutdown)
+// GetPath implements zzk.Listener
+func (l *HostStateListener) GetPath(nodes ...string) string {
+	return hostpath(append([]string{l.hostID}, nodes...)...)
+}
+
+// Ready adds an ephemeral node to the host registry
+func (l *HostStateListener) Ready() error {
+	host, err := l.handler.GetHost(l.hostID)
 	if err != nil {
-		glog.Errorf("Could not register host %s: %s", l.hostID, err)
-		return
+		return err
+	} else if host == nil {
+		return ErrHostInvalid
 	}
+	l.registry, err = l.conn.CreateEphemeral(l.GetPath(), &HostNode{Host: host})
+	return err
+}
 
-	// Housekeeping
-	defer func() {
-		glog.Info("HostStateListener receieved interrupt")
-		close(_shutdown)
-		for len(processing) > 0 {
-			delete(processing, <-done)
-		}
-		if err := l.conn.Delete(regpath); err != nil {
-			glog.Warning("Could not unregister host %s: %s", l.hostID, err)
-		}
-	}()
-
-	// Monitor the instances
-	hpath := hostpath(l.hostID)
-	for {
-		stateIDs, event, err := l.conn.ChildrenW(hpath)
-		if err != nil {
-			glog.Errorf("Could not watch for states on host %s: %s", l.hostID, err)
-			return
-		}
-
-		for _, ssid := range stateIDs {
-			if _, ok := processing[ssid]; !ok {
-				glog.V(1).Info("Spawning a listener for %s", ssid)
-				processing[ssid] = nil
-				go l.listenHostState(_shutdown, done, ssid)
-			}
-		}
-
-		select {
-		case e := <-event:
-			if e.Type == client.EventNodeDeleted {
-				glog.Infof("Host has been removed from pool, shutting down listener")
-				return
-			}
-			glog.V(2).Infof("Received event: %v", e)
-		case ssid := <-done:
-			glog.V(2).Info("Cleaning up %s", ssid)
-			delete(processing, ssid)
-		case <-shutdown:
-			return
-		}
+// Done removes the ephemeral node from the host registry
+func (l *HostStateListener) Done() {
+	if err := l.conn.Delete(l.registry); err != nil {
+		glog.Warning("Could not unregister host %s: %s", l.hostID, err)
 	}
 }
 
-func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done chan<- string, ssID string) {
-	defer func() {
-		glog.V(2).Info("Shutting down listener for host instance ", ssID)
-		done <- ssID
-	}()
-
+// Spawn listens for changes in the host state and manages running instances
+func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan interface{}
-	hpath := hostpath(l.hostID, ssID)
+	hpath := l.GetPath(stateID)
+	state := &servicestate.ServiceState{} // Just in case our state gets deleted from under us
 	for {
 		var hs HostState
 		event, err := l.conn.GetW(hpath, &hs)
 		if err != nil {
-			glog.Errorf("Could not load host instance %s: %s", ssID, err)
+			glog.Errorf("Could not load host instance %s: %s", stateID, err)
 			return
 		}
 
@@ -158,15 +121,35 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 			return
 		}
 
-		var state servicestate.ServiceState
-		if err := l.conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
+		var s servicestate.ServiceState
+		if err := l.conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &s}); err != nil {
 			glog.Error("Could not find service instance: ", hs.ServiceStateID)
 			// Node doesn't exist or cannot be loaded, delete
 			if err := l.conn.Delete(hpath); err != nil {
-				glog.Warningf("Could not delete host state %s: %s", ssID, err)
+				glog.Warningf("Could not delete host state %s: %s", stateID, err)
+			}
+			if state == nil {
+				return
+			}
+
+			if processDone != nil {
+				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				go l.detachInstance(processDone, state)
+				select {
+				case <-processDone:
+					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				case <-time.After(45 * time.Second):
+					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				}
+			} else {
+				glog.V(2).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				l.stopInstance(state)
+				glog.V(2).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
+
 			}
 			return
 		}
+		state = &s
 
 		var svc service.Service
 		if err := l.conn.Get(servicepath(hs.ServiceID), &ServiceNode{Service: &svc}); err != nil {
@@ -179,20 +162,20 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 		case service.SVCRun:
 			var err error
 			if state.Started.UnixNano() <= state.Terminated.UnixNano() {
-				processDone, err = l.startInstance(&svc, &state)
+				processDone, err = l.startInstance(&svc, state)
 			} else if processDone == nil {
-				processDone, err = l.attachInstance(&svc, &state)
+				processDone, err = l.attachInstance(&svc, state)
 			}
 			if err != nil {
 				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
-				l.stopInstance(&state)
+				l.stopInstance(state)
 				return
 			}
 		case service.SVCStop:
 			if processDone != nil {
-				l.detachInstance(processDone, &state)
+				l.detachInstance(processDone, state)
 			} else {
-				l.stopInstance(&state)
+				l.stopInstance(state)
 			}
 			return
 		default:
@@ -207,9 +190,9 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 			glog.V(3).Info("Receieved event: ", e)
 			if e.Type == client.EventNodeDeleted {
 				if processDone != nil {
-					l.detachInstance(processDone, &state)
+					l.detachInstance(processDone, state)
 				} else {
-					l.stopInstance(&state)
+					l.stopInstance(state)
 				}
 				return
 			}
@@ -217,17 +200,16 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 			glog.V(2).Infof("Service %s Host instance %s receieved signal to shutdown", hs.ServiceID, hs.ServiceStateID)
 			if processDone != nil {
 				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				go l.detachInstance(processDone, &state)
+				go l.detachInstance(processDone, state)
 				select {
 				case <-processDone:
 					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				case <-time.After(45 * time.Second):
 					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				}
-
 			} else {
 				glog.V(2).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				l.stopInstance(&state)
+				l.stopInstance(state)
 				glog.V(2).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
 
 			}
@@ -298,58 +280,6 @@ func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servi
 	}
 	<-done
 	return removeInstance(l.conn, state)
-}
-
-// register waits for the leader to initialize the host
-func (l *HostStateListener) register(shutdown <-chan interface{}) (string, error) {
-	// wait for /hosts
-	for {
-		exists, err := zkutils.PathExists(l.conn, hostpath())
-		if err != nil {
-			return "", err
-		}
-		if exists {
-			break
-		}
-		_, event, err := l.conn.ChildrenW("/")
-		if err != nil {
-			return "", err
-		}
-		select {
-		case <-event:
-		case <-shutdown:
-			return "", ErrShutdown
-		}
-	}
-
-	// wait for /hosts/HOSTID
-	for {
-		exists, err := zkutils.PathExists(l.conn, hostpath(l.hostID))
-		if err != nil {
-			return "", err
-		}
-		if exists {
-			break
-		}
-		_, event, err := l.conn.ChildrenW(hostpath())
-		if err != nil {
-			return "", err
-		}
-		select {
-		case <-event:
-		case <-shutdown:
-			return "", ErrShutdown
-		}
-	}
-
-	host, err := l.handler.GetHost(l.hostID)
-	if err != nil {
-		return "", err
-	} else if host == nil {
-		return "", ErrHostInvalid
-	}
-
-	return l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
